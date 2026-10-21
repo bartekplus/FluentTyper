@@ -20,7 +20,6 @@ import * as missingVerbSlots from "./missingVerbSlots";
 import * as determinerSlots from "./determinerSlots";
 import * as agreementSlots from "./agreementSlots";
 import * as adverbSlots from "./adverbSlots";
-import * as confusionSlots from "./confusionSlots";
 import * as countSlots from "./countSlots";
 import * as negationSlots from "./negationSlots";
 import * as relativeSlots from "./relativeSlots";
@@ -105,7 +104,6 @@ export const FIXERS = mergePredicates<Fixer>(
   dates.FIXERS,
   compoundForms.FIXERS,
   punctuation.FIXERS,
-  confusionSlots.FIXERS,
   apostrophes.FIXERS,
   relativeSlots.FIXERS,
   missingVerbSlots.FIXERS,
@@ -127,5 +125,4 @@ export const FILTERS = mergePredicates<FindingsFilter>(
   grammarStyle1.FILTERS,
   fixedPhrases.FILTERS,
   punctuation.FILTERS,
-  confusionSlots.FILTERS,
 );

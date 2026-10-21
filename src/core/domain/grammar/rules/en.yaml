@@ -2261,7 +2261,8 @@ rules:
     checks: [englishItsContext, englishYourYouAre]
     style: match
     message: review_msg_its_contraction
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Its working now", "Hey, its Katie": its before a predicate.
       - regex: "(?<target>its){{E}}"
@@ -2282,7 +2283,8 @@ rules:
     checks: [englishToToo]
     style: match
     message: review_msg_to_too
-    filter: slotFindingsOncePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # A linking verb: "It's to late.", "The box is not to heavy to carry." Words may stand
       # between the linking verb and "to": "it's way to late", "not to big".
@@ -2319,7 +2321,8 @@ rules:
     checks: [englishExistentialAgreement, englishNounNumber]
     style: match
     message: review_msg_existential_agreement
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "There is many problems", "Here is some great alternatives": a plural count after a
       # singular existential verb; "There are many problem", "There are no book here": a
@@ -2333,7 +2336,8 @@ rules:
     checks: [englishNounNumber, englishPossibleErrors]
     style: match
     message: review_msg_noun_count
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # Every frame here reads the frames near the chunk (owner none): findings start at the
       # noun, so the filter keeps the chunk's own.
@@ -2482,7 +2486,8 @@ rules:
     checks: [englishVerbComplements]
     style: match
     message: review_msg_verb_complements
-    filter: slotFindingsOncePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "I want go", "try get", "would like see", "needs be there": an infinitive without "to".
       - regex: "(?<head>want|wants|wanted|need|needs|needed|like|likes|love|loves|hope|hopes|hoped|try|tries|tried|decide|decided|decides){{S}}(?<verb>[a-z]+){{E}}"
@@ -2516,7 +2521,8 @@ rules:
     checks: [englishSentenceStructure, englishConfusedWords]
     style: match
     message: review_msg_clause_be
-    filter: slotFindingsOncePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "It very easy", "I not sure", "He a racist", "You going to be there": a subject and no be.
       - regex: "(?<target>I|you|he|she|it|we|they|this){{S}}(?=[a-z])"
@@ -2545,7 +2551,8 @@ rules:
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "The translate to English was correct", "Sorry for the late respond": a verb as a noun.
       # "Yesterday's deploy": a name's or a noun's possessive, not a contraction ("it's").
@@ -2702,61 +2709,323 @@ rules:
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
-    filter: slotFindingsOncePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
+    defs:
+      # US English only; a finding that overlaps an earlier one is dropped; the findings that
+      # start in the chunk, outside named examples, stay.
+      slotFindingsNoOverlap:
+        args: "ctx: DetectContext, findings: RawFinding[]"
+        let:
+          taken: "[] as RawFinding[]"
+        when: 'ctx.lang === "en_US"'
+        return: >-
+          findings.filter((f) =>
+            !taken.some((t) => t.range.start < f.range.end && f.range.start < t.range.end) &&
+            !!taken.push(f) &&
+            f.range.start >= ctx.from && f.range.start < ctx.to && !enQuotedMention(ctx, f))
+        else: "[]"
+      # The finding of a confusion slot: [start, end) gets `fix` in the case of `typed`.
+      confusionSlot:
+        args: >-
+          ctx: DetectContext, ruleId: RawFinding["ruleId"], messageKey: RawFinding["messageKey"],
+          start: number, end: number, typed: string, fix: string, from: number
+        type: RawFinding
+        return: >-
+          ({
+            ruleId,
+            messageKey,
+            range: { start, end },
+            alternatives: [caseLike(typed, fix)],
+            context: enEvidence(ctx, from, end),
+          })
+      confusionLower:
+        args: "t: EnToken | undefined"
+        return: 't?.kind === "word" ? t.lower : ""'
+      confusionVerbsOf:
+        args: "word: string"
+        return: englishWordInfo(word)?.verbs ?? []
+      confusionParticiple:
+        args: "word: string"
+        return: 'confusionVerbsOf(word).some((v) => v.form === "participle" || v.form === "past")'
+      # Heads that take "to" + a bare verb.
+      CONFUSION_TO_HEADS: /^(?:want|wants|wanted|need|needs|needed|going|have|has|had|try|tries|tried|trying|able|plan|plans|planned|decided|like|love|afford|hope|hoping|forgot|remember|me|you|him|her|us|them|wish)$/
+      # "can by no means", "will by then", "should by default": a real preposition phrase.
+      CONFUSION_BY_PHRASE: /^(?:no|all|far|means|then|now|default|design|hand|chance|accident|mistake|nature|law|car|bus|train|plane|email|mail|phone|night|day|tomorrow|today|noon|midnight|definition|virtue|itself|themselves|himself|herself|myself|yourself|ourselves|way)$/
+      # Nouns that make "by this/my …" a time or a measure: "will by this point", "by my count".
+      CONFUSION_BY_TIME: /^(?:time|point|stage|date|day|week|month|year|morning|evening|afternoon|night|weekend|deadline|hour|end|count|estimate|reckoning|standards?|measure|logic|definition|own|account|calculation|side|request|leave|choice|design)$/
+      CONFUSION_WEEKDAYS: /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/
+      # "ever" before a time, count or noun that only "every" can take.
+      CONFUSION_EVERY_NOUNS: /^(?:day|week|month|year|time|morning|evening|night|hour|minute|second|other|single|member|user|person|student|child|kid|team|player|employee|customer|girl|boy|man|woman|step|page|item|line|file)$/
+      CONFUSION_PRONOUN_SUBJECT: /^(?:i|he|she|we|they|you)$/
     frames:
       # "I would by a new phone", "Soup cannot by eaten with a fork", "wants you to by happy".
       # Also after a subject and a frequency adverb ("I usually by my food at…") or an inverted
       # do ("Does he by his food here?").
       - regex: "(?:(?<lead>{{CONFUSIONSLOTS_MODAL}}|to)(?:{{S}}(?:also|really|definitely|probably|surely|likely|never|not|always|soon|just|still|only|then|first))?|(?<subject>I|you|we|they){{S}}(?:usually|always|often|never|sometimes|rarely|normally|also)|(?<inverted>(?:do|does|did)(?:n['’]t)?{{S}}(?:I|you|we|they|he|she))){{S}}(?<target>by){{E}}"
-        fixer: confusionByBuy
+        let:
+          leadWord: lead ?? "will"
+          span: m.indices!.groups!.target
+          tokens: enTokensAfter(ctx, span[1], 2)
+          next: tokens[0]
+          after: tokens[1]
+          word: next.lower
+          read: englishWordInfo(word)
+          # "cannot by eaten", "to by happy": a participle or adjective that no noun reading
+          # shares. "would by a new phone", "should by another brand": a purchase object.
+          # Without a modal only a possessive object counts ("I usually by my food").
+          fix: >-
+            read &&
+            !read.noun &&
+            !read.adverb &&
+            !EN_FUNCTION_WORDS.has(word) &&
+            !read.verbs.some((v) => v.form === "base" || v.form === "ing") &&
+            (read.adjective || confusionParticiple(word))
+              ? "be"
+              : !lead
+                ? /^(?:my|your|his|our|their)$/.test(word) && !CONFUSION_BY_TIME.test(confusionLower(after))
+                  ? "buy"
+                  : null
+                : /^(?:another|some|more|them|it|these|those|one|stock|stocks|shares|tickets|groceries|food)$/.test(word) ||
+                    (/^(?:this|that|my|your|his|our|their|you|me|us)$/.test(word) &&
+                      after?.kind === "word" &&
+                      !CONFUSION_BY_TIME.test(after.lower) &&
+                      !(word === "you" && after.lower === "and")) ||
+                    (/^(?:a|an)$/.test(word) &&
+                      after?.kind === "word" &&
+                      !/^(?:margin|factor|mile|landslide|large|wide|narrow|small|long|little|lot|few|vote|majority)$/.test(after.lower) &&
+                      !/(?:er|or|ist|ian)$/.test(after.lower))
+                  ? "buy"
+                  : null
+        when:
+          - "!(inverted && !enAfterBreak(ctx, m.index))"
+          - '!(leadWord === "to" && !CONFUSION_TO_HEADS.test(enWordBefore(ctx, m.index)))'
+          # "at will by", "Uncle Zebulon's Will by": the noun will; a mid-sentence capital names.
+          - "!(leadWord !== leadWord.toLowerCase() && !enAfterBreak(ctx, m.index))"
+          - "!(/^will$/i.test(leadWord) && /^(?:at|free|good|ill|own|the|his|her|their|my|your|our)$/.test(enWordBefore(ctx, m.index)))"
+          - 'next?.kind === "word" && next.text === next.lower'
+          - "!(CONFUSION_BY_PHRASE.test(word) || /ing$/.test(word))"
+          - "!!fix"
+        return: 'confusionSlot(ctx, "englishConfusedWords", "review_msg_confused_word", span[0], span[1], target, fix, m.index)'
       # "I do this ever day", "Ever member was there".
       - regex: "(?<target>ever){{S}}(?=[A-Za-z0-9])"
-        fixer: confusionEverEvery
+        let:
+          span: m.indices!.groups!.target
+          prev: enWordBefore(ctx, m.index)
+          next: enTokensAfter(ctx, span[1], 1)[0]
+          word: 'next?.kind === "word" ? next.lower : ""'
+          # "a blackout ever Monday" closes a noun phrase; only a verb or clause start before it.
+          prevNoun: "!!prev && !EN_FUNCTION_WORDS.has(prev) && !englishWordInfo(prev)?.verbs.length"
+          ok: >-
+            (next?.kind === "number" && !prevNoun) ||
+            (CONFUSION_WEEKDAYS.test(word) && !prevNoun) ||
+            (CONFUSION_EVERY_NOUNS.test(word) &&
+              (next?.kind !== "word" || next.text === next.lower || CONFUSION_WEEKDAYS.test(word)))
+        when:
+          # "the best ever season", "hardly ever", "if ever", "than ever".
+          - "!/^(?:hardly|never|if|than|as|nor|forever|best|worst|first|only|greatest|biggest)$|est$/.test(prev)"
+          - "!(!ok || /^(?:since|after|so|more|again)$/.test(word))"
+        return: 'confusionSlot(ctx, "englishConfusedWords", "review_msg_confused_word", span[0], span[1], target, "every", m.index)'
       # "Has this every worked?", "Have you every been there": every before a participle.
       - regex: "(?:have|has|had|haven['’]t|hasn['’]t|you|this|it|they|we|i){{S}}(?<target>every){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: confusionEveryEver
+        let:
+          read: englishWordInfo(verb)
+          span: m.indices!.groups!.target
+        when: "!(!read || read.noun || !confusionParticiple(verb))"
+        return: 'confusionSlot(ctx, "englishConfusedWords", "review_msg_confused_word", span[0], span[1], target, "ever", m.index)'
       # "Did you every try it?", "Why would I every do that": every between auxiliary + subject
       # and a verb, unless a time phrase follows ("Did you every day go…").
       - regex: "(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t){{S}}(?:I|you|we|they|he|she|it){{S}}(?<target>every){{S}}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|few|two|three){{E}})[a-z]+{{E}}"
-        fixer: confusionEveryAfterSubject
+        let:
+          span: m.indices!.groups!.target
+        return: >-
+          finding("englishConfusedWords", "review_msg_ever_every", span[0], span[1], [caseLike(target, "ever")], {
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
       # "I don't now where it is", "Thanks for letting us now.": know after do-not and let.
       - regex: "(?:(?:do|does|did)(?:n['’]t|{{S}}not)|let(?:ting|s)?{{S}}(?:me|us|him|her|them|you)){{S}}(?<target>now){{E}}"
-        fixer: confusionNowKnow
+        let:
+          span: m.indices!.groups!.target
+          next: enTokensAfter(ctx, span[1], 1)[0]
+          word: confusionLower(next)
+        when: >-
+          (next?.kind === "end" && /^let/i.test(m[0]) && /^[.!]/.test(next.text)) ||
+          /^(?:what|where|when|why|how|who|whether|if|about|which|anything|much)$/.test(word)
+        return: 'confusionSlot(ctx, "englishConfusedWords", "review_msg_confused_word", span[0], span[1], target, "know", m.index)'
       # "come an have a look", "removed an migrated", "great an he is fast": "an" for "and".
       - regex: "(?<target>an){{S}}(?=[A-Za-z])"
-        fixer: confusionAnAnd
+        let:
+          span: m.indices!.groups!.target
+          pair: enTokensAfter(ctx, span[1], 2)
+          next: pair[0]
+          after: pair[1]
+          word: next.lower
+          read: englishWordInfo(word)
+          prev: enWordBefore(ctx, m.index)
+          # A capitalized pronoun or a lowercase word with a consonant sound: "an" is no article
+          # here. Then a verb-only word, closing the phrase or before its object ("an connect
+          # add-on" may still be an article before a compound), or "filter an order the data",
+          # "come an have a look": a verb before its own object.
+          ok: >-
+            word === "i" ||
+            (CONFUSION_PRONOUN_SUBJECT.test(word) && next.text === next.lower) ||
+            (!(next.text !== next.lower || /^(?:[aeiou]|h(?:our|onest|onor|eir))/.test(word)) &&
+              (!!(read &&
+                !read.noun &&
+                !read.adjective &&
+                read.verbs.length > 0 &&
+                read.verbs.every((v) => v.form === "base" || v.form === "past" || v.form === "participle") &&
+                (!after ||
+                  after.kind === "end" ||
+                  after.kind === "comma" ||
+                  (after.kind === "word" && (EN_FUNCTION_WORDS.has(after.lower) || !englishWordInfo(after.lower)?.noun)))) ||
+                !!(read?.verbs.some((v) => v.form === "base") &&
+                  after?.kind === "word" &&
+                  /^(?:the|a|my|your|our|their|his|her|its|them|it|us|me|him)$/.test(after.lower))))
+        when:
+          - 'target === "an"'
+          - 'next?.kind === "word"'
+          # The word before must end a phrase: a verb, adjective, adverb or noun, not a preposition.
+          - "!(!prev || (EN_FUNCTION_WORDS.has(prev) && !/^(?:on|off|up|down|in|out|over|once)$/.test(prev)))"
+          - ok
+        return: 'confusionSlot(ctx, "englishConfusedWords", "review_msg_confused_word", span[0], span[1], target, "and", m.index)'
   - id: en.thenAfterComparative
     checks: [englishThenThan]
     style: match
     message: review_msg_then_than
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
+    defs:
+      # "-er" words that are not comparatives, or compare in time ("later then").
+      CONFUSION_NOT_COMPARATIVE: /^(?:after|never|over|under|whether|either|neither|ever|together|other|later|earlier|order|number|water|matter|paper|power|user|server|letter|member|computer|summer|winter|corner|answer|manner|offer|enter|cover|consider|remember|wonder|differ|prefer|refer|suffer|deliver|discover|gather|bother|weather|father|mother|brother|sister|daughter|leader|player|owner|customer|partner|teacher|writer|reader|driver|finger|dinner|center|chapter|character|register|filter|folder|header|footer|layer|buffer|parameter|counter|monster|master|meter|liter|litter|butter|hammer|ladder|lower|upper|outer|inner|former|latter|proper|super|clever|tender|sober|bitter|eager|slender|rather)$/
+      CONFUSION_COMPARATIVE_WORDS: /^(?:more|less|fewer|better|worse|rather|else|other)$/
+      # What may follow a comparison's "than": noun phrases, pronoun objects, numbers and time
+      # words.
+      CONFUSION_COMPARED: /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|me|him|us|them|others|another|any|anyone|anything|anywhere|everyone|everything|everybody|anybody|ever|usual|before|expected|necessary|needed|last|in|at|on|for|with|one|two|three|four|five|ten|hundred|a)$/
+      # "faster", "smoother", "scarier": the adjective or adverb's -er form, never a noun.
+      confusionComparative:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        when:
+          - "!CONFUSION_COMPARATIVE_WORDS.test(word)"
+          - "!(!/^[a-z]{3,}er$/.test(word) || CONFUSION_NOT_COMPARATIVE.test(word))"
+        return: "!!read && (read.adjective || read.adverb) && !read.noun && !read.verbs.length"
+        else: "CONFUSION_COMPARATIVE_WORDS.test(word)"
+      # The index of the last comparative in words[0..k], or -1.
+      confusionLastComparative:
+        args: "words: string[], k: number"
+        type: number
+        return: "k < 0 || confusionComparative(words[k]) ? k : confusionLastComparative(words, k - 1)"
     frames:
       # "more expensive on some systems then others", "much smoother then our flight": than.
       - regex: "(?<target>then){{S}}(?=[A-Za-z0-9])"
-        fixer: confusionThenThan
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 80), m.index)
+          # "If I get stronger at this then I…", "when you feel better then you…": a sequence.
+          sentence: '/[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 200), m.index))![0]'
+          # The comparison and "then" share a clause: no punctuation or linking word between.
+          clause: '/[^.!?;:,\n(]*$/.exec(before)![0]'
+          words: clause.toLowerCase().match(/[a-z]+/g) ?? []
+          k: confusionLastComparative(words, words.length - 1)
+          gap: words.slice(k + 1)
+          pair: enTokensAfter(ctx, m.index + m[0].length, 2)
+          next: pair[0]
+          after: pair[1]
+          word: confusionLower(next)
+          subjectComparison: >-
+            /^(?:i|we|they|he|she|you)$/.test(word) &&
+            /^(?:do|did|does|can|could|would|have|has|had|was|were|am|is|are|expected|thought)$/.test(confusionLower(after))
+          nounPhrase: >-
+            next?.kind === "number" ||
+            CONFUSION_COMPARED.test(word) ||
+            (next?.kind === "word" && enNounOnly(word) === "plural")
+          # "…then the old version failed": a clause after then is a sequence; names and code
+          # abstain.
+          rest: enTokensAfter(ctx, m.index + m[0].length, 6)
+        when:
+          - 'target === "then"'
+          - '!/\b(?:if|when|whenever|once|as long as|unless|after|before|while|until|since)\b/i.test(sentence)'
+          # Right after the comparative, englishWordConfusions decides; here words stand between.
+          - "!(k < 0 || k === words.length - 1 || words.length - k > 7)"
+          - >-
+            !gap.some((w) =>
+              /^(?:and|or|but|so|if|when|because|until|since|just|only|even|back|and|until)$/.test(w) ||
+              (confusionVerbsOf(w).some((v) => v.form === "third" || v.form === "past") && !englishWordInfo(w)?.noun))
+          # "even more then"? "If you need more, then call": a sequence needs a clause after then.
+          - '!/^(?:and|or|but|just|since|until|by|from|back|even|only|right|since)$/.test(words.at(-1) ?? "")'
+          - subjectComparison || nounPhrase
+          - '!rest.some((t) => t.kind === "other")'
+          - >-
+            !(!subjectComparison &&
+              rest.some((t) =>
+                t.kind === "word" &&
+                (/^(?:is|are|was|were|has|have|had|will|would|can|could)$/.test(t.lower) ||
+                  (confusionVerbsOf(t.lower).some((v) => v.form === "past" || v.form === "third") &&
+                    !englishWordInfo(t.lower)?.noun))))
+          # "more then the next day": a time sequence noun after "then".
+          - "!/^(?:next|following)$/.test(confusionLower(after))"
+        return: 'confusionSlot(ctx, "englishThenThan", "review_msg_then_than", m.index, m.index + 4, target, "than", m.index)'
   - id: en.wereWhere
     checks: [englishWereWhere]
     style: match
     message: review_msg_were_where
-    filter: slotFindingsOncePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "Go back to were you came from".
       - regex: "(?:to|from){{S}}(?<target>were){{S}}(?=(?:I|you|he|she|it|we|they|the|this|that){{E}})"
-        fixer: confusionToWere
+        let:
+          # "next to were the boxes"? Only a clause with its own verb after.
+          span: m.indices!.groups!.target
+          tokens: enTokensAfter(ctx, span[1], 4)
+        when: >-
+          tokens.slice(1).some((t) => t.kind === "word" && confusionVerbsOf(t.lower).length > 0 && !englishWordInfo(t.lower)?.noun)
+        return: 'confusionSlot(ctx, "englishWereWhere", "review_msg_were_where", span[0], span[1], target, "where", m.index)'
       # "If I where a carpenter".
       - regex: "(?:if|wish|as{{S}}if|as{{S}}though){{S}}(?:I|he|she|it|we|they|you){{S}}(?<target>where){{E}}"
-        fixer: confusionIfWhere
+        let:
+          span: m.indices!.groups!.target
+        return: 'confusionSlot(ctx, "englishWereWhere", "review_msg_were_where", span[0], span[1], target, "were", m.index)'
       # A plural subject before where + an -ing verb: "the runners where running".
       - regex: "(?<target>where){{S}}(?<verb>[a-z]+ing){{E}}"
-        fixer: confusionWhereIng
+        let:
+          read: englishWordInfo(verb)
+          prev: enWordBefore(ctx, m.index)
+          prevRead: englishWordInfo(prev)
+          subject: >-
+            /^(?:they|we|you)$/.test(prev) ||
+            (!!prevRead?.noun &&
+              prevRead.plural &&
+              !/^(?:places|areas|cases|situations|times|days|conditions|jobs|countries|cities|events)$/.test(prev))
+          # "conditions where working is hard": a gerund subject with its own verb.
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          span: m.indices!.groups!.target
+        when:
+          - '!!read?.verbs.some((v) => v.form === "ing")'
+          - subject
+          - "!/^(?:is|was|has|can|will|would|seems|becomes|makes)$/.test(confusionLower(next))"
+        return: 'confusionSlot(ctx, "englishWereWhere", "review_msg_were_where", span[0], span[1], target, "were", m.index)'
       # "Where you ever able to…?", "Where you really hurt?": a yes/no question with be.
       - regex: "(?<target>Where){{S}}(?:you|they|we)(?:{{S}}(?:ever|really|also|all|both))?{{S}}(?<pred>[a-z]+){{E}}"
-        fixer: confusionWhereYou
+        let:
+          read: englishWordInfo(pred)
+          ok: >-
+            /^(?:able|aware|sure|ready|happy|right|wrong|there|here)$/.test(pred) ||
+            (!!read &&
+              read.verbs.some((v) => v.form === "participle") &&
+              !read.verbs.some((v) => v.form === "base"))
+          span: m.indices!.groups!.target
+        when:
+          - enAfterBreak(ctx, m.index)
+          - '!(!ok || !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160)))'
+        return: 'confusionSlot(ctx, "englishWereWhere", "review_msg_were_where", span[0], span[1], target, "were", m.index)'
   - id: en.countNouns
     checks: [englishCountability]
     style: match
     message: review_msg_countability
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "less people" -> fewer; "too much meetings" -> many.
       - regex: "(?<target>less|much){{S}}(?<noun>[a-z]+){{E}}"
@@ -2773,7 +3042,8 @@ rules:
     checks: [englishUsagePhrases]
     style: match
     message: review_msg_double_negative
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I didn't see nothing", "Don't give me no excuses", "There wasn't nobody home".
       - regex: "{{NEGATIONSLOTS_NEGATED}}(?<between>(?:{{S}}[a-z]+){0,3}?){{S}}(?<target>nothing|nobody|nowhere|neither|no){{E}}"
@@ -2786,7 +3056,8 @@ rules:
     checks: [englishSubjectVerbAgreement, englishPossibleErrors]
     style: match
     message: review_msg_subject_verb
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "Here is a screenshot that show …", "processes that runs …": a relative verb's number.
       # The frame starts at the pronoun (cheap to find); the noun is in its lookbehind.
@@ -2819,7 +3090,8 @@ rules:
     checks: [englishPronounVerbWhitelistAgreement]
     style: match
     message: review_msg_pronoun_verb
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "I hope you is happy", "I rarely has", "as soon as you hears": a subject pronoun and its
       # be/have/do or -s verb.
@@ -2836,7 +3108,8 @@ rules:
     checks: [englishAuxiliaryBaseVerb]
     style: match
     message: review_msg_auxiliary_base
-    filter: slotFindingsNoOverlap
+    filter:
+      return: slotFindingsNoOverlap(ctx, findings)
     frames:
       # "Tell me how did he smiled", "what does it means", "How do I typically writing…".
       - regex: "(?:(?:what|how|why|where|when)(?:{{S}}[a-z]+)?{{S}}(?:do|does|did){{S}}{{QUESTIONSLOTS_PRONOUN}}|(?:who|which){{S}}(?:do|does|did){{S}}(?:i|we|they|he|she)){{QUESTIONSLOTS_ADVERB}}{{S}}(?<verb>[a-z]+){{E}}"
@@ -2846,7 +3119,8 @@ rules:
     checks: [englishAuxiliaryBaseVerb]
     style: match
     message: review_msg_question_auxiliary
-    filter: slotFindingsNoOverlap
+    filter:
+      return: slotFindingsNoOverlap(ctx, findings)
     frames:
       # "Does anyone can help?", "How does the client would like…": the modal leads the question.
       - regex: "(?<target>(?<aux>do|does|did)(?<subject>{{S}}{{QUESTIONSLOTS_SUBJECT}}){{S}}(?<modal>{{QUESTIONSLOTS_MODAL}})){{S}}(?<verb>[a-z]+){{E}}"
@@ -2855,7 +3129,8 @@ rules:
     checks: [englishAuxiliaryBaseVerb]
     style: match
     message: review_msg_question_auxiliary
-    filter: slotFindingsNoOverlap
+    filter:
+      return: slotFindingsNoOverlap(ctx, findings)
     frames:
       # "Did you have entered your PIN?", "Did the dog has been fed?": a perfect question.
       - regex: "(?<target>(?<aux>did)(?<subject>{{S}}{{QUESTIONSLOTS_SUBJECT}}){{S}}(?:has|have)){{S}}(?<verb>[a-z]+){{E}}"
@@ -2864,7 +3139,8 @@ rules:
     checks: [englishAuxiliaryBaseVerb]
     style: match
     message: review_msg_repeated_auxiliary
-    filter: slotFindingsNoOverlap
+    filter:
+      return: slotFindingsNoOverlap(ctx, findings)
     frames:
       # "Can I can count on you?": the auxiliary written twice.
       - regex: "(?<first>{{QUESTIONSLOTS_MODAL}})(?<subject>{{S}}{{QUESTIONSLOTS_PRONOUN}}){{S}}(?<second>{{QUESTIONSLOTS_MODAL}}){{E}}"
@@ -2878,7 +3154,8 @@ rules:
     checks: [englishVerbComplements]
     style: match
     message: review_msg_causative_base
-    filter: slotFindings
+    filter:
+      return: usSlots(ctx, findings)
     frames:
       # "make it works", "let me knows": a causative's verb stays bare. Not help ("the help it
       # needs", "help them includes"), whose object may end a clause.
@@ -3025,7 +3302,8 @@ rules:
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
-    filter: slotFindingsOncePerStart
+    filter:
+      return: usSlotsOnePerStart(ctx, findings)
     frames:
       # "There is not time", "there are not jaguars", "I have not issues".
       - regex: "(?:(?<there>there){{S}}(?:is|are|was|were)|there['’]s|(?<have>i|you|we|they|he|she|it){{S}}(?:have|has|had)|(?<have2>i|you|we|they)['’]ve){{S}}(?<target>not){{S}}(?<word>[a-z]+){{E}}"

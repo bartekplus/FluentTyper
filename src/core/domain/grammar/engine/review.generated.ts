@@ -1337,7 +1337,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [594, 595, 596, 597],
     message: "review_msg_its_contraction",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.possessiveContractions/filter",
     source: "en",
   },
   {
@@ -1347,7 +1347,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [598, 599, 600, 601, 602, 603, 604, 605, 606, 607],
     message: "review_msg_to_too",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.toForToo/filter",
     source: "en",
   },
   {
@@ -1357,7 +1357,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [608],
     message: "review_msg_existential_agreement",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.existentialCount/filter",
     source: "en",
   },
   {
@@ -1367,7 +1367,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619],
     message: "review_msg_noun_count",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.nounNumberSlots/filter",
     source: "en",
   },
   {
@@ -1407,7 +1407,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [635, 636, 637, 638, 639, 640, 641],
     message: "review_msg_verb_complements",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.verbComplementSlots/filter",
     source: "en",
   },
   {
@@ -1417,7 +1417,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [642, 643, 644, 645, 646, 647, 648],
     message: "review_msg_clause_be",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.missingVerbs/filter",
     source: "en",
   },
   {
@@ -1427,7 +1427,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [649, 650],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.determinerConfusions/filter",
     source: "en",
   },
   {
@@ -1537,7 +1537,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [670, 671, 672, 673, 674, 675],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.confusionPairs/filter",
     source: "en",
   },
   {
@@ -1547,7 +1547,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [676],
     message: "review_msg_then_than",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.thenAfterComparative/filter",
     source: "en",
   },
   {
@@ -1557,7 +1557,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [677, 678, 679, 680],
     message: "review_msg_were_where",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.wereWhere/filter",
     source: "en",
   },
   {
@@ -1567,7 +1567,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [681, 682, 683],
     message: "review_msg_countability",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.countNouns/filter",
     source: "en",
   },
   {
@@ -1577,7 +1577,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [684, 685],
     message: "review_msg_double_negative",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.doubleNegatives/filter",
     source: "en",
   },
   {
@@ -1587,7 +1587,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [686, 687, 688, 689, 690],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.relativeAgreement/filter",
     source: "en",
   },
   {
@@ -1597,7 +1597,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [691, 692],
     message: "review_msg_pronoun_verb",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.pronounForms/filter",
     source: "en",
   },
   {
@@ -1607,7 +1607,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [693],
     message: "review_msg_auxiliary_base",
     style: "match",
-    filter: "en:slotFindingsNoOverlap",
+    filter: "en:@en.questionAuxiliaries/filter",
     source: "en",
   },
   {
@@ -1617,7 +1617,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [694],
     message: "review_msg_question_auxiliary",
     style: "match",
-    filter: "en:slotFindingsNoOverlap",
+    filter: "en:@en.questionAuxiliaries.doModal/filter",
     source: "en",
   },
   {
@@ -1627,7 +1627,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [695],
     message: "review_msg_question_auxiliary",
     style: "match",
-    filter: "en:slotFindingsNoOverlap",
+    filter: "en:@en.questionAuxiliaries.didPerfect/filter",
     source: "en",
   },
   {
@@ -1637,7 +1637,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [696, 697],
     message: "review_msg_repeated_auxiliary",
     style: "match",
-    filter: "en:slotFindingsNoOverlap",
+    filter: "en:@en.questionAuxiliaries.repeated/filter",
     source: "en",
   },
   {
@@ -1647,7 +1647,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [698],
     message: "review_msg_causative_base",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.causativeThird/filter",
     source: "en",
   },
   {
@@ -1709,7 +1709,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [729, 730, 731],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.noForNot/filter",
     source: "en",
   },
   {
@@ -10516,64 +10516,64 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<lead>(?:will|would|can|could|should|shall|may|might|must|cannot|['’]ll|['’]d|(?:won|wouldn|can|couldn|shouldn|don|doesn|didn)['’]t)|to)(?:[ \\t\\u00a0]{1,8}(?:also|really|definitely|probably|surely|likely|never|not|always|soon|just|still|only|then|first))?|(?<subject>I|you|we|they)[ \\t\\u00a0]{1,8}(?:usually|always|often|never|sometimes|rarely|normally|also)|(?<inverted>(?:do|does|did)(?:n['’]t)?[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she)))[ \\t\\u00a0]{1,8}(?<target>by)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:confusionByBuy",
+    fixer: "en:@en.confusionPairs/1",
   }),
   frame({
     pattern: "(?<target>ever)[ \\t\\u00a0]{1,8}(?=[A-Za-z0-9])",
     literals: ["ever"],
-    fixer: "en:confusionEverEvery",
+    fixer: "en:@en.confusionPairs/2",
   }),
   frame({
     pattern:
       "(?:have|has|had|haven['’]t|hasn['’]t|you|this|it|they|we|i)[ \\t\\u00a0]{1,8}(?<target>every)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["every"],
-    fixer: "en:confusionEveryEver",
+    fixer: "en:@en.confusionPairs/3",
   }),
   frame({
     pattern:
       "(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?<target>every)[ \\t\\u00a0]{1,8}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|few|two|three)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["every"],
-    fixer: "en:confusionEveryAfterSubject",
+    fixer: "en:@en.confusionPairs/4",
   }),
   frame({
     pattern:
       "(?:(?:do|does|did)(?:n['’]t|[ \\t\\u00a0]{1,8}not)|let(?:ting|s)?[ \\t\\u00a0]{1,8}(?:me|us|him|her|them|you))[ \\t\\u00a0]{1,8}(?<target>now)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["now"],
-    fixer: "en:confusionNowKnow",
+    fixer: "en:@en.confusionPairs/5",
   }),
   frame({
     pattern: "(?<target>an)[ \\t\\u00a0]{1,8}(?=[A-Za-z])",
     literals: [],
-    fixer: "en:confusionAnAnd",
+    fixer: "en:@en.confusionPairs/6",
   }),
   frame({
     pattern: "(?<target>then)[ \\t\\u00a0]{1,8}(?=[A-Za-z0-9])",
     literals: ["then"],
-    fixer: "en:confusionThenThan",
+    fixer: "en:@en.thenAfterComparative/1",
   }),
   frame({
     pattern:
       "(?:to|from)[ \\t\\u00a0]{1,8}(?<target>were)[ \\t\\u00a0]{1,8}(?=(?:I|you|he|she|it|we|they|the|this|that)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["were"],
-    fixer: "en:confusionToWere",
+    fixer: "en:@en.wereWhere/1",
   }),
   frame({
     pattern:
       "(?:if|wish|as[ \\t\\u00a0]{1,8}if|as[ \\t\\u00a0]{1,8}though)[ \\t\\u00a0]{1,8}(?:I|he|she|it|we|they|you)[ \\t\\u00a0]{1,8}(?<target>where)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["where"],
-    fixer: "en:confusionIfWhere",
+    fixer: "en:@en.wereWhere/2",
   }),
   frame({
     pattern:
       "(?<target>where)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["where"],
-    fixer: "en:confusionWhereIng",
+    fixer: "en:@en.wereWhere/3",
   }),
   frame({
     pattern:
       "(?<target>Where)[ \\t\\u00a0]{1,8}(?:you|they|we)(?:[ \\t\\u00a0]{1,8}(?:ever|really|also|all|both))?[ \\t\\u00a0]{1,8}(?<pred>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["where"],
-    fixer: "en:confusionWhereYou",
+    fixer: "en:@en.wereWhere/4",
   }),
   frame({
     pattern:

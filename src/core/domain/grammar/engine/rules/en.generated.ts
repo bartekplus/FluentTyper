@@ -2,7 +2,14 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FixResult, FrameRef, MatchResult, RawFinding } from "../../library";
+import type {
+  DetectContext,
+  EnToken,
+  FixResult,
+  FrameRef,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
   ENGLISH_MASS_NOUNS,
   EN_FUNCTION_WORDS,
@@ -194,6 +201,102 @@ export const PLAIN_CONTRACTED: Readonly<Record<string, string>> = {
   will: "won't",
 };
 
+// en.yaml rule en.confusionPairs def slotFindingsNoOverlap
+export function slotFindingsNoOverlap(ctx: DetectContext, findings: RawFinding[]) {
+  if (!(ctx.lang === "en_US")) return [];
+  const taken = [] as RawFinding[];
+  return findings.filter(
+    (f) =>
+      !taken.some((t) => t.range.start < f.range.end && f.range.start < t.range.end) &&
+      !!taken.push(f) &&
+      f.range.start >= ctx.from &&
+      f.range.start < ctx.to &&
+      !enQuotedMention(ctx, f),
+  );
+}
+
+// en.yaml rule en.confusionPairs def confusionSlot
+export function confusionSlot(
+  ctx: DetectContext,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  start: number,
+  end: number,
+  typed: string,
+  fix: string,
+  from: number,
+): RawFinding {
+  return {
+    ruleId,
+    messageKey,
+    range: { start, end },
+    alternatives: [caseLike(typed, fix)],
+    context: enEvidence(ctx, from, end),
+  };
+}
+
+// en.yaml rule en.confusionPairs def confusionLower
+export function confusionLower(t: EnToken | undefined) {
+  return t?.kind === "word" ? t.lower : "";
+}
+
+// en.yaml rule en.confusionPairs def confusionVerbsOf
+export function confusionVerbsOf(word: string) {
+  return englishWordInfo(word)?.verbs ?? [];
+}
+
+// en.yaml rule en.confusionPairs def confusionParticiple
+export function confusionParticiple(word: string) {
+  return confusionVerbsOf(word).some((v) => v.form === "participle" || v.form === "past");
+}
+
+// en.yaml rule en.confusionPairs def CONFUSION_TO_HEADS
+export const CONFUSION_TO_HEADS =
+  /^(?:want|wants|wanted|need|needs|needed|going|have|has|had|try|tries|tried|trying|able|plan|plans|planned|decided|like|love|afford|hope|hoping|forgot|remember|me|you|him|her|us|them|wish)$/;
+
+// en.yaml rule en.confusionPairs def CONFUSION_BY_PHRASE
+export const CONFUSION_BY_PHRASE =
+  /^(?:no|all|far|means|then|now|default|design|hand|chance|accident|mistake|nature|law|car|bus|train|plane|email|mail|phone|night|day|tomorrow|today|noon|midnight|definition|virtue|itself|themselves|himself|herself|myself|yourself|ourselves|way)$/;
+
+// en.yaml rule en.confusionPairs def CONFUSION_BY_TIME
+export const CONFUSION_BY_TIME =
+  /^(?:time|point|stage|date|day|week|month|year|morning|evening|afternoon|night|weekend|deadline|hour|end|count|estimate|reckoning|standards?|measure|logic|definition|own|account|calculation|side|request|leave|choice|design)$/;
+
+// en.yaml rule en.confusionPairs def CONFUSION_WEEKDAYS
+export const CONFUSION_WEEKDAYS = /^(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/;
+
+// en.yaml rule en.confusionPairs def CONFUSION_EVERY_NOUNS
+export const CONFUSION_EVERY_NOUNS =
+  /^(?:day|week|month|year|time|morning|evening|night|hour|minute|second|other|single|member|user|person|student|child|kid|team|player|employee|customer|girl|boy|man|woman|step|page|item|line|file)$/;
+
+// en.yaml rule en.confusionPairs def CONFUSION_PRONOUN_SUBJECT
+export const CONFUSION_PRONOUN_SUBJECT = /^(?:i|he|she|we|they|you)$/;
+
+// en.yaml rule en.thenAfterComparative def CONFUSION_NOT_COMPARATIVE
+export const CONFUSION_NOT_COMPARATIVE =
+  /^(?:after|never|over|under|whether|either|neither|ever|together|other|later|earlier|order|number|water|matter|paper|power|user|server|letter|member|computer|summer|winter|corner|answer|manner|offer|enter|cover|consider|remember|wonder|differ|prefer|refer|suffer|deliver|discover|gather|bother|weather|father|mother|brother|sister|daughter|leader|player|owner|customer|partner|teacher|writer|reader|driver|finger|dinner|center|chapter|character|register|filter|folder|header|footer|layer|buffer|parameter|counter|monster|master|meter|liter|litter|butter|hammer|ladder|lower|upper|outer|inner|former|latter|proper|super|clever|tender|sober|bitter|eager|slender|rather)$/;
+
+// en.yaml rule en.thenAfterComparative def CONFUSION_COMPARATIVE_WORDS
+export const CONFUSION_COMPARATIVE_WORDS = /^(?:more|less|fewer|better|worse|rather|else|other)$/;
+
+// en.yaml rule en.thenAfterComparative def CONFUSION_COMPARED
+export const CONFUSION_COMPARED =
+  /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|me|him|us|them|others|another|any|anyone|anything|anywhere|everyone|everything|everybody|anybody|ever|usual|before|expected|necessary|needed|last|in|at|on|for|with|one|two|three|four|five|ten|hundred|a)$/;
+
+// en.yaml rule en.thenAfterComparative def confusionComparative
+export function confusionComparative(word: string) {
+  if (CONFUSION_COMPARATIVE_WORDS.test(word)) return CONFUSION_COMPARATIVE_WORDS.test(word);
+  if (!/^[a-z]{3,}er$/.test(word) || CONFUSION_NOT_COMPARATIVE.test(word))
+    return CONFUSION_COMPARATIVE_WORDS.test(word);
+  const read = englishWordInfo(word);
+  return !!read && (read.adjective || read.adverb) && !read.noun && !read.verbs.length;
+}
+
+// en.yaml rule en.thenAfterComparative def confusionLastComparative
+export function confusionLastComparative(words: string[], k: number): number {
+  return k < 0 || confusionComparative(words[k]) ? k : confusionLastComparative(words, k - 1);
+}
+
 // en.yaml rule en.plainStyle def PLAIN_DIMENSIONS
 export const PLAIN_DIMENSIONS = {
   size: /^(?:big|bigger|biggest|small|smaller|smallest|large|larger|largest|tiny|huge|enormous|little|massive|immense)$/,
@@ -383,6 +486,374 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.confusionPairs frame 1
+  "@en.confusionPairs/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const inverted = m.groups!.inverted;
+    const target = m.groups!.target;
+    if (inverted && !enAfterBreak(ctx, m.index)) return null;
+    const leadWord = lead ?? "will";
+    if (leadWord === "to" && !CONFUSION_TO_HEADS.test(enWordBefore(ctx, m.index))) return null;
+    if (leadWord !== leadWord.toLowerCase() && !enAfterBreak(ctx, m.index)) return null;
+    if (
+      /^will$/i.test(leadWord) &&
+      /^(?:at|free|good|ill|own|the|his|her|their|my|your|our)$/.test(enWordBefore(ctx, m.index))
+    )
+      return null;
+    const span = m.indices!.groups!.target;
+    const tokens = enTokensAfter(ctx, span[1], 2);
+    const next = tokens[0];
+    if (!(next?.kind === "word" && next.text === next.lower)) return null;
+    const after = tokens[1];
+    const word = next.lower;
+    if (CONFUSION_BY_PHRASE.test(word) || /ing$/.test(word)) return null;
+    const read = englishWordInfo(word);
+    const fix =
+      read &&
+      !read.noun &&
+      !read.adverb &&
+      !EN_FUNCTION_WORDS.has(word) &&
+      !read.verbs.some((v) => v.form === "base" || v.form === "ing") &&
+      (read.adjective || confusionParticiple(word))
+        ? "be"
+        : !lead
+          ? /^(?:my|your|his|our|their)$/.test(word) &&
+            !CONFUSION_BY_TIME.test(confusionLower(after))
+            ? "buy"
+            : null
+          : /^(?:another|some|more|them|it|these|those|one|stock|stocks|shares|tickets|groceries|food)$/.test(
+                word,
+              ) ||
+              (/^(?:this|that|my|your|his|our|their|you|me|us)$/.test(word) &&
+                after?.kind === "word" &&
+                !CONFUSION_BY_TIME.test(after.lower) &&
+                !(word === "you" && after.lower === "and")) ||
+              (/^(?:a|an)$/.test(word) &&
+                after?.kind === "word" &&
+                !/^(?:margin|factor|mile|landslide|large|wide|narrow|small|long|little|lot|few|vote|majority)$/.test(
+                  after.lower,
+                ) &&
+                !/(?:er|or|ist|ian)$/.test(after.lower))
+            ? "buy"
+            : null;
+    if (!fix) return null;
+    return confusionSlot(
+      ctx,
+      "englishConfusedWords",
+      "review_msg_confused_word",
+      span[0],
+      span[1],
+      target,
+      fix,
+      m.index,
+    );
+  },
+  // en.yaml rule en.confusionPairs frame 2
+  "@en.confusionPairs/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    const prev = enWordBefore(ctx, m.index);
+    if (
+      /^(?:hardly|never|if|than|as|nor|forever|best|worst|first|only|greatest|biggest)$|est$/.test(
+        prev,
+      )
+    )
+      return null;
+    const next = enTokensAfter(ctx, span[1], 1)[0];
+    const word = next?.kind === "word" ? next.lower : "";
+    const prevNoun = !!prev && !EN_FUNCTION_WORDS.has(prev) && !englishWordInfo(prev)?.verbs.length;
+    const ok =
+      (next?.kind === "number" && !prevNoun) ||
+      (CONFUSION_WEEKDAYS.test(word) && !prevNoun) ||
+      (CONFUSION_EVERY_NOUNS.test(word) &&
+        (next?.kind !== "word" || next.text === next.lower || CONFUSION_WEEKDAYS.test(word)));
+    if (!ok || /^(?:since|after|so|more|again)$/.test(word)) return null;
+    return confusionSlot(
+      ctx,
+      "englishConfusedWords",
+      "review_msg_confused_word",
+      span[0],
+      span[1],
+      target,
+      "every",
+      m.index,
+    );
+  },
+  // en.yaml rule en.confusionPairs frame 3
+  "@en.confusionPairs/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    const read = englishWordInfo(verb);
+    if (!read || read.noun || !confusionParticiple(verb)) return null;
+    const span = m.indices!.groups!.target;
+    return confusionSlot(
+      ctx,
+      "englishConfusedWords",
+      "review_msg_confused_word",
+      span[0],
+      span[1],
+      target,
+      "ever",
+      m.index,
+    );
+  },
+  // en.yaml rule en.confusionPairs frame 4
+  "@en.confusionPairs/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "englishConfusedWords",
+      "review_msg_ever_every",
+      span[0],
+      span[1],
+      [caseLike(target, "ever")],
+      {
+        context: enEvidence(ctx, m.index, m.index + m[0].length),
+      },
+    );
+  },
+  // en.yaml rule en.confusionPairs frame 5
+  "@en.confusionPairs/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    const next = enTokensAfter(ctx, span[1], 1)[0];
+    const word = confusionLower(next);
+    if (!(
+      (next?.kind === "end" && /^let/i.test(m[0]) && /^[.!]/.test(next.text)) ||
+      /^(?:what|where|when|why|how|who|whether|if|about|which|anything|much)$/.test(word)
+    ))
+      return null;
+    return confusionSlot(
+      ctx,
+      "englishConfusedWords",
+      "review_msg_confused_word",
+      span[0],
+      span[1],
+      target,
+      "know",
+      m.index,
+    );
+  },
+  // en.yaml rule en.confusionPairs frame 6
+  "@en.confusionPairs/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(target === "an")) return null;
+    const span = m.indices!.groups!.target;
+    const pair = enTokensAfter(ctx, span[1], 2);
+    const next = pair[0];
+    if (!(next?.kind === "word")) return null;
+    const after = pair[1];
+    const word = next.lower;
+    const read = englishWordInfo(word);
+    const prev = enWordBefore(ctx, m.index);
+    if (
+      !prev ||
+      (EN_FUNCTION_WORDS.has(prev) && !/^(?:on|off|up|down|in|out|over|once)$/.test(prev))
+    )
+      return null;
+    const ok =
+      word === "i" ||
+      (CONFUSION_PRONOUN_SUBJECT.test(word) && next.text === next.lower) ||
+      (!(next.text !== next.lower || /^(?:[aeiou]|h(?:our|onest|onor|eir))/.test(word)) &&
+        (!!(
+          read &&
+          !read.noun &&
+          !read.adjective &&
+          read.verbs.length > 0 &&
+          read.verbs.every(
+            (v) => v.form === "base" || v.form === "past" || v.form === "participle",
+          ) &&
+          (!after ||
+            after.kind === "end" ||
+            after.kind === "comma" ||
+            (after.kind === "word" &&
+              (EN_FUNCTION_WORDS.has(after.lower) || !englishWordInfo(after.lower)?.noun)))
+        ) ||
+          !!(
+            read?.verbs.some((v) => v.form === "base") &&
+            after?.kind === "word" &&
+            /^(?:the|a|my|your|our|their|his|her|its|them|it|us|me|him)$/.test(after.lower)
+          )));
+    if (!ok) return null;
+    return confusionSlot(
+      ctx,
+      "englishConfusedWords",
+      "review_msg_confused_word",
+      span[0],
+      span[1],
+      target,
+      "and",
+      m.index,
+    );
+  },
+  // en.yaml rule en.thenAfterComparative frame 1
+  "@en.thenAfterComparative/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(target === "then")) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 80), m.index);
+    const sentence = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 200), m.index))![0];
+    if (
+      /\b(?:if|when|whenever|once|as long as|unless|after|before|while|until|since)\b/i.test(
+        sentence,
+      )
+    )
+      return null;
+    const clause = /[^.!?;:,\n(]*$/.exec(before)![0];
+    const words = clause.toLowerCase().match(/[a-z]+/g) ?? [];
+    const k = confusionLastComparative(words, words.length - 1);
+    if (k < 0 || k === words.length - 1 || words.length - k > 7) return null;
+    const gap = words.slice(k + 1);
+    if (
+      gap.some(
+        (w) =>
+          /^(?:and|or|but|so|if|when|because|until|since|just|only|even|back|and|until)$/.test(w) ||
+          (confusionVerbsOf(w).some((v) => v.form === "third" || v.form === "past") &&
+            !englishWordInfo(w)?.noun),
+      )
+    )
+      return null;
+    if (
+      /^(?:and|or|but|just|since|until|by|from|back|even|only|right|since)$/.test(
+        words.at(-1) ?? "",
+      )
+    )
+      return null;
+    const pair = enTokensAfter(ctx, m.index + m[0].length, 2);
+    const next = pair[0];
+    const after = pair[1];
+    const word = confusionLower(next);
+    const subjectComparison =
+      /^(?:i|we|they|he|she|you)$/.test(word) &&
+      /^(?:do|did|does|can|could|would|have|has|had|was|were|am|is|are|expected|thought)$/.test(
+        confusionLower(after),
+      );
+    const nounPhrase =
+      next?.kind === "number" ||
+      CONFUSION_COMPARED.test(word) ||
+      (next?.kind === "word" && enNounOnly(word) === "plural");
+    if (!(subjectComparison || nounPhrase)) return null;
+    const rest = enTokensAfter(ctx, m.index + m[0].length, 6);
+    if (rest.some((t) => t.kind === "other")) return null;
+    if (
+      !subjectComparison &&
+      rest.some(
+        (t) =>
+          t.kind === "word" &&
+          (/^(?:is|are|was|were|has|have|had|will|would|can|could)$/.test(t.lower) ||
+            (confusionVerbsOf(t.lower).some((v) => v.form === "past" || v.form === "third") &&
+              !englishWordInfo(t.lower)?.noun)),
+      )
+    )
+      return null;
+    if (/^(?:next|following)$/.test(confusionLower(after))) return null;
+    return confusionSlot(
+      ctx,
+      "englishThenThan",
+      "review_msg_then_than",
+      m.index,
+      m.index + 4,
+      target,
+      "than",
+      m.index,
+    );
+  },
+  // en.yaml rule en.wereWhere frame 1
+  "@en.wereWhere/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    const tokens = enTokensAfter(ctx, span[1], 4);
+    if (
+      !tokens
+        .slice(1)
+        .some(
+          (t) =>
+            t.kind === "word" &&
+            confusionVerbsOf(t.lower).length > 0 &&
+            !englishWordInfo(t.lower)?.noun,
+        )
+    )
+      return null;
+    return confusionSlot(
+      ctx,
+      "englishWereWhere",
+      "review_msg_were_where",
+      span[0],
+      span[1],
+      target,
+      "where",
+      m.index,
+    );
+  },
+  // en.yaml rule en.wereWhere frame 2
+  "@en.wereWhere/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    return confusionSlot(
+      ctx,
+      "englishWereWhere",
+      "review_msg_were_where",
+      span[0],
+      span[1],
+      target,
+      "were",
+      m.index,
+    );
+  },
+  // en.yaml rule en.wereWhere frame 3
+  "@en.wereWhere/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "ing")) return null;
+    const prev = enWordBefore(ctx, m.index);
+    const prevRead = englishWordInfo(prev);
+    const subject =
+      /^(?:they|we|you)$/.test(prev) ||
+      (!!prevRead?.noun &&
+        prevRead.plural &&
+        !/^(?:places|areas|cases|situations|times|days|conditions|jobs|countries|cities|events)$/.test(
+          prev,
+        ));
+    if (!subject) return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (/^(?:is|was|has|can|will|would|seems|becomes|makes)$/.test(confusionLower(next)))
+      return null;
+    const span = m.indices!.groups!.target;
+    return confusionSlot(
+      ctx,
+      "englishWereWhere",
+      "review_msg_were_where",
+      span[0],
+      span[1],
+      target,
+      "were",
+      m.index,
+    );
+  },
+  // en.yaml rule en.wereWhere frame 4
+  "@en.wereWhere/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const pred = m.groups!.pred;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    const read = englishWordInfo(pred);
+    const ok =
+      /^(?:able|aware|sure|ready|happy|right|wrong|there|here)$/.test(pred) ||
+      (!!read &&
+        read.verbs.some((v) => v.form === "participle") &&
+        !read.verbs.some((v) => v.form === "base"));
+    if (!ok || !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160))) return null;
+    const span = m.indices!.groups!.target;
+    return confusionSlot(
+      ctx,
+      "englishWereWhere",
+      "review_msg_were_where",
+      span[0],
+      span[1],
+      target,
+      "were",
+      m.index,
+    );
   },
   // en.yaml rule en.plainStyle frame 1
   "@en.plainStyle/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -979,6 +1450,25 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // en.yaml rule en.possessiveContractions filter
+  "@en.possessiveContractions/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.toForToo filter
+  "@en.toForToo/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.existentialCount filter
+  "@en.existentialCount/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.nounNumberSlots filter
+  "@en.nounNumberSlots/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
   // en.yaml rule en.verbGroups filter
   "@en.verbGroups/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
     return usSlots(ctx, findings);
@@ -992,6 +1482,18 @@ export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
   },
   // en.yaml rule en.verbGroupsBareVerbs filter
   "@en.verbGroupsBareVerbs/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.verbComplementSlots filter
+  "@en.verbComplementSlots/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.missingVerbs filter
+  "@en.missingVerbs/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.determinerConfusions filter
+  "@en.determinerConfusions/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
     return usSlots(ctx, findings);
   },
   // en.yaml rule en.thirdPersonBase filter
@@ -1052,6 +1554,63 @@ export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
   "@en.adjectiveForAdverb/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
     return usSlotsOnePerStart(ctx, findings);
   },
+  // en.yaml rule en.confusionPairs filter
+  "@en.confusionPairs/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.thenAfterComparative filter
+  "@en.thenAfterComparative/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.wereWhere filter
+  "@en.wereWhere/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
+  },
+  // en.yaml rule en.countNouns filter
+  "@en.countNouns/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.doubleNegatives filter
+  "@en.doubleNegatives/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.relativeAgreement filter
+  "@en.relativeAgreement/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.pronounForms filter
+  "@en.pronounForms/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.questionAuxiliaries filter
+  "@en.questionAuxiliaries/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return slotFindingsNoOverlap(ctx, findings);
+  },
+  // en.yaml rule en.questionAuxiliaries.doModal filter
+  "@en.questionAuxiliaries.doModal/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return slotFindingsNoOverlap(ctx, findings);
+  },
+  // en.yaml rule en.questionAuxiliaries.didPerfect filter
+  "@en.questionAuxiliaries.didPerfect/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return slotFindingsNoOverlap(ctx, findings);
+  },
+  // en.yaml rule en.questionAuxiliaries.repeated filter
+  "@en.questionAuxiliaries.repeated/filter": (
+    ctx: DetectContext,
+    findings: RawFinding[],
+  ): RawFinding[] => {
+    return slotFindingsNoOverlap(ctx, findings);
+  },
+  // en.yaml rule en.causativeThird filter
+  "@en.causativeThird/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlots(ctx, findings);
+  },
   // en.yaml rule en.superlativeArticle filter
   "@en.superlativeArticle/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
     return usSlots(ctx, findings);
@@ -1071,6 +1630,10 @@ export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
   // en.yaml rule en.tenseTimeWords filter
   "@en.tenseTimeWords/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
     return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.noForNot filter
+  "@en.noForNot/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usSlotsOnePerStart(ctx, findings);
   },
   // en.yaml rule en.clauseAgreement filter
   "@en.clauseAgreement/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
