@@ -2,9 +2,6345 @@
 // The code of grammar/rules/pl.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
+import type {
+  DetectContext,
+  FrameRef,
+  MatchResult,
+  PlReadWord,
+  PlWord,
+  RawFinding,
+} from "../../library";
+import {
+  PL_ALL_CASES,
+  PL_FEMININE,
+  PL_MASCULINE,
+  PL_MONTHS_GENITIVE,
+  PL_NEUTER,
+  PL_PLURAL,
+  PL_SINGULAR,
+  PL_VERB,
+  PL_VIRILE,
+  namedExampleBefore,
+  plAdjectiveAgrees,
+  plAdjectiveForm,
+  plAdjectiveOf,
+  plAgreeingEndings,
+  plAmbiguousAdjective,
+  plAmbiguousVerb,
+  plCaseLike,
+  plCases,
+  plContextYear,
+  plDaysInMonth,
+  plFindingAt,
+  plFiniteVerb,
+  plHasAdjective,
+  plImperativeVerb,
+  plImpersonalVerb,
+  plInflect,
+  plInvalidIsoDate,
+  plListedVerb,
+  plMenOnlyPlural,
+  plMenPluralShape,
+  plNounTags,
+  plOnlyNoun,
+  plPastByShape,
+  plPerfectiveVerb,
+  plPlaceForm,
+  plReadingCases,
+  plSentenceStart,
+  plUserOrNamed,
+  plVirileAdjective,
+  plVirileLemma,
+  plWeekdayOf,
+  plWords,
+  plYearsFor,
+  tagsAnd,
+  tagsCases,
+  tagsOr,
+  tagsWithout,
+} from "../../library";
+
+export const COMPOUND_NOT_PAST: ReadonlySet<string> = new Set([
+  "siła",
+  "siły",
+  "skała",
+  "skały",
+  "ciało",
+  "ciała",
+  "działo",
+  "działa",
+  "mogiła",
+  "mogiły",
+  "chwała",
+  "chwały",
+  "żyła",
+  "żyły",
+  "nawała",
+  "chwili",
+  "sali",
+  "fali",
+  "stali",
+  "soli",
+  "roli",
+  "woli",
+  "cali",
+  "dali",
+  "wali",
+  "brali",
+  "pała",
+  "pały",
+  "pali",
+  "śmiały",
+  "biały",
+  "mały",
+  "cały",
+  "stały",
+  "dały",
+  "wały",
+  "zapał",
+  "zapały",
+  "upał",
+  "upały",
+  "kanał",
+  "kanały",
+  "szał",
+  "szały",
+  "bali",
+  "dział",
+  "działy",
+  "materiał",
+  "materiały",
+  "ideał",
+  "ideały",
+  "rytuał",
+  "rytuały",
+  "okazały",
+  "spały",
+]);
+
+export const ZE_NOT_CONJUNCTION: ReadonlySet<string> = new Set([
+  "pięć",
+  "sześć",
+  "siedem",
+  "osiem",
+  "dziewięć",
+  "dziesięć",
+  "sto",
+  "setkę",
+  "tysiąc",
+  "kilka",
+  "kilkanaście",
+  "kilkadziesiąt",
+  "parę",
+  "pół",
+  "godzinę",
+  "tydzień",
+  "miesiąc",
+  "rok",
+  "dzień",
+]);
+
+export const COMMA_NO_COMMA_AFTER: ReadonlySet<string> = new Set([
+  "i",
+  "a",
+  "oraz",
+  "lub",
+  "albo",
+  "bądź",
+  "ani",
+  "czy",
+  "bo",
+  "ale",
+  "lecz",
+  "niż",
+  "jak",
+  "jakby",
+  "że",
+  "iż",
+  "żeby",
+  "aby",
+  "by",
+  "gdy",
+  "kiedy",
+  "jeśli",
+  "jeżeli",
+  "gdyby",
+  "który",
+  "która",
+  "które",
+  "którego",
+  "której",
+  "którym",
+  "których",
+  "którzy",
+  "to",
+]);
+
+export const AGREEMENT_ADVERBIAL: ReadonlySet<string> = new Set([
+  "obok",
+  "wokół",
+  "dookoła",
+  "wzdłuż",
+  "przeciw",
+  "przeciwko",
+]);
+
+export const AGREEMENT_OLD_ACCUSATIVES: ReadonlySet<string> = new Set([
+  "za mąż",
+  "za pan",
+  "na koń",
+]);
+
+export const AGREEMENT_SHORT_ABBREVIATIONS: ReadonlySet<string> = new Set([
+  "ust",
+  "lit",
+  "ok",
+  "ul",
+  "al",
+  "pl",
+  "os",
+  "ds",
+  "cz",
+  "ww",
+  "ub",
+  "dz",
+  "br",
+  "wł",
+  "zw",
+  "ob",
+  "dn",
+  "im",
+  "jw",
+  "św",
+  "ks",
+  "gen",
+  "por",
+  "kpr",
+  "hm",
+  "pkt",
+  "art",
+  "rys",
+  "tab",
+  "poz",
+  "str",
+]);
+
+export const AGREEMENT_FIVE_UP: ReadonlySet<string> = new Set([
+  "pięć",
+  "sześć",
+  "siedem",
+  "osiem",
+  "dziewięć",
+  "dziesięć",
+  "jedenaście",
+  "dwanaście",
+  "trzynaście",
+  "czternaście",
+  "piętnaście",
+  "szesnaście",
+  "siedemnaście",
+  "osiemnaście",
+  "dziewiętnaście",
+  "dwadzieścia",
+  "trzydzieści",
+  "czterdzieści",
+  "pięćdziesiąt",
+  "sześćdziesiąt",
+  "siedemdziesiąt",
+  "osiemdziesiąt",
+  "dziewięćdziesiąt",
+  "sto",
+  "dwieście",
+  "trzysta",
+  "czterysta",
+  "pięćset",
+  "sześćset",
+  "siedemset",
+  "osiemset",
+  "dziewięćset",
+  "kilka",
+  "kilkanaście",
+  "kilkadziesiąt",
+  "kilkaset",
+  "parę",
+]);
+
+export const AGREEMENT_COUNT_NOUNS: ReadonlySet<string> = new Set([
+  "dziesiątki",
+  "setki",
+  "tysiące",
+  "miliony",
+  "miliardy",
+  "dziesiątek",
+  "setek",
+  "tysięcy",
+  "milionów",
+  "miliardów",
+]);
+
+export const AGREEMENT_TWO_TO_FOUR: ReadonlySet<string> = new Set([
+  "dwa",
+  "dwie",
+  "trzy",
+  "cztery",
+  "oba",
+  "obie",
+]);
+
+export const AGREEMENT_PARTITIVE: ReadonlySet<string> = new Set([
+  "kupię",
+  "kupuję",
+  "jem",
+  "zjem",
+  "piję",
+  "wypiję",
+  "biorę",
+  "dostanę",
+  "chcę",
+]);
+
+export const AGREEMENT_GENITIVE_ADJECTIVES: ReadonlySet<string> = new Set([
+  "pełny",
+  "pozbawiony",
+  "warty",
+  "godny",
+  "niegodny",
+  "świadomy",
+  "nieświadomy",
+  "pewny",
+  "ciekawy",
+  "żądny",
+  "spragniony",
+  "głodny",
+  "syty",
+  "winny",
+  "bliski",
+  "chciwy",
+]);
+
+export const AGREEMENT_PRONOUNS: ReadonlySet<string> = new Set([
+  "ty",
+  "który",
+  "jaki",
+  "taki",
+  "ten",
+  "tamten",
+  "ów",
+  "czyj",
+  "każdy",
+  "żaden",
+  "wszystek",
+  "sam",
+  "jakiś",
+  "mój",
+  "twój",
+  "swój",
+  "nasz",
+  "wasz",
+  "niektóry",
+  "inny",
+]);
+
+export const AGREEMENT_NOMINAL_ADJECTIVES: ReadonlySet<string> = new Set([
+  "podopieczny",
+  "znajomy",
+  "bliski",
+  "najbliższy",
+  "krewny",
+  "dorosły",
+  "pełnoletni",
+  "niepełnoletni",
+  "nieletni",
+  "małoletni",
+  "chory",
+  "bezrobotny",
+  "niepełnosprawny",
+  "poszkodowany",
+  "pokrzywdzony",
+  "ranny",
+  "zmarły",
+  "oskarżony",
+  "podejrzany",
+  "zatrzymany",
+  "skazany",
+  "przełożony",
+  "podwładny",
+  "narzeczony",
+  "uczony",
+  "wierny",
+  "zainteresowany",
+  "uprawniony",
+  "ubezpieczony",
+  "dyżurny",
+  "śledczy",
+  "mundurowy",
+  "podróżny",
+  "pieszy",
+  "święty",
+  "bliźni",
+  "dany",
+  "średni",
+  "pochodny",
+  "styczny",
+  "wypadkowy",
+]);
+
+export const AGREEMENT_PREDICATIVE_ENDINGS: ReadonlySet<string> = new Set(["ym", "ymi"]);
+
+export const AGREEMENT_AFTER_ENDINGS: ReadonlySet<string> = new Set(["ą"]);
+
+export const DEGREE_IRREGULAR_ADVERBS: ReadonlySet<string> = new Set([
+  "lepiej",
+  "gorzej",
+  "więcej",
+  "mniej",
+  "bliżej",
+  "dalej",
+  "wyżej",
+  "niżej",
+  "szybciej",
+  "później",
+  "wcześniej",
+  "dłużej",
+  "krócej",
+]);
+
+export const CLAUSE_JOINS: ReadonlySet<string> = new Set([
+  "i",
+  "a",
+  "oraz",
+  "lub",
+  "albo",
+  "bądź",
+  "ani",
+  "czy",
+  "ale",
+  "lecz",
+  "zaś",
+  "więc",
+  "bo",
+  "że",
+  "iż",
+  "żeby",
+  "aby",
+  "by",
+  "gdy",
+  "kiedy",
+  "jeśli",
+  "jeżeli",
+  "gdyby",
+  "choć",
+  "chociaż",
+  "jak",
+  "jakby",
+  "niż",
+  "co",
+  "kto",
+  "gdzie",
+  "dokąd",
+  "skąd",
+  "dlaczego",
+  "czemu",
+  "ile",
+  "zanim",
+  "dopóki",
+  "odkąd",
+  "póki",
+  "skoro",
+  "ponieważ",
+  "albowiem",
+  "niech",
+  "to",
+  "tylko",
+  "jednak",
+  "natomiast",
+  "toteż",
+  "czyli",
+  "mianowicie",
+  "ni",
+]);
+
+export const CLAUSE_FIXED: ReadonlySet<string> = new Set([
+  "począwszy",
+  "skończywszy",
+  "zacząwszy",
+  "wyjąwszy",
+  "pominąwszy",
+  "wyłączając",
+  "włączając",
+  "wliczając",
+  "chcąc",
+]);
+
+export const TYPO_ADVERBIAL: ReadonlySet<string> = new Set([
+  "w|pełni",
+  "w|miarę",
+  "w|ogóle",
+  "w|sumie",
+  "w|całości",
+  "w|zasadzie",
+  "w|końcu",
+  "w|dodatku",
+  "w|praktyce",
+  "w|razie",
+  "w|przybliżeniu",
+  "w|szczególności",
+  "w|pół",
+  "na|pewno",
+  "na|razie",
+  "na|nowo",
+  "na|przykład",
+  "na|wpół",
+  "na|zawsze",
+  "na|bieżąco",
+  "na|tyle",
+  "na|co",
+  "na|ogół",
+  "na|pół",
+  "na|raz",
+  "na|przemian",
+  "z|grubsza",
+  "z|daleka",
+  "z|bliska",
+  "z|osobna",
+  "z|powrotem",
+  "z|góry",
+  "z|dołu",
+  "z|przodu",
+  "z|tyłu",
+  "z|boku",
+  "z|rzędu",
+  "z|zewnątrz",
+  "z|wewnątrz",
+  "od|razu",
+  "od|nowa",
+  "od|dawna",
+  "od|zaraz",
+  "od|teraz",
+  "od|dziś",
+  "od|zawsze",
+  "od|czasu",
+  "od|tyłu",
+  "od|przodu",
+  "od|środka",
+  "do|końca",
+  "do|dziś",
+  "do|tyłu",
+  "do|przodu",
+  "do|góry",
+  "do|dołu",
+  "do|środka",
+  "do|teraz",
+  "do|zobaczenia",
+  "do|widzenia",
+  "do|niedawna",
+]);
+
+export const TYPO_NOT_A_VERB: ReadonlySet<string> = new Set([
+  "to",
+  "nie",
+  "tak",
+  "już",
+  "teraz",
+  "tu",
+  "tam",
+  "i",
+  "a",
+  "że",
+  "by",
+  "jak",
+  "gdy",
+  "co",
+  "też",
+  "tylko",
+  "bardzo",
+  "trochę",
+  "wtedy",
+  "znowu",
+]);
+
+export const CONFUSION_CLITIC_LONG: Readonly<Record<string, string>> = {
+  Mi: "Mnie",
+  Mu: "Jemu",
+  Go: "Jego",
+  Cię: "Ciebie",
+};
+
+export const CONFUSION_BOUND: Readonly<Record<string, string>> = {
+  bezcen: "za",
+  bezdurno: "za",
+  trymiga: "w",
+  czambuł: "w",
+  dwójnasób: "w",
+  trójnasób: "w",
+  czwórnasób: "w",
+  kilkanasób: "w",
+  dyrdy: "w",
+  zanadrzu: "w",
+  szczętu: "do",
+  imentu: "do",
+  zabój: "na",
+  kretesem: "z",
+  pantałyku: "z",
+  manowce: "na",
+  oścież: "na",
+  wznak: "na",
+  odczepnego: "na",
+  przekór: "na",
+  czczo: "na",
+  wyrywki: "na",
+  chybcika: "na",
+  auspicjami: "pod",
+  omacku: "po",
+  ciemku: "po",
+  macoszemu: "po",
+  cichutku: "po",
+  kryjomu: "po",
+  prostu: "po",
+  trosze: "po",
+  cichu: "po",
+  rozpuku: "do",
+  cna: "do",
+  poprzek: "w",
+  pojedynkę: "w",
+  międzyczasie: "w",
+  ustanku: "bez",
+  liku: "bez",
+  pardonu: "bez",
+  ledwością: "z",
+  nienacka: "z",
+  wyprzódki: "na",
+  poczekaniu: "na",
+  wyrost: "na",
+  przestrzał: "na",
+  bakier: "na",
+  opak: "na",
+  "łapu-capu": "na",
+  niemiara: "co",
+  polsku: "po",
+  angielsku: "po",
+  niemiecku: "po",
+  francusku: "po",
+  rosyjsku: "po",
+  hiszpańsku: "po",
+  włosku: "po",
+  czesku: "po",
+  słowacku: "po",
+  ukraińsku: "po",
+  chińsku: "po",
+  japońsku: "po",
+  szwedzku: "po",
+  grecku: "po",
+  arabsku: "po",
+  portugalsku: "po",
+  holendersku: "po",
+  węgiersku: "po",
+  fińsku: "po",
+  duńsku: "po",
+  norwesku: "po",
+  chamsku: "po",
+  swojsku: "po",
+  góralsku: "po",
+};
+
+export const CONFUSION_KAZAC: Readonly<Record<string, string>> = {
+  ze: "że",
+  zesz: "żesz",
+  zę: "żę",
+  zemy: "żemy",
+  zecie: "żecie",
+  żą: "żą",
+};
+
+export const CONFUSION_PRONOUN_LONG: Readonly<Record<string, string>> = {
+  cię: "ciebie",
+  go: "niego",
+  mi: "mnie",
+};
+
+export const CONFUSION_PRONOUN_STRESSED: Readonly<Record<string, string>> = {
+  mi: "mnie",
+  ci: "tobie",
+  mu: "niemu",
+};
+
+export const NUMERAL_COLLECTIVE: Readonly<Record<string, string>> = {
+  dwa: "dwoje",
+  trzy: "troje",
+  cztery: "czworo",
+  pięć: "pięcioro",
+  sześć: "sześcioro",
+  siedem: "siedmioro",
+  osiem: "ośmioro",
+  dziewięć: "dziewięcioro",
+  dziesięć: "dziesięcioro",
+  jedenaście: "jedenaścioro",
+  dwanaście: "dwanaścioro",
+  trzynaście: "trzynaścioro",
+  czternaście: "czternaścioro",
+  piętnaście: "piętnaścioro",
+  szesnaście: "szesnaścioro",
+  siedemnaście: "siedemnaścioro",
+  osiemnaście: "osiemnaścioro",
+  dziewiętnaście: "dziewiętnaścioro",
+  dwadzieścia: "dwadzieścioro",
+  trzydzieści: "trzydzieścioro",
+  czterdzieści: "czterdzieścioro",
+  pięćdziesiąt: "pięćdziesięcioro",
+  sześćdziesiąt: "sześćdziesięcioro",
+  siedemdziesiąt: "siedemdziesięcioro",
+  osiemdziesiąt: "osiemdziesięcioro",
+  dziewięćdziesiąt: "dziewięćdziesięcioro",
+};
+
+export const NUMERAL_COLLECTIVE_NOUNS: Readonly<Record<string, string>> = {
+  dzieci: "dzieci",
+  drzwi: "drzwi",
+  oczy: "oczu",
+  uszy: "uszu",
+  sanie: "sań",
+  kurczęta: "kurcząt",
+  kocięta: "kociąt",
+  szczenięta: "szczeniąt",
+  źrebięta: "źrebiąt",
+  cielęta: "cieląt",
+  prosięta: "prosiąt",
+  pisklęta: "piskląt",
+  niemowlęta: "niemowląt",
+};
+
+export const COMMA_COMPOUNDS: Readonly<Record<string, string>> = {
+  mimo: "że|iż",
+  pomimo: "że|iż",
+  podczas: "gdy",
+  chyba: "że|żeby|by",
+  nawet: "jeśli|jeżeli|gdy|gdyby|kiedy",
+  jeszcze: "zanim",
+  a: "więc",
+  o: "ile",
+  "pod warunkiem": "że|iż",
+  tyle: "że",
+};
+
+export const FORMS_NA_PLACES: Readonly<Record<string, string>> = {
+  węgier: "na Węgry",
+  białorusi: "na Białoruś",
+  syberii: "na Syberię",
+  moraw: "na Morawy",
+  antarktydy: "na Antarktydę",
+  kubę: "na Kubę",
+  kuby: "na Kubę",
+  malty: "na Maltę",
+  islandii: "na Islandię",
+  sycylii: "na Sycylię",
+  sardynii: "na Sardynię",
+  korsyki: "na Korsykę",
+  krymu: "na Krym",
+  kaszub: "na Kaszuby",
+  mazur: "na Mazury",
+  podhala: "na Podhale",
+  śląska: "na Śląsk",
+  wołoszczyzny: "na Wołoszczyznę",
+  filipin: "na Filipiny",
+  madagaskaru: "na Madagaskar",
+  hawaje: "na Hawaje",
+  hawajów: "na Hawaje",
+};
+
+export const SILENT_SHORT: Readonly<Record<string, string>> = {
+  ego: "go",
+  go: "go",
+  emu: "mu",
+  mu: "mu",
+  em: "m",
+  m: "m",
+};
+
+export const AGREEMENT_GOVERNS: Readonly<Record<string, string>> = {
+  bez: "G",
+  beze: "G",
+  dla: "G",
+  do: "G",
+  od: "G",
+  ode: "G",
+  u: "G",
+  z: "GIA",
+  ze: "GIA",
+  spod: "G",
+  znad: "G",
+  zza: "G",
+  sprzed: "G",
+  spomiędzy: "G",
+  spośród: "G",
+  wśród: "G",
+  obok: "G",
+  podczas: "G",
+  według: "G",
+  zamiast: "G",
+  oprócz: "G",
+  prócz: "G",
+  wobec: "G",
+  wokół: "G",
+  dookoła: "G",
+  wzdłuż: "G",
+  dzięki: "D",
+  ku: "D",
+  przeciw: "D",
+  przeciwko: "D",
+  wbrew: "D",
+  w: "LA",
+  we: "LA",
+  na: "LA",
+  o: "LAV",
+  po: "LA",
+  przy: "L",
+  przez: "A",
+  przeze: "A",
+  poprzez: "A",
+  przed: "IA",
+  przede: "IA",
+  za: "IAG",
+  nad: "IA",
+  nade: "IA",
+  pod: "IA",
+  pode: "IA",
+  między: "IA",
+  pomiędzy: "IA",
+  poza: "AI",
+};
+
+export const AGREEMENT_OBJECT_PRONOUNS: Readonly<Record<string, string>> = { ją: "jej", je: "ich" };
+
+export const AGREEMENT_PRONOUN_GENITIVE: Readonly<Record<string, string>> = {
+  niemu: "niego",
+  nim: "niego",
+  nią: "niej",
+  nimi: "nich",
+};
+
+export const AGREEMENT_TENS: Readonly<Record<string, string>> = {
+  dwadzieścia: "dwudziestu",
+  trzydzieści: "trzydziestu",
+  czterdzieści: "czterdziestu",
+  pięćdziesiąt: "pięćdziesięciu",
+  sześćdziesiąt: "sześćdziesięciu",
+  siedemdziesiąt: "siedemdziesięciu",
+  osiemdziesiąt: "osiemdziesięciu",
+  dziewięćdziesiąt: "dziewięćdziesięciu",
+};
+
+export const AGREEMENT_MEN_UNITS: Readonly<Record<string, string>> = {
+  dwaj: "dwóch",
+  trzej: "trzech",
+  czterej: "czterech",
+};
+
+export const AGREEMENT_TWIN: Readonly<Record<string, string>> = { a: "ą", ą: "a", e: "ę", ę: "e" };
+
+export const CLAUSE_POWIN_GENDER: Readonly<Record<string, string>> = {
+  powinien: "ł",
+  powinna: "ła",
+  powinno: "ło",
+  powinni: "li",
+  powinny: "ły",
+};
+
+export const CLAUSE_PREDICATE_ENDING: Readonly<Record<string, string>> = {
+  ł: "y",
+  ła: "a",
+  ło: "e",
+  li: "",
+  ły: "e",
+};
+
+export const STYLE_OR_MORE_CASE: Readonly<Record<string, string>> = {
+  dwa: "Np",
+  dwie: "Np",
+  trzy: "Np",
+  cztery: "Np",
+  dwom: "Dp",
+  dwóm: "Dp",
+  trzem: "Dp",
+  czterem: "Dp",
+  dwoma: "Ip",
+  trzema: "Ip",
+  czterema: "Ip",
+  dwóch: "Gp",
+  trzech: "Gp",
+  czterech: "Gp",
+  pięć: "Gp",
+  pięciu: "Gp",
+};
+
+export const STYLE_PLURAL_ENDING: Readonly<Record<string, string>> = {
+  Np: "e",
+  Gp: "ych",
+  Dp: "ym",
+  Ip: "ymi",
+  Lp: "ych",
+};
+
+export const STYLE_PLAYS: Readonly<Record<string, string>> = {
+  pełni: "odgrywa",
+  pełnią: "odgrywają",
+  pełnił: "odgrywał",
+  pełniła: "odgrywała",
+  pełniło: "odgrywało",
+  pełnili: "odgrywali",
+  pełniły: "odgrywały",
+  pełnić: "odgrywać",
+  pełniący: "odgrywający",
+  pełniąca: "odgrywająca",
+  pełniące: "odgrywające",
+  pełniąc: "odgrywając",
+  spełnia: "odgrywa",
+  spełniają: "odgrywają",
+  spełniał: "odgrywał",
+  spełniała: "odgrywała",
+  spełniać: "odgrywać",
+  spełniając: "odgrywając",
+};
+
+export const STYLE_HAS: Readonly<Record<string, string>> = {
+  posiadam: "mam",
+  posiadasz: "masz",
+  posiada: "ma",
+  posiadamy: "mamy",
+  posiadacie: "macie",
+  posiadają: "mają",
+  posiadał: "miał",
+  posiadała: "miała",
+  posiadali: "mieli",
+  posiadały: "miały",
+  posiadać: "mieć",
+  posiadając: "mając",
+};
+
+export const STYLE_PUTS_ON: Readonly<Record<string, string>> = {
+  ubrać: "włożyć",
+  ubrał: "włożył",
+  ubrała: "włożyła",
+  ubrali: "włożyli",
+  ubrały: "włożyły",
+  ubrałem: "włożyłem",
+  ubrałam: "włożyłam",
+  ubiorę: "włożę",
+  ubierze: "włoży",
+  ubierz: "włóż",
+  ubieram: "wkładam",
+  ubiera: "wkłada",
+  ubierają: "wkładają",
+  ubierał: "wkładał",
+  ubierała: "wkładała",
+  ubierać: "wkładać",
+  założyć: "włożyć",
+  założył: "włożył",
+  założyła: "włożyła",
+  założyli: "włożyli",
+  założyły: "włożyły",
+  założyłem: "włożyłem",
+  założyłam: "włożyłam",
+  założyłeś: "włożyłeś",
+  założyłaś: "włożyłaś",
+  założyliśmy: "włożyliśmy",
+  założyłyśmy: "włożyłyśmy",
+  założę: "włożę",
+  założy: "włoży",
+  założysz: "włożysz",
+  założymy: "włożymy",
+  założycie: "włożycie",
+  założą: "włożą",
+  zakłada: "wkłada",
+  zakładać: "wkładać",
+  zakładał: "wkładał",
+  zakładała: "wkładała",
+  zakładali: "wkładali",
+  zakładały: "wkładały",
+  zakładam: "wkładam",
+  zakładasz: "wkładasz",
+  zakładają: "wkładają",
+  zakładamy: "wkładamy",
+  zakładacie: "wkładacie",
+  załóż: "włóż",
+  załóżcie: "włóżcie",
+};
+
+export const STYLE_POD_OBJECT: Readonly<Record<string, string>> = {
+  pojęciem: "pojęcie",
+  terminem: "termin",
+  słowem: "słowo",
+  określeniem: "określenie",
+  hasłem: "hasło",
+};
+
+// pl.yaml def PREPOSITIONS
+export const PREPOSITIONS =
+  "w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed";
+
+// pl.yaml def PREPOSITION_WORDS
+export const PREPOSITION_WORDS = new Set(PREPOSITIONS.split("|"));
+
+// pl.yaml rule pl.compounds def COMPOUND_NOUN_PHRASE_BEFORE
+export const COMPOUND_NOUN_PHRASE_BEFORE = new RegExp(
+  `(?:^|[^\\p{L}])(?:${PREPOSITIONS}|tej|tym|tego|ta|to|te|ten|swojej|mojej|jego|jej)[ \\t\\u00a0]+$`,
+  "iu",
+);
+
+// pl.yaml rule pl.compounds def compoundInfinitive
+export function compoundInfinitive(word: string) {
+  return (
+    (/ć$/u.test(word) &&
+      !/(?:ść|ęć|sieć|płeć|nić|mać|śmierć|łokieć|paznokieć|kmieć|śmieć)$/u.test(word)) ||
+    /(?:^|[^\p{L}])(?:\p{L}*(?:móc|biec|piec|rzec|strzec|wlec|tłuc|ciec)|jeść|nieść|wieść|kraść|prząść|gnieść|paść|siąść|usiąść)$/u.test(
+      word,
+    )
+  );
+}
+
+// pl.yaml rule pl.compounds def COMPOUND_MODAL
+export const COMPOUND_MODAL =
+  /^(?:mógł|mogła|mogło|mogli|mogły|chciał|chciała|chciało|chcieli|chciały|musiał|musiała|musiało|musieli|musiały|miał|miała|miało|mieli|miały|umiał|umiała|umieli|potrafił|potrafiła|potrafili|wolał|wolała|woleli|zdołał|zdołała|zdołali|powinien|powinna|powinno|powinni)$/iu;
+
+// pl.yaml rule pl.compounds def COMPOUND_NIE_APART
+export const COMPOUND_NIE_APART =
+  /(?:zna|^można|stanie|staniu|^inn\p{L}*|^jedyn\p{L}*|^setn\p{L}*|tysięczn\p{L}*|^sam\p{L}*|głow[aeyąę]|mow[aeyąę]|słow[aeoyąę]|budow[aeyąę]|połow[aeyąę]|krow[aeyąę]|^ścian\p{L}*|^zmian\p{L}*|^cen[aeyąę]|^win[aeyąę]|^stron\p{L}*|^scen\p{L}*|^więcej|^mniej|^bardziej)$/iu;
+
+// pl.yaml rule pl.confusions def ZE_NEVER_AFTER_PREPOSITION
+export const ZE_NEVER_AFTER_PREPOSITION =
+  /^(?:z|ze|w|we|na|do|od|za|po|pod|nad|przed|przez|przy|dla|bez|nie|się|to|trzeba|chc(?:ę|e|esz|emy|ecie|ą|iał\p{L}*|ieli\p{L}*|ieć)|tak|już|jest|są|był|była|było|byli|będzie|źle|dobrze|zawsze|wtedy|teraz|tu|tam|ktoś|coś|ja|ty|on|ona|ono|oni|one|my|wy|mu|mi|go|jej|ich|nic|nikt|wszyscy|wszystko|jeśli|gdy|kiedy|chociaż|jednak)$/iu;
+
+// pl.yaml rule pl.numerals def NUMERAL_CARDINALS
+export const NUMERAL_CARDINALS = {
+  1: ["jeden", "jednego"],
+  2: ["dwa", "dwóch"],
+  3: ["trzy", "trzech"],
+  4: ["cztery", "czterech"],
+  5: ["pięć", "pięciu"],
+  6: ["sześć", "sześciu"],
+  7: ["siedem", "siedmiu"],
+  8: ["osiem", "ośmiu"],
+  9: ["dziewięć", "dziewięciu"],
+  10: ["dziesięć", "dziesięciu"],
+} as Readonly<Record<number, readonly [string, string]>>;
+
+// pl.yaml rule pl.numerals def NUMERAL_NOUN_STEMS
+export const NUMERAL_NOUN_STEMS = {
+  1: "jedyn",
+  2: "dwój",
+  3: "trój",
+  4: "czwór",
+  5: "piąt",
+  6: "szóst",
+  7: "siódem",
+  8: "ósem",
+  9: "dziewiąt",
+  10: "dziesiąt",
+  11: "jedenast",
+  12: "dwunast",
+  13: "trzynast",
+  14: "czternast",
+  15: "piętnast",
+  16: "szesnast",
+  17: "siedemnast",
+  18: "osiemnast",
+  19: "dziewiętnast",
+  20: "dwudziest",
+  30: "trzydziest",
+  40: "czterdziest",
+  50: "pięćdziesiąt",
+  60: "sześćdziesiąt",
+  70: "siedemdziesiąt",
+  80: "osiemdziesiąt",
+  90: "dziewięćdziesiąt",
+  100: "set",
+  200: "dwuset",
+  300: "trzyset",
+  400: "czteryset",
+  500: "pięćset",
+  600: "sześćset",
+  700: "siedemset",
+  800: "osiemset",
+  900: "dziewięćset",
+} as Readonly<Record<number, string>>;
+
+// pl.yaml rule pl.numerals def numeralSuffixFix
+export function numeralSuffixFix(num: string, ending: string, next: string | undefined) {
+  const roman = /^[IVXLC]+$/.test(num);
+  const n = roman ? 0 : Number(num);
+  const end = ending.toLowerCase();
+  return roman
+    ? /^(?:go|ego|tego|ty|tym|wiecz|ym)$/u.test(end)
+      ? [num]
+      : null
+    : /^(?:[jrt]?(?:ka|ki|kę|ką|kom|kami|kach|ce)|t?ek|jek|rek)$/u.test(end)
+      ? numeralNounFix(num, n, end)
+      : /^(?:u|ch|óch|ech|ciu|miu|ściu|tu|stu|ięć|ro|cio|mio|dmio|ścio|oro|oma|ma)$/u.test(end)
+        ? !NUMERAL_CARDINALS[n] || /^(?:ro|oro|cio|mio|dmio|ścio)$/u.test(end)
+          ? [num]
+          : [
+              /^(?:u|ciu|miu|ściu|tu|stu|ech|óch|ch)$/u.test(end)
+                ? NUMERAL_CARDINALS[n][1]
+                : NUMERAL_CARDINALS[n][0],
+              num,
+            ]
+        : next &&
+            /^(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)$/iu.test(
+              next,
+            )
+          ? [num]
+          : [num + "."];
+}
+
+// pl.yaml rule pl.numerals def numeralNounFix
+export function numeralNounFix(num: string, n: number, end: string) {
+  const stem = NUMERAL_NOUN_STEMS[n];
+  const caseEnding = /(?:kami|kach|kom|ka|ki|kę|ką|ce|ek)$/u.exec(end)?.[0];
+  return !stem || !caseEnding ? [num] : [stem + caseEnding, num];
+}
+
+// pl.yaml rule pl.numerals def numeralSuffixFinding
+export function numeralSuffixFinding(
+  ctx: DetectContext,
+  num: string,
+  end: string,
+  next: string | undefined,
+  start: number,
+  tokenEnd: number,
+) {
+  const fixed = numeralSuffixFix(num, end, next);
+  if (!(fixed !== null)) return null;
+  return plFindingAt(ctx, start, tokenEnd, fixed, "polishNumerals", "review_msg_pl_numeral_suffix");
+}
+
+// pl.yaml rule pl.numerals def NUMERAL_CURRENCY
+export const NUMERAL_CURRENCY = {
+  złoty: ["złoty", "złote", "złotych", "złotego"],
+  złote: ["złoty", "złote", "złotych", "złotego"],
+  złotych: ["złoty", "złote", "złotych", "złotego"],
+  grosz: ["grosz", "grosze", "groszy", "grosza"],
+  grosze: ["grosz", "grosze", "groszy", "grosza"],
+  groszy: ["grosz", "grosze", "groszy", "grosza"],
+} as Readonly<Record<string, readonly [string, string, string, string]>>;
+
+// pl.yaml rule pl.numerals def numeralPluralForm
+export function numeralPluralForm(
+  amount: string,
+  forms: readonly [string, string, string, string],
+) {
+  const n = Number(amount.replace(/[\s ]/g, ""));
+  const lastTwo = n % 100;
+  const last = n % 10;
+  return /[.,]\d/.test(amount)
+    ? forms[3]
+    : n === 1
+      ? forms[0]
+      : last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14)
+        ? forms[1]
+        : forms[2];
+}
+
+// pl.yaml rule pl.numerals def NUMERAL_UNITS
+export const NUMERAL_UNITS = {
+  gram: ["gramy", "gramów"],
+  kilogram: ["kilogramy", "kilogramów"],
+  dekagram: ["dekagramy", "dekagramów"],
+  miligram: ["miligramy", "miligramów"],
+  wolt: ["wolty", "woltów"],
+  amper: ["ampery", "amperów"],
+  wat: ["waty", "watów"],
+  kilowat: ["kilowaty", "kilowatów"],
+} as Readonly<Record<string, readonly [string, string]>>;
+
+// pl.yaml rule pl.numerals def NUMERAL_WORDS
+export const NUMERAL_WORDS = {
+  dwa: 2,
+  trzy: 3,
+  cztery: 4,
+  pięć: 5,
+  sześć: 6,
+  siedem: 7,
+  osiem: 8,
+  dziewięć: 9,
+  dziesięć: 10,
+  dwadzieścia: 20,
+  trzydzieści: 30,
+  czterdzieści: 40,
+  pięćdziesiąt: 50,
+  sto: 100,
+  dwieście: 200,
+  trzysta: 300,
+  pięćset: 500,
+  tysiąc: 1000,
+  kilka: 5,
+  kilkanaście: 15,
+  kilkadziesiąt: 50,
+  kilkaset: 500,
+} as Readonly<Record<string, number>>;
+
+// pl.yaml rule pl.dates def DATE_NOMINATIVE
+export const DATE_NOMINATIVE = [
+  "styczeń",
+  "luty",
+  "marzec",
+  "kwiecień",
+  "maj",
+  "czerwiec",
+  "lipiec",
+  "sierpień",
+  "wrzesień",
+  "październik",
+  "listopad",
+  "grudzień",
+];
+
+// pl.yaml rule pl.dates def DATE_ABBREVIATED
+export const DATE_ABBREVIATED = [
+  "sty",
+  "lut",
+  "mar",
+  "kwi",
+  "maj",
+  "cze",
+  "lip",
+  "sie",
+  "wrz",
+  "paź",
+  "lis",
+  "gru",
+];
+
+// pl.yaml rule pl.dates def DATE_ROMAN
+export const DATE_ROMAN = [
+  "I",
+  "II",
+  "III",
+  "IV",
+  "V",
+  "VI",
+  "VII",
+  "VIII",
+  "IX",
+  "X",
+  "XI",
+  "XII",
+];
+
+// pl.yaml rule pl.dates def NOMINATIVE_WEEKDAYS
+export const NOMINATIVE_WEEKDAYS = [
+  "niedziela",
+  "poniedziałek",
+  "wtorek",
+  "środa",
+  "czwartek",
+  "piątek",
+  "sobota",
+];
+
+// pl.yaml rule pl.dates def DATE_ROMAN_CENTURY
+export const DATE_ROMAN_CENTURY = [
+  "",
+  "I",
+  "II",
+  "III",
+  "IV",
+  "V",
+  "VI",
+  "VII",
+  "VIII",
+  "IX",
+  "X",
+  "XI",
+  "XII",
+  "XIII",
+  "XIV",
+  "XV",
+  "XVI",
+  "XVII",
+  "XVIII",
+  "XIX",
+  "XX",
+  "XXI",
+];
+
+// pl.yaml rule pl.dates def DATE_WEEKDAYS
+export const DATE_WEEKDAYS = [
+  [/^(?:poniedział\p{L}*|pon|pn)$/iu, 1],
+  [/^(?:wtor\p{L}*|wt)$/iu, 2],
+  [/^(?:środ\p{L}*|śr|sr)$/iu, 3],
+  [/^(?:czwart\p{L}*|czw|cz)$/iu, 4],
+  [/^(?:piąt\p{L}*|pt)$/iu, 5],
+  [/^(?:sobot\p{L}*|sob|so)$/iu, 6],
+  [/^(?:niedziel\p{L}*|niedz|nd|ndz)$/iu, 0],
+] as readonly (readonly [RegExp, number])[];
+
+// pl.yaml rule pl.dates def DATE_WEEKDAY_BEFORE
+export const DATE_WEEKDAY_BEFORE =
+  /(?<![\p{L}])(?<w>poniedział\p{L}*|wtor\p{L}*|środ\p{L}*|czwart\p{L}*|piąt\p{L}*|sobot\p{L}*|niedziel\p{L}*|pon\.?|pn\.?|wt\.?|śr\.?|czw\.?|pt\.?|sob\.?|niedz\.?|nd\.?)[ \t ]*,?[ \t ]*$/iu;
+
+// pl.yaml rule pl.dates def DATE_WEEKDAY_AFTER
+export const DATE_WEEKDAY_AFTER =
+  /^[ \t ]*[,(][ \t ]*(?<w>poniedział\p{L}*|wtor\p{L}*|środ\p{L}*|czwart\p{L}*|piąt\p{L}*|sobot\p{L}*|niedziel\p{L}*|pon\.?|pn\.?|wt\.?|śr\.?|czw\.?|pt\.?|sob\.?|niedz\.?|nd\.?)(?![\p{L}])/iu;
+
+// pl.yaml rule pl.dates def dateMonthOf
+export function dateMonthOf(word: string) {
+  const lower = word.toLowerCase();
+  const roman = DATE_ROMAN.indexOf(word.toUpperCase());
+  const genitive = PL_MONTHS_GENITIVE.indexOf(lower);
+  return /^[ivx]+$/i.test(word) && roman >= 0
+    ? roman + 1
+    : genitive >= 0
+      ? genitive + 1
+      : DATE_NOMINATIVE.indexOf(lower) + 1;
+}
+
+// pl.yaml rule pl.dates def dateWeekdayNamed
+export function dateWeekdayNamed(word: string) {
+  const bare = word.replace(/\.$/, "");
+  return DATE_WEEKDAYS.find(([regex]) => regex.test(bare))?.[1] ?? null;
+}
+
+// pl.yaml rule pl.dates def dateWeekday
+export function dateWeekday(
+  ctx: DetectContext,
+  month: number,
+  y: number | undefined,
+  d: number,
+  start: number,
+  end: number,
+) {
+  const years =
+    y === undefined ? plYearsFor(month, d, plContextYear(ctx.text, start, ctx.lang)) : [y];
+  const weekdays = [...new Set(years.map((year) => plWeekdayOf(year, month, d)))];
+  const before = DATE_WEEKDAY_BEFORE.exec(ctx.text.slice(Math.max(0, start - 24), start));
+  const after = DATE_WEEKDAY_AFTER.exec(ctx.text.slice(end, end + 24));
+  const named = before ?? after;
+  if (!(named !== null)) return null;
+  const said = dateWeekdayNamed(named.groups!.w);
+  if (!(said !== null && years.length > 0 && !weekdays.includes(said))) return null;
+  const key = y === undefined ? "review_msg_weekday_no_year" : "review_msg_pl_weekday_date";
+  const typed = named.groups!.w;
+  const wordStart = before ? start - before[0].length : end + after![0].indexOf(typed);
+  const afterPreposition = /(?:^|[^\p{L}])(?:w|we|na|od|do|przez|za|po|przed)[ \t ]+$/iu.test(
+    ctx.text.slice(Math.max(0, wordStart - 12), wordStart),
+  );
+  return !afterPreposition && NOMINATIVE_WEEKDAYS.includes(typed.toLowerCase())
+    ? {
+        ...plFindingAt(
+          ctx,
+          wordStart,
+          wordStart + typed.length,
+          weekdays.map((w) => plCaseLike(typed, NOMINATIVE_WEEKDAYS[w])),
+          "polishDates",
+          key,
+        ),
+        requiresChoice: true as const,
+      }
+    : plFindingAt(
+        ctx,
+        Math.max(0, before ? start - before[0].length : end),
+        before ? end : end + after![0].length,
+        [],
+        "polishDates",
+        key,
+      );
+}
+
+// pl.yaml rule pl.misplacedCommas def COMMA_PAIRS
+export const COMMA_PAIRS = {
+  tak: /^czy\s/iu,
+  chcąc: /^nie\s+chcąc$/iu,
+  bądź: /^co\s+bądź$/iu,
+  byle: /^jak$/iu,
+  chybił: /^trafił$/iu,
+  wypisz: /^wymaluj$/iu,
+} as Readonly<Record<string, RegExp>>;
+
+// pl.yaml rule pl.missingCommas def COMMA_SET_AFTER
+export const COMMA_SET_AFTER = {
+  kiedy: /^(?:indziej|niekiedy|bądź)$/iu,
+  gdzie: /^(?:indziej|niegdzie|bądź)$/iu,
+  dlaczego: /^(?:innego|innym)$/iu,
+} as Readonly<Record<string, RegExp>>;
+
+// pl.yaml rule pl.missingCommas def COMMA_RELATIVE_WORD
+export const COMMA_RELATIVE_WORD =
+  /^(?:który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)$/;
+
+// pl.yaml rule pl.missingCommas def COMMA_JAKI_WORD
+export const COMMA_JAKI_WORD =
+  /^(?:jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi)$/;
+
+// pl.yaml rule pl.missingCommas def COMMA_QUESTION_OR_RELATIVE
+export const COMMA_QUESTION_OR_RELATIVE =
+  /^(?:dlaczego|gdzie|kiedy|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)$/;
+
+// pl.yaml rule pl.missingCommas def COMMA_OPENS_COMPOUND
+export const COMMA_OPENS_COMPOUND = new Set([
+  ..."i a oraz lub albo bądź ani czy bo ale lecz niż jak jakby aż tylko właśnie nawet zwłaszcza szczególnie zaś dlatego mimo pomimo chyba tyle tak również także jednak jednakże przecież no pewnie jasne choć chociaż nie to wtedy wówczas raz co byle lada wiadomo potem zaraz dopiero jeszcze przy może omal nieomal prawie niemal więc zatem przeto przynajmniej dość jako tym bardziej daj mało rzadko warunkiem razie miarę chwili momencie czasie zamiast podczas dzięki wobec wie diabli licho oto".split(
+    " ",
+  ),
+  ..."że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|dlaczego|gdzie|kiedy|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy|jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi".split(
+    "|",
+  ),
+]);
+
+// pl.yaml rule pl.missingCommas def COMMA_ADVERB_SUBS
+export const COMMA_ADVERB_SUBS = {
+  tylko: /^(?:że|żeby|aby|by|gdy|kiedy)$/u,
+  tak: /^(?:żeby|ażeby|aby|by)$/u,
+  właśnie: /^(?:że|gdy|kiedy)$/u,
+  "z tym": /^(?:że|iż)$/u,
+} as Readonly<Record<string, RegExp>>;
+
+// pl.yaml rule pl.missingCommas def COMMA_SUBJECT_OR_OBJECT
+export const COMMA_SUBJECT_OR_OBJECT =
+  /^(?:nie|ja|ty|on|ona|ono|my|wy|oni|one|go|ją|je|mu|mi|ci|się|to|mnie|cię|nas|was|ich|jej|im|nam|wam)$/u;
+
+// pl.yaml rule pl.missingCommas def COMMA_COMPOUND_TAILS
+export const COMMA_COMPOUND_TAILS = {
+  mimo: /^(?:że|iż)$/u,
+  pomimo: /^(?:że|iż)$/u,
+  nawet: /^(?:jeśli|jeżeli|gdy|kiedy|gdyby\p{L}{0,5})$/u,
+  dopiero: /^(?:gdy|kiedy|jak)$/u,
+  zwłaszcza: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u,
+  szczególnie: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u,
+  "tym bardziej": /^(?:że|iż)$/u,
+  "pod warunkiem": /^(?:że|iż)$/u,
+  podczas: /^gdy$/u,
+} as Readonly<Record<string, RegExp>>;
+
+// pl.yaml rule pl.missingCommas def commaRelativeClause
+export function commaRelativeClause(ctx: DetectContext, start: number, end: number) {
+  const after = ctx.text.slice(end, end + 200);
+  if (/^[ \t ]*(?:[.!?,;:…)"”»]|z[ \t ])/u.test(after)) return false;
+  if (/^[^.!?\n]*\?/u.test(after)) return false;
+  const before = ctx.text.slice(Math.max(0, start - 60), start);
+  const clause = before.split(/[,;:—–(]/u).at(-1) ?? "";
+  const words = clause.match(/\p{L}+/gu) ?? [];
+  if (words.slice(-4).some((word) => /^(?:i|oraz|a|lub|albo)$/iu.test(word))) return false;
+  if (/ć$/u.test(words.at(-1) ?? "")) return false;
+  return words.length > 3 || !/[,;:—–(]/u.test(before);
+}
+
+// pl.yaml rule pl.missingCommas def commaToZe
+export function commaToZe(ctx: DetectContext, m: RegExpExecArray, prev: string, gap: string) {
+  const before = /(\p{L}+)[ \t ]+$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1];
+  if (!(
+    !!before &&
+    !/^(?:no|i|a|ale|bo|lecz|tylko|właśnie|nawet|tak|jak|mimo|pomimo)$/iu.test(before) &&
+    !plUserOrNamed(ctx, before)
+  ))
+    return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    m.index + prev.length + gap.length,
+    [prev + "," + gap],
+    "polishMissingComma",
+    "review_msg_pl_missing_comma",
+  );
+}
+
+// pl.yaml rule pl.missingCommas def commaMissing
+export function commaMissing(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  prev: string,
+  gap: string,
+  prep: string | undefined,
+  sub: string,
+  lowerPrev: string,
+  relative: boolean,
+) {
+  if (prep && !relative) return null;
+  if (COMMA_OPENS_COMPOUND.has(lowerPrev) || PREPOSITION_WORDS.has(lowerPrev)) return null;
+  if (
+    (sub === "ale" || sub === "lecz") &&
+    !/^[ \t ]+\p{L}/u.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3))
+  )
+    return null;
+  if (plUserOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev)) return null;
+  const end = m.index + m[0].length;
+  const next = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 40))?.[1] ?? "";
+  if (COMMA_SET_AFTER[sub]?.test(next)) return null;
+  if (!next && /^(?:dlaczego|gdzie|kiedy)$/.test(sub)) return null;
+  if (!(sub !== "by" || commaPurposeBy(ctx, prev, lowerPrev, next, end))) return null;
+  if (
+    COMMA_JAKI_WORD.test(sub) &&
+    (!(/ć$/u.test(prev) || plOnlyNoun(plNounTags(prev.toLowerCase()))) ||
+      !next ||
+      /^(?:\d|pół|półtor|jed|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|par|set|stu|sto|tysi)/iu.test(
+        next,
+      ) ||
+      /^[^.!\n]*[?!]/u.test(ctx.text.slice(end, end + 200)) ||
+      /(?:^|[^\p{L}])(?:jak|niczym|jakby)[ \t ]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      ))
+  )
+    return null;
+  if (sub === "zamiast" && !/(?:ć|c)$/u.test(next)) return null;
+  if (COMMA_QUESTION_OR_RELATIVE.test(sub) && /^[^.!\n]*\?/u.test(ctx.text.slice(end, end + 200)))
+    return null;
+  if (relative && (/ć$/u.test(prev) || !commaRelativeClause(ctx, m.index, m.index + m[0].length)))
+    return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    m.index + prev.length + gap.length,
+    [prev + "," + gap],
+    "polishMissingComma",
+    "review_msg_pl_missing_comma",
+  );
+}
+
+// pl.yaml rule pl.missingCommas def commaPurposeBy
+export function commaPurposeBy(
+  ctx: DetectContext,
+  prev: string,
+  lowerPrev: string,
+  next: string,
+  end: number,
+) {
+  const verb =
+    next === "się"
+      ? (/^[ \t ]+się[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 60))?.[1] ?? "")
+      : next;
+  const clause = /^[ \t]+(?:\p{L}+[ \t]+){0,2}?(\p{Ll}+(?:ł|ła|ło|li|ły))(?![\p{L}])/u.exec(
+    ctx.text.slice(end, end + 60),
+  )?.[1];
+  const purpose =
+    clause !== undefined &&
+    (plFiniteVerb(clause) || plAmbiguousVerb(clause)) &&
+    (plImpersonalVerb(lowerPrev) ||
+      (plFiniteVerb(lowerPrev) && !/(?:ł|ła|ło|li|ły)$/u.test(lowerPrev)));
+  return (
+    purpose ||
+    !(
+      !/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(verb) ||
+      plNounTags(verb.toLowerCase()) ||
+      /^(?:można|trzeba|warto|wolno|lepiej|dobrze|trudno|łatwo|należy|należało|wypada|wypadało|opłacało|coś|nic)$/iu.test(
+        prev,
+      ) ||
+      /^(?:mógł|mogł|mogl|chcia|chcie|musia|musie|miał|miel|umiał|umiel|potrafi|wola|wole|zdoła|powin)/iu.test(
+        prev,
+      )
+    )
+  );
+}
+
+// pl.yaml rule pl.prepositionForms def PREPOSITION_LONG
+export const PREPOSITION_LONG = {
+  w: "we",
+  z: "ze",
+  od: "ode",
+  bez: "beze",
+  przez: "przeze",
+  przed: "przede",
+  nad: "nade",
+  pod: "pode",
+  spod: "spode",
+} as Readonly<Record<string, string>>;
+
+// pl.yaml rule pl.prepositionForms def PREPOSITION_SHORT
+export const PREPOSITION_SHORT = Object.fromEntries(
+  Object.entries(PREPOSITION_LONG).map(([short, long]) => [long, short]),
+) as Readonly<Record<string, string>>;
+
+// pl.yaml rule pl.prepositionForms def PREPOSITION_LONG_KEPT
+export const PREPOSITION_LONG_KEPT =
+  /^(?:mnie|mną|dwoje|troje|czworo|dnie|śnie|łzach|wszystkim|łba|złego|drzwi|krwi|mgle|lwie|lwa|lwem|sobą|wszystko)$/iu;
+
+// pl.yaml rule pl.prepositionForms def opensWithCluster
+export function opensWithCluster(word: string) {
+  const rest = word.replace(/^(?:ch|cz|dz|dź|dż|rz|sz)/iu, "c");
+  return !/^[aąeęioóuy]/iu.test(rest) && rest.length > 1 && !/^[aąeęioóuy]/iu.test(rest.slice(1));
+}
+
+// pl.yaml rule pl.prepositionForms def preferredForm
+export function preferredForm(prep: string, next: string, afterWord: boolean) {
+  const p = prep.toLowerCase();
+  const word = next.toLowerCase();
+  const pronoun = /^(?:mnie|mną)$/u.test(word);
+  return p === "s"
+    ? /^\p{Ll}/u.test(next) || afterWord
+      ? "z"
+      : null
+    : PREPOSITION_LONG[p]
+      ? p === "spod" && word === "łba"
+        ? "spode"
+        : pronoun
+          ? p === "przed" || p === "nad" || p === "pod" || p === "z"
+            ? word === "mną"
+              ? PREPOSITION_LONG[p]
+              : null
+            : word === "mnie"
+              ? PREPOSITION_LONG[p]
+              : null
+          : p === "w" && /^[wf]/u.test(word) && opensWithCluster(word)
+            ? "we"
+            : p === "z" && /^(?:[sśzźż]|sz|rz|wsz|wz|ws)/u.test(word) && opensWithCluster(word)
+              ? "ze"
+              : null
+      : preferredShort(p, next, word, pronoun);
+}
+
+// pl.yaml rule pl.prepositionForms def preferredShort
+export function preferredShort(p: string, next: string, word: string, pronoun: boolean) {
+  const short = PREPOSITION_SHORT[p];
+  if (!short || pronoun || PREPOSITION_LONG_KEPT.test(word)) return null;
+  return p === "we" && /^\p{Lu}/u.test(next) && /^[wf]/u.test(word) && !opensWithCluster(word)
+    ? "w"
+    : (p === "ze" && /^\p{Ll}/u.test(next)) ||
+        /^(?:[sśzźżwf]|rz)/u.test(word) ||
+        word.length < 2 ||
+        opensWithCluster(word)
+      ? null
+      : short;
+}
+
+// pl.yaml rule pl.wordForms def silentEnding
+export function silentEnding(name: string, end: string): string | undefined {
+  return /[^aeiouy]ie$/u.test(name)
+    ? SILENT_SHORT[end]
+      ? name + SILENT_SHORT[end]
+      : ""
+    : /[^aeiouy]e$/u.test(name)
+      ? end === "m"
+        ? /ke$/u.test(name)
+          ? ""
+          : name + "'em"
+        : end === "ie" && /[nvmbpf]e$/u.test(name)
+          ? name.slice(0, -1) + "ie"
+          : ""
+      : /e$/u.test(name)
+        ? ""
+        : /[^aeiouy]y$/u.test(name) && end === "m"
+          ? name + "m"
+          : undefined;
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GOVERNED
+export const AGREEMENT_GOVERNED = Object.fromEntries(
+  Object.entries(AGREEMENT_GOVERNS).map(([prep, letters]) => [
+    prep,
+    [...letters].reduce((mask, letter) => tagsOr(mask, plCases(letter + "s " + letter + "p")), 0),
+  ]),
+) as Readonly<Record<string, number | undefined>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NOMINATIVE
+export const AGREEMENT_NOMINATIVE = plCases("Ns Np");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_CASES
+export const AGREEMENT_GENITIVE_CASES = plCases("Gs Gp");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_ACCUSATIVE
+export const AGREEMENT_ACCUSATIVE = plCases("As Ap");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_INSTRUMENTALS
+export const AGREEMENT_INSTRUMENTALS = plCases("Is Ip");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_OBLIQUE
+export const AGREEMENT_OBLIQUE = plCases("Gs Ds Is Ls Gp Dp Ip Lp");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NO_LOCATIVE
+export const AGREEMENT_NO_LOCATIVE = plCases("Gs Ds Is Gp Dp Ip");
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENDERS
+export const AGREEMENT_GENDERS = tagsOr(PL_MASCULINE, PL_FEMININE, PL_NEUTER);
+
+// pl.yaml rule pl.caseAgreement def agreementGovernedBy
+export function agreementGovernedBy(prep: string, before: string) {
+  return (prep === "z" || prep === "ze") && /(?:^|[^\p{L}])(?:wraz|razem)[ \t ]+$/iu.test(before)
+    ? plCases("Is Ip")
+    : AGREEMENT_GOVERNED[prep];
+}
+
+// pl.yaml rule pl.caseAgreement def agreementPrepositionClash
+export function agreementPrepositionClash(prep: string, noun: string, before: string) {
+  if (AGREEMENT_OLD_ACCUSATIVES.has(prep + " " + noun.toLowerCase())) return false;
+  const governed = agreementGovernedBy(prep, before);
+  const tags = plNounTags(noun);
+  if (!(governed !== undefined && plOnlyNoun(tags, true) && !tagsAnd(tags, governed))) return false;
+  return !(AGREEMENT_ADVERBIAL.has(prep) && tagsAnd(tags, AGREEMENT_NOMINATIVE));
+}
+
+// pl.yaml rule pl.caseAgreement def agreementRecased
+export function agreementRecased(noun: string, wanted: number) {
+  const tags = plNounTags(noun);
+  const forms = plInflect(
+    noun,
+    tagsAnd(wanted, tagsAnd(tags, PL_SINGULAR) ? PL_SINGULAR : PL_PLURAL),
+  );
+  return forms.length <= 2 ? forms.map((form) => plCaseLike(noun, form)) : [];
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_DEMONSTRATIVES
+export const AGREEMENT_DEMONSTRATIVES = {
+  ten: [[PL_MASCULINE, plCases("Ns As")]],
+  ta: [[PL_FEMININE, plCases("Ns")]],
+  tę: [[PL_FEMININE, plCases("As")]],
+  tą: [[PL_FEMININE, plCases("Is")]],
+  to: [[PL_NEUTER, plCases("Ns As")]],
+  te: [[0, plCases("Np Ap")]],
+  jeden: [[PL_MASCULINE, plCases("Ns As")]],
+  jedna: [[PL_FEMININE, plCases("Ns")]],
+  jedną: [[PL_FEMININE, plCases("As Is")]],
+  jedno: [[PL_NEUTER, plCases("Ns As")]],
+  jedne: [[0, plCases("Np Ap")]],
+} as Readonly<Record<string, readonly (readonly [number, number])[]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_FAMILY_TEN
+export const AGREEMENT_FAMILY_TEN = ["ten", "ta", "tę", "tą", "to", "te"];
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_FAMILY_JEDEN
+export const AGREEMENT_FAMILY_JEDEN = ["jeden", "jedna", "jedną", "jedno", "jedne"];
+
+// pl.yaml rule pl.caseAgreement def agreementDemonstrativeAgrees
+export function agreementDemonstrativeAgrees(form: string, tags: number) {
+  return AGREEMENT_DEMONSTRATIVES[form].some(
+    ([gender, wanted]) =>
+      tagsAnd(tags, wanted) !== 0 && (gender === 0 || tagsAnd(tags, gender) !== 0),
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def agreementDemonstrativeFix
+export function agreementDemonstrativeFix(det: string, tags: number) {
+  if (
+    !AGREEMENT_DEMONSTRATIVES[det] ||
+    !plOnlyNoun(tags) ||
+    agreementDemonstrativeAgrees(det, tags)
+  )
+    return [];
+  if (!([PL_MASCULINE, PL_FEMININE, PL_NEUTER].filter((g) => tagsAnd(tags, g)).length === 1))
+    return [];
+  const fits = (det.startsWith("jed") ? AGREEMENT_FAMILY_JEDEN : AGREEMENT_FAMILY_TEN).filter(
+    (form) => form !== det && agreementDemonstrativeAgrees(form, tags),
+  );
+  return fits.length <= 2 ? fits : [];
+}
+
+// pl.yaml rule pl.caseAgreement def agreementNumeralNeeds
+export function agreementNumeralNeeds(num: string) {
+  const n = Number(num);
+  return AGREEMENT_TWO_TO_FOUR.has(num)
+    ? "Np"
+    : AGREEMENT_FIVE_UP.has(num) || AGREEMENT_COUNT_NOUNS.has(num)
+      ? "Gp"
+      : !/^\d{1,3}$/.test(num)
+        ? null
+        : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14)
+          ? "Np"
+          : n >= 5
+            ? "Gp"
+            : null;
+}
+
+// pl.yaml rule pl.caseAgreement def agreementNumeralClash
+export function agreementNumeralClash(num: string, tags: number) {
+  const needs = agreementNumeralNeeds(num);
+  if (!(needs !== null && plOnlyNoun(tags))) return false;
+  return needs === "Np"
+    ? !tagsAnd(tags, tagsOr(AGREEMENT_NOMINATIVE, PL_MASCULINE)) &&
+        tagsAnd(tags, plCases("Gp")) !== 0
+    : tagsAnd(tags, plCases("Gp")) || !tagsAnd(tags, AGREEMENT_NOMINATIVE)
+      ? false
+      : !/^\d/.test(num) || !tagsAnd(tags, plCases("Ns"));
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GOVERNING
+export const AGREEMENT_GOVERNING = new RegExp(
+  `^(?:${Object.keys(AGREEMENT_GOVERNS).join("|")}|około|ponad|powyżej|poniżej|blisko|niespełna|koło|naprzeciw|kosztem|brak|braku|wiele|ile|tyle)$`,
+  "iu",
+);
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_VERB
+export const AGREEMENT_GENITIVE_VERB =
+  /^(?:dotycz|potrzeb|wymag|szuk|używ|unik|brak|zabrak|żąd|udziel|życz|nabr|nabier|ubył|przybył|naucz|słuch|pilnow|pilnuj|trzeba|starcz|wystarcz)/iu;
+
+// pl.yaml rule pl.caseAgreement def agreementGoverningWord
+export function agreementGoverningWord(word: string) {
+  return AGREEMENT_GOVERNING.test(word) || /(?:ch|ego|ej)$/u.test(word);
+}
+
+// pl.yaml rule pl.caseAgreement def agreementFreeCount
+export function agreementFreeCount(text: string, at: number) {
+  const before = text.slice(Math.max(0, at - 48), at);
+  const clause = before.split(/[,;:.!?()„”"–—]/u).pop()!;
+  if (/(?:^|[^\p{L}])nie[ \t ]/iu.test(clause)) return false;
+  const words = (clause.match(/\p{L}+/gu) ?? []).slice(-3).map((word) => word.toLowerCase());
+  const hit = [...words]
+    .reverse()
+    .find(
+      (word) =>
+        agreementGoverningWord(word) ||
+        tagsAnd(plNounTags(word), PL_ALL_CASES) ||
+        /(?:ł|ła|ło|li|ły)$/u.test(word),
+    );
+  if (hit !== undefined && agreementGoverningWord(hit)) return false;
+  const prev = words.at(-1);
+  return !prev
+    ? true
+    : AGREEMENT_GENITIVE_VERB.test(prev) || /(?:ni|ci)e$/u.test(prev)
+      ? false
+      : !tagsAnd(plNounTags(prev), PL_ALL_CASES);
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_NUMERALS
+export const AGREEMENT_GENITIVE_NUMERALS = {
+  dwa: ["dwóch"],
+  dwie: ["dwóch"],
+  trzy: ["trzech"],
+  cztery: ["czterech"],
+  pięć: ["pięciu"],
+  sześć: ["sześciu"],
+  siedem: ["siedmiu"],
+  osiem: ["ośmiu"],
+  dziewięć: ["dziewięciu"],
+  dziesięć: ["dziesięciu"],
+  jedenaście: ["jedenastu"],
+  dwanaście: ["dwunastu"],
+  piętnaście: ["piętnastu"],
+  dwadzieścia: ["dwudziestu"],
+  trzydzieści: ["trzydziestu"],
+  czterdzieści: ["czterdziestu"],
+  pięćdziesiąt: ["pięćdziesięciu"],
+  sto: ["stu"],
+  dwieście: ["dwustu", "dwuset"],
+  trzysta: ["trzystu"],
+  czterysta: ["czterystu"],
+  pięćset: ["pięciuset"],
+  kilka: ["kilku"],
+  kilkanaście: ["kilkunastu"],
+  kilkadziesiąt: ["kilkudziesięciu"],
+  kilkaset: ["kilkuset"],
+} as Readonly<Record<string, readonly string[]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_BEFORE
+export const AGREEMENT_GENITIVE_BEFORE =
+  /(?:^|[^\p{L}])(?:około|ok\.|blisko|niespełna|do|od|bez|dla|spośród|wśród|wobec)[ \t ]{1,8}$/iu;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PREPOSITION_APPROX
+export const AGREEMENT_PREPOSITION_APPROX = new RegExp(
+  `(?:^|[^\\p{L}])(?:${PREPOSITIONS})[ \\t\\u00a0]{1,8}(?:około|ok\\.|blisko|niespełna)[ \\t\\u00a0]{1,8}$`,
+  "iu",
+);
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_TIME_SPAN
+export const AGREEMENT_TIME_SPAN =
+  /^(?:raz|razy|czas|dzień|dni|rok|lata|tydzień|tygodnie|miesiąc|miesiące|chwilę|godzinę|godziny|minutę|minuty|noc|wieczór|weekend|ranek|popołudnie|sobotę|niedzielę|wiosnę|lato|jesień|zimę)$/u;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_TIME_ADJECTIVE
+export const AGREEMENT_TIME_ADJECTIVE = /^(?:cał|każd|ostatni|następn|zeszł|przyszł|poprzedni)/u;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NEGATED_VERBS
+export const AGREEMENT_NEGATED_VERBS = [
+  ["mam masz mamy macie", "ma mają", "miał", "miel", ""],
+  ["widzę widzisz widzimy widzicie", "widzi widzą", "widział", "widziel", ""],
+  ["lubię lubisz lubimy lubicie", "lubi lubią", "lubił", "lubil", "lub lubcie"],
+  ["znam znasz znamy znacie", "zna znają", "znał", "znal", ""],
+  ["kocham kochasz kochamy kochacie", "kocha kochają", "kochał", "kochal", ""],
+  ["rozumiem rozumiesz rozumiemy rozumiecie", "rozumie rozumieją", "rozumiał", "rozumiel", ""],
+  ["kupię kupisz kupimy kupicie", "kupi kupią", "kupił", "kupil", ""],
+  ["kupuję kupujesz kupujemy kupujecie", "kupuje kupują", "kupował", "kupowal", "kupuj kupujcie"],
+  ["robię robisz robimy robicie", "robi robią", "robił", "robil", "rób róbcie"],
+  ["zrobię zrobisz zrobimy zrobicie", "zrobi zrobią", "zrobił", "zrobil", ""],
+  ["czytam czytasz czytamy czytacie", "czyta czytają", "czytał", "czytal", "czytaj czytajcie"],
+  [
+    "przeczytam przeczytasz przeczytamy przeczytacie",
+    "przeczyta przeczytają",
+    "przeczytał",
+    "przeczytal",
+    "",
+  ],
+  ["jem jesz jemy jecie", "jedzą", "jadł", "jedl", "jedz jedzcie"],
+  ["zjem zjesz zjemy zjecie", "zje zjedzą", "zjadł", "zjedl", ""],
+  ["piję pijesz pijemy pijecie", "pije piją", "pił", "pil", "pij pijcie"],
+  ["wypiję wypijesz wypijemy wypijecie", "wypije wypiją", "wypił", "wypil", ""],
+  ["słyszę słyszysz słyszymy słyszycie", "słyszy słyszą", "słyszał", "słyszel", ""],
+  ["chcę chcesz chcemy chcecie", "chce chcą", "chciał", "chciel", ""],
+  [
+    "oglądam oglądasz oglądamy oglądacie",
+    "ogląda oglądają",
+    "oglądał",
+    "oglądal",
+    "oglądaj oglądajcie",
+  ],
+  ["piszę piszesz piszemy piszecie", "pisze piszą", "pisał", "pisal", "pisz piszcie"],
+  ["napiszę napiszesz napiszemy napiszecie", "napisze napiszą", "napisał", "napisal", ""],
+  ["czuję czujesz czujemy czujecie", "czuje czują", "czuł", "czul", ""],
+  ["pamiętam pamiętasz pamiętamy pamiętacie", "pamięta pamiętają", "pamiętał", "pamiętal", ""],
+  ["dostanę dostaniesz dostaniemy dostaniecie", "dostanie dostaną", "dostał", "dostal", ""],
+  ["znajdę znajdziesz znajdziemy znajdziecie", "znajdzie znajdą", "znalazł", "znaleźl", ""],
+  ["zauważę zauważysz zauważymy zauważycie", "zauważy zauważą", "zauważył", "zauważyl", ""],
+  ["noszę nosisz nosimy nosicie", "nosi noszą", "nosił", "nosil", "noś noście"],
+  ["biorę bierzesz bierzemy bierzecie", "bierze biorą", "brał", "bral", "bierz bierzcie"],
+  ["płacę płacisz płacimy płacicie", "płaci płacą", "płacił", "płacil", "płać płaćcie"],
+  ["odwiedzę odwiedzisz odwiedzimy odwiedzicie", "odwiedzi odwiedzą", "odwiedził", "odwiedzil", ""],
+  ["otworzę otworzysz otworzymy otworzycie", "otworzy otworzą", "otworzył", "otworzyl", ""],
+] as readonly (readonly [string, string, string, string, string])[];
+
+// pl.yaml rule pl.caseAgreement def agreementNegatedEntries
+export function agreementNegatedEntries(row: readonly [string, string, string, string, string]) {
+  return [
+    ...[
+      ...row[0].split(" "),
+      ...row[4].split(" "),
+      ...["em", "eś", "am", "aś", "yśmy", "yście"].map((ending) => row[2] + ending),
+      ...["iśmy", "iście"].map((ending) => row[3] + ending),
+    ]
+      .filter((form) => form !== "")
+      .map((form) => [form, true] as [string, boolean]),
+    ...[...row[1].split(" "), row[2], row[2] + "a", row[2] + "o", row[3] + "i", row[2] + "y"].map(
+      (form) => [form, false] as [string, boolean],
+    ),
+  ];
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NEGATED_FORMS
+export const AGREEMENT_NEGATED_FORMS = new Map<string, boolean>(
+  AGREEMENT_NEGATED_VERBS.flatMap((row) => agreementNegatedEntries(row)),
+);
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PARTITIVE_FORMS
+export const AGREEMENT_PARTITIVE_FORMS = new Set(
+  AGREEMENT_NEGATED_VERBS.filter((row) => AGREEMENT_PARTITIVE.has(row[0].split(" ")[0])).flatMap(
+    (row) =>
+      [...AGREEMENT_NEGATED_FORMS.keys()].filter(
+        (form) =>
+          [row[0], row[1], row[4]].some((list) => list.split(" ").includes(form)) ||
+          form.startsWith(row[2]) ||
+          form.startsWith(row[3]),
+      ),
+  ),
+);
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENITIVE_VERB_FORM
+export const AGREEMENT_GENITIVE_VERB_FORM =
+  /^(?:używ(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|unik(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|szuk(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|przestrzeg(?:am|asz|a|amy|acie|ają|ał\p{L}*|ali|ać|aj|ajcie|ając)|potrzebuj(?:ę|esz|e|emy|ecie|ą)|potrzebował\p{L}*|potrzebować|pilnuj(?:ę|esz|e|emy|ecie|ą)?|pilnował\p{L}*|pilnować|wymag(?:am|a|ają|ał\p{L}*|ali|ać)|nienawidz(?:ę|isz|i|imy|icie|ą)|nienawidził\p{L}*|żału(?:ję|jesz|je|jemy|jecie|ją)|żałował\p{L}*|żałować|ustąp(?:|cie|ić|ię|isz|i|imy|icie|ią|ił\p{L}*|ili)|ustępuj(?:ę|esz|e|emy|ecie|ą|cie)?|ustępował\p{L}*|ustępować)$/iu;
+
+// pl.yaml rule pl.caseAgreement def agreementNegatedObject
+export function agreementNegatedObject(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  object: string,
+  modifier: string | undefined,
+  end: number,
+  personal: boolean,
+) {
+  if (
+    plUserOrNamed(ctx, object) ||
+    (object !== "czas" && AGREEMENT_TIME_SPAN.test(object)) ||
+    (modifier && AGREEMENT_TIME_ADJECTIVE.test(modifier))
+  )
+    return null;
+  const tags = plNounTags(object);
+  if (!(
+    plOnlyNoun(tags) &&
+    !tagsAnd(tags, AGREEMENT_GENITIVE_CASES) &&
+    tagsAnd(tags, AGREEMENT_ACCUSATIVE) !== 0
+  ))
+    return null;
+  if (!personal && tagsAnd(tags, AGREEMENT_NOMINATIVE)) return null;
+  const forms = agreementRecased(object, AGREEMENT_GENITIVE_CASES);
+  const fixes = forms.length === 1 ? forms : [];
+  const reading = modifier ? plAdjectiveOf(modifier) : null;
+  if (modifier && (plAmbiguousAdjective(modifier) || !plAdjectiveAgrees(reading!.ending, tags)))
+    return null;
+  return modifier
+    ? agreementNegatedPair(ctx, m, modifier, reading!, tags, fixes, end)
+    : {
+        ...plFindingAt(
+          ctx,
+          end - object.length,
+          end,
+          fixes,
+          "polishCaseAgreement",
+          "review_msg_pl_negated_genitive",
+        ),
+        context: { start: m.index, end },
+      };
+}
+
+// pl.yaml rule pl.caseAgreement def agreementNegatedPair
+export function agreementNegatedPair(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  modifier: string,
+  reading: { lemma: string; ending: string },
+  tags: number,
+  fixes: string[],
+  end: number,
+) {
+  const endings = fixes.length
+    ? plAgreeingEndings(
+        tagsOr(
+          tagsWithout(tags, PL_ALL_CASES),
+          tagsAnd(tags, PL_SINGULAR) ? plCases("Gs") : plCases("Gp"),
+        ),
+      )
+    : [];
+  const start = m.indices!.groups!.adj[0];
+  return {
+    ...plFindingAt(
+      ctx,
+      start,
+      end,
+      endings.length === 1
+        ? [plCaseLike(modifier, plAdjectiveForm(reading.lemma, endings[0])) + " " + fixes[0]]
+        : [],
+      "polishCaseAgreement",
+      "review_msg_pl_negated_genitive",
+    ),
+    context: { start: m.index, end },
+  };
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_MASCULINE_DETERMINERS
+export const AGREEMENT_MASCULINE_DETERMINERS = {
+  ten: ["to", "te", "ta"],
+  tamten: ["tamto", "tamte", "tamta"],
+  taki: ["takie", "takie", "taka"],
+  jeden: ["jedno", "jedne", "jedna"],
+  mój: ["moje", "moje", "moja"],
+  twój: ["twoje", "twoje", "twoja"],
+  swój: ["swoje", "swoje", "swoja"],
+  nasz: ["nasze", "nasze", "nasza"],
+  wasz: ["wasze", "wasze", "wasza"],
+  każdy: ["każde", "każde", "każda"],
+  jakiś: ["jakieś", "jakieś", "jakaś"],
+  żaden: ["żadne", "żadne", "żadna"],
+} as Readonly<Record<string, readonly [string, string, string]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_GENDERED
+export const AGREEMENT_GENDERED = {
+  menu: [0, "menu"],
+  tiramisu: [0, "tiramisu"],
+  sushi: [0, "sushi"],
+  salami: [0, "salami"],
+  kakao: [0, "kakao"],
+  musli: [0, "musli"],
+  euro: [0, "euro"],
+  hobby: [0, "hobby"],
+  zoo: [0, "zoo"],
+  graffiti: [0, "graffiti"],
+  alibi: [0, "alibi"],
+  kimono: [0, "kimono"],
+  risotto: [0, "risotto"],
+  espresso: [0, "espresso"],
+  bistro: [0, "bistro"],
+  perfum: [1, "perfumy"],
+  pomarańcz: [2, "pomarańcza"],
+} as Readonly<Record<string, readonly [0 | 1 | 2, string]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_ADJECTIVE_ENDINGS
+export const AGREEMENT_ADJECTIVE_ENDINGS = ["e", "e", "a"];
+
+// pl.yaml rule pl.caseAgreement def agreementRegendered
+export function agreementRegendered(word: string, index: 0 | 1 | 2) {
+  const lower = word.toLowerCase();
+  const det = AGREEMENT_MASCULINE_DETERMINERS[lower]?.[index];
+  const adj = plAdjectiveOf(lower);
+  return det
+    ? plCaseLike(word, det)
+    : !adj ||
+        adj.ending !== "y" ||
+        plAmbiguousAdjective(lower) ||
+        tagsAnd(plNounTags(lower), PL_ALL_CASES)
+      ? null
+      : plCaseLike(word, plAdjectiveForm(adj.lemma, AGREEMENT_ADJECTIVE_ENDINGS[index]));
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PARTICIPLE
+export const AGREEMENT_PARTICIPLE = /(?:[aeo]n|[ęyiu]t|art)y$/u;
+
+// pl.yaml rule pl.caseAgreement def agreementBitCount
+export function agreementBitCount(mask: number) {
+  return mask.toString(2).replace(/0/g, "").length;
+}
+
+// pl.yaml rule pl.caseAgreement def agreementOverlap
+export function agreementOverlap(ending: string, typed: string) {
+  return agreementBitCount(tagsAnd(plReadingCases(ending), plReadingCases(typed)));
+}
+
+// pl.yaml rule pl.caseAgreement def agreementPair
+export function agreementPair(adjective: string, noun: string, after: boolean) {
+  return after ? noun + " " + adjective : adjective + " " + noun;
+}
+
+// pl.yaml rule pl.caseAgreement def agreementAdjectiveClash
+export function agreementAdjectiveClash(
+  adjective: string,
+  noun: string,
+  governed: number | undefined,
+  after: boolean,
+) {
+  const adj = plAdjectiveOf(adjective);
+  if (!(adj !== null && !AGREEMENT_PRONOUNS.has(adj.lemma))) return null;
+  if (!(adj.lemma !== "luty")) return null;
+  if (tagsAnd(plNounTags(adjective), PL_ALL_CASES)) return null;
+  const baseTags = plNounTags(noun);
+  if (!plOnlyNoun(baseTags)) return null;
+  if (AGREEMENT_NOMINAL_ADJECTIVES.has(adj.lemma) && tagsAnd(baseTags, plCases("Gs Gp")))
+    return null;
+  if (
+    AGREEMENT_PARTICIPLE.test(adj.lemma) &&
+    !tagsAnd(baseTags, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS))
+  )
+    return null;
+  const men = plMenOnlyPlural(noun);
+  if (men && adjective === plVirileAdjective(adj.lemma)) return null;
+  const notMen =
+    men &&
+    !after &&
+    governed === undefined &&
+    adj.ending === "e" &&
+    !plAdjectiveAgrees("e", tagsWithout(baseTags, plCases("Np Vp")));
+  if (!notMen && plAmbiguousAdjective(adjective)) return null;
+  if (
+    !(governed !== undefined
+      ? !plAdjectiveAgrees(adj.ending, baseTags) && tagsAnd(baseTags, governed) !== 0
+      : AGREEMENT_PREDICATIVE_ENDINGS.has(adj.ending)
+        ? adj.ending === "ymi" &&
+          tagsAnd(baseTags, plCases("Is")) !== 0 &&
+          !tagsAnd(baseTags, PL_PLURAL)
+        : after
+          ? AGREEMENT_AFTER_ENDINGS.has(adj.ending)
+          : !tagsAnd(baseTags, notMen ? AGREEMENT_NO_LOCATIVE : AGREEMENT_OBLIQUE))
+  )
+    return null;
+  const tags =
+    governed !== undefined
+      ? tagsOr(tagsWithout(baseTags, PL_ALL_CASES), tagsAnd(baseTags, governed))
+      : baseTags;
+  if (!notMen && plAdjectiveAgrees(adj.ending, tags)) return null;
+  return agreementClashFixes(adjective, noun, adj, tags, men, after);
+}
+
+// pl.yaml rule pl.caseAgreement def agreementClashFixes
+export function agreementClashFixes(
+  adjective: string,
+  noun: string,
+  adj: { lemma: string; ending: string },
+  tags: number,
+  men: boolean,
+  after: boolean,
+) {
+  const endings = plAgreeingEndings(tags);
+  const best = Math.max(...endings.map((ending) => agreementOverlap(ending, adj.ending)));
+  const closest = endings.filter((ending) => agreementOverlap(ending, adj.ending) === best);
+  const form =
+    men && closest[0] === "e"
+      ? plVirileAdjective(adj.lemma)
+      : plAdjectiveForm(adj.lemma, closest[0]);
+  const twin = AGREEMENT_TWIN[noun.at(-1)!];
+  const toggled = twin ? noun.slice(0, -1) + twin : "";
+  const twinTags = twin ? plNounTags(toggled) : 0;
+  return [
+    ...new Set([
+      ...(closest.length === 1 && form ? [agreementPair(form, noun, after)] : []),
+      ...(twin && plOnlyNoun(twinTags) && plAdjectiveAgrees(adj.ending, twinTags)
+        ? [agreementPair(adjective, toggled, after)]
+        : []),
+    ]),
+  ];
+}
+
+// pl.yaml rule pl.caseAgreement def agreementWordBefore
+export function agreementWordBefore(text: string, start: number) {
+  return /(\p{L}+)[ \t ]+$/u.exec(text.slice(Math.max(0, start - 40), start))?.[1].toLowerCase();
+}
+
+// pl.yaml rule pl.caseAgreement def agreementClosesPhraseBefore
+export function agreementClosesPhraseBefore(word: string, adjective: string) {
+  const ending = plAdjectiveOf(adjective)!.ending;
+  const tags = plNounTags(word);
+  return (
+    (/(?:ej|ego|emu|ych|ich|ymi|imi|ym|im|ą)$/u.test(adjective) &&
+      word.slice(-2) === adjective.slice(-2)) ||
+    (tagsAnd(tags, PL_ALL_CASES) !== 0 && plAdjectiveAgrees(ending, tags))
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_COPULA
+export const AGREEMENT_COPULA =
+  /^(?:jest|jestem|jesteś|była|byłam|byłaś|będzie|będę|będziesz|to)$/u;
+
+// pl.yaml rule pl.caseAgreement def agreementRepeatedAfter
+export function agreementRepeatedAfter(text: string, end: number, noun: string) {
+  const next = /^[ \t ]+po[ \t ]+(\p{L}+)/u.exec(text.slice(end))?.[1];
+  if (!(next !== undefined)) return false;
+  const word = noun.toLowerCase();
+  return (
+    word.slice(0, 3) === next.toLowerCase().slice(0, 3) ||
+    plInflect(word, PL_ALL_CASES).includes(next.toLowerCase())
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PREDICATE_BEFORE
+export const AGREEMENT_PREDICATE_BEFORE =
+  /(?:^|[^\p{L}])(?:jest|są|był[aoy]?|byli|będzie|będą|zosta(?:ł[aoy]?|li)|się)(?:[ \t ]+(?:bardzo|zbyt|za|dość|dosyć|całkiem|naprawdę|niezwykle|wyjątkowo|tak|coraz|nadal|wciąż|już|raczej))?[ \t ]+$/iu;
+
+// pl.yaml rule pl.caseAgreement def agreementRunOn
+export function agreementRunOn(text: string, start: number, end: number) {
+  if (!AGREEMENT_PREDICATE_BEFORE.test(text.slice(Math.max(0, start - 40), start))) return false;
+  const next = /^[ \t ]+(\p{L}+)/u.exec(text.slice(end))?.[1]?.toLowerCase();
+  return !!next && (plFiniteVerb(next) || plPastByShape(next));
+}
+
+// pl.yaml rule pl.caseAgreement def agreementCopulaClash
+export function agreementCopulaClash(adjective: string, noun: string) {
+  const adj = plAdjectiveOf(adjective);
+  if (!(adj?.ending === "a" && !plAmbiguousAdjective(adjective))) return null;
+  if (!(/(?:[^ia]sk|ck|dzk)i$/u.test(adj.lemma) && !tagsAnd(plNounTags(adjective), PL_ALL_CASES)))
+    return null;
+  const tags = plNounTags(noun);
+  if (!(
+    noun.endsWith("ą") &&
+    plOnlyNoun(tags) &&
+    !tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Is")))
+  ))
+    return null;
+  const twin = noun.slice(0, -1) + "a";
+  const twinTags = plNounTags(twin);
+  if (!(
+    plOnlyNoun(twinTags, true) &&
+    tagsAnd(twinTags, plCases("Ns")) !== 0 &&
+    tagsAnd(twinTags, PL_FEMININE) !== 0
+  ))
+    return null;
+  return [adjective + " " + twin, plAdjectiveForm(adj.lemma, "ą") + " " + noun];
+}
+
+// pl.yaml rule pl.caseAgreement def agreementReport
+export function agreementReport(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  typed: string,
+  fixes: string[],
+) {
+  return plFindingAt(
+    ctx,
+    start,
+    end,
+    fixes.map((fix) => plCaseLike(typed, fix)),
+    "polishCaseAgreement",
+    "review_msg_pl_agreement",
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def agreementAdjectiveLater
+export function agreementAdjectiveLater(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  first: string,
+  second: string,
+  end: number,
+  lower: boolean,
+  previous: string | undefined,
+) {
+  const copulaFixes =
+    lower && AGREEMENT_COPULA.test(previous ?? "") ? agreementCopulaClash(first, second) : null;
+  return copulaFixes
+    ? agreementReport(ctx, m.index, end, first, copulaFixes)
+    : lower && /^[ \t ]*(?:[.,;:!?)…]|$)/u.test(ctx.text.slice(end, end + 3))
+      ? agreementAfterReport(ctx, m, first, second, end)
+      : null;
+}
+
+// pl.yaml rule pl.caseAgreement def agreementAfterReport
+export function agreementAfterReport(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  first: string,
+  second: string,
+  end: number,
+) {
+  const fixes = agreementAdjectiveClash(second, first, undefined, true);
+  if (!(fixes !== null)) return null;
+  return agreementReport(ctx, m.index, end, first, fixes);
+}
+
+// pl.yaml rule pl.caseAgreement def agreementConsideredEnding
+export function agreementConsideredEnding(plural: boolean, tags: number, formTags: number) {
+  return plural
+    ? tagsAnd(formTags, plCases("Gp"))
+      ? "ych"
+      : "e"
+    : tagsAnd(tags, PL_FEMININE)
+      ? "ą"
+      : tagsAnd(tags, PL_NEUTER)
+        ? "e"
+        : tagsAnd(formTags, plCases("Gs"))
+          ? "ego"
+          : "y";
+}
+
+// pl.yaml rule pl.caseAgreement def agreementSmallFrame
+export function agreementSmallFrame(ctx: DetectContext, m: RegExpExecArray, fixed: string | null) {
+  if (!(fixed !== null && fixed !== "" && !plUserOrNamed(ctx, m[0]))) return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [plCaseLike(m[0], fixed)],
+    "polishCaseAgreement",
+    "review_msg_pl_preposition_case",
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_PLURAL_PRONOUNS
+export const AGREEMENT_PLURAL_PRONOUNS = {
+  tymi: ["tym", "tą"],
+  tamtymi: ["tamtym", "tamtą"],
+  takimi: ["takim", "taką"],
+  jakimi: ["jakim", "jaką"],
+  jakimiś: ["jakimś", "jakąś"],
+  moimi: ["moim", "moją"],
+  twoimi: ["twoim", "twoją"],
+  swoimi: ["swoim", "swoją"],
+  naszymi: ["naszym", "naszą"],
+  waszymi: ["waszym", "waszą"],
+  owymi: ["owym", "ową"],
+  żadnymi: ["żadnym", "żadną"],
+} as Readonly<Record<string, readonly [string, string]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_O_NAMES
+export const AGREEMENT_O_NAMES = {
+  Bruno: ["Brunona", "Brunonowi", "Brunonem"],
+  Hugo: ["Hugona", "Hugonowi", "Hugonem"],
+  Otto: ["Ottona", "Ottonowi", "Ottonem"],
+  Pablo: ["Pabla", "Pablowi", "Pablem"],
+  Mario: ["Maria", "Mariowi", "Mariem"],
+  Paulo: ["Paula", "Paulowi", "Paulem"],
+  Leonardo: ["Leonarda", "Leonardowi", "Leonardem"],
+  Ricardo: ["Ricarda", "Ricardowi", "Ricardem"],
+  Fernando: ["Fernanda", "Fernandowi", "Fernandem"],
+  Antonio: ["Antonia", "Antoniowi", "Antoniem"],
+  Alfonso: ["Alfonsa", "Alfonsowi", "Alfonsem"],
+  Romano: ["Romana", "Romanowi", "Romanem"],
+  Guido: ["Guida", "Guidowi", "Guidem"],
+  Sergio: ["Sergia", "Sergiowi", "Sergiem"],
+  Claudio: ["Claudia", "Claudiowi", "Claudiem"],
+} as Readonly<Record<string, readonly [string, string, string]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_RELATIVE_READINGS
+export const AGREEMENT_RELATIVE_READINGS = {
+  który: [[PL_MASCULINE, false]],
+  która: [[PL_FEMININE, false]],
+  które: [
+    [PL_NEUTER, false],
+    [AGREEMENT_GENDERS, true],
+  ],
+  którego: [[tagsOr(PL_MASCULINE, PL_NEUTER), false]],
+  której: [[PL_FEMININE, false]],
+  któremu: [[tagsOr(PL_MASCULINE, PL_NEUTER), false]],
+  którą: [[PL_FEMININE, false]],
+  którym: [
+    [tagsOr(PL_MASCULINE, PL_NEUTER), false],
+    [AGREEMENT_GENDERS, true],
+  ],
+  których: [[AGREEMENT_GENDERS, true]],
+  którymi: [[AGREEMENT_GENDERS, true]],
+  którzy: [[PL_MASCULINE, true]],
+} as Readonly<Record<string, readonly (readonly [number, boolean])[]>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_RELATIVE_FORMS
+export const AGREEMENT_RELATIVE_FORMS = {
+  który: { f: "która", n: "które", p: "które" },
+  która: { m: "który", n: "które", p: "które" },
+  której: { m: "którego", n: "którego", p: "których" },
+  któremu: { f: "której", p: "którym" },
+  którymi: { m: "którym", f: "którą", n: "którym" },
+  którzy: { f: "które", n: "które" },
+} as Readonly<Record<string, Partial<Record<"m" | "f" | "n" | "p", string>>>>;
+
+// pl.yaml rule pl.caseAgreement def AGREEMENT_NEUTRAL
+export const AGREEMENT_NEUTRAL = new Set([
+  ...Object.keys(AGREEMENT_GOVERNS),
+  ..."jego jej ich mój moja moje mojego mojej twój twoja twoje swój swoja swoje swojego swojej nasz nasza nasze wasz wasza wasze bardzo już jeszcze też także tylko nawet wczoraj dziś dzisiaj jutro tam tu tutaj się nie".split(
+    " ",
+  ),
+]);
+
+// pl.yaml rule pl.caseAgreement def agreementReadingAgrees
+export function agreementReadingAgrees(tags: number, reading: readonly [number, boolean]) {
+  return (
+    tagsAnd(tags, reading[1] ? PL_PLURAL : PL_SINGULAR) !== 0 &&
+    (!tagsAnd(tags, AGREEMENT_GENDERS) || tagsAnd(tags, reading[0]) !== 0)
+  );
+}
+
+// pl.yaml rule pl.caseAgreement def agreementRelativeQuiet
+export function agreementRelativeQuiet(
+  words: readonly string[],
+  i: number,
+  stop: number,
+  readings: readonly (readonly [number, boolean])[],
+): boolean {
+  return i < stop
+    ? stop > 0 || words.length === 0
+    : agreementRelativeStep(words, i, stop, readings, words[i].toLowerCase());
+}
+
+// pl.yaml rule pl.caseAgreement def agreementRelativeStep
+export function agreementRelativeStep(
+  words: readonly string[],
+  i: number,
+  stop: number,
+  readings: readonly (readonly [number, boolean])[],
+  lower: string,
+): boolean {
+  return plFiniteVerb(lower)
+    ? false
+    : AGREEMENT_NEUTRAL.has(lower)
+      ? agreementRelativeQuiet(words, i - 1, stop, readings)
+      : agreementRelativeWord(words, i, stop, readings, lower, plAdjectiveOf(lower));
+}
+
+// pl.yaml rule pl.caseAgreement def agreementRelativeWord
+export function agreementRelativeWord(
+  words: readonly string[],
+  i: number,
+  stop: number,
+  readings: readonly (readonly [number, boolean])[],
+  lower: string,
+  adjective: { lemma: string; ending: string } | null,
+): boolean {
+  return adjective
+    ? AGREEMENT_PRONOUNS.has(adjective.lemma) ||
+        agreementRelativeQuiet(words, i - 1, stop, readings)
+    : [plNounTags(lower)].some(
+        (tags) =>
+          !tags ||
+          (i > 0 && /^\p{Lu}/u.test(words[i])) ||
+          readings.some((reading) => agreementReadingAgrees(tags, reading)),
+      ) || agreementRelativeQuiet(words, i - 1, stop, readings);
+}
+
+// pl.yaml rule pl.quotes def quotePair
+export function quotePair(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  open: string,
+  close: string,
+  fixOpen: boolean,
+  marks: number,
+) {
+  const end = m.index + m[0].length;
+  const closeFinding = plFindingAt(
+    ctx,
+    end - marks,
+    end,
+    [close],
+    "polishQuotes",
+    "review_msg_pl_typography",
+  );
+  return fixOpen
+    ? [
+        plFindingAt(
+          ctx,
+          m.index,
+          m.index + marks,
+          [open],
+          "polishQuotes",
+          "review_msg_pl_typography",
+        ),
+        closeFinding,
+      ]
+    : [closeFinding];
+}
+
+// pl.yaml rule pl.typography def typographySwap
+export function typographySwap(m: RegExpExecArray, ctx: DetectContext, fixed: string | null) {
+  if (!(fixed !== null && fixed !== m[0])) return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [fixed],
+    "polishTypography",
+    "review_msg_pl_typography",
+  );
+}
+
+// pl.yaml rule pl.rangeDashes def RANGE_ID_BEFORE
+export const RANGE_ID_BEFORE =
+  /(?<![\p{L}])(?:nr|tel|fax|faks|nip|pesel|regon|krs|isbn|issn|sygn|kod|kodu|kodem)\.?[  ]*$/iu;
+
+// pl.yaml rule pl.rangeDashes def RANGE_SCORE_BEFORE
+export const RANGE_SCORE_BEFORE =
+  /(?<![\p{L}])(?:wynik|wygra|przegra|remis|mecz|pokona|zwycięż|zakończ|prowadz|set|bramk|gol|punkt|spotkani|starci)\p{L}*(?:[  ]+\p{L}+){0,4}[  ]+$/iu;
+
+// pl.yaml rule pl.rangeDashes def RANGE_SCORE_AFTER
+export const RANGE_SCORE_AFTER = /^[  ]+(?:dla|po)(?![\p{L}])/u;
+
+// pl.yaml rule pl.degrees def DEGREE_IRREGULAR
+export const DEGREE_IRREGULAR = {
+  dobry: "lepszy",
+  zły: "gorszy",
+  duży: "większy",
+  mały: "mniejszy",
+  wysoki: "wyższy",
+  niski: "niższy",
+  bliski: "bliższy",
+  daleki: "dalszy",
+  szeroki: "szerszy",
+  głęboki: "głębszy",
+  lekki: "lżejszy",
+  ciężki: "cięższy",
+  długi: "dłuższy",
+} as Record<string, string>;
+
+// pl.yaml rule pl.degrees def DEGREE_ADVERBS
+export const DEGREE_ADVERBS = {
+  dobrze: "lepiej",
+  źle: "gorzej",
+  szybko: "szybciej",
+  brzydko: "brzydziej",
+  krótko: "krócej",
+  słodko: "słodziej",
+  nisko: "niżej",
+  blisko: "bliżej",
+  wysoko: "wyżej",
+  ciężko: "ciężej",
+  lekko: "lżej",
+  rzadko: "rzadziej",
+  głęboko: "głębiej",
+  daleko: "dalej",
+  długo: "dłużej",
+  często: "częściej",
+  cicho: "ciszej",
+  głośno: "głośniej",
+  mocno: "mocniej",
+  łatwo: "łatwiej",
+  trudno: "trudniej",
+  tanio: "taniej",
+  drogo: "drożej",
+  wesoło: "weselej",
+} as Record<string, string>;
+
+// pl.yaml rule pl.degrees def DEGREE_UNGRADED
+export const DEGREE_UNGRADED =
+  /^(?:optymaln|maksymaln|minimaln)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|ie)$/u;
+
+// pl.yaml rule pl.degrees def comparativeOf
+export function comparativeOf(lemma: string) {
+  if (lemma.endsWith("szy")) return null;
+  return (
+    [
+      DEGREE_IRREGULAR[lemma],
+      lemma.replace(/ny$/, "niejszy"),
+      lemma.replace(/ni$/, "ńszy"),
+      lemma.replace(/(?:o|e)?k[iy]$/, "szy"),
+      lemma.replace(/[iy]$/, "szy"),
+    ].find((c) => c && c !== lemma && plHasAdjective(c)) ?? null
+  );
+}
+
+// pl.yaml rule pl.degrees def alreadyGraded
+export function alreadyGraded(word: string) {
+  const bare = word.startsWith("naj") ? word.slice(3) : word;
+  return (
+    DEGREE_IRREGULAR_ADVERBS.has(bare) ||
+    (/ej$/.test(bare) && plHasAdjective(bare + "szy")) ||
+    [plAdjectiveOf(bare)].some((adj) => !!adj && /szy$/.test(adj.lemma) && adj.lemma !== "pierwszy")
+  );
+}
+
+// pl.yaml rule pl.degrees def degreeStyle
+export function degreeStyle(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  marker: string,
+  word: string,
+  lower: string,
+  end: number,
+) {
+  const longer = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+  if (/(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t ]+(?:i|lub|albo|czy))[ \t ]+$/iu.test(longer))
+    return null;
+  const fixed = degreeFix(word, lower === "najbardziej" ? "naj" : "");
+  if (!(fixed !== null)) return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    end,
+    [plCaseLike(marker, fixed)],
+    "stylePhrasing",
+    "review_msg_style_phrasing",
+  );
+}
+
+// pl.yaml rule pl.degrees def degreeFix
+export function degreeFix(word: string, naj: string) {
+  const adverbFix = DEGREE_ADVERBS[word]
+    ? naj + DEGREE_ADVERBS[word]
+    : word.endsWith("nie")
+      ? degreeAdverbFix(word, naj)
+      : null;
+  return adverbFix || degreeAdjectiveFix(word, naj);
+}
+
+// pl.yaml rule pl.degrees def degreeAdverbFix
+export function degreeAdverbFix(word: string, naj: string) {
+  const comparative = plHasAdjective(word.slice(0, -2) + "y")
+    ? comparativeOf(word.slice(0, -2) + "y")
+    : null;
+  return comparative?.endsWith("iejszy") ? naj + comparative.slice(0, -3) : null;
+}
+
+// pl.yaml rule pl.degrees def degreeAdjectiveFix
+export function degreeAdjectiveFix(word: string, naj: string) {
+  const adj = plAdjectiveOf(word);
+  const comparative = adj && comparativeOf(adj.lemma);
+  return adj && comparative ? naj + plAdjectiveForm(comparative, adj.ending) : null;
+}
+
+// pl.yaml rule pl.degrees def DEGREE_CLAUSE_AFTER
+export const DEGREE_CLAUSE_AFTER =
+  /^(?:naj\p{L}*|i|ja|ty|on|ona|ono|my|wy|oni|one|się|to|tylko|zwykle|zawsze|wiadomo|wspomniałem|mówiłem|sądzę|myślę|widać|każdy|ktoś|coś|nikt|nic|gdyby|by|już)$/u;
+
+// pl.yaml rule pl.commaFrames def COMMA_ASIDE_PHRASE
+export const COMMA_ASIDE_PHRASE =
+  /^(?:po (?:pierwsze|drugie|trzecie|czwarte|piąte|ostatnie|prostu|kolei|czym|co)|z (?:jednej|drugiej|innej|mojej|twojej|naszej) strony|w (?:końcu|ogóle|sumie|skrócie|zasadzie|rezultacie|efekcie|praktyce|rzeczywistości|istocie|gruncie rzeczy|każdym razie|przeciwnym razie|takim razie|tym razie|tym przypadku|tym wypadku|związku z tym|dodatku|zamian|zamian za to|ten sposób|szczególności|przeciwieństwie|porównaniu|skrócie|razie czego|razie potrzeby|razie wątpliwości|międzyczasie|tym czasie)|na (?:szczęście|nieszczęście|koniec|początek|przykład|razie|pewno|marginesie|wstępie|zakończenie|dodatek|ogół|odwrót|wszelki wypadek|domiar złego|przyszłość|tym etapie|wszelki)|przede wszystkim|mimo (?:to|wszystko)|pomimo to|bez (?:wątpienia|względu|dwóch zdań)|dla (?:przykładu|porządku|jasności|ścisłości)|ponad (?:to|wszystko)|poza tym|z (?:tego|tej) (?:powodu|przyczyny)|od (?:razu|tego czasu|teraz|dziś|jutra)|do (?:tego|rzeczy)|przy (?:tym|okazji)|za (?:to|chwilę|moment)|o (?:dziwo|ile))$/u;
+
+// pl.yaml rule pl.commaFrames def COMMA_OPENS_CLAUSE
+export const COMMA_OPENS_CLAUSE =
+  /^(?:gdy|kiedy|jak|jeśli|jeżeli|że|iż|żeby|aby|by|bo|gdzie|dokąd|skąd|co|kto|czy|choć|chociaż|zanim|odkąd|dopóki|póki|skoro|ponieważ|gdyż|zwłaszcza|szczególnie|czyli|oraz|i|a|ale|lecz|albo|lub|bądź|ani|natomiast|jednak|więc|zatem|tj|np|tzn|około|mniej|więcej|między|jako|niż|tak|to|któr\p{L}*|jak\p{L}*|czyj\p{L}*)$/u;
+
+// pl.yaml rule pl.capitals def capitalWords
+export function capitalWords(word: string) {
+  return word
+    .split(/(?<=[ \t -])/u)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("");
+}
+
+// pl.yaml rule pl.capitals def HOLIDAY_BEFORE
+export const HOLIDAY_BEFORE =
+  /(?:Wielk\p{Ll}+|Tłust\p{Ll}+|Biał\p{Ll}+|Czarn\p{Ll}+|Zielon\p{Ll}+)[ \t ]+$/u;
+
+// pl.yaml rule pl.capitals def HOLIDAY_AFTER
+export const HOLIDAY_AFTER =
+  /^[ \t ]+(?:Palmow|Wielkanocn|Popielcow|Miłosierdzi|Zesłani|Bożego|Zielon|Świąt)/u;
+
+// pl.yaml rule pl.capitals def DAY_CONTEXT
+export const DAY_CONTEXT =
+  /(?:\p{N}\.?|(?<![\p{L}])(?:w|we|co|od|do|na|przez|po|przed|z|ze|około|każd\p{Ll}*|ten|tę|ta|tej|zeszł\p{Ll}*|przyszł\p{Ll}*|następn\p{Ll}*|ostatni\p{Ll}*|najbliższ\p{Ll}*|początku|końcu|połowie))[ \t ]+$/u;
+
+// pl.yaml rule pl.capitals def CASING_AGREEING
+export const CASING_AGREEING = [
+  [/owi$/u, /(?:i|y)?emu$/u],
+  [/u$/u, /(?:i|y)?(?:ego|emu)$|(?:i|y)m$/u],
+  [/(?:em|ie)$/u, /(?:i|y)m$/u],
+  [/(?:e|o)$/u, /i?e$/u],
+  [/a$/u, /(?:i|y)?ego$/u],
+  [/(?:[^aeiouyąęó])$/u, /(?:i|y)$/u],
+] as readonly (readonly [RegExp, RegExp])[];
+
+// pl.yaml rule pl.capitals def casingAgrees
+export function casingAgrees(noun: string, adjective: string) {
+  const n = noun.toLowerCase();
+  const a = adjective.toLowerCase().split("-").at(-1)!;
+  const row = CASING_AGREEING.find(([ending]) => ending.test(n));
+  return !!row && row[1].test(a);
+}
+
+// pl.yaml rule pl.capitals def FEMININE_AGREEING
+export const FEMININE_AGREEING = [
+  [/a$/u, /a$/u],
+  [/o$/u, /a$/u],
+  [/[iy]$/u, /ej$/u],
+  [/e$/u, /ej$/u],
+  [/[ęą]$/u, /ą$/u],
+] as readonly (readonly [RegExp, RegExp])[];
+
+// pl.yaml rule pl.conjunctions def CONJUNCTION_ENDINGS
+export const CONJUNCTION_ENDINGS = [
+  [/łbym$/u, "ł", "m"],
+  [/łabym$/u, "ła", "m"],
+  [/łbyś$/u, "ł", "ś"],
+  [/łabyś$/u, "ła", "ś"],
+  [/libyśmy$/u, "li", "śmy"],
+  [/łybyśmy$/u, "ły", "śmy"],
+  [/libyście$/u, "li", "ście"],
+  [/łybyście$/u, "ły", "ście"],
+  [/łem$/u, "ł", "m"],
+  [/łam$/u, "ła", "m"],
+  [/łeś$/u, "ł", "ś"],
+  [/łaś$/u, "ła", "ś"],
+  [/liśmy$/u, "li", "śmy"],
+  [/łyśmy$/u, "ły", "śmy"],
+  [/liście$/u, "li", "ście"],
+  [/łyście$/u, "ły", "ście"],
+] as readonly (readonly [RegExp, string, string])[];
+
+// pl.yaml rule pl.clauses def CLAUSE_RELATIVE
+export const CLAUSE_RELATIVE = /^któr/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_CONTRAST
+export const CLAUSE_CONTRAST = /^(?:a|więc|lecz)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_COORDINATE
+export const CLAUSE_COORDINATE = /^(?:i|oraz|lub|albo|bądź|ani|ni|a|zaś)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_FUTURE
+export const CLAUSE_FUTURE = /^będ(?:ę|ziesz|zie|ziemy|ziecie|ą)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_PAST
+export const CLAUSE_PAST = /(?:ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_INFINITIVE
+export const CLAUSE_INFINITIVE = /[ćc]$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_MODAL
+export const CLAUSE_MODAL = /^(?:musi|musia|mogł|mógł|mogl|chcia|chcie|mia|mie)/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_CERTAIN
+export const CLAUSE_CERTAIN =
+  /(?:ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$|^(?:jest|są|będ|powin|można|trzeba|należ|może$)|(?:ano|iono|[iyuę]to)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_AFTER_VERB
+export const CLAUSE_AFTER_VERB =
+  /^(?:już|jeszcze|bardzo|tylko|nadal|wciąż|zawsze|też|także|również|długo|się|nie|tam|tu|tutaj|wtedy|wówczas|naprawdę|zbyt|całkiem|zupełnie|ostatnio|mi|mu|jej|im|nam|wam|ci)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_SUBJECT_OF
+export const CLAUSE_SUBJECT_OF = {
+  ł: PL_MASCULINE,
+  ła: PL_FEMININE,
+  ło: PL_NEUTER,
+  li: PL_VIRILE,
+  ły: tagsOr(PL_FEMININE, PL_NEUTER),
+} as Readonly<Record<string, number>>;
+
+// pl.yaml rule pl.clauses def CLAUSE_PREDICATIVE
+export const CLAUSE_PREDICATIVE = /^(?:można|trzeba|należy|należało|należałoby|wypada|wypadało)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_INFINITIVE_FORM
+export const CLAUSE_INFINITIVE_FORM = /(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_ASIDE
+export const CLAUSE_ASIDE =
+  /^(?:krótko|szczerze|ściśle|ogólnie|prawdę|inaczej|nawiasem|delikatnie|otwarcie|uczciwie|obiektywnie|generalnie|praktycznie|łagodnie|oględnie|kolokwialnie|potocznie|formalnie)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_CONDITIONAL
+export const CLAUSE_CONDITIONAL =
+  /^(?:jeśli|jeżeli|jeśliby|jeżeliby|gdy|gdyby|kiedy|skoro|ponieważ|chociaż|choć)$/u;
+
+// pl.yaml rule pl.clauses def clauseJoins
+export function clauseJoins(word: string) {
+  return (
+    CLAUSE_JOINS.has(word) || /^(?:któr|jak|czyj|ilu|(?:gdy|że|a)?by(?:m|ś|śmy|ście)$)/u.test(word)
+  );
+}
+
+// pl.yaml rule pl.clauses def clauseGenderOf
+export function clauseGenderOf(word: string) {
+  return /^powin/u.test(word)
+    ? (CLAUSE_POWIN_GENDER[word.replace(/(?:śmy|ście|em|eś|m|ś)$/u, "")] ?? "")
+    : (/(ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$/u.exec(word)?.[1] ?? "");
+}
+
+// pl.yaml rule pl.clauses def clauseSameNumber
+export function clauseSameNumber(future: string, past: string) {
+  return /^będ(?:ę|ziesz|zie)$/u.test(future) === !/^l|^ły/u.test(clauseGenderOf(past));
+}
+
+// pl.yaml rule pl.clauses def clauseCompound
+export function clauseCompound(list: readonly PlWord[], a: number, b: number, relative: boolean) {
+  const first = list[a].lower;
+  const second = list[b].lower;
+  const pair = [first, second];
+  return pair.some((w) => /^(?:trzeba|można)$/u.test(w))
+    ? pair.some((w) => CLAUSE_FUTURE.test(w) || /^był/u.test(w))
+    : CLAUSE_FUTURE.test(first) && CLAUSE_PAST.test(second)
+      ? clauseSameNumber(first, second) &&
+        (CLAUSE_MODAL.test(second) ||
+          !list.slice(a + 1, b).some((w) => CLAUSE_INFINITIVE.test(w.lower)))
+      : CLAUSE_PAST.test(first) && CLAUSE_FUTURE.test(second)
+        ? b === a + 1 && clauseSameNumber(second, first)
+        : pair.some((w) => /^powin/u.test(w))
+          ? pair.some((w) => /^by(?:ł|li)/u.test(w)) &&
+            clauseGenderOf(first) === clauseGenderOf(second)
+          : !relative &&
+            pair.some((w) => /^by(?:ł|li)/u.test(w)) &&
+            pair.every((w) => CLAUSE_PAST.test(w)) &&
+            clauseGenderOf(first) === clauseGenderOf(second);
+}
+
+// pl.yaml rule pl.clauses def clauseVerbAt
+export function clauseVerbAt(list: readonly PlWord[], i: number) {
+  if (i > 0 && /^\p{Lu}/u.test(list[i].text)) return false;
+  const word = list[i].lower;
+  if (list[i - 1]?.lower === "to" && /^(?:znaczy|jest)$/u.test(word)) return false;
+  if (/^(?:chybił|trafił)$/u.test(word)) return false;
+  const next = list[i + 1]?.lower ?? "";
+  if (word === "prze" && /^(?:siebie|ze|zemnie)$|y$|a$|e$/u.test(next)) return false;
+  return word === "może"
+    ? CLAUSE_INFINITIVE.test(next)
+    : CLAUSE_PREDICATIVE.test(word) || plFiniteVerb(word) || plImpersonalVerb(word)
+      ? true
+      : !plAmbiguousVerb(word) || clauseJoins(word)
+        ? false
+        : (CLAUSE_PAST.test(word) && CLAUSE_INFINITIVE_FORM.test(next) && !plNounTags(next)) ||
+          /^(?:ja|ty|on|ona|ono|my|wy|oni|one)$/u.test(list[i - 1]?.lower ?? "") ||
+          (CLAUSE_PAST.test(word) && clausePastInContext(list, i));
+}
+
+// pl.yaml rule pl.clauses def clausePastInContext
+export function clausePastInContext(list: readonly PlWord[], i: number) {
+  const word = list[i].lower;
+  const gender = clauseGenderOf(word);
+  const next = list[i + 1]?.lower;
+  if (!(gender !== "" && next !== undefined)) return false;
+  const isBe = /^by(?:ł|li)/u.test(word);
+  const stem = word.slice(0, word.length - gender.length);
+  if (!(isBe || plListedVerb(gender === "ł" ? stem + "ła" : stem + "ł"))) return false;
+  return CLAUSE_AFTER_VERB.test(next)
+    ? gender !== "ło" || isBe
+    : clausePastBySubject(list, i, gender, next, isBe);
+}
+
+// pl.yaml rule pl.clauses def clausePastBySubject
+export function clausePastBySubject(
+  list: readonly PlWord[],
+  i: number,
+  gender: string,
+  next: string,
+  isBe: boolean,
+) {
+  const plural = gender === "li" || gender === "ły";
+  const prev = list[i - 1] ? plNounTags(list[i - 1].lower) : 0;
+  return plOnlyNoun(prev) &&
+    tagsAnd(prev, plCases(plural ? "Np" : "Ns")) &&
+    tagsAnd(prev, CLAUSE_SUBJECT_OF[gender])
+    ? gender !== "ły" || !tagsAnd(prev, PL_VIRILE)
+    : isBe &&
+        list.slice(0, i).some((w) => CLAUSE_RELATIVE.test(w.lower)) &&
+        clauseBePredicate(list, i, gender, next);
+}
+
+// pl.yaml rule pl.clauses def clauseBePredicate
+export function clauseBePredicate(
+  list: readonly PlWord[],
+  i: number,
+  gender: string,
+  next: string,
+) {
+  const adjective = plAdjectiveOf(next);
+  const after = list[i + 2] ? plNounTags(list[i + 2].lower) : 0;
+  return (
+    adjective !== null &&
+    !plNounTags(next) &&
+    !tagsAnd(after, PL_ALL_CASES) &&
+    adjective.ending === CLAUSE_PREDICATE_ENDING[gender]
+  );
+}
+
+// pl.yaml rule pl.clauses def clauseAdverbialParticiple
+export function clauseAdverbialParticiple(word: string) {
+  return CLAUSE_FIXED.has(word) || plNounTags(word) || plAdjectiveOf(word)
+    ? false
+    : /ąc$/u.test(word)
+      ? word.length >= 4
+      : /[wł]szy$/u.test(word) &&
+        word.length >= 7 &&
+        !/^naj|pierwszy$/u.test(word) &&
+        !plHasAdjective(word.slice(0, -3) + "y");
+}
+
+// pl.yaml rule pl.clauses def clauseCommaBefore
+export function clauseCommaBefore(
+  ctx: DetectContext,
+  list: readonly PlWord[],
+  at: number,
+  segment: readonly [number, number],
+  messageKey: RawFinding["messageKey"],
+  choose: boolean,
+) {
+  return {
+    ...plFindingAt(ctx, list[at - 1].end, list[at].start, [", "], "polishMissingComma", messageKey),
+    ...(choose ? { requiresChoice: true as const } : {}),
+    context: { start: segment[0], end: segment[1] },
+  };
+}
+
+// pl.yaml rule pl.clauses def clauseWarning
+export function clauseWarning(
+  ctx: DetectContext,
+  word: PlWord,
+  segment: readonly [number, number],
+  messageKey: RawFinding["messageKey"],
+) {
+  return {
+    ...plFindingAt(ctx, word.start, word.end, [], "polishMissingComma", messageKey),
+    context: { start: segment[0], end: segment[1] },
+  };
+}
+
+// pl.yaml rule pl.clauses def clauseIsVerb
+export function clauseIsVerb(w: PlReadWord) {
+  return w.verb || plPastByShape(w.lower);
+}
+
+// pl.yaml rule pl.clauses def clauseVerbBefore
+export function clauseVerbBefore(list: readonly PlReadWord[], j: number): number {
+  return j < 0 || clauseIsVerb(list[j]) ? j : clauseVerbBefore(list, j - 1);
+}
+
+// pl.yaml rule pl.clauses def clauseParticiples
+export function clauseParticiples(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+) {
+  return list.flatMap((p, i) => clauseParticipleAt(ctx, list, segment, p, i));
+}
+
+// pl.yaml rule pl.clauses def clauseParticipleAt
+export function clauseParticipleAt(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  p: PlReadWord,
+  i: number,
+) {
+  if (!(p.participle && !plUserOrNamed(ctx, p.text))) return [];
+  const prev = list[i - 1];
+  const next = list[i + 1];
+  return /^(?:mówiąc|biorąc)$/u.test(p.lower) && prev && CLAUSE_ASIDE.test(prev.lower)
+    ? list[i - 2] && next
+      ? [
+          {
+            ...plFindingAt(
+              ctx,
+              list[i - 2].end,
+              next.start,
+              [", " + ctx.source.slice(prev.start, p.end) + ", "],
+              "polishMissingComma",
+              "review_msg_pl_participle_comma",
+            ),
+            context: { start: segment[0], end: segment[1] },
+          },
+        ]
+      : []
+    : !next
+      ? []
+      : clauseParticipleComma(ctx, list, segment, i, prev);
+}
+
+// pl.yaml rule pl.clauses def clauseParticipleComma
+export function clauseParticipleComma(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  i: number,
+  prev: PlReadWord,
+) {
+  const verbBefore = clauseVerbBefore(list, i - 1);
+  const verbAfter = list.findIndex((w, j) => j > i + 1 && clauseIsVerb(w));
+  const opened = prev && clauseJoins(prev.lower);
+  return verbAfter > 0 &&
+    (verbBefore < 0 || opened) &&
+    !list
+      .slice(i + 1, verbAfter)
+      .some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))
+    ? [clauseWarning(ctx, list[i], segment, "review_msg_pl_participle_comma")]
+    : verbBefore >= 0 &&
+        !opened &&
+        !list
+          .slice(verbBefore + 1, i)
+          .some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))
+      ? [
+          clauseCommaBefore(
+            ctx,
+            list,
+            prev.lower === "nie" && i - 1 > verbBefore ? i - 1 : i,
+            segment,
+            "review_msg_pl_participle_comma",
+            false,
+          ),
+        ]
+      : [];
+}
+
+// pl.yaml rule pl.clauses def clauseSkipObjects
+export function clauseSkipObjects(list: readonly PlReadWord[], at: number, limit: number): number {
+  return at < limit && /^(?:się|nie|sobie|to|tego|ją|go|je)$/u.test(list[at]?.lower ?? "")
+    ? clauseSkipObjects(list, at + 1, limit)
+    : at;
+}
+
+// pl.yaml rule pl.clauses def clausePurposeOpeners
+export function clausePurposeOpeners(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+) {
+  const first = /^(?:ale|a|i|lecz|więc|zatem)$/u.test(list[0].lower) ? 1 : 0;
+  if (!/^(?:aby|żeby|ażeby|by)$/u.test(list[first]?.lower ?? "")) return [];
+  const before = ctx.text.slice(Math.max(0, segment[0] - 8), segment[0]);
+  if (segment[0] > 0 && !/(?:^|[.!?…,;:]["”’»)]*|\n)[ \t ]*$/u.test(before)) return [];
+  const at = clauseSkipObjects(list, first + 1, first + 3);
+  const infinitive = list[at];
+  if (!infinitive || !CLAUSE_INFINITIVE_FORM.test(infinitive.lower) || plNounTags(infinitive.lower))
+    return [];
+  const verb = list.findIndex((w, j) => j > at && w.verb);
+  if (!(verb >= 0)) return [];
+  if (
+    list
+      .slice(at + 1, verb)
+      .some(
+        (w) =>
+          w.participle ||
+          (clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower) && w.lower !== "to"),
+      )
+  )
+    return [];
+  return [clauseWarning(ctx, list[verb], segment, "review_msg_pl_run_on")];
+}
+
+// pl.yaml rule pl.clauses def clauseSkipAdjectives
+export function clauseSkipAdjectives(list: readonly PlReadWord[], k: number): number {
+  return k < list.length && plAdjectiveOf(list[k].lower) && !plNounTags(list[k].lower)
+    ? clauseSkipAdjectives(list, k + 1)
+    : k;
+}
+
+// pl.yaml rule pl.clauses def clauseCorrelativeTo
+export function clauseCorrelativeTo(list: readonly PlReadWord[], verb: number, at: number) {
+  if (!(list[at].lower === "to" && at > verb + 1)) return false;
+  const first = /^(?:a|i|ale|lecz)$/u.test(list[0].lower) ? 1 : 0;
+  if (!(CLAUSE_CONDITIONAL.test(list[first].lower) && first < verb)) return false;
+  if (
+    list
+      .slice(first + 1, verb)
+      .some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))
+  )
+    return false;
+  const k = clauseSkipAdjectives(list, at + 1);
+  const tags = list[k] ? plNounTags(list[k].lower) : 0;
+  return !(plOnlyNoun(tags) && tagsAnd(tags, PL_NEUTER) && tagsAnd(tags, plCases("Ns As")));
+}
+
+// pl.yaml rule pl.clauses def clauseRunOns
+export function clauseRunOns(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  afterComma: boolean,
+) {
+  return clauseRunOnFrom(
+    ctx,
+    list,
+    segment,
+    afterComma,
+    list.flatMap((w, i) => (w.verb ? [i] : [])),
+    1,
+  );
+}
+
+// pl.yaml rule pl.clauses def clauseRunOnFrom
+export function clauseRunOnFrom(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  afterComma: boolean,
+  verbs: readonly number[],
+  k: number,
+): RawFinding[] {
+  return k >= verbs.length
+    ? []
+    : (clauseRunOnPair(ctx, list, segment, afterComma, verbs, k) ??
+        clauseRunOnFrom(ctx, list, segment, afterComma, verbs, k + 1));
+}
+
+// pl.yaml rule pl.clauses def clauseRunOnPair
+export function clauseRunOnPair(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  afterComma: boolean,
+  verbs: readonly number[],
+  k: number,
+): RawFinding[] | null {
+  const a = verbs[k - 1];
+  const b = verbs[k];
+  const relative =
+    afterComma &&
+    list.slice(0, Math.min(2, a)).some((w) => CLAUSE_RELATIVE.test(w.lower)) &&
+    !list.slice(0, a).some((w) => clauseJoins(w.lower) && !CLAUSE_RELATIVE.test(w.lower));
+  if (clauseCompound(list, a, b, relative)) return null;
+  if (
+    /^jak (?:się )?(?:okazało|widać|wiadomo)$/u.test(
+      list
+        .slice(0, a + 1)
+        .map((w) => w.lower)
+        .join(" "),
+    )
+  )
+    return null;
+  const between = list.slice(a + 1, b).flatMap((w, j) => (clauseJoins(w.lower) ? [a + 1 + j] : []));
+  const linking = between.filter((j) => !CLAUSE_COORDINATE.test(list[j].lower));
+  return list.slice(0, b).some((w) => w.participle)
+    ? []
+    : linking.length === 1 && clauseCorrelativeTo(list, a, linking[0])
+      ? [clauseCommaBefore(ctx, list, linking[0], segment, "review_msg_pl_run_on", true)]
+      : !CLAUSE_CERTAIN.test(list[a].lower) && !CLAUSE_CERTAIN.test(list[b].lower)
+        ? null
+        : between.length === 1 && CLAUSE_CONTRAST.test(list[between[0]].lower)
+          ? list.slice(0, between[0]).some((w) => /^(?:po)?między$/u.test(w.lower))
+            ? null
+            : [clauseCommaBefore(ctx, list, between[0], segment, "review_msg_pl_run_on", false)]
+          : between.length
+            ? null
+            : clauseRunOnEnd(ctx, list, segment, a, b, relative);
+}
+
+// pl.yaml rule pl.clauses def clauseRunOnEnd
+export function clauseRunOnEnd(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  a: number,
+  b: number,
+  relative: boolean,
+) {
+  const start = list[b - 1].lower === "nie" && b - 1 > a ? b - 1 : b;
+  const last = list[start - 1].lower;
+  return relative &&
+    (start - 1 === a ||
+      CLAUSE_INFINITIVE.test(last) ||
+      tagsAnd(plNounTags(last), PL_ALL_CASES) ||
+      plAdjectiveOf(last) !== null)
+    ? [clauseCommaBefore(ctx, list, start, segment, "review_msg_pl_run_on", true)]
+    : [clauseWarning(ctx, list[b], segment, "review_msg_pl_run_on")];
+}
+
+// pl.yaml rule pl.style def orMoreAdjective
+export function orMoreAdjective(tokens: RegExpExecArray[], i: number) {
+  return (
+    i < tokens.length && !plNounTags(tokens[i][0]) && plAdjectiveOf(tokens[i][0])?.ending === "ych"
+  );
+}
+
+// pl.yaml rule pl.style def orMoreSkip
+export function orMoreSkip(tokens: RegExpExecArray[], i: number): number {
+  return orMoreAdjective(tokens, i) ? orMoreSkip(tokens, i + 1) : i;
+}
+
+// pl.yaml rule pl.style def orMorePlural
+export function orMorePlural(adj: string, wanted: string) {
+  return plAdjectiveForm(plAdjectiveOf(adj)!.lemma, STYLE_PLURAL_ENDING[wanted]);
+}
+
+// pl.yaml rule pl.style def orMoreFix
+export function orMoreFix(
+  tokens: RegExpExecArray[],
+  at: number,
+  noun: string,
+  tags: number,
+  wanted: string,
+  head: string,
+  wordsStart: number,
+) {
+  const forms = tagsAnd(tags, plCases(wanted)) ? [noun] : plInflect(noun, plCases(wanted));
+  const last = orMoreSkip(tokens, at + 1) - 1;
+  const unread =
+    /(?:ych|ich)$/u.test(tokens[last + 1]?.[0] ?? "") && !orMoreAdjective(tokens, last + 1);
+  if (!(forms.length === 1 && !unread)) return null;
+  return {
+    fixed: [
+      head,
+      ...tokens.slice(0, at).map((t) => orMorePlural(t[0], wanted)),
+      forms[0],
+      ...tokens.slice(at + 1, last + 1).map((t) => orMorePlural(t[0], wanted)),
+    ].join(" "),
+    end: wordsStart + tokens[last].index + tokens[last][0].length,
+  };
+}
+
+// pl.yaml rule pl.style def styleFinding
+export function styleFinding(ctx: DetectContext, start: number, end: number, fixes: string[]) {
+  const typed = ctx.source.slice(start, end);
+  if (plUserOrNamed(ctx, typed)) return null;
+  return plFindingAt(
+    ctx,
+    start,
+    end,
+    fixes.map((fix) => plCaseLike(typed, fix)),
+    "stylePhrasing",
+    "review_msg_style_phrasing",
+  );
+}
+
+// pl.yaml rule pl.officialese def OFFICIALESE_DESTINATION
+export const OFFICIALESE_DESTINATION = {
+  a: "cel podróży",
+  ę: "cel podróży",
+  ą: "celem podróży",
+  i: ["celu podróży", "celów podróży"],
+  e: "cele podróży",
+  om: "celom podróży",
+  ami: "celami podróży",
+  ach: "celach podróży",
+} as Readonly<Record<string, string | string[]>>;
+
+// pl.yaml rule pl.subjects def subjectPastForm
+export function subjectPastForm(word: string) {
+  return plFiniteVerb(word) || plPastByShape(word);
+}
+
+// pl.yaml rule pl.subjects def SUBJECT_ZOSTAC
+export const SUBJECT_ZOSTAC = { został: 0, została: 1, zostało: 2, zostały: 2 } as Readonly<
+  Record<string, number>
+>;
+
+// pl.yaml rule pl.subjects def SUBJECT_INTRANSITIVE_PAST
+export const SUBJECT_INTRANSITIVE_PAST =
+  /^(?:by|bywa|zosta|zostawa|(?:po|przy|wy|w|we|od|ode|do|ze|z|nad|nade|pod|pode)?sz|(?:przy|wy|po|od|do|za)?jecha|przyby|uciek|zniknę|umar|zmar|zginę|spa|siedzie|leże|mieszka|ży|płaka|krzycze|biega|chodzi|przychodzi|wychodzi|wraca|wróci|przyjeżdża|przyleci|odleci|pływa|(?:wy)?roś|zasnę|usnę)(?:li|ły)$/u;
+
+// pl.yaml rule pl.subjects def SUBJECT_OPENS_CLAUSE
+export const SUBJECT_OPENS_CLAUSE =
+  /(?:^|[.!?…:;]["”’»)]{0,3}\s+|\n\s*|(?:^|[^\p{L}])(?:że|gdy|kiedy|bo|ponieważ|jeśli|jeżeli|choć|chociaż|zanim|aż|a|ale|lecz|więc|wtedy|potem|dziś|wczoraj|tam|tu|tutaj)\s+)$/iu;
+
+// pl.yaml rule pl.subjects def SUBJECT_PLURAL_DETERMINER
+export const SUBJECT_PLURAL_DETERMINER =
+  /^(?:te|tamte|owe|moje|twoje|swoje|nasze|wasze|wszystkie|inne|takie|niektóre|obie|dwie|trzy|cztery)$/iu;
+
+// pl.yaml rule pl.subjects def SUBJECT_DURATION
+export const SUBJECT_DURATION =
+  /^(?:godziny|noce|minuty|sekundy|lata|doby|niedziele|soboty|wakacje|ferie|święta|popołudnia|chwile|mile)$/u;
+
+// pl.yaml rule pl.subjects def SUBJECT_NOT_SUBJECT_BEFORE
+export const SUBJECT_NOT_SUBJECT_BEFORE = new RegExp(
+  `(?:^|[^\\p{L}])(?:jak|niż|jako|niczym|ani|czy|lub|albo|bądź|${PREPOSITIONS})[ \\t\\u00a0]+$`,
+  "iu",
+);
+
+// pl.yaml rule pl.subjects def subjectPluralPast
+export function subjectPluralPast(word: string) {
+  return (
+    word === "były" ||
+    word === "byli" ||
+    subjectPastForm(word) ||
+    tagsAnd(plNounTags(word), PL_VERB) !== 0
+  );
+}
+
+// pl.yaml rule pl.subjects def subjectOtherPlural
+export function subjectOtherPlural(verb: string) {
+  const stem = verb.slice(0, -2);
+  const forms = verb.endsWith("li")
+    ? [stem + "ły", ...(stem.endsWith("e") ? [stem.slice(0, -1) + "ały"] : [])]
+    : [stem + "li", ...(stem.endsWith("a") ? [stem.slice(0, -1) + "eli"] : [])];
+  const known = forms.filter((form) => subjectPluralPast(form) || plAdjectiveOf(form));
+  return known.length === 1 ? known : [];
+}
+
+// pl.yaml rule pl.subjects def subjectVirileVerbFits
+export function subjectVirileVerbFits(
+  before: string,
+  lower: string,
+  tags: number,
+  verb: string,
+  reflexive: string | undefined,
+) {
+  if (tagsAnd(tags, tagsOr(PL_MASCULINE, PL_VIRILE)) || SUBJECT_DURATION.test(lower)) return false;
+  if (!(
+    SUBJECT_INTRANSITIVE_PAST.test(verb) ||
+    (!!reflexive && !tagsAnd(tags, plCases("Gp")) && subjectPastForm(verb))
+  ))
+    return false;
+  const det = /(\p{L}+)[ \t ]+$/u.exec(before);
+  return (
+    SUBJECT_OPENS_CLAUSE.test(before) ||
+    (!!det &&
+      (SUBJECT_PLURAL_DETERMINER.test(det[1]) ||
+        plAdjectiveOf(det[1].toLowerCase())?.ending === "e") &&
+      SUBJECT_OPENS_CLAUSE.test(before.slice(0, det.index)))
+  );
+}
+
+// pl.yaml rule pl.subjects def subjectGenitive
+export function subjectGenitive(word: string) {
+  return (
+    /^(?:z|ze|nich|nas|was|tych|tego|tej|ich|jego|jej|(?:m|tw|sw)oj(?:ej|ego)|(?:m|tw|sw)oich|(?:nasz|wasz)(?:ej|ego|ych))$/u.test(
+      word,
+    ) ||
+    tagsAnd(plNounTags(word), plCases("Gs Gp")) !== 0 ||
+    /^(?:ego|ej|ych)$/u.test(plAdjectiveOf(word)?.ending ?? "")
+  );
+}
+
+// pl.yaml rule pl.subjects def predicateAdjectiveWithNie
+export function predicateAdjectiveWithNie(word: string) {
+  const adjective = plAdjectiveOf(word);
+  return adjective || !word.startsWith("nie")
+    ? adjective
+    : [plAdjectiveOf(word.slice(3))].map(
+        (base) => base && { lemma: "nie" + base.lemma, ending: base.ending },
+      )[0];
+}
+
+// pl.yaml rule pl.subjects def predicateVirileLemmaWithNie
+export function predicateVirileLemmaWithNie(word: string) {
+  if (!(word.length >= 4)) return null;
+  const lemma = plVirileLemma(word);
+  return lemma || !word.startsWith("nie")
+    ? lemma
+    : [plVirileLemma(word.slice(3))].map((base) => base && "nie" + base)[0];
+}
+
+// pl.yaml rule pl.subjects def predicateVirileFix
+export function predicateVirileFix(adj: string) {
+  const adjective = predicateAdjectiveWithNie(adj);
+  if (!(adjective?.ending === "e")) return null;
+  return [plVirileAdjective(adjective.lemma)].filter((virile) => virile !== "");
+}
+
+// pl.yaml rule pl.subjects def predicateOtherFix
+export function predicateOtherFix(adj: string) {
+  const lemma = predicateVirileLemmaWithNie(adj);
+  if (!(!!lemma && !plAdjectiveOf(adj))) return null;
+  return [plAdjectiveForm(lemma, "e")];
+}
+
+// pl.yaml rule pl.subjects def SUBJECT_FUTURE
+export const SUBJECT_FUTURE =
+  /^(?:ja|ty|on|ona|ono|my|wy|oni|one|kto|co|czy|nie|już|też|jutro|wkrótce|zaraz|potem|wtedy|później|dziś|dzisiaj|wieczorem|rano|że|gdy|kiedy|jeśli|i|a|ale)$/iu;
+
+// pl.yaml rule pl.subjects def aspectFutureFits
+export function aspectFutureFits(ctx: DetectContext, m: RegExpExecArray) {
+  const before = /(\p{L}+)[ \t ]+$/u.exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1];
+  const tags = before ? plNounTags(before.toLowerCase()) : 0;
+  if (before && !SUBJECT_FUTURE.test(before) && !plOnlyNoun(tags)) return false;
+  if (tagsAnd(tags, plCases("Is Ip")) && !tagsAnd(tags, plCases("Ns Np"))) return false;
+  const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+  if (/^[ \t ]+(?:mus|mog|móg|chci|chcie|mia|mie|potraf|umia|umie)\p{L}*/iu.test(after))
+    return false;
+  return true;
+}
+
+// pl.yaml rule pl.subjects def SUBJECT_NOT_NEGATING_BEFORE
+export const SUBJECT_NOT_NEGATING_BEFORE = new RegExp(
+  `(?:^|[^\\p{L}])(?:jak|niż|niczym|prawie|${PREPOSITIONS})[ \\t\\u00a0]+$`,
+  "iu",
+);
+
+// pl.yaml rule pl.subjects def SUBJECT_GENITIVE_COUNT
+export const SUBJECT_GENITIVE_COUNT =
+  /^(?:kilku|paru|kilkunastu|kilkudziesięciu|kilkuset|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|stu|tysięcy|wielu|niewielu)$/u;
+
+// pl.yaml rule pl.subjects def SUBJECT_SINGULAR_DIRECT
+export const SUBJECT_SINGULAR_DIRECT = plCases("Ns As Gs Ds Is Ls Vs Np");
+
+// pl.yaml rule pl.subjects def SUBJECT_PLURAL_OBLIQUE
+export const SUBJECT_PLURAL_OBLIQUE = plCases("Gp Lp");
+
+// pl.yaml rule pl.typos def TYPO_NEGATION
+export const TYPO_NEGATION =
+  /(?:^|[^\p{L}])(?:nie\p{L}*|ani|nikt|nic|niczego|nikogo|żaden|żadna|żadne|żadnego|żadnej|nigdy|nigdzie|bez)(?![\p{L}])/iu;
+
+// pl.yaml rule pl.typos def typoSlip
+export function typoSlip(ctx: DetectContext, start: number, end: number, fix: string) {
+  const typed = ctx.source.slice(start, end);
+  if (plUserOrNamed(ctx, typed)) return null;
+  return plFindingAt(
+    ctx,
+    start,
+    end,
+    [plCaseLike(typed, fix)],
+    "englishPhraseCorrections",
+    "review_msg_contextual_grammar",
+  );
+}
+
+// pl.yaml rule pl.fragments def FRAGMENT_SUBORDINATE
+export const FRAGMENT_SUBORDINATE =
+  /^(?:któr\p{L}*|gdzie|dokąd|skąd|kiedy|gdy|że|iż|aby|żeby|by|bo|ponieważ|gdyż|jeśli|jeżeli|gdyby|choć|chociaż|co|czego|czym|kto|kogo|jak|jaki\p{L}*|jakby|zanim|dopóki|odkąd|skoro)$/iu;
+
+// pl.yaml rule pl.fragments def FRAGMENT_COMMENT
+export const FRAGMENT_COMMENT =
+  /^(?:mówiąc|biorąc|licząc|wyłączając|sumując|reasumując|podsumowując|wliczając|uwzględniając|zakładając|abstrahując|pomijając|zaczynając|kończąc)$/iu;
+
+// pl.yaml rule pl.fragments def FRAGMENT_PREDICATIVE
+export const FRAGMENT_PREDICATIVE =
+  /^(?:to|jest|są|trzeba|można|warto|wolno|widać|słychać|szkoda|należy|brak|niech|oto|czas)$/iu;
+
+// pl.yaml rule pl.fragments def fragmentParticiple
+export function fragmentParticiple(word: string) {
+  return /^\p{L}{2,}ąc$/u.test(word) && !plNounTags(word) && !plAdjectiveOf(word);
+}
+
+// pl.yaml rule pl.fragments def fragmentVerbLike
+export function fragmentVerbLike(word: string) {
+  return (
+    FRAGMENT_PREDICATIVE.test(word) ||
+    /[ćc]$/u.test(word) ||
+    plFiniteVerb(word) ||
+    plListedVerb(word) ||
+    plPastByShape(word) ||
+    plImpersonalVerb(word) ||
+    tagsAnd(plNounTags(word), PL_VERB) !== 0 ||
+    (!plNounTags(word) && !plAdjectiveOf(word) && /[iy]$/u.test(word) && word.length > 2)
+  );
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // pl.yaml rule pl.compoundsFrames frame 1
+  "@pl.compoundsFrames/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    return "naj" + word;
+  },
+  // pl.yaml rule pl.compoundsFrames frame 9
+  "@pl.compoundsFrames/9": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^po\s+Woli$/u.test(target) ? null : "powoli";
+  },
+  // pl.yaml rule pl.compoundsFrames frame 17
+  "@pl.compoundsFrames/17": (m: RegExpExecArray): string | readonly string[] | null => {
+    const pron = m.groups!.pron;
+    return "tam" + pron.toLowerCase();
+  },
+  // pl.yaml rule pl.compoundsFrames frame 23
+  "@pl.compoundsFrames/23": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.startsWith("P") ? null : "po południu";
+  },
+  // pl.yaml rule pl.compoundsFrames frame 24
+  "@pl.compoundsFrames/24": (m: RegExpExecArray): string | readonly string[] | null => {
+    const prep = m.groups!.prep;
+    return prep.toLowerCase() + "około";
+  },
+  // pl.yaml rule pl.compoundsFrames frame 25
+  "@pl.compoundsFrames/25": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "karygodn" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.compoundsFrames frame 30
+  "@pl.compoundsFrames/30": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    const end = m.groups!.end;
+    const ending = end.toLowerCase();
+    const stem = word.toLowerCase();
+    if ((ending === "o") !== /ow$/.test(stem) && (ending === "o" || ending === "ie")) return null;
+    return "co" + stem + ending;
+  },
+  // pl.yaml rule pl.compoundsFrames frame 31
+  "@pl.compoundsFrames/31": (m: RegExpExecArray): string | readonly string[] | null => {
+    const prefix = m.groups!.prefix;
+    const verb = m.groups!.verb;
+    if (
+      plNounTags(verb) ||
+      plAdjectiveOf(verb) ||
+      /(?:ść|ęć)$|^(?:pięć|sześć|siedem|osiem|mać|chęć|płeć|nić|sieć)$/u.test(verb)
+    )
+      return null;
+    if (!(/(?:ać|eć|ić|yć|uć|ąć)$/u.test(verb) || plFiniteVerb(verb))) return null;
+    if (/^(?:był\p{L}*|jest|są|będ\p{L}*|ma|mam|mieć|może)$/u.test(verb)) return null;
+    return prefix.toLowerCase() + verb;
+  },
+  // pl.yaml rule pl.compoundsFrames frame 32
+  "@pl.compoundsFrames/32": (m: RegExpExecArray): string | readonly string[] | null => {
+    const prefix = m.groups!.prefix;
+    const word = m.groups!.word;
+    return /^\p{Ll}/u.test(word) ? prefix + word : null;
+  },
+  // pl.yaml rule pl.compoundsFrames frame 33
+  "@pl.compoundsFrames/33": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    return "wice" + word;
+  },
+  // pl.yaml rule pl.compounds frame 1
+  "@pl.compounds/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const by = m.groups!.by;
+    if (COMPOUND_NOT_PAST.has(verb.toLowerCase()) || verb.length < 3) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (COMPOUND_NOUN_PHRASE_BEFORE.test(before)) return null;
+    const next = (
+      ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 60).match(/\p{L}+/gu) ?? []
+    ).slice(0, 4);
+    if (
+      by.length === 2 &&
+      !COMPOUND_MODAL.test(verb) &&
+      next.some((word) => compoundInfinitive(word.toLowerCase()))
+    )
+      return null;
+    if (/^\p{L}*(?:ł|ła|ło|li|ły)$/u.test(next[0] ?? "")) return null;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [plCaseLike(m[0], verb + by.toLowerCase())],
+      "englishClosedCompounds",
+      "review_msg_closed_compound",
+    );
+  },
+  // pl.yaml rule pl.compounds frame 2
+  "@pl.compounds/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    const ending = m.groups!.ending;
+    if (!/(?:li|ły|by|ło|ła)$/iu.test(word)) return null;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [plCaseLike(m[0], word + ending.toLowerCase())],
+      "englishClosedCompounds",
+      "review_msg_closed_compound",
+    );
+  },
+  // pl.yaml rule pl.compounds frame 3
+  "@pl.compounds/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const nie = m.groups!.nie;
+    const word = m.groups!.word;
+    if (COMPOUND_NIE_APART.test(word) || /^\p{Lu}/u.test(word)) return null;
+    const after = m.index + m[0].length;
+    const sentenceBefore =
+      ctx.text
+        .slice(Math.max(0, m.index - 200), m.index)
+        .split(/[.!?…\n]/u)
+        .at(-1) ?? "";
+    const sentenceAfter = ctx.text.slice(after, after + 200).split(/[.!…\n]/u)[0] ?? "";
+    if (sentenceAfter.includes("?")) return null;
+    if (
+      /(?:^|[^\p{L}])(?:to|czy|czyż|że|żeby|gdyby|jakby|by|a|ale|lecz|ani)[ \t ]+$/iu.test(
+        sentenceBefore,
+      )
+    )
+      return null;
+    if (/^[ \t ]+(?:od|niż)(?!\p{L})/iu.test(sentenceAfter)) return null;
+    if (
+      /^[^;:]{0,60}?(?:,[ \t ]*(?:ale|lecz|tylko|a|jednak)|[ \t ]lecz)(?!\p{L})/iu.test(
+        sentenceAfter,
+      )
+    )
+      return null;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      after,
+      [plCaseLike(nie, "nie") + word.toLowerCase()],
+      "englishClosedCompounds",
+      "review_msg_closed_compound",
+    );
+  },
+  // pl.yaml rule pl.confusionsFrames frame 1
+  "@pl.confusionsFrames/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return CONFUSION_CLITIC_LONG[target] ?? null;
+  },
+  // pl.yaml rule pl.confusionsFrames frame 3
+  "@pl.confusionsFrames/3": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "nie " + target;
+  },
+  // pl.yaml rule pl.confusionsFrames frame 7
+  "@pl.confusionsFrames/7": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.toLowerCase() === "boje" ? "boję" : "boją";
+  },
+  // pl.yaml rule pl.confusionsFrames frame 13
+  "@pl.confusionsFrames/13": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "ż" + target.slice(1);
+  },
+  // pl.yaml rule pl.confusionsFrames frame 15
+  "@pl.confusionsFrames/15": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return CONFUSION_BOUND[target.toLowerCase()] + " " + target.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 36
+  "@pl.confusionsFrames/36": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "łask" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 37
+  "@pl.confusionsFrames/37": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "lask" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 47
+  "@pl.confusionsFrames/47": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /[au]$/iu.test(target) && /a$/iu.test(target) ? "kilka" : "kilku";
+  },
+  // pl.yaml rule pl.confusionsFrames frame 48
+  "@pl.confusionsFrames/48": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "żądn" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 50
+  "@pl.confusionsFrames/50": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "temp" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 51
+  "@pl.confusionsFrames/51": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "temp" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 53
+  "@pl.confusionsFrames/53": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "ka" + CONFUSION_KAZAC[end.toLowerCase()];
+  },
+  // pl.yaml rule pl.confusionsFrames frame 54
+  "@pl.confusionsFrames/54": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "pokaż" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 63
+  "@pl.confusionsFrames/63": (m: RegExpExecArray): string | readonly string[] | null => {
+    const head = m.groups!.head;
+    const word = m.groups!.word;
+    if (/^(?:tym|tą|jest|razem|całą|czasem|zawsze|samą|swą|mą|twą)$/iu.test(word)) return null;
+    if (/ą$/u.test(word) && !/^wraz$/iu.test(head) && !/^\p{Lu}/u.test(word)) return null;
+    return (/^(?:mną|[sśzźż][^aeiouyąęó]|wsz)/iu.test(word) ? "ze" : "z") + " " + word;
+  },
+  // pl.yaml rule pl.confusionsFrames frame 65
+  "@pl.confusionsFrames/65": (m: RegExpExecArray): string | readonly string[] | null => {
+    const stem = m.groups!.stem;
+    return stem + "ań";
+  },
+  // pl.yaml rule pl.confusionsFrames frame 66
+  "@pl.confusionsFrames/66": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "skłonn" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 67
+  "@pl.confusionsFrames/67": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "główn" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 68
+  "@pl.confusionsFrames/68": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "sądow" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 69
+  "@pl.confusionsFrames/69": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "sądow" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 70
+  "@pl.confusionsFrames/70": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "lut" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 72
+  "@pl.confusionsFrames/72": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "trakt" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 79
+  "@pl.confusionsFrames/79": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const pronoun = target.toLowerCase();
+    const preposition = /(\p{L}+)[ \t ]+$/u.exec(m.input.slice(0, m.index))![1].toLowerCase();
+    if (pronoun === "mi" && (preposition === "do" || preposition === "za")) return null;
+    return CONFUSION_PRONOUN_LONG[pronoun];
+  },
+  // pl.yaml rule pl.confusionsFrames frame 80
+  "@pl.confusionsFrames/80": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return CONFUSION_PRONOUN_STRESSED[target.toLowerCase()];
+  },
+  // pl.yaml rule pl.confusionsFrames frame 81
+  "@pl.confusionsFrames/81": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    return word + ", jak i";
+  },
+  // pl.yaml rule pl.confusionsFrames frame 84
+  "@pl.confusionsFrames/84": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, plCases("As Ap")) !== 0 &&
+      !tagsAnd(tags, plCases("Ls Lp"))
+    ))
+      return null;
+    return "za" + target.toLowerCase();
+  },
+  // pl.yaml rule pl.confusionsFrames frame 89
+  "@pl.confusionsFrames/89": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const forms = plInflect(target, plCases("Gp"));
+    return plOnlyNoun(plNounTags(target)) && forms.length === 1 ? forms[0] : null;
+  },
+  // pl.yaml rule pl.confusionsFrames frame 90
+  "@pl.confusionsFrames/90": (m: RegExpExecArray): string | readonly string[] | null => {
+    const last = m.groups!.last;
+    return "dwa tysiące " + last;
+  },
+  // pl.yaml rule pl.confusionsFrames frame 91
+  "@pl.confusionsFrames/91": (m: RegExpExecArray): string | readonly string[] | null => {
+    const stem = m.groups!.stem;
+    return stem + "e";
+  },
+  // pl.yaml rule pl.confusionsFrames frame 92
+  "@pl.confusionsFrames/92": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^[IVX]+$/u.test(target) ? target + " wieku" : null;
+  },
+  // pl.yaml rule pl.confusionsFrames frame 94
+  "@pl.confusionsFrames/94": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const rest = m.groups!.rest;
+    return /^\p{Ll}/u.test(target) ? "hiper" + rest : null;
+  },
+  // pl.yaml rule pl.confusionsFrames frame 96
+  "@pl.confusionsFrames/96": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const word = m.groups!.word;
+    const lower = word.toLowerCase();
+    return lower === "w/g" ? "wg" + target.slice(3) : lower === "d/s" ? "ds." : "ww.";
+  },
+  // pl.yaml rule pl.confusionsFrames frame 97
+  "@pl.confusionsFrames/97": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace("rz", "ż");
+  },
+  // pl.yaml rule pl.confusionsFrames frame 98
+  "@pl.confusionsFrames/98": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace("rz", "ż");
+  },
+  // pl.yaml rule pl.confusionsFrames frame 99
+  "@pl.confusionsFrames/99": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    const lower = verb.toLowerCase();
+    return lower === "się" || plFiniteVerb(lower) ? "za granicą" : null;
+  },
+  // pl.yaml rule pl.confusionsFrames frame 104
+  "@pl.confusionsFrames/104": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace("naważ", "nawarz");
+  },
+  // pl.yaml rule pl.confusionsFrames frame 105
+  "@pl.confusionsFrames/105": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace("naważ", "nawarz");
+  },
+  // pl.yaml rule pl.confusionsFrames frame 106
+  "@pl.confusionsFrames/106": (m: RegExpExecArray): string | readonly string[] | null => {
+    const numeral = m.groups!.numeral;
+    return !numeral || /^[IVX]+$/u.test(numeral) ? "część" : null;
+  },
+  // pl.yaml rule pl.confusions frame 1
+  "@pl.confusions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const ze = m.groups!.ze;
+    const next = m.groups!.next;
+    if (/^\p{Lu}/u.test(next) || ZE_NOT_CONJUNCTION.has(next.toLowerCase())) return null;
+    const tags = plNounTags(next.toLowerCase());
+    const clash = plOnlyNoun(tags) && !tagsAnd(tags, plCases("Gs Is As Gp Ip Ap"));
+    const rest = next.replace(/^(?:ch|cz|dz|dź|dż|rz|sz)/iu, "c");
+    if (!(
+      ZE_NEVER_AFTER_PREPOSITION.test(next) ||
+      clash ||
+      (!/^(?:[sśzźż]|rz)/iu.test(next) &&
+        (/^[aąeęioóuy]/iu.test(rest) || /^[aąeęioóuy]/iu.test(rest.slice(1))))
+    ))
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+    if (
+      /(?:^|[^\p{L}])(?:wraz|raz|razem|wspólnie|zgodnie|porównaniu|wspólnego)[ \t ]+$/iu.test(
+        before,
+      )
+    )
+      return null;
+    if (plUserOrNamed(ctx, ze)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + 2,
+      [plCaseLike(ze, "że")],
+      "englishPhraseCorrections",
+      "review_msg_contextual_grammar",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 1
+  "@pl.numerals/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const dash = m.groups!.dash;
+    const end = m.groups!.end;
+    const rest = m.groups!.rest;
+    const next = m.groups!.next;
+    if (!dash && !/^(?:go|ego|tego|ty|tych|tym|szy|wszy|gi|ci|ciu|miu|stu)$/u.test(end))
+      return null;
+    if (dash && /^['’]$/.test(dash) && !/^(?:ty|go|ego|tych)$/u.test(end)) return null;
+    const start = m.index;
+    const tokenEnd = start + num.length + (dash?.length ?? 0) + end.length;
+    return next &&
+      /^(?:u|ro|cio|mio|dmio|ścio|ciu|miu|o|ech|óch|oma)$/u.test(end) &&
+      /^\p{Ll}+(?:ow|n|t|sk|cz|ln|ni)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|i)$/u.test(next) &&
+      !/^(?:lat|osób|ludzi)/u.test(next)
+      ? plFindingAt(
+          ctx,
+          start,
+          tokenEnd + rest.length,
+          [num + "-" + next],
+          "polishNumerals",
+          "review_msg_pl_numeral_hyphen",
+        )
+      : /^(?:u|ro|cio|mio|dmio|ścio|ciu|o)$/u.test(end) &&
+          /^[ \t ]+(?:i|lub|albo|oraz|czy)[ \t ]+\d+-\p{L}/u.test(
+            ctx.text.slice(tokenEnd, tokenEnd + 24),
+          )
+        ? plFindingAt(
+            ctx,
+            start,
+            tokenEnd,
+            [num + "-"],
+            "polishNumerals",
+            "review_msg_pl_numeral_hyphen",
+          )
+        : numeralSuffixFinding(ctx, num, end, next, start, tokenEnd);
+  },
+  // pl.yaml rule pl.numerals frame 2
+  "@pl.numerals/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const part = m.groups!.part;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [num + part.toLowerCase()],
+      "polishNumerals",
+      "review_msg_pl_numeral_hyphen",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 3
+  "@pl.numerals/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const gap = m.groups!.gap;
+    const part = m.groups!.part;
+    if (/^(?:letni|roczn|dzienn)/iu.test(part) && Number(num) < 2) return null;
+    if (/^(?:letni)$/iu.test(part) && !/[-–—]/u.test(gap)) return null;
+    if (plUserOrNamed(ctx, part)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [num + "-" + part.toLowerCase()],
+      "polishNumerals",
+      "review_msg_pl_numeral_hyphen",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 4
+  "@pl.numerals/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const sp = m.groups!.sp;
+    const noun = m.groups!.noun;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    if (/(?:^|[^\p{L}])w[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))
+      return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [
+        plCaseLike(
+          m[0],
+          `${NUMERAL_COLLECTIVE[num.toLowerCase()]}${sp}${NUMERAL_COLLECTIVE_NOUNS[noun.toLowerCase()]}`,
+        ),
+      ],
+      "polishNumerals",
+      "review_msg_pl_numeral_noun",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 5
+  "@pl.numerals/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const amount = m.groups!.amount;
+    const sp = m.groups!.sp;
+    const unit = m.groups!.unit;
+    const wanted = numeralPluralForm(amount, NUMERAL_CURRENCY[unit]);
+    if (!(wanted !== unit)) return null;
+    const start = m.index + amount.length + sp.length;
+    return plFindingAt(
+      ctx,
+      start,
+      start + unit.length,
+      [wanted],
+      "polishNumerals",
+      "review_msg_pl_numeral_noun",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 6
+  "@pl.numerals/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const sp = m.groups!.sp;
+    const unit = m.groups!.unit;
+    const n = /^\d+$/.test(num) ? Number(num) : NUMERAL_WORDS[num.toLowerCase()];
+    if (!(n !== 1)) return null;
+    if (plUserOrNamed(ctx, unit)) return null;
+    const forms = NUMERAL_UNITS[unit.toLowerCase()];
+    const lastTwo = n % 100;
+    const wanted =
+      n % 10 >= 2 && n % 10 <= 4 && !(lastTwo >= 12 && lastTwo <= 14) ? forms[0] : forms[1];
+    const start = m.index + num.length + sp.length;
+    return plFindingAt(
+      ctx,
+      start,
+      start + unit.length,
+      [wanted],
+      "polishNumerals",
+      "review_msg_pl_numeral_noun",
+    );
+  },
+  // pl.yaml rule pl.dates frame 1
+  "@pl.dates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const day = m.groups!.day;
+    const mword = m.groups!.mword;
+    const year = m.groups!.year;
+    const dday = m.groups!.dday;
+    const dmonth = m.groups!.dmonth;
+    const dyear = m.groups!.dyear;
+    const dayText = day ?? dday;
+    const yearText = year ?? dyear;
+    if (mword && /^[IVX]+$/.test(mword) && !yearText) return null;
+    if (mword && /^[ivx]+$/.test(mword)) return null;
+    const month = mword ? dateMonthOf(mword) : Number(dmonth);
+    const y = yearText ? Number(yearText) : undefined;
+    const d = Number(dayText);
+    return month < 1 || month > 12 || d < 1 || d > plDaysInMonth(month, y)
+      ? plFindingAt(
+          ctx,
+          m.index,
+          m.index + m[0].length,
+          [],
+          "polishDates",
+          "review_msg_pl_impossible_date",
+        )
+      : dateWeekday(ctx, month, y, d, m.index, m.index + m[0].length);
+  },
+  // pl.yaml rule pl.isoDates frame 1
+  "@pl.isoDates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const range = plInvalidIsoDate(m, ctx);
+    return (
+      range &&
+      plFindingAt(ctx, range.start, range.end, [], "polishDates", "review_msg_pl_impossible_date")
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 1
+  "@pl.datesFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    if (!(Number(a) >= Number(b))) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [],
+      "polishDates",
+      "review_msg_pl_impossible_date",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 2
+  "@pl.datesFrames/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
+    if (/^[ \t ]*\d/u.test(after)) return null;
+    const beforeChrist =
+      /^[ \t ]*(?:p\.?[ \t ]*n\.?[ \t ]*e|przed[ \t ]+(?:naszą|Chrystusem)|BC)/iu.test(after);
+    if (b.length !== a.length && b.length > 2 && !(beforeChrist && b.length > a.length))
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+    if (!/(?:latach|lata|okresie|sezonie|rok\p{L}*|w|od)[ \t ]+$/iu.test(before)) return null;
+    const startYear = Number(a);
+    const endYear = b.length < a.length ? Number(a.slice(0, a.length - b.length) + b) : Number(b);
+    if (beforeChrist ? endYear < startYear : endYear > startYear) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [],
+      "polishDates",
+      "review_msg_pl_impossible_date",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 3
+  "@pl.datesFrames/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const day = m.groups!.day;
+    const dot = m.groups!.dot;
+    const sp = m.groups!.sp;
+    const month = m.groups!.month;
+    const index = DATE_NOMINATIVE.indexOf(month.toLowerCase());
+    if (index >= 0 && /^\p{Lu}/u.test(month)) return null;
+    if (index < 0 && !dot) return null;
+    const spelled = /^\p{L}/u.test(day);
+    if (spelled && (dot || index < 0)) return null;
+    const genitive = index >= 0 ? PL_MONTHS_GENITIVE[index] : month.toLowerCase();
+    const start = m.index + day.length + sp.length;
+    return dot
+      ? plFindingAt(
+          ctx,
+          m.index,
+          m.index + m[0].length,
+          [day + sp + genitive],
+          "polishDates",
+          "review_msg_pl_month_form",
+        )
+      : plFindingAt(
+          ctx,
+          start,
+          start + month.length,
+          [plCaseLike(month, genitive)],
+          "polishDates",
+          "review_msg_pl_month_form",
+        );
+  },
+  // pl.yaml rule pl.datesFrames frame 4
+  "@pl.datesFrames/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const day = m.groups!.day;
+    const month = m.groups!.month;
+    const year = m.groups!.year;
+    if (!(month !== "maj")) return null;
+    const index = DATE_ABBREVIATED.indexOf(month.toLowerCase());
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [`${day} ${DATE_ROMAN[index]} ${year}`, `${day} ${PL_MONTHS_GENITIVE[index]} ${year}`],
+      "polishDates",
+      "review_msg_pl_month_form",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 5
+  "@pl.datesFrames/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const year = m.groups!.year;
+    const value = Number(year);
+    const century = DATE_ROMAN_CENTURY[Math.floor(value / 100) + 1];
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [value % 100 ? `${value % 100}. ${century} w.` : `${value}–${value + 9}`],
+      "polishDates",
+      "review_msg_pl_decade",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 6
+  "@pl.datesFrames/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const year = m.groups!.year;
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    const fixed =
+      year.length === 4
+        ? year
+        : /(?:^|[^\p{L}])(?:lata|lat|latach|latami|latom)[ \t ]+$/iu.test(before)
+          ? /^[ \t ]*[.]/u.test(ctx.text.slice(m.index + m[0].length))
+            ? year
+            : year + "."
+          : null;
+    if (!(fixed !== null)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [fixed],
+      "polishDates",
+      "review_msg_pl_decade",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 7
+  "@pl.datesFrames/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const year = m.groups!.year;
+    const years = [
+      ...new Set(
+        Array.from({ length: year.length - 1 }, (_, i) => i + 1)
+          .filter((i) => year[i] === year[i - 1])
+          .map((i) => year.slice(0, i) + year.slice(i + 1)),
+      ),
+    ].filter((fix) => /^(?:1\d|20)\d\d$/.test(fix));
+    if (!(years.length === 1)) return null;
+    const start = m.index + m[0].length - year.length;
+    return plFindingAt(
+      ctx,
+      start,
+      start + year.length,
+      years,
+      "polishDates",
+      "review_msg_pl_impossible_date",
+    );
+  },
+  // pl.yaml rule pl.misplacedCommas frame 1
+  "@pl.misplacedCommas/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const head = m.groups!.head;
+    const tail = m.groups!.tail;
+    const headKey = head.toLowerCase().replace(/\s+/g, " ");
+    if (!new RegExp(`^(?:${COMMA_COMPOUNDS[headKey]})$`, "iu").test(tail)) return null;
+    const headStart = m.index + (prev ? prev.length + gap.length : 0);
+    if (headKey === "o" && /^O$/.test(head) && plSentenceStart(ctx.text, headStart)) return null;
+    if (
+      prev &&
+      !/^(?:mimo|pomimo|podczas|pod)/iu.test(headKey) &&
+      /^(?:wtedy|wówczas|tylko|właśnie|tam|tu|czy)$/iu.test(prev)
+    )
+      return null;
+    if (
+      headKey === "tyle" &&
+      (prev ||
+        !/(?:^|[,.!?…]\s*|\n\s*)$/u.test(ctx.text.slice(Math.max(0, headStart - 8), headStart)))
+    )
+      return null;
+    const joined = head + " " + tail;
+    return prev && !COMMA_NO_COMMA_AFTER.has(prev.toLowerCase()) && !plUserOrNamed(ctx, prev)
+      ? plFindingAt(
+          ctx,
+          m.index,
+          m.index + m[0].length,
+          [prev + "," + gap + joined],
+          "polishMisplacedComma",
+          "review_msg_pl_misplaced_comma",
+        )
+      : plFindingAt(
+          ctx,
+          headStart,
+          m.index + m[0].length,
+          [joined],
+          "polishMisplacedComma",
+          "review_msg_pl_misplaced_comma",
+        );
+  },
+  // pl.yaml rule pl.misplacedCommas frame 2
+  "@pl.misplacedCommas/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const phrase = m.groups!.phrase;
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    if (/(?:^|[^\p{L}])czy[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))
+      return null;
+    if (!COMMA_PAIRS[a.toLowerCase()]?.test(b)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + phrase.length,
+      [a + " " + b],
+      "polishMisplacedComma",
+      "review_msg_pl_misplaced_comma",
+    );
+  },
+  // pl.yaml rule pl.misplacedCommas frame 3
+  "@pl.misplacedCommas/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const comma = m.groups!.comma;
+    if (!(ctx.text[m.index - 1] !== ".")) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + comma.length,
+      [""],
+      "polishMisplacedComma",
+      "review_msg_pl_misplaced_comma",
+    );
+  },
+  // pl.yaml rule pl.misplacedCommas frame 4
+  "@pl.misplacedCommas/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const prep = m.groups!.prep;
+    const pronoun = m.groups!.pronoun;
+    if (/^o$/iu.test(prep) && (!prev || COMMA_NO_COMMA_AFTER.has(prev.toLowerCase()))) return null;
+    const prepStart = m.index + (prev ? prev.length + gap.length : 0);
+    const end = m.index + m[0].length;
+    if (/^[ \t ]*\p{L}+[ \t ]*,/u.test(ctx.text.slice(end, end + 30))) return null;
+    const joined = prep + " " + pronoun;
+    const moved =
+      prev &&
+      !COMMA_NO_COMMA_AFTER.has(prev.toLowerCase()) &&
+      !plSentenceStart(ctx.text, prepStart);
+    return plFindingAt(
+      ctx,
+      moved ? m.index : prepStart,
+      end,
+      [moved ? prev + "," + gap + joined : joined],
+      "polishMisplacedComma",
+      "review_msg_pl_misplaced_comma",
+    );
+  },
+  // pl.yaml rule pl.missingCommas frame 1
+  "@pl.missingCommas/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const prep = m.groups!.prep;
+    const sub = m.groups!.sub;
+    if (/\p{Lu}/u.test(sub[0])) return null;
+    if (/[\p{L}\p{N}_'’-]/u.test(ctx.text[m.index - 1] ?? "")) return null;
+    const lowerPrev = prev.toLowerCase();
+    const relative = COMMA_RELATIVE_WORD.test(sub);
+    return lowerPrev === "to" && /^(?:że|iż)$/.test(sub)
+      ? commaToZe(ctx, m, prev, gap)
+      : commaMissing(ctx, m, prev, gap, prep, sub, lowerPrev, relative);
+  },
+  // pl.yaml rule pl.missingCommas frame 2
+  "@pl.missingCommas/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const head = m.groups!.head;
+    const tail = m.groups!.tail;
+    if (!COMMA_COMPOUND_TAILS[head.replace(/\s+/gu, " ")]?.test(tail)) return null;
+    const lowerPrev = prev.toLowerCase();
+    const object =
+      lowerPrev === "to" &&
+      plFiniteVerb(
+        /(\p{L}+)[ \t ]+$/u
+          .exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]
+          ?.toLowerCase() ?? "",
+      );
+    if (!object && (COMMA_OPENS_COMPOUND.has(lowerPrev) || PREPOSITION_WORDS.has(lowerPrev)))
+      return null;
+    if (plUserOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + prev.length + gap.length,
+      [prev + "," + gap],
+      "polishMissingComma",
+      "review_msg_pl_missing_comma",
+    );
+  },
+  // pl.yaml rule pl.missingCommas frame 3
+  "@pl.missingCommas/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [m[0] + ","],
+      "polishMissingComma",
+      "review_msg_pl_missing_comma",
+    );
+  },
+  // pl.yaml rule pl.missingCommas frame 4
+  "@pl.missingCommas/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const adverb = m.groups!.adverb;
+    const gap2 = m.groups!.gap2;
+    const sub = m.groups!.sub;
+    const next = m.groups!.next;
+    const lower = prev.toLowerCase();
+    if (COMMA_OPENS_COMPOUND.has(lower) || PREPOSITION_WORDS.has(lower) || plUserOrNamed(ctx, prev))
+      return null;
+    if (prev !== lower && !plSentenceStart(ctx.text, m.index)) return null;
+    const key = adverb.replace(/[ \t ]+/gu, " ");
+    if (!(COMMA_ADVERB_SUBS[key] ?? /^(?:że|iż|żeby|ażeby|aby|by)$/u).test(sub)) return null;
+    if (
+      sub === "by" &&
+      (!/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(next) || plNounTags(next))
+    )
+      return null;
+    const end = m.index + prev.length + gap.length + adverb.length + gap2.length + sub.length;
+    return plFindingAt(
+      ctx,
+      m.index,
+      end,
+      /^(?:tylko|tak|właśnie|z[ \t ]+tym)$/u.test(adverb)
+        ? [prev + "," + gap + adverb + gap2 + sub, prev + gap + adverb + "," + gap2 + sub]
+        : [prev + gap + adverb + "," + gap2 + sub],
+      "polishMissingComma",
+      "review_msg_pl_missing_comma",
+    );
+  },
+  // pl.yaml rule pl.missingCommas frame 5
+  "@pl.missingCommas/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const sub = m.groups!.sub;
+    const next = m.groups!.next;
+    const lower = prev.toLowerCase();
+    if (COMMA_OPENS_COMPOUND.has(lower) || PREPOSITION_WORDS.has(lower) || plUserOrNamed(ctx, prev))
+      return null;
+    if (prev !== lower && !plSentenceStart(ctx.text, m.index)) return null;
+    const nextLower = next.toLowerCase();
+    if (
+      !(sub === "dopóty"
+        ? /^[\s„"(]*dopóki(?![\p{L}])/iu.test(
+            ctx.text
+              .slice(Math.max(0, m.index - 200), m.index)
+              .split(/[.!?\n]/u)
+              .at(-1)!,
+          )
+        : COMMA_SUBJECT_OR_OBJECT.test(nextLower) || plFiniteVerb(nextLower))
+    )
+      return null;
+    if (/^[^.!\n]*\?/u.test(ctx.text.slice(m.index, m.index + 200))) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + prev.length + gap.length,
+      [prev + "," + gap],
+      "polishMissingComma",
+      "review_msg_pl_missing_comma",
+    );
+  },
+  // pl.yaml rule pl.prepositionForms frame 1
+  "@pl.prepositionForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const next = m.groups!.next;
+    const after = m.index + m[0].length;
+    if (/^\p{Lu}{2,}/u.test(next) || /^\.[ \t ]*\p{Ll}/u.test(ctx.text.slice(after, after + 4)))
+      return null;
+    const wanted = preferredForm(
+      prep,
+      next,
+      /\p{Ll}[ \t ]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)),
+    );
+    if (!(wanted !== null && wanted !== prep.toLowerCase())) return null;
+    if (plUserOrNamed(ctx, prep)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + prep.length,
+      [plCaseLike(prep, wanted)],
+      "polishPrepositionForms",
+      "review_msg_pl_preposition_form",
+    );
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 1
+  "@pl.wordFormsFrames/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const place = m.groups!.place;
+    return FORMS_NA_PLACES[place.toLowerCase()];
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 2
+  "@pl.wordFormsFrames/2": (m: RegExpExecArray): string | readonly string[] | null => {
+    const stem = m.groups!.stem;
+    const end = m.groups!.end;
+    return stem + (end.toLowerCase() === "im" ? "ie" : "e");
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 3
+  "@pl.wordFormsFrames/3": (m: RegExpExecArray): string | readonly string[] | null => {
+    const stem = m.groups!.stem;
+    const end = m.groups!.end;
+    return stem + (end.toLowerCase() === "im" ? "ie" : "e");
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 4
+  "@pl.wordFormsFrames/4": (m: RegExpExecArray): string | readonly string[] | null => {
+    const abbr = m.groups!.abbr;
+    return abbr;
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 5
+  "@pl.wordFormsFrames/5": (m: RegExpExecArray): string | readonly string[] | null => {
+    const abbr = m.groups!.abbr;
+    return abbr;
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 6
+  "@pl.wordFormsFrames/6": (m: RegExpExecArray): string | readonly string[] | null => {
+    const abbr = m.groups!.abbr;
+    return abbr;
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 7
+  "@pl.wordFormsFrames/7": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target + ".";
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 9
+  "@pl.wordFormsFrames/9": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target + ".";
+  },
+  // pl.yaml rule pl.wordForms frame 1
+  "@pl.wordForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = m.groups!.name;
+    const end = m.groups!.end;
+    const silent = silentEnding(name, end);
+    if (
+      !(silent !== undefined
+        ? !!silent && !plUserOrNamed(ctx, name)
+        : !/(?:ques|les|ges|ois|eux|aux|oix|ault|eau|[^aeiouy]y)$/u.test(name) &&
+          !(/^(?:i|im|ie|iem)$/u.test(end) && /y$/u.test(name)) &&
+          !plUserOrNamed(ctx, name))
+    )
+      return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [silent || name + end],
+      "englishPhraseCorrections",
+      "review_msg_pl_inflected_name",
+    );
+  },
+  // pl.yaml rule pl.wordForms frame 2
+  "@pl.wordForms/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = m.groups!.name;
+    const mark = m.groups!.mark;
+    const end = m.groups!.end;
+    if (!mark && name.length < 3) return null;
+    if (mark && /^(?:ie|y)$/u.test(end)) return null;
+    if (/^(?:PL|EU|USA|UK|OK)$/u.test(name) && !mark) return null;
+    if (ctx.dictionary.has(m[0].toLowerCase())) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [name + "-" + end],
+      "englishPhraseCorrections",
+      "review_msg_pl_inflected_name",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 1
+  "@pl.caseAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const noun = m.groups!.noun;
+    if (!(/^\p{Ll}+$/u.test(noun) && !plUserOrNamed(ctx, noun))) return null;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3);
+    if (
+      noun.length <= 3 &&
+      after.startsWith(".") &&
+      (AGREEMENT_SHORT_ABBREVIATIONS.has(noun.toLowerCase()) ||
+        !/^\.(?:$|\s*\n|\s+\p{Lu})/u.test(after))
+    )
+      return null;
+    if (!/[aeiouyąęó]/u.test(noun)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    const lowerPrep = prep.toLowerCase();
+    if (!agreementPrepositionClash(lowerPrep, noun, before)) return null;
+    const start = m.index + m[0].length - noun.length;
+    const wanted = agreementGovernedBy(lowerPrep, before)!;
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + noun.length,
+        agreementRecased(
+          noun,
+          /^ze?$/iu.test(prep) ? tagsWithout(wanted, plCases("As Ap")) : wanted,
+        ),
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + noun.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 2
+  "@pl.caseAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const between = adj && plAdjectiveOf(adj);
+    const skip =
+      !between ||
+      AGREEMENT_PRONOUNS.has(between.lemma) ||
+      plAmbiguousAdjective(adj) ||
+      tagsAnd(plNounTags(adj), PL_ALL_CASES);
+    const word = adj && skip ? adj : noun;
+    if (!(/^\p{Ll}+$/u.test(word) && !plUserOrNamed(ctx, word))) return null;
+    const fixes = agreementDemonstrativeFix(det.toLowerCase(), plNounTags(word));
+    if (!(fixes.length > 0)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + det.length,
+        fixes.map((fix) => plCaseLike(det, fix)),
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 3
+  "@pl.caseAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const noun = m.groups!.noun;
+    if (!(/^\p{Ll}+$/u.test(noun) && !plUserOrNamed(ctx, noun))) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 6), m.index);
+    if (/^\d/.test(num) && /(?:[\d,.:/§–—-]|\p{L}\.|nr|pkt|art|poz)[ \t ]*$/u.test(before))
+      return null;
+    const lower = num.toLowerCase();
+    if (
+      AGREEMENT_GENITIVE_NUMERALS[lower] &&
+      AGREEMENT_GENITIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+    )
+      return null;
+    const tags = plNounTags(noun);
+    if (!agreementNumeralClash(lower, tags)) return null;
+    const needs = agreementNumeralNeeds(lower)!;
+    const loose = /^\d/.test(num) || lower === "parę";
+    if (
+      loose &&
+      (needs === "Np" || tagsAnd(tags, plCases("Gs"))) &&
+      !agreementFreeCount(ctx.text, m.index)
+    )
+      return null;
+    const start = m.index + m[0].length - noun.length;
+    const forms = plInflect(
+      noun,
+      plCases(needs),
+      needs === "Gp" ? AGREEMENT_NOMINATIVE : plCases("Gp"),
+    );
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + noun.length,
+        forms.length === 1 ? forms.map((form) => plCaseLike(noun, form)) : [],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: start + noun.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 4
+  "@pl.caseAgreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const unit = m.groups!.unit;
+    const noun = m.groups!.noun;
+    const before = ctx.text.slice(Math.max(0, m.index - 6), m.index);
+    if (/[\d,.:/§–—-][ \t ]*$/u.test(before) || plUserOrNamed(ctx, noun)) return null;
+    if (!unit && agreementNumeralNeeds(num.toLowerCase()) !== "Gp") return null;
+    const start = m.index + m[0].length - noun.length;
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + noun.length,
+        [plCaseLike(noun, "złotych")],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: start + noun.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 5
+  "@pl.caseAgreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    if (!AGREEMENT_GENITIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+      return null;
+    if (AGREEMENT_PREPOSITION_APPROX.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)))
+      return null;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+    if (/^[ \t ]+(?:do|razy|na|i|lub|albo)(?![\p{L}])/iu.test(after)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + num.length,
+        AGREEMENT_GENITIVE_NUMERALS[num.toLowerCase()].map((form) => plCaseLike(num, form)),
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: Math.max(0, m.index - 12), end: m.index + num.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 6
+  "@pl.caseAgreement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const start = m.index + m[0].length - pronoun.length;
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + pronoun.length,
+        (pronoun.toLowerCase() === "ją" ? ["jej"] : ["ich", "go"]).map((fix) =>
+          plCaseLike(pronoun, fix),
+        ),
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + pronoun.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 7
+  "@pl.caseAgreement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const plural = /(?:ą|li|ły)$/u.test(verb) && tagsAnd(plNounTags(adj ?? ""), plCases("Np"));
+    const swap = !!adj && !plAdjectiveOf(adj) && (!plural || /\p{L}(?:ego|ej|ych)$/u.test(noun));
+    const object = swap ? adj : noun;
+    if (plUserOrNamed(ctx, object)) return null;
+    const modifier = swap ? undefined : adj;
+    if (AGREEMENT_TIME_SPAN.test(object) || (modifier && AGREEMENT_TIME_ADJECTIVE.test(modifier)))
+      return null;
+    const end = swap ? m.indices!.groups!.adj[1] : m.index + m[0].length;
+    const tags = plNounTags(object);
+    if (!(
+      plOnlyNoun(tags) &&
+      !tagsAnd(tags, AGREEMENT_GENITIVE_CASES) &&
+      tagsAnd(tags, AGREEMENT_ACCUSATIVE) !== 0
+    ))
+      return null;
+    const adjective = modifier ? plAdjectiveOf(modifier) : null;
+    if (modifier && (!adjective || !plAdjectiveAgrees(adjective.ending, tags))) return null;
+    const start = modifier ? m.indices!.groups!.adj[0] : end - object.length;
+    const forms = agreementRecased(object, AGREEMENT_GENITIVE_CASES);
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        end,
+        forms.length === 1 && modifier
+          ? [
+              plCaseLike(
+                ctx.source.slice(start, end),
+                plAdjectiveForm(
+                  adjective!.lemma,
+                  tagsAnd(tags, PL_SINGULAR) ? (tagsAnd(tags, PL_FEMININE) ? "ej" : "ego") : "ych",
+                ) +
+                  " " +
+                  forms[0],
+              ),
+            ]
+          : forms.length === 1
+            ? forms
+            : [],
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 8
+  "@pl.caseAgreement/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const personal = AGREEMENT_NEGATED_FORMS.get(verb.toLowerCase());
+    if (!(personal !== undefined)) return null;
+    const _resumed = frame.resume!(m.index + 3);
+    const modifier = adj && plAdjectiveOf(adj) ? adj : undefined;
+    const object = adj && !modifier ? adj : noun;
+    const end = m.indices!.groups![object === noun ? "noun" : "adj"][1];
+    const pronoun = modifier ? undefined : AGREEMENT_OBJECT_PRONOUNS[object.toLowerCase()];
+    return pronoun
+      ? {
+          ...plFindingAt(
+            ctx,
+            end - object.length,
+            end,
+            [plCaseLike(object, pronoun)],
+            "polishCaseAgreement",
+            "review_msg_pl_negated_genitive",
+          ),
+          context: { start: m.index, end },
+        }
+      : agreementNegatedObject(ctx, m, object, modifier, end, personal);
+  },
+  // pl.yaml rule pl.caseAgreement frame 9
+  "@pl.caseAgreement/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const nie = m.groups!.nie;
+    const verb = m.groups!.verb;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const _resumed = frame.resume!(m.indices!.groups!.verb[1]);
+    const lower = verb.toLowerCase();
+    const accusative = AGREEMENT_NEGATED_FORMS.has(lower) && lower !== "lub";
+    const genitive = AGREEMENT_GENITIVE_VERB_FORM.test(lower) || (accusative && !!nie);
+    if (!(accusative || genitive)) return null;
+    const reading = plAdjectiveOf(adj);
+    if (!(
+      reading !== null &&
+      !AGREEMENT_PRONOUNS.has(reading.lemma) &&
+      !AGREEMENT_GENITIVE_ADJECTIVES.has(reading.lemma)
+    ))
+      return null;
+    if (
+      reading.lemma === "luty" ||
+      plAmbiguousAdjective(adj) ||
+      tagsAnd(plNounTags(adj), PL_ALL_CASES)
+    )
+      return null;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, AGREEMENT_GENITIVE_CASES) !== 0 &&
+      !tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Gs Gp Ap")))
+    ))
+      return null;
+    const own = tagsWithout(tags, plCases("Ap"));
+    if (plAdjectiveAgrees(reading.ending, own) || plUserOrNamed(ctx, adj + " " + noun)) return null;
+    const endings = plAgreeingEndings(own);
+    const adjectiveFix =
+      endings.length === 1 ? [plAdjectiveForm(reading.lemma, endings[0]) + " " + noun] : [];
+    const nounForms = plInflect(noun, AGREEMENT_ACCUSATIVE, AGREEMENT_GENITIVE_CASES).filter(
+      (form) =>
+        plAdjectiveAgrees(
+          reading.ending,
+          tagsOr(
+            tagsWithout(plNounTags(form), PL_ALL_CASES),
+            tagsAnd(plNounTags(form), AGREEMENT_ACCUSATIVE),
+          ),
+        ),
+    );
+    const nounFix = nounForms.length === 1 ? [adj + " " + nounForms[0]] : [];
+    const fixes = genitive
+      ? adjectiveFix
+      : AGREEMENT_PARTITIVE_FORMS.has(lower)
+        ? [...nounFix, ...adjectiveFix]
+        : nounFix.length || nounForms.length || !tagsAnd(tags, PL_VIRILE)
+          ? nounFix
+          : adjectiveFix;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.adj[0],
+        m.indices!.groups!.noun[1],
+        fixes,
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.indices!.groups!.noun[1] },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 10
+  "@pl.caseAgreement/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const mod = m.groups!.mod;
+    const noun = m.groups!.noun;
+    const gendered = AGREEMENT_GENDERED[noun.toLowerCase()];
+    const fixedMod = agreementRegendered(mod, gendered[0]);
+    if (!(fixedMod !== null && !plUserOrNamed(ctx, mod + " " + noun))) return null;
+    const fixedFirst = first ? agreementRegendered(first, gendered[0]) : null;
+    const groups = m.indices!.groups!;
+    const start = fixedFirst ? groups.first[0] : groups.mod[0];
+    const end = groups.noun[1];
+    const fixed =
+      (fixedFirst ? fixedFirst + ctx.source.slice(groups.first[1], groups.mod[0]) : "") +
+      fixedMod +
+      ctx.source.slice(groups.mod[1], groups.noun[0]) +
+      plCaseLike(noun, gendered[1]);
+    if (!(fixed !== ctx.source.slice(start, end))) return null;
+    return plFindingAt(ctx, start, end, [fixed], "polishCaseAgreement", "review_msg_pl_agreement");
+  },
+  // pl.yaml rule pl.caseAgreement frame 11
+  "@pl.caseAgreement/11": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const _resumed = frame.resume!(m.index + first.length);
+    const hasAdjective = plAdjectiveOf(first.toLowerCase()) || plAdjectiveOf(second);
+    if (!hasAdjective) return null;
+    if (plUserOrNamed(ctx, first) || plUserOrNamed(ctx, second)) return null;
+    if (AGREEMENT_GENDERED[second.toLowerCase()]) return null;
+    const end = m.index + m[0].length;
+    const lower = /^\p{Ll}+$/u.test(first);
+    if (!(lower || (/^\p{Lu}\p{Ll}+$/u.test(first) && plSentenceStart(ctx.text, m.index))))
+      return null;
+    const previous = agreementWordBefore(ctx.text, m.index);
+    const governed =
+      previous === undefined
+        ? undefined
+        : agreementGovernedBy(
+            previous,
+            ctx.text.slice(Math.max(0, m.index - 24), m.index).replace(/\p{L}+[ \t ]+$/u, ""),
+          );
+    const adjectiveFirst = agreementAdjectiveClash(first.toLowerCase(), second, governed, false);
+    return adjectiveFirst &&
+      (governed !== undefined ||
+        !previous ||
+        !agreementClosesPhraseBefore(previous, first.toLowerCase())) &&
+      !agreementRunOn(ctx.text, m.index, end) &&
+      !agreementRepeatedAfter(ctx.text, end, second)
+      ? agreementReport(ctx, m.index, end, first, adjectiveFirst)
+      : agreementAdjectiveLater(ctx, m, first, second, end, lower, previous);
+  },
+  // pl.yaml rule pl.caseAgreement frame 12
+  "@pl.caseAgreement/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const phrase = m.groups!.phrase;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    if (plUserOrNamed(ctx, phrase)) return null;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, AGREEMENT_INSTRUMENTALS) !== 0 &&
+      !tagsAnd(tags, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS))
+    ))
+      return null;
+    const adjective = adj ? plAdjectiveOf(adj) : null;
+    if (adj && (!adjective || !/^(?:ym|ą|ymi)$/u.test(adjective.ending))) return null;
+    const plural = tagsAnd(tags, plCases("Ip")) !== 0;
+    const fixes = plInflect(noun, plCases(plural ? "Ap" : "As")).map((form) =>
+      !adjective
+        ? "za " + form
+        : "za " +
+          plAdjectiveForm(
+            adjective.lemma,
+            agreementConsideredEnding(plural, tags, plNounTags(form)),
+          ) +
+          " " +
+          form,
+    );
+    if (!(fixes.length > 0 && fixes.length <= 2)) return null;
+    const start = m.index + m[0].length - phrase.length;
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + phrase.length,
+        fixes,
+        "polishCaseAgreement",
+        "review_msg_pl_preposition_case",
+      ),
+      context: { start: m.index, end: start + phrase.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 13
+  "@pl.caseAgreement/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [plCaseLike(m[0], "za")],
+      "polishCaseAgreement",
+      "review_msg_pl_preposition_case",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 14
+  "@pl.caseAgreement/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const rel = m.groups!.rel;
+    const readings = AGREEMENT_RELATIVE_READINGS[rel];
+    const end = m.index + m[0].length;
+    if (/^[ \t ]+ze?[ \t ]/u.test(ctx.text.slice(end, end + 5))) return null;
+    const last = plNounTags(noun);
+    if (!plOnlyNoun(last) || noun === "państwo" || plUserOrNamed(ctx, noun)) return null;
+    const clause = ctx.text
+      .slice(Math.max(0, m.index - 120), m.index + noun.length)
+      .split(/[,.;:!?()\n„”"—–]/u)
+      .at(-1)!;
+    const words = clause.match(/\p{L}+/gu) ?? [];
+    if (agreementRelativeQuiet(words, words.length - 1, Math.max(0, words.length - 8), readings))
+      return null;
+    const genders = [PL_MASCULINE, PL_FEMININE, PL_NEUTER].filter((gender) =>
+      tagsAnd(last, gender),
+    );
+    const key = !tagsAnd(last, PL_SINGULAR)
+      ? "p"
+      : genders.length !== 1
+        ? undefined
+        : genders[0] === PL_MASCULINE
+          ? "m"
+          : genders[0] === PL_FEMININE
+            ? "f"
+            : "n";
+    const fix = key ? AGREEMENT_RELATIVE_FORMS[rel]?.[key] : undefined;
+    const start = m.indices!.groups!.rel[0];
+    return {
+      ...plFindingAt(
+        ctx,
+        start,
+        start + rel.length,
+        fix ? [plCaseLike(rel, fix)] : [],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: start + rel.length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 15
+  "@pl.caseAgreement/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = m.groups!.name;
+    const ending = m.groups!.ending;
+    const forms = AGREEMENT_O_NAMES[name];
+    const before = agreementWordBefore(ctx.text, m.index);
+    if (!(
+      ending === "owi" ||
+      ending === "em" ||
+      (!!before &&
+        (plOnlyNoun(plNounTags(before)) || AGREEMENT_GOVERNED[before] === plCases("Gs Gp")))
+    ))
+      return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + name.length,
+        [ending === "owi" ? forms[1] : ending === "em" ? forms[2] : forms[0]],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 16
+  "@pl.caseAgreement/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return agreementSmallFrame(ctx, m, AGREEMENT_PRONOUN_GENITIVE[m[0].toLowerCase()] ?? null);
+  },
+  // pl.yaml rule pl.caseAgreement frame 17
+  "@pl.caseAgreement/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    return agreementSmallFrame(
+      ctx,
+      m,
+      !plOnlyNoun(tags) || !tagsAnd(tags, plCases("Ls Lp"))
+        ? null
+        : tagsAnd(tags, plCases("Lp"))
+          ? m[0] + "ch"
+          : tagsAnd(tags, PL_FEMININE)
+            ? m[0].slice(0, -1) + "jej"
+            : m[0] + "m",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 18
+  "@pl.caseAgreement/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return agreementSmallFrame(ctx, m, m[0].slice(0, -4) + "u");
+  },
+  // pl.yaml rule pl.caseAgreement frame 19
+  "@pl.caseAgreement/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return agreementSmallFrame(ctx, m, m[0].slice(0, -1) + "ę");
+  },
+  // pl.yaml rule pl.caseAgreement frame 20
+  "@pl.caseAgreement/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!plOnlyNoun(tags) || !tagsAnd(tags, plCases("Gs")) || plUserOrNamed(ctx, noun)) return null;
+    const gender = tagsAnd(tags, AGREEMENT_GENDERS);
+    const wanted =
+      gender === PL_FEMININE
+        ? "półtorej"
+        : tagsAnd(gender, PL_FEMININE) || !gender
+          ? ""
+          : "półtora";
+    if (!wanted || wanted === num.toLowerCase()) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + num.length,
+        [plCaseLike(num, wanted)],
+        "polishCaseAgreement",
+        "review_msg_pl_numeral_noun",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.caseAgreement frame 21
+  "@pl.caseAgreement/21": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!plOnlyNoun(tags) || !tagsAnd(tags, PL_VIRILE) || plUserOrNamed(ctx, noun)) return null;
+    const forms = plInflect(noun, plCases("Gp"), plCases("Np"));
+    const words = m[0].toLowerCase().split(/[ \t ]+/u);
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      forms.length === 1
+        ? [
+            plCaseLike(
+              m[0],
+              AGREEMENT_TENS[words[0]] + " " + AGREEMENT_MEN_UNITS[words[1]] + " " + forms[0],
+            ),
+          ]
+        : [],
+      "polishCaseAgreement",
+      "review_msg_pl_numeral_noun",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 22
+  "@pl.caseAgreement/22": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, plCases("Gp")) !== 0 &&
+      !tagsAnd(tags, plCases("Ns Np"))
+    ))
+      return null;
+    if (plUserOrNamed(ctx, noun)) return null;
+    const clause =
+      (
+        ctx.text
+          .slice(Math.max(0, m.index - 60), m.index)
+          .split(/[.!?;:,—–()]/u)
+          .at(-1) ?? ""
+      ).match(/\p{L}+/gu) ?? [];
+    if (
+      !clause
+        .slice(-3)
+        .some((word) =>
+          [plNounTags(word.toLowerCase())].some(
+            (own) =>
+              plOnlyNoun(own) && !tagsAnd(own, tagsWithout(PL_ALL_CASES, AGREEMENT_INSTRUMENTALS)),
+          ),
+        )
+    )
+      return null;
+    const allForms = plInflect(noun, plCases("Np"), plCases("Gp"));
+    const men = allForms.filter((form) => plMenOnlyPlural(form));
+    const forms = allForms.length > 1 && men.length ? men : allForms;
+    if (!(forms.length > 0 && forms.length <= 2)) return null;
+    return plFindingAt(
+      ctx,
+      m.indices!.groups!.noun[0],
+      m.indices!.groups!.noun[1],
+      forms.map((form) => plCaseLike(noun, form)),
+      "polishCaseAgreement",
+      "review_msg_pl_agreement",
+    );
+  },
+  // pl.yaml rule pl.caseAgreement frame 23
+  "@pl.caseAgreement/23": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (
+      !plOnlyNoun(tags) ||
+      tagsAnd(tags, tagsWithout(PL_ALL_CASES, plCases("Is"))) ||
+      plUserOrNamed(ctx, noun)
+    )
+      return null;
+    const feminine = tagsAnd(tags, PL_FEMININE) !== 0;
+    if (!(feminine !== (tagsAnd(tags, tagsOr(PL_MASCULINE, PL_NEUTER)) !== 0))) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.index,
+        m.index + pronoun.length,
+        [plCaseLike(pronoun, AGREEMENT_PLURAL_PRONOUNS[pronoun.toLowerCase()][feminine ? 1 : 0])],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.quotes frame 1
+  "@pl.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "„", "”", true, 1);
+  },
+  // pl.yaml rule pl.quotes frame 2
+  "@pl.quotes/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "„", "”", true, 1);
+  },
+  // pl.yaml rule pl.quotes frame 3
+  "@pl.quotes/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "„", "”", false, 1);
+  },
+  // pl.yaml rule pl.quotes frame 4
+  "@pl.quotes/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "„", "”", true, 1);
+  },
+  // pl.yaml rule pl.quotes frame 5
+  "@pl.quotes/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "»", "«", true, 2);
+  },
+  // pl.yaml rule pl.typography frame 1
+  "@pl.typography/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const open = m.groups!.open;
+    const close = m.groups!.close;
+    if (!(open !== close)) return null;
+    const spaced = m[0].slice(1, -1);
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [open + spaced + open, close + spaced + close],
+      "polishTypography",
+      "review_msg_pl_typography",
+    );
+  },
+  // pl.yaml rule pl.typography frame 2
+  "@pl.typography/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, m[0] === " = " ? null : " = ");
+  },
+  // pl.yaml rule pl.typography frame 3
+  "@pl.typography/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} × ${m[2]}`);
+  },
+  // pl.yaml rule pl.typography frame 4
+  "@pl.typography/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "%");
+  },
+  // pl.yaml rule pl.typography frame 5
+  "@pl.typography/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]},${m[2]}`);
+  },
+  // pl.yaml rule pl.typography frame 6
+  "@pl.typography/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "©");
+  },
+  // pl.yaml rule pl.typography frame 7
+  "@pl.typography/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "®");
+  },
+  // pl.yaml rule pl.typography frame 8
+  "@pl.typography/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "™");
+  },
+  // pl.yaml rule pl.typography frame 9
+  "@pl.typography/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, m[0].replace(/[–—]/, "-"));
+  },
+  // pl.yaml rule pl.typography frame 10
+  "@pl.typography/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} ${m[2]} ${m[3]}`);
+  },
+  // pl.yaml rule pl.typography frame 11
+  "@pl.typography/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} do ${m[2]}`);
+  },
+  // pl.yaml rule pl.typography frame 12
+  "@pl.typography/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "; ");
+  },
+  // pl.yaml rule pl.typography frame 13
+  "@pl.typography/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, ") ");
+  },
+  // pl.yaml rule pl.typography frame 14
+  "@pl.typography/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, ";");
+  },
+  // pl.yaml rule pl.typography frame 15
+  "@pl.typography/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, " „");
+  },
+  // pl.yaml rule pl.typography frame 16
+  "@pl.typography/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "…");
+  },
+  // pl.yaml rule pl.typography frame 17
+  "@pl.typography/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} g`);
+  },
+  // pl.yaml rule pl.typography frame 18
+  "@pl.typography/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} r.`);
+  },
+  // pl.yaml rule pl.typography frame 19
+  "@pl.typography/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]},${m[2]}`);
+  },
+  // pl.yaml rule pl.typography frame 20
+  "@pl.typography/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "-");
+  },
+  // pl.yaml rule pl.typography frame 21
+  "@pl.typography/21": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, m[1]);
+  },
+  // pl.yaml rule pl.typography frame 22
+  "@pl.typography/22": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, ` ${m[0]}`);
+  },
+  // pl.yaml rule pl.typography frame 23
+  "@pl.typography/23": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[0]} `);
+  },
+  // pl.yaml rule pl.typography frame 24
+  "@pl.typography/24": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "");
+  },
+  // pl.yaml rule pl.typography frame 25
+  "@pl.typography/25": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "m.in."));
+  },
+  // pl.yaml rule pl.typography frame 26
+  "@pl.typography/26": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "z o.o."));
+  },
+  // pl.yaml rule pl.typography frame 27
+  "@pl.typography/27": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."));
+  },
+  // pl.yaml rule pl.typography frame 28
+  "@pl.typography/28": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."));
+  },
+  // pl.yaml rule pl.typography frame 29
+  "@pl.typography/29": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "n.e."));
+  },
+  // pl.yaml rule pl.typography frame 30
+  "@pl.typography/30": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "dz. cyt."));
+  },
+  // pl.yaml rule pl.typography frame 31
+  "@pl.typography/31": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "op. cit."));
+  },
+  // pl.yaml rule pl.typography frame 32
+  "@pl.typography/32": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "m.in."));
+  },
+  // pl.yaml rule pl.typography frame 33
+  "@pl.typography/33": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "m.in."));
+  },
+  // pl.yaml rule pl.typography frame 34
+  "@pl.typography/34": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "ds."));
+  },
+  // pl.yaml rule pl.typography frame 35
+  "@pl.typography/35": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."));
+  },
+  // pl.yaml rule pl.rangeDashes frame 1
+  "@pl.rangeDashes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) return null;
+    const a = m[1];
+    const dash = m[2];
+    const b = m[3];
+    if (a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4)) return null;
+    if (a.length === 2 && b.length === 3) return null;
+    if (!((a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)) > Number(a)))
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 12);
+    if (
+      RANGE_ID_BEFORE.test(before) ||
+      RANGE_SCORE_BEFORE.test(before) ||
+      RANGE_SCORE_AFTER.test(after)
+    )
+      return null;
+    return {
+      ruleId: "emdashShortcut",
+      messageKey: "review_msg_range_dash",
+      range: { start: m.index + a.length, end: m.index + a.length + dash.length },
+      alternatives: ["–"],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.comparedWithJak frame 1
+  "@pl.comparedWithJak/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    const lower = word.toLowerCase();
+    if (lower.startsWith("naj") || !alreadyGraded(lower) || plUserOrNamed(ctx, word)) return null;
+    if (lower === "później" || lower === "wcześniej") return null;
+    if (
+      /(?:^|[^\p{L}])(?:nic|niczym|niczego)[ \t ]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      return null;
+    const after = next.toLowerCase();
+    if (DEGREE_CLAUSE_AFTER.test(after) || plFiniteVerb(after)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.target[0],
+        m.indices!.groups!.target[1],
+        [plCaseLike(target, "niż")],
+        "englishPhraseCorrections",
+        "review_msg_contextual_grammar",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.degrees frame 1
+  "@pl.degrees/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const marker = m.groups!.marker;
+    const word = m.groups!.word;
+    if (plUserOrNamed(ctx, word)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 8), m.index);
+    if (/(?:^|[^\p{L}])(?:tym|im)[ \t ]+$/iu.test(before)) return null;
+    const lower = marker.toLowerCase();
+    const start = m.index;
+    const end = start + m[0].length;
+    return lower.startsWith("coraz")
+      ? plFindingAt(
+          ctx,
+          start,
+          start + marker.length,
+          [marker.replace(/naj(?=bardziej|mniej)/iu, "")],
+          "englishDoubledDegree",
+          "review_msg_doubled_degree",
+        )
+      : ctx.rules?.has("englishDoubledDegree") !== false &&
+          (alreadyGraded(word) || DEGREE_UNGRADED.test(word))
+        ? /^(?:lepsz|gorsz|lepiej|gorzej|lepsi|gorsi)/u.test(word) && lower === "bardziej"
+          ? null
+          : plFindingAt(
+              ctx,
+              start,
+              end,
+              [plCaseLike(marker, word)],
+              "englishDoubledDegree",
+              "review_msg_doubled_degree",
+            )
+        : ctx.rules && !ctx.rules.has("stylePhrasing")
+          ? null
+          : degreeStyle(ctx, m, marker, word, lower, end);
+  },
+  // pl.yaml rule pl.commaFrames frame 1
+  "@pl.commaFrames/1": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 2
+  "@pl.commaFrames/2": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 3
+  "@pl.commaFrames/3": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 4
+  "@pl.commaFrames/4": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim();
+  },
+  // pl.yaml rule pl.commaFrames frame 5
+  "@pl.commaFrames/5": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 6
+  "@pl.commaFrames/6": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim();
+  },
+  // pl.yaml rule pl.commaFrames frame 7
+  "@pl.commaFrames/7": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim();
+  },
+  // pl.yaml rule pl.commaFrames frame 8
+  "@pl.commaFrames/8": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim().replace(/\s+/gu, " ") + ", ";
+  },
+  // pl.yaml rule pl.commaFrames frame 9
+  "@pl.commaFrames/9": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    if (plFiniteVerb(target) || /^(?:tylko|ma|mam|mamy|chodzi|wiem|ten|to|ta|się)$/u.test(target))
+      return null;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 10
+  "@pl.commaFrames/10": (m: RegExpExecArray, ctx: DetectContext): string | null => {
+    const target = m.groups!.target;
+    if (
+      /^(?:czy|i|a|albo|lub|ani|oraz|nie|że|to|tak(?:i|a|ie|iego|iej|iemu|ą|im|ich|imi))$/u.test(
+        target,
+      )
+    )
+      return null;
+    const sentence = ctx.text
+      .slice(Math.max(0, m.index - 60), m.index)
+      .split(/[.!?;:,\n]/u)
+      .at(-1)!;
+    if (/(?:^|[^\p{L}])(?:po)?między(?![\p{L}])/iu.test(sentence)) return null;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 11
+  "@pl.commaFrames/11": (m: RegExpExecArray): string | null => {
+    const phrase = m.groups!.phrase;
+    const noun = m.groups!.noun;
+    const rest = m.groups!.rest;
+    const lower = phrase.toLowerCase().replace(/\s+/gu, " ");
+    if (COMMA_ASIDE_PHRASE.test(lower)) return null;
+    if (!(plOnlyNoun(plNounTags(noun.toLowerCase()), true) || /^\p{Lu}\p{Ll}+$/u.test(noun)))
+      return null;
+    const words = rest.toLowerCase().match(/\p{L}+/gu) ?? [];
+    const first = words[0] ?? "";
+    if (COMMA_OPENS_CLAUSE.test(first) || /ąc$/u.test(first)) return null;
+    if (PREPOSITION_WORDS.has(first)) return null;
+    const verb = words.findIndex((word) => plFiniteVerb(word));
+    if (
+      tagsAnd(tagsCases(plNounTags(noun.toLowerCase())), tagsCases(plNounTags(first))) &&
+      words
+        .slice(1, verb < 0 ? undefined : verb)
+        .some((word) => /^(?:i|oraz|lub|albo|ani)$/u.test(word))
+    )
+      return null;
+    return words.some((word) => plFiniteVerb(word) || plImpersonalVerb(word) || /ć$/u.test(word))
+      ? ""
+      : null;
+  },
+  // pl.yaml rule pl.commaFrames frame 12
+  "@pl.commaFrames/12": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 13
+  "@pl.commaFrames/13": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim();
+  },
+  // pl.yaml rule pl.commaFrames frame 14
+  "@pl.commaFrames/14": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 15
+  "@pl.commaFrames/15": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 16
+  "@pl.commaFrames/16": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 17
+  "@pl.commaFrames/17": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 18
+  "@pl.commaFrames/18": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 19
+  "@pl.commaFrames/19": (m: RegExpExecArray): string | null => {
+    const det = m.groups!.det;
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    const aside = m.groups!.aside;
+    const tags = plNounTags(noun.toLowerCase());
+    if (!(plOnlyNoun(tags) && tagsAnd(tags, plCases("Ns")) !== 0)) return null;
+    if (!det && tagsAnd(tags, plCases("Vs"))) return null;
+    if (
+      !(
+        [PL_MASCULINE, PL_FEMININE, PL_NEUTER].filter((gender) => tagsAnd(tags, gender)).length ===
+        1
+      )
+    )
+      return null;
+    if (
+      aside &&
+      /^(?:powiedzia|mówi|twierdz|doda|zauważy|podkreśli|stwierdzi|zaznaczy|napisa|wyjaśni|przyzna|uważa|sądz|odpowiedzia|zapewni)/u.test(
+        verb,
+      )
+    )
+      return null;
+    return verb === "to" || plFiniteVerb(verb) ? "" : null;
+  },
+  // pl.yaml rule pl.commaFrames frame 20
+  "@pl.commaFrames/20": (m: RegExpExecArray, ctx: DetectContext): string | null => {
+    const left = m.groups!.left;
+    const conj = m.groups!.conj;
+    const right = m.groups!.right;
+    const sentence = ctx.text
+      .slice(Math.max(0, m.index - 120), m.index)
+      .split(/[.!?;:\n]/u)
+      .at(-1)!;
+    if (new RegExp(`(?<![\\p{L}])${conj}(?![\\p{L}])`, "iu").test(sentence)) return null;
+    const a = plNounTags(left);
+    const b = plNounTags(right);
+    return plOnlyNoun(a) && plOnlyNoun(b) && tagsAnd(tagsCases(a), tagsCases(b))
+      ? ""
+      : conj === "ani" || conj === "ni" || !plFiniteVerb(right) || sentence.includes(",")
+        ? null
+        : (sentence.match(/\p{L}+/gu) ?? []).some((word) => plFiniteVerb(word.toLowerCase()))
+          ? ""
+          : null;
+  },
+  // pl.yaml rule pl.commaFrames frame 21
+  "@pl.commaFrames/21": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 22
+  "@pl.commaFrames/22": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 23
+  "@pl.commaFrames/23": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 24
+  "@pl.commaFrames/24": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 25
+  "@pl.commaFrames/25": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 26
+  "@pl.commaFrames/26": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 27
+  "@pl.commaFrames/27": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 28
+  "@pl.commaFrames/28": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return "," + target;
+  },
+  // pl.yaml rule pl.commaFrames frame 29
+  "@pl.commaFrames/29": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return "," + target;
+  },
+  // pl.yaml rule pl.commaFrames frame 30
+  "@pl.commaFrames/30": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    const after = m.groups!.after;
+    return "," + target + (after === "," ? "" : ",");
+  },
+  // pl.yaml rule pl.commaFrames frame 31
+  "@pl.commaFrames/31": (m: RegExpExecArray): string | null => {
+    const verb = m.groups!.verb;
+    const target = m.groups!.target;
+    return /ć$/u.test(verb) || plFiniteVerb(verb) ? "," + target : null;
+  },
+  // pl.yaml rule pl.commaFrames frame 32
+  "@pl.commaFrames/32": (): string | null => {
+    return "to,";
+  },
+  // pl.yaml rule pl.capitals frame 1
+  "@pl.capitals/1": (m: RegExpExecArray, ctx: DetectContext): string | null => {
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
+    if (
+      plSentenceStart(ctx.text, m.index) ||
+      HOLIDAY_BEFORE.test(before) ||
+      HOLIDAY_AFTER.test(after)
+    )
+      return null;
+    if (/^[ \t ]*[:–—-]/u.test(after) || /(?:^|\n)[ \t ]*[-•*]?[ \t ]*$/u.test(before)) return null;
+    if (!DAY_CONTEXT.test(before)) return null;
+    if (
+      !/^(?:Poniedział|Wtor|Środ|Czwart|Piąt|Sobot|Niedziel|Stycz|Lut[yemu]|Marc|Marz[ec]|Kwietni|Kwiecień|Czerw|Lip(?:iec|ca|cu|cem)|Sierp|Wrze[sś]|Październik|Listopad|Grud)/u.test(
+        m[0],
+      )
+    )
+      return null;
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 2
+  "@pl.capitals/2": (m: RegExpExecArray): string | null => {
+    return capitalWords(m[0]);
+  },
+  // pl.yaml rule pl.capitals frame 3
+  "@pl.capitals/3": (m: RegExpExecArray): string | null => {
+    const noun = m.groups!.noun;
+    const adj = m.groups!.adj;
+    return casingAgrees(noun, adj) ? capitalWords(m[0]) : null;
+  },
+  // pl.yaml rule pl.capitals frame 4
+  "@pl.capitals/4": (m: RegExpExecArray): string | null => {
+    const words = m[0].split(/[ \t ]+/u);
+    const ending = FEMININE_AGREEING.find(([nounEnd]) => nounEnd.test(words[0]))?.[1];
+    return /^(?:Sri|Now|now|Wielk)/u.test(words[0]) || ending?.test(words[1])
+      ? capitalWords(m[0])
+      : null;
+  },
+  // pl.yaml rule pl.capitals frame 5
+  "@pl.capitals/5": (m: RegExpExecArray): string | null => {
+    return capitalWords(m[0]);
+  },
+  // pl.yaml rule pl.capitals frame 6
+  "@pl.capitals/6": (m: RegExpExecArray): string | null => {
+    return capitalWords(m[0]);
+  },
+  // pl.yaml rule pl.capitals frame 7
+  "@pl.capitals/7": (m: RegExpExecArray): string | null => {
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 8
+  "@pl.capitals/8": (m: RegExpExecArray): string | null => {
+    const noun = m.groups!.noun;
+    return casingAgrees(noun, m[0]) ? m[0].toLowerCase() : null;
+  },
+  // pl.yaml rule pl.capitals frame 9
+  "@pl.capitals/9": (m: RegExpExecArray): string | null => {
+    return m[0]
+      .toLowerCase()
+      .replace(/^hertz/, "herc")
+      .replace(/^ohm/, "om")
+      .replace(/^watt/, "wat")
+      .replace(/^volt/, "wolt");
+  },
+  // pl.yaml rule pl.capitals frame 10
+  "@pl.capitals/10": (m: RegExpExecArray): string | null => {
+    return m[0].replace(/[„"”]/gu, "").replace("Ty", "ty");
+  },
+  // pl.yaml rule pl.capitals frame 11
+  "@pl.capitals/11": (): string | null => {
+    return "ci";
+  },
+  // pl.yaml rule pl.capitals frame 12
+  "@pl.capitals/12": (m: RegExpExecArray): string | null => {
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 13
+  "@pl.capitals/13": (m: RegExpExecArray): string | null => {
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 14
+  "@pl.capitals/14": (m: RegExpExecArray): string | null => {
+    return capitalWords(m[0]);
+  },
+  // pl.yaml rule pl.capitals frame 15
+  "@pl.capitals/15": (m: RegExpExecArray): string | null => {
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 16
+  "@pl.capitals/16": (m: RegExpExecArray): string | null => {
+    return plPlaceForm(m[0]) ? capitalWords(m[0]) : null;
+  },
+  // pl.yaml rule pl.conjunctions frame 1
+  "@pl.conjunctions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const conj = m.groups!.conj;
+    const person = m.groups!.person;
+    const between = m.groups!.between;
+    const verb = m.groups!.verb;
+    if (plNounTags(verb.toLowerCase()) || plUserOrNamed(ctx, verb)) return null;
+    const ending = CONJUNCTION_ENDINGS.find(([regex]) => regex.test(verb));
+    if (!(ending !== undefined)) return null;
+    if (!(!person || person === ending[2])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [
+        `${plCaseLike(conj, conj + (person || ending[2]))}${between} ${verb.replace(ending[0], ending[1])}`,
+      ],
+      "polishCaseAgreement",
+      "review_msg_pl_conjunction_ending",
+    );
+  },
+  // pl.yaml rule pl.conjunctions frame 2
+  "@pl.conjunctions/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (/(?:ł|ła|ło|li|ły)$/u.test(verb) || plUserOrNamed(ctx, verb)) return null;
+    const imperative = plImperativeVerb(verb);
+    if (!(imperative || plFiniteVerb(verb))) return null;
+    const start = m.index + m[0].length - verb.length;
+    return plFindingAt(
+      ctx,
+      start,
+      start + verb.length,
+      [],
+      "polishCaseAgreement",
+      imperative ? "review_msg_pl_imperative" : "review_msg_pl_conjunction_ending",
+    );
+  },
+  // pl.yaml rule pl.conjunctions frame 3
+  "@pl.conjunctions/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (!(plImperativeVerb(verb) && !plUserOrNamed(ctx, verb))) return null;
+    return plFindingAt(
+      ctx,
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      [],
+      "polishCaseAgreement",
+      "review_msg_pl_imperative",
+    );
+  },
+  // pl.yaml rule pl.clauses frame 1
+  "@pl.clauses/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const end = m.index + m[0].length;
+    if (end <= ctx.from || namedExampleBefore(ctx.text, m.index)) return null;
+    const base = plWords(m[0], m.index);
+    if (!(base.length >= 3)) return null;
+    const list = base.map((w, i) => ({
+      ...w,
+      verb: clauseVerbAt(base, i),
+      participle: clauseAdverbialParticiple(w.lower),
+    }));
+    const segment = [m.index, end] as const;
+    return [
+      ...clauseParticiples(ctx, list, segment),
+      ...clausePurposeOpeners(ctx, list, segment),
+      ...clauseRunOns(ctx, list, segment, ctx.text[m.index - 1] === ","),
+    ].filter((finding) => finding.range.start >= ctx.from && finding.range.start < ctx.to);
+  },
+  // pl.yaml rule pl.style frame 1
+  "@pl.style/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const numeral = m.groups!.numeral;
+    const words = m.groups!.words;
+    const baseWanted = STYLE_OR_MORE_CASE[numeral.toLowerCase()];
+    const wanted =
+      baseWanted === "Gp" &&
+      /(?:^|[^\p{L}])(?:w|we|o|na|przy|po)[ \t ]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 8), m.index),
+      )
+        ? "Lp"
+        : baseWanted;
+    const wordsStart = m.index + m[0].length - words.length;
+    const head = "co najmniej " + numeral;
+    const tokens = [...words.matchAll(/\p{L}+/gu)];
+    const at = orMoreSkip(tokens, 0);
+    const noun = tokens[at]?.[0] ?? "";
+    const tags = plNounTags(noun);
+    const fix =
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, plCases("Gp")) &&
+      !(wanted === "Np" && tagsAnd(tags, PL_VIRILE))
+        ? orMoreFix(tokens, at, noun, tags, wanted, head, wordsStart)
+        : null;
+    const end = fix ? fix.end : wordsStart;
+    const typed = ctx.source.slice(m.index, end);
+    if (plUserOrNamed(ctx, typed)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      end,
+      [plCaseLike(typed, fix ? fix.fixed : head)],
+      "stylePhrasing",
+      "review_msg_style_phrasing",
+    );
+  },
+  // pl.yaml rule pl.style frame 2
+  "@pl.style/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const mid = m.groups!.mid;
+    const noun = m.groups!.noun;
+    const before = m.groups!.before;
+    const after = m.groups!.after;
+    const end = m.index + m[0].length;
+    return verb
+      ? styleFinding(ctx, m.index, end, [
+          verb + mid + " " + (noun.toLowerCase() === "rolę" ? "funkcję" : "funkcji"),
+          STYLE_PLAYS[verb.toLowerCase()] + mid + " " + noun,
+        ])
+      : styleFinding(ctx, m.index, end, [
+          (before.toLowerCase() === "rolę" ? "funkcję" : "funkcji") + " " + after,
+          before + " " + STYLE_PLAYS[after.toLowerCase()],
+        ]);
+  },
+  // pl.yaml rule pl.style frame 3
+  "@pl.style/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const mid = m.groups!.mid;
+    const noun = m.groups!.noun;
+    return styleFinding(ctx, m.index, m.index + m[0].length, [
+      STYLE_PUTS_ON[verb.toLowerCase()] + mid + " " + noun,
+    ]);
+  },
+  // pl.yaml rule pl.style frame 4
+  "@pl.style/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const rest = m.groups!.rest;
+    return styleFinding(ctx, m.index, m.index + m[0].length, [verb + rest]);
+  },
+  // pl.yaml rule pl.style frame 5
+  "@pl.style/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return styleFinding(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1], []);
+  },
+  // pl.yaml rule pl.style frame 6
+  "@pl.style/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const mid = m.groups!.mid;
+    const noun = m.groups!.noun;
+    return styleFinding(ctx, m.index, m.index + m[0].length, [
+      STYLE_HAS[verb.toLowerCase()] + mid + " " + noun,
+    ]);
+  },
+  // pl.yaml rule pl.styleFrames frame 7
+  "@pl.styleFrames/7": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = /\p{L}+$/u.exec(target)![0].toLowerCase();
+    return noun === "tym" ? "przez to" : "przez to " + STYLE_POD_OBJECT[noun];
+  },
+  // pl.yaml rule pl.styleFrames frame 8
+  "@pl.styleFrames/8": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace(/[ \t ]+na$/iu, "");
+  },
+  // pl.yaml rule pl.officialese frame 1
+  "@pl.officialese/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    const ending = end.toLowerCase();
+    return [plAdjectiveForm("czołowy", ending), plAdjectiveForm("główny", ending)];
+  },
+  // pl.yaml rule pl.officialese frame 2
+  "@pl.officialese/2": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return OFFICIALESE_DESTINATION[end.toLowerCase()];
+  },
+  // pl.yaml rule pl.officialese frame 4
+  "@pl.officialese/4": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    const tail = m.groups!.tail;
+    const next = /^[ \t ]{1,8}(\p{L}+)/u.exec(m.input.slice(m.index + m[0].length))?.[1];
+    if (
+      /^P/u.test(tail) ||
+      /^\p{Lu}/u.test(next ?? "") ||
+      (/ego$/u.test(next ?? "") && !/^(?:tego|jego|owego)$/iu.test(next!))
+    )
+      return null;
+    return noun;
+  },
+  // pl.yaml rule pl.officialese frame 8
+  "@pl.officialese/8": (m: RegExpExecArray): string | readonly string[] | null => {
+    const so = m.groups!.so;
+    return so ? ["właśnie tak", "owszem"] : ["właśnie", "owszem"];
+  },
+  // pl.yaml rule pl.subjects frame 1
+  "@pl.subjects/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const verb = m.groups!.verb;
+    const fem = m.groups!.fem;
+    const feminine = pronoun.toLowerCase() === "ona";
+    if (feminine === !!fem || !subjectPastForm(verb.toLowerCase()) || plUserOrNamed(ctx, verb))
+      return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.pronoun[0],
+        m.indices!.groups!.pronoun[1],
+        [plCaseLike(pronoun, feminine ? "on" : "ona")],
+        "polishCaseAgreement",
+        "review_msg_pl_subject_verb",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 2
+  "@pl.subjects/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const fem = m.groups!.fem;
+    const pronoun = m.groups!.pronoun;
+    const feminine = pronoun.toLowerCase() === "ona";
+    if (feminine === !!fem || !subjectPastForm(verb.toLowerCase()) || plUserOrNamed(ctx, verb))
+      return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.pronoun[0],
+        m.indices!.groups!.pronoun[1],
+        [plCaseLike(pronoun, feminine ? "on" : "ona")],
+        "polishCaseAgreement",
+        "review_msg_pl_subject_verb",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 3
+  "@pl.subjects/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const aux = m.groups!.aux;
+    const word = m.groups!.word;
+    const lower = word.toLowerCase();
+    const adjective = plAdjectiveOf(lower);
+    if (!(adjective !== null && !plUserOrNamed(ctx, word) && !plOnlyNoun(plNounTags(lower))))
+      return null;
+    const forms = [
+      adjective.lemma,
+      plAdjectiveForm(adjective.lemma, "a"),
+      plAdjectiveForm(adjective.lemma, "e"),
+    ];
+    if (!forms.includes(lower)) return null;
+    const wanted = SUBJECT_ZOSTAC[aux.toLowerCase()];
+    if (!(forms[wanted] !== lower)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.word[0],
+        m.indices!.groups!.word[1],
+        [plCaseLike(word, forms[wanted])],
+        "polishCaseAgreement",
+        "review_msg_pl_subject_verb",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 4
+  "@pl.subjects/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    const aux = m.groups!.aux;
+    const lower = word.toLowerCase();
+    const adjective = plAdjectiveOf(lower);
+    if (!(adjective !== null && !plUserOrNamed(ctx, word) && !plOnlyNoun(plNounTags(lower))))
+      return null;
+    const forms = [
+      adjective.lemma,
+      plAdjectiveForm(adjective.lemma, "a"),
+      plAdjectiveForm(adjective.lemma, "e"),
+    ];
+    if (!forms.includes(lower)) return null;
+    const wanted = SUBJECT_ZOSTAC[aux.toLowerCase()];
+    if (!(forms[wanted] !== lower)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.word[0],
+        m.indices!.groups!.word[1],
+        [plCaseLike(word, forms[wanted])],
+        "polishCaseAgreement",
+        "review_msg_pl_subject_verb",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 5
+  "@pl.subjects/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    const reflexive = m.groups!.reflexive;
+    const _resumed = frame.resume!(m.index + noun.length);
+    const lower = noun.toLowerCase();
+    const tags = plNounTags(lower);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, plCases("Np")) !== 0 &&
+      !plUserOrNamed(ctx, noun + " " + verb)
+    ))
+      return null;
+    if (/\p{Lu}/u.test(noun[0]) && !plSentenceStart(ctx.text, m.index)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 40), m.index);
+    if (SUBJECT_NOT_SUBJECT_BEFORE.test(before)) return null;
+    if (
+      !(verb.endsWith("li")
+        ? subjectVirileVerbFits(before, lower, tags, verb, reflexive)
+        : plMenOnlyPlural(lower) &&
+          !tagsAnd(tags, plCases("Ns Gs As Ap")) &&
+          subjectPluralPast(verb))
+    )
+      return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.verb[0],
+        m.indices!.groups!.verb[1],
+        subjectOtherPlural(verb.toLowerCase()),
+        "polishCaseAgreement",
+        "review_msg_pl_subject_verb",
+      ),
+      context: { start: m.index, end: m.indices!.groups!.verb[1] },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 6
+  "@pl.subjects/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const noun = m.groups!.noun;
+    const _resumed = frame.resume!(m.index + noun.length);
+    const lower = noun.toLowerCase();
+    const tags = plNounTags(lower);
+    if (
+      !plOnlyNoun(tags) ||
+      !tagsAnd(tags, plCases("Ns")) ||
+      tagsAnd(tags, PL_PLURAL) ||
+      /stwo$/u.test(lower)
+    )
+      return null;
+    if (!SUBJECT_OPENS_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) return null;
+    if (plUserOrNamed(ctx, noun)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.verb[0],
+        m.indices!.groups!.verb[1],
+        [],
+        "polishCaseAgreement",
+        "review_msg_pl_subject_verb",
+      ),
+      context: { start: m.index, end: m.indices!.groups!.verb[1] },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 7
+  "@pl.subjects/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const between = m.groups!.between;
+    const verb = m.groups!.verb;
+    const words = between.match(/\p{L}+/gu) ?? [];
+    if (!words.every((word) => subjectGenitive(word.toLowerCase()))) return null;
+    if (SUBJECT_NOT_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index)))
+      return null;
+    const next = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(m.index + m[0].length))?.[1];
+    if (next && /o$/u.test(next) && !plOnlyNoun(plNounTags(next.toLowerCase()))) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.verb[0],
+        m.indices!.groups!.verb[1],
+        [plCaseLike(verb, verb.slice(0, -1) + "a")],
+        "polishCaseAgreement",
+        "review_msg_pl_subject_verb",
+      ),
+      context: { start: m.index, end: m.indices!.groups!.verb[1] },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 8
+  "@pl.subjects/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const aux = m.groups!.aux;
+    const verb = m.groups!.verb;
+    const future = /^będ/iu.test(aux);
+    if (!future && !/[ćc]$/u.test(verb)) return null;
+    const lower = verb.toLowerCase();
+    if (!/[ćc]$/u.test(lower) && (plAdjectiveOf(lower) || plNounTags(lower))) return null;
+    if (!plPerfectiveVerb(verb.toLowerCase()) || plUserOrNamed(ctx, verb)) return null;
+    if (!(!(future && /[ćc]$/u.test(lower)) || aspectFutureFits(ctx, m))) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.verb[0],
+        m.indices!.groups!.verb[1],
+        [],
+        "polishCaseAgreement",
+        "review_msg_pl_aspect",
+      ),
+      context: { start: m.index, end: m.indices!.groups!.verb[1] },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 9
+  "@pl.subjects/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (!(plFiniteVerb(verb) || plPastByShape(verb))) return null;
+    if (SUBJECT_NOT_NEGATING_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)))
+      return null;
+    if (plUserOrNamed(ctx, verb)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.verb[0],
+        m.indices!.groups!.verb[1],
+        ["nie " + verb],
+        "polishCaseAgreement",
+        "review_msg_pl_double_negation",
+      ),
+      context: { start: m.index, end: m.indices!.groups!.verb[1] },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 10
+  "@pl.subjects/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const adj = m.groups!.adj;
+    if (
+      tagsAnd(plNounTags(adj), PL_ALL_CASES) ||
+      plAmbiguousAdjective(adj) ||
+      plUserOrNamed(ctx, adj)
+    )
+      return null;
+    const virileVerb = /li/u.test(verb.toLowerCase());
+    const word =
+      /(\p{L}+)[ \t ]+$/u
+        .exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]
+        .toLowerCase() ?? "";
+    const subject = plNounTags(word);
+    if (
+      plOnlyNoun(subject) &&
+      tagsAnd(subject, plCases("Np")) &&
+      (virileVerb
+        ? !(plMenOnlyPlural(word) || (tagsAnd(subject, PL_MASCULINE) && plMenPluralShape(word)))
+        : plMenOnlyPlural(word))
+    )
+      return null;
+    const fixes = virileVerb ? predicateVirileFix(adj) : predicateOtherFix(adj);
+    if (!(fixes !== null)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.adj[0],
+        m.indices!.groups!.adj[1],
+        fixes,
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.indices!.groups!.adj[1] },
+    };
+  },
+  // pl.yaml rule pl.subjects frame 11
+  "@pl.subjects/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    const tags = plNounTags(next.toLowerCase());
+    if (!(
+      SUBJECT_GENITIVE_COUNT.test(next.toLowerCase()) ||
+      (plOnlyNoun(tags) &&
+        tagsAnd(tags, SUBJECT_PLURAL_OBLIQUE) !== 0 &&
+        !tagsAnd(tags, SUBJECT_SINGULAR_DIRECT))
+    ))
+      return null;
+    if (plUserOrNamed(ctx, next)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.target[0],
+        m.indices!.groups!.target[1],
+        [plCaseLike(target, "jakichś")],
+        "polishCaseAgreement",
+        "review_msg_pl_agreement",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.typosFrames frame 1
+  "@pl.typosFrames/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    if (!(word === word.toLowerCase())) return null;
+    const adjective = plAdjectiveOf(word);
+    return word === "siebie"
+      ? ["przed siebie", "przez siebie"]
+      : word === "zemnie"
+        ? "przeze mnie"
+        : adjective && !plAmbiguousAdjective(word) && adjective.ending !== "ą"
+          ? "prze" + word
+          : null;
+  },
+  // pl.yaml rule pl.typosFrames frame 3
+  "@pl.typosFrames/3": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "dróżk" + end;
+  },
+  // pl.yaml rule pl.typosFrames frame 7
+  "@pl.typosFrames/7": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.length === 6 ? "składamy" : "składam";
+  },
+  // pl.yaml rule pl.typosFrames frame 9
+  "@pl.typosFrames/9": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.toLowerCase() === "podleją" ? "podlegają" : "podlega";
+  },
+  // pl.yaml rule pl.typosFrames frame 14
+  "@pl.typosFrames/14": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target + "j";
+  },
+  // pl.yaml rule pl.typosFrames frame 15
+  "@pl.typosFrames/15": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.slice(0, -3) + "niej";
+  },
+  // pl.yaml rule pl.typosFrames frame 19
+  "@pl.typosFrames/19": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^G/u.test(target) ? "Główn" + target.slice(4) : null;
+  },
+  // pl.yaml rule pl.typosFrames frame 21
+  "@pl.typosFrames/21": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : "jedna";
+  },
+  // pl.yaml rule pl.typosFrames frame 23
+  "@pl.typosFrames/23": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "literówk" + target.slice(7);
+  },
+  // pl.yaml rule pl.typosFrames frame 26
+  "@pl.typosFrames/26": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "żłobk" + target.slice(5);
+  },
+  // pl.yaml rule pl.typosFrames frame 27
+  "@pl.typosFrames/27": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "żłóbk" + target.slice(5);
+  },
+  // pl.yaml rule pl.typosFrames frame 29
+  "@pl.typosFrames/29": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "przed" + target.slice(4);
+  },
+  // pl.yaml rule pl.typosFrames frame 32
+  "@pl.typosFrames/32": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : "dla";
+  },
+  // pl.yaml rule pl.typosFrames frame 34
+  "@pl.typosFrames/34": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "różn" + target.slice(4);
+  },
+  // pl.yaml rule pl.typosFrames frame 35
+  "@pl.typosFrames/35": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.slice(0, -1) + "a";
+  },
+  // pl.yaml rule pl.typosFrames frame 37
+  "@pl.typosFrames/37": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "zawiera" + target.slice(6);
+  },
+  // pl.yaml rule pl.typosFrames frame 39
+  "@pl.typosFrames/39": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "nad" + target.slice(2);
+  },
+  // pl.yaml rule pl.typosFrames frame 40
+  "@pl.typosFrames/40": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : "rangę";
+  },
+  // pl.yaml rule pl.typosFrames frame 46
+  "@pl.typosFrames/46": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "pozwal" + target.slice(7);
+  },
+  // pl.yaml rule pl.typosFrames frame 47
+  "@pl.typosFrames/47": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "start" + target.slice(5);
+  },
+  // pl.yaml rule pl.typosFrames frame 49
+  "@pl.typosFrames/49": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "z " + target;
+  },
+  // pl.yaml rule pl.typosFrames frame 56
+  "@pl.typosFrames/56": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "od" + target.slice(1);
+  },
+  // pl.yaml rule pl.typosFrames frame 57
+  "@pl.typosFrames/57": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "swo" + target.slice(3);
+  },
+  // pl.yaml rule pl.typosFrames frame 58
+  "@pl.typosFrames/58": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : target + "a";
+  },
+  // pl.yaml rule pl.typosFrames frame 59
+  "@pl.typosFrames/59": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "lut" + target.slice(3);
+  },
+  // pl.yaml rule pl.typosFrames frame 60
+  "@pl.typosFrames/60": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "statystyk" + target.slice(8);
+  },
+  // pl.yaml rule pl.typosFrames frame 65
+  "@pl.typosFrames/65": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace(/jak$/iu, "niż");
+  },
+  // pl.yaml rule pl.typos frame 1
+  "@pl.typos/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (plNounTags(verb) || /(?:siąc|zając)$/u.test(verb)) return null;
+    return typoSlip(ctx, m.index, m.index + m[0].length, verb);
+  },
+  // pl.yaml rule pl.typos frame 2
+  "@pl.typos/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, PL_NEUTER) !== 0 &&
+      tagsAnd(tags, plCases("Ns As")) !== 0
+    ))
+      return null;
+    if (/^\p{Lu}/u.test(target) && !plSentenceStart(ctx.text, m.index)) return null;
+    return typoSlip(ctx, m.index, m.index + 4, "całe");
+  },
+  // pl.yaml rule pl.typos frame 3
+  "@pl.typos/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const start = m.index;
+    const end = start + m[0].length;
+    const before = ctx.text.slice(Math.max(0, start - 48), start);
+    const after = ctx.text.slice(end, end + 40);
+    const clauseBefore = before.slice(before.search(/[^.!?;:,\n]*$/u));
+    const clauseAfter = after.slice(0, (after.search(/[.!?;:,\n]/u) + 1 || after.length + 1) - 1);
+    if (/(?:^|[^\p{L}])się(?![\p{L}])/iu.test(clauseBefore + " " + clauseAfter)) return null;
+    if (/(?:^|[^\p{L}])(?:z|za|przed|nad|pod|między|o|na|przy|po|w|we)[ \t ]+$/iu.test(before))
+      return null;
+    return typoSlip(ctx, start, end, verb + " się");
+  },
+  // pl.yaml rule pl.typos frame 4
+  "@pl.typos/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const lowerVerb = verb.toLowerCase();
+    if (TYPO_NOT_A_VERB.has(lowerVerb)) return null;
+    if (!(plFiniteVerb(lowerVerb) || plListedVerb(lowerVerb) || plPastByShape(lowerVerb)))
+      return null;
+    const start = m.index + m[0].indexOf(verb, 3);
+    return typoSlip(ctx, start, m.index + m[0].length, verb);
+  },
+  // pl.yaml rule pl.typos frame 5
+  "@pl.typos/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const next = m.groups!.next;
+    if (first.toLowerCase() === second || TYPO_ADVERBIAL.has(second + "|" + next)) return null;
+    const tail = m.index + m[0].length;
+    const after = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(tail, tail + 40))?.[1] ?? "";
+    const noun = next.toLowerCase();
+    if (!(
+      (plOnlyNoun(plNounTags(noun)) || plPlaceForm(noun)) &&
+      !plAdjectiveOf(after.toLowerCase())
+    ))
+      return null;
+    const typed = ctx.source.slice(m.index, m.index + m[0].length - next.length).trimEnd();
+    if (plUserOrNamed(ctx, typed)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + typed.length,
+      [first, plCaseLike(first, second)],
+      "englishPhraseCorrections",
+      "review_msg_contextual_grammar",
+    );
+  },
+  // pl.yaml rule pl.typos frame 6
+  "@pl.typos/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 160), m.index);
+    const after = ctx.text.slice(m.index, m.index + 160);
+    const sentence = before.slice(before.search(/[^.!?\n]*$/u)) + after.split(/[.!?\n]/u)[0];
+    if (TYPO_NEGATION.test(sentence)) return null;
+    return typoSlip(ctx, m.index, m.index + m[0].length, "przynajmniej");
+  },
+  // pl.yaml rule pl.fragments frame 1
+  "@pl.fragments/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!m[0].includes("ąc")) return null;
+    const words = [...m[0].matchAll(/[^,;:—–()]+/gu)]
+      .map((part) =>
+        [...part[0].matchAll(/\p{L}+/gu)].map((word) => ({
+          text: word[0],
+          lower: word[0].toLowerCase(),
+          start: m.index + part.index + word.index,
+        })),
+      )
+      .filter((part) => part.length > 0 && !FRAGMENT_SUBORDINATE.test(part[0].text))
+      .flat();
+    const participle = words.find(
+      (word) =>
+        fragmentParticiple(word.lower) &&
+        !FRAGMENT_COMMENT.test(word.lower) &&
+        !plUserOrNamed(ctx, word.text),
+    );
+    if (!(participle !== undefined)) return null;
+    if (words.some((word) => !fragmentParticiple(word.lower) && fragmentVerbLike(word.lower)))
+      return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        participle.start,
+        participle.start + participle.text.length,
+        [],
+        "englishSentenceFragment",
+        "review_msg_sentence_fragment",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.questions frame 1
+  "@pl.questions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    if (/[,;:—–()"„”«»]/u.test(m[0])) return null;
+    const words = m[0].match(/\p{L}+/gu) ?? [];
+    if (!(words.length >= 2)) return null;
+    if (!(
+      first === "Czy" ||
+      words
+        .slice(1, 4)
+        .map((word) => word.toLowerCase())
+        .some(
+          (word) =>
+            /(?:sz|cie|eś|aś|ście)$/u.test(word) && !plNounTags(word) && !plAdjectiveOf(word),
+        )
+    ))
+      return null;
+    return plFindingAt(
+      ctx,
+      m.index + m[0].length - 1,
+      m.index + m[0].length,
+      ["?"],
+      "germanQuestionMarks",
+      "review_msg_question_mark",
+    );
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
