@@ -2,8 +2,200 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import type { DetectContext, FixResult, FrameRef, MatchResult, RawFinding } from "../../library";
+import {
+  ENGLISH_MASS_NOUNS,
+  EN_FUNCTION_WORDS,
+  enQuotedMention,
+  englishCountNoun,
+  englishInitialSound,
+  englishWordInfo,
+  finding,
+} from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const ARTICLES_NOT_SUPERLATIVES: ReadonlySet<string> = new Set(["best", "worst"]);
+
+export const ARTICLES_EST_WORDS: ReadonlySet<string> = new Set([
+  "honest",
+  "modest",
+  "earnest",
+  "forest",
+  "interest",
+  "manifest",
+  "request",
+  "guest",
+  "chest",
+  "west",
+  "nest",
+  "test",
+  "protest",
+  "contest",
+  "digest",
+  "arrest",
+  "harvest",
+  "invest",
+  "suggest",
+]);
+
+export const ARTICLES_NOT_NOUNS: ReadonlySet<string> = new Set([
+  "friends",
+  "friend",
+  "known",
+  "able",
+  "suited",
+  "placed",
+  "left",
+  "used",
+  "the",
+  "a",
+  "an",
+  "to",
+  "of",
+  "in",
+  "on",
+  "at",
+  "for",
+  "and",
+  "or",
+  "but",
+  "than",
+  "if",
+  "when",
+  "so",
+  "as",
+  "that",
+  "because",
+  "while",
+  "since",
+  "though",
+  "then",
+  "here",
+  "there",
+  "now",
+  "today",
+  "ever",
+  "yet",
+  "too",
+  "also",
+]);
+
+export const ARTICLES_ARTICLELESS: ReadonlySet<string> = new Set([
+  "best practice",
+  "best practices",
+  "best man",
+  "best friends",
+  "best effort",
+  "best case",
+  "best seller",
+  "best sellers",
+  "worst case",
+  "least resistance",
+  "best value",
+  "best interest",
+  "best interests",
+]);
+
+export const ARTICLES_COUNT_NOUNS: ReadonlySet<string> = new Set([
+  "friend",
+  "problem",
+  "answer",
+  "question",
+  "airport",
+  "river",
+  "kitchen",
+  "lobby",
+  "brother",
+  "sister",
+  "soldier",
+  "job",
+  "apartment",
+  "garden",
+  "bridge",
+  "station",
+  "restaurant",
+  "village",
+  "neighbor",
+  "neighbour",
+  "doctor",
+  "lawyer",
+  "nurse",
+  "driver",
+  "singer",
+  "colleague",
+  "boss",
+  "cousin",
+  "uncle",
+  "aunt",
+  "chair",
+  "bag",
+  "computer",
+  "laptop",
+  "camera",
+  "dog",
+  "cat",
+  "horse",
+  "bird",
+  "flower",
+  "song",
+  "movie",
+  "photo",
+  "envelope",
+  "umbrella",
+  "wallet",
+  "idea",
+  "suggestion",
+  "decision",
+  "hotel",
+  "ticket",
+]);
+
+// en.yaml rule en.geographicThe def ARTICLES_NOT_PLACE_WORDS
+export const ARTICLES_NOT_PLACE_WORDS = /^(?:The|A|An|My|Our|This|That|New|Old)\b/;
+
+// en.yaml rule en.geographicThe def articlesPlainNoun
+export function articlesPlainNoun(word: string) {
+  const read = englishWordInfo(word);
+  return !!read?.noun && !read.verbs.length && !ARTICLES_NOT_NOUNS.has(word);
+}
+
+// en.yaml rule en.geographicThe def articlesEstBaseIsAdjective
+export function articlesEstBaseIsAdjective(adj: string) {
+  const base = adj
+    .replace(/(?:iest)$/, "y")
+    .replace(/([a-z])\1est$/, "$1")
+    .replace(/e?st$/, "");
+  return !!englishWordInfo(base)?.adjective || !!englishWordInfo(`${base}e`)?.adjective;
+}
+
+// en.yaml rule en.missingArticle def articlesArticle
+export function articlesArticle(word: string) {
+  return englishInitialSound(word) === "vowel" ? "an" : "a";
+}
+
+// en.yaml rule en.missingArticle def articlesAdjectiveOnly
+export function articlesAdjectiveOnly(word: string) {
+  if (EN_FUNCTION_WORDS.has(word) || /^(?:no|such|same|own|one|last|next|first)$/.test(word))
+    return false;
+  const read = englishWordInfo(word);
+  return !!read && (read.adjective || /ed$/.test(word)) && !read.adverb && !read.plural;
+}
+
+// en.yaml rule en.missingArticle def articlesBareCount
+export function articlesBareCount(
+  target: string,
+  adj: string | undefined,
+  noun: string,
+  phrase: boolean,
+  described: boolean,
+) {
+  const counted =
+    ARTICLES_COUNT_NOUNS.has(noun) ||
+    (described && !!adj && englishCountNoun(noun) && !ENGLISH_MASS_NOUNS.has(noun));
+  if (!counted || (phrase && /^(?:answer|question|job)$/.test(noun))) return null;
+  if (adj && !articlesAdjectiveOnly(adj)) return null;
+  return [`${articlesArticle(target)} ${target}`, `the ${target}`];
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
@@ -11,10 +203,90 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
   },
+  // en.yaml rule en.geographicThe frame 1
+  "@en.geographicThe/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const name = m.groups!.name;
+    if (!(/^[A-Z]/.test(name) && !/^[A-Z]/.test(prep) && !ARTICLES_NOT_PLACE_WORDS.test(name)))
+      return null;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
+    const next = /^[ \t]+([a-z]+)/.exec(after)?.[1];
+    if (/^[ \t]+vs?\./.test(after) || (next && articlesPlainNoun(next))) return null;
+    if (/^[ \t ]+(?:Drive|Road|Street|Avenue|Hotel|Company|Inc|Ltd|Corp)\b/.test(after))
+      return null;
+    const span = m.indices!.groups!.name;
+    return finding("englishPhraseCorrections", "review_msg_geographic_the", span[0], span[1], [
+      `the ${name}`,
+    ]);
+  },
+  // en.yaml rule en.geographicThe frame 2
+  "@en.geographicThe/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    if (ARTICLES_NOT_NOUNS.has(noun) || ARTICLES_EST_WORDS.has(adj)) return null;
+    if (ARTICLES_ARTICLELESS.has(`${adj.toLowerCase()} ${noun.toLowerCase()}`)) return null;
+    const adjRead = englishWordInfo(adj);
+    if (!ARTICLES_NOT_SUPERLATIVES.has(adj) && !adjRead?.adjective && !/(?:est)$/.test(adj))
+      return null;
+    if (!(
+      !(/est$/.test(adj) && !ARTICLES_NOT_SUPERLATIVES.has(adj)) || articlesEstBaseIsAdjective(adj)
+    ))
+      return null;
+    const read = englishWordInfo(noun);
+    if (!read?.noun || read.adjective || read.adverb) return null;
+    if (read.verbs.some((v) => v.form === "participle" || v.form === "past" || v.form === "ing"))
+      return null;
+    const end0 = m.index + m[0].length;
+    const following = /^[ \t]+([a-z]+)/.exec(ctx.text.slice(end0, end0 + 24))?.[1];
+    const followingRead = following ? englishWordInfo(following) : null;
+    if (
+      following &&
+      !ARTICLES_NOT_NOUNS.has(following) &&
+      (followingRead ? followingRead.noun : following.length > 3)
+    )
+      return null;
+    const span = m.indices!.groups!.adj;
+    return finding("englishPhraseCorrections", "review_msg_superlative_the", span[0], span[1], [
+      `the ${adj}`,
+    ]);
+  },
+  // en.yaml rule en.missingArticle frame 1
+  "@en.missingArticle/1": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    return articlesBareCount(target, adj, noun, false, true);
+  },
+  // en.yaml rule en.missingArticle frame 2
+  "@en.missingArticle/2": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    return articlesBareCount(target, adj, noun, true, false);
+  },
+  // en.yaml rule en.missingArticle frame 3
+  "@en.missingArticle/3": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    return articlesBareCount(target, adj, noun, false, false);
+  },
+  // en.yaml rule en.missingArticle frame 4
+  "@en.missingArticle/4": (m: RegExpExecArray): FixResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    if (!(ARTICLES_COUNT_NOUNS.has(noun) && !(adj && !articlesAdjectiveOnly(adj)))) return null;
+    return `such ${articlesArticle(adj ?? noun)}`;
+  },
 };
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
-export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
+export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // en.yaml rule en.missingArticle filter
+  "@en.missingArticle/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return findings.filter((f) => !enQuotedMention(ctx, f));
+  },
+};
 
 /** The Review detectors of rules with code, by rule ("@<rule id>"). */
 export const DETECTORS: Readonly<Record<string, Detector>> = {};

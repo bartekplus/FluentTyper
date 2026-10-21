@@ -1955,7 +1955,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [826, 827, 828, 829],
     message: "review_msg_missing_article",
     style: "slot",
-    filter: "en:missingArticle",
+    filter: "en:@en.missingArticle/filter",
     source: "en",
   },
   {
@@ -12341,40 +12341,40 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "desert",
       "peninsula",
     ],
-    fixer: "en:articlesGeographic",
+    fixer: "en:@en.geographicThe/1",
     owner: "name",
   }),
   frame({
     pattern:
       "(?<be>is|are|was|were|be)(?<gap>[ \\t\\u00a0]{1,8})(?<adj>[a-z]+est|best|worst|least)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["est", "best", "worst", "least"],
-    fixer: "en:articlesSuperlative",
+    fixer: "en:@en.geographicThe/2",
     owner: "adj",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:is|was|am|are|were|be|been|become|becomes|became)[ \\t\\u00a0]{1,8}(?<target>(?:(?:very|really|quite|extremely|truly)[ \\t\\u00a0]{1,8})?(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<noun>(?!(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|[ \\t\\u00a0]{1,8}(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:articlesVery",
+    fixer: "en:@en.missingArticle/1",
     cue: ["is", "was", "am", "are", "were", "be", "been", "become", "became"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:at|by|in|for|about|from|into|near|under|behind|inside|beside|without)[ \\t\\u00a0]{1,8}(?<target>(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<noun>(?!(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|[ \\t\\u00a0]{1,8}(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:articlesAdj",
+    fixer: "en:@en.missingArticle/2",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:(?:have|has|had|['’]ve)[ \\t\\u00a0]{1,8}[a-z]+ed|have|has|had|need|needs|needed|want|wants|wanted|take|takes|took|give|gives|gave|find|finds|found|buy|buys|bought|make|makes|made|see|sees|saw|meet|meets|met|get|gets|got)[ \\t\\u00a0]{1,8}(?<target>(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<noun>(?!(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))(?:(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|[ \\t\\u00a0]{1,8}(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?=[ \\t\\u00a0]{1,8}(?:a|an|the|my|his|her|their|our)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: [],
-    fixer: "en:articlesAdj2",
+    fixer: "en:@en.missingArticle/3",
   }),
   frame({
     pattern:
       "(?<target>such)[ \\t\\u00a0]{1,8}(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<noun>(?!(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+)(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|[ \\t\\u00a0]{1,8}(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["such"],
-    fixer: "en:articlesSuch",
+    fixer: "en:@en.missingArticle/4",
     cue: ["such"],
   }),
   frame({

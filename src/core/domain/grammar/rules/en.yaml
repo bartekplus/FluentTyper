@@ -3736,36 +3736,252 @@ rules:
     style: match
     message: review_msg_geographic_the
     filter: usOutsideExamples
+    sets:
+      ARTICLES_NOT_SUPERLATIVES: [best, worst]
+      # "-est" words that are no superlative.
+      ARTICLES_EST_WORDS:
+        [
+          honest,
+          modest,
+          earnest,
+          forest,
+          interest,
+          manifest,
+          request,
+          guest,
+          chest,
+          west,
+          nest,
+          test,
+          protest,
+          contest,
+          digest,
+          arrest,
+          harvest,
+          invest,
+          suggest,
+        ]
+      ARTICLES_NOT_NOUNS:
+        [
+          friends,
+          friend,
+          known,
+          able,
+          suited,
+          placed,
+          left,
+          used,
+          the,
+          a,
+          an,
+          to,
+          of,
+          in,
+          on,
+          at,
+          for,
+          and,
+          or,
+          but,
+          than,
+          if,
+          when,
+          so,
+          as,
+          that,
+          because,
+          while,
+          since,
+          though,
+          then,
+          here,
+          there,
+          now,
+          today,
+          ever,
+          yet,
+          too,
+          also,
+        ]
+      # Set phrases that take no article: "It is best practice to…", "He was best man", "worst
+      # case", "the path of least resistance".
+      ARTICLES_ARTICLELESS:
+        [
+          best practice,
+          best practices,
+          best man,
+          best friends,
+          best effort,
+          best case,
+          best seller,
+          best sellers,
+          worst case,
+          least resistance,
+          best value,
+          best interest,
+          best interests,
+        ]
+    defs:
+      # The words of a name that are themselves an article or a title: "in The Hague", "to Isle".
+      ARTICLES_NOT_PLACE_WORDS: /^(?:The|A|An|My|Our|This|That|New|Old)\b/
+      # A noun that is no verb or function word: the head of a compound ("neighbor methods").
+      articlesPlainNoun:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        return: "!!read?.noun && !read.verbs.length && !ARTICLES_NOT_NOUNS.has(word)"
+      # An "-est" word whose base ("hottest" -> "hot", "tiniest" -> "tiny") is an adjective.
+      articlesEstBaseIsAdjective:
+        args: "adj: string"
+        let:
+          base: 'adj.replace(/(?:iest)$/, "y").replace(/([a-z])\1est$/, "$1").replace(/e?st$/, "")'
+        return: "!!englishWordInfo(base)?.adjective || !!englishWordInfo(`${base}e`)?.adjective"
     frames:
       # Names that take "the": plural countries, republics and unions, regions, and bodies of
       # water, ranges, islands, deserts and canals named by their kind.
       - regex: "(?<prep>in|on|to|from|across|near|into|through|over|off|around|visit|visited|visiting|cross|crossed|crossing){{S}}(?<name>{{ARTICLES_THE_NAMES}}){{E}}"
         owner: name
-        fixer: articlesGeographic
+        let:
+          # "the Black Sea ports" already has one; "Pacific Ocean Drive" is a street.
+          after: ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24)
+          # "on United States television": the name modifies a noun; "United States v. Lee": a case.
+          next: '/^[ \t]+([a-z]+)/.exec(after)?.[1]'
+          span: m.indices!.groups!.name
+        when:
+          # The frame ignores case: a name is capitalized, the preposition is not a title word.
+          - "/^[A-Z]/.test(name) && !/^[A-Z]/.test(prep) && !ARTICLES_NOT_PLACE_WORDS.test(name)"
+          - '!(/^[ \t]+vs?\./.test(after) || (next && articlesPlainNoun(next)))'
+          - '!/^[ \t ]+(?:Drive|Road|Street|Avenue|Hotel|Company|Inc|Ltd|Corp)\b/.test(after)'
+        return: >-
+          finding("englishPhraseCorrections", "review_msg_geographic_the", span[0], span[1], [`the ${name}`])
       # "is hottest city", "are best workers": a superlative before its noun takes "the".
       - regex: "(?<be>is|are|was|were|be)(?<gap>{{S}})(?<adj>[a-z]+est|best|worst|least){{S}}(?<noun>[a-z]+){{E}}"
         owner: adj
-        fixer: articlesSuperlative
+        let:
+          adjRead: englishWordInfo(adj)
+          read: englishWordInfo(noun)
+          end0: m.index + m[0].length
+          following: '/^[ \t]+([a-z]+)/.exec(ctx.text.slice(end0, end0 + 24))?.[1]'
+          followingRead: "following ? englishWordInfo(following) : null"
+          span: m.indices!.groups!.adj
+        when:
+          - "!(ARTICLES_NOT_NOUNS.has(noun) || ARTICLES_EST_WORDS.has(adj))"
+          - "!ARTICLES_ARTICLELESS.has(`${adj.toLowerCase()} ${noun.toLowerCase()}`)"
+          - "!(!ARTICLES_NOT_SUPERLATIVES.has(adj) && !adjRead?.adjective && !/(?:est)$/.test(adj))"
+          # "-est" words that are no superlative: "interest", "honest", "forest", "modest".
+          - "!(/est$/.test(adj) && !ARTICLES_NOT_SUPERLATIVES.has(adj)) || articlesEstBaseIsAdjective(adj)"
+          - "!(!read?.noun || read.adjective || read.adverb)"
+          - '!read.verbs.some((v) => v.form === "participle" || v.form === "past" || v.form === "ing")'
+          # "nearest neighbor methods": a compound noun, often a term. An unknown word after it
+          # may be the compound's head too: stay silent.
+          - "!(following && !ARTICLES_NOT_NOUNS.has(following) && (followingRead ? followingRead.noun : following.length > 3))"
+        return: >-
+          finding("englishPhraseCorrections", "review_msg_superlative_the", span[0], span[1], [`the ${adj}`])
   - id: en.missingArticle
     checks: [englishMissingArticle]
     style: slot
-    filter: missingArticle
+    # A quoted mention ("the word 'unicorn'") is named, not used.
+    filter:
+      return: "findings.filter((f) => !enQuotedMention(ctx, f))"
     message: review_msg_missing_article
+    sets:
+      # Count nouns with no mass or set-phrase use ("by mistake", "in person", "for example",
+      # "in life" and "at school" leave theirs out).
+      ARTICLES_COUNT_NOUNS:
+        [
+          friend,
+          problem,
+          answer,
+          question,
+          airport,
+          river,
+          kitchen,
+          lobby,
+          brother,
+          sister,
+          soldier,
+          job,
+          apartment,
+          garden,
+          bridge,
+          station,
+          restaurant,
+          village,
+          neighbor,
+          neighbour,
+          doctor,
+          lawyer,
+          nurse,
+          driver,
+          singer,
+          colleague,
+          boss,
+          cousin,
+          uncle,
+          aunt,
+          chair,
+          bag,
+          computer,
+          laptop,
+          camera,
+          dog,
+          cat,
+          horse,
+          bird,
+          flower,
+          song,
+          movie,
+          photo,
+          envelope,
+          umbrella,
+          wallet,
+          idea,
+          suggestion,
+          decision,
+          hotel,
+          ticket,
+        ]
+    defs:
+      articlesArticle:
+        args: "word: string"
+        return: 'englishInitialSound(word) === "vowel" ? "an" : "a"'
+      # An adjective or -ed participle modifier ("good", "experienced"), never a closed word.
+      articlesAdjectiveOnly:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        when: "!(EN_FUNCTION_WORDS.has(word) || /^(?:no|such|same|own|one|last|next|first)$/.test(word))"
+        return: "!!read && (read.adjective || /ed$/.test(word)) && !read.adverb && !read.plural"
+        else: "false"
+      # "a"/"the" before a bare singular count noun (and its modifiers), or null. `phrase`: after
+      # a preposition ("in answer to", "in question", "on hand"). `described`: after be and an
+      # adjective, also a noun the n-grams show mostly counted ("is great golfer").
+      articlesBareCount:
+        args: "target: string, adj: string | undefined, noun: string, phrase: boolean, described: boolean"
+        let:
+          counted: >-
+            ARTICLES_COUNT_NOUNS.has(noun) ||
+            (described && !!adj && englishCountNoun(noun) && !ENGLISH_MASS_NOUNS.has(noun))
+        when:
+          - "!(!counted || (phrase && /^(?:answer|question|job)$/.test(noun)))"
+          - "!(adj && !articlesAdjectiveOnly(adj))"
+        return: "[`${articlesArticle(target)} ${target}`, `the ${target}`]"
     frames:
       # "He is good friend.", "It was extremely difficult problem": be before a bare count noun.
       - regex: "(?<![\\p{L}'’])(?:is|was|am|are|were|be|been|become|becomes|became){{S}}(?<target>(?:(?:very|really|quite|extremely|truly){{S}})?(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+))(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})"
         cue: ["is", "was", "am", "are", "were", "be", "been", "become", "became"]
-        fixer: articlesVery
+        return: articlesBareCount(target, adj, noun, false, true)
       # "waiting at airport", "about good friend": a preposition before a bare count noun.
       - regex: "(?<![\\p{L}'’])(?:at|by|in|for|about|from|into|near|under|behind|inside|beside|without){{S}}(?<target>(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+))(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})"
-        fixer: articlesAdj
+        return: articlesBareCount(target, adj, noun, true, false)
       # "I have experienced problem", "He takes brother with him": an object count noun.
       - regex: "(?<![\\p{L}'’])(?:(?:have|has|had|['’]ve){{S}}[a-z]+ed|have|has|had|need|needs|needed|want|wants|wanted|take|takes|took|give|gives|gave|find|finds|found|buy|buys|bought|make|makes|made|see|sees|saw|meet|meets|met|get|gets|got){{S}}(?<target>(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+))(?:(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})|(?={{S}}(?:a|an|the|my|his|her|their|our){{E}}))"
-        fixer: articlesAdj2
+        return: articlesBareCount(target, adj, noun, false, false)
       # "such good friend": such takes a.
       - regex: "(?<target>such){{S}}(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+)(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})"
         cue: ["such"]
-        fixer: articlesSuch
+        when: "ARTICLES_COUNT_NOUNS.has(noun) && !(adj && !articlesAdjectiveOnly(adj))"
+        return: "`such ${articlesArticle(adj ?? noun)}`"
   - id: en.slotConfusions
     checks:
       [

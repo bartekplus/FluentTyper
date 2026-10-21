@@ -53,3 +53,7 @@ export {
 
 // The casing of a fix like the typed words (library/english/words.ts).
 export { recase as enRecase } from "./english/words";
+
+// Group 3 (grammarStyle1, articles, confusionSlots, everydaySlots, wordFormSlots, punctuation,
+// typography, apostrophes, plainStyle).
+export { englishCountNoun } from "../implementations/helpers/EnglishLexicon";

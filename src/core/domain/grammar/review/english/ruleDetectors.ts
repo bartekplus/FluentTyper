@@ -7,7 +7,6 @@ import * as properNames from "./properNames";
 import * as plainStyle from "./plainStyle";
 import * as passiveVoice from "./passiveVoice";
 import * as punctuation from "./punctuation";
-import * as articles from "./articles";
 import * as slotConfusions from "./slotConfusions";
 import * as britishUsage from "./britishUsage";
 import * as typography from "./typography";
@@ -68,7 +67,6 @@ export const PREDICATES = mergePredicates();
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
   idioms3.FIXERS,
-  articles.FIXERS,
   idioms5.FIXERS,
   slotConfusions.FIXERS,
   clauseGaps.FIXERS,
@@ -132,7 +130,6 @@ export const FIXERS = mergePredicates<Fixer>(
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
 export const FILTERS = mergePredicates<FindingsFilter>(
-  articles.FILTERS,
   grammarStyle1.FILTERS,
   everydaySlots.FILTERS,
   fixedPhrases.FILTERS,
