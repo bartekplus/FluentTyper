@@ -41,7 +41,6 @@ import {
   hasCountPrefix,
   hasUserOrCasedWord,
   hasVerbForm,
-  memoize,
   namedExampleBefore,
   nextLowerWord,
 } from "../../library";
@@ -1827,12 +1826,9 @@ export const APOS_IRREGULAR_THIRD = new Map([
   ["have", "has"],
 ]);
 
-// en.yaml rule en.apostrophes def APOS_INFO_OF
-export const APOS_INFO_OF = memoize(englishWordInfo, 20_000);
-
 // en.yaml rule en.apostrophes def aposInfo
 export function aposInfo(word: string) {
-  return APOS_INFO_OF(word.toLowerCase());
+  return englishWordInfo(word);
 }
 
 // en.yaml rule en.apostrophes def aposNextWord

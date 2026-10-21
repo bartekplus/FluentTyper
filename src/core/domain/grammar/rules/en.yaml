@@ -4780,10 +4780,11 @@ rules:
           ["go", "goes"],
           ["have", "has"],
         ])
-      APOS_INFO_OF: memoize(englishWordInfo, 20_000)
+      # englishWordInfo reads each word once: a top-level memo here would load the lexicon into
+      # the bundles of the typing rules.
       aposInfo:
         args: "word: string"
-        return: APOS_INFO_OF(word.toLowerCase())
+        return: englishWordInfo(word)
       # The next word (lowercased) after `end`, "" at punctuation or the end, null after a symbol.
       aposNextWord:
         args: "ctx: DetectContext, end: number"
