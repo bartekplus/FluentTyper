@@ -67,8 +67,12 @@ export const germanModal = (word: string) => MODALS.has(word);
 /** The listed forms of a verb form ("gibt": the third person present of "geben"). */
 export const germanVerbForms = (word: string): readonly GermanVerbForm[] | undefined =>
   FORMS.get(word);
-/** The infinitive of a listed verb form: "gibt" → "geben". */
-export const germanInfinitiveOf = (word: string) => FORMS.get(word)?.[0].line[0][3] ?? null;
+/** The infinitive of a listed verb form: "gibt" → "geben", "bin" → "sein". */
+export const germanInfinitiveOf = (word: string) => {
+  // The "wir" form is the infinitive, except for sein ("sind").
+  const wir = FORMS.get(word)?.[0].line[0][3];
+  return wir === "sind" ? "sein" : (wir ?? null);
+};
 
 // "er habe", "sie wisse": the present subjunctive of the third person is the "ich" form.
 const SUBJUNCTIVE: Readonly<Record<string, string>> = { bin: "sei" };
