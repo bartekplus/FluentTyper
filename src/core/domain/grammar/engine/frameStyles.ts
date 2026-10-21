@@ -10,7 +10,7 @@ import {
   caseLike,
   FRAME_AUDIT,
   found,
-  frameMatches,
+  frameScan,
   group,
   hasUserOrCasedWord,
   isLang,
@@ -364,7 +364,7 @@ function matchesOf(ctx: DetectContext, frame: RunFrame): Iterable<RegExpExecArra
     case "polish":
       return owned(ctx, frame.pattern as RegExp);
     default:
-      return frameMatches(ctx, frame.pattern, frame.owner);
+      return frameScan(ctx, frame.pattern, frame.owner);
   }
 }
 

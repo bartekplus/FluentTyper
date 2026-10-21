@@ -399,11 +399,25 @@ export function* frameMatches(
   pattern: string | RegExp,
   owner: string | ((match: RegExpExecArray) => number) | null = "target",
 ): Generator<RegExpExecArray> {
+  yield* frameScan(ctx, pattern, owner);
+}
+
+const NO_MATCHES: readonly RegExpExecArray[] = [];
+
+/**
+ * The matches of frameMatches, for a caller that only iterates them: a list when the frame
+ * has start positions (no generator step per match), else the lazy scan.
+ */
+export function frameScan(
+  ctx: DetectContext,
+  pattern: string | RegExp,
+  owner: string | ((match: RegExpExecArray) => number) | null = "target",
+): Iterable<RegExpExecArray> {
   let regex: RegExp;
   let source: string | null;
   if (typeof pattern === "string") {
     source = pattern;
-    if (!FRAME_AUDIT.all && !mayMatch(ctx, pattern)) return;
+    if (!FRAME_AUDIT.all && !mayMatch(ctx, pattern)) return NO_MATCHES;
     let compiled = COMPILED.get(pattern);
     if (!compiled) {
       // A broken frame skips only itself: the other frames of its detector still run.
@@ -411,7 +425,7 @@ export function* frameMatches(
         compiled = frame(pattern);
       } catch {
         BROKEN_SCANS.add(ctx);
-        return;
+        return NO_MATCHES;
       }
       COMPILED.set(pattern, compiled);
     }
@@ -422,15 +436,22 @@ export function* frameMatches(
       read = pattern.flags.includes("v") ? null : pattern.source;
       READ_PATTERNS.set(pattern, read);
     }
-    if (read !== null && !FRAME_AUDIT.all && !mayMatch(ctx, read)) return;
+    if (read !== null && !FRAME_AUDIT.all && !mayMatch(ctx, read)) return NO_MATCHES;
     regex = pattern;
     source = read;
   }
   const starts = frameStarts(ctx, source);
-  if (starts !== null) {
-    yield* stickyMatches(ctx, regex, starts, owner);
-    return;
-  }
+  return starts === null
+    ? globalMatches(ctx, regex, owner)
+    : stickyMatches(ctx, regex, starts, owner);
+}
+
+/** The global scan of frameMatches, from 256 characters before the chunk. */
+function* globalMatches(
+  ctx: DetectContext,
+  regex: RegExp,
+  owner: string | ((match: RegExpExecArray) => number) | null,
+): Generator<RegExpExecArray> {
   if (SCANNING.has(regex)) regex = new RegExp(regex);
   SCANNING.add(regex);
   try {
@@ -459,12 +480,13 @@ export function* frameMatches(
  * each start after the last match, in order. A global scan finds the leftmost match after
  * its last one; when every match starts at one of `starts`, both give the same matches.
  */
-function* stickyMatches(
+function stickyMatches(
   ctx: DetectContext,
   regex: RegExp,
   starts: ArrayLike<number>,
   owner: string | ((match: RegExpExecArray) => number) | null,
-): Generator<RegExpExecArray> {
+): RegExpExecArray[] {
+  const matches: RegExpExecArray[] = [];
   let sticky = STICKY.get(regex);
   if (!sticky) STICKY.set(regex, (sticky = new RegExp(regex.source, `${regex.flags}y`)));
   let next = Math.max(0, ctx.from - 256);
@@ -486,8 +508,9 @@ function* stickyMatches(
     if (start < ctx.from || start >= ctx.to) continue;
     if (gluedAfter(ctx.text, m.index + m[0].length)) continue;
     if (namedExampleBefore(ctx.text, m.index)) continue;
-    yield m;
+    matches.push(m);
   }
+  return matches;
 }
 
 export type PhraseTemplate = {
