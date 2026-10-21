@@ -22,10 +22,12 @@ import {
   enInfo,
   enNounNumber,
   enNounOnly,
+  enReadWord,
   enTokensAfter,
   enWordBefore,
   enWordsAfter,
   englishLemma,
+  englishLexiconInflect,
   englishVerbForms,
   englishVerbNouns,
   englishWordInfo,
@@ -129,6 +131,120 @@ export const CLAUSE_COLLECTIVE: ReadonlySet<string> = new Set([
   "public",
   "youth",
   "people",
+]);
+
+export const SLIP_ITS_PREDICATES: ReadonlySet<string> = new Set([
+  "time",
+  "times",
+  "fun",
+  "okay",
+  "ok",
+  "love",
+  "home",
+  "work",
+  "money",
+  "business",
+  "nonsense",
+  "lunchtime",
+  "bedtime",
+  "midnight",
+  "noon",
+  "news",
+  "thanks",
+  "lots",
+  "tons",
+  "days",
+  "years",
+  "hours",
+  "minutes",
+  "weeks",
+  "months",
+  "ages",
+  "me",
+  "him",
+  "her",
+  "us",
+  "them",
+  "dinner",
+  "lunch",
+  "breakfast",
+  "supper",
+  "tea",
+  "none",
+]);
+
+export const SLIP_CLAUSE_VERBS: ReadonlySet<string> = new Set([
+  "think",
+  "thinks",
+  "thought",
+  "thinking",
+  "know",
+  "knew",
+  "knows",
+  "guess",
+  "guessing",
+  "believe",
+  "believes",
+  "hope",
+  "hopes",
+  "hoping",
+  "say",
+  "says",
+  "said",
+  "saying",
+  "feel",
+  "feels",
+  "felt",
+  "mean",
+  "means",
+  "meant",
+  "suppose",
+  "see",
+  "saw",
+  "hear",
+  "heard",
+  "find",
+  "found",
+  "realize",
+  "realise",
+  "notice",
+  "wish",
+  "bet",
+  "seem",
+  "seems",
+  "seemed",
+  "figure",
+  "assume",
+  "understand",
+  "admit",
+  "agree",
+  "claim",
+  "show",
+  "shows",
+  "showed",
+  "prove",
+  "read",
+  "learn",
+  "learned",
+  "remember",
+  "forget",
+  "check",
+  "decide",
+  "ensure",
+  "doubt",
+  "explain",
+  "imagine",
+  "swear",
+  "promise",
+  "expect",
+  "reckon",
+  "worry",
+  "tell",
+  "told",
+  "sure",
+  "glad",
+  "sorry",
+  "afraid",
 ]);
 
 export const COUNT_MASS_COUNT: Readonly<Record<string, string>> = {
@@ -528,11 +644,6 @@ export function noNotDoSupport(
       );
 }
 
-// en.yaml rule en.clauseFrames def clauseRead
-export function clauseRead(word: string | undefined) {
-  return word ? englishWordInfo(word.toLowerCase()) : null;
-}
-
 // en.yaml rule en.clauseFrames def CLAUSE_VERB_LIKE
 export const CLAUSE_VERB_LIKE = /\b(?!(?:he|she|it|they|we|you|i)\b)[a-z]+[ \t ]{1,8}like\b/i;
 
@@ -565,6 +676,158 @@ export function clauseLikedNoun(ctx: DetectContext, m: RegExpExecArray) {
     after.kind !== "word" ||
     (!EN_AUXILIARIES.has(after.lower) &&
       !enInfo(after.lower)?.verbs.some((v) => v.form === "third" || v.form === "past"))
+  );
+}
+
+// en.yaml rule en.slipFrames def SLIP_TOO_DEGREE
+export const SLIP_TOO_DEGREE =
+  /^(?:fast|soon|late|early|slowly|quickly|much|many|long|far|big|small|hard|easy|busy|tired|young|old|expensive|cheap|close|high|low|loud|hot|cold)$/;
+
+// en.yaml rule en.slipFrames def SLIP_MOTION
+export const SLIP_MOTION =
+  /^(?:drove|drive|drives|driving|ran|run|runs|went|go|goes|came|come|comes|got|get|gets)$/;
+
+// en.yaml rule en.slipFrames def SLIP_AUX_BEFORE
+export const SLIP_AUX_BEFORE =
+  /^(?:can|could|will|would|should|shall|may|might|must|did|does|do|to|let|make|help|have|had)$/;
+
+// en.yaml rule en.slipFrames def SLIP_FINITE
+export const SLIP_FINITE =
+  /^(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|does|did|isn['’]t|wasn['’]t|doesn['’]t|didn['’]t|won['’]t|can['’]t)$/;
+
+// en.yaml rule en.slipFrames def SLIP_ATTRIBUTIVE
+export const SLIP_ATTRIBUTIVE =
+  /^(?:main|primary|latest|only|entire|whole|original|overall|former|sole|chief|principal|own|previous|current)$/;
+
+// en.yaml rule en.slipFrames def slipAdjectiveOnly
+export function slipAdjectiveOnly(word: string) {
+  const r = enReadWord(word);
+  return !!r?.adjective && !r.noun && !r.verbs.length && !r.adverb && !EN_FUNCTION_WORDS.has(word);
+}
+
+// en.yaml rule en.slipFrames def slipBaseVerb
+export function slipBaseVerb(word: string) {
+  const r = enReadWord(word);
+  return (
+    !!r?.verbs.length &&
+    r.verbs.every((v) => v.form === "base") &&
+    !r.adjective &&
+    !EN_FUNCTION_WORDS.has(word.toLowerCase())
+  );
+}
+
+// en.yaml rule en.slipFrames def slipThird
+export function slipThird(word: string) {
+  const lower = word.toLowerCase();
+  const form = englishLexiconInflect(lower, "third");
+  return (
+    form ||
+    (/[^aeiou]y$/.test(lower)
+      ? `${lower.slice(0, -1)}ies`
+      : /(?:s|x|z|ch|sh|o)$/.test(lower)
+        ? `${lower}es`
+        : `${lower}s`)
+  );
+}
+
+// en.yaml rule en.slipFrames def slipTooAdjective
+export function slipTooAdjective(word: string) {
+  const r = enReadWord(word);
+  return r?.adjective && !r.noun && !r.adverb && !r.verbs.some((v) => v.form === "base");
+}
+
+// en.yaml rule en.slipFrames def slipOwnedNoun
+export function slipOwnedNoun(word: string): "singular" | "plural" | null {
+  if (
+    EN_FUNCTION_WORDS.has(word) ||
+    SLIP_ITS_PREDICATES.has(word) ||
+    /^(?:some|any|no|every)(?:thing|one|body|where)$/.test(word)
+  )
+    return null;
+  const r = enReadWord(word);
+  return !r
+    ? enNounOnly(word)
+    : r.adjective || r.adverb || r.verbs.some((v) => v.form !== "base" && v.form !== "third")
+      ? null
+      : r.plural
+        ? "plural"
+        : r.noun
+          ? "singular"
+          : null;
+}
+
+// en.yaml rule en.slipFrames def slipVerbAfter
+export function slipVerbAfter(word: string) {
+  const r = enReadWord(word);
+  return (
+    SLIP_FINITE.test(word) ||
+    (!!r?.verbs.some((v) => v.form === "past" || v.form === "third") &&
+      !r.verbs.some((v) => v.form === "participle") &&
+      !r.noun &&
+      !r.adjective)
+  );
+}
+
+// en.yaml rule en.slipFrames def slipItsOwner
+export function slipItsOwner(ctx: DetectContext, m: RegExpExecArray) {
+  const tokens = enTokensAfter(ctx, m.indices!.groups!.target[1], 5);
+  const words = [0, 1, 2, 3].map((k) =>
+    tokens[k]?.kind === "word" && tokens[k].text === tokens[k].lower ? tokens[k].lower : "",
+  );
+  const first = slipOwnedNoun(words[0]);
+  return (
+    (first === "plural" &&
+      (slipVerbAfter(words[1]) || !enAfterBreak(ctx, m.index)) &&
+      !enReadWord(words[1])?.adjective &&
+      !/ed$/.test(words[1])) ||
+    slipOwnedPhrase(words, first, 0) ||
+    slipItsAfterWord(ctx, m, words[0], first)
+  );
+}
+
+// en.yaml rule en.slipFrames def slipOwnedPhrase
+export function slipOwnedPhrase(words: string[], first: string | null, k: number): boolean {
+  if (!(k < 3)) return false;
+  const w = words[k];
+  const modifier =
+    k === 0
+      ? !!first || SLIP_ATTRIBUTIVE.test(w)
+      : !!slipOwnedNoun(w) || !!enReadWord(w)?.adjective;
+  if (!(!!w && modifier)) return false;
+  const head = slipOwnedNoun(w) || (k > 0 && enReadWord(w)?.noun);
+  return (!!head && slipVerbAfter(words[k + 1])) || slipOwnedPhrase(words, first, k + 1);
+}
+
+// en.yaml rule en.slipFrames def slipItsAfterWord
+export function slipItsAfterWord(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  word: string,
+  first: string | null,
+) {
+  const before = enWordBefore(ctx, m.index);
+  return (
+    ((!!first || SLIP_ATTRIBUTIVE.test(word)) &&
+      (/^(?:amid|alongside|beside|beyond|across|behind|inside|outside|throughout|upon|unlike|via|around|near)$/.test(
+        before,
+      ) ||
+        /\bfor[ \t ]+all[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))) ||
+    (!!first &&
+      !SLIP_CLAUSE_VERBS.has(before) &&
+      (/^(?:is|was)$/.test(before) || slipObjectAfterVerb(ctx, m, before)))
+  );
+}
+
+// en.yaml rule en.slipFrames def slipObjectAfterVerb
+export function slipObjectAfterVerb(ctx: DetectContext, m: RegExpExecArray, before: string) {
+  const verb = enReadWord(before);
+  if (!before || EN_FUNCTION_WORDS.has(before) || !verb?.verbs.length || verb.adjective)
+    return false;
+  return (
+    !verb.noun ||
+    /(?:^|[^\p{L}'’])(?:to|will|would|should|could|can|must|may|might|do|does|did|i|you|we|they|he|she|not|never|please)[ \t ]+\p{L}+[ \t ]+$/iu.test(
+      ctx.text.slice(Math.max(0, m.index - 40), m.index),
+    )
   );
 }
 
@@ -847,7 +1110,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.clauseFrames frame 4
   "@en.clauseFrames/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
     const target = m.groups!.target;
-    const r = clauseRead(target);
+    const r = enReadWord(target);
     if (!r?.verbs.some((v) => v.form === "third")) return null;
     if (r.plural && /^[ \t ]*[.!?,]/.test(ctx.text.slice(m.index + m[0].length))) return null;
     return englishLemma(target, "third");
@@ -856,7 +1119,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.clauseFrames/5": (m: RegExpExecArray): FixResult => {
     const verb = m.groups!.verb;
     const target = m.groups!.target;
-    const r = clauseRead(verb);
+    const r = enReadWord(verb);
     if (!r?.verbs.some((v) => v.form === "past" || v.form === "third")) return null;
     return target.toLowerCase().replace(/^no/, "any");
   },
@@ -887,7 +1150,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const noun = m.groups!.noun;
     const verb = m.groups!.verb;
     if (!enAfterBreak(ctx, m.index)) return null;
-    const r = clauseRead(verb);
+    const r = enReadWord(verb);
     const pastOnly =
       !!r?.verbs.some((v) => v.form === "past") &&
       !r.noun &&
@@ -900,7 +1163,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.clauseFrames frame 13
   "@en.clauseFrames/13": (m: RegExpExecArray): FixResult => {
     const target = m.groups!.target;
-    const r = clauseRead(target);
+    const r = enReadWord(target);
     if (r && (!r.noun || r.adjective || r.adverb || r.verbs.some((v) => v.form !== "base")))
       return null;
     const n = enNounNumber(target);
@@ -928,7 +1191,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const pron = m.groups!.pron;
     const noun = m.groups!.noun;
     if (!(pron === pron.toLowerCase())) return null;
-    return (clauseRead(noun)?.noun || enNounOnly(noun)) && !EN_FUNCTION_WORDS.has(noun)
+    return (enReadWord(noun)?.noun || enNounOnly(noun)) && !EN_FUNCTION_WORDS.has(noun)
       ? "the"
       : null;
   },
@@ -940,7 +1203,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.clauseFrames frame 22
   "@en.clauseFrames/22": (m: RegExpExecArray): FixResult => {
     const noun = m.groups!.noun;
-    return clauseRead(noun)?.noun ? `${noun}'s` : null;
+    return enReadWord(noun)?.noun ? `${noun}'s` : null;
   },
   // en.yaml rule en.clauseFrames frame 23
   "@en.clauseFrames/23": (m: RegExpExecArray): FixResult => {
@@ -969,7 +1232,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const dem = m.groups!.dem;
     const kind = m.groups!.kind;
     const noun = m.groups!.noun;
-    const r = clauseRead(noun);
+    const r = enReadWord(noun);
     if (
       r?.verbs.some((v) => v.form === "third") &&
       (!r.plural || /^[ \t ]*[.!?,]/.test(ctx.text.slice(m.index + m[0].length)))
@@ -986,9 +1249,9 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.clauseFrames/30": (m: RegExpExecArray): FixResult => {
     const name = m.groups!.name;
     const target = m.groups!.target;
-    if (!/^[A-Z][a-z]+[^s]$/.test(name) || clauseRead(name)?.noun || enNounOnly(name.toLowerCase()))
+    if (!/^[A-Z][a-z]+[^s]$/.test(name) || enReadWord(name)?.noun || enNounOnly(name.toLowerCase()))
       return null;
-    const r = clauseRead(target);
+    const r = enReadWord(target);
     if (!r?.verbs.length || !r.verbs.every((v) => v.form === "base") || r.adjective) return null;
     if (EN_FUNCTION_WORDS.has(target)) return null;
     return /[^aeiou]y$/.test(target)
@@ -1001,6 +1264,212 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.clauseFrames/31": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
     const who = m.groups!.who;
     return enWordBefore(ctx, m.index) === "the" ? null : `${who}'s and my`;
+  },
+  // en.yaml rule en.slipFrames frame 1
+  "@en.slipFrames/1": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    const adj = m.groups!.adj;
+    const adjLower = adj.toLowerCase();
+    const leadLower = lead.toLowerCase();
+    const motion = SLIP_MOTION.test(leadLower);
+    return /^(?:much|many)$/.test(adjLower)
+      ? motion
+        ? null
+        : "too"
+      : SLIP_TOO_DEGREE.test(adjLower)
+        ? "too"
+        : motion || (/ing$/.test(adjLower) && !/['’]s$/.test(leadLower))
+          ? null
+          : slipTooAdjective(adjLower)
+            ? "too"
+            : null;
+  },
+  // en.yaml rule en.slipFrames frame 2
+  "@en.slipFrames/2": (m: RegExpExecArray): FixResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    return slipAdjectiveOnly(adj) && (enReadWord(noun)?.noun || enNounOnly(noun)) ? "no" : null;
+  },
+  // en.yaml rule en.slipFrames frame 3
+  "@en.slipFrames/3": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    if (EN_FUNCTION_WORDS.has(noun)) return null;
+    const r = enReadWord(noun);
+    return (r ? r.noun && !r.verbs.length && !r.adjective : enNounOnly(noun)) ? "no" : null;
+  },
+  // en.yaml rule en.slipFrames frame 4
+  "@en.slipFrames/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const num = m.groups!.num;
+    const noun = m.groups!.noun;
+    const plural =
+      enNounNumber(noun)?.number === "plural" || enNounOnly(noun) === "plural" || noun === "months";
+    if (!plural || /^(?:percent|times)$/.test(noun)) return null;
+    const rest = ctx.text.slice(m.index + m[0].length);
+    const next = /^[ \t ]+([a-z]+)/i.exec(rest)?.[1].toLowerCase();
+    const closes = /^[ \t ]*(?:[.,;:!?)]|$)/.test(rest);
+    const orSo = /^[ \t ]+or[ \t ]+so\b/i.test(rest);
+    if (
+      (!orSo && /^(?:or|and|old|long)$/.test(next ?? "")) ||
+      enWordBefore(ctx, m.index) === "worth"
+    )
+      return null;
+    return closes || orSo || (next && EN_FUNCTION_WORDS.has(next)) ? num : null;
+  },
+  // en.yaml rule en.slipFrames frame 5
+  "@en.slipFrames/5": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    return slipBaseVerb(target) && !SLIP_AUX_BEFORE.test(enWordBefore(ctx, m.index))
+      ? [slipThird(target)]
+      : null;
+  },
+  // en.yaml rule en.slipFrames frame 6
+  "@en.slipFrames/6": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const pron = m.groups!.pron;
+    const verb = m.groups!.verb;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    const r = enReadWord(verb);
+    if (!r?.verbs.some((v) => v.form === "ing")) return null;
+    return `${pron} is ${verb}`;
+  },
+  // en.yaml rule en.slipFrames frame 7
+  "@en.slipFrames/7": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const adj = m.groups!.adj;
+    const ing = m.groups!.ing;
+    const leading = enWordBefore(ctx, m.index);
+    if (
+      adj &&
+      !(
+        enReadWord(adj)?.adjective &&
+        !enReadWord(adj)?.noun &&
+        !enReadWord(adj)?.verbs.length &&
+        /^(?:if|that|because|when|while|since|so|but|and)$/.test(leading)
+      )
+    )
+      return null;
+    const r = enReadWord(ing);
+    if (!(
+      !ing ||
+      (!!r?.verbs.some((v) => v.form === "ing") &&
+        !r.noun &&
+        /^(?:if|that|because|when|while|so|but|and)$/.test(leading))
+    ))
+      return null;
+    return "it's";
+  },
+  // en.yaml rule en.slipFrames frame 8
+  "@en.slipFrames/8": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    if (verb && !slipBaseVerb(verb)) return null;
+    return /[A-Z]/.test(m[0].slice(4)) ? null : "they";
+  },
+  // en.yaml rule en.slipFrames frame 9
+  "@en.slipFrames/9": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    if (/^[A-Z]/.test(m[0])) return null;
+    return /^(?:up|via|[0-9(])/i.test(next)
+      ? ["buy", "be"]
+      : /^[A-Z]/.test(next)
+        ? /^(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December|Christmas|then|now)$/i.test(
+            next,
+          )
+          ? null
+          : ["buy", "be"]
+        : next === "why"
+          ? ["be", "buy"]
+          : slipAdjectiveOnly(next)
+            ? ["be", "buy"]
+            : null;
+  },
+  // en.yaml rule en.slipFrames frame 10
+  "@en.slipFrames/10": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const pron = m.groups!.pron;
+    const adj = m.groups!.adj;
+    const leading = enWordBefore(ctx, m.index);
+    if (!(
+      enAfterBreak(ctx, m.index) ||
+      /^(?:if|whether|as|because|since|that|so|but|and|when|rate|starts)$/.test(leading)
+    ))
+      return null;
+    return `${pron} is ${adj}`;
+  },
+  // en.yaml rule en.slipFrames frame 11
+  "@en.slipFrames/11": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const after = m.groups!.after;
+    if (/^(?:likely|sooner|rather|better|best|worse|soon|later)$/.test(target)) return null;
+    if (/^[ \t ]+(?:out|up|off|down|over)\b/.test(after)) return null;
+    const adjective =
+      slipAdjectiveOnly(target) || (target === "cool" && /^[ \t ]*(?:[.,!?]|if)/.test(after));
+    const noun = after.trim().replace(/^[^a-z]+/, "");
+    return /^(?:afraid|asleep)$/.test(target)
+      ? `be ${target}`
+      : !adjective
+        ? null
+        : target === "sure" && enReadWord(noun)?.verbs.some((v) => v.form === "base")
+          ? null
+          : noun && (enReadWord(noun)?.noun || enNounOnly(noun)) && !EN_FUNCTION_WORDS.has(noun)
+            ? [`be ${target}`, `have ${target}`]
+            : `be ${target}`;
+  },
+  // en.yaml rule en.slipFrames frame 13
+  "@en.slipFrames/13": (m: RegExpExecArray): FixResult => {
+    const dem = m.groups!.dem;
+    const kind = m.groups!.kind;
+    const one = /^these$/i.test(dem) ? "this" : "that";
+    const single = /^[A-Z]/.test(dem) ? one[0].toUpperCase() + one.slice(1) : one;
+    return [`${single} ${kind}`, `${dem} ${kind}s`];
+  },
+  // en.yaml rule en.slipFrames frame 15
+  "@en.slipFrames/15": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const adverb = m.groups!.adverb;
+    const verb = m.groups!.verb;
+    const verbLower = verb.toLowerCase();
+    if (/^(?:has|does|was|is)$/.test(verbLower) || !/^[a-z]/.test(m[0])) return null;
+    if (/^(?:the|a|an|there|here)$/.test(enWordBefore(ctx, m.index))) return null;
+    const r = enReadWord(verbLower);
+    const linking = /^(?:tastes|looks|sounds|smells|feels|seems)$/.test(verbLower);
+    if (
+      !r?.verbs.some((v) => v.form === "third") ||
+      (!linking && (r.noun || r.plural || r.adjective))
+    )
+      return null;
+    if (
+      /\b(?:what|whatever|all)\b[^.!?;:\n]*$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 48), m.index),
+      )
+    )
+      return null;
+    return `${adverb ?? ""}${verb}`;
+  },
+  // en.yaml rule en.slipFrames frame 16
+  "@en.slipFrames/16": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    return enReadWord(verb)?.verbs.length && !EN_FUNCTION_WORDS.has(verb.toLowerCase())
+      ? "then"
+      : null;
+  },
+  // en.yaml rule en.slipFrames frame 17
+  "@en.slipFrames/17": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    const lowerNoun = noun.toLowerCase();
+    if (EN_FUNCTION_WORDS.has(lowerNoun) || lowerNoun !== noun) return null;
+    const r = enReadWord(lowerNoun);
+    return r
+      ? r.noun && !r.adverb && !r.adjective
+        ? "our"
+        : null
+      : enNounOnly(lowerNoun)
+        ? "our"
+        : null;
+  },
+  // en.yaml rule en.slipFrames frame 18
+  "@en.slipFrames/18": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return slipItsOwner(ctx, m) ? "its" : null;
+  },
+  // en.yaml rule en.slipFrames frame 19
+  "@en.slipFrames/19": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.toLowerCase() === "begs" ? "bags" : "bag";
   },
 };
 

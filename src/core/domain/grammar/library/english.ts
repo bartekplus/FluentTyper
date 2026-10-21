@@ -56,4 +56,8 @@ export { recase as enRecase } from "./english/words";
 
 // Group nounNumber/count/determiner/noNot/clause/complement/slip/verbGroup/wordClass slots:
 // the lexicon names that their rules read.
-export { englishVerbNouns } from "../implementations/helpers/EnglishLexicon";
+export {
+  englishLexiconInflect,
+  englishVerbNouns,
+} from "../implementations/helpers/EnglishLexicon";
+export { readWord as enReadWord } from "./english/readings";

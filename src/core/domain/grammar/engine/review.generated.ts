@@ -15401,28 +15401,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<lead>drove|drive|drives|driving|ran|run|runs|went|go|goes|came|come|comes|spoke|speak|talk|talks|talked|much|far|way|be|is|are|was|were|it['’]s|that['’]s|['’]re|['’]m|got|get|gets)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?<adj>fast|soon|late|early|slowly|quickly|much|many|long|far|big|small|hard|easy|busy|tired|young|old|expensive|cheap|close|high|low|loud|hot|cold|[a-z]+)(?=[ \\t\\u00a0]*[.,!?]|[ \\t\\u00a0]{1,8}(?:to|because|for|and|but|so)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:slipFramesTo",
+    fixer: "en:@en.slipFrames/1",
     cue: ["to"],
   }),
   frame({
     pattern:
       "there[ \\t\\u00a0]{1,8}(?:is|was|are|were|['’]s)[ \\t\\u00a0]{1,8}(?<target>not)[ \\t\\u00a0]{1,8}(?<adj>[a-z]+)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:slipFramesNot",
+    fixer: "en:@en.slipFrames/2",
     cue: ["not"],
   }),
   frame({
     pattern:
       "(?:has|have|['’]ve)[ \\t\\u00a0]{1,8}(?<target>not)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?:of|to|for|listed|left|available)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["not"],
-    fixer: "en:slipFramesNot2",
+    fixer: "en:@en.slipFrames/3",
     cue: ["not"],
   }),
   frame({
     pattern:
       "(?<target>an?[ \\t\\u00a0]{1,8}(?<num>(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:-[a-z]+)?|[2-9]|[1-9][0-9]+))[ \\t\\u00a0]{1,8}(?<noun>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:slipFramesAn",
+    fixer: "en:@en.slipFrames/4",
     message: "review_msg_noun_count",
     check: "englishNounNumber",
     cue: ["a", "an"],
@@ -15431,7 +15431,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:someone|somebody|anyone|anybody|everyone|everybody|nobody)[ \\t\\u00a0]{1,8}else(?:[ \\t\\u00a0]{1,8}(?:always|usually|often|never|sometimes|also|just|really))?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)[ \\t\\u00a0]{1,8}(?:to|the|a|an|my|his|her|our|their|it|them|me|us|that|this)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["someone", "somebody", "anyone", "anybody", "everyone", "everybody", "nobody"],
-    fixer: "en:slipFramesA",
+    fixer: "en:@en.slipFrames/5",
     message: "review_msg_subject_verb",
     check: "englishSubjectVerbAgreement",
     cue: ["else"],
@@ -15440,7 +15440,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<pron>he|she)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+ing))[ \\t\\u00a0]{1,8}(?:crazy|home|away|nuts|mad|insane)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ing"],
-    fixer: "en:slipFramesPron",
+    fixer: "en:@en.slipFrames/6",
     message: "review_msg_missing_be",
     check: "englishSentenceStructure",
     cue: ["he", "she"],
@@ -15449,7 +15449,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>its)[ \\t\\u00a0]{1,8}(?:(?<adj>[a-z]+)(?=[ \\t\\u00a0]*[,.!?]|[ \\t\\u00a0]{1,8}then(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<ing>[a-z]+ing)[ \\t\\u00a0]{1,8}(?:that|it|it['’]s|in|on|to|so|now|fine|well|again|right)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[0-9]{1,2}(?:[ \\t\\u00a0]*(?:a\\.?m|p\\.?m|o['’]clock)|:[0-9]{2}))",
     literals: ["its"],
-    fixer: "en:slipFramesIts",
+    fixer: "en:@en.slipFrames/7",
     message: "review_msg_its_contraction",
     check: "englishItsContext",
     cue: ["its"],
@@ -15458,14 +15458,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>the)[ \\t\\u00a0]{1,8}(?:(?:really|probably|always|usually|never|also|just|quietly|still|already|often|sometimes)[ \\t\\u00a0]{1,8}(?:would|will|should|could|can|won['’]t|wouldn['’]t|don['’]t|didn['’]t|do|did|have|are|were|finish|need|want|like|might)|(?:would|should|could|won['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|can['’]t|don['’]t|didn['’]t)|will[ \\t\\u00a0]{1,8}(?<verb>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:slipFramesThe",
+    fixer: "en:@en.slipFrames/8",
     cue: ["the"],
   }),
   frame({
     pattern:
       "(?:will|would|should|could|can|may|might|must|don['’]t|didn['’]t)(?:[ \\t\\u00a0]{1,8}(?:definitely|really|probably|soon|also|just|never|always|actually))?[ \\t\\u00a0]{1,8}(?<target>by)[ \\t\\u00a0]{1,8}(?<next>up[ \\t\\u00a0]{1,8}to|via|[0-9(]|[a-z]{2,}|[a-z]+)",
     literals: ["will", "would", "should", "could", "can", "may", "might", "must", "don", "didn"],
-    fixer: "en:slipFramesBy",
+    fixer: "en:@en.slipFrames/9",
     cue: ["by"],
   }),
   frame({
@@ -15489,7 +15489,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "fine",
       "ready",
     ],
-    fixer: "en:slipFramesPron2",
+    fixer: "en:@en.slipFrames/10",
     message: "review_msg_missing_be",
     check: "englishSentenceStructure",
     cue: ["safe", "unable", "worse", "better", "able", "possible", "impossible", "likely"],
@@ -15498,7 +15498,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it|this|that|there)(?:[ \\t\\u00a0]{1,8}(?<modal>will|would|should|could|can|may|might|must)(?:n['’]t)?|[ \\t\\u00a0]{1,8}won['’]t|['’]ll)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?<after>[ \\t\\u00a0]{1,8}(?:if|to|that|for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]*[.,!?]|[ \\t\\u00a0]{1,8}[a-z]+)",
     literals: [],
-    fixer: "en:slipFramesA2",
+    fixer: "en:@en.slipFrames/11",
     message: "review_msg_modal_be",
     check: "englishAuxiliaryBaseVerb",
     cue: [
@@ -15531,7 +15531,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<dem>these|those)[ \\t\\u00a0]{1,8}(?<kind>kind|type|sort))[ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["these", "those"],
-    fixer: "en:slipFramesDem",
+    fixer: "en:@en.slipFrames/13",
     message: "review_msg_demonstrative_number",
     check: "englishNounNumber",
     cue: ["kind", "type", "sort"],
@@ -15549,7 +15549,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?:is|are|was|were)[ \\t\\u00a0]{1,8}(?<adverb>(?:always|also|just|really|still|often|never)[ \\t\\u00a0]{1,8})?(?<verb>[a-z]+s))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:slipFramesIs",
+    fixer: "en:@en.slipFrames/15",
     message: "review_msg_subject_verb",
     check: "englishSubjectVerbAgreement",
     cue: ["is", "are", "was", "were"],
@@ -15558,7 +15558,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:can|could|will|would|should|must|might|may|have|has|had|is|was|I|we|you|they|he|she)[ \\t\\u00a0]{1,8}(?<target>than)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["than"],
-    fixer: "en:slipFramesThan",
+    fixer: "en:@en.slipFrames/16",
     message: "review_msg_then_than_temporal",
     check: "englishThenThan",
     cue: ["than"],
@@ -15567,13 +15567,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:to|at|from|for|into|about)[ \\t\\u00a0]{1,8}(?<target>out)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["out"],
-    fixer: "en:slipFramesOut",
+    fixer: "en:@en.slipFrames/17",
     cue: ["out"],
   }),
   frame({
     pattern: "(?<target>it['’]s)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:slipFramesIt",
+    fixer: "en:@en.slipFrames/18",
     message: "review_msg_its_possessive",
     check: "englishItsContext",
     cue: ["it"],
@@ -15602,7 +15602,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "heavy",
       "empty",
     ],
-    fixer: "en:slipFramesBegs",
+    fixer: "en:@en.slipFrames/19",
     message: "review_msg_typo",
     check: "englishPhraseCorrections",
     cue: ["beg", "begs"],
