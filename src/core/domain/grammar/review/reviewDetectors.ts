@@ -605,10 +605,28 @@ const pronounI: MatchFixer = (match, ctx) => {
 
 // -------------------------------------------------------------------- spelling
 
+const NO_WORDS: ReadonlySet<string> = new Set();
+/**
+ * False when no check of spellingFindings can find `word`, in any context. Each check is
+ * run in the context that lets the most words through: no user dictionary, no text before,
+ * and a bare verb after. The text before and after only rejects words in these checks.
+ */
+const couldBeSpellingFinding = memoize(
+  (word) =>
+    correctWhitelistedTypo(word, NO_WORDS) !== null ||
+    word === "IM" ||
+    normalizeContractionToken(word, "") !== null ||
+    normalizeContractionInContext(word, "", " be") !== null ||
+    ALOT_REGEX.test(word),
+  4096,
+);
+
 /** The spelling finding of one ASCII word (spelling frames): at most one. */
 function spellingFindings(match: RegExpExecArray, ctx: DetectContext): RawFinding[] {
   // These word lists are English.
   if (ctx.lang !== "en_US") return [];
+  // Most words are in no list: one cached answer for each word.
+  if (!couldBeSpellingFinding(match[0])) return [];
   const start = match.index;
   const end = start + match[0].length;
   // Letters glued to other word characters are part of a longer token ("teh2").
