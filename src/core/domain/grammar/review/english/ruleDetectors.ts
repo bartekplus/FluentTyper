@@ -15,20 +15,13 @@ import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
 import * as contractionSlots from "./contractionSlots";
 import * as degreeSlots from "./degreeSlots";
-import * as nounNumberSlots from "./nounNumberSlots";
-import * as verbGroupSlots from "./verbGroupSlots";
-import * as complementSlots from "./complementSlots";
-import * as determinerSlots from "./determinerSlots";
 import * as adverbSlots from "./adverbSlots";
 import * as confusionSlots from "./confusionSlots";
-import * as countSlots from "./countSlots";
 import * as negationSlots from "./negationSlots";
 import * as questionSlots from "./questionSlots";
 import * as comparisonSlots from "./comparisonSlots";
 import * as collocationSlots from "./collocationSlots";
 import * as tenseSlots from "./tenseSlots";
-import * as noNotSlots from "./noNotSlots";
-import * as wordClassSlots from "./wordClassSlots";
 import * as dialects from "./dialects";
 import * as lexical from "./lexical";
 import * as remaining from "./remaining";
@@ -48,8 +41,6 @@ import * as wordFormSlots from "./wordFormSlots";
 import * as typoSlots from "./typoSlots";
 import * as neighbourSlots from "./neighbourSlots";
 import * as prepositionSlots from "./prepositionSlots";
-import * as clauseFrames from "./clauseFrames";
-import * as slipFrames from "./slipFrames";
 import * as clauseGaps from "./clauseGaps";
 import * as misheardWords from "./misheardWords";
 import * as nounSlots from "./nounSlots";
@@ -65,13 +56,11 @@ export const FIXERS = mergePredicates<Fixer>(
   idioms5.FIXERS,
   slotConfusions.FIXERS,
   clauseGaps.FIXERS,
-  slipFrames.FIXERS,
   neighbourTypos.FIXERS,
   clashFrames.FIXERS,
   idioms1.FIXERS,
   idioms2.FIXERS,
   idioms4.FIXERS,
-  clauseFrames.FIXERS,
   britishUsage.FIXERS,
   misheardWords.FIXERS,
   neighbourSlots.FIXERS,
@@ -81,8 +70,6 @@ export const FIXERS = mergePredicates<Fixer>(
   remaining.FIXERS,
   everydaySlots.FIXERS,
   wordFormSlots.FIXERS,
-  verbGroupSlots.FIXERS,
-  wordClassSlots.FIXERS,
   clauseSlots.FIXERS,
   collocationSlots.FIXERS,
   adverbSlots.FIXERS,
@@ -106,13 +93,8 @@ export const FIXERS = mergePredicates<Fixer>(
   plainStyle.FIXERS,
   properNames.FIXERS,
   questionSlots.FIXERS,
-  complementSlots.FIXERS,
   contractionSlots.FIXERS,
-  nounNumberSlots.FIXERS,
-  countSlots.FIXERS,
   negationSlots.FIXERS,
-  noNotSlots.FIXERS,
-  determinerSlots.FIXERS,
   passiveVoice.FIXERS,
 );
 

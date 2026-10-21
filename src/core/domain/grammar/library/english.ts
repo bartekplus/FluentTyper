@@ -53,4 +53,18 @@ export { recase as enRecase } from "./english/words";
 
 // Group 1 (agreementSlots, clauseAgreementSlots, missingVerbSlots, relativeSlots,
 // agreementFrames, realWordFrames, verbSlots): lexicon readings that its rules read.
-export { englishCountNoun, englishNounPair } from "../implementations/helpers/EnglishLexicon";
+export { englishNounPair } from "../implementations/helpers/EnglishLexicon";
+// Group nounNumber/count/determiner/noNot/clause/complement/slip/verbGroup/wordClass slots:
+// the lexicon names that their rules read.
+export {
+  englishCountNoun,
+  englishLexiconInflect,
+  englishListedNoun,
+  englishVerbNouns,
+} from "../implementations/helpers/EnglishLexicon";
+export {
+  IRREGULAR as EN_IRREGULAR,
+  IRREGULAR_PLURALS as EN_IRREGULAR_PLURALS,
+} from "./english/nouns";
+export type { EnglishWordInfo as EnWordInfo } from "../implementations/helpers/EnglishLexicon";
+export { participleOf as enParticipleOf, readWord as enReadWord } from "./english/readings";
