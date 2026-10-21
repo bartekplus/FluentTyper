@@ -2681,13 +2681,464 @@ rules:
     group: spanishConfusions
     style: match
     message: review_msg_spanish_verb_form
+    # Verb forms after an auxiliary ("han realizando" -> realizado, "ha ido aumentado" ->
+    # aumentando), the auxiliary "ha"/"he" written as the preposition "a" or the conjunction "e",
+    # and "de que" against the verbs that take or refuse it.
+    sets:
+      # "había llamadas": existential forms also stand before plural nouns.
+      ES_EXISTENTIAL: [había, hubo, habrá, haya, hubiera, hubiese, habría, haber, habiendo]
+      ES_ESTAR: [estoy, estás, está, estamos, estáis, están, estaba, estabas, estábamos, estaban]
+      ES_PERFECT: [he, has, ha, hemos, habéis, han, había, habías, habíamos, habían]
+      ES_QUANTIFIER_AFTER: [todos, todas, ambos, ambas, dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, cien, mil, varios, varias]
+      ES_BEFORE_AUXILIARY: [él, ella, usted, ello, me, te, se, nos, os, le, les, lo, la, "no", ya, siempre, nunca, también, todavía]
+      # Verbs and phrases that take "de que" (queísmo when it is missing) and those that refuse it.
+      ES_DAR:
+        [
+          di, diste, dio, dimos, disteis, dieron, doy, das, da, damos, dan, daba, dabas, dábamos, daban, dado, dar,
+          darse, darme, darte, darnos, dé, des, den, diera, dieras, dieran, daría, darás, dará,
+        ]
+      ES_REFLEXIVE: [me, te, se, nos, os]
+      ES_IMPERSONAL: [posible, fácil, probable, necesario, importante, seguro, cierto, difícil]
+      # Irregular verb forms that are also nouns: "le vino", "le traje", "les dije".
+      ES_VERB_NOUNS: [vino, traje, dije, puse, tuve, hice, vine, fui, cupo]
+      ES_HABER_DE: [he, has, ha, hemos, habéis, han, había, habían, habrá, habrán]
+      # Words after a modal that are no verb form, though they look like one: "no me gusta nada".
+      ES_NOT_GOVERNED:
+        [
+          nada, cada, toda, nunca, siempre, ahora, entre, sobre, bajo, este, esta, ese, esa, aquella, otra, otro,
+          cerca, fuera, dentro, arriba, abajo, delante, detrás, antes, mientras, tarde, pronto, alguna, ninguna,
+          mucha, poca, demasiada, tanta, cuanta, media, mitad, que,
+        ]
+      # Subordinators after which "puede"/"quiere" stand alone: "cuando puede, intenta escapar".
+      ES_ALONE_AFTER: [cuando, como, si, donde, quien, quienes, mientras, según]
+      ES_VF_DEGREE: [muy, más, menos, tan, bastante, demasiado]
+      # Words that read as finite verbs but close set phrases after these prepositions: "de veras",
+      # "con creces".
+      ES_AFTER_PREPOSITION: [veras, creces, sobra, sobras]
+    maps:
+      # "nos acomodarnos" -> "nos acomodamos": the clitic written twice around an infinitive.
+      ES_FIRST_PLURAL: { ar: amos, er: emos, ir: imos }
+      ES_ARTICLE_FORMS: { m: [el, los], f: [la, las] }
+    defs:
+      # "huele a quemado", "sabe a podrido": a smell or taste, not the auxiliary.
+      ES_SENSES: /^(?:huel\p{L}*|ol\p{L}*|sab\p{L}*|sup\p{L}*)$/u
+      ES_PRONOMINAL: /^(?:alegr|quej|enter|acord|acuerd|olvid|hart|arrepent|arrepient|convenc)\p{L}*$/u
+      ES_SAYING: /^(?:pienso|piensa|piensas|pensamos|piensan|pensaba|pensé|pensó|creo|cree|crees|creemos|creen|creía|opino|opina|opinan|considero|considera|dijo|dije|dicen|digo|dice|decía|supongo|imagino|afirmó|afirma|comentó|asegura|aseguró|anunció|anunciar|explicó|declaró|parece|resulta|resultó)$/u
+      # Verbs whose complement is an infinitive: "debería funcionar", "suele llegar", "me gusta
+      # comer".
+      ES_VF_MODALS: /^(?:deb(?:e|en|o|es|emos|ía|ías|ían|ería|erían|erías|eríamos|ió|ieron|erá|erán|erás)|suel(?:e|en|o|es)|sol(?:ía|ían|íamos)|pued(?:e|en|o|es)|pod(?:emos|ía|ías|ían|ría|rían|rías|rá|rán|rás)|gust(?:a|aba|aría|aban|an))$/u
+      # "tener que", "hay que", "haber de": the phrase's last word comes right before the infinitive.
+      ES_VF_TENER: /^(?:t(?:ien|eng|en|uv|endr)\p{L}*|hay|había|habrá|habría)$/u
+      ES_PAST_OR_CONDITIONAL: /(?:aba|abas|aban|ábamos|rías?|rían|ríamos|aron|ieron|asteis|isteis|aste|iste)$/u
+      # Futures that do not keep the infinitive whole ("mantener" -> "mantendrá").
+      ES_IRREGULAR_FUTURE: >-
+        [
+          ["tener", "tendrá"], ["poner", "pondrá"], ["salir", "saldrá"], ["venir", "vendrá"], ["valer", "valdrá"],
+          ["poder", "podrá"], ["querer", "querrá"], ["saber", "sabrá"], ["caber", "cabrá"], ["haber", "habrá"],
+          ["hacer", "hará"], ["decir", "dirá"],
+        ] as const
+      # "le ha dado", "te he encontrado": the "haber" a clitic before a participle needs.
+      ES_PERFECT_FOR: >-
+        new Map([
+          ["me", ["he", "ha"]], ["te", ["ha", "he"]], ["se", ["ha", "han"]], ["le", ["ha", "he"]],
+          ["les", ["ha", "he"]], ["nos", ["ha", "hemos"]], ["os", ["ha", "habéis"]],
+        ])
+      # The gerund of a regular participle's verb: "aumentado" -> "aumentando", "leído" -> "leyendo".
+      esGerundOf:
+        args: "word: string"
+        let:
+          ado: /^(\p{L}+)ado$/u.exec(word)
+          ido1: /^(\p{L}+)ído$/u.exec(word)
+          ido: /^(\p{L}+)ido$/u.exec(word)
+        return: 'ado ? `${ado[1]}ando` : ido1 ? `${ido1[1]}yendo` : ido ? `${ido[1]}iendo` : null'
+      # "salpicadas" -> "salpicado", "realizando" -> "realizado", "encontraron" -> "encontrado".
+      # `nominal`: an agreeing participle may be an adjective or noun here ("había determinadas").
+      esPerfectOf:
+        args: "word: string, nominal: boolean"
+        let:
+          agreement: esParticiple(word)
+          ando: /^(\p{L}+)ando$/u.exec(word)
+          iendo: /^(\p{L}+)iendo$/u.exec(word)
+          aron: /^(\p{L}+)aron$/u.exec(word)
+          ieron: /^(\p{L}+)ieron$/u.exec(word)
+        return: >-
+          agreement && (agreement.feminine || agreement.plural) && !nominal
+            ? word.replace(/[oa]s?$/u, "o")
+            : ando && esIsGerund(word) && esIsVerb(`${ando[1]}ar`)
+              ? `${ando[1]}ado`
+              : iendo && esIsGerund(word) && (esIsVerb(`${iendo[1]}er`) || esIsVerb(`${iendo[1]}ir`))
+                ? `${iendo[1]}ido`
+                : aron && esIsVerb(`${aron[1]}ar`)
+                  ? `${aron[1]}ado`
+                  : ieron && (esIsVerb(`${ieron[1]}er`) || esIsVerb(`${ieron[1]}ir`)) ? `${ieron[1]}ido` : null
+      # "he intenta", "me he cansa", "he decido", "he quedé" -> "intentado", "cansado", "decidido".
+      # "volver ha casa" is the preposition and "ha desecho" a misspelled "deshecho": a noun reading
+      # leaves the word alone (an adjective one, "intenta", does not).
+      esFinitePerfect:
+        args: "word: string"
+        let:
+          ar: /^(\p{L}{2,}?)(?:o|a|as|an|e|es|en|é|ó|aste|ad|amos)$/u.exec(word)
+          erIr: /^(\p{L}{2,}?)(?:o|e|es|en|í|ió|iste|ed|id|emos|imos)$/u.exec(word)
+          found: >-
+            [
+              ...new Set(
+                [
+                  ar && esIsVerb(`${ar[1]}ar`) ? `${ar[1]}ado` : null,
+                  erIr && (esIsVerb(`${erIr[1]}er`) || esIsVerb(`${erIr[1]}ir`)) ? `${erIr[1]}ido` : null,
+                ].filter((fix) => fix !== null),
+              ),
+            ]
+        when:
+          - '!(word.length < 4 || !esFiniteVerb(word) || esIsInfinitive(word) || esIsGerund(word))'
+          - '!esIsNoun(word)'
+          - '!(esParticiple(word)?.feminine === false && /[ai]do$/u.test(word))'
+        return: "found.length === 1 ? found[0] : null"
+      # The auxiliary "ha" written as the preposition "a" before a participle: "se a ido", "ella a
+      # vuelto", "el atleta a corrido", "A templado los ánimos". The preposition stays in "ponerse a
+      # cubierto", "a pedido de", "huele a quemado", "de acusador a acusado" and "sujetos a borrado".
+      # After a clitic, a subject pronoun or a verb's adverb only the auxiliary fits, even before a
+      # participle that is a noun too ("dicho", "estado"). Opening the sentence before what the
+      # verb takes: "A templado los ánimos". A noun subject right before: "el atleta a corrido"
+      # ("fue a parar" has no participle).
+      esAuxiliaryA:
+        args: "at: SpanishAround"
+        let:
+          prev: at.prev()
+          next: at.next()
+          typed: at.tokens[at.i].text
+          nextToken: at.tokens[at.i + 1]
+        when:
+          - esIsPerfectParticiple(next) && !nextToken.broken
+          - typed === "a" || (typed === "A" && at.starts)
+          - '!/^(?:cubierto|salvo|medio|pedido|contado)$/u.test(next)'
+        return: >-
+          ES_BEFORE_AUXILIARY.has(prev) || /^(?:alguien|nadie|quien)$/u.test(prev)
+            ? true
+            : at.starts && !esIsNoun(next) && (ES_DETERMINERS.has(at.next(2)) || at.next(2) === "de")
+              ? true
+              : /^(?:el|la|un|una|este|esta|ese|esa|mi|tu|su)$/u.test(at.prev(2)) && esIsNoun(prev) && !esFiniteVerb(prev)
+                ? true
+                : !esAttribute(prev)?.plural && !esIsNoun(next) && !esGenderedForm(next) && !ES_SENSES.test(prev) &&
+                  !ES_CLITICS.has(prev) && /^\p{Ll}/u.test(nextToken.text) && at.tokens[at.i + 2]?.text !== "-" &&
+                  ![1, 2, 3, 4].some((k) => at.prev(k) === "de")
+        else: "false"
+      # "ha salpicadas", "han realizando", "se han encontraron": the participle after "haber".
+      # "había determinadas posibilidades": an adjective before its noun. "había empadronados",
+      # "haya malentendidos": existential "haber" takes nominal participles; "1.900 ha
+      # desarboladas" is the hectare. "pueden haber cambiado", "se puede haber dicho": existential
+      # "haber" takes a singular modal and no "se", so after these the infinitive is the perfect's
+      # ("pueden haber muertos" is a plural modal before existential "haber" and a noun). "Los
+      # precios pueden haber…": a plural modal after its subject ("Pueden haber heridos" lacks one
+      # and is existential). "habían clasificados todos los papeles": a quantifier or number starts
+      # no noun phrase the participle could describe.
+      esAfterHaber:
+        args: "at: SpanishAround, word: string, prev: string, next: string"
+        let:
+          existential: >-
+            ES_EXISTENTIAL.has(prev) && !ES_REFLEXIVE.has(at.prev(2)) &&
+            !(prev === "haber" && !esIsNoun(word) &&
+              (/^(?:\p{L}+(?:mos|is)|puedo|debo|podría|debería)$/u.test(at.prev(2)) ||
+                (/^\p{L}+n$/u.test(at.prev(2)) && esSubjectAt(at, 3)) || at.prev(3) === "se"))
+          nominal: existential || (esIsNoun(next) && !ES_QUANTIFIER_AFTER.has(next) && !/^\p{N}/u.test(next))
+          fix: 'esPerfectOf(word, nominal) ?? (existential ? null : esFinitePerfect(word))'
+        when: ES_HABER.has(prev) && !/^\p{N}/u.test(at.tokens[at.i - 2]?.text ?? "")
+        return: "fix && fix !== word ? [fix] : null"
+      # "nos hemos ido cansado": after a plural "haber" + "ido", a singular participle agrees with
+      # nothing, so it is the gerund (or the plural adjective). "ha ido aumentado", "ha estado
+      # intentado", "me estoy acostumbrado": a gerund. "ha estado interesado", "se fue cansado": an
+      # adjective may follow; only a plain participle ("aumentado", "intentado") wants the gerund.
+      # "estás intentado burlarte"; "está permitido fumar" is a passive.
+      esGerundForParticiple:
+        args: "at: SpanishAround, word: string, prev: string, next: string"
+        let:
+          gerund: esGerundOf(word)
+        return: >-
+          prev === "ido" && /^(?:hemos|habéis|han|habíamos|habíais|habían)$/u.test(at.prev(2)) && /[ai]do$/u.test(word) &&
+          esParticiple(word) && gerund
+            ? [gerund, `${word}s`]
+            : esIsPerfectParticiple(word) && !esIsNoun(word) && !esGenderedForm(word) &&
+                (((prev === "ido" || prev === "estado") && ES_PERFECT.has(at.prev(2))) ||
+                  ((prev === "ido" || prev === "estado") && ES_CLITICS.has(at.prev(2))) ||
+                  (ES_ESTAR.has(prev) && /^(?:me|te|se|nos|os)$/u.test(at.prev(2))) ||
+                  (ES_ESTAR.has(prev) && esIsInfinitive(next) && /^(?:intent|trat|procur|pens)ado$/u.test(word))) &&
+                gerund
+              ? [gerund]
+              : null
+      # "nos e incluido", "siempre e ido": after a clitic, a subject pronoun or a verb's adverb only
+      # the auxiliary fits, even before a participle that is a noun too ("dicho", "estado"). "E
+      # invitado a un amigo": a sentence opens with the auxiliary, not with "and". "siempre e
+      # comido": "e" (and) only goes before an i- sound. "lo ha vuelto ha hacer", "ha estos": the
+      # preposition "a". "volver ha casa", "voy ha Sevilla": a verb of motion or an infinitive, then
+      # a place; "comer ha sido" keeps the auxiliary before its participle.
+      esAuxiliaryForms:
+        args: "at: SpanishAround, word: string, prev: string, next: string"
+        let:
+          after: at.tokens[at.i + 1]
+        return: >-
+          word === "a" && esAuxiliaryA(at)
+            ? ["ha"]
+            : word === "e" && at.tokens[at.i].text === word && esIsPerfectParticiple(next) &&
+                (ES_BEFORE_AUXILIARY.has(prev) || prev === "yo")
+              ? ["he"]
+              : word === "e" && at.starts && at.tokens[at.i].text === "E" && esIsPerfectParticiple(next)
+                ? ["he"]
+                : word === "e" && esIsPerfectParticiple(next) && !/^h?i/u.test(next)
+                  ? ["he"]
+                  : word === "ha" && next
+                    ? esIsInfinitive(next) && next !== "haber"
+                      ? ["a"]
+                      : (ES_IR.has(prev) || /^(?:volver|regresar|llegar|venir|ir)$/u.test(prev)) && after.word &&
+                          !esIsPerfectParticiple(next) && !/^(?:de|que|sido|estado)$/u.test(next)
+                        ? ["a"]
+                        : /^(?:este|esta|estos|estas|ese|esa|esos|esas|los|las|el|la)$/u.test(next) && !/^\p{Lu}/u.test(after.text) &&
+                            !at.starts
+                          ? ["a"]
+                          : null
+                    : null
+      # The fixes of the word after an auxiliary, or null.
+      esVerbFormCheck:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          prev: at.prev()
+          next: at.next()
+        return: >-
+          esAfterHaber(at, word, prev, next) ?? esGerundForParticiple(at, word, prev, next) ??
+          esAuxiliaryForms(at, word, prev, next)
+      # "nos alegramos", "me quejo", "se han enterado", "alegrarse": the verb is reflexive. "me
+      # alegra que" (it pleases me) is not reflexive: the verb agrees with the pronoun.
+      esReflexive:
+        args: "at: SpanishAround"
+        let:
+          verb: at.prev()
+          k: '/(?:ado|ido)$/u.test(verb) && ES_HABER.has(at.prev(2)) ? 3 : 2'
+          pronoun: at.prev(k)
+        return: >-
+          /(?:ar|er|ir|ndo)(?:se|me|te|nos|os)$/u.test(verb)
+            ? true
+            : !ES_REFLEXIVE.has(pronoun)
+              ? false
+              : k === 3
+                ? true
+                : pronoun === "me"
+                  ? /(?:o|é|aba|ía)$/u.test(verb)
+                  : pronoun === "te"
+                    ? /s(?:te)?$/u.test(verb)
+                    : pronoun === "nos"
+                      ? /mos$/u.test(verb)
+                      : pronoun === "os" ? /is$/u.test(verb) : !/(?:o|é|mos)$/u.test(verb)
+      # "se dio cuenta que", "nos alegramos que", "estoy seguro que": "de que". "pienso de que", "es
+      # posible de que", "me alegra de que": just "que". The last token of the phrase and its fix.
+      esDeQue:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          word: tokens[i].lower
+          prev: at.prev()
+        return: >-
+          word === "que" && !tokens[i].broken &&
+          ((prev === "cuenta" && ES_DAR.has(at.prev(2))) || (ES_PRONOMINAL.test(prev) && esReflexive(at)) ||
+            (/^segur[oa]s?$/u.test(prev) && /^(?:estoy|estás|está|estamos|están|estaba|estaban|estar)$/u.test(at.prev(2))))
+            ? { to: i, fix: "de que" }
+            : word === "de" && at.next() === "que" && tokens[i + 1]?.text === "que" &&
+                (ES_SAYING.test(prev) || (ES_IMPERSONAL.has(prev) && /^(?:es|era|sería|será|fue)$/u.test(at.prev(2))) ||
+                  (/^(?:alegra|alegró|alegraba)$/u.test(prev) && /^(?:me|te|le|nos|os|les)$/u.test(at.prev(2))))
+              ? { to: i + 1, fix: "que" }
+              : null
+      # "ayudar" -> ["ayuda", "ayudará"]: the third person the clitic most often goes with. Stems
+      # that may change ("encuentra", "pide", "envía") get no guessed present.
+      esThirdPerson:
+        args: "infinitive: string"
+        let:
+          irregular: ES_IRREGULAR_FUTURE.find((pair) => infinitive.endsWith(pair[0]))
+          future: 'irregular ? `${infinitive.slice(0, -irregular[0].length)}${irregular[1]}` : `${infinitive}á`'
+          stem: infinitive.slice(0, -2)
+          lastVowel: /[aeiouáéíóú](?=[^aeiouáéíóú]*$)/u.exec(stem)?.[0]
+        return: >-
+          irregular || !lastVowel || /[eo]/u.test(lastVowel) || /[iu]$/u.test(stem)
+            ? [future]
+            : [`${stem}${infinitive.endsWith("ar") ? "a" : "e"}`, future]
+      # A clitic where Spanish allows none: before an infinitive ("te ayudar"), before a participle
+      # without "haber" ("le dado"), or before a noun where the article goes ("les medidas"). "un te
+      # helado": the tea; "No se nadar" is "sé". "le valido", "le olvido": a first person present
+      # that looks like a participle; "le hecho sal": the verb "echar". "les tenias", "le sabia": an
+      # imperfect missing its accent.
+      esCliticSlot:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          clitic: tokens[i].lower
+          next: at.next()
+          nextToken: tokens[i + 1]
+          inf: /^(\p{L}+?)([aei])r(nos)?$/u.exec(next)
+          noun: esReadNoun(next)
+        when:
+          - ES_PERFECT_FOR.has(clitic) && next && /^\p{Ll}/u.test(nextToken.text)
+          - '!(clitic === "se" || /^(?:un|el|del|al|mi|tu|su)$/u.test(at.prev()))'
+        return: >-
+          inf && esIsVerb(`${inf[1]}${inf[2]}r`)
+            ? inf[3]
+              ? clitic === "nos"
+                ? { from: i + 1, to: i + 1, fixes: [`${inf[1]}${ES_FIRST_PLURAL[`${inf[2]}r`]}`], key: "review_msg_spanish_verb_form" as const }
+                : null
+              : { from: i + 1, to: i + 1, fixes: esThirdPerson(`${inf[1]}${inf[2]}r`), key: "review_msg_spanish_verb_form" as const }
+            : esIsPerfectParticiple(next) && !esIsVerb(`${next.slice(0, -1)}ar`) && next !== "hecho" && at.next(2) !== "de" &&
+                !/^(?:nos|os)$/u.test(clitic)
+              ? {
+                  from: i,
+                  to: i + 1,
+                  fixes: ES_PERFECT_FOR.get(clitic)!.map((aux) => `${clitic} ${aux} ${next}`),
+                  key: "review_msg_spanish_verb_form" as const,
+                }
+              : !noun?.gender || !/^(?:le|les|nos|os)$/u.test(clitic) || esParticiple(next) || noun.plural !== (clitic !== "le") ||
+                  (/ia[sn]?$/u.test(next) && ["er", "ir"].some((e) => esIsVerb(next.replace(/ia[sn]?$/u, e)))) ||
+                  esFiniteVerb(next) || esSubjunctiveLike(next) || esIsGerund(next) || ES_VERB_NOUNS.has(next) ||
+                  ES_DETERMINERS.has(next)
+                ? null
+                : {
+                    from: i,
+                    to: i,
+                    fixes: [ES_ARTICLE_FORMS[noun.gender][noun.plural ? 1 : 0]],
+                    key: "review_msg_spanish_pronoun_article" as const,
+                  }
+      # "empezó a involucrase", "al encontrase": a preposition takes the infinitive ("-arse"), never
+      # the imperfect subjunctive; "se va a celebra": "ir a" takes the infinitive.
+      esPrepositionVerb:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          prev: at.prev()
+          ase: /^(\p{L}{3,}?)ase$/u.exec(word)
+          iese: /^(\p{L}{2,}?)iese$/u.exec(word)
+          iese1: 'iese ? [`${iese[1]}er`, `${iese[1]}ir`].find((v) => esIsVerb(v)) : undefined'
+          bare: /^(\p{L}{3,}?)([ae])$/u.exec(word)
+          bare1: >-
+            prev === "a" && bare && ES_IR.has(at.prev(2)) && !esGenderedForm(word)
+              ? (bare[2] === "a" ? [`${bare[1]}ar`] : [`${bare[1]}er`, `${bare[1]}ir`]).find((v) => esIsVerb(v))
+              : undefined
+        when: /^(?:a|al|de|del|para|sin|por|tras|hasta)$/u.test(prev) && !esIsNoun(word)
+        return: >-
+          ase && esIsVerb(`${ase[1]}ar`)
+            ? `${ase[1]}arse`
+            : iese1
+              ? `${iese1}se`
+              : bare1 ?? null
+      # A word that starts what "ser" takes and no verb: "el mejor", "muy fácil", "aprobado".
+      esAttributeAfter:
+        args: "next: string"
+        return: >-
+          !!next && !esFiniteVerb(next) &&
+          (ES_DETERMINERS.has(next) || ES_VF_DEGREE.has(next) || !!esAttribute(next) || esIsInvariantEntry(next) ||
+            esIsNoun(next) || /^(?:mejor|peor|mayor|menor)$/u.test(next))
+      # "debería funciona" -> "funcionar", "tiene que considera" -> "considerar". "¿Qué tiene que
+      # cree que es el mejor?": after a question word "que" may be a relative. "tiene que se el
+      # mejor", "va a se muy fácil": "se" before no verb lost the "r" of "ser". "deberán
+      # formalizase", "podías encontrara": a past subjunctive that lost the infinitive's "r"
+      # ("formalizarse", "encontrar"). "tiene que cree", "debe considera": the infinitive lost its
+      # last "r" ("creer", not "crear").
+      esGovernedVerb:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          prev: at.prev()
+          governs: >-
+            (ES_VF_MODALS.test(prev) && !ES_ALONE_AFTER.has(at.prev(2)) &&
+              (!/^gust/u.test(prev) || (ES_CLITICS.has(at.prev(2)) && !ES_ALONE_AFTER.has(at.prev(3))))) ||
+            (prev === "que" && ES_VF_TENER.test(at.prev(2))) || (prev === "de" && ES_HABER_DE.has(at.prev(2))) ||
+            (word === "se" && prev === "a" && ES_IR.has(at.prev(2)))
+          past: /^(\p{L}{2,}?)(ara|ase|iera|iese)$/u.exec(word)
+          ending: 'past ? (past[2].startsWith("a") ? "ar" : ["er", "ir"].find((e) => esIsVerb(`${past[1]}${e}`))) : undefined'
+        when:
+          - prev && /^\p{Ll}/u.test(at.tokens[at.i].text) && !ES_NOT_GOVERNED.has(word)
+          - governs
+          - '!(prev === "que" && /^(?:qué|cuál|cuáles)$/u.test(at.prev(3)) && esFiniteVerb(word))'
+        return: >-
+          word === "se"
+            ? esAttributeAfter(at.next()) ? "ser" : null
+            : ES_CLITICS.has(word) || ES_DETERMINERS.has(word) || ES_DETERMINER.has(word)
+              ? null
+              : esIsNoun(word) || esGenderedForm(word) || esParticiple(word) || esIsInfinitive(word)
+                ? null
+                : past && ending && esIsVerb(`${past[1]}${ending}`)
+                  ? `${past[1]}${ending}${past[2] === "ase" ? "se" : ""}`
+                  : /[ae]$/u.test(word) && esIsVerb(`${word}r`)
+                    ? `${word}r`
+                    : esPresentInfinitive(word)
+      # "de debería probar", "desde es adulto", "en sueles": a preposition right before a form that
+      # is only a finite verb. "desde" lost its "que"; the others hide a mistyped word. "de lo
+      # debemos", "en los estamos": a pronoun between changes nothing; it needs a verb. "de las
+      # cases": a present subjunctive no noun shares counts too. "la de es la cuarta letra": the
+      # letter's name. "desde es adulto": "es" is the letter's name too, but no preposition takes
+      # that. Only endings no noun or adverb shares ("debería", "cantaba", "llegaron"); a present
+      # form ("arriba", "sede") is too often a word the lexicon does not list as a noun.
+      esStrayFinite:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          k: 'ES_CLITICS.has(at.prev()) && at.prev() !== "se" ? 2 : 1'
+          prev: at.prev(k)
+        when: /^(?:de|del|en|con|desde|sin)$/u.test(prev) && /^\p{Ll}+$/u.test(at.tokens[at.i].text)
+        return: >-
+          k === 2
+            ? prev === "del" || prev === "desde"
+              ? false
+              : (ES_PAST_OR_CONDITIONAL.test(word) || /^\p{L}{2,}(?:amos|emos|imos)$/u.test(word) ||
+                  (/^\p{L}{2,}(?:e|es)$/u.test(word) && esSubjunctiveLike(word) && !esGenderedForm(word))) &&
+                esFiniteVerb(word) && !esIsNoun(word) && !esAttribute(word) && !esIsInfinitive(word)
+            : at.tokens[at.i - 2]?.text === "-" || ES_AFTER_PREPOSITION.has(word)
+              ? false
+              : /^(?:la|una|letra)$/u.test(at.prev(2))
+                ? false
+                : /^(?:es|eres|soy|somos|estoy|hay|fue|fui|fueron)$/u.test(word)
+                  ? true
+                  : ES_PAST_OR_CONDITIONAL.test(word) && esFiniteVerb(word) && !esIsNoun(word) && !esAttribute(word) &&
+                    !esIsInfinitive(word) && !esIsGerund(word) && !ES_CLITICS.has(word) && !ES_DETERMINERS.has(word) &&
+                    !ES_DETERMINER.has(word) && !ES_PREPOSITIONS.has(word) &&
+                    !/^(?:que|como|cuando|donde|si|no|ya|más|menos|bien|mal|tal|tan|sí)$/u.test(word)
+        else: "false"
+      # The finding of a preposition before a stray finite verb: "desde" wants "desde que", the
+      # others are a warning.
+      esStrayFiniteFinding:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          token: tokens[i]
+          prep: 'ES_CLITICS.has(tokens[i - 1].lower) && tokens[i - 2]?.word ? tokens[i - 2] : tokens[i - 1]'
+          desde: prep.lower === "desde"
+          found: >-
+            esReplaceToken(ctx, desde ? prep : esSpan(ctx, prep, token), desde ? ["desde que"] : [], "spanishConfusions",
+              desde ? "review_msg_spanish_verb_form" : "review_msg_spanish_preposition_verb", token)
+        return: "found && (desde ? found : { ...found, warningOnly: true as const })"
     frames:
       # Every word: the checks key on verb forms, which are no closed list. The fixer reads the
       # auxiliary, the clitics and the verb forms around the token (review/spanish/verbForms.ts).
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
-        fixer: verbForms
+        # The verb form checks of the token: clitic slots, infinitives, stray finite verbs, "de que".
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+          slot: esCliticSlot(tokens, i)
+          infinitive: esPrepositionVerb(esAround(tokens, i)) ?? esGovernedVerb(esAround(tokens, i))
+          stray: esStrayFinite(esAround(tokens, i))
+          fixes: esVerbFormCheck(esAround(tokens, i))
+          de: esDeQue(tokens, i)
+        when:
+          - i >= 0
+          - token.word && token.start >= ctx.from && token.start < ctx.to
+        return: >-
+          slot
+            ? esReplaceToken(ctx, esSpan(ctx, tokens[slot.from], tokens[slot.to]), slot.fixes, "spanishConfusions", slot.key, tokens[i])
+            : infinitive
+              ? esReplaceToken(ctx, token, [infinitive], "spanishConfusions", "review_msg_spanish_verb_form", tokens[i - 1])
+              : stray
+                ? esStrayFiniteFinding(ctx, tokens, i)
+                : fixes
+                  ? esReplaceToken(ctx, token, fixes, "spanishConfusions", "review_msg_spanish_verb_form", tokens[i + 1])
+                  : de
+                    ? esReplaceToken(ctx, esSpan(ctx, token, tokens[de.to]), [de.fix], "spanishConfusions", "review_msg_spanish_verb_form", tokens[de.to + 1])
+                    : null
   - id: es.prefixes
     checks: [spanishConfusions]
     group: spanishConfusions

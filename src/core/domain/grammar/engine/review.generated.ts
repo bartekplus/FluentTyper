@@ -17616,7 +17616,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{L}[\\p{L}\\p{M}]*",
     literals: [],
-    fixer: "es:verbForms",
+    fixer: "es:@es.verbForms/1",
     flags: "gu",
     scan: "owned",
   }),

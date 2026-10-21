@@ -5,13 +5,11 @@ import * as agreement from "./agreement";
 import * as clauses from "./clauses";
 import * as frames from "./frames";
 import * as verbAgreement from "./verbAgreement";
-import * as verbForms from "./verbForms";
 
 export const PREDICATES = mergePredicates();
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
-  verbForms.FIXERS,
   agreement.FIXERS,
   verbAgreement.FIXERS,
   clauses.FIXERS,
