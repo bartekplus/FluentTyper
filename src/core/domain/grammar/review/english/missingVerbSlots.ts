@@ -12,7 +12,8 @@ import {
   wordBefore,
 } from "./slotWords";
 import { finding } from "../finding";
-import { opensClause, wordsAfter } from "./agreementSlots";
+import { opensClause } from "./agreementSlots";
+import { wordsAfter } from "./nounNumberSlots";
 
 // Clauses whose subject has no verb: "It very easy", "I not sure", "There a lot of ways",
 // "Can we able to", "would very helpful", and no/not mixed up next to a verb or noun.

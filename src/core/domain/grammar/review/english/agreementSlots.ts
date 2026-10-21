@@ -3,7 +3,7 @@ import { englishNounPair, englishWordInfo } from "../../implementations/helpers/
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { MatchFixer } from "../../engine/reviewRules";
-import { MASS, nounNumber } from "./nounNumberSlots";
+import { MASS, nounNumber, wordsAfter } from "./nounNumberSlots";
 import {
   type ClauseProfile,
   type ClauseToken,
@@ -420,25 +420,6 @@ function verbAfterObjectRelative(text: string, tokens: ClauseToken[], i: number)
 export function opensClause(ctx: DetectContext, index: number, cue: RegExp): boolean {
   const before = wordBefore(ctx, index);
   return before ? cue.test(before) : afterBreak(ctx, index);
-}
-
-// The word token of tokensAfter, with no other token kind.
-const WORD =
-  /[ \t\u00a0]*([A-Za-z]+(?:['’][A-Za-z]+)?)(?![\p{L}\p{M}\p{N}_@/#\\-]|\.[\p{L}\p{N}])/uy;
-
-/**
- * The tokens of tokensAfter(ctx, index, count) before the first token that is not a word. It
- * reads no token after that one.
- */
-export function wordsAfter(ctx: DetectContext, index: number, count: number): Token[] {
-  const words: Token[] = [];
-  WORD.lastIndex = index;
-  for (let m = WORD.exec(ctx.text); m && words.length < count; m = WORD.exec(ctx.text)) {
-    const text = m[1];
-    const end = m.index + m[0].length;
-    words.push({ text, lower: text.toLowerCase(), start: end - text.length, end, kind: "word" });
-  }
-  return words;
 }
 
 /** The fix for the main verb at `at` after a head of `number`, or null. */
