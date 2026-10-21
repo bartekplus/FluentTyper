@@ -3,7 +3,6 @@
 import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
 import * as agreement from "./agreement";
 import * as clauses from "./clauses";
-import * as confusions from "./confusions";
 import * as frames from "./frames";
 import * as verbAgreement from "./verbAgreement";
 import * as verbForms from "./verbForms";
@@ -12,7 +11,6 @@ export const PREDICATES = mergePredicates();
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
-  confusions.FIXERS,
   verbForms.FIXERS,
   agreement.FIXERS,
   verbAgreement.FIXERS,

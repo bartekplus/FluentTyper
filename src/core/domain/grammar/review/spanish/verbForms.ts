@@ -14,7 +14,11 @@ import {
   type Tokens,
 } from "./common";
 import { DETERMINER, readNoun } from "./nouns";
-import { HABER, IR, isPerfectParticiple } from "./confusions";
+import {
+  ES_HABER as HABER,
+  ES_IR as IR,
+  esIsPerfectParticiple as isPerfectParticiple,
+} from "../../engine/rules/es.generated";
 import {
   attribute,
   finiteVerb,
