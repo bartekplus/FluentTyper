@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   adjectiveReadings,
   genderable,
@@ -25,14 +25,7 @@ import { firstNameGender } from "./firstNames";
 import { FRENCH_CLAUSE, listBefore, skipRelative } from "./agreement";
 import { skipComplements } from "../clauseReader";
 import { elidedAuxiliaryAt } from "./homophones";
-import {
-  inChunk,
-  ownedFrenchWords,
-  SENTENCE_START,
-  type Token,
-  tokensAfter,
-  tokensBefore,
-} from "./frenchTokens";
+import { inChunk, SENTENCE_START, type Token, tokensAfter, tokensBefore } from "./frenchTokens";
 import { finding } from "../finding";
 import { carryCase } from "../../implementations/helpers/GenericRuleShared";
 
@@ -1668,59 +1661,51 @@ const KEPT_PERSONS: Record<string, string> = {
   étais: "je",
   étions: "nous",
 };
-// "je suis partie ... je suis rentré": a person, its form of être and a participle.
-const KEPT =
-  /(?<![\p{L}\p{M}\p{N}_'’-])(?:(?:je|j['’]|tu|nous)[ \t]{1,4}(?:(?:ne|n['’])[ \t]{0,4})?(?:(?:me|m['’]|te|t['’]|nous)[ \t]{0,4})?|(?<=(?<![\p{L}\p{M}\p{N}_'’-])et[ \t]{1,4}))(?:suis|es|sommes|étais|étions)[ \t]{1,4}(?:pas[ \t]{1,4})?(?<part>\p{L}+)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+/** The gender of the first participle of each person, per chunk; the frame's matches come in
+ * order, and a match at or before the last one starts a new run. */
+const KEPT_SEEN = new WeakMap<
+  DetectContext,
+  { at: number; seen: Map<string, { gender: string; end: number }> }
+>();
 
 /** "Je suis partie tôt et je suis rentré" -> "rentrée": in one sentence and outside quotes, "je",
  * "tu" and "nous" keep the gender their first participle of être shows. */
-function keptGenders(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const seen = new Map<string, { gender: string; end: number }>();
-  for (const m of ownedFrenchWords(ctx, KEPT)) {
-    // The pronoun, or after "et" the form of être alone ("et sommes revenues"); "j'" and
-    // "t'" are glued to the next word.
-    const lead = /^(?:je|j['’]|tu|nous)(?![\p{L}])/iu
-      .exec(m[0])?.[0]
-      .toLowerCase()
-      .replace("’", "'");
-    const aux = /(?:suis|es|sommes|étais|étions)(?=[ \t])/iu.exec(
-      m[0].slice(lead?.length ?? 0),
-    )?.[0];
-    const person = lead
-      ? KEPT_PERSONS[lead]
-      : aux && aux !== "étais"
-        ? KEPT_PERSONS[aux]
-        : undefined;
-    if (!person || !aux || (KEPT_PERSONS[aux] !== person && aux !== "étais")) continue;
-    const typed = m.groups!.part;
-    const word = typed.toLowerCase();
-    if (typed !== word || !verbReadings(word).some((r) => r.slot === "Q")) continue;
-    // After its pronoun and être the word is the participle, also where a noun spells it.
-    const slots = slotsOf(word, "avoir");
-    const genders = new Set(slots.map((slot) => slot[0]));
-    if (genders.size !== 1) continue;
-    const [gender] = genders;
-    const start = m.index + m[0].length - typed.length;
-    const first = seen.get(person);
-    // Another sentence, or a quote between the two, starts again.
-    const between = first ? ctx.text.slice(first.end, m.index) : "";
-    if (!first || /[.!?…\n«»"“”]/u.test(between)) {
-      seen.set(person, { gender, end: start + typed.length });
-      continue;
-    }
-    if (first.gender === gender) continue;
-    const target = `${first.gender}${slots[0][1]}` as Inflection;
-    const f = adjectiveFinding(
-      ctx,
-      { w: word, start, end: start + typed.length, hyphen: false },
-      target,
-      m.index,
-      "avoir",
-    );
-    if (f) findings.push(f);
+function keptGender(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  let state = KEPT_SEEN.get(ctx);
+  if (!state || m.index <= state.at) KEPT_SEEN.set(ctx, (state = { at: m.index, seen: new Map() }));
+  state.at = m.index;
+  const { seen } = state;
+  // The pronoun, or after "et" the form of être alone ("et sommes revenues"); "j'" and
+  // "t'" are glued to the next word.
+  const lead = /^(?:je|j['’]|tu|nous)(?![\p{L}])/iu.exec(m[0])?.[0].toLowerCase().replace("’", "'");
+  const aux = /(?:suis|es|sommes|étais|étions)(?=[ \t])/iu.exec(m[0].slice(lead?.length ?? 0))?.[0];
+  const person = lead ? KEPT_PERSONS[lead] : aux && aux !== "étais" ? KEPT_PERSONS[aux] : undefined;
+  if (!person || !aux || (KEPT_PERSONS[aux] !== person && aux !== "étais")) return null;
+  const typed = m.groups!.part;
+  const word = typed.toLowerCase();
+  if (typed !== word || !verbReadings(word).some((r) => r.slot === "Q")) return null;
+  // After its pronoun and être the word is the participle, also where a noun spells it.
+  const slots = slotsOf(word, "avoir");
+  const genders = new Set(slots.map((slot) => slot[0]));
+  if (genders.size !== 1) return null;
+  const [gender] = genders;
+  const start = m.index + m[0].length - typed.length;
+  const first = seen.get(person);
+  // Another sentence, or a quote between the two, starts again.
+  const between = first ? ctx.text.slice(first.end, m.index) : "";
+  if (!first || /[.!?…\n«»"“”]/u.test(between)) {
+    seen.set(person, { gender, end: start + typed.length });
+    return null;
   }
-  return findings;
+  if (first.gender === gender) return null;
+  const target = `${first.gender}${slots[0][1]}` as Inflection;
+  return adjectiveFinding(
+    ctx,
+    { w: word, start, end: start + typed.length, hyphen: false },
+    target,
+    m.index,
+    "avoir",
+  );
 }
 
 /** "divers épices" -> "diverses", "pareil tempêtes" -> "pareilles": an adjective that serves as
@@ -1797,6 +1782,5 @@ export const FIXERS = {
   quiParticiple: inChunk(quiParticiple),
   invertedParticiple: inChunk(invertedParticiple),
   invertedAvoir: inChunk(invertedAvoir),
+  keptGender: inChunk(keptGender),
 } satisfies Record<string, MatchFixer>;
-
-export const PREDICATES = { keptGenders } satisfies Record<string, Detector>;

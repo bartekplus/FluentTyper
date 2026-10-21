@@ -440,8 +440,17 @@ rules:
         fixer: afterAvoir
   - id: fr.keptGenders
     checks: [frenchAdjectiveAgreement]
-    # predicate: a map carries the gender of the first participle of each person to the next matches.
-    predicate: keptGenders
+    style: match
+    message: review_msg_fr_adjective_agreement
+    frames:
+      # "Je suis partie tôt et je suis rentré" -> "rentrée": a person ("je", "tu", "nous", or "et"
+      # alone), its form of être and a participle. The fixer keeps the gender of the first
+      # participle of each person in the sentence.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:je|j['’]|tu|nous)[ \\t]{1,4}(?:(?:ne|n['’])[ \\t]{0,4})?(?:(?:me|m['’]|te|t['’]|nous)[ \\t]{0,4})?|(?<=(?<![\\p{L}\\p{M}\\p{N}_'’-])et[ \\t]{1,4}))(?:suis|es|sommes|étais|étions)[ \\t]{1,4}(?:pas[ \\t]{1,4})?(?<part>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-])"
+        flags: giu
+        scan: owned
+        lookback: 1
+        fixer: keptGender
   - id: fr.adjectivesRest
     checks: [frenchAdjectiveAgreement]
     style: match

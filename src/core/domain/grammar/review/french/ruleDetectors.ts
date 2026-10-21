@@ -26,7 +26,7 @@ import * as style from "./style";
 import * as tout from "./tout";
 import * as verbForms from "./verbForms";
 
-export const PREDICATES = mergePredicates(adjectives.PREDICATES);
+export const PREDICATES = mergePredicates();
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
