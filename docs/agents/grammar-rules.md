@@ -230,6 +230,13 @@ A fixer of an `owned`, `text` or `polish` frame can call `frame.resume(index)`: 
 
 A rule `filter: <name>` names a function of the `FILTERS` record. It gets all findings of the rule and returns the ones to keep, for example the first finding at each start.
 
+More rule and frame fields:
+
+- `lang: <code>` on a frame: the frame runs only on text of that language. One rule can hold the frames of several languages.
+- A frame rule may also name a `predicate:`. It runs after the frames, for logic that is no scan (for example the phrase rows of the rule files).
+- `group: <name>`: consecutive rules of one group run as one detector. A rule that throws stops its group and drops the group's findings, as one composite check did before.
+- `findings: style | terminology | quotation` (instead of frames or a pattern): the rule reports the findings that Review made before the rule scan (style advice, the user's preferred terms, unclosed quotations) whose range starts in the chunk.
+
 ### Named Predicates
 
 Use a predicate only when the rule does not scan the text with a regex: a walk over a token list, a pairing of quote marks with a stack, or findings that Review made before. Any rule that scans with a regex is a frame rule; put the logic in a fixer of a `style: match` rule. A predicate rule in a rule file has a `# predicate:` comment that says why it is not a frame rule.
