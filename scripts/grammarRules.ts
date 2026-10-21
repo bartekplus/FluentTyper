@@ -378,7 +378,10 @@ function ruleModule(
     records.set(fn.kind, [...(records.get(fn.kind) ?? []), text]);
   }
   // The library and shared names the code reads, and the library types its text names.
-  const refs = new Set([...code.defs, ...code.functions].flatMap((fn) => fn.free));
+  // The file's own names hide those of the library and of common.yaml.
+  const refs = new Set(
+    [...code.defs, ...code.functions].flatMap((fn) => fn.free).filter((n) => !code.names.has(n)),
+  );
   const words = new Set(`${sources.join(" ")} ${typeText.join(" ")}`.match(/[A-Za-z_$][\w$]*/g));
   const values = [...refs].filter((ref) => library.values.has(ref)).sort();
   const types = [...library.types].filter((type) => words.has(type)).sort();

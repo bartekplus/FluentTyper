@@ -232,9 +232,7 @@ export function fileCode(
   const claim = (key: string, at: string) => {
     if (!NAME.test(key)) errors.push(`${at}: not a name`);
     if (names.has(key)) errors.push(`${at}: "${key}" is defined twice`);
-    if (name !== "common" && scope.shared.has(key))
-      errors.push(`${at}: "${key}" is a name of common.yaml`);
-    if (scope.library?.has(key)) errors.push(`${at}: "${key}" is a name of the rule library`);
+    // A name of the file hides a name of common.yaml or the library (as a module's own name).
     if (EXPRESSION_GLOBALS.has(key)) errors.push(`${at}: "${key}" is a global`);
     names.add(key);
   };

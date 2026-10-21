@@ -131,7 +131,7 @@ test("the compiler names unknown and reused names", () => {
   const message = errorsOf(() =>
     compile({
       lang: "en",
-      defs: { capitalize: "1" },
+      defs: { Set: "1" },
       rules: [
         {
           id: "en.bad",
@@ -152,7 +152,7 @@ test("the compiler names unknown and reused names", () => {
     }),
   );
   for (const fragment of [
-    'def capitalize: "capitalize" is a name of the rule library',
+    'def Set: "Set" is a global',
     'let target: "target" is taken',
     'when 1: unknown name "missing"',
     'return: unknown name "fetch"',
