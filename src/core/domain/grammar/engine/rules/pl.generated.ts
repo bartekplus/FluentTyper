@@ -9,9 +9,11 @@ import {
   PL_MONTHS_GENITIVE,
   PL_NEUTER,
   PL_VERB,
+  PL_VIRILE,
   namedExampleBefore,
   plAdjectiveForm,
   plAdjectiveOf,
+  plAmbiguousAdjective,
   plCaseLike,
   plCases,
   plContextYear,
@@ -130,6 +132,93 @@ export const DEGREE_IRREGULAR_ADVERBS: ReadonlySet<string> = new Set([
   "wcześniej",
   "dłużej",
   "krócej",
+]);
+
+export const TYPO_ADVERBIAL: ReadonlySet<string> = new Set([
+  "w|pełni",
+  "w|miarę",
+  "w|ogóle",
+  "w|sumie",
+  "w|całości",
+  "w|zasadzie",
+  "w|końcu",
+  "w|dodatku",
+  "w|praktyce",
+  "w|razie",
+  "w|przybliżeniu",
+  "w|szczególności",
+  "w|pół",
+  "na|pewno",
+  "na|razie",
+  "na|nowo",
+  "na|przykład",
+  "na|wpół",
+  "na|zawsze",
+  "na|bieżąco",
+  "na|tyle",
+  "na|co",
+  "na|ogół",
+  "na|pół",
+  "na|raz",
+  "na|przemian",
+  "z|grubsza",
+  "z|daleka",
+  "z|bliska",
+  "z|osobna",
+  "z|powrotem",
+  "z|góry",
+  "z|dołu",
+  "z|przodu",
+  "z|tyłu",
+  "z|boku",
+  "z|rzędu",
+  "z|zewnątrz",
+  "z|wewnątrz",
+  "od|razu",
+  "od|nowa",
+  "od|dawna",
+  "od|zaraz",
+  "od|teraz",
+  "od|dziś",
+  "od|zawsze",
+  "od|czasu",
+  "od|tyłu",
+  "od|przodu",
+  "od|środka",
+  "do|końca",
+  "do|dziś",
+  "do|tyłu",
+  "do|przodu",
+  "do|góry",
+  "do|dołu",
+  "do|środka",
+  "do|teraz",
+  "do|zobaczenia",
+  "do|widzenia",
+  "do|niedawna",
+]);
+
+export const TYPO_NOT_A_VERB: ReadonlySet<string> = new Set([
+  "to",
+  "nie",
+  "tak",
+  "już",
+  "teraz",
+  "tu",
+  "tam",
+  "i",
+  "a",
+  "że",
+  "by",
+  "jak",
+  "gdy",
+  "co",
+  "też",
+  "tylko",
+  "bardzo",
+  "trochę",
+  "wtedy",
+  "znowu",
 ]);
 
 export const CONFUSION_CLITIC_LONG: Readonly<Record<string, string>> = {
@@ -314,6 +403,126 @@ export const SILENT_SHORT: Readonly<Record<string, string>> = {
   mu: "mu",
   em: "m",
   m: "m",
+};
+
+export const STYLE_OR_MORE_CASE: Readonly<Record<string, string>> = {
+  dwa: "Np",
+  dwie: "Np",
+  trzy: "Np",
+  cztery: "Np",
+  dwom: "Dp",
+  dwóm: "Dp",
+  trzem: "Dp",
+  czterem: "Dp",
+  dwoma: "Ip",
+  trzema: "Ip",
+  czterema: "Ip",
+  dwóch: "Gp",
+  trzech: "Gp",
+  czterech: "Gp",
+  pięć: "Gp",
+  pięciu: "Gp",
+};
+
+export const STYLE_PLURAL_ENDING: Readonly<Record<string, string>> = {
+  Np: "e",
+  Gp: "ych",
+  Dp: "ym",
+  Ip: "ymi",
+  Lp: "ych",
+};
+
+export const STYLE_PLAYS: Readonly<Record<string, string>> = {
+  pełni: "odgrywa",
+  pełnią: "odgrywają",
+  pełnił: "odgrywał",
+  pełniła: "odgrywała",
+  pełniło: "odgrywało",
+  pełnili: "odgrywali",
+  pełniły: "odgrywały",
+  pełnić: "odgrywać",
+  pełniący: "odgrywający",
+  pełniąca: "odgrywająca",
+  pełniące: "odgrywające",
+  pełniąc: "odgrywając",
+  spełnia: "odgrywa",
+  spełniają: "odgrywają",
+  spełniał: "odgrywał",
+  spełniała: "odgrywała",
+  spełniać: "odgrywać",
+  spełniając: "odgrywając",
+};
+
+export const STYLE_HAS: Readonly<Record<string, string>> = {
+  posiadam: "mam",
+  posiadasz: "masz",
+  posiada: "ma",
+  posiadamy: "mamy",
+  posiadacie: "macie",
+  posiadają: "mają",
+  posiadał: "miał",
+  posiadała: "miała",
+  posiadali: "mieli",
+  posiadały: "miały",
+  posiadać: "mieć",
+  posiadając: "mając",
+};
+
+export const STYLE_PUTS_ON: Readonly<Record<string, string>> = {
+  ubrać: "włożyć",
+  ubrał: "włożył",
+  ubrała: "włożyła",
+  ubrali: "włożyli",
+  ubrały: "włożyły",
+  ubrałem: "włożyłem",
+  ubrałam: "włożyłam",
+  ubiorę: "włożę",
+  ubierze: "włoży",
+  ubierz: "włóż",
+  ubieram: "wkładam",
+  ubiera: "wkłada",
+  ubierają: "wkładają",
+  ubierał: "wkładał",
+  ubierała: "wkładała",
+  ubierać: "wkładać",
+  założyć: "włożyć",
+  założył: "włożył",
+  założyła: "włożyła",
+  założyli: "włożyli",
+  założyły: "włożyły",
+  założyłem: "włożyłem",
+  założyłam: "włożyłam",
+  założyłeś: "włożyłeś",
+  założyłaś: "włożyłaś",
+  założyliśmy: "włożyliśmy",
+  założyłyśmy: "włożyłyśmy",
+  założę: "włożę",
+  założy: "włoży",
+  założysz: "włożysz",
+  założymy: "włożymy",
+  założycie: "włożycie",
+  założą: "włożą",
+  zakłada: "wkłada",
+  zakładać: "wkładać",
+  zakładał: "wkładał",
+  zakładała: "wkładała",
+  zakładali: "wkładali",
+  zakładały: "wkładały",
+  zakładam: "wkładam",
+  zakładasz: "wkładasz",
+  zakładają: "wkładają",
+  zakładamy: "wkładamy",
+  zakładacie: "wkładacie",
+  załóż: "włóż",
+  załóżcie: "włóżcie",
+};
+
+export const STYLE_POD_OBJECT: Readonly<Record<string, string>> = {
+  pojęciem: "pojęcie",
+  terminem: "termin",
+  słowem: "słowo",
+  określeniem: "określenie",
+  hasłem: "hasło",
 };
 
 // pl.yaml def PREPOSITIONS
@@ -1037,6 +1246,63 @@ export const CONJUNCTION_ENDINGS = [
   [/łyście$/u, "ły", "ście"],
 ] as readonly (readonly [RegExp, string, string])[];
 
+// pl.yaml rule pl.style def orMoreAdjective
+export function orMoreAdjective(tokens: RegExpExecArray[], i: number) {
+  return (
+    i < tokens.length && !plNounTags(tokens[i][0]) && plAdjectiveOf(tokens[i][0])?.ending === "ych"
+  );
+}
+
+// pl.yaml rule pl.style def orMoreSkip
+export function orMoreSkip(tokens: RegExpExecArray[], i: number): number {
+  return orMoreAdjective(tokens, i) ? orMoreSkip(tokens, i + 1) : i;
+}
+
+// pl.yaml rule pl.style def orMorePlural
+export function orMorePlural(adj: string, wanted: string) {
+  return plAdjectiveForm(plAdjectiveOf(adj)!.lemma, STYLE_PLURAL_ENDING[wanted]);
+}
+
+// pl.yaml rule pl.style def orMoreFix
+export function orMoreFix(
+  tokens: RegExpExecArray[],
+  at: number,
+  noun: string,
+  tags: number,
+  wanted: string,
+  head: string,
+  wordsStart: number,
+) {
+  const forms = tagsAnd(tags, plCases(wanted)) ? [noun] : plInflect(noun, plCases(wanted));
+  const last = orMoreSkip(tokens, at + 1) - 1;
+  const unread =
+    /(?:ych|ich)$/u.test(tokens[last + 1]?.[0] ?? "") && !orMoreAdjective(tokens, last + 1);
+  if (!(forms.length === 1 && !unread)) return null;
+  return {
+    fixed: [
+      head,
+      ...tokens.slice(0, at).map((t) => orMorePlural(t[0], wanted)),
+      forms[0],
+      ...tokens.slice(at + 1, last + 1).map((t) => orMorePlural(t[0], wanted)),
+    ].join(" "),
+    end: wordsStart + tokens[last].index + tokens[last][0].length,
+  };
+}
+
+// pl.yaml rule pl.style def styleFinding
+export function styleFinding(ctx: DetectContext, start: number, end: number, fixes: string[]) {
+  const typed = ctx.source.slice(start, end);
+  if (plUserOrNamed(ctx, typed)) return null;
+  return plFindingAt(
+    ctx,
+    start,
+    end,
+    fixes.map((fix) => plCaseLike(typed, fix)),
+    "stylePhrasing",
+    "review_msg_style_phrasing",
+  );
+}
+
 // pl.yaml rule pl.officialese def OFFICIALESE_DESTINATION
 export const OFFICIALESE_DESTINATION = {
   a: "cel podróży",
@@ -1048,6 +1314,24 @@ export const OFFICIALESE_DESTINATION = {
   ami: "celami podróży",
   ach: "celach podróży",
 } as Readonly<Record<string, string | string[]>>;
+
+// pl.yaml rule pl.typos def TYPO_NEGATION
+export const TYPO_NEGATION =
+  /(?:^|[^\p{L}])(?:nie\p{L}*|ani|nikt|nic|niczego|nikogo|żaden|żadna|żadne|żadnego|żadnej|nigdy|nigdzie|bez)(?![\p{L}])/iu;
+
+// pl.yaml rule pl.typos def typoSlip
+export function typoSlip(ctx: DetectContext, start: number, end: number, fix: string) {
+  const typed = ctx.source.slice(start, end);
+  if (plUserOrNamed(ctx, typed)) return null;
+  return plFindingAt(
+    ctx,
+    start,
+    end,
+    [plCaseLike(typed, fix)],
+    "englishPhraseCorrections",
+    "review_msg_contextual_grammar",
+  );
+}
 
 // pl.yaml rule pl.fragments def FRAGMENT_SUBORDINATE
 export const FRAGMENT_SUBORDINATE =
@@ -2492,6 +2776,99 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "review_msg_pl_imperative",
     );
   },
+  // pl.yaml rule pl.style frame 1
+  "@pl.style/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const numeral = m.groups!.numeral;
+    const words = m.groups!.words;
+    const baseWanted = STYLE_OR_MORE_CASE[numeral.toLowerCase()];
+    const wanted =
+      baseWanted === "Gp" &&
+      /(?:^|[^\p{L}])(?:w|we|o|na|przy|po)[ \t ]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 8), m.index),
+      )
+        ? "Lp"
+        : baseWanted;
+    const wordsStart = m.index + m[0].length - words.length;
+    const head = "co najmniej " + numeral;
+    const tokens = [...words.matchAll(/\p{L}+/gu)];
+    const at = orMoreSkip(tokens, 0);
+    const noun = tokens[at]?.[0] ?? "";
+    const tags = plNounTags(noun);
+    const fix =
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, plCases("Gp")) &&
+      !(wanted === "Np" && tagsAnd(tags, PL_VIRILE))
+        ? orMoreFix(tokens, at, noun, tags, wanted, head, wordsStart)
+        : null;
+    const end = fix ? fix.end : wordsStart;
+    const typed = ctx.source.slice(m.index, end);
+    if (plUserOrNamed(ctx, typed)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      end,
+      [plCaseLike(typed, fix ? fix.fixed : head)],
+      "stylePhrasing",
+      "review_msg_style_phrasing",
+    );
+  },
+  // pl.yaml rule pl.style frame 2
+  "@pl.style/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const mid = m.groups!.mid;
+    const noun = m.groups!.noun;
+    const before = m.groups!.before;
+    const after = m.groups!.after;
+    const end = m.index + m[0].length;
+    return verb
+      ? styleFinding(ctx, m.index, end, [
+          verb + mid + " " + (noun.toLowerCase() === "rolę" ? "funkcję" : "funkcji"),
+          STYLE_PLAYS[verb.toLowerCase()] + mid + " " + noun,
+        ])
+      : styleFinding(ctx, m.index, end, [
+          (before.toLowerCase() === "rolę" ? "funkcję" : "funkcji") + " " + after,
+          before + " " + STYLE_PLAYS[after.toLowerCase()],
+        ]);
+  },
+  // pl.yaml rule pl.style frame 3
+  "@pl.style/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const mid = m.groups!.mid;
+    const noun = m.groups!.noun;
+    return styleFinding(ctx, m.index, m.index + m[0].length, [
+      STYLE_PUTS_ON[verb.toLowerCase()] + mid + " " + noun,
+    ]);
+  },
+  // pl.yaml rule pl.style frame 4
+  "@pl.style/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const rest = m.groups!.rest;
+    return styleFinding(ctx, m.index, m.index + m[0].length, [verb + rest]);
+  },
+  // pl.yaml rule pl.style frame 5
+  "@pl.style/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return styleFinding(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1], []);
+  },
+  // pl.yaml rule pl.style frame 6
+  "@pl.style/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const mid = m.groups!.mid;
+    const noun = m.groups!.noun;
+    return styleFinding(ctx, m.index, m.index + m[0].length, [
+      STYLE_HAS[verb.toLowerCase()] + mid + " " + noun,
+    ]);
+  },
+  // pl.yaml rule pl.styleFrames frame 7
+  "@pl.styleFrames/7": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = /\p{L}+$/u.exec(target)![0].toLowerCase();
+    return noun === "tym" ? "przez to" : "przez to " + STYLE_POD_OBJECT[noun];
+  },
+  // pl.yaml rule pl.styleFrames frame 8
+  "@pl.styleFrames/8": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace(/[ \t ]+na$/iu, "");
+  },
   // pl.yaml rule pl.officialese frame 1
   "@pl.officialese/1": (m: RegExpExecArray): string | readonly string[] | null => {
     const end = m.groups!.end;
@@ -2520,6 +2897,226 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@pl.officialese/8": (m: RegExpExecArray): string | readonly string[] | null => {
     const so = m.groups!.so;
     return so ? ["właśnie tak", "owszem"] : ["właśnie", "owszem"];
+  },
+  // pl.yaml rule pl.typosFrames frame 1
+  "@pl.typosFrames/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    if (!(word === word.toLowerCase())) return null;
+    const adjective = plAdjectiveOf(word);
+    return word === "siebie"
+      ? ["przed siebie", "przez siebie"]
+      : word === "zemnie"
+        ? "przeze mnie"
+        : adjective && !plAmbiguousAdjective(word) && adjective.ending !== "ą"
+          ? "prze" + word
+          : null;
+  },
+  // pl.yaml rule pl.typosFrames frame 3
+  "@pl.typosFrames/3": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "dróżk" + end;
+  },
+  // pl.yaml rule pl.typosFrames frame 7
+  "@pl.typosFrames/7": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.length === 6 ? "składamy" : "składam";
+  },
+  // pl.yaml rule pl.typosFrames frame 9
+  "@pl.typosFrames/9": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.toLowerCase() === "podleją" ? "podlegają" : "podlega";
+  },
+  // pl.yaml rule pl.typosFrames frame 14
+  "@pl.typosFrames/14": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target + "j";
+  },
+  // pl.yaml rule pl.typosFrames frame 15
+  "@pl.typosFrames/15": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.slice(0, -3) + "niej";
+  },
+  // pl.yaml rule pl.typosFrames frame 19
+  "@pl.typosFrames/19": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^G/u.test(target) ? "Główn" + target.slice(4) : null;
+  },
+  // pl.yaml rule pl.typosFrames frame 21
+  "@pl.typosFrames/21": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : "jedna";
+  },
+  // pl.yaml rule pl.typosFrames frame 23
+  "@pl.typosFrames/23": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "literówk" + target.slice(7);
+  },
+  // pl.yaml rule pl.typosFrames frame 26
+  "@pl.typosFrames/26": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "żłobk" + target.slice(5);
+  },
+  // pl.yaml rule pl.typosFrames frame 27
+  "@pl.typosFrames/27": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "żłóbk" + target.slice(5);
+  },
+  // pl.yaml rule pl.typosFrames frame 29
+  "@pl.typosFrames/29": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "przed" + target.slice(4);
+  },
+  // pl.yaml rule pl.typosFrames frame 32
+  "@pl.typosFrames/32": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : "dla";
+  },
+  // pl.yaml rule pl.typosFrames frame 34
+  "@pl.typosFrames/34": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "różn" + target.slice(4);
+  },
+  // pl.yaml rule pl.typosFrames frame 35
+  "@pl.typosFrames/35": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.slice(0, -1) + "a";
+  },
+  // pl.yaml rule pl.typosFrames frame 37
+  "@pl.typosFrames/37": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "zawiera" + target.slice(6);
+  },
+  // pl.yaml rule pl.typosFrames frame 39
+  "@pl.typosFrames/39": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "nad" + target.slice(2);
+  },
+  // pl.yaml rule pl.typosFrames frame 40
+  "@pl.typosFrames/40": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : "rangę";
+  },
+  // pl.yaml rule pl.typosFrames frame 46
+  "@pl.typosFrames/46": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "pozwal" + target.slice(7);
+  },
+  // pl.yaml rule pl.typosFrames frame 47
+  "@pl.typosFrames/47": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "start" + target.slice(5);
+  },
+  // pl.yaml rule pl.typosFrames frame 49
+  "@pl.typosFrames/49": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "z " + target;
+  },
+  // pl.yaml rule pl.typosFrames frame 56
+  "@pl.typosFrames/56": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "od" + target.slice(1);
+  },
+  // pl.yaml rule pl.typosFrames frame 57
+  "@pl.typosFrames/57": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "swo" + target.slice(3);
+  },
+  // pl.yaml rule pl.typosFrames frame 58
+  "@pl.typosFrames/58": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : target + "a";
+  },
+  // pl.yaml rule pl.typosFrames frame 59
+  "@pl.typosFrames/59": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "lut" + target.slice(3);
+  },
+  // pl.yaml rule pl.typosFrames frame 60
+  "@pl.typosFrames/60": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return "statystyk" + target.slice(8);
+  },
+  // pl.yaml rule pl.typosFrames frame 65
+  "@pl.typosFrames/65": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace(/jak$/iu, "niż");
+  },
+  // pl.yaml rule pl.typos frame 1
+  "@pl.typos/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (plNounTags(verb) || /(?:siąc|zając)$/u.test(verb)) return null;
+    return typoSlip(ctx, m.index, m.index + m[0].length, verb);
+  },
+  // pl.yaml rule pl.typos frame 2
+  "@pl.typos/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const tags = plNounTags(noun);
+    if (!(
+      plOnlyNoun(tags) &&
+      tagsAnd(tags, PL_NEUTER) !== 0 &&
+      tagsAnd(tags, plCases("Ns As")) !== 0
+    ))
+      return null;
+    if (/^\p{Lu}/u.test(target) && !plSentenceStart(ctx.text, m.index)) return null;
+    return typoSlip(ctx, m.index, m.index + 4, "całe");
+  },
+  // pl.yaml rule pl.typos frame 3
+  "@pl.typos/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const start = m.index;
+    const end = start + m[0].length;
+    const before = ctx.text.slice(Math.max(0, start - 48), start);
+    const after = ctx.text.slice(end, end + 40);
+    const clauseBefore = before.slice(before.search(/[^.!?;:,\n]*$/u));
+    const clauseAfter = after.slice(0, (after.search(/[.!?;:,\n]/u) + 1 || after.length + 1) - 1);
+    if (/(?:^|[^\p{L}])się(?![\p{L}])/iu.test(clauseBefore + " " + clauseAfter)) return null;
+    if (/(?:^|[^\p{L}])(?:z|za|przed|nad|pod|między|o|na|przy|po|w|we)[ \t ]+$/iu.test(before))
+      return null;
+    return typoSlip(ctx, start, end, verb + " się");
+  },
+  // pl.yaml rule pl.typos frame 4
+  "@pl.typos/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const lowerVerb = verb.toLowerCase();
+    if (TYPO_NOT_A_VERB.has(lowerVerb)) return null;
+    if (!(plFiniteVerb(lowerVerb) || plListedVerb(lowerVerb) || plPastByShape(lowerVerb)))
+      return null;
+    const start = m.index + m[0].indexOf(verb, 3);
+    return typoSlip(ctx, start, m.index + m[0].length, verb);
+  },
+  // pl.yaml rule pl.typos frame 5
+  "@pl.typos/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const next = m.groups!.next;
+    if (first.toLowerCase() === second || TYPO_ADVERBIAL.has(second + "|" + next)) return null;
+    const tail = m.index + m[0].length;
+    const after = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(tail, tail + 40))?.[1] ?? "";
+    const noun = next.toLowerCase();
+    if (!(
+      (plOnlyNoun(plNounTags(noun)) || plPlaceForm(noun)) &&
+      !plAdjectiveOf(after.toLowerCase())
+    ))
+      return null;
+    const typed = ctx.source.slice(m.index, m.index + m[0].length - next.length).trimEnd();
+    if (plUserOrNamed(ctx, typed)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + typed.length,
+      [first, plCaseLike(first, second)],
+      "englishPhraseCorrections",
+      "review_msg_contextual_grammar",
+    );
+  },
+  // pl.yaml rule pl.typos frame 6
+  "@pl.typos/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 160), m.index);
+    const after = ctx.text.slice(m.index, m.index + 160);
+    const sentence = before.slice(before.search(/[^.!?\n]*$/u)) + after.split(/[.!?\n]/u)[0];
+    if (TYPO_NEGATION.test(sentence)) return null;
+    return typoSlip(ctx, m.index, m.index + m[0].length, "przynajmniej");
   },
   // pl.yaml rule pl.fragments frame 1
   "@pl.fragments/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

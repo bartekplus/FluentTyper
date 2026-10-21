@@ -2405,42 +2405,217 @@ rules:
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
+    maps:
+      # The plural case a numeral puts its noun in, by the numeral's own form.
+      STYLE_OR_MORE_CASE:
+        {
+          dwa: Np,
+          dwie: Np,
+          trzy: Np,
+          cztery: Np,
+          dwom: Dp,
+          dwóm: Dp,
+          trzem: Dp,
+          czterem: Dp,
+          dwoma: Ip,
+          trzema: Ip,
+          czterema: Ip,
+          dwóch: Gp,
+          trzech: Gp,
+          czterech: Gp,
+          pięć: Gp,
+          pięciu: Gp,
+        }
+      # The adjective ending of a non-virile plural in each case.
+      STYLE_PLURAL_ENDING: { Np: e, Gp: ych, Dp: ym, Ip: ymi, Lp: ych }
+      # "pełnić" goes with a function; a role is played ("odgrywać rolę").
+      STYLE_PLAYS:
+        pełni: odgrywa
+        pełnią: odgrywają
+        pełnił: odgrywał
+        pełniła: odgrywała
+        pełniło: odgrywało
+        pełnili: odgrywali
+        pełniły: odgrywały
+        pełnić: odgrywać
+        pełniący: odgrywający
+        pełniąca: odgrywająca
+        pełniące: odgrywające
+        pełniąc: odgrywając
+        spełnia: odgrywa
+        spełniają: odgrywają
+        spełniał: odgrywał
+        spełniała: odgrywała
+        spełniać: odgrywać
+        spełniając: odgrywając
+      # "posiadać" is owning; a beard, a talent or a sister one simply has ("ma brodę").
+      STYLE_HAS:
+        posiadam: mam
+        posiadasz: masz
+        posiada: ma
+        posiadamy: mamy
+        posiadacie: macie
+        posiadają: mają
+        posiadał: miał
+        posiadała: miała
+        posiadali: mieli
+        posiadały: miały
+        posiadać: mieć
+        posiadając: mając
+      # "ubrać" dresses someone; a garment one puts on ("włożyć płaszcz"). "założyć" fastens
+      # (glasses, a watch); clothes one puts on ("włożyć buty").
+      STYLE_PUTS_ON:
+        ubrać: włożyć
+        ubrał: włożył
+        ubrała: włożyła
+        ubrali: włożyli
+        ubrały: włożyły
+        ubrałem: włożyłem
+        ubrałam: włożyłam
+        ubiorę: włożę
+        ubierze: włoży
+        ubierz: włóż
+        ubieram: wkładam
+        ubiera: wkłada
+        ubierają: wkładają
+        ubierał: wkładał
+        ubierała: wkładała
+        ubierać: wkładać
+        założyć: włożyć
+        założył: włożył
+        założyła: włożyła
+        założyli: włożyli
+        założyły: włożyły
+        założyłem: włożyłem
+        założyłam: włożyłam
+        założyłeś: włożyłeś
+        założyłaś: włożyłaś
+        założyliśmy: włożyliśmy
+        założyłyśmy: włożyłyśmy
+        założę: włożę
+        założy: włoży
+        założysz: włożysz
+        założymy: włożymy
+        założycie: włożycie
+        założą: włożą
+        zakłada: wkłada
+        zakładać: wkładać
+        zakładał: wkładał
+        zakładała: wkładała
+        zakładali: wkładali
+        zakładały: wkładały
+        zakładam: wkładam
+        zakładasz: wkładasz
+        zakładają: wkładają
+        zakładamy: wkładamy
+        zakładacie: wkładacie
+        załóż: włóż
+        załóżcie: włóżcie
+    defs:
+      # A genitive plural adjective at `i`: "wieczornych godzin", "godzin wieczornych".
+      orMoreAdjective:
+        args: "tokens: RegExpExecArray[], i: number"
+        return: 'i < tokens.length && !plNounTags(tokens[i][0]) && plAdjectiveOf(tokens[i][0])?.ending === "ych"'
+      # The first index from `i` on that holds no such adjective.
+      orMoreSkip:
+        args: "tokens: RegExpExecArray[], i: number"
+        type: number
+        return: "orMoreAdjective(tokens, i) ? orMoreSkip(tokens, i + 1) : i"
+      orMorePlural:
+        args: "adj: string, wanted: string"
+        return: plAdjectiveForm(plAdjectiveOf(adj)!.lemma, STYLE_PLURAL_ENDING[wanted])
+      # The noun (and its adjectives) in the numeral's case: the fix and where it ends. None when
+      # they cannot be read; an unknown "-ych" word after the phrase may be one more adjective.
+      orMoreFix:
+        args: "tokens: RegExpExecArray[], at: number, noun: string, tags: number, wanted: string, head: string, wordsStart: number"
+        let:
+          forms: "tagsAnd(tags, plCases(wanted)) ? [noun] : plInflect(noun, plCases(wanted))"
+          last: orMoreSkip(tokens, at + 1) - 1
+          unread: '/(?:ych|ich)$/u.test(tokens[last + 1]?.[0] ?? "") && !orMoreAdjective(tokens, last + 1)'
+        when: forms.length === 1 && !unread
+        return: >-
+          ({ fixed: [head, ...tokens.slice(0, at).map((t) => orMorePlural(t[0], wanted)), forms[0],
+          ...tokens.slice(at + 1, last + 1).map((t) => orMorePlural(t[0], wanted))].join(" "),
+          end: wordsStart + tokens[last].index + tokens[last][0].length })
+      # An opt-in style finding on `start`-`end`, each fix in the typed case; none on a user's word.
+      styleFinding:
+        args: "ctx: DetectContext, start: number, end: number, fixes: string[]"
+        let:
+          typed: ctx.source.slice(start, end)
+        when: "!plUserOrNamed(ctx, typed)"
+        return: plFindingAt(ctx, start, end, fixes.map((fix) => plCaseLike(typed, fix)), "stylePhrasing", "review_msg_style_phrasing")
     frames:
       # "dwie lub więcej godzin" mixes two governments: "co najmniej dwie godziny". The noun (and its
       # adjectives) follow the numeral's case; when they cannot be read, only the numeral is fixed.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<numeral>dwa|dwie|trzy|cztery|dwom|dwóm|trzem|czterem|dwoma|trzema|czterema|dwóch|trzech|czterech|pięć|pięciu){{S}}lub{{S}}więcej(?<words>(?:{{S}}\\p{L}+){0,3})(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
-        fixer: orMore
+        let:
+          baseWanted: STYLE_OR_MORE_CASE[numeral.toLowerCase()]
+          # "w dwóch lub więcej krajów": the locative after "w", "o", "na", "przy", "po".
+          wanted: >-
+            baseWanted === "Gp" && /(?:^|[^\p{L}])(?:w|we|o|na|przy|po)[ \t ]+$/iu.test(ctx.text.slice(Math.max(0,
+            m.index - 8), m.index)) ? "Lp" : baseWanted
+          wordsStart: m.index + m[0].length - words.length
+          head: '"co najmniej " + numeral'
+          tokens: '[...words.matchAll(/\p{L}+/gu)]'
+          # Genitive plural adjectives before the noun: "wieczornych godzin".
+          at: orMoreSkip(tokens, 0)
+          noun: 'tokens[at]?.[0] ?? ""'
+          tags: plNounTags(noun)
+          fix: >-
+            plOnlyNoun(tags) && tagsAnd(tags, plCases("Gp")) && !(wanted === "Np" && tagsAnd(tags, PL_VIRILE))
+            ? orMoreFix(tokens, at, noun, tags, wanted, head, wordsStart) : null
+          end: "fix ? fix.end : wordsStart"
+          typed: ctx.source.slice(m.index, end)
+        when: "!plUserOrNamed(ctx, typed)"
+        return: >-
+          plFindingAt(ctx, m.index, end, [plCaseLike(typed, fix ? fix.fixed : head)], "stylePhrasing",
+          "review_msg_style_phrasing")
       # Opt-in: "pełni istotną rolę" -> "pełni istotną funkcję" or "odgrywa istotną rolę".
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?:(?<verb>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając)(?<mid>{{FILLER}}){{S}}(?<noun>rolę|roli)|(?<before>rolę|roli){{S}}(?<after>pełni|pełnią|pełnił|pełniła|pełniło|pełnili|pełniły|pełnić|pełniący|pełniąca|pełniące|pełniąc|spełnia|spełniają|spełniał|spełniała|spełniać|spełniając))(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
-        fixer: playsRole
+        let:
+          end: m.index + m[0].length
+        return: >-
+          verb ? styleFinding(ctx, m.index, end, [verb + mid + " " + (noun.toLowerCase() === "rolę" ? "funkcję" : "funkcji"),
+          STYLE_PLAYS[verb.toLowerCase()] + mid + " " + noun])
+          : styleFinding(ctx, m.index, end, [(before.toLowerCase() === "rolę" ? "funkcję" : "funkcji") + " " + after,
+          before + " " + STYLE_PLAYS[after.toLowerCase()]])
       # "ubrać płaszcz", "założyć buty": clothes one puts on ("włożyć").
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>ubrać|ubrał|ubrała|ubrali|ubrały|ubrałem|ubrałam|ubiorę|ubierze|ubierz|ubieram|ubiera|ubierają|ubierał|ubierała|ubierać|założyć|założył|założyła|założyli|założyły|założyłem|założyłam|założyłeś|założyłaś|założyliśmy|założyłyśmy|założę|założy|założysz|założymy|założycie|założą|zakłada|zakładać|zakładał|zakładała|zakładali|zakładały|zakładam|zakładasz|zakładają|zakładamy|zakładacie|załóż|załóżcie)(?<mid>{{FILLER}}){{S}}(?<noun>{{GARMENTS}})(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
-        fixer: putsOn
+        return: 'styleFinding(ctx, m.index, m.index + m[0].length, [STYLE_PUTS_ON[verb.toLowerCase()] + mid + " " + noun])'
       # "napotkać na trudności": one meets difficulties without "na" ("na drodze" stays).
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>napot(?:kać|kał\\p{L}*|kali\\p{L}*|ka|kają|kasz|kam|ykać|yka|ykają|ykał\\p{L}*|ykali\\p{L}*)){{S}}na(?<rest>(?:{{S}}\\p{L}+(?:e|ie|y|i|ą))?{{S}}(?:trudności|trudność|problem|problemy|przeszkody|przeszkodę|opór|sprzeciw|kłopoty))(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
-        fixer: meetsWithoutNa
+        return: styleFinding(ctx, m.index, m.index + m[0].length, [verb + rest])
       # "pięcioletnia rocznica", "20-letni jubileusz": the noun counts years already ("piąta rocznica").
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<target>(?:\\d+-|\\p{L}+)letni(?:a|ej|ą|ego|emu|m|e|ch|mi)?){{S}}(?:rocznic|jubileusz|urodzin)\\p{L}*(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gdiu
-        fixer: yearsAnniversary
+        return: styleFinding(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1], [])
       # "posiada brodę" -> "ma brodę".
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>posiadam|posiadasz|posiada|posiadamy|posiadacie|posiadają|posiadał|posiadała|posiadali|posiadały|posiadać|posiadając)(?<mid>{{FILLER}}){{S}}(?<noun>{{FEATURES}})(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
-        fixer: possess
+        return: 'styleFinding(ctx, m.index, m.index + m[0].length, [STYLE_HAS[verb.toLowerCase()] + mid + " " + noun])'
   - id: pl.styleFrames
     checks: [stylePhrasing]
     style: polish
     message: review_msg_style_phrasing
+    maps:
+      STYLE_POD_OBJECT:
+        {
+          pojęciem: pojęcie,
+          terminem: termin,
+          słowem: słowo,
+          określeniem: określenie,
+          hasłem: hasło,
+        }
     frames:
       # "w przeciągu dwóch lat", "na przestrzeni 5 lat": a time span is "w ciągu".
       - regex: "(?<target>w{{S}}przeciągu|na{{S}}przestrzeni|przez{{S}}przeciąg)(?={{S}}(?:{{NUMERAL}}){{S}}(?:{{TIME_UNIT}}){{E}})"
@@ -2462,10 +2637,12 @@ rules:
         fix: "jak i"
       # "rozumieć pod tym" is a calque: "rozumieć przez to".
       - regex: "(?<target>pod{{S}}tym(?:{{S}}(?:pojęciem|terminem|słowem|określeniem|hasłem))?)(?<=rozumi\\p{L}{0,6}(?:{{S}}\\p{L}{2,12}){0,2}{{S}}pod{{S}}tym(?:{{S}}\\p{L}{5,11})?){{E}}"
-        fixer: stylePod
+        let:
+          noun: '/\p{L}+$/u.exec(target)![0].toLowerCase()'
+        return: 'noun === "tym" ? "przez to" : "przez to " + STYLE_POD_OBJECT[noun]'
       # One clicks a link, not "on" it: "kliknij link".
       - regex: "(?<target>(?:kliknij|kliknijcie|kliknąć|kliknął|kliknęła|kliknęli|kliknę|kliknie|klikamy|klikać|klika|klikasz|klikam|klikając){{S}}na)(?={{S}}(?:{{UI_TARGET}}){{E}})"
-        fixer: styleKliknij
+        return: 'target.replace(/[ \t ]+na$/iu, "")'
   - id: pl.officialese
     checks: [stylePhrasing]
     style: polish
@@ -2594,12 +2771,17 @@ rules:
       # "prze" alone is only the verb "przeć" (push on), which takes no adjective and no "siebie":
       # "prze piękny" -> "przepiękny", "prze siebie" -> "przed siebie", "prze ze mnie" -> "przeze".
       - regex: "(?<target>prze{{S}}(?<word>\\p{L}{3,})){{E}}"
-        fixer: typosPrze
+        let:
+          adjective: plAdjectiveOf(word)
+        when: word === word.toLowerCase()
+        return: >-
+          word === "siebie" ? ["przed siebie", "przez siebie"] : word === "zemnie" ? "przeze mnie"
+          : adjective && !plAmbiguousAdjective(word) && adjective.ending !== "ą" ? "prze" + word : null
       - regex: "(?<target>prze{{S}}ze)(?={{S}}mnie{{E}})"
         fix: "przeze"
       # "wzdłuż polnej drużki" -> "dróżki": a path ("dróżka"), not a bridesmaid ("drużka").
       - regex: "(?=drużk)(?<=(?:^|[^\\p{L}])(?:wzdłuż|poln|leśn|wąsk|błotnist|kamienist|kręt|piaszczyst|wydeptan|górsk)\\p{L}{0,3}{{S}})(?<target>drużk(?<end>a|i|ę|ą|ce|ami|om|ach)){{E}}"
-        fixer: typosDrużk
+        return: '"dróżk" + end'
       # "dwóch wierz", "oprócz wierz" -> "wież": the genitive plural of "wieża", not "wierz" (believe).
       - regex: "(?=wierz)(?<=(?:^|[^\\p{L}])(?:dwóch|dwu|trzech|czterech|pięciu|sześciu|kilku|kilkunastu|kilkudziesięciu|wielu|paru|oprócz|spośród|wśród){{S}})(?<target>wierz){{E}}"
         fix: "wież"
@@ -2611,13 +2793,13 @@ rules:
         fix: "niż"
       # "Skłam serdeczne życzenia" -> "Składam".
       - regex: "(?<target>skłamy?)(?=(?:{{S}}\\p{L}{3,20}(?:e|ie)){1,2}{{S}}życzenia{{E}})"
-        fixer: typosSkłamy
+        return: 'target.length === 6 ? "składamy" : "składam"'
       # "tam i z potworem" -> "tam i z powrotem".
       - regex: "(?<target>potworem)(?<=(?:^|[^\\p{L}])(?:tam|tu|do{{S}}\\p{L}{2,20}(?:{{S}}\\p{L}{2,20})?){{S}}i{{S}}z{{S}}potworem){{CLAUSE_END}}"
         fix: "powrotem"
       # "podlegać ocenie" (dative); "podlać" waters something.
       - regex: "(?<target>podleją|podleje)(?={{S}}(?:ocenie|kontroli|opodatkowaniu|zmianie|zmianom|karze|regulacji|ochronie|przepisom|ustawie|weryfikacji|likwidacji|wymianie){{E}})|(?<=(?:^|[^\\p{L}])(?:temu|czemu){{S}})(?<target>podleją|podleje){{E}}"
-        fixer: typosPodleją
+        return: 'target.toLowerCase() === "podleją" ? "podlegają" : "podlega"'
       # "nie mieć nic wspólnego": "noc" (night) is a slip.
       - regex: "(?<target>noc)(?={{S}}wspólnego(?:{{S}}z{{E}}|[ \\t\\u00a0]*[.!?,;]))"
         fix: "nic"
@@ -2632,10 +2814,10 @@ rules:
         fix: "stóp"
       # "coraz lepie", "jeszcze wyże": a comparative adverb that lost its "-j".
       - regex: "(?<target>lepie|wyże|niże|gorze|bliże|częście|szybcie|dłuże){{E}}(?<=(?:^|[^\\p{L}])(?:coraz|jeszcze|znacznie|dużo|nieco|trochę|zdecydowanie|wiele|daleko){{S}}\\p{L}{4,7})"
-        fixer: typosLepie
+        return: target + "j"
       # "coraz skutecznej." -> "skuteczniej": after "coraz", a clause-final word is an adverb.
       - regex: "(?<target>\\p{L}{2,20}nej){{CLAUSE_END}}(?<=(?:^|[^\\p{L}])coraz{{S}}\\p{L}{5,23})"
-        fixer: typosP
+        return: target.slice(0, -3) + "niej"
       # "w przededniu wyborów" is the only use of "przededniu" (with a genitive after it).
       - regex: "(?<!(?:^|[^\\p{L}])(?:w|jej|jego|ich|tego|tym|swoim|owym){{S}})(?<target>przededniu)(?={{S}}(?:\\p{L}{1,20}(?:ów|ych|ich|ego|ej|y|i|a|u)|świąt){{E}})"
         fix: "w przededniu"
@@ -2648,19 +2830,19 @@ rules:
       # "Nagroda Główna", "Dworzec Główny": the capital names the institution.
       - regex: "(?<=(?:^|[^\\p{L}])(?:Nagroda|Nagrodę|Nagrody|Nagrodą|Komenda|Komendy|Komendzie|Komendę|Biblioteka|Biblioteki|Bibliotece|Księgowa|Księgowej|Kwatera|Kwatery|Rada|Rady|Radzie|Poczta|Poczty|Poczcie|Dworzec|Dworca|Dworcu|Urząd|Urzędu|Urzędzie|Inspektorat|Inspektoratu|Sztab|Sztabu|Rynek|Rynku){{S}})(?<target>Gówn(?:a|ej|ą|ę|y|ego|ym|emu)){{E}}"
         verbatim: true
-        fixer: typosGówn
+        return: '/^G/u.test(target) ? "Główn" + target.slice(4) : null'
       # "ogólne informacje": "w ogóle" keeps "ogóle".
       - regex: "(?<!(?:^|[^\\p{L}])(?:w|we){{S}})(?<target>ogóle)(?={{S}}(?:informacje|zasady|warunki|przepisy|uwagi|wiadomości|pojęcia|wytyczne|założenia|dane|kryteria|cechy|wymagania|postanowienia){{E}})"
         fix: "ogólne"
       # "jedna rzecz": lowercase "jena" is no word ("Jena" is a town).
       - regex: "(?<target>jena)(?={{S}}(?:rzecz|osoba|sprawa|strona|część|kobieta|noc|chwila|godzina|minuta|książka|odpowiedź|myśl|droga|szansa|z){{E}})"
-        fixer: typosJena
+        return: '/^\p{Lu}/u.test(target) ? null : "jedna"'
       # "o tej porze": "potrze" is a verb ("rub").
       - regex: "(?<=(?:^|[^\\p{L}])(?:o|tej|każdej|dowolnej|późnej|wczesnej|nocnej|samej|innej|jakiej){{S}})(?<target>potrze){{E}}"
         fix: "porze"
       # "popełnić literówkę": "litrówka" is a litre bottle.
       - regex: "(?<target>litrówk\\p{L}{0,3})(?<=(?:^|[^\\p{L}])popełni\\p{L}{0,6}{{S}}(?:\\p{L}{2,12}{{S}})?litrówk\\p{L}{0,3}){{E}}"
-        fixer: typosLitrówk
+        return: '"literówk" + target.slice(7)'
       # "boja się o" (a buoy) -> "boję się", "boją się".
       - regex: "(?<!(?:^|[^\\p{L}])(?:nie|się){{S}})(?<target>boja)(?={{S}}się(?:{{S}}(?:o|że|tego|go|jej|ich|mnie|ciebie|was|nas|ją|ludzi){{E}}|,{{S}}że{{E}}))"
         fix: ["boję", "boją"]
@@ -2669,15 +2851,15 @@ rules:
         fix: "lubią"
       # A nursery is "żłobek" ("żłobka"); the crib in Bethlehem is "żłóbek".
       - regex: "(?<target>żłóbk(?:a|u|iem|i|ach|ów))(?={{S}}(?:przyzakładow|miejsk|publiczn|prywatn|gminn|integracyjn|państwow)\\p{L}{1,4}{{E}})"
-        fixer: typosŻłóbk
+        return: '"żłobk" + target.slice(5)'
       - regex: "(?<target>żłobk(?:a|u|iem|ach))(?={{S}}betlejemsk\\p{L}{1,4}{{E}})"
-        fixer: typosŻłobk
+        return: '"żłóbk" + target.slice(5)'
       # "zmysł wzroku": "wzorek" is a pattern.
       - regex: "(?<target>wzorku){{E}}(?<=(?:^|[^\\p{L}])(?:zmysł\\p{L}{0,3}|narząd\\p{L}{0,3}|ostrość|ostrości|utrat\\p{L}{1,2}|zaburzeni\\p{L}{1,3}|badani\\p{L}{1,3}|kontakt\\p{L}{0,3}){{S}}wzorku)"
         fix: "wzroku"
       # "przedstawić zarzuty": "przestawić" moves something.
       - regex: "(?<target>przestawi(?:ono|ł|ła|li|ć|a|ają|any|ane|one))(?=(?:{{S}}\\p{L}{2,15}){0,2}{{S}}zarzut\\p{L}{0,3}{{E}})|(?<target>przestawi(?:ono|ł|ła|li)){{E}}(?<=(?:^|[^\\p{L}])zarzut\\p{L}{0,3}(?:{{S}}\\p{L}{2,15})?{{S}}przestawi\\p{L}{1,3})"
-        fixer: typosPrzestawi
+        return: '"przed" + target.slice(4)'
       # "podrapał si po głowie" -> "się" after a past form or an infinitive.
       - regex: "(?<target>si)(?={{S}}(?!(?:bemol|dur|moll|krzyżyk){{E}})\\p{L}|[ \\t\\u00a0]*[.,!?;])(?<=(?:^|[^\\p{L}])\\p{L}{2,20}(?:ł|ła|ło|li|ły|ać|ić|yć|eć|ąć){{S}}si)"
         fix: "się"
@@ -2686,31 +2868,31 @@ rules:
         fix: "naprawdę"
       # "To mój prezent dal niego" -> "dla"; "w dal" is "into the distance".
       - regex: "(?<!(?:^|[^\\p{L}])w{{S}})(?<target>dal)(?={{S}}(?:niego|niej|nich|ciebie|siebie|nas|was|mnie|mamy|taty|dzieci){{E}})"
-        fixer: typosDal
+        return: '/^\p{Lu}/u.test(target) ? null : "dla"'
       # "ściśle określone": the adverb, not the adjective "ścisły".
       - regex: "(?<target>ścisł(?:e|y|a|ą|ym|ego|ej|i))(?={{S}}(?:określon|związan|ustalon|zdefiniowan|wyznaczon|ograniczon|przestrzegan|regulowan|kontrolowan|tajn)\\p{L}{1,3}{{E}})"
         fix: "ściśle"
       # "różnych": "rożny" is the corner of a pitch ("rzut rożny").
       - regex: "(?<!(?:^|[^\\p{L}])(?:rzut\\p{L}{0,3}|róg|rogu|kąt\\p{L}{0,3}|chorągiew\\p{L}{0,3}|chorągiewk\\p{L}{0,3}){{S}})(?<target>rożn(?:ych|ymi|ego|ej|ym))(?={{S}}(?!rzut)\\p{L})"
-        fixer: typosRożn
+        return: '"różn" + target.slice(4)'
       # "stała się gwiazdą": "stałą" is an adjective form, not the past verb.
       - regex: "(?<target>(?:stał|okazał|wydawał|zdawał)ą)(?={{S}}się{{S}}\\p{L}{2,20}(?:ą|em|ym|im|ami){{E}})"
-        fixer: typosStał
+        return: target.slice(0, -1) + "a"
       # "Wiśniewski, alei" after "nie tylko": "ale i".
       - regex: "(?<target>alei)(?<=nie{{S}}tylko[^.!?]{1,80},{{S}}alei)(?={{S}}\\p{L})"
         fix: "ale i"
       # "Ta strona zawiera informacje": "zwierać" clenches.
       - regex: "(?<target>zwiera(?:ją|ł|ła|ło|ły)?)(?=(?:{{S}}\\p{L}{2,15})?{{S}}(?:informacj\\p{L}{1,3}|dane|danych|treść|treści|tekst|opis|opisy|listę|wykaz|zbiór|instrukcj\\p{L}{1,3}|przepisy|zapisy){{E}})"
-        fixer: typosZwiera
+        return: '"zawiera" + target.slice(6)'
       # "miał zamiar": "miął" crumples.
       - regex: "(?<target>miął)(?={{S}}(?:zamiar|ochotę|nadzieję|rację|okazję|czas|problem|pecha|szczęście|być){{E}})"
         fix: "miał"
       # "nadstawiać karku": "nastawiać" sets something.
       - regex: "(?<target>nastawi\\p{L}{0,5})(?=(?:{{S}}\\p{L}{2,12}){0,3}{{S}}(?:karku|głowy|ucha|uszu){{E}})"
-        fixer: typosNastawi
+        return: '"nad" + target.slice(2)'
       # "wysoką rangę": the English "range" after a Polish adjective.
       - regex: "(?<target>range){{E}}(?<=\\p{L}{2,20}ą{{S}}range)"
-        fixer: typosRange
+        return: '/^\p{Lu}/u.test(target) ? null : "rangę"'
       # "znaczną część": "znaczą" is a verb ("they mean").
       - regex: "(?<target>znaczą)(?={{S}}(?:część|ilość|większość|liczbę|kwotę|sumę|poprawę|przewagę){{E}})"
         fix: "znaczną"
@@ -2728,16 +2910,16 @@ rules:
         fix: "nich"
       # "pozwala sobie": "pozawalać" knocks things down.
       - regex: "(?<target>pozawal\\p{L}{1,5})(?={{S}}(?:sobie|mu|jej|im|nam|wam|mi|ci|na|to{{S}}na){{E}})"
-        fixer: typosPozawal
+        return: '"pozwal" + target.slice(7)'
       # "startować w wyborach": "stratować" tramples.
       - regex: "(?<target>stratow\\p{L}{1,5})(?={{S}}w{{S}}(?:wyborach|igrzyskach|zawodach|konkursie|maratonie|wyścigu|turnieju|mistrzostwach|olimpiadzie|plebiscycie){{E}})"
-        fixer: typosStratow
+        return: '"start" + target.slice(5)'
       # "ponieść straty": "starty" are starts.
       - regex: "(?<target>starty){{E}}(?<=(?:^|[^\\p{L}])(?:poni\\p{L}{1,5}|ponosi\\p{L}{0,3}|odrabia\\p{L}{0,3}|odrobi\\p{L}{0,3}|wyrówna\\p{L}{0,3})(?:{{S}}\\p{L}{2,15})?{{S}}starty)"
         fix: "straty"
       # "z naprzeciwka", "z przeciwka": the words exist only after "z".
       - regex: "(?<!(?:^|[^\\p{L}])(?:z|na|zna){{S}})(?<target>naprzeciwka|przeciwka){{E}}"
-        fixer: typosNaprzeciwka
+        return: '"z " + target'
       # "na czele": "czele" lives only in the phrase.
       - regex: "(?<!(?:^|[^\\p{L}])(?:na|w)(?:{{S}}\\p{L}{1,15}){0,2}{{S}})(?<target>czele){{E}}"
         fix: "na czele"
@@ -2756,19 +2938,19 @@ rules:
         fix: "dała"
       # "odgrywać rolę": "ogrywać" beats someone at a game.
       - regex: "(?<target>ogrywa\\p{L}{0,4})(?=(?:{{S}}\\p{L}{2,12}){0,2}{{S}}rol(?:ę|i){{E}})"
-        fixer: typosOgrywa
+        return: '"od" + target.slice(1)'
       # "w swoim dorobku": "sowim" is an owl's.
       - regex: "(?<target>sow(?:im|ich|imi|ej|ą|ego))(?={{S}}(?:dorobku|książkach|książce|życiu|domu|pokoju|mieszkaniu|pracy|kraju|imieniu|zdaniu|rodzinie|dzieciach|rodzicach){{E}})"
-        fixer: typosSow
+        return: '"swo" + target.slice(3)'
       # "do zrobienia": a verbal noun after "do", not the virile participle.
       - regex: "(?<=(?:^|[^\\p{L}])do{{S}})(?<target>\\p{L}{3,20}(?:eni|ani|ęci)){{CLAUSE_END}}"
-        fixer: typosP2
+        return: '/^\p{Lu}/u.test(target) ? null : target + "a"'
       # "w lutym 2015": "lity" means solid.
       - regex: "(?<target>lit(?:y|ego|ym))(?={{S}}\\d{4}{{E}})"
-        fixer: typosLit
+        return: '"lut" + target.slice(3)'
       # "policyjne statystyki": "statystki" are film extras.
       - regex: "(?<target>statystk(?:i|ach|ami|om)?){{E}}(?<=(?:(?:policyjn|oficjaln|najnowsz|rządow|szpitaln|medyczn|demograficzn|krajow|światow|unijn)\\p{L}{1,3}|według){{S}}statystk\\p{L}{0,3})"
-        fixer: typosStatystk
+        return: '"statystyk" + target.slice(8)'
       # "Chodzi o to, że": "ty" after "o" before a clause.
       - regex: "(?<=(?:^|[^\\p{L}])o{{S}})(?<target>ty)(?=,{{S}}(?:że|żeby|aby|by){{E}})"
         fix: ["to", "tym"]
@@ -2784,43 +2966,181 @@ rules:
         fix: ["Latem", "W lecie"]
       # "inny niż": "jak" compares like things ("nikt inny jak" keeps it).
       - regex: "(?<!(?:^|[^\\p{L}])(?:nikt|nic|ktoś|coś|kto|co|któż|cóż|nikogo|niczego|nikomu|niczym|nikim){{S}})(?<target>inn(?:y|a|e|i|ego|ej|emu|ą|ym|ych|ymi){{S}}jak)(?={{S}}(?!nie{{E}})\\p{L})"
-        fixer: typosInn
+        return: 'target.replace(/jak$/iu, "niż")'
   # Real-word slips: a lost or doubled small word, or a word that only its look-alike fits here.
   - id: pl.typos
     checks: [englishPhraseCorrections]
     style: match
     message: review_msg_contextual_grammar
+    sets:
+      # A second preposition that opens a set adverbial phrase ("do w pełni", "z na wpół").
+      TYPO_ADVERBIAL:
+        [
+          w|pełni,
+          w|miarę,
+          w|ogóle,
+          w|sumie,
+          w|całości,
+          w|zasadzie,
+          w|końcu,
+          w|dodatku,
+          w|praktyce,
+          w|razie,
+          w|przybliżeniu,
+          w|szczególności,
+          w|pół,
+          na|pewno,
+          na|razie,
+          na|nowo,
+          na|przykład,
+          na|wpół,
+          na|zawsze,
+          na|bieżąco,
+          na|tyle,
+          na|co,
+          na|ogół,
+          na|pół,
+          na|raz,
+          na|przemian,
+          z|grubsza,
+          z|daleka,
+          z|bliska,
+          z|osobna,
+          z|powrotem,
+          z|góry,
+          z|dołu,
+          z|przodu,
+          z|tyłu,
+          z|boku,
+          z|rzędu,
+          z|zewnątrz,
+          z|wewnątrz,
+          od|razu,
+          od|nowa,
+          od|dawna,
+          od|zaraz,
+          od|teraz,
+          od|dziś,
+          od|zawsze,
+          od|czasu,
+          od|tyłu,
+          od|przodu,
+          od|środka,
+          do|końca,
+          do|dziś,
+          do|tyłu,
+          do|przodu,
+          do|góry,
+          do|dołu,
+          do|środka,
+          do|teraz,
+          do|zobaczenia,
+          do|widzenia,
+          do|niedawna,
+        ]
+      TYPO_NOT_A_VERB:
+        [
+          to,
+          nie,
+          tak,
+          już,
+          teraz,
+          tu,
+          tam,
+          i,
+          a,
+          że,
+          by,
+          jak,
+          gdy,
+          co,
+          też,
+          tylko,
+          bardzo,
+          trochę,
+          wtedy,
+          znowu,
+        ]
+    defs:
+      TYPO_NEGATION: '/(?:^|[^\p{L}])(?:nie\p{L}*|ani|nikt|nic|niczego|nikogo|żaden|żadna|żadne|żadnego|żadnej|nigdy|nigdzie|bez)(?![\p{L}])/iu'
+      # A slip on `start`-`end` and its fix in the typed case; none on a user's word.
+      typoSlip:
+        args: "ctx: DetectContext, start: number, end: number, fix: string"
+        let:
+          typed: ctx.source.slice(start, end)
+        when: "!plUserOrNamed(ctx, typed)"
+        return: plFindingAt(ctx, start, end, [plCaseLike(typed, fix)], "englishPhraseCorrections", "review_msg_contextual_grammar")
     frames:
       # A preposition straight before an infinitive or an adverbial participle.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prep>na|do|od|dla|bez|przez|przy|u|z|ze|w|we|o){{S}}(?<verb>\\p{Ll}{3,}(?:ać|eć|ić|yć|ąć|uć|ąc)){{NO_LETTER_AFTER}}"
         scan: polish
         flags: gu
-        fixer: prepositionVerb
+        when: "!(plNounTags(verb) || /(?:siąc|zając)$/u.test(verb))"
+        return: typoSlip(ctx, m.index, m.index + m[0].length, verb)
       # "cale życie": "cale" (inches) before a neuter noun is "całe".
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<target>cale){{S}}(?<noun>\\p{L}{3,20}){{NO_LETTER_AFTER}}"
         scan: polish
         flags: giu
-        fixer: inchesCale
+        let:
+          tags: plNounTags(noun)
+        when:
+          - plOnlyNoun(tags) && tagsAnd(tags, PL_NEUTER) !== 0 && tagsAnd(tags, plCases("Ns As")) !== 0
+          - '!(/^\p{Lu}/u.test(target) && !plSentenceStart(ctx.text, m.index))'
+        return: typoSlip(ctx, m.index, m.index + 4, "całe")
       # "bać" is always reflexive: a form with no "się" in its clause.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>bał|bała|bało|bały|bałem|bałam|bałeś|bałaś|baliśmy|bałyśmy|boi|boję|boisz|boimy|boicie|bać){{NO_LETTER_AFTER}}"
         scan: polish
         flags: giu
-        fixer: afraidSie
+        let:
+          start: m.index
+          end: start + m[0].length
+          before: ctx.text.slice(Math.max(0, start - 48), start)
+          after: ctx.text.slice(end, end + 40)
+          clauseBefore: 'before.slice(before.search(/[^.!?;:,\n]*$/u))'
+          clauseAfter: 'after.slice(0, (after.search(/[.!?;:,\n]/u) + 1 || after.length + 1) - 1)'
+        when:
+          - '!/(?:^|[^\p{L}])się(?![\p{L}])/iu.test(clauseBefore + " " + clauseAfter)'
+          # "za boją", "o boi": the noun "boja".
+          - '!/(?:^|[^\p{L}])(?:z|za|przed|nad|pod|między|o|na|przy|po|w|we)[ \t ]+$/iu.test(before)'
+        return: typoSlip(ctx, start, end, verb + " się")
       # "się bał się": one "się" serves the verb.
       - regex: "(?<![\\p{L}\\p{N}_'’-])się{{S}}(?<verb>\\p{L}{2,20})(?<gap>{{S}})się{{NO_LETTER_AFTER}}"
         scan: polish
         flags: giu
-        fixer: twoSie
+        let:
+          lowerVerb: verb.toLowerCase()
+          start: m.index + m[0].indexOf(verb, 3)
+        when:
+          - "!TYPO_NOT_A_VERB.has(lowerVerb)"
+          - plFiniteVerb(lowerVerb) || plListedVerb(lowerVerb) || plPastByShape(lowerVerb)
+        return: typoSlip(ctx, start, m.index + m[0].length, verb)
       # Two prepositions in a row ("mieszkam w z Warszawie"): one of them is a slip.
       - regex: "(?<![\\p{L}\\p{N}_'’/.-])(?<first>[wW]|[dD]o|[zZ]|[nN]a|[oO]d){{S}}(?<second>na|z|od|do|w){{S}}(?<next>\\p{L}+){{NO_LETTER_AFTER}}"
         scan: polish
         flags: gu
-        fixer: twoPrepositions
+        let:
+          tail: m.index + m[0].length
+          after: '/^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(tail, tail + 40))?.[1] ?? ""'
+          noun: next.toLowerCase()
+          typed: ctx.source.slice(m.index, m.index + m[0].length - next.length).trimEnd()
+        when:
+          - '!(first.toLowerCase() === second || TYPO_ADVERBIAL.has(second + "|" + next))'
+          # "w od lat zamkniętym domu": the second preposition opens a phrase inside a noun phrase.
+          - (plOnlyNoun(plNounTags(noun)) || plPlaceForm(noun)) && !plAdjectiveOf(after.toLowerCase())
+          - "!plUserOrNamed(ctx, typed)"
+        return: >-
+          plFindingAt(ctx, m.index, m.index + typed.length, [first, plCaseLike(first, second)],
+          "englishPhraseCorrections", "review_msg_contextual_grammar")
       # "bynajmniej" strengthens a denial; with none in its sentence "przynajmniej" was meant.
       - regex: "(?<![\\p{L}])bynajmniej(?={{S}}\\p{L})"
         scan: polish
         flags: giu
-        fixer: atLeast
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 160), m.index)
+          after: ctx.text.slice(m.index, m.index + 160)
+          sentence: 'before.slice(before.search(/[^.!?\n]*$/u)) + after.split(/[.!?\n]/u)[0]'
+        when: "!TYPO_NEGATION.test(sentence)"
+        return: typoSlip(ctx, m.index, m.index + m[0].length, "przynajmniej")
   # A sentence that is only an adverbial participle phrase: "Przechodząc obok sklepu." No verb
   # stands outside its subordinate clauses. Opt-in: notes and headings can be fragments on purpose.
   - id: pl.fragments
