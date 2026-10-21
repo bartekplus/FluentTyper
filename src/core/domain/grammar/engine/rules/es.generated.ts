@@ -13,7 +13,9 @@ import type {
 } from "../../library";
 import {
   ES_CLITICS,
+  ES_CONJUNCTIONS,
   ES_DETERMINER,
+  ES_DETERMINERS,
   ES_NOUN_ENDING,
   ES_PRENOMINAL,
   ES_PREPOSITIONS,
@@ -27,6 +29,7 @@ import {
   esIsInfinitive,
   esIsNoun,
   esKeepsTyped,
+  esParticiple,
   esPlain,
   esReadNoun,
   esReplaceToken,
@@ -209,6 +212,236 @@ export const ES_ASKING_NOUNS: ReadonlySet<string> = new Set([
   "idea",
   "misterio",
   "incógnita",
+]);
+
+export const ES_NOT_CONNECTOR_AFTER: ReadonlySet<string> = new Set([
+  "de",
+  "del",
+  "que",
+  "a",
+  "al",
+  "y",
+  "e",
+  "o",
+  "u",
+  "como",
+]);
+
+export const ES_CLOSING_GREETINGS: ReadonlySet<string> = new Set([
+  "días",
+  "día",
+  "tardes",
+  "noches",
+]);
+
+export const ES_CLAUSE_OPENERS: ReadonlySet<string> = new Set([
+  "cómo",
+  "como",
+  "qué",
+  "que",
+  "dónde",
+  "donde",
+  "cuándo",
+  "cuando",
+  "quién",
+  "quien",
+  "cuál",
+  "te",
+  "me",
+  "os",
+  "nos",
+  "le",
+  "les",
+  "ya",
+  "hoy",
+]);
+
+export const ES_ADDRESSED: ReadonlySet<string> = new Set([
+  "amigo",
+  "amiga",
+  "amigos",
+  "amigas",
+  "chico",
+  "chica",
+  "chicos",
+  "chicas",
+  "guapo",
+  "guapa",
+  "guapos",
+  "guapas",
+  "cariño",
+  "querido",
+  "querida",
+  "queridos",
+  "queridas",
+  "señor",
+  "señora",
+  "señores",
+  "señoras",
+  "señorita",
+  "jefe",
+  "jefa",
+  "compañero",
+  "compañera",
+  "compañeros",
+  "compañeras",
+  "hermano",
+  "hermana",
+  "tío",
+  "tía",
+  "mamá",
+  "papá",
+  "abuelo",
+  "abuela",
+  "hijo",
+  "hija",
+  "niños",
+  "niñas",
+  "estimado",
+  "estimada",
+  "estimados",
+  "estimadas",
+  "colega",
+  "colegas",
+  "preciosa",
+  "precioso",
+  "amor",
+  "cielo",
+  "vecino",
+  "vecina",
+  "vecinos",
+  "chaval",
+  "chavales",
+  "muchachos",
+  "muchachas",
+  "gente",
+  "familia",
+  "equipo",
+]);
+
+export const ES_NEGATIONS: ReadonlySet<string> = new Set(["no", "nunca", "jamás", "tampoco", "ni"]);
+
+export const ES_EXCEPTIVE: ReadonlySet<string> = new Set([
+  "nadie",
+  "nada",
+  "ningún",
+  "ninguna",
+  "ninguno",
+  "otro",
+  "otra",
+  "otros",
+  "otras",
+  "más",
+  "menos",
+  "cosa",
+]);
+
+export const ES_COMMON_FINITE: ReadonlySet<string> = new Set([
+  "es",
+  "son",
+  "era",
+  "eran",
+  "fue",
+  "fueron",
+  "ha",
+  "han",
+  "va",
+  "van",
+  "da",
+  "dan",
+  "ve",
+  "ven",
+  "hay",
+]);
+
+export const ES_SUBJECT_DETERMINERS: ReadonlySet<string> = new Set([
+  "el",
+  "la",
+  "los",
+  "las",
+  "este",
+  "esta",
+  "estos",
+  "estas",
+  "ese",
+  "esa",
+  "esos",
+  "esas",
+  "aquel",
+  "aquella",
+  "aquellos",
+  "aquellas",
+  "nuestro",
+  "nuestra",
+  "nuestros",
+  "nuestras",
+  "su",
+  "sus",
+]);
+
+export const ES_NOT_SUBJECT_NOUNS: ReadonlySet<string> = new Set([
+  "verdad",
+  "semana",
+  "semanas",
+  "año",
+  "años",
+  "mes",
+  "meses",
+  "día",
+  "días",
+  "tarde",
+  "tardes",
+  "noche",
+  "noches",
+  "mañana",
+  "mañanas",
+  "vez",
+  "veces",
+  "momento",
+  "rato",
+  "verano",
+  "invierno",
+  "otoño",
+  "primavera",
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+  "sábados",
+  "domingo",
+  "domingos",
+  "fin",
+  "principio",
+  "final",
+  "mayoría",
+  "mitad",
+  "resto",
+]);
+
+export const ES_SINGULAR_COPULA: ReadonlySet<string> = new Set([
+  "es",
+  "está",
+  "era",
+  "estaba",
+  "fue",
+  "será",
+  "ha",
+  "va",
+  "tiene",
+]);
+
+export const ES_PLURAL_COPULA: ReadonlySet<string> = new Set([
+  "son",
+  "están",
+  "eran",
+  "estaban",
+  "fueron",
+  "serán",
+  "han",
+  "van",
+  "tienen",
 ]);
 
 // es.yaml def esFinding
@@ -482,6 +715,267 @@ export function esSino(tokens: SpanishTokens, i: number) {
   return tokens[i].lower === "sino" ? esSinoWord(tokens, i, at) : esSiNo(tokens, i, at);
 }
 
+// es.yaml rule es.commas def ES_CONNECTORS
+export const ES_CONNECTORS = [
+  "sin embargo",
+  "por lo tanto",
+  "por tanto",
+  "por consiguiente",
+  "por ende",
+  "en consecuencia",
+  "en cambio",
+  "por el contrario",
+  "al contrario",
+  "por otro lado",
+  "por otra parte",
+  "por un lado",
+  "por una parte",
+  "además",
+  "asimismo",
+  "así pues",
+  "en primer lugar",
+  "en segundo lugar",
+  "en tercer lugar",
+  "por último",
+  "en conclusión",
+  "en resumen",
+  "en definitiva",
+  "en efecto",
+  "es decir",
+  "o sea",
+  "de hecho",
+  "por cierto",
+  "en fin",
+  "aun así",
+  "de todos modos",
+  "de todas formas",
+  "afortunadamente",
+  "desafortunadamente",
+  "desgraciadamente",
+  "lamentablemente",
+  "evidentemente",
+  "obviamente",
+  "efectivamente",
+  "sinceramente",
+  "francamente",
+  "honestamente",
+  "curiosamente",
+  "sorprendentemente",
+  "indudablemente",
+].map((phrase) => phrase.split(" "));
+
+// es.yaml rule es.commas def ES_GREETINGS
+export const ES_GREETINGS = [
+  "hola",
+  "adiós",
+  "buenos días",
+  "buenas tardes",
+  "buenas noches",
+  "felicidades",
+  "enhorabuena",
+  "hasta luego",
+  "hasta pronto",
+  "felices fiestas",
+  "muchos besos",
+  "muy buen día",
+  "buen día",
+  "buenas",
+  "un beso",
+  "un abrazo",
+  "besos",
+  "abrazos",
+  "muchas gracias",
+  "gracias",
+  "saludos",
+  "bienvenido",
+  "bienvenida",
+  "bienvenidos",
+  "bienvenidas",
+  "a sus órdenes",
+  "feliz cumpleaños",
+  "feliz navidad",
+  "cómo estás",
+  "cómo estáis",
+].map((phrase) => phrase.split(" "));
+
+// es.yaml rule es.commas def esSinoNegated
+export function esSinoNegated(at: SpanishAround, k: number, between: number): boolean {
+  if (!(k <= 12)) return false;
+  const word = at.prev(k);
+  if (!(word && !ES_EXCEPTIVE.has(word))) return false;
+  return ES_NEGATIONS.has(word)
+    ? between >= 2
+    : esSinoNegated(at, k + 1, between + (ES_CLITICS.has(word) ? 0 : 1));
+}
+
+// es.yaml rule es.commas def esCommaBeforeSino
+export function esCommaBeforeSino(tokens: SpanishTokens, i: number) {
+  if (!(tokens[i].lower === "sino" && !!tokens[i - 1]?.word && !tokens[i].broken)) return false;
+  if (!(esAround(tokens, i).next() === "que")) return false;
+  return esSinoNegated(esAround(tokens, i), 1, 0);
+}
+
+// es.yaml rule es.commas def esClauseVerb
+export function esClauseVerb(word: string) {
+  return (
+    ES_COMMON_FINITE.has(word) ||
+    (!!word &&
+      esFiniteVerb(word) &&
+      !esIsNoun(word) &&
+      !esGenderedForm(word) &&
+      !esParticiple(word))
+  );
+}
+
+// es.yaml rule es.commas def esClauseVerbBefore
+export function esClauseVerbBefore(at: SpanishAround, back: number, last: number): boolean {
+  return back > last || !at.prev(back)
+    ? false
+    : esClauseVerb(at.prev(back))
+      ? true
+      : esClauseVerbBefore(at, back + 1, last);
+}
+
+// es.yaml rule es.commas def esPastClitics
+export function esPastClitics(at: SpanishAround, k: number): number {
+  return k < 5 && ES_CLITICS.has(at.next(k)) ? esPastClitics(at, k + 1) : k;
+}
+
+// es.yaml rule es.commas def esCommaBeforePero
+export function esCommaBeforePero(tokens: SpanishTokens, i: number) {
+  if (!(tokens[i].lower === "pero" && !!tokens[i - 1]?.word && !tokens[i].broken)) return false;
+  const at = esAround(tokens, i);
+  const k = at.next(1) === "ya" ? 2 : 1;
+  if (!ES_NEGATIONS.has(at.next(k))) return false;
+  if (!esClauseVerb(at.next(esPastClitics(at, k + 1)))) return false;
+  return esClauseVerbBefore(at, 1, 10);
+}
+
+// es.yaml rule es.commas def esCommaBeforeCausal
+export function esCommaBeforeCausal(tokens: SpanishTokens, i: number) {
+  if (!(/^(?:ya|puesto)$/u.test(tokens[i].lower) && !tokens[i].broken)) return false;
+  const at = esAround(tokens, i);
+  if (!(at.next() === "que" && !!at.next(2))) return false;
+  const before = at.prev();
+  if (!(
+    before &&
+    !ES_CLITICS.has(before) &&
+    !ES_NEGATIONS.has(before) &&
+    !ES_CONJUNCTIONS.has(before)
+  ))
+    return false;
+  if (
+    ES_DETERMINERS.has(before) ||
+    esClauseVerb(before) ||
+    esParticiple(before) ||
+    esIsInfinitive(before)
+  )
+    return false;
+  if (
+    tokens[i].lower === "puesto" &&
+    (ES_DETERMINERS.has(at.prev(2)) || /^(?:al|del)$/u.test(at.prev(2)))
+  )
+    return false;
+  return esClauseVerbBefore(at, 2, 10);
+}
+
+// es.yaml rule es.commas def esMarkSoon
+export function esMarkSoon(tokens: SpanishTokens, k: number, end: number): boolean {
+  return k < end && tokens[k] && !tokens[k].broken
+    ? /^[,;:—–()]$/u.test(tokens[k].text) || esMarkSoon(tokens, k + 1, end)
+    : false;
+}
+
+// es.yaml rule es.commas def esSubjectComma
+export function esSubjectComma(tokens: SpanishTokens, i: number) {
+  if (!(ES_SUBJECT_DETERMINERS.has(tokens[i].lower) && esAround(tokens, i).starts)) return -1;
+  if (/^[¿¡]$/u.test(tokens[i - 1]?.text ?? "")) return -1;
+  const nounToken = tokens[i + 1];
+  const pronoun = /^(?:estos|estas|esos|esas|aquellos|aquellas)$/u.test(tokens[i].lower);
+  const noun =
+    pronoun && nounToken?.text === ","
+      ? { plural: true }
+      : nounToken?.word && !nounToken.broken
+        ? esReadNoun(nounToken.lower)
+        : null;
+  if (!(noun && !ES_NOT_SUBJECT_NOUNS.has(nounToken.lower))) return -1;
+  const after = nounToken.text === "," ? i + 1 : i + 2;
+  const adjective = tokens[after];
+  const comma =
+    after === i + 2 && adjective?.word && !adjective.broken && !esFiniteVerb(adjective.lower)
+      ? after + 1
+      : after;
+  if (!(tokens[comma]?.text === "," && !tokens[comma].broken)) return -1;
+  const lead = /^(?:no|se)$/u.test(tokens[comma + 1]?.lower ?? "") ? 1 : 0;
+  const verb = tokens[comma + 1 + lead];
+  if (!(verb?.word && !verb.broken && !/^\p{Lu}/u.test(tokens[comma + 1].text))) return -1;
+  const word = verb.lower;
+  const plural = ES_PLURAL_COPULA.has(word)
+    ? true
+    : ES_SINGULAR_COPULA.has(word)
+      ? false
+      : !/(?:n|[aeó])$/u.test(word) ||
+          !esFiniteVerb(word) ||
+          esIsNoun(word) ||
+          esAttributeOf(word) ||
+          esSubjunctiveLike(word) ||
+          ES_CLITICS.has(word)
+        ? null
+        : word.endsWith("n");
+  if (!(plural === noun.plural)) return -1;
+  if (esMarkSoon(tokens, comma + 2, comma + 7)) return -1;
+  return comma;
+}
+
+// es.yaml rule es.commas def esPhraseAt
+export function esPhraseAt(tokens: SpanishTokens, i: number, phrase: readonly string[]) {
+  return phrase.every(
+    (word, k) =>
+      !!tokens[i + k]?.word && tokens[i + k].lower === word && !(k > 0 && tokens[i + k].broken),
+  )
+    ? i + phrase.length - 1
+    : -1;
+}
+
+// es.yaml rule es.commas def esConnectorEnd
+export function esConnectorEnd(tokens: SpanishTokens, i: number, phrase: readonly string[]) {
+  const last = esPhraseAt(tokens, i, phrase);
+  const after = tokens[last + 1];
+  const next = after?.lower ?? "";
+  return !after?.word || after.broken || ES_NOT_CONNECTOR_AFTER.has(next)
+    ? -1
+    : phrase.join(" ") === "por tanto" && esIsNoun(next)
+      ? -1
+      : /mente$/u.test(phrase[0]) && (esAttributeOf(next) || /^(?:tuy|suy|vuestr)/u.test(next))
+        ? -1
+        : last;
+}
+
+// es.yaml rule es.commas def esAddressee
+export function esAddressee(tokens: SpanishTokens, at: number) {
+  const mine = tokens[at]?.lower === "mi" && !tokens[at].broken ? at + 1 : at;
+  const k =
+    /^querid[oa]s?$/u.test(tokens[mine]?.lower ?? "") &&
+    ES_ADDRESSED.has(tokens[mine + 1]?.lower ?? "")
+      ? mine + 1
+      : mine;
+  const token = tokens[k];
+  if (!(token?.word && !token.broken)) return -1;
+  return ES_ADDRESSED.has(token.lower) ? k : k === at && /^\p{Lu}\p{Ll}/u.test(token.text) ? k : -1;
+}
+
+// es.yaml rule es.commas def esCommaAfter
+export function esCommaAfter(ctx: DetectContext, tokens: SpanishTokens, i: number) {
+  return esReplaceToken(
+    ctx,
+    tokens[i],
+    [`${tokens[i].lower},`],
+    "spanishTypography",
+    "review_msg_spanish_comma",
+    tokens[i + 1],
+  );
+}
+
 // es.yaml rule es.quotes def esQuoteMark
 export function esQuoteMark(start: number, replacement: string, pairEnd: number) {
   return {
@@ -637,6 +1131,63 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "spanishConfusions",
       "review_msg_spanish_confusion",
     );
+  },
+  // es.yaml rule es.commas frame 1
+  "@es.commas/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    if (!tokens[i].word) return null;
+    const before =
+      esCommaBeforeSino(tokens, i) || esCommaBeforePero(tokens, i) || esCommaBeforeCausal(tokens, i)
+        ? esCommaAfter(ctx, tokens, i - 1)
+        : null;
+    const comma = esSubjectComma(tokens, i);
+    const subject =
+      comma >= 0
+        ? esReplaceToken(
+            ctx,
+            tokens[comma],
+            [""],
+            "spanishTypography",
+            "review_msg_spanish_comma",
+            tokens[comma + 1],
+            true,
+          )
+        : null;
+    const starts = esAround(tokens, i).starts;
+    const connector = starts
+      ? ES_CONNECTORS.find((phrase) => esPhraseAt(tokens, i, phrase) >= 0)
+      : undefined;
+    const connectorEnd = connector ? esConnectorEnd(tokens, i, connector) : -1;
+    const greeting =
+      connectorEnd < 0
+        ? ES_GREETINGS.find((phrase) => esPhraseAt(tokens, i, phrase) >= 0)
+        : undefined;
+    const greetingEnd = greeting ? esPhraseAt(tokens, i, greeting) : -1;
+    const greeted = greetingEnd >= 0 ? esAddressee(tokens, greetingEnd + 1) : -1;
+    const greets =
+      greetingEnd >= 0 &&
+      greeted >= 0 &&
+      (starts ||
+        (ES_CLOSING_GREETINGS.has(tokens[greetingEnd].lower) &&
+          esAround(tokens, greeted).endsAfter()));
+    const last = connectorEnd >= 0 ? connectorEnd : greets ? greetingEnd : -1;
+    const addressed = connectorEnd < 0 && greets ? greeted : -1;
+    if (!(last < 0 || esResume(frame, tokens[Math.max(last, addressed)].end))) return null;
+    const next = tokens[addressed + 1];
+    return [
+      before,
+      subject,
+      ...(last < 0
+        ? []
+        : [
+            esCommaAfter(ctx, tokens, last),
+            addressed >= 0 && next?.word && !next.broken && ES_CLAUSE_OPENERS.has(next.lower)
+              ? esCommaAfter(ctx, tokens, addressed)
+              : null,
+          ]),
+    ].filter((finding) => finding !== null);
   },
   // es.yaml rule es.quotes frame 1
   "@es.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

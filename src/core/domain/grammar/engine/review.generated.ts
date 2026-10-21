@@ -17952,7 +17952,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:sino|pero|ya|puesto|el|las?|los|es(?:t(?:e|a|os|as)|e|a|os|as)?|aquel(?:las?|los)?|nuestr[oa]s?|sus?|sin|por|en|al|adem[aá]s|asimismo|as[ií]|o|de|aun|a|un|(?:afortunada|desafortunada|desgraciada|lamentable|evidente|obvia|efectiva|sincera|franca|honesta|curiosa|sorprendente|indudable)mente|hola|adi[oó]s|buen(?:[oa]s)?|felicidades|enhorabuena|hasta|felices|much[oa]s|muy|besos|abrazos|gracias|saludos|bienvenid[oa]s?|feliz|c[oó]mo)(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "es:commas",
+    fixer: "es:@es.commas/1",
     flags: "giu",
     scan: "owned",
     lookback: 160,

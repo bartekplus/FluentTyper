@@ -793,6 +793,232 @@ rules:
     group: spanishTypography
     style: match
     message: review_msg_spanish_comma
+    # The comma after a sentence connector that opens its clause ("Sin embargo, no ganó") and
+    # between a greeting and the person greeted ("Hola, Marta").
+    sets:
+      # What may follow a connector's words in another reading: "además de", "al contrario que",
+      # "o sea que", "por otro lado del río", "de hecho y de derecho".
+      ES_NOT_CONNECTOR_AFTER: [de, del, que, a, al, "y", e, o, u, como]
+      # Greetings that may close a sentence: "Os deseo buenos días, amigos".
+      ES_CLOSING_GREETINGS: [días, día, tardes, noches]
+      # Words that open the clause after the person addressed: "Hola amigo, cómo estás".
+      ES_CLAUSE_OPENERS: [cómo, como, qué, que, dónde, donde, cuándo, cuando, quién, quien, cuál, te, me, os, nos, le, les, ya, hoy]
+      ES_ADDRESSED:
+        [
+          amigo, amiga, amigos, amigas, chico, chica, chicos, chicas, guapo, guapa, guapos, guapas, cariño,
+          querido, querida, queridos, queridas, señor, señora, señores, señoras, señorita, jefe, jefa,
+          compañero, compañera, compañeros, compañeras, hermano, hermana, tío, tía, mamá, papá, abuelo,
+          abuela, hijo, hija, niños, niñas, estimado, estimada, estimados, estimadas, colega, colegas,
+          preciosa, precioso, amor, cielo, vecino, vecina, vecinos, chaval, chavales, muchachos,
+          muchachas, gente, familia, equipo,
+        ]
+      ES_NEGATIONS: ["no", nunca, jamás, tampoco, ni]
+      # "No hace sino llorar", "nadie sino él", "no tiene otra salida sino esperar": "sino" means
+      # "except" here and takes no comma.
+      ES_EXCEPTIVE: [nadie, nada, ningún, ninguna, ninguno, otro, otra, otros, otras, más, menos, cosa]
+      # Finite verbs the dictionary also lists as nouns.
+      ES_COMMON_FINITE: [es, son, era, eran, fue, fueron, ha, han, va, van, da, dan, ve, ven, hay]
+      # Determiners of a subject a comma may not cut from its verb; "mi"/"tu" open vocatives ("Mi
+      # amor, está lista la cena"). The es.commas frame lists these words.
+      ES_SUBJECT_DETERMINERS:
+        [
+          el, la, los, las, este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas,
+          nuestro, nuestra, nuestros, nuestras, su, sus,
+        ]
+      # Nouns that open a sentence as an adverbial or a remark, comma and all: "La verdad, no lo sé",
+      # "El lunes, llegaron todos", "La mayoría, se fue".
+      ES_NOT_SUBJECT_NOUNS:
+        [
+          verdad, semana, semanas, año, años, mes, meses, día, días, tarde, tardes, noche, noches, mañana,
+          mañanas, vez, veces, momento, rato, verano, invierno, otoño, primavera, lunes, martes, miércoles,
+          jueves, viernes, sábado, sábados, domingo, domingos, fin, principio, final, mayoría, mitad, resto,
+        ]
+      ES_SINGULAR_COPULA: [es, está, era, estaba, fue, será, ha, va, tiene]
+      ES_PLURAL_COPULA: [son, están, eran, estaban, fueron, serán, han, van, tienen]
+    defs:
+      # The connectors; the es.commas frame lists their first words.
+      ES_CONNECTORS: >-
+        [
+          "sin embargo", "por lo tanto", "por tanto", "por consiguiente", "por ende", "en consecuencia",
+          "en cambio", "por el contrario", "al contrario", "por otro lado", "por otra parte", "por un lado",
+          "por una parte", "además", "asimismo", "así pues", "en primer lugar", "en segundo lugar",
+          "en tercer lugar", "por último", "en conclusión", "en resumen", "en definitiva", "en efecto",
+          "es decir", "o sea", "de hecho", "por cierto", "en fin", "aun así", "de todos modos",
+          "de todas formas",
+          "afortunadamente", "desafortunadamente", "desgraciadamente", "lamentablemente", "evidentemente",
+          "obviamente", "efectivamente", "sinceramente", "francamente", "honestamente", "curiosamente",
+          "sorprendentemente", "indudablemente",
+        ].map((phrase) => phrase.split(" "))
+      # The greetings; the es.commas frame lists their first words. "cómo estás": a question to the
+      # person addressed ("¿Cómo estás, Jorge?").
+      ES_GREETINGS: >-
+        [
+          "hola", "adiós", "buenos días", "buenas tardes", "buenas noches", "felicidades", "enhorabuena",
+          "hasta luego", "hasta pronto", "felices fiestas", "muchos besos", "muy buen día", "buen día",
+          "buenas", "un beso", "un abrazo", "besos", "abrazos", "muchas gracias", "gracias", "saludos",
+          "bienvenido", "bienvenida", "bienvenidos", "bienvenidas", "a sus órdenes", "feliz cumpleaños",
+          "feliz navidad", "cómo estás", "cómo estáis",
+        ].map((phrase) => phrase.split(" "))
+      # A negation within 12 words before "sino", with two words (clitics aside) between.
+      esSinoNegated:
+        args: "at: SpanishAround, k: number, between: number"
+        type: boolean
+        let:
+          word: at.prev(k)
+        when:
+          - k <= 12
+          - word && !ES_EXCEPTIVE.has(word)
+        return: 'ES_NEGATIONS.has(word) ? between >= 2 : esSinoNegated(at, k + 1, between + (ES_CLITICS.has(word) ? 0 : 1))'
+        else: "false"
+      # "No lo hizo él sino que lo hice yo" -> "él, sino que": "sino que" opening the clause that
+      # replaces a negated one. Without "que" the comma may go ("no es azul sino verde"), and right
+      # after the verb "sino" means "only" ("No te pido sino que te vayas").
+      esCommaBeforeSino:
+        args: "tokens: SpanishTokens, i: number"
+        when:
+          - tokens[i].lower === "sino" && !!tokens[i - 1]?.word && !tokens[i].broken
+          - esAround(tokens, i).next() === "que"
+        return: esSinoNegated(esAround(tokens, i), 1, 0)
+        else: "false"
+      esClauseVerb:
+        args: "word: string"
+        return: >-
+          ES_COMMON_FINITE.has(word) ||
+          (!!word && esFiniteVerb(word) && !esIsNoun(word) && !esGenderedForm(word) && !esParticiple(word))
+      # A verb of its own in the words before tokens[i], from `back` to `last` words back.
+      esClauseVerbBefore:
+        args: "at: SpanishAround, back: number, last: number"
+        type: boolean
+        return: >-
+          back > last || !at.prev(back) ? false : esClauseVerb(at.prev(back)) ? true : esClauseVerbBefore(at, back + 1, last)
+      # The k-th word after tokens[i] past the clitics (to the fifth).
+      esPastClitics:
+        args: "at: SpanishAround, k: number"
+        type: number
+        return: "k < 5 && ES_CLITICS.has(at.next(k)) ? esPastClitics(at, k + 1) : k"
+      # "Son muchos pero no bastan" -> "muchos, pero": "pero" joining two clauses. Only a negated
+      # clause is surely one: "pero no bastan", "pero ya no lo tengo". The clause before it has a
+      # verb of its own.
+      esCommaBeforePero:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          k: 'at.next(1) === "ya" ? 2 : 1'
+        when:
+          - tokens[i].lower === "pero" && !!tokens[i - 1]?.word && !tokens[i].broken
+          - ES_NEGATIONS.has(at.next(k))
+          - esClauseVerb(at.next(esPastClitics(at, k + 1)))
+        return: esClauseVerbBefore(at, 1, 10)
+        else: "false"
+      # "Abrimos las ventanas ya que hacía calor" -> "ventanas, ya que": a causal "ya que" or "puesto
+      # que" after a clause. Not right after a verb ("Te he dicho ya que no": "ya" is "already"; "Lo
+      # ha puesto que…"), a determiner ("el puesto que ocupa") or a conjunction. "un buen puesto que",
+      # "al cuarto puesto que": the noun "puesto" with its determiner.
+      esCommaBeforeCausal:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          before: at.prev()
+        when:
+          - /^(?:ya|puesto)$/u.test(tokens[i].lower) && !tokens[i].broken
+          - at.next() === "que" && !!at.next(2)
+          - before && !ES_CLITICS.has(before) && !ES_NEGATIONS.has(before) && !ES_CONJUNCTIONS.has(before)
+          - '!(ES_DETERMINERS.has(before) || esClauseVerb(before) || esParticiple(before) || esIsInfinitive(before))'
+          - '!(tokens[i].lower === "puesto" && (ES_DETERMINERS.has(at.prev(2)) || /^(?:al|del)$/u.test(at.prev(2))))'
+        return: esClauseVerbBefore(at, 2, 10)
+        else: "false"
+      # A comma, a colon, a dash or a bracket from tokens[k] to tokens[end], on one line.
+      esMarkSoon:
+        args: "tokens: SpanishTokens, k: number, end: number"
+        type: boolean
+        return: >-
+          k < end && tokens[k] && !tokens[k].broken
+            ? /^[,;:—–()]$/u.test(tokens[k].text) || esMarkSoon(tokens, k + 1, end)
+            : false
+      # "El problema, es que…" -> "El problema es": a comma between a subject opening the sentence
+      # and its verb: the index of the comma, or -1. Only common verbs that agree with it are read,
+      # and a second comma soon after ("El problema, dice Juan, es…") marks an inserted remark.
+      esSubjectComma:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          nounToken: tokens[i + 1]
+          # "Esas, se dividen en tres": a plural demonstrative standing for its noun ("Este, …" may
+          # be a filler).
+          pronoun: /^(?:estos|estas|esos|esas|aquellos|aquellas)$/u.test(tokens[i].lower)
+          noun: >-
+            pronoun && nounToken?.text === ","
+              ? { plural: true }
+              : nounToken?.word && !nounToken.broken
+                ? esReadNoun(nounToken.lower)
+                : null
+          # One adjective after the noun: "Nuestro objetivo principal, es…".
+          after: 'nounToken.text === "," ? i + 1 : i + 2'
+          adjective: tokens[after]
+          comma: 'after === i + 2 && adjective?.word && !adjective.broken && !esFiniteVerb(adjective.lower) ? after + 1 : after'
+          # "El gobierno, no anunció nada", "La empresa, se fundó en 1990": "no" or "se" first.
+          lead: '/^(?:no|se)$/u.test(tokens[comma + 1]?.lower ?? "") ? 1 : 0'
+          verb: tokens[comma + 1 + lead]
+          word: verb.lower
+          # Any other verb whose third person ending agrees: "trabaja", "anunció", "llegaron".
+          plural: >-
+            ES_PLURAL_COPULA.has(word)
+              ? true
+              : ES_SINGULAR_COPULA.has(word)
+                ? false
+                : !/(?:n|[aeó])$/u.test(word) || !esFiniteVerb(word) || esIsNoun(word) ||
+                    esAttributeOf(word) || esSubjunctiveLike(word) || ES_CLITICS.has(word)
+                  ? null
+                  : word.endsWith("n")
+        when:
+          - ES_SUBJECT_DETERMINERS.has(tokens[i].lower) && esAround(tokens, i).starts
+          # "¿Este método, es seguro?": a question may set its topic apart.
+          - '!/^[¿¡]$/u.test(tokens[i - 1]?.text ?? "")'
+          - noun && !ES_NOT_SUBJECT_NOUNS.has(nounToken.lower)
+          - tokens[comma]?.text === "," && !tokens[comma].broken
+          - verb?.word && !verb.broken && !/^\p{Lu}/u.test(tokens[comma + 1].text)
+          - plural === noun.plural
+          - '!esMarkSoon(tokens, comma + 2, comma + 7)'
+        return: comma
+        else: "-1"
+      # tokens[i..] spell `phrase` on one line: the index of its last token, or -1.
+      esPhraseAt:
+        args: "tokens: SpanishTokens, i: number, phrase: readonly string[]"
+        return: >-
+          phrase.every((word, k) => !!tokens[i + k]?.word && tokens[i + k].lower === word && !(k > 0 && tokens[i + k].broken))
+            ? i + phrase.length - 1
+            : -1
+      # The end of the connector `phrase` at tokens[i], or -1. Only before a word of the clause it
+      # opens; "Por tanto esfuerzo" is "for so much". "Francamente bueno", "Sinceramente tuyo": an
+      # adverb of the word after it.
+      esConnectorEnd:
+        args: "tokens: SpanishTokens, i: number, phrase: readonly string[]"
+        let:
+          last: esPhraseAt(tokens, i, phrase)
+          after: tokens[last + 1]
+          next: after?.lower ?? ""
+        return: >-
+          !after?.word || after.broken || ES_NOT_CONNECTOR_AFTER.has(next)
+            ? -1
+            : phrase.join(" ") === "por tanto" && esIsNoun(next)
+              ? -1
+              : /mente$/u.test(phrase[0]) && (esAttributeOf(next) || /^(?:tuy|suy|vuestr)/u.test(next))
+                ? -1
+                : last
+      # The person addressed after a greeting at tokens[at]: the index of its last word, or -1.
+      # "Felicidades, mi querido amigo".
+      esAddressee:
+        args: "tokens: SpanishTokens, at: number"
+        let:
+          mine: 'tokens[at]?.lower === "mi" && !tokens[at].broken ? at + 1 : at'
+          k: '/^querid[oa]s?$/u.test(tokens[mine]?.lower ?? "") && ES_ADDRESSED.has(tokens[mine + 1]?.lower ?? "") ? mine + 1 : mine'
+          token: tokens[k]
+        when: token?.word && !token.broken
+        return: 'ES_ADDRESSED.has(token.lower) ? k : k === at && /^\p{Lu}\p{Ll}/u.test(token.text) ? k : -1'
+        else: "-1"
+      # A comma after tokens[i], unless the writer's word or casing says otherwise.
+      esCommaAfter:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        return: 'esReplaceToken(ctx, tokens[i], [`${tokens[i].lower},`], "spanishTypography", "review_msg_spanish_comma", tokens[i + 1])'
     frames:
       # "sino", "pero", "ya que", "puesto que", the determiner of a subject, and the first
       # words of the connectors and greetings of review/spanish/commas.ts. Every token of
@@ -804,7 +1030,52 @@ rules:
         scan: owned
         lookback: 160
         lookahead: 160
-        fixer: commas
+        # The commas of the clause at the token: connectors, greetings, "sino", "pero", subjects.
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          before: >-
+            esCommaBeforeSino(tokens, i) || esCommaBeforePero(tokens, i) || esCommaBeforeCausal(tokens, i)
+              ? esCommaAfter(ctx, tokens, i - 1)
+              : null
+          comma: esSubjectComma(tokens, i)
+          subject: >-
+            comma >= 0
+              ? esReplaceToken(ctx, tokens[comma], [""], "spanishTypography", "review_msg_spanish_comma", tokens[comma + 1], true)
+              : null
+          starts: esAround(tokens, i).starts
+          connector: 'starts ? ES_CONNECTORS.find((phrase) => esPhraseAt(tokens, i, phrase) >= 0) : undefined'
+          connectorEnd: 'connector ? esConnectorEnd(tokens, i, connector) : -1'
+          # "Hola Marta", "Adiós amigos"; "¡Hola a todos!" greets no one by name. Inside a sentence
+          # only a closing greeting before the end: "Te deseo buenos días amigo."
+          greeting: 'connectorEnd < 0 ? ES_GREETINGS.find((phrase) => esPhraseAt(tokens, i, phrase) >= 0) : undefined'
+          greetingEnd: 'greeting ? esPhraseAt(tokens, i, greeting) : -1'
+          greeted: 'greetingEnd >= 0 ? esAddressee(tokens, greetingEnd + 1) : -1'
+          greets: >-
+            greetingEnd >= 0 && greeted >= 0 &&
+            (starts || (ES_CLOSING_GREETINGS.has(tokens[greetingEnd].lower) && esAround(tokens, greeted).endsAfter()))
+          last: 'connectorEnd >= 0 ? connectorEnd : greets ? greetingEnd : -1'
+          addressed: 'connectorEnd < 0 && greets ? greeted : -1'
+          # "Hola amigo, cómo estás": the clause after the person addressed opens with a comma too.
+          next: tokens[addressed + 1]
+        when:
+          - i >= 0
+          - tokens[i].word
+          # The next match starts after the phrase and the person addressed.
+          - last < 0 || esResume(frame, tokens[Math.max(last, addressed)].end)
+        return: >-
+          [
+            before,
+            subject,
+            ...(last < 0
+              ? []
+              : [
+                  esCommaAfter(ctx, tokens, last),
+                  addressed >= 0 && next?.word && !next.broken && ES_CLAUSE_OPENERS.has(next.lower)
+                    ? esCommaAfter(ctx, tokens, addressed)
+                    : null,
+                ]),
+          ].filter((finding) => finding !== null)
   - id: es.missingSpace
     checks: [commaPeriodSpacing]
     group: commaPeriodSpacing
