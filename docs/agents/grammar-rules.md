@@ -262,7 +262,8 @@ phrases:
 
 - The tokenizer reads the text one time. Each token finds its rules with one read of the anchor index: a rule is indexed by the literal of its pattern that is most selective. Rules without a literal run in the same pass.
 - The time of a pass follows the number of tokens, not the number of rules. `tests/grammar/GrammarEngine.timing.test.ts` checks a full draft of each language against more than 30,000 rules (under 5 ms), and a single-sentence live check (under 0.5 ms).
-- Review gets the pattern results of a chunk from one shared pass. The named detectors keep their own cost.
+- Review gets the pattern results of a chunk from one shared pass. A frame regex runs only where a match can start: at its fixed start letters (found with `indexOf` and kept per chunk), or in the windows before a fixed word that every match holds. Gates skip a frame whose required word is not in the chunk.
+- `bun run bench:review` times a full Review of a 3,000-character draft in each Review language (median of 60 runs). Every language must stay under 5 ms; `bun run bench:review --check` fails when one does not. Run it on a machine with no other load: CI runners are slower, so this is not a unit test.
 
 ---
 
