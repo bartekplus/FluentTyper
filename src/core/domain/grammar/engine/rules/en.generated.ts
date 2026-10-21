@@ -17,6 +17,12 @@ import {
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
 
+export const VS_PERFECT_HAVE: Readonly<Record<string, string>> = {
+  did: "had",
+  does: "has",
+  do: "have",
+};
+
 // en.yaml rule en.realWordFrames def rwRead
 export function rwRead(word: string | undefined) {
   return word ? englishWordInfo(word.toLowerCase()) : null;
@@ -51,6 +57,42 @@ export function rwBeParticiple(m: RegExpExecArray, ctx: DetectContext, word: str
   const done = enParticiple(form.lemma);
   if (!done) return null;
   return { alternatives: [done], range: m.indices!.groups!.verb };
+}
+
+// en.yaml rule en.verbSlots def VS_FORMS
+export const VS_FORMS = ["third", "past", "ing"] as readonly string[];
+
+// en.yaml rule en.verbSlots def vsNonBase
+export function vsNonBase(word: string, forms: readonly string[]): string | null {
+  const w = word.toLowerCase();
+  const r = rwRead(w);
+  if (!r || EN_FUNCTION_WORDS.has(w) || r.noun || r.plural || r.adjective || r.adverb) return null;
+  if (r.verbs.some((v) => v.form === "base")) return null;
+  const form = r.verbs.find((v) => forms.includes(v.form));
+  if (!(form && r.verbs.every((v) => v.lemma === form.lemma) && form.lemma !== "be")) return null;
+  return form.lemma;
+}
+
+// en.yaml rule en.verbSlots def vsBaseVerb
+export function vsBaseVerb(word: string) {
+  const w = word.toLowerCase();
+  const r = rwRead(w);
+  return (
+    !!r?.verbs.some((v) => v.form === "base" && v.lemma === w) &&
+    !r.adjective &&
+    !r.plural &&
+    !EN_FUNCTION_WORDS.has(w)
+  );
+}
+
+// en.yaml rule en.verbSlots def VS_OBJECT
+export const VS_OBJECT =
+  /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|me|us|you|some|any|no|all|every|each)$/;
+
+// en.yaml rule en.verbSlots def vsNextWord
+export function vsNextWord(ctx: DetectContext, end: number) {
+  const token = enTokensAfter(ctx, end, 1)[0];
+  return token?.kind === "word" ? token.lower : "";
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -241,6 +283,260 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     return r && (r.noun || r.plural) && !r.verbs.length && !EN_FUNCTION_WORDS.has(word)
       ? "state-of-the-art"
       : null;
+  },
+  // en.yaml rule en.verbSlots frame 1
+  "@en.verbSlots/1": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (/ing$/.test(target) && /^(?:or|and|but|nor)$/.test(enWordBefore(ctx, m.index))) return null;
+    const lemma = vsNonBase(target, VS_FORMS);
+    return lemma && lemma !== "do" ? lemma : null;
+  },
+  // en.yaml rule en.verbSlots frame 2
+  "@en.verbSlots/2": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const modal = m.groups!.modal;
+    const target = m.groups!.target;
+    if (!(modal === modal.toLowerCase())) return null;
+    const word = target.toLowerCase();
+    const before = enWordBefore(ctx, m.index);
+    if (
+      (!/ing$/.test(before) || !/^(?:will|would|should|could)$/.test(modal)) &&
+      (before !== "" || enAfterBreak(ctx, m.index))
+    )
+      return null;
+    const lemma = vsNonBase(word, ["past", "participle"]);
+    if (!lemma) return null;
+    return [lemma, `be ${word}`];
+  },
+  // en.yaml rule en.verbSlots frame 3
+  "@en.verbSlots/3": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const subject = m.groups!.subject;
+    const target = m.groups!.target;
+    if (!(
+      /^(?:I|you|we|they|he|she|it|this|anyone|anybody|someone|somebody|everyone)$/i.test(
+        subject,
+      ) || /^[A-Z][a-z]+$/.test(subject)
+    ))
+      return null;
+    if (
+      /^[A-Z]/.test(m[0]) &&
+      /^[A-Z][a-z]+$/.test(subject) &&
+      !/^[^.!?]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 200))
+    )
+      return null;
+    const lead = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (
+      /(?:^|[.!?:;\n])[ \t "“]*(?:(?:how|what|why|when|where|who)[ \t ]+)?$/i.test(lead) &&
+      /^(?:I|you|we|they|he|she|it|this)$/i.test(subject)
+    )
+      return null;
+    if (/^this$/i.test(subject) && /ing$/i.test(target)) return null;
+    const owner = enWordBefore(ctx, m.index);
+    if (
+      /^(?:i|you|we|they|he|she|it|this|that)$/.test(owner) ||
+      (!EN_FUNCTION_WORDS.has(owner) &&
+        !!rwRead(owner)?.noun &&
+        !/^(?:then|only|so|nor|why|how|when|where|what)$/.test(owner))
+    )
+      return null;
+    return /^(?:any|some|every)(?:one|body)$/i.test(subject)
+      ? (vsNonBase(target, ["third"]) ??
+          (rwRead(target)?.verbs.some((v) => v.form === "participle")
+            ? null
+            : vsNonBase(target, ["past"])))
+      : vsNonBase(target, VS_FORMS);
+  },
+  // en.yaml rule en.verbSlots frame 4
+  "@en.verbSlots/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (
+      target !== target.toLowerCase() ||
+      !vsBaseVerb(target) ||
+      /^(?:please|thank|need|dare|ought)$/.test(target) ||
+      rwRead(target)?.verbs.some((v) => v.form === "past")
+    )
+      return null;
+    const before = enWordBefore(ctx, m.index);
+    const opens =
+      (!before && enAfterBreak(ctx, m.index)) ||
+      /^(?:that|if|when|because|so|and|but|since|while|where|which|whether|hope|hoping|think|guess|believe|said|says|me|for)$/.test(
+        before,
+      ) ||
+      (!!rwRead(before)?.noun && !rwRead(before)?.verbs.length && !EN_FUNCTION_WORDS.has(before));
+    if (!opens) return null;
+    if (
+      before === "that" &&
+      /\b(?:vital|essential|important|necessary|crucial|imperative|requir\w*|insist\w*|demand\w*|recommend\w*|suggest\w*|propos\w*|ask\w*)\b[^.!?]*$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 60), m.index),
+      )
+    )
+      return null;
+    const next = vsNextWord(ctx, m.index + m[0].length);
+    if (!(VS_OBJECT.test(next) || /^(?:to|sense|up|out|on|off|in|well|so)$/.test(next)))
+      return null;
+    return englishInflect(target.toLowerCase(), "third");
+  },
+  // en.yaml rule en.verbSlots frame 5
+  "@en.verbSlots/5": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const name = m.groups!.name;
+    const target = m.groups!.target;
+    if (!/^(?:United[ \t ]+States|US|U\.S\.)$/.test(name)) return null;
+    const next = vsNextWord(ctx, m.index + m[0].length);
+    return target === "do"
+      ? "does"
+      : rwRead(target)?.verbs.some((v) => v.form === "past")
+        ? null
+        : vsBaseVerb(target) &&
+            (VS_OBJECT.test(next) || /^(?:to|not|full|in|on|out|up)$/.test(next))
+          ? englishInflect(target.toLowerCase(), "third")
+          : null;
+  },
+  // en.yaml rule en.verbSlots frame 6
+  "@en.verbSlots/6": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const first = m.groups!.first;
+    const middle = m.groups!.middle;
+    const target = m.groups!.target;
+    const low = first.toLowerCase();
+    const r = rwRead(low);
+    if (!(r?.verbs.some((v) => v.form === "third") && !r.adjective)) return null;
+    if (
+      (r.noun || r.plural) &&
+      !/^(?:it|he|she|this|that|who|which)$/.test(enWordBefore(ctx, m.index))
+    )
+      return null;
+    if (
+      /^(?:makes|lets|helps|has|does|wants|needs|tries|seems|sees|hears|watches|goes|comes)$/.test(
+        low,
+      )
+    )
+      return null;
+    const words = middle
+      .toLowerCase()
+      .trim()
+      .split(/[ \t ]+/);
+    if (
+      words.some(
+        (w) =>
+          /^(?:to|i|you|we|they|he|she|who|which|that|if|when|will|would|can|could|should|must|may|might|or|but|as|than|is|are|was|were)$/.test(
+            w,
+          ) ||
+          (!!rwRead(w)?.verbs.some((v) => v.form !== "base" && v.form !== "participle") &&
+            !rwRead(w)?.noun),
+      )
+    )
+      return null;
+    if (!(target === target.toLowerCase() && vsBaseVerb(target))) return null;
+    const next = vsNextWord(ctx, m.index + m[0].length);
+    if (rwRead(target)?.noun && !VS_OBJECT.test(next)) return null;
+    const subject = /([A-Za-z]+)[ \t ]+$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 30), m.index),
+    )?.[1];
+    if (subject && /^(?:i|you|we|they)$/i.test(subject)) return null;
+    return englishInflect(target.toLowerCase(), "third");
+  },
+  // en.yaml rule en.verbSlots frame 7
+  "@en.verbSlots/7": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (!(target === target.toLowerCase())) return null;
+    const bare = /^(?:do|go|be|come|stay|leave|get|keep|stop|wait)$/.test(target);
+    if (!(bare || vsBaseVerb(target))) return null;
+    const next = vsNextWord(ctx, m.index + m[0].length);
+    if (!bare && rwRead(target)?.noun && !VS_OBJECT.test(next)) return null;
+    return `to ${target}`;
+  },
+  // en.yaml rule en.verbSlots frame 8
+  "@en.verbSlots/8": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    if (
+      target !== target.toLowerCase() ||
+      !vsBaseVerb(target) ||
+      /^(?:for|to|thank|please)$/.test(target)
+    )
+      return null;
+    const next = vsNextWord(ctx, m.index + m[0].length);
+    if (target === "come" && next === "by") return null;
+    if (
+      rwRead(target)?.noun &&
+      !(
+        VS_OBJECT.test(next) ||
+        /^(?:over|back|up|out|in|on|by|home|here|there|tomorrow|today|soon)$/.test(next)
+      )
+    )
+      return null;
+    return `to ${target}`;
+  },
+  // en.yaml rule en.verbSlots frame 9
+  "@en.verbSlots/9": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return `to ${target}`;
+  },
+  // en.yaml rule en.verbSlots frame 10
+  "@en.verbSlots/10": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const lemma = englishLemma(target, "ing");
+    return lemma && lemma !== "be" ? `to ${lemma}` : null;
+  },
+  // en.yaml rule en.verbSlots frame 11
+  "@en.verbSlots/11": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const subject = m.groups!.subject;
+    const before = enWordBefore(ctx, m.index);
+    if (
+      before &&
+      EN_FUNCTION_WORDS.has(before) &&
+      !/^(?:that|if|so|and|but|because|when|think|said)$/.test(before)
+    )
+      return null;
+    const low = subject.toLowerCase();
+    return `${low === "i" ? "am" : /^(?:he|she|it)$/.test(low) ? "is" : "are"} not`;
+  },
+  // en.yaml rule en.verbSlots frame 12
+  "@en.verbSlots/12": (m: RegExpExecArray): FixResult => {
+    const have = m.groups!.have;
+    const target = m.groups!.target;
+    const lemma = vsNonBase(target, ["ing"]);
+    const done = lemma && lemma !== "be" && enParticiple(lemma);
+    if (!done) return null;
+    return {
+      alternatives: [
+        `${have} not ${done}`,
+        `${have.toLowerCase() === "has" ? "is" : "are"} not ${target}`,
+      ],
+      range: [m.indices!.groups!.have[0], m.index + m[0].length],
+      raw: true,
+    };
+  },
+  // en.yaml rule en.verbSlots frame 13
+  "@en.verbSlots/13": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return VS_PERFECT_HAVE[target.toLowerCase()];
+  },
+  // en.yaml rule en.verbSlots frame 14
+  "@en.verbSlots/14": (m: RegExpExecArray): FixResult => {
+    const have = m.groups!.have;
+    return have;
+  },
+  // en.yaml rule en.verbSlots frame 15
+  "@en.verbSlots/15": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return englishInflect(target.toLowerCase(), "past");
+  },
+  // en.yaml rule en.verbSlots frame 16
+  "@en.verbSlots/16": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const subject = m.groups!.subject;
+    const verb = m.groups!.verb;
+    const low = subject.toLowerCase();
+    const lemma = verb.toLowerCase();
+    const before = enWordBefore(ctx, m.index);
+    const opens =
+      (!before && enAfterBreak(ctx, m.index)) ||
+      /^(?:and|but|so|because|when|know|knew|think|thought|remember)$/.test(before);
+    const r = rwRead(lemma);
+    return /^(?:that|which|who)$/.test(low)
+      ? lemma === "be"
+        ? "used"
+        : null
+      : opens && r?.verbs.some((v) => v.form === "base") && !r.noun
+        ? "used"
+        : null;
   },
 };
 

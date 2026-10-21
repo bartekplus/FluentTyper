@@ -56,7 +56,6 @@ import * as clauseFrames from "./clauseFrames";
 import * as slipFrames from "./slipFrames";
 import * as clauseGaps from "./clauseGaps";
 import * as misheardWords from "./misheardWords";
-import * as verbSlots from "./verbSlots";
 import * as nounSlots from "./nounSlots";
 import * as agreementFrames from "./agreementFrames";
 import * as neighbourTypos from "./neighbourTypos";
@@ -85,7 +84,6 @@ export const FIXERS = mergePredicates<Fixer>(
   nounSlots.FIXERS,
   prepositionSlots.FIXERS,
   typoSlots.FIXERS,
-  verbSlots.FIXERS,
   remaining.FIXERS,
   everydaySlots.FIXERS,
   wordFormSlots.FIXERS,

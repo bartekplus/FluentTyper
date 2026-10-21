@@ -6021,40 +6021,177 @@ rules:
       ]
     style: slot
     message: review_msg_auxiliary_base
+    maps:
+      # "It did been solved": the form of have for each form of do.
+      VS_PERFECT_HAVE: { did: had, does: has, do: have }
+    defs:
+      # The forms that vsNonBase reads when a rule gives no others.
+      VS_FORMS: '["third", "past", "ing"] as readonly string[]'
+      # The lemma of a verb-only -s, past or -ing form ("means", "forgot", "squealing"), or null.
+      vsNonBase:
+        args: "word: string, forms: readonly string[]"
+        type: string | null
+        let:
+          w: word.toLowerCase()
+          r: rwRead(w)
+          form: r.verbs.find((v) => forms.includes(v.form))
+        when:
+          - "!(!r || EN_FUNCTION_WORDS.has(w) || r.noun || r.plural || r.adjective || r.adverb)"
+          - '!r.verbs.some((v) => v.form === "base")'
+          - form && r.verbs.every((v) => v.lemma === form.lemma) && form.lemma !== "be"
+        return: form.lemma
+      # A base verb ("make", "win", "believe"), perhaps also a noun, never an adjective.
+      vsBaseVerb:
+        args: "word: string"
+        let:
+          w: word.toLowerCase()
+          r: rwRead(w)
+        return: >-
+          !!r?.verbs.some((v) => v.form === "base" && v.lemma === w) && !r.adjective && !r.plural &&
+          !EN_FUNCTION_WORDS.has(w)
+      VS_OBJECT: >-
+        /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|him|me|us|you|some|any|no|all|every|each)$/
+      # The next word after the match, lowercased, or "" at punctuation.
+      vsNextWord:
+        args: "ctx: DetectContext, end: number"
+        let:
+          token: enTokensAfter(ctx, end, 1)[0]
+        return: 'token?.kind === "word" ? token.lower : ""'
     frames:
       # "It doesn't necessarily means that", "I usually do not forgot", "Didn't there used to":
       # a negative do takes the base form.
       - regex: "(?<![\\p{L}'’])(?:do|does|did)(?:n['’]t|{{S}}not)(?:{{S}}there)?(?:{{S}}(?:not|really|necessarily|exactly|actually|even|usually|always|ever|just|often|also|still|never|probably|please|really))?{{S}}(?<target>[a-z]+){{E}}"
         cue: ["not", "doesn", "don", "didn"]
-        fixer: verbSlotsA
+        let:
+          lemma: vsNonBase(target, VS_FORMS)
+        when:
+          # "works (or doesn't, depending on…)": a do with no subject ends its clause.
+          - "!(/ing$/.test(target) && /^(?:or|and|but|nor)$/.test(enWordBefore(ctx, m.index)))"
+        return: 'lemma && lemma !== "do" ? lemma : null'
       # "Peter did went", "Tom does drinks wine" stay with the verb-group check; "would found
       # their own styles" is found. A modal before a past form: "will based on", "can made".
       - regex: "(?<![\\p{L}'’])(?<modal>will|would|can|could|should|must|might|may|['’]ll)(?:{{S}}(?:not|really|necessarily|exactly|actually|even|usually|always|ever|just|often|also|still|never|probably|please|really))?{{S}}(?<target>[a-z]+){{E}}"
         cue: ["will", "would", "can", "could", "should", "must", "might", "may", "ll"]
-        fixer: verbSlotsA2
+        let:
+          word: target.toLowerCase()
+          before: enWordBefore(ctx, m.index)
+          lemma: vsNonBase(word, ["past", "participle"])
+        when:
+          - modal === modal.toLowerCase()
+          # Pronoun and noun subjects belong to the auxiliary check; here only a gerund subject
+          # ("Pricing will based on") or a code ("AB 45x will heard") before the modal. "the will
+          # made by", "a tin can opened": a noun modal stays.
+          - >-
+            !((!/ing$/.test(before) || !/^(?:will|would|should|could)$/.test(modal)) && (before !==
+            "" || enAfterBreak(ctx, m.index)))
+          - lemma
+        return: "[lemma, `be ${word}`]"
       # "Can anyone lists the factors", "how can I monitoring it", "Can Tom sent it": a modal's
       # inverted subject takes the base.
       - regex: "(?<![\\p{L}'’])(?:can|could|will|would){{S}}(?<subject>I|you|we|they|he|she|it|this|anyone|anybody|someone|somebody|everyone|[A-Za-z]+)(?:{{S}}please)?{{S}}(?<target>[a-z]+){{E}}"
         cue: ["can", "could", "will", "would"]
-        fixer: verbSlotsA3
+        let:
+          lead: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          owner: enWordBefore(ctx, m.index)
+        when:
+          # A name ("Can Tom sent it") or a listed pronoun; the clause-start question belongs to
+          # the auxiliary check.
+          - >-
+            /^(?:I|you|we|they|he|she|it|this|anyone|anybody|someone|somebody|everyone)$/i.test(subject)
+            || /^[A-Z][a-z]+$/.test(subject)
+          # "Will Smith played…": a capitalized modal before a name must open a question.
+          - >-
+            !(/^[A-Z]/.test(m[0]) && /^[A-Z][a-z]+$/.test(subject) &&
+            !/^[^.!?]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 200)))
+          - >-
+            !(/(?:^|[.!?:;\n])[ \t "“]*(?:(?:how|what|why|when|where|who)[ \t ]+)?$/i.test(lead)
+            && /^(?:I|you|we|they|he|she|it|this)$/i.test(subject))
+          # "would this pricing change": this before an -ing noun.
+          - "!(/^this$/i.test(subject) && /ing$/i.test(target))"
+          # "It will he turned on", "The door will he locked": a subject before the modal, so no
+          # inversion ("he" is "be").
+          - >-
+            !(/^(?:i|you|we|they|he|she|it|this|that)$/.test(owner) || (!EN_FUNCTION_WORDS.has(owner)
+            && !!rwRead(owner)?.noun && !/^(?:then|only|so|nor|why|how|when|where|what)$/.test(owner)))
+        # "Can anyone involved in it comment?", "Can someone using Linux help?": a participle
+        # after an indefinite pronoun can open a reduced relative clause.
+        return: >-
+          /^(?:any|some|every)(?:one|body)$/i.test(subject) ? vsNonBase(target, ["third"]) ??
+          (rwRead(target)?.verbs.some((v) => v.form === "participle") ? null : vsNonBase(target,
+          ["past"])) : vsNonBase(target, VS_FORMS)
       # "if it make sense", "I hope it win", "sources it believe to be reliable": it + base.
       - regex: "(?<![\\p{L}'’])it{{S}}(?<target>[a-z]+){{E}}"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
         cue: ["it"]
-        fixer: verbSlotsA4
+        let:
+          before: enWordBefore(ctx, m.index)
+          # After a verb, it is an object: "let it go", "make it work", "call it home".
+          opens: >-
+            (!before && enAfterBreak(ctx, m.index)) ||
+            /^(?:that|if|when|because|so|and|but|since|while|where|which|whether|hope|hoping|think|guess|believe|said|says|me|for)$/.test(before)
+            || (!!rwRead(before)?.noun && !rwRead(before)?.verbs.length &&
+            !EN_FUNCTION_WORDS.has(before))
+          next: vsNextWord(ctx, m.index + m[0].length)
+        when:
+          # "it cost us a lot", "it hit me": a past form like its base.
+          - >-
+            !(target !== target.toLowerCase() || !vsBaseVerb(target) ||
+            /^(?:please|thank|need|dare|ought)$/.test(target) || rwRead(target)?.verbs.some((v) =>
+            v.form === "past"))
+          - opens
+          # "It is vital that it run on time": a mandative subjunctive keeps the base.
+          - >-
+            !(before === "that" &&
+            /\b(?:vital|essential|important|necessary|crucial|imperative|requir\w*|insist\w*|demand\w*|recommend\w*|suggest\w*|propos\w*|ask\w*)\b[^.!?]*$/i.test(ctx.text.slice(Math.max(0,
+            m.index - 60), m.index)))
+          # The verb needs its own complement: an object, "to" or a particle.
+          - VS_OBJECT.test(next) || /^(?:to|sense|up|out|on|off|in|well|so)$/.test(next)
+        return: englishInflect(target.toLowerCase(), "third")
       # "If the United States try to…", "until the US get…": one country.
       - regex: "(?<![\\p{L}'’])the{{S}}(?<name>United{{S}}States|US|U\\.S\\.){{S}}(?<target>[a-z]+){{E}}"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
         cue: ["states", "us", "u"]
-        fixer: verbSlotsA5
+        let:
+          next: vsNextWord(ctx, m.index + m[0].length)
+        when:
+          - '/^(?:United[ \t ]+States|US|U\.S\.)$/.test(name)'
+        # "the United States upset the Cubans": a past form like its base.
+        return: >-
+          target === "do" ? "does" : rwRead(target)?.verbs.some((v) => v.form === "past") ? null :
+          vsBaseVerb(target) && (VS_OBJECT.test(next) || /^(?:to|not|full|in|on|out|up)$/.test(next))
+          ? englishInflect(target.toLowerCase(), "third") : null
       # "It visits a website and perform two actions": the second verb of the pair agrees too.
       - regex: "(?<![\\p{L}'’])(?<first>[a-z]+s)(?<middle>(?:{{S}}[a-z]+){1,5}?){{S}}and(?:{{S}}(?:never|also|annually|then|often|always|usually))?{{S}}(?<target>[a-z]+){{E}}"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
         cue: ["and"]
-        fixer: verbSlotsA6
+        let:
+          low: first.toLowerCase()
+          r: rwRead(low)
+          words: middle.toLowerCase().trim().split(/[ \t ]+/)
+          next: vsNextWord(ctx, m.index + m[0].length)
+          # The subject must be third person: not "they visits", which has its own error.
+          subject: '/([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]'
+        when:
+          - r?.verbs.some((v) => v.form === "third") && !r.adjective
+          # "visits" is a plural noun too: then a singular subject must come right before it.
+          - >-
+            !((r.noun || r.plural) && !/^(?:it|he|she|this|that|who|which)$/.test(enWordBefore(ctx,
+            m.index)))
+          # "makes us laugh and cry", "wants you to stay and help": a bare or to-infinitive pair.
+          - >-
+            !/^(?:makes|lets|helps|has|does|wants|needs|tries|seems|sees|hears|watches|goes|comes)$/.test(low)
+          - >-
+            !words.some((w) =>
+            /^(?:to|i|you|we|they|he|she|who|which|that|if|when|will|would|can|could|should|must|may|might|or|but|as|than|is|are|was|were)$/.test(w)
+            || (!!rwRead(w)?.verbs.some((v) => v.form !== "base" && v.form !== "participle") &&
+            !rwRead(w)?.noun))
+          - target === target.toLowerCase() && vsBaseVerb(target)
+          - "!(rwRead(target)?.noun && !VS_OBJECT.test(next))"
+          - "!(subject && /^(?:i|you|we|they)$/i.test(subject))"
+        return: englishInflect(target.toLowerCase(), "third")
       # "The mother told him do his homework": to before the verb.
       - regex: "(?<![\\p{L}'’])(?:told|tell|tells|telling|asked|ask|asks|allowed|allow|forced|urged|advised|reminded|warned|encouraged|expected|expect|want|wants|wanted){{S}}(?:me|him|her|us|them){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
@@ -6075,7 +6212,14 @@ rules:
             "warned",
             "encouraged",
           ]
-        fixer: verbSlotsA7
+        let:
+          bare: /^(?:do|go|be|come|stay|leave|get|keep|stop|wait)$/.test(target)
+          next: vsNextWord(ctx, m.index + m[0].length)
+        when:
+          - target === target.toLowerCase()
+          - bare || vsBaseVerb(target)
+          - "!(!bare && rwRead(target)?.noun && !VS_OBJECT.test(next))"
+        return: "`to ${target}`"
       # "I'll be able come", "It would be great write a story": to after the adjective.
       - regex: "(?<![\\p{L}'’])(?:be|is|are|was|were|am|been|['’]m|['’]re|['’]s){{S}}(?:able|unable|willing|ready|available|eager|keen|great|nice|possible|impossible|easy|hard|difficult|happy|glad|free){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
@@ -6095,43 +6239,68 @@ rules:
             "happy",
             "glad",
           ]
-        fixer: verbSlotsA8
+        let:
+          next: vsNextWord(ctx, m.index + m[0].length)
+        when:
+          - "!(target !== target.toLowerCase() || !vsBaseVerb(target) || /^(?:for|to|thank|please)$/.test(target))"
+          # "Jobs are hard come by": the idiom.
+          - '!(target === "come" && next === "by")'
+          - >-
+            !(rwRead(target)?.noun && !(VS_OBJECT.test(next) ||
+            /^(?:over|back|up|out|in|on|by|home|here|there|tomorrow|today|soon)$/.test(next)))
+        return: "`to ${target}`"
       # "She explained me the results", "Let me explain you why": explain to someone.
       - regex: "(?<![\\p{L}'’])(?:explain|explains|explained|explaining|describe|describes|described){{S}}(?<target>me|him|her|us|them|you){{S}}(?:the|a|an|why|how|what|where|when|that|this|these|everything|something|anything|it){{E}}"
         check: englishVerbComplements
         message: review_msg_verb_complements
         cue: ["explain", "explained", "explains", "explaining", "describe", "described"]
-        fixer: verbSlotsMe
+        return: "`to ${target}`"
       # "We cannot afford spending a month there": afford to spend.
       - regex: "(?<![\\p{L}'’])afford(?:s|ed)?{{S}}(?:not{{S}})?(?<target>[a-z]+ing){{E}}"
         check: englishVerbComplements
         message: review_msg_verb_complements
         cue: ["afford"]
-        fixer: verbSlotsA9
+        let:
+          lemma: englishLemma(target, "ing")
+        return: 'lemma && lemma !== "be" ? `to ${lemma}` : null'
       # "It not required", "You not allowed to": the pronoun lost its be.
       - regex: "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she|it){{S}}(?<target>not){{S}}(?:required|allowed|supposed|permitted|needed){{E}}"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
         cue: ["not"]
-        fixer: verbSlotsNot
+        let:
+          before: enWordBefore(ctx, m.index)
+          low: subject.toLowerCase()
+        when:
+          # "Do you not…", "Will it not…": an inverted question keeps its auxiliary.
+          - >-
+            !(before && EN_FUNCTION_WORDS.has(before) &&
+            !/^(?:that|if|so|and|but|because|when|think|said)$/.test(before))
+        return: '`${low === "i" ? "am" : /^(?:he|she|it)$/.test(low) ? "is" : "are"} not`'
       # "We have not including him", "The report has not coming yet": a perfect or a progressive.
       - regex: "(?<![\\p{L}'’])(?<have>have|has){{S}}not{{S}}(?<target>[a-z]+ing){{E}}"
         check: englishPerfectParticiples
         message: review_msg_perfect_participle
         cue: ["not"]
-        fixer: verbSlotsA10
+        let:
+          lemma: vsNonBase(target, ["ing"])
+          done: lemma && lemma !== "be" && enParticiple(lemma)
+        when: done
+        return: >-
+          { alternatives: [`${have} not ${done}`, `${have.toLowerCase() === "has" ? "is" : "are"} not
+          ${target}`], range: [m.indices!.groups!.have[0], m.index + m[0].length], raw: true }
       # "It did been solved", "They do been ready": a perfect takes have.
       - regex: "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it|this|that){{S}}(?<target>did|does|do){{S}}been{{E}}"
         check: englishPerfectParticiples
         message: review_msg_perfect_participle
         cue: ["been"]
-        fixer: verbSlotsDid
+        return: VS_PERFECT_HAVE[target.toLowerCase()]
       # "There is has been an outrage": one auxiliary.
       - regex: "(?<![\\p{L}'’])there{{S}}(?<target>(?:is|are|['’]s|['’]re){{S}}(?<have>has|have)){{S}}been{{E}}"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
         cue: ["been"]
-        fixer: verbSlotsIs
+        return: have
       # "I am surprise that", "She was disappoint": the participle after be.
       - regex: "(?<![\\p{L}'’])(?<!there{{S}})(?:am|is|are|was|were|be|been|['’]m|['’]re|so|very|really|quite){{S}}(?<target>surprise|disappoint|amaze|confuse|scare|excite|bore|tire|embarrass|satisfy)(?={{S}}(?:that|by|with|at|about|to|in){{E}}|[ \\t\\u00a0]*[.!,])"
         check: englishPerfectParticiples
@@ -6149,13 +6318,24 @@ rules:
             "embarrass",
             "satisfy",
           ]
-        fixer: verbSlotsSurprise
+        return: englishInflect(target.toLowerCase(), "past")
       # "I use to own a car", "apps that use to be free": used to.
       - regex: "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she|it|that|which|who){{S}}(?<target>use){{S}}to{{S}}(?<verb>[a-z]+){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
         cue: ["use"]
-        fixer: verbSlotsUse
+        let:
+          low: subject.toLowerCase()
+          lemma: verb.toLowerCase()
+          # "the tool I use to write code": the object of use comes before its subject.
+          before: enWordBefore(ctx, m.index)
+          opens: >-
+            (!before && enAfterBreak(ctx, m.index)) ||
+            /^(?:and|but|so|because|when|know|knew|think|thought|remember)$/.test(before)
+          r: rwRead(lemma)
+        return: >-
+          /^(?:that|which|who)$/.test(low) ? (lemma === "be" ? "used" : null) : opens &&
+          r?.verbs.some((v) => v.form === "base") && !r.noun ? "used" : null
       # "Is he suppose to win?", "Was I suppose to know?": supposed.
       - regex: "(?<![\\p{L}'’])(?:is|are|was|were|am|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:{{S}}[A-Za-z]+){1,2}{{S}}(?<target>suppose){{S}}to{{E}}"
         check: englishConfusedWords

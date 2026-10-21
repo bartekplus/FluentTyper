@@ -15975,28 +15975,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:do|does|did)(?:n['’]t|[ \\t\\u00a0]{1,8}not)(?:[ \\t\\u00a0]{1,8}there)?(?:[ \\t\\u00a0]{1,8}(?:not|really|necessarily|exactly|actually|even|usually|always|ever|just|often|also|still|never|probably|please|really))?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbSlotsA",
+    fixer: "en:@en.verbSlots/1",
     cue: ["not", "doesn", "don", "didn"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?<modal>will|would|can|could|should|must|might|may|['’]ll)(?:[ \\t\\u00a0]{1,8}(?:not|really|necessarily|exactly|actually|even|usually|always|ever|just|often|also|still|never|probably|please|really))?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbSlotsA2",
+    fixer: "en:@en.verbSlots/2",
     cue: ["will", "would", "can", "could", "should", "must", "might", "may", "ll"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:can|could|will|would)[ \\t\\u00a0]{1,8}(?<subject>I|you|we|they|he|she|it|this|anyone|anybody|someone|somebody|everyone|[A-Za-z]+)(?:[ \\t\\u00a0]{1,8}please)?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["can", "could", "will", "would"],
-    fixer: "en:verbSlotsA3",
+    fixer: "en:@en.verbSlots/3",
     cue: ["can", "could", "will", "would"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])it[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbSlotsA4",
+    fixer: "en:@en.verbSlots/4",
     message: "review_msg_subject_verb",
     check: "englishSubjectVerbAgreement",
     cue: ["it"],
@@ -16005,7 +16005,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])the[ \\t\\u00a0]{1,8}(?<name>United[ \\t\\u00a0]{1,8}States|US|U\\.S\\.)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:verbSlotsA5",
+    fixer: "en:@en.verbSlots/5",
     message: "review_msg_subject_verb",
     check: "englishSubjectVerbAgreement",
     cue: ["states", "us", "u"],
@@ -16014,7 +16014,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<first>[a-z]+s)(?<middle>(?:[ \\t\\u00a0]{1,8}[a-z]+){1,5}?)[ \\t\\u00a0]{1,8}and(?:[ \\t\\u00a0]{1,8}(?:never|also|annually|then|often|always|usually))?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["and"],
-    fixer: "en:verbSlotsA6",
+    fixer: "en:@en.verbSlots/6",
     message: "review_msg_subject_verb",
     check: "englishSubjectVerbAgreement",
     cue: ["and"],
@@ -16044,7 +16044,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "wants",
       "wanted",
     ],
-    fixer: "en:verbSlotsA7",
+    fixer: "en:@en.verbSlots/7",
     message: "review_msg_missing_to",
     check: "englishVerbComplements",
     cue: [
@@ -16085,7 +16085,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "glad",
       "free",
     ],
-    fixer: "en:verbSlotsA8",
+    fixer: "en:@en.verbSlots/8",
     message: "review_msg_missing_to",
     check: "englishVerbComplements",
     cue: [
@@ -16115,7 +16115,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "describes",
       "described",
     ],
-    fixer: "en:verbSlotsMe",
+    fixer: "en:@en.verbSlots/9",
     message: "review_msg_verb_complements",
     check: "englishVerbComplements",
     cue: ["explain", "explained", "explains", "explaining", "describe", "described"],
@@ -16124,7 +16124,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])afford(?:s|ed)?[ \\t\\u00a0]{1,8}(?:not[ \\t\\u00a0]{1,8})?(?<target>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["afford"],
-    fixer: "en:verbSlotsA9",
+    fixer: "en:@en.verbSlots/10",
     message: "review_msg_verb_complements",
     check: "englishVerbComplements",
     cue: ["afford"],
@@ -16133,7 +16133,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?<target>not)[ \\t\\u00a0]{1,8}(?:required|allowed|supposed|permitted|needed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["required", "allowed", "supposed", "permitted", "needed"],
-    fixer: "en:verbSlotsNot",
+    fixer: "en:@en.verbSlots/11",
     message: "review_msg_sentence_structure",
     check: "englishSentenceStructure",
     cue: ["not"],
@@ -16142,7 +16142,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<have>have|has)[ \\t\\u00a0]{1,8}not[ \\t\\u00a0]{1,8}(?<target>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["have", "has"],
-    fixer: "en:verbSlotsA10",
+    fixer: "en:@en.verbSlots/12",
     message: "review_msg_perfect_participle",
     check: "englishPerfectParticiples",
     cue: ["not"],
@@ -16151,7 +16151,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it|this|that)[ \\t\\u00a0]{1,8}(?<target>did|does|do)[ \\t\\u00a0]{1,8}been(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["been"],
-    fixer: "en:verbSlotsDid",
+    fixer: "en:@en.verbSlots/13",
     message: "review_msg_perfect_participle",
     check: "englishPerfectParticiples",
     cue: ["been"],
@@ -16160,7 +16160,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])there[ \\t\\u00a0]{1,8}(?<target>(?:is|are|['’]s|['’]re)[ \\t\\u00a0]{1,8}(?<have>has|have))[ \\t\\u00a0]{1,8}been(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:verbSlotsIs",
+    fixer: "en:@en.verbSlots/14",
     message: "review_msg_sentence_structure",
     check: "englishSentenceStructure",
     cue: ["been"],
@@ -16180,7 +16180,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "embarrass",
       "satisfy",
     ],
-    fixer: "en:verbSlotsSurprise",
+    fixer: "en:@en.verbSlots/15",
     message: "review_msg_be_participle",
     check: "englishPerfectParticiples",
     cue: [
@@ -16200,7 +16200,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she|it|that|which|who)[ \\t\\u00a0]{1,8}(?<target>use)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["use"],
-    fixer: "en:verbSlotsUse",
+    fixer: "en:@en.verbSlots/16",
     message: "review_msg_confused_word",
     check: "englishConfusedWords",
     cue: ["use"],
