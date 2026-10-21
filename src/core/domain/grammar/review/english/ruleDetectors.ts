@@ -4,7 +4,6 @@ import { mergePredicates, type FindingsFilter, type Fixer } from "../../engine/r
 import * as apostrophes from "./apostrophes";
 import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
-import * as plainStyle from "./plainStyle";
 import * as passiveVoice from "./passiveVoice";
 import * as punctuation from "./punctuation";
 import * as slotConfusions from "./slotConfusions";
@@ -115,7 +114,6 @@ export const FIXERS = mergePredicates<Fixer>(
   relativeSlots.FIXERS,
   missingVerbSlots.FIXERS,
   degreeSlots.FIXERS,
-  plainStyle.FIXERS,
   properNames.FIXERS,
   questionSlots.FIXERS,
   complementSlots.FIXERS,

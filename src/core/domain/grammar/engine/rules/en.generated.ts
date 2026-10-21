@@ -6,6 +6,7 @@ import type { DetectContext, FixResult, FrameRef, MatchResult, RawFinding } from
 import {
   ENGLISH_MASS_NOUNS,
   EN_FUNCTION_WORDS,
+  capitalize,
   enQuotedMention,
   englishCountNoun,
   englishInitialSound,
@@ -13,6 +14,32 @@ import {
   finding,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const PLAIN_QUESTION_LEADS: ReadonlySet<string> = new Set([
+  "why",
+  "how",
+  "what",
+  "where",
+  "when",
+  "who",
+]);
+
+export const PLAIN_PARTITIVES: ReadonlySet<string> = new Set([
+  "many",
+  "some",
+  "all",
+  "most",
+  "none",
+  "each",
+  "both",
+  "few",
+  "several",
+  "one",
+  "two",
+  "three",
+  "neither",
+  "either",
+]);
 
 export const ARTICLES_NOT_SUPERLATIVES: ReadonlySet<string> = new Set(["best", "worst"]);
 
@@ -150,6 +177,26 @@ export const ARTICLES_COUNT_NOUNS: ReadonlySet<string> = new Set([
   "ticket",
 ]);
 
+export const PLAIN_CONTRACTED: Readonly<Record<string, string>> = {
+  am: "aren't",
+  can: "can't",
+  will: "won't",
+};
+
+// en.yaml rule en.plainStyle def PLAIN_DIMENSIONS
+export const PLAIN_DIMENSIONS = {
+  size: /^(?:big|bigger|biggest|small|smaller|smallest|large|larger|largest|tiny|huge|enormous|little|massive|immense)$/,
+  shape: /^(?:round|square|oval|circular|rectangular|triangular|spherical|cylindrical)$/,
+  colour:
+    /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
+  color: /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
+  number: /^(?:few|fewer|fewest|many|numerous)$/,
+  duration: /^(?:brief|briefer|briefest|short|shorter|shortest|long|longer|longest)$/,
+  taste: /^(?:bitter|sweet|sour|salty|sweeter|sourer)$/,
+  height: /^(?:tall|taller|tallest)$/,
+  weight: /^(?:heavy|heavier|heaviest|light|lighter|lightest)$/,
+} as Readonly<Record<string, RegExp>>;
+
 // en.yaml rule en.geographicThe def ARTICLES_NOT_PLACE_WORDS
 export const ARTICLES_NOT_PLACE_WORDS = /^(?:The|A|An|My|Our|This|That|New|Old)\b/;
 
@@ -202,6 +249,96 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.plainStyle frame 1
+  "@en.plainStyle/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const aux = m.groups!.aux;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    const lead = /([A-Za-z]+)[ \t ]+$/.exec(before)?.[1].toLowerCase();
+    const start = /(?:^|[.!?\n"“(])[ \t ]*$/.test(before);
+    if (!(start || (lead && PLAIN_QUESTION_LEADS.has(lead)))) return null;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    const lower = aux.toLowerCase();
+    const contracted = PLAIN_CONTRACTED[lower] ?? `${lower}n't`;
+    const end = m.index + aux.length + m[0].slice(aux.length).search(/not/) + 3;
+    return finding("stylePhrasing", "review_msg_style_phrasing", m.index, end, [
+      /^[A-Z]/.test(aux) ? capitalize(contracted) : contracted,
+    ]);
+  },
+  // en.yaml rule en.plainStyle frame 2
+  "@en.plainStyle/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const who = m.groups!.who;
+    const rest = m.groups!.rest;
+    if (!rest) return null;
+    const before = /([A-Za-z]+)[ \t ]+$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 16), m.index),
+    )?.[1];
+    const partitive = prep === "of" && !!before && PLAIN_PARTITIVES.has(before.toLowerCase());
+    const objectFollows = /^\s+(?:I|you|he|she|it|we|they)$/.test(rest);
+    if (!(partitive || (objectFollows && prep !== "of"))) return null;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 8);
+    if (objectFollows && /^[ \t ]*(?:am|are|is|was|were|be|['’](?:m|re|s))(?![\p{L}])/u.test(after))
+      return null;
+    const span = m.indices!.groups!.who;
+    return finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [
+      who === "whoever" ? "whomever" : "whom",
+    ]);
+  },
+  // en.yaml rule en.plainStyle frame 3
+  "@en.plainStyle/3": (m: RegExpExecArray): MatchResult => {
+    const subject = m.groups!.subject;
+    const adv = m.groups!.adv;
+    const aux = m.groups!.aux;
+    if (!(/^(?:I|you|he|she|it|we|they)$/i.test(subject) || !!englishWordInfo(subject)?.plural))
+      return null;
+    return finding(
+      "stylePhrasing",
+      "review_msg_adverb_position",
+      m.indices!.groups!.adv[0],
+      m.indices!.groups!.aux[1],
+      [`${aux} ${adv}`],
+    );
+  },
+  // en.yaml rule en.plainStyle frame 4
+  "@en.plainStyle/4": (m: RegExpExecArray): MatchResult => {
+    const verb = m.groups!.verb;
+    const adv = m.groups!.adv;
+    const read = englishWordInfo(verb);
+    if (!read?.verbs.some((v) => v.form === "base" || v.form === "past" || v.form === "third"))
+      return null;
+    if (/^(?:am|is|are|was|were|be|been|have|has|had|do|does|did)$/i.test(verb)) return null;
+    return finding(
+      "stylePhrasing",
+      "review_msg_adverb_position",
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.adv[1],
+      [`${adv} ${verb}`],
+    );
+  },
+  // en.yaml rule en.plainStyle frame 5
+  "@en.plainStyle/5": (m: RegExpExecArray): MatchResult => {
+    const adj = m.groups!.adj;
+    const dim = m.groups!.dim;
+    if (!PLAIN_DIMENSIONS[dim.toLowerCase()]?.test(adj)) return null;
+    const span = m.indices!.groups!.target;
+    return finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [""], {
+      context: { start: m.index, end: span[1] },
+    });
+  },
+  // en.yaml rule en.plainStyle frame 6
+  "@en.plainStyle/6": (m: RegExpExecArray): MatchResult => {
+    const span = m.indices!.groups!.dollars ?? m.indices!.groups!.plus;
+    return finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [""], {
+      context: { start: m.index, end: span[1] },
+    });
+  },
+  // en.yaml rule en.plainStyle frame 7
+  "@en.plainStyle/7": (m: RegExpExecArray): MatchResult => {
+    const span = m.indices!.groups!.target;
+    return finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [""], {
+      context: { start: m.index, end: m.index + m[0].length },
+    });
   },
   // en.yaml rule en.geographicThe frame 1
   "@en.geographicThe/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

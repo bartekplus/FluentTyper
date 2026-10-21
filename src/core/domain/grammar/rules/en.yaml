@@ -3582,37 +3582,114 @@ rules:
     style: match
     message: review_msg_style_phrasing
     filter: usOutsideExamples
+    maps:
+      PLAIN_CONTRACTED: { am: "aren't", can: "can't", will: "won't" }
+    sets:
+      PLAIN_QUESTION_LEADS: [why, how, what, where, when, who]
+      PLAIN_PARTITIVES:
+        [many, some, all, most, none, each, both, few, several, one, two, three, neither, either]
+    defs:
+      # "big in size", "few in number", "bitter in taste": the adjective already names the
+      # dimension.
+      PLAIN_DIMENSIONS: >-
+        ({
+          size: /^(?:big|bigger|biggest|small|smaller|smallest|large|larger|largest|tiny|huge|enormous|little|massive|immense)$/,
+          shape: /^(?:round|square|oval|circular|rectangular|triangular|spherical|cylindrical)$/,
+          colour: /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
+          color: /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
+          number: /^(?:few|fewer|fewest|many|numerous)$/,
+          duration: /^(?:brief|briefer|briefest|short|shorter|shortest|long|longer|longest)$/,
+          taste: /^(?:bitter|sweet|sour|salty|sweeter|sourer)$/,
+          height: /^(?:tall|taller|tallest)$/,
+          weight: /^(?:heavy|heavier|heaviest|light|lighter|lightest)$/,
+        }) as Readonly<Record<string, RegExp>>
     frames:
       # "Why do not you", "Are not you": a negative question puts "not" after the subject or
       # contracts it. Not "had"/"were": "Had not they..." may be a conditional, which never
       # contracts.
       - regex: "(?<aux>are|is|am|was|do|does|did|have|has|can|could|will|would|should|must){{S}}not{{S}}(?<subject>I|you|he|she|it|we|they|this|that|there|anyone|someone|everyone|anybody){{E}}"
         owner: none
-        fixer: plainNegativeQuestion
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          lead: '/([A-Za-z]+)[ \t ]+$/.exec(before)?.[1].toLowerCase()'
+          start: '/(?:^|[.!?\n"“(])[ \t ]*$/.test(before)'
+          lower: aux.toLowerCase()
+          contracted: "PLAIN_CONTRACTED[lower] ?? `${lower}n't`"
+          end: m.index + aux.length + m[0].slice(aux.length).search(/not/) + 3
+        when:
+          - start || (lead && PLAIN_QUESTION_LEADS.has(lead))
+          - m.index >= ctx.from && m.index < ctx.to
+        return: >-
+          finding("stylePhrasing", "review_msg_style_phrasing", m.index, end, [
+            /^[A-Z]/.test(aux) ? capitalize(contracted) : contracted,
+          ])
       # "with who you shared", "many of who were": "whom" as the object of a preposition.
       - regex: "(?<prep>with|to|from|for|of|in|on|by|about|without|against){{S}}(?<who>who|whoever){{E}}(?<rest>{{S}}(?:I|you|he|she|it|we|they|were|are|was|is){{E}})?"
         owner: who
-        fixer: plainWhom
+        let:
+          before: '/([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 16), m.index))?.[1]'
+          partitive: 'prep === "of" && !!before && PLAIN_PARTITIVES.has(before.toLowerCase())'
+          objectFollows: '/^\s+(?:I|you|he|she|it|we|they)$/.test(rest)'
+          after: ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 8)
+          span: m.indices!.groups!.who
+        when:
+          - "!!rest"
+          # "of who were" needs a partitive before it; elsewhere a subject must follow.
+          - 'partitive || (objectFollows && prep !== "of")'
+          # "for who I am": "who" completes "be" and stays.
+          - '!(objectFollows && /^[ \t ]*(?:am|are|is|was|were|be|[''’](?:m|re|s))(?![\p{L}])/u.test(after))'
+        return: >-
+          finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [
+            who === "whoever" ? "whomever" : "whom",
+          ])
       # "I always will love you" -> "will always love"; "it often is" -> "is often": a frequency
       # adverb goes after a modal or "be".
       - regex: "(?<subject>I|you|he|she|it|we|they|[a-z]+s){{S}}(?<adv>{{PLAINSTYLE_FREQUENCY}}){{S}}(?<aux>will|would|can|could|should|must|might|am|is|are|was|were){{E}}"
         owner: adv
-        fixer: plainAdverbAfterAux
+        # A noun subject only when it is a plain lowercase plural ("appearances often are").
+        when: "/^(?:I|you|he|she|it|we|they)$/i.test(subject) || !!englishWordInfo(subject)?.plural"
+        return: >-
+          finding("stylePhrasing", "review_msg_adverb_position", m.indices!.groups!.adv[0],
+            m.indices!.groups!.aux[1], [`${aux} ${adv}`])
       # "we go often to bed" -> "often go": a frequency adverb goes before a main verb.
       - regex: "(?<subject>I|you|he|she|it|we|they){{S}}(?<verb>[a-z]+){{S}}(?<adv>often|sometimes|always|usually|rarely|seldom|hardly){{S}}(?<next>to|about|in|at|on|as|into|during|here|there){{E}}"
         owner: verb
-        fixer: plainAdverbBeforeVerb
+        let:
+          read: englishWordInfo(verb)
+        when:
+          # A main verb in the present or past, not a form of "be" or an auxiliary.
+          - '!!read?.verbs.some((v) => v.form === "base" || v.form === "past" || v.form === "third")'
+          - "!/^(?:am|is|are|was|were|be|been|have|has|had|do|does|did)$/i.test(verb)"
+        return: >-
+          finding("stylePhrasing", "review_msg_adverb_position", m.indices!.groups!.verb[0],
+            m.indices!.groups!.adv[1], [`${adv} ${verb}`])
       # "big in size", "few in number", "bitter in taste": the adjective already names the
       # dimension.
       - regex: "(?<adj>[a-z]+)(?<target>{{S}}in{{S}}(?<dim>size|shape|colou?r|number|duration|taste|height|weight))(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|but|or|than|as){{E}})"
-        fixer: plainInDimension
+        let:
+          span: m.indices!.groups!.target
+        when: "!!PLAIN_DIMENSIONS[dim.toLowerCase()]?.test(adj)"
+        return: >-
+          finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [""], {
+            context: { start: m.index, end: span[1] },
+          })
       # "$55 dollars", "more than 100+ customers": the amount says it twice.
       - regex: "(?:\\$[0-9][0-9,.]*(?<dollars>{{S}}dollars?)|more{{S}}than{{S}}[0-9][0-9,]*(?<plus>\\+)){{E}}"
         owner: dollars|plus
-        fixer: plainDoubledAmount
+        let:
+          span: m.indices!.groups!.dollars ?? m.indices!.groups!.plus
+        return: >-
+          finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [""], {
+            context: { start: m.index, end: span[1] },
+          })
       # "return the book back to her": "return" already goes back.
       - regex: "(?:return|returns|returned|returning){{S}}(?:it|them|me|you|him|her|us|(?:the|my|your|his|her|our|their|this|that|these|those)(?:{{S}}[a-z]+){1,2})(?<target>{{S}}back){{S}}to{{E}}"
-        fixer: plainReturnBack
+        let:
+          span: m.indices!.groups!.target
+        return: >-
+          finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [""], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
   - id: en.passiveVoice
     checks: [stylePassiveVoice]
     style: match

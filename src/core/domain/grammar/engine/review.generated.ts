@@ -12058,14 +12058,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<aux>are|is|am|was|do|does|did|have|has|can|could|will|would|should|must)[ \\t\\u00a0]{1,8}not[ \\t\\u00a0]{1,8}(?<subject>I|you|he|she|it|we|they|this|that|there|anyone|someone|everyone|anybody)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["not"],
-    fixer: "en:plainNegativeQuestion",
+    fixer: "en:@en.plainStyle/1",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<prep>with|to|from|for|of|in|on|by|about|without|against)[ \\t\\u00a0]{1,8}(?<who>who|whoever)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<rest>[ \\t\\u00a0]{1,8}(?:I|you|he|she|it|we|they|were|are|was|is)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?",
     literals: ["who", "whoever"],
-    fixer: "en:plainWhom",
+    fixer: "en:@en.plainStyle/2",
     owner: "who",
   }),
   frame({
@@ -12083,34 +12083,34 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "normally",
       "generally",
     ],
-    fixer: "en:plainAdverbAfterAux",
+    fixer: "en:@en.plainStyle/3",
     owner: "adv",
   }),
   frame({
     pattern:
       "(?<subject>I|you|he|she|it|we|they)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)[ \\t\\u00a0]{1,8}(?<adv>often|sometimes|always|usually|rarely|seldom|hardly)[ \\t\\u00a0]{1,8}(?<next>to|about|in|at|on|as|into|during|here|there)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["often", "sometimes", "always", "usually", "rarely", "seldom", "hardly"],
-    fixer: "en:plainAdverbBeforeVerb",
+    fixer: "en:@en.plainStyle/4",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<adj>[a-z]+)(?<target>[ \\t\\u00a0]{1,8}in[ \\t\\u00a0]{1,8}(?<dim>size|shape|colou?r|number|duration|taste|height|weight))(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:and|but|or|than|as)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["size", "shape", "colo", "number", "duration", "taste", "height", "weight"],
-    fixer: "en:plainInDimension",
+    fixer: "en:@en.plainStyle/5",
   }),
   frame({
     pattern:
       "(?:\\$[0-9][0-9,.]*(?<dollars>[ \\t\\u00a0]{1,8}dollars?)|more[ \\t\\u00a0]{1,8}than[ \\t\\u00a0]{1,8}[0-9][0-9,]*(?<plus>\\+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["dollar", "more"],
-    fixer: "en:plainDoubledAmount",
+    fixer: "en:@en.plainStyle/6",
     owner: "dollars|plus",
   }),
   frame({
     pattern:
       "(?:return|returns|returned|returning)[ \\t\\u00a0]{1,8}(?:it|them|me|you|him|her|us|(?:the|my|your|his|her|our|their|this|that|these|those)(?:[ \\t\\u00a0]{1,8}[a-z]+){1,2})(?<target>[ \\t\\u00a0]{1,8}back)[ \\t\\u00a0]{1,8}to(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["return", "returns", "returned", "returning"],
-    fixer: "en:plainReturnBack",
+    fixer: "en:@en.plainStyle/7",
   }),
   frame({
     pattern:
