@@ -117,7 +117,7 @@ test("a frame's code: a condition runs after the bindings it reads and the one a
   expect(frame.groups).toEqual(["target", "next"]);
   expect(frame.steps).toEqual([
     { kind: "let", name: "word", source: "target.toLowerCase()" },
-    { kind: "when", source: "!STOP.has(word)" },
+    { kind: "when", source: "!STOP.has(word)", negated: "STOP.has(word)" },
     { kind: "when", source: "ctx.from === 0" },
     { kind: "let", name: "after", source: "next.toLowerCase()" },
     { kind: "when", source: "short(after)" },

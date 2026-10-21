@@ -3,9 +3,9 @@ import { notAfter, SPACE, WORD_END } from "../../src/core/domain/grammar/review/
 import {
   compileRuleFiles,
   expandFrame,
-  parseRows,
   type ReviewMetadataOut,
 } from "../../src/core/domain/grammar/engine/compiler";
+import { parseRows } from "../../src/core/domain/grammar/engine/rows";
 import type { CheckSpec, RuleFile, RuleSpec } from "../../src/core/domain/grammar/engine/types";
 
 // Settings copy that every check carries.

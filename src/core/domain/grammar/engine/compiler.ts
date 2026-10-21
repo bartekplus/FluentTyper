@@ -40,9 +40,6 @@ import type {
  * prove the generated modules are current. Every problem is collected and thrown at once.
  */
 
-export { parseRows };
-export type { PhraseRow };
-
 /** The order of rule files: shared rules first, then one file per language. */
 export const RULE_FILES = [
   "common",
