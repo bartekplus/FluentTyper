@@ -1161,40 +1161,249 @@ rules:
     checks: [englishDoubledDegree, stylePhrasing]
     style: match
     message: review_msg_doubled_degree
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    sets:
+      STYLE1_IRREGULAR_DEGREE: [better, best, worse, worst, farther, farthest]
+    defs:
+      # Findings inside a named example are dropped: the example is mentioned, not used.
+      outsideExamples:
+        args: "ctx: DetectContext, findings: RawFinding[]"
+        return: "findings.filter((f) => !enQuotedMention(ctx, f))"
+      STYLE1_FUNCTION_WORDS: /^(?:would|could|should|will|can|may|might|must|is|are|was|were|has|have|had|do|does|did|to|for|with|of|in|on|at|by|from|about|into|than|that|which|who|and|or|but|as|so|if|when|while|because|you|i|we|they|he|she|it|this|these|those)$/
+      style1ClauseStart:
+        args: "ctx: DetectContext, index: number"
+        let:
+          before: ctx.text.slice(Math.max(0, index - 96), index)
+        return: >-
+          (index <= 96 && /^[ \t ]*$/.test(before)) ||
+          /(?:[.!?;:"“]|\n[ \t ]*\n)[ \t \n]*$/.test(before)
+      # The base of a past or participle form that is not itself a base ("went", "needed").
+      style1PastLemma:
+        args: "word: string"
+        type: string | null
+        let:
+          w: word.toLowerCase()
+          irregular: englishVerbForms(w)
+        return: >-
+          irregular
+            ? w !== irregular.lemma && (w === irregular.past || w === irregular.participle)
+              ? irregular.lemma
+              : null
+            : w.endsWith("ed")
+              ? style1RegularPast(w)
+              : null
+      style1RegularPast:
+        args: "w: string"
+        let:
+          info: englishWordInfo(w)
+        when: '!(!info || info.noun || info.verbs.some((v) => v.form === "base"))'
+        return: englishLemma(w, "past")
+      style1IsParticiple:
+        args: "word: string"
+        let:
+          w: word.toLowerCase()
+          irregular: englishVerbForms(w)
+        return: "irregular ? w === irregular.participle && w !== irregular.lemma : !!style1PastLemma(w)"
+      # A comparative or superlative adjective ("faster", "easiest", "bigger", "best").
+      style1Graded:
+        args: "word: string"
+        return: STYLE1_IRREGULAR_DEGREE.has(word) || style1GradedForm(word)
+      style1GradedForm:
+        args: "word: string"
+        let:
+          suffix: "/est$/.test(word) ? 3 : /er$/.test(word) ? 2 : 0"
+          info: englishWordInfo(word)
+          stem: word.slice(0, -suffix)
+        when:
+          - "!(!suffix || word.length < suffix + 2)"
+          - "!(!info || info.noun || info.verbs.length)"
+        return: '[stem, `${stem}e`, stem.replace(/i$/, "y"), stem.replace(/(.)\1$/, "$1")].some((s) => englishWordInfo(s)?.adjective)'
+        else: "false"
+      # Known to the dictionary as neither a noun nor a verb ("bigger", "cuter").
+      style1PlainWord:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        return: "!!info && !info.noun && !info.verbs.length"
+      # The one-word comparative of a base adjective, when the dictionary has one. Short
+      # adjectives only: "more robust", "more often" are standard.
+      style1Comparative:
+        args: "word: string"
+        type: string[]
+        let:
+          syllables: '(word.replace(/e$/, "").match(/[aeiouy]+/g)?.length ?? 0) + (/[^aeiou]le$/.test(word) ? 1 : 0)'
+        return: >-
+          word === "bad"
+            ? ["worse"]
+            : word === "far"
+              ? ["farther", "further"]
+              : syllables > (word.endsWith("y") ? 2 : 1) || !englishWordInfo(word)?.adjective
+                ? []
+                : [
+                    `${word}er`,
+                    `${word}r`,
+                    word.replace(/y$/, "ier"),
+                    word.replace(/([^aeiou][aeiou])([bdgmnpt])$/, "$1$2$2er"),
+                  ]
+                    .filter((form, i, all) => form !== word && all.indexOf(form) === i && style1PlainWord(form))
+                    .slice(0, 1)
+      # The comparison ends where the clause shows it: a mark, "than" + a word, "to" + a verb,
+      # a verb, or one singular noun. "more older workers" counts workers; unknown words
+      # abstain. "a most best quality file": one thing, so "most" cannot count.
+      style1FinishedComparison:
+        args: "ctx: DetectContext, start: number, end: number"
+        let:
+          tail: ctx.text.slice(end, end + 48)
+          words: '/^[ \t ]+([A-Za-z]+)(?:[ \t ]+([A-Za-z]+))?/.exec(tail)'
+          next: words?.[1]
+        return: >-
+          (/^[ \t ]*(?:[.!?,;:]|$)/.test(tail) && tail.length < 48) ||
+          /\ban?[ \t ]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start)) ||
+          (!!next && next === next.toLowerCase() && style1NextCloses(next, words?.[2]))
+      # "most better for me": a preposition closes the phrase too.
+      style1NextCloses:
+        args: "next: string, after: string | undefined"
+        return: >-
+          next === "than"
+            ? !!after
+            : /^(?:for|with|in|on|at|by|from|about)$/.test(next)
+              ? true
+              : next === "to"
+                ? hasVerbForm(after ?? "", "base")
+                : /^(?:is|are|was|were)$/.test(next)
+                  ? true
+                  : STYLE1_FUNCTION_WORDS.test(next)
+                    ? false
+                    : style1SingularNoun(next)
+      style1SingularNoun:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        return: "!!info?.noun && !info.plural"
+      # The core frames (rule doubledDegree) own their matches; the doubled-degree frame adds the
+      # rest. Read once a chunk.
+      STYLE1_CORE_DEGREE: new WeakMap<DetectContext, Set<number>>()
+      style1CoreDegree:
+        args: "ctx: DetectContext"
+        return: >-
+          STYLE1_CORE_DEGREE.get(ctx) ??
+          STYLE1_CORE_DEGREE.set(ctx, new Set(enFrameRuleFindings("doubledDegree", ctx).map((f) => f.range.start))).get(ctx)!
     frames:
       # "more faster", "most best": a comparative or superlative needs no "more" or "most".
       - regex: "(?<target>(?<marker>more|most){{S}}(?<adj>[A-Za-z]+)){{E}}"
         gate: "mo(?:re|st)\\b"
-        fixer: doubledMoreMost
+        let:
+          span: m.indices!.groups!.target
+          low: adj.toLowerCase()
+          # Capitals other than a sentence's first letter are a name or emphasis.
+          markerCase: >-
+            marker === marker.toLowerCase() ||
+            (marker === caseLike("A", marker.toLowerCase()) && style1ClauseStart(ctx, m.index))
+        when:
+          - "!style1CoreDegree(ctx).has(span[0])"
+          - "!(adj !== low || !markerCase || hasUserOrCasedWord(ctx, m[0]))"
+          # "honest" is a base adjective ("honestly"), not hon + -est.
+          - "!(!style1Graded(low) || englishWordInfo(`${low}ly`))"
+          # "I'll write more later": time adverbs, not a comparative "more" could double.
+          - "!/^(?:later|earlier|sooner)$/.test(low)"
+          # "one more smaller case", "some more bigger boxes": that "more" counts.
+          - >-
+            !(marker.toLowerCase() === "more" &&
+              /\b(?:one|two|three|four|five|few|several|some|any|no)[ \t ]+$/i.test(
+                ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+          - style1FinishedComparison(ctx, span[0], span[1])
+        return: caseLike(marker, adj)
       # "more fast than": a short adjective has its own comparative.
       - regex: "(?<target>more{{S}}(?<adj>[A-Za-z]+))(?={{S}}than{{E}}|[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))"
         check: stylePhrasing
         message: review_msg_style_phrasing
         gate: "mo(?:re|st)\\b"
-        fixer: moreBase
+        let:
+          forms: style1Comparative(adj.toLowerCase())
+          # "more human than machine", "more subtle than direct" weigh two descriptions.
+          than: '/^[ \t ]+than[ \t ]+([A-Za-z]+)/i.exec(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 40))'
+          compared: "than ? englishWordInfo(than[1]) : null"
+        when:
+          - "!(!forms.length || hasUserOrCasedWord(ctx, m[0]))"
+          - "!(compared && (compared.noun || compared.adjective))"
+        return: forms.map((form) => caseLike(m[0], form))
   - id: en.didModalOf
     checks: [englishAuxiliaryBaseVerb, englishModalOfCorrection]
     style: match
     message: review_msg_auxiliary_base
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    defs:
+      # "What I did changed everything": did ends a noun clause.
+      STYLE1_NOUN_CLAUSE: '/\b(?:what|whatever|everything|anything|something|nothing|all|thing|things)\b(?:[ \t ]+[\p{L}''’]+){0,3}[ \t ]+$/iu'
+      # "did went", "didn't saw", "helped made": do-support and help take a base verb. Owned by
+      # "did"/"helped": the auxiliary is the evidence, so a scope without it abstains. "should've
+      # helped given that…": "given" works as a preposition. "did not found any towns":
+      # found/ground/wound are base verbs too; "didn't found it" still gets the fix. "The survey
+      # we did showed…": did closes a relative clause after a noun; a time word is no head
+      # ("Yesterday I did showed"). "Did you bored?" asks with be: englishAuxiliaryForms offers
+      # "Were you bored". Affirmative "did" is also the main verb ("They did needed repairs"): it
+      # needs a pronoun subject, or "Did" opening the clause, and an object. "I did wanted catch
+      # it": a bare verb after the participle is no object either.
+      style1AuxiliaryBase:
+        args: "m: RegExpExecArray, ctx: DetectContext, isDid: boolean"
+        type: string | null
+        let:
+          verb: m.groups!.target
+          lemma: style1PastLemma(verb)
+          before: ctx.text.slice(Math.max(0, m.index - 48), m.index)
+          after: nextLowerWord(ctx, m.index + m[0].length)
+          verbNext: '!!after && !STYLE1_FUNCTION_WORDS.test(after) && hasVerbForm(after, "base")'
+          subject: '/([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1]'
+          opens: style1ClauseStart(ctx, m.index) && /^Did$/.test(m[0].slice(0, 3))
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+          - "!(!lemma || verb !== verb.toLowerCase() || hasUserOrCasedWord(ctx, verb))"
+          - '!(!isDid && (/^(?:do|have|be)$/.test(lemma) || verb.toLowerCase() === "given"))'
+          - "!(isDid && STYLE1_NOUN_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index)))"
+          - "!(isDid && /^(?:supposed|used)$/.test(verb.toLowerCase()))"
+          - >-
+            !(isDid &&
+              /^(?:found|ground|wound)$/.test(verb) &&
+              !/^(?:it|them|him|her|me|us|you)$/.test(nextLowerWord(ctx, m.index + m[0].length)))
+          - >-
+            !(isDid &&
+              !m.groups!.negated &&
+              enObjectGapBefore(before) &&
+              !/\b(?:yesterday|today|tonight|tomorrow|now|then|once|sometimes|finally)[ \t ]+\S+[ \t ]+$/i.test(before))
+          - >-
+            !(isDid &&
+              FEELING_VERBS.has(lemma) &&
+              /^did(?:n['’]?t)?[ \t ]+(?:I|you|he|she|it|we|they)\b/i.test(m[0]))
+          - >-
+            !(isDid && !m.groups!.negated) ||
+            ((opens || /^(?:I|you|he|she|it|we|they|this|that|i)$/.test(subject ?? "")) &&
+              (opens ||
+                /^[ \t ]+(?:it|them|him|her|us|me|this|that|the|a|an|my|your|his|its|our|their|to)\b/i.test(
+                  ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 12)) ||
+                verbNext))
+          - "!(isDid && englishWordInfo(verb)?.adjective && englishWordInfo(after)?.noun && !verbNext)"
+        return: lemma
     frames:
       # "did went", "didn't saw": do-support takes a base verb. "did" owns the match.
       - regex: "did(?<negated>n['’]?t|{{S}}not)?(?:{{S}}(?:I|you|he|she|it|we|they))?(?:{{S}}(?:really|just|ever|even|actually|also))?{{S}}(?<target>[A-Za-z]+){{E}}"
         owner: none
         gate: "did|helped"
-        fixer: didBase
+        return: style1AuxiliaryBase(m, ctx, true)
       # "who helped made this possible"; "helped given that", "who helped got" stay.
       - regex: "helped{{S}}(?<target>[A-Za-z]+){{S}}(?:this|that|it|them|us|me|him|her|the|a|an|my|our|your|their|his|its){{E}}"
         owner: none
         gate: "did|helped"
-        fixer: helpedBase
+        return: style1AuxiliaryBase(m, ctx, false)
       # "may of" before a participle; the core rule covers could/would/should/must/might.
       - regex: "may{{S}}(?<target>of){{S}}(?<verb>[a-z]+){{E}}"
         check: englishModalOfCorrection
         message: review_msg_modal_of
         gate: "may[ \\t\\u00a0]+of\\b"
-        fixer: mayOf
+        # "I may of made a mistake": "of" heard for 've.
+        when: style1IsParticiple(verb)
+        return: caseLike(target, "have")
   - id: en.splitWordsThingsIs
     checks:
       [
@@ -1205,75 +1414,320 @@ rules:
       ]
     style: match
     message: review_msg_phrase_correction
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    defs:
+      STYLE1_VISITED: /\b(?:at|to|toured|visited|attend|attends|attended|the)[ \t ]{1,8}$/i
     frames:
       # Chat spellings and words split by a stray space: "you r".
       - regex: "(?<target>(?<pronoun>you|we|they){{S}}r){{E}}(?![.'’])"
         check: englishPhraseCorrections
         gate: "[ \\t\\u00a0]r\\b"
-        fixer: youR
+        return: >-
+          pronoun === pronoun.toUpperCase()
+            ? [`${pronoun} ARE`, `${pronoun}'RE`]
+            : [`${pronoun} are`, `${pronoun}'re`]
       # The university and hospital are named after Johns Hopkins; another John Hopkins is a
       # person.
       - regex: "(?<target>john)(?=[ \\t\\u00a0\\n]{1,8}hopkins(?<institution>-|{{S}}(?:university|hospital|medicine|medical|school){{E}})?(?![\\p{L}]))"
         check: englishPhraseCorrections
         gate: john
-        fixer: johnsHopkins
+        when: STYLE1_VISITED.test(ctx.text.slice(Math.max(0, m.index - 16), m.index)) || institution
+        return: '`${m[0]}${m[0] === m[0].toUpperCase() ? "S" : "s"}`'
       # "that s": the apostrophe of the contraction is lost.
       - regex: "(?<target>(?<word>that|it|there|what|here|who|he|she|where|let){{S}}s){{E}}(?![.'’])"
         check: englishContractionNormalization
         message: review_msg_contraction
         gate: "[ \\t\\u00a0]s\\b"
-        fixer: thatS
+        when: "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          `${word}${word === word.toUpperCase() ? "'S" : "'s"}`
       # A stray single letter ("weirdl y"), found first; the word before it is read afterwards.
       # The letter owns the match.
       - regex: "[ \\t\\u00a0][b-hj-z](?![\\p{L}\\p{N}_'\\u2019@/#\\\\-])"
         flags: dgu
         owner: none
-        fixer: splitLetter
+        let:
+          letterAt: m.index + 1
+          head: '/(?<![\p{L}\p{N}_''’@/#\\.-])[a-z]{3,}(?=[ \t ]+$)/u.exec(ctx.text.slice(Math.max(0, letterAt - 40), letterAt))?.[0]'
+          word: head && head + ctx.text[letterAt]
+        when:
+          - "!(letterAt < ctx.from || letterAt >= ctx.to)"
+          - "!(!head || englishWordInfo(head) || ctx.dictionary.has(head) || !englishWordInfo(word!))"
+        return: >-
+          finding("englishTypoWhitelistCorrection", "review_msg_typo", ctx.text.lastIndexOf(head, letterAt),
+            letterAt + 1, [word!], { context: around(ctx, m) })
       # "no body knew": "nobody" before a verb.
       - regex: "(?<target>no{{S}}body){{S}}(?<verb>[a-z]+){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
         gate: "no[ \\t\\u00a0]+body"
-        fixer: noBody
+        let:
+          info: englishWordInfo(verb)
+        when: '!(!info?.verbs.some((v) => v.form === "past" || v.form === "third") || info.noun)'
+        return: caseLike(target, "nobody")
       # "Somethings going well": the contraction of "something is" lost its apostrophe.
       - regex: "(?<target>(?<head>some|any|every|no)(?<things>things))(?={{S}}(?:(?:really|just|still|always|not){{S}})?[A-Za-z]+ing{{E}})"
         check: englishContractionNormalization
         message: review_msg_contraction
         gate: things
-        fixer: thingsIs
+        # "Somethings going well": the contraction of "something is" lost its apostrophe.
+        let:
+          word: target.slice(0, -1)
+          s: target.slice(-1)
+          mark: 'ctx.text.slice(Math.max(0, m.index - 200), m.index + 200).includes("’") ? "’" : "''"'
+        return: '[`${word}${mark}${s}`, `${word} ${s === "S" ? "IS" : "is"}`]'
   - id: en.doubledBeDeterminers
     checks: [englishSentenceStructure]
     style: match
     message: review_msg_sentence_structure
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    defs:
+      # Adjectives that name a group of people ("the rich of the town"), and words the lexicon
+      # reads as no noun that still head a phrase before "of" (ordinals, comparison words).
+      STYLE1_NOUNLESS_ALLOWED: /^(?:rich|poor|young|old|elderly|wealthy|sick|dead|living|blind|deaf|homeless|unemployed|needy|faithful|brave|injured|wounded|disabled|famous|powerful|weak|innocent|guilty|lucky|chosen|slain|fallen|damned|departed|deceased|accused|condemned|wretched|best|worst|most|least|more|less|lesser|greater|former|latter|first|last|next|only|other|same|very|whole|rest|remainder|likes|many|few|several|each|all|both|none|bulk|majority|minority)$/
+      STYLE1_NOUN_IN_MATH: /^(?:exponential|dual|conjugate|reciprocal|transpose|integral|differential)$/
+      # A known word with no noun, verb or adverb reading: "widespread", "additional".
+      # Comparatives and superlatives head "the larger of the two", "the finest of", "the
+      # northernmost of"; math names a function ("the exponential of", "the dual of"). Other
+      # checks repair these with their noun: "the important of" (importance), "a serious of"
+      # (series), "the numerous of" (number).
+      style1AdjectiveOnly:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        when:
+          - "!(STYLE1_FUNCTION_WORDS.test(word) || STYLE1_NOUNLESS_ALLOWED.test(word))"
+          - "!(/(?:er|est|most)$/.test(word) || STYLE1_NOUN_IN_MATH.test(word))"
+          - '!(/^(?:serious|numerous)$/.test(word) || englishWordInfo(word.replace(/t$/, "ce"))?.noun)'
+        return: "!!info && !info.noun && !info.plural && !info.adverb && !info.verbs.length"
+        else: "false"
+      # A warning on the determiner group of `m`: no fix, only the sentence to reread.
+      style1Warning:
+        args: "ctx: DetectContext, m: RegExpExecArray, name: string"
+        type: RawFinding
+        return: >-
+          ({
+            ...found(ctx, m, "englishSentenceStructure", "review_msg_sentence_structure", [], name),
+            warningOnly: true,
+          })
+      style1Caps:
+        args: "w: string"
+        return: w.length > 1 && w === w.toUpperCase()
     frames:
       # "This is are", "I'm am": two forms of be left from an edit; the second goes. A
       # contracted be ("We're are") follows its word, so the frame starts at the apostrophe.
       - regex: "(?:(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t){{E}})){{GRAMMARSTYLE1_BE}}|(?<=\\p{L})['’](?:s|re|m))(?:{{S}}(?<adverb>never|always|also|still|really|probably|definitely|certainly|already)(?={{S}}be{{E}}))?(?<target>{{S}}(?<second>{{GRAMMARSTYLE1_BE}})){{E}}"
         flags: dgiu
         gate: "\\b(?:is|are|was|were|am|be|['’](?:s|re|m))(?:[ \\t\\u00a0]+(?:never|always|also|still|really|probably|definitely|certainly|already))?[ \\t\\u00a0]+(?:is|are|was|were|am|be)\\b"
-        fixer: doubleBe
+        # "This is are", "I'm am": two forms of be left from an edit; the second goes.
+        let:
+          first: 'm[0].slice(0, m.indices!.groups!.target[0] - m.index).replace(/\s+\S+$/, (tail) => (adverb ? "" : tail))'
+        when:
+          # Identical pairs are repeated words; "the question is are we" asks a question.
+          - first.replace(/^['’]/, "").toLowerCase() !== second.toLowerCase()
+          # "Was IS weakened", "The IS was": an all-caps IS is a name, not a verb.
+          - style1Caps(first) === style1Caps(second)
+          # "his team's was flat": after a noun, "'s" is a possessive that stands for its noun.
+          - >-
+            !(/^['’]s$/i.test(first) &&
+              !/(?:^|[^\p{L}])(?:he|she|it|that|this|what|who|where|how|there|here|everyone|everything|nothing|nobody|someone|something)$/iu.test(
+                ctx.text.slice(Math.max(0, m.index - 16), m.index)))
+          - "!/^(?:I|you|we|they|he|she|it|there)$/i.test(nextLowerWord(ctx, m.index + m[0].length))"
+          # "My motto is never be late": after a noun subject, an imperative complement.
+          - >-
+            !(adverb &&
+              !/(?:^|[^\p{L}'’])(?:I|you|we|they|he|she|it|\p{Lu}\p{L}*)[ \t ]+$/u.test(
+                ctx.text.slice(Math.max(0, m.index - 24), m.index)))
+          # "To be or not to be is…": an infinitive subject before its verb.
+          - >-
+            !(first.toLowerCase() === "be" &&
+              /\bto[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))
+          # "What there are is a mess": the first verb closes a free relative clause.
+          - "!PSEUDO_CLEFT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))"
+          # "The are is a unit of area": after a determiner, "are" is the noun.
+          - >-
+            !(first.toLowerCase() === "are" &&
+              /(?:^|[^\p{L}'’])(?:the|an|one|per|each|this|that|square)[ \t ]+$/iu.test(
+                ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+          # "Let's be", and "Mateo's are": after a name, "'s" is a possessive standing for its
+          # noun.
+          - '!(/^[''’]/.test(first) && second.toLowerCase() === "be")'
+          # "All I'm saying is be careful", "all I want to do is be able": a bare infinitive or
+          # imperative after a clause ending in do or say.
+          - >-
+            !(/^(?:is|was)$/i.test(first) &&
+              second.toLowerCase() === "be" &&
+              !adverb &&
+              /\b(?:do|did|say|saying|said|mean|meant|ask|asking|asked)[ \t ]+$/i.test(
+                ctx.text.slice(Math.max(0, m.index - 16), m.index)))
+          # "two x's are", "the SKU's are": letters and short abbreviations take 's as a plural.
+          - >-
+            !(/^['’]s$/.test(first) &&
+              /(?:^|[^\p{L}])\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))
+          # So is a noun after a determiner ("these one's are", "my aunt's are"): never "is".
+          - >-
+            !(/^['’]s$/.test(first) &&
+              (/\p{Lu}\p{L}*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)) ||
+                /(?:^|[^\p{L}'’])(?:the|a|an|these|those|this|that|my|your|his|her|our|their|its|some|all|both|many|several|few|other)(?:[ \t ]+\p{L}+){1,2}$/iu.test(
+                  ctx.text.slice(Math.max(0, m.index - 40), m.index))))
+        return: '""'
       # "the some candidates" is "some candidates"; "the some approach" was "the same approach".
       - regex: "(?<target>the{{S}}some){{E}}"
         gate: "the[ \\t\\u00a0]+some\\b"
-        fixer: theSome
+        # "the some candidates" is "some candidates"; "the some approach" was "the same approach".
+        # The lexicon leaves long plain nouns out ("layout"), so an unknown word counts as one.
+        let:
+          parts: target.split(/[ \t ]+/)
+          the: parts[0]
+          some: parts[1]
+          next: nextLowerWord(ctx, m.index + m[0].length)
+          info: "next ? englishWordInfo(next) : null"
+          some2: caseLike(the, some.toLowerCase())
+          same: '`${the}${target.slice(the.length, -some.length)}${caseLike(some, "same")}`'
+          singular: >-
+            (info ? info.noun && !info.plural : next.length > 5 && !next.endsWith("s")) &&
+            !/^[ \t ]*\S+['’]s\b/.test(ctx.text.slice(m.index + m[0].length))
+        return: "singular ? [same, some2] : [some2, same]"
       # "The and other options": a determiner with no noun after it. The match start owns it.
       - regex: "(?<target>the{{S}}(?:and|or|but|because|nor)){{E}}|(?=an?{{S}})(?<=(?:^|[.!?]{{S}}))(?<article>An?{{S}}(?:because|although|unless)){{E}}"
         owner: none
         gate: "\\b(?:the|an?)[ \\t\\u00a0]+(?:and|or|but|because|nor|although|unless)\\b"
-        fixer: danglingDeterminer
+        # "The and other options": a determiner with no noun after it. "the or operator", "the
+        # and keyword": the word is named, not used.
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+          - '!(target && !/^the[ \t ]+[a-z]+$/i.test(target))'
+          - "!(target && /[A-Z]/.test(target.split(/\\s+/)[1]))"
+          - >-
+            !(target &&
+              /^(?:operators?|keywords?|gates?|clauses?|conditions?|statements?|functions?|buttons?|options?|cases?|keys?|logic|query|queries|search|searches|filters?|mode|rule)$/i.test(
+                nextLowerWord(ctx, m.index + m[0].length)))
+        return: 'style1Warning(ctx, m, target ? "target" : "article")'
       # "The widespread of", "an unusual of": an article and an adjective with no noun before
       # "of". "I think the is better": an article before a form of be.
       - regex: "(?<target>(?<det>the|an?){{S}}(?:(?<word>[a-z]+)(?={{S}}of{{E}})|(?<be>is|was|were|be|has){{E}}(?![–—])))"
         owner: none
         gate: "\\b(?:the|an?)[ \\t\\u00a0]+(?:[a-z]+[ \\t\\u00a0]+of|is|was|were|be|been|am|has)\\b"
-        fixer: nounlessDeterminer
+        # "The widespread of", "the is better": an article with no noun after it. "I think the
+        # is…", "if Ic an be": "the" or "an" before a lowercase be. A letter names a thing ("Let a
+        # be", "Annex A is", "An was"), and "a be-all" is an idiom.
+        let:
+          lead: det.toLowerCase()
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+          - "!(word && (word !== word.toLowerCase() || !style1AdjectiveOnly(word)))"
+          - >-
+            !be ||
+            (be === be.toLowerCase() &&
+              lead !== "a" &&
+              !(det !== lead && !style1ClauseStart(ctx, m.index)) &&
+              !(lead === "the" && be === "be") &&
+              !(lead === "an" && !/^(?:be|has|was)$/.test(be)) &&
+              !hasUserOrCasedWord(ctx, m[0]))
+        return: style1Warning(ctx, m, "target")
   - id: en.greekAndMassNouns
     checks: [englishCountability]
     style: match
     message: review_msg_mass_noun
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    defs:
+      # An ellipsis may open the phrase ("...one criteria"), so these start at any non-word
+      # character.
+      STYLE1_PLURAL_BEFORE: >-
+        /(?<![\p{L}\p{N}_'’@/#\\-])(?:these|those|several|many|both|few|multiple|various|numerous|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+)(?:{{S}}(?:(?!(?:of|the|a|an|this|that|which|and|or|to){{E}})\(?[A-Za-z][A-Za-z-]*\)?)){0,3}{{S}}$/iu
+      STYLE1_SINGLE_BEFORE: >-
+        /(?<![\p{L}\p{N}_'’@/#\\-])(?:one|this|each|every|single|(?<that>that)){{S}}$/iu
+      # Uncountable nouns, the count word that measures them, and countable synonyms.
+      STYLE1_MASS: >-
+        ({
+          advice: { unit: "piece of", count: [["tip", "tips"], ["suggestion", "suggestions"]] },
+          information: { unit: "piece of" },
+          info: { unit: "piece of" },
+          furniture: { unit: "piece of" },
+          luggage: { unit: "piece of", count: [["suitcase", "suitcases"], ["bag", "bags"]] },
+          baggage: { unit: "piece of", count: [["bag", "bags"]] },
+          equipment: { unit: "piece of" },
+          evidence: { unit: "piece of" },
+          feedback: { unit: "piece of" },
+          software: {
+            unit: "piece of",
+            count: [["application", "applications"], ["software package", "software packages"]],
+          },
+          firmware: { unit: "piece of" },
+          hardware: { unit: "piece of" },
+          malware: { unit: "piece of" },
+          ransomware: { unit: "piece of" },
+          clothing: { unit: "item of", count: [["garment", "garments"]] },
+          punctuation: { unit: "punctuation mark", count: [["punctuation mark", "punctuation marks"]] },
+        }) as Readonly<Record<string, { unit: string; count?: readonly (readonly [string, string])[] }>>
+      STYLE1_COUNTED_BEFORE: >-
+        /(?<![\p{L}\p{N}_'’-])(?:(?<single>an?|one|another|each|every|single)|(?<several>(?<how>how{{S}}|so{{S}}|too{{S}})?many|(?<afew>a{{S}})?few|fewer|several|multiple|both|numerous|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+)){{S}}$/iu
+      STYLE1_JUDGED_BEFORE: >-
+        /(?:(?:kind|sort|type){{S}}of|(?<!(?:(?:these|those|several|many|both|few|multiple|various|numerous|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+)|the|a|an|my|your|our|their|his|her|these|those){{S}})(?:bad|good|great|wise|sound|terrible|wrong|conflicting)){{S}}$/iu
+      STYLE1_ARTICLE_EXEMPT: /\b(?:payment|remittance|shipping|credit|debit|legal)[ \t ]+$/i
+      style1PluralUnit:
+        args: "unit: string"
+        return: >-
+          unit
+            .replace(/^(\w+)/, (word) => (word === "piece" || word === "item" ? `${word}s` : word))
+            .replace(/mark$/, "marks")
+      # The next word continues a compound noun ("a software engineer", "a software rendered
+      # game"). The lexicon leaves long plain nouns out ("component"). A noun after it heads the
+      # compound ("a software engineer", "a information frames").
+      style1CompoundHead:
+        args: "ctx: DetectContext, end: number"
+        let:
+          next: nextLowerWord(ctx, end)
+          info: englishWordInfo(next)
+        when: "!(!next || STYLE1_FUNCTION_WORDS.test(next))"
+        return: >-
+          !info
+            ? next.length > 5
+            : style1PastLemma(next)
+              ? style1NounAfter(nextLowerWord(ctx, end + ctx.text.slice(end).indexOf(next) + next.length))
+              : info.noun || info.plural
+        else: "false"
+      style1NounAfter:
+        args: "after: string"
+        return: "!!after && !STYLE1_FUNCTION_WORDS.test(after) && !!englishWordInfo(after)?.noun"
+      # "softwares", "bad advices": a plural of an uncountable noun loses its "s".
+      style1MassPlural:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        let:
+          noun: m.groups!.noun
+        when:
+          - "!(noun !== noun.toLowerCase() || hasUserOrCasedWord(ctx, m[0]))"
+          - "!STYLE1_ARTICLE_EXEMPT.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))"
+          - "!SPECIALIST.test(ctx.text.slice(Math.max(0, m.index - 128), m.index + m[0].length + 128))"
+          - "!style1CompoundHead(ctx, m.index + m[0].length)"
+        return: noun.slice(0, -1)
+      # The fixes of a counted mass noun after a single count word ("an advice").
+      style1SingleFixes:
+        args: "single: string, n: string, unit: string, count: readonly (readonly [string, string])[]"
+        let:
+          withUnit: 'unit.endsWith("of") ? `${unit} ${n}` : unit'
+        return: >-
+          /^an?$/i.test(single)
+            ? [`some ${n}`, `a ${withUnit}`, ...count.map(([one]) => `${/^[aeiou]/.test(one) ? "an" : "a"} ${one}`)]
+            : [`${single.toLowerCase()} ${withUnit}`, ...count.map(([one]) => `${single.toLowerCase()} ${one}`)]
+      # The fixes of a mass noun after a plural count word ("many information").
+      style1SeveralFixes:
+        args: >-
+          det: string, how: string | undefined, afew: string | undefined, n: string, unit: string,
+          count: readonly (readonly [string, string])[]
+        let:
+          d: det.toLowerCase()
+          unitPlural: 'unit.endsWith("of") ? `${style1PluralUnit(unit)} ${n}` : style1PluralUnit(unit)'
+        return: >-
+          [
+            ...(how ? [`${how.toLowerCase()}much ${n}`] : []),
+            ...(d === "fewer" ? [`less ${n}`] : []),
+            `${afew ? "a few" : d.replace(/^(?:how|so|too)\s+/, `${how ? how.toLowerCase() : ""}`)} ${unitPlural}`,
+            ...count.map(([, many]) => `${d.replace(/\s+/g, " ")} ${many}`),
+          ]
     frames:
       # Greek plurals: "three criterion" and "one criteria" swap number. Noun first, then the
       # count before it. An ellipsis may open the phrase ("...one criteria").
@@ -1281,35 +1735,156 @@ rules:
         flags: dgiu
         owner: none
         gate: "criteri|phenomen"
-        fixer: greekPlural
+        # Greek plurals: "three criterion" and "one criteria" swap number. "that" is also a
+        # conjunction: only "that phenomena." closing its clause. "twenty one phenomena", "one or
+        # two criterion", "section one criteria". A bare "many criterion" is not flagged: no rule
+        # has enough evidence for it.
+        let:
+          noun: m[0]
+          plural: noun.endsWith("on")
+          count: "(plural ? STYLE1_PLURAL_BEFORE : STYLE1_SINGLE_BEFORE).exec(ctx.text.slice(Math.max(0, m.index - 80), m.index))"
+          end: m.index + noun.length
+          before: ctx.text.slice(Math.max(0, m.index - 96 - count[0].length), m.index - count[0].length)
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+          - "!(!count || noun !== noun.toLowerCase() || hasUserOrCasedWord(ctx, count[0] + noun))"
+          - '!(count.groups?.that && !/^[ \t ]*(?:[.!?,;:]|$)/.test(ctx.text.slice(end, end + 9)))'
+          - '!(/\bof[ \t ]+$/i.test(before) || hasCountPrefix(before))'
+          - '!/^many[ \t ]+$/i.test(count[0])'
+        return: >-
+          finding("englishCountability", "review_msg_countable_number", m.index, end,
+            [noun.replace(/(?:on|a)$/, plural ? "a" : "on")], { context: around(ctx, m) })
       # "an advice", "many information": uncountable nouns used as counts. Noun first, then its
       # count word: the nouns are rare, so most text is skipped quickly.
       - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:{{GRAMMARSTYLE1_MASS}})(?![\\p{L}\\p{N}_'’@/#\\\\-])"
         flags: dgiu
         owner: none
         gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower"
-        fixer: massNoun
+        # "an advice", "many information": uncountable nouns used as counts. "a software
+        # engineer": the noun modifies the next one. So does a coordinated modifier: "a feedback
+        # and planning tool". "a information" is the core rule's warning.
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          counted: STYLE1_COUNTED_BEFORE.exec(before)
+          single: counted.groups!.single
+          noun: m[0]
+          n: noun.toLowerCase()
+          start: m.index - before.length + counted.index
+          end: m.index + noun.length
+          joined: '/^[ \t ]+(?:and|or|&)[ \t ]+([a-z]+)/i.exec(ctx.text.slice(end, end + 32))'
+          mass: STYLE1_MASS[n]
+          count: mass.count ?? []
+          det: single ?? counted.groups!.several
+          alternatives: >-
+            single
+              ? style1SingleFixes(single, n, mass.unit, count)
+              : style1SeveralFixes(det, counted.groups!.how, counted.groups!.afew, n, mass.unit, count)
+          offered: "[...new Set(alternatives.map((text) => caseLike(det, text)))]"
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+          - "!!counted"
+          - "!(noun !== n || hasUserOrCasedWord(ctx, ctx.text.slice(start, end)))"
+          - "!style1CompoundHead(ctx, end)"
+          - >-
+            !(joined &&
+              !STYLE1_FUNCTION_WORDS.test(joined[1]) &&
+              !/^(?:a|an|the|some|any|my|your|his|her|our|their|its|no|more|other|lots|plenty)$/i.test(joined[1]) &&
+              style1CompoundHead(ctx, end + joined[0].length))
+          - '!(n === "information" && single && /^an?$/i.test(single))'
+        return: >-
+          finding("englishCountability", "review_msg_countability", start, end, offered, {
+            ...(offered.length > 1 ? { requiresChoice: true as const } : {}),
+            context: around(ctx, m),
+          })
       # Plurals no context makes countable.
       - regex: "(?<target>(?<noun>softwares|furnitures|luggages|clothings|firmwares|hardwares|horsepowers)){{E}}"
         gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower"
-        fixer: massPlural
+        return: style1MassPlural(m, ctx)
       # "advices", "informations" and "equipments" have legal and trade senses and quantified
       # uses the core rule decides; here only after "kind of" or a judging adjective with no
       # count before it ("You gave me bad advices").
       - regex: "(?<target>(?<noun>advices|informations|equipments)){{E}}"
         gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower"
-        fixer: judgedPlural
+        when: STYLE1_JUDGED_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 48), m.index))
+        return: style1MassPlural(m, ctx)
   - id: en.numberNounForms
     checks: [englishNounNumber, englishContextualCompounds]
     style: match
     message: review_msg_noun_count
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    maps:
+      # Irregular plurals that englishNounForms does not have. Regularized forms ("childs",
+      # "eated") are left to Review's dictionary spelling check, which already offers the
+      # irregular form first.
+      STYLE1_IRREGULAR_PLURALS:
+        { foot: feet, elf: elves, hero: heroes, echo: echoes, veto: vetoes, torpedo: torpedoes }
+    defs:
+      STYLE1_TAILS: /^(?:is|was|has|had|does|did|can|could|will|would|should|must|that|which|who|where|with|in|on|at|of|for|to|from|and|or)$/
+      STYLE1_COLLECTIVE: /^(?:family|team|crew|gang|staff|group|band|crowd|audience|public|committee|club|party|class|army|jury|best|most|few|same|other|kind|sort|type|lot)$/
+      # Words that end the search for the noun: a plural is already right ("the trees behind
+      # him"), and a pronoun, preposition or number is not the head ("the many notes she
+      # included").
+      STYLE1_NOT_A_HEAD_NOUN: /^(?:people|men|women|children|feet|teeth|mice|geese|police|data|media|criteria|phenomena|today|tonight|tomorrow|yesterday|overnight|few|many|several|i|me|you|he|him|she|her|it|we|us|they|them|this|that|these|those|behind|above|below|under|over|after|before|between|among|without|within|during|about|around|into|onto|upon|across|along|against|toward|towards|near|beside|beyond|through|in|on|at|by|for|from|to|with|zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|hundred|thousand|million)$/
+      STYLE1_NOT_A_HEAD: /^(?:ago|old|olds|later|earlier|before|after|of|and|or|to|in|on|at|for|from|with|by|per|each|is|was|are|were|left|long|away|late|early|off)$/
+      # Where "one of the …" ends: a clause end, a function word or a verb ("node loses"). The
+      # end of the text closes it too; typing proposals never reach the word at the caret.
+      # "one of the car parks": a plural after the word is the noun itself.
+      style1ClosesNounPhrase:
+        args: "next: string | undefined, after: string"
+        return: >-
+          !next
+            ? /^[ \t ]*(?:[.!?,;:)]|[ \t ]+[A-Za-z]+)/.test(after) || (/^[ \t ]*$/.test(after) && after.length < 24)
+            : STYLE1_TAILS.test(next) || style1FiniteNotPlural(next)
+      style1FiniteNotPlural:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        return: '!!info?.verbs.some((v) => v.form === "third" || v.form === "past") && !info.plural'
+      # The index of the head noun of "one of the …" from word i, or -1. "one of the battery
+      # powered units": a noun before a participle modifies the next noun.
+      style1OneOfHead:
+        args: "list: RegExpExecArray[], after: string, i: number"
+        type: number
+        let:
+          word: list[i][0].toLowerCase()
+          modifier: '/ed$/.test(list[i + 1]?.[0] ?? "") && !!list[i + 2]'
+        when:
+          - i < list.length
+          - "!(STYLE1_NOT_A_HEAD_NOUN.test(word) || englishWordInfo(word)?.plural)"
+        return: "!modifier && style1ClosesNounPhrase(list[i + 1]?.[0], after) ? i : style1OneOfHead(list, after, i + 1)"
+        else: "-1"
     frames:
       # "one of the test" names one member of a plural set. The match start owns it.
       - regex: "one{{S}}of{{S}}(?:the|my|your|his|her|our|their|these|those)(?<words>(?:{{S}}(?!(?:of|and|or|that|which|who){{E}})[A-Za-z][A-Za-z-]*){1,7}){{E}}"
         owner: none
         gate: "one[ \\t\\u00a0]+of\\b"
-        fixer: oneOfPlural
+        # "one of the test" names one member of a plural set. Authored nouns ("person", "device")
+        # take their authored plural; the core rule's identical finding for the same span merges
+        # with this one.
+        let:
+          list: "[...words.matchAll(/[A-Za-z][A-Za-z-]*/g)]"
+          head: style1OneOfHead(list, ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24), 0)
+          noun: list[head][0]
+          authored: englishNounForms(noun)
+          info: englishWordInfo(noun)
+          plural: >-
+            authored?.plural ??
+            STYLE1_IRREGULAR_PLURALS[noun] ??
+            [`${noun}s`, `${noun}es`, noun.replace(/([^aeiou])y$/, "$1ies")].find(
+              (form) => form !== noun && englishWordInfo(form)?.plural)
+          start: m.indices!.groups!.words[0] + list[head].index
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - head >= 0
+          - "!(STYLE1_COLLECTIVE.test(noun) || !/^[a-z]+$/.test(noun))"
+          - "!(authored ? noun !== authored.singular : !info?.noun || info.plural || info.adjective)"
+          - "!!plural"
+        return: >-
+          finding("englishNounNumber", "review_msg_one_of", start, start + noun.length, [plural], {
+            context: around(ctx, m),
+          })
       # "in my 30's", "late 1970's", "an 80's style": decades and ages take a plain s. The
       # digits own the match.
       - regex: "(?<![\\p{L}\\p{N}_'’@#.\\\\-])(?:(?<age>(?:my|his|her|their|our|your){{S}}(?:(?:early|mid|late)[ \\t\\u00a0-]{1,8})?)(?<two>[1-9]0)|(?<when>(?:early|mid|late)[ \\t\\u00a0-]{1,8})(?<span>1[0-9]{2}0|20[0-9]0|[1-9]0)|(?<decade>1[0-9]{2}0|20[0-9]0|[1-9]0)(?=['’]s(?:{{S}}|-)(?:style|styled|era|music|fashion|vibes?|aesthetic|rock|pop|kids|look|design|tech|technology|cartoons|movies|films|songs|hits|culture|nostalgia|retro|sound)(?![\\p{L}])))(?<mark>['’])s(?![\\p{L}\\p{N}_'’@#\\\\])"
@@ -1317,26 +1892,51 @@ rules:
         owner: none
         gate: "[0-9]['’]s"
         gateFlags: g
-        fixer: decade
+        # "in my 30's", "late 1970's", "an 80's style": decades and ages take a plain s.
+        let:
+          start: 'm.indices!.groups![two ? "two" : span ? "span" : "decade"][0]'
+          number: two ?? span ?? decade
+          end: m.index + m[0].length
+          short: number.length === 2 && !age
+        when: "!(start < ctx.from || start >= ctx.to)"
+        return: >-
+          ({
+            ruleId: "englishNounNumber",
+            messageKey: "review_msg_decade_plural",
+            range: { start, end },
+            alternatives: short ? [`${mark}${number}s`, `${number}s`] : [`${number}s`],
+            ...(short ? { requiresChoice: true as const } : {}),
+            context: around(ctx, m),
+          })
       # "each 2 hours" is "every 2 hours".
       - regex: "(?<target>each){{S}}(?:[2-9]|[1-9][0-9]+|{{GRAMMARSTYLE1_COUNT}}){{S}}[a-z]+s{{E}}"
         gate: "each|several|many|numerous"
-        fixer: eachCount
+        # "each 2 hours" is "every 2 hours".
+        return: caseLike(target, "every")
       # "several two hosts" states two counts.
       - regex: "(?<target>(?<vague>several|many|numerous){{S}}(?<count>{{GRAMMARSTYLE1_COUNT}}|[2-9]|[1-9][0-9]+)){{S}}[a-z]+s{{E}}"
         gate: "each|several|many|numerous"
-        fixer: vagueCount
+        # "several two hosts" states two counts.
+        return: "[caseLike(vague, count), vague]"
       # "a 3 day course": a number and unit before a noun are hyphenated.
       - regex: "(?<![\\p{N}.,])(?<target>(?<n>[0-9]+){{S}}(?<unit>day|week|month|year|hour|minute|mile|page|step|point))(?=-[a-z]|{{S}}(?<next>[a-z]+){{E}})"
         check: englishContextualCompounds
         message: review_msg_compounds
         gate: "[0-9][ \\t\\u00a0]+(?:day|week|month|year|hour|minute|mile|page|step|point)\\b"
-        fixer: numberUnit
+        # "a 3 day course": a number and unit before a noun are hyphenated. "the 2018 Year-End
+        # chart": a capitalized unit belongs to a name. "my 2 step daughters": stepchildren
+        # counted.
+        when:
+          - '!(n === "1" || /^[A-Z]/.test(unit) || (next && STYLE1_NOT_A_HEAD.test(next)))'
+          - "!(next && !englishWordInfo(next)?.noun && !englishWordInfo(next)?.adjective)"
+          - '!(unit === "step" && /^(?:daughter|son|child|kid|sister|brother|parent)s?$|^children$/.test(next ?? ""))'
+        return: "`${n}-${unit}`"
   - id: en.missingSentenceSpace
     checks: [commaPeriodSpacing]
     style: match
     message: review_msg_space_after_mark
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # "table.The room": a sentence mark glued to the next sentence. The mark owns the match.
       - regex: "(?<=(?:^|[\\s(“\"])\\p{L}*\\p{Ll}\\p{L})(?:(?<period>\\.)(?=(?:{{GRAMMARSTYLE1_STARTERS}})[ \\t\\u00a0,])|(?<mark>[?!])(?=\\p{Lu}\\p{Ll}*[ \\t\\u00a0,])|(?<semi>;)(?=\\p{Ll}{2,}[ \\t\\u00a0,]))"
@@ -1344,7 +1944,17 @@ rules:
         owner: none
         gate: "\\p{Ll}[.?!;]\\p{L}"
         gateFlags: gu
-        fixer: missingSpace
+        # "table.The room": a sentence mark glued to the next sentence.
+        let:
+          start: m.index
+          before: '/[\p{L}]+$/u.exec(ctx.text.slice(Math.max(0, start - 32), start))?.[0] ?? ""'
+        when:
+          - "!(start < ctx.from || start >= ctx.to)"
+          - ctx.text[start - before.length - 1] !== "&"
+        return: >-
+          finding("commaPeriodSpacing", "review_msg_space_after_mark", start, start + 1, [`${m[0]} `], {
+            context: { start: Math.max(0, start - 16), end: Math.min(ctx.text.length, start + 16) },
+          })
   - id: en.numberRangeDashes
     checks: [emdashShortcut]
     style: match
@@ -1356,17 +1966,93 @@ rules:
         owner: none
         gate: "[0-9][-—][0-9]"
         gateFlags: g
-        fixer: numberRange
+        # Telephone and postal numbers: "555-1234", "12345-6789".
+        let:
+          at: m.indices!.groups!.dash[0]
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+          - "!(b.length === 4 && (a.length === 3 || a.length === 5))"
+        return: >-
+          finding("emdashShortcut", "review_msg_typed_dash", at, at + 1, ["–"], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
   - id: en.optionalStyle
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    maps:
+      STYLE1_UNIT_WORDS:
+        {
+          B: byte,
+          kB: kilobyte,
+          MB: megabyte,
+          GB: gigabyte,
+          TB: terabyte,
+          PB: petabyte,
+          EB: exabyte,
+          ZB: zettabyte,
+          YB: yottabyte,
+          RB: ronnabyte,
+          QB: quettabyte,
+          KiB: kibibyte,
+          MiB: mebibyte,
+          GiB: gibibyte,
+          TiB: tebibyte,
+          PiB: pebibyte,
+          EiB: exbibyte,
+          ZiB: zebibyte,
+          YiB: yobibyte,
+          RiB: robibyte,
+          QiB: quebibyte,
+          hr: hour,
+          hrs: hour,
+          min: minute,
+          mins: minute,
+          sec: second,
+          secs: second,
+          ms: millisecond,
+          msec: millisecond,
+          msecs: millisecond,
+        }
+    defs:
+      STYLE1_STYLE_WORDS: >-
+        ({
+          fav: ["favorite"],
+          favs: ["favorites"],
+          fave: ["favorite"],
+          faves: ["favorites"],
+          ppl: ["people"],
+          omg: ["oh my god"],
+          rly: ["really"],
+          eli5: ["explain like I'm five"],
+          iykyk: ["if you know, you know"],
+          iiuc: ["if I understand correctly"],
+          shit: ["crap", "sh*t"],
+          fuck: ["****"],
+          fucking: ["****ing"],
+          fucked: ["****ed"],
+          fucker: ["****er"],
+          fuckers: ["****ers"],
+        }) as Readonly<Record<string, string[]>>
+      STYLE1_MARKER_COMPLEMENTS: /^(?:of|far|much|many|long|often|hard|good|bad|little|few|more|less)$/
+      STYLE1_INTENSIFIED: /^[ \t ]+(?:is|isn['’]t|was|wasn['’]t|are|has|does|doesn['’]t|can|will|would|should|must)\b/i
+      # "PPL" in capitals is also an acronym, unless the text around it shouts too.
+      style1QuietAround:
+        args: "ctx: DetectContext, index: number, typed: string"
+        let:
+          near: ctx.text.slice(Math.max(0, index - 24), index + typed.length + 24)
+          words: (near.match(/\p{L}{2,}/gu) ?? []).filter((w) => w !== typed)
+        return: words.length > 0 && !words.some((w) => w === w.toUpperCase())
     frames:
       # Optional style advice the phrase tables cannot express: chat words and swearing.
       - regex: "(?<target>fav|favs|fave|faves|ppl|omg|rly|eli5|iykyk|iiuc|shit|fuck|fucking|fucked|fucker|fuckers){{E}}"
         gate: "fav|favs|fave|faves|ppl|omg|rly|eli5|iykyk|iiuc|shit|fuck|fucking|fucked|fucker|fuckers"
-        fixer: styleWord
+        when:
+          - "!(ctx.dictionary.has(target.toLowerCase()) || hasUserOrCasedWord(ctx, target))"
+          - "!(target.length > 1 && target === target.toUpperCase() && style1QuietAround(ctx, m.index, target))"
+        return: STYLE1_STYLE_WORDS[target.toLowerCase()].map((r) => caseLike(target, r))
       # Fillers and hedges that leave the sentence intact once removed.
       - regex: "(?<![0-9][ \\t\\u00a0]{0,8})(?<target>(?:uh|um|umm|uhm|uhh|erm|I{{S}}would{{S}}argue{{S}}that){{S}})(?=[A-Za-z])"
         gate: "\\b(?:uh|um|umm|uhm|uhh|erm|argue)\\b"
@@ -1374,7 +2060,13 @@ rules:
       # "increasingly more prevalent" is "more and more prevalent".
       - regex: "(?<target>increasingly{{S}}(?<degree>more|less)){{S}}(?<adj>[A-Za-z]+){{E}}"
         gate: increasingly
-        fixer: increasingly
+        # An adjective follows: "more prevalent", not "more people" or "more than".
+        let:
+          word: adj.toLowerCase()
+          info: englishWordInfo(word)
+          deg: degree.toLowerCase()
+        when: "!(STYLE1_FUNCTION_WORDS.test(word) || (info && !info.adjective && !style1PlainWord(word)))"
+        return: caseLike(target, `${deg} and ${deg}`)
       # "discovered for the first time": a discovery is always the first time.
       - regex: "discover(?:ed|s|ing)?(?:{{S}}[A-Za-z]+){0,3}(?<target>{{S}}for{{S}}the{{S}}first{{S}}time){{E}}"
         gate: "first[ \\t\\u00a0]+time"
@@ -1382,38 +2074,145 @@ rules:
       # A discourse marker opening a clause takes a comma: "However, …".
       - regex: "(?<target>however|therefore|meanwhile|furthermore|nevertheless|consequently|thus|instead|moreover|alternatively|frankly|nowadays|now{{S}}a{{S}}days|for{{S}}example|for{{S}}instance|on{{S}}the{{S}}other{{S}}hand|additionally|hence)(?={{S}}(?<next>[A-Za-z]+))"
         gate: "however|therefore|meanwhile|furthermore|nevertheless|consequently|thus|instead|moreover|alternatively|frankly|nowadays|now[ \\t\\u00a0]+a[ \\t\\u00a0]+days|for[ \\t\\u00a0]+example|for[ \\t\\u00a0]+instance|on[ \\t\\u00a0]+the[ \\t\\u00a0]+other[ \\t\\u00a0]+hand|additionally|hence"
-        fixer: discourseMarker
+        let:
+          low: next.toLowerCase()
+        when:
+          - "!(!style1ClauseStart(ctx, m.index) || STYLE1_MARKER_COMPLEMENTS.test(low))"
+          - "!(/^however$/i.test(target) && englishWordInfo(low)?.adjective)"
+        return: "`${target},`"
       # "5 PM in the evening": the time of day is said twice.
       - regex: "(?<target>(?<number>[0-9]{1,2}(?::[0-5][0-9])?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)(?<meridiem>[ \\t\\u00a0]?(?:[ap]\\.m\\.|[AP]\\.M\\.|[ap]m|[AP]M))(?<tail>{{S}}(?:in{{S}}the{{S}}(?:morning|afternoon|evening)|at{{S}}night))){{E}}"
         gate: "morning|afternoon|evening|night"
-        fixer: timeOfDay
+        # "5 P.M. in the afternoon." keeps one period.
+        let:
+          end: m.index + m[0].length
+          time: number + meridiem
+          doubled: time.endsWith(".") && ctx.text[end] === "."
+        return: "[time.slice(0, doubled ? -1 : undefined), `${number}${tail}`]"
       # "5GB", "3 hrs": units written as words. The number owns the match.
       - regex: "(?<![\\p{L}\\p{N}.,_+-])(?<n>[0-9]+(?:\\.[0-9]+)?)(?:(?<sep>[ \\u00a0]|-)B|(?<sep2>[ \\u00a0]?|-)(?<unit>kB|MB|GB|TB|PB|EB|ZB|YB|RB|QB|KiB|MiB|GiB|TiB|PiB|EiB|ZiB|YiB|RiB|QiB|hr|hrs|min|mins|sec|secs|ms|msec|msecs))(?![\\p{L}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         flags: dgu
         owner: none
         gate: "[0-9]"
         gateFlags: g
-        fixer: unitWord
+        let:
+          hyphen: (sep ?? sep2) === "-"
+          word: STYLE1_UNIT_WORDS[unit ?? "B"]
+        when: "!(m.index < ctx.from || m.index >= ctx.to)"
+        return: >-
+          ({
+            ruleId: "stylePhrasing",
+            messageKey: "review_msg_style_phrasing",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [`${n}${hyphen ? "-" : " "}${word}${hyphen || n === "1" ? "" : "s"}`],
+            context: around(ctx, m),
+          })
       # "self harm myself": the reflexive already says "self".
       - regex: "(?<target>(?<self>self)[- \\t\\u00a0]?)(?<verb>[A-Za-z]+)(?:{{S}}(?:it|one|them|this|that|to|on)){0,1}{{S}}(?:myself|yourself|himself|herself|itself|ourselves|yourselves|themselves|oneself){{E}}"
         gate: self
-        fixer: selfVerb
+        # "self harm itself isn't…": the reflexive stresses a noun subject.
+        when:
+          - "!(!englishWordInfo(verb)?.verbs.length && !/(?:ing|ed|s)$/i.test(verb))"
+          - "!STYLE1_INTENSIFIED.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 16))"
+        return: >-
+          ({
+            ruleId: "stylePhrasing",
+            messageKey: "review_msg_style_phrasing",
+            range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.verb[1] },
+            alternatives: [caseLike(self, verb)],
+            context: around(ctx, m),
+          })
   - id: en.contractionStyle
     checks: [styleContractions]
     style: match
     message: review_msg_avoid_contractions
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    maps:
+      STYLE1_NOT_SPECIAL: { ca: cannot, wo: will not, sha: shall not }
+    defs:
+      STYLE1_NOT_STEMS: /^(?:is|are|was|were|do|does|did|has|have|had|could|would|should|might|must|need|may|ought|dare)$/
+      STYLE1_SUBJECTS: /^(?:I|you|he|she|it|we|they|that|this|there|here|what|who|where|how|when|why)$/i
+      # The full form(s) of a contraction, or null when it is not one ("John's", "o'clock").
+      style1Expand:
+        args: "word: string, ending: string, have: string | undefined"
+        let:
+          full: style1FullForms(word.toLowerCase(), ending.toLowerCase())
+        return: 'full && full.map((f) => (have ? `${f} have` : f).replace(/^i\b/, "I"))'
+      style1FullForms:
+        args: "w: string, e: string"
+        type: string[] | null
+        return: >-
+          e === "t"
+            ? w.endsWith("n")
+              ? style1NotForms(w.slice(0, -1))
+              : null
+            : e === "m"
+              ? w === "i"
+                ? ["I am"]
+                : null
+              : e === "re"
+                ? /^(?:you|we|they|who|what|how|where|there|why|when)$/.test(w)
+                  ? [`${w} are`]
+                  : null
+                : e === "ve"
+                  ? /^(?:i|you|we|they|who|what|could|would|should|might|must|may)$/.test(w)
+                    ? [`${w} have`]
+                    : null
+                  : e === "ll"
+                    ? STYLE1_SUBJECTS.test(w)
+                      ? [`${w} will`]
+                      : null
+                    : e === "d"
+                      ? STYLE1_SUBJECTS.test(w)
+                        ? [`${w} would`, `${w} had`]
+                        : null
+                      : w === "let"
+                        ? ["let us"]
+                        : e === "s" && STYLE1_SUBJECTS.test(w) && w !== "i"
+                          ? [`${w} is`, `${w} has`]
+                          : null
+      style1NotForms:
+        args: "stem: string"
+        return: >-
+          STYLE1_NOT_SPECIAL[stem]
+            ? [STYLE1_NOT_SPECIAL[stem]]
+            : STYLE1_NOT_STEMS.test(stem)
+              ? [`${stem} not`]
+              : null
     frames:
       # Optional formal register: contractions written out.
       - regex: "(?<target>(?<word>[A-Za-z]+)['’](?<ending>t|m|re|ve|ll|d|s)(?:['’](?<have>ve))?){{E}}"
         gate: "['’]"
         gateFlags: g
-        fixer: contraction
+        # Optional formal register: contractions written out.
+        when: "!hasUserOrCasedWord(ctx, target)"
+        return: style1Expand(word, ending, have)?.map((f) => caseLike(target, f)) ?? null
   - id: en.serialCommas
     checks: [styleOxfordComma, styleNoOxfordComma]
     style: match
     message: review_msg_oxford_comma
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
+    defs:
+      STYLE1_INTRO: /^(?:however|when|whenever|if|after|before|in|on|at|for|while|although|though|because|since|yes|no|hello|hi|hey|well|so|also|then|now|first|second|finally|thus|therefore|meanwhile|as|once|until|unless|whether|by|with|from|during|to|dear|oh|okay|ok|sadly|luckily|unfortunately|fortunately)$/i
+      STYLE1_SUBJECT_PRONOUN: /^(?:I|you|he|she|it|we|they|there)$/i
+      # The list tail of `m` is a list: no introductory word or clause, no clause as its item.
+      # An introductory word or clause before the first comma is not a list item. ", affecting
+      # relationships and identity" is a participle clause, not a list item.
+      style1ListTail:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 160), m.index)
+          clause: before.slice(before.search(/[^.!?;:\n]*$/))
+          head: 'clause.trimStart().split(/[ \t ,]+/)[0] ?? ""'
+          words: m.groups!.item.split(/[ \t ]+/)
+        when:
+          - "!(m.index < ctx.from || m.index >= ctx.to)"
+          - '!(!clause.includes(",") && (STYLE1_INTRO.test(head) || (/ly$/i.test(head) && !/[ \t ]/.test(clause.trim()))))'
+          - "!words.some((word) => STYLE1_SUBJECT_PRONOUN.test(word) || /^(?:and|or|nor|but)$/i.test(word))"
+        return: "!(words.length > 1 && /ing$/i.test(words[0]))"
+        else: "false"
     frames:
       # Optional serial comma: "A, B and C" or "A, B, and C", by the writer's chosen style.
       # The fixer reads which style is on. The match start owns it.
@@ -1421,7 +2220,27 @@ rules:
         flags: dgu
         owner: none
         anyCheck: true
-        fixer: serialComma
+        # Optional serial comma: "A, B and C" or "A, B, and C", by the writer's chosen style.
+        let:
+          add: '!ctx.rules || ctx.rules.has("styleOxfordComma")'
+          remove: '!ctx.rules || ctx.rules.has("styleNoOxfordComma")'
+          conjStart: m.indices!.groups!.conj[0]
+          itemEnd: m.indices!.groups!.item[1]
+        when:
+          - style1ListTail(m, ctx)
+          - "oxford ? remove && !STYLE1_SUBJECT_PRONOUN.test(after) : add"
+        return: >-
+          oxford
+            ? finding("styleNoOxfordComma", "review_msg_no_oxford_comma", m.indices!.groups!.oxford[0], conjStart, [" "], {
+                context: { start: m.index, end: m.index + m[0].length },
+              })
+            : ({
+                ruleId: "styleOxfordComma",
+                messageKey: "review_msg_oxford_comma",
+                range: { start: itemEnd, end: conjStart },
+                alternatives: [`,${ctx.text.slice(itemEnd, conjStart)}`],
+                context: { start: m.index, end: m.index + m[0].length },
+              })
   - id: en.sentenceTemplates
     checks: [englishSentenceStructure]
     style: template
@@ -1658,7 +2477,8 @@ rules:
     checks: [englishAmericanSpelling, englishOxfordSpelling]
     style: match
     message: review_msg_american_spelling
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # "energise", "magnetisable": -ise forms the table lacks whose -ize form the lexicon
       # knows. An -ise word, also after a hyphenated prefix ("de-energise"). One match gives
@@ -1693,7 +2513,8 @@ rules:
     checks: [englishIrregularForms, englishAlotCorrection]
     style: match
     message: review_msg_irregular_form
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # One word: letters only, not part of a technical token, a number or an abbreviation
       # ("e.g"). One check pass over each word for the irregular-form and space checks. A
@@ -1709,7 +2530,8 @@ rules:
     checks: [englishPossessiveNouns]
     style: match
     message: review_msg_noun_possessive
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # "the cats tail is long", "a teachers lounge": a plural owner right before the noun it
       # owns.
@@ -1720,7 +2542,8 @@ rules:
     checks: [englishYourYouAre]
     style: match
     message: review_msg_your_possessive
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # "You combination of artist and teacher.": "Your" or "You're a" before a lone noun.
       - regex: "(?<target>You){{S}}(?<noun>[a-z]{4,}){{S}}of(?![\\p{L}\\p{N}_'’@/#\\\\-])"
@@ -1729,7 +2552,8 @@ rules:
     checks: [englishModalOfCorrection]
     style: match
     message: review_msg_modal_of
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # "could of" closing its clause; the core rule waits for the word after "of".
       - regex: "(?<target>(?<modal>could|would|should|must|might)(?:n['’]t)?{{S}}(?<of>of)){{COMPLETE}}"
@@ -1739,7 +2563,8 @@ rules:
     checks: [englishFixedPrepositions]
     style: match
     message: review_msg_fixed_prepositions
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # "Beware on the step": the thing to beware of takes "of".
       - regex: "beware{{S}}(?<target>in|on|at){{S}}(?:the|that|this|these|those){{E}}"
@@ -1749,7 +2574,8 @@ rules:
     checks: [englishPhraseCorrections]
     style: match
     message: review_msg_phrase_correction
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # "They left in mass": all together is "en masse" after a verb of moving or quitting.
       - regex: "(?:{{MOVERS}}){{S}}(?<target>[io]n{{S}}mass)(?:{{COMPLETE}}|(?={{S}}(?:{{AFTER_MASS}}){{E}}))"
@@ -1771,7 +2597,8 @@ rules:
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     frames:
       # "imitate the rhythm from their mentor": whose rhythm it is takes "of" (opt-in).
       - regex: "imitat(?:e|es|ed|ing){{S}}(?:the|every|that|this|their|his|her|its|our|your|my)(?:{{S}}[a-z]+){1,3}{{S}}(?<target>from){{S}}(?:the|their|his|her|its|our|your|my|\\p{L}{2,}['’]s){{E}}"
@@ -4285,7 +5112,8 @@ rules:
     checks: [englishNotation]
     style: match
     message: review_msg_english_decimal
-    filter: outsideExamples
+    filter:
+      return: outsideExamples(ctx, findings)
     # englishNotation (on by default): decimal commas and European digit groups in English
     # numbers, a split ordinal ("8 th"), full-width marks, an initialism missing its last period
     # ("U.S.A"), and academic degrees ("PH.D", "B. Sc."). Each scan starts 64 characters before

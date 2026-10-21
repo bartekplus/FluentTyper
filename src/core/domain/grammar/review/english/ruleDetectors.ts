@@ -1,6 +1,8 @@
 // The named Review detectors of grammar/rules/en.yaml; the rule file sets their checks,
 // languages and order.
 import { mergePredicates, type FindingsFilter, type Fixer } from "../../engine/reviewRules";
+import { frameRuleDetector } from "../../engine/reviewRules";
+import { useEnFrameRules } from "../../library/english/rules";
 import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
 import * as passiveVoice from "./passiveVoice";
@@ -33,7 +35,6 @@ import * as remaining from "./remaining";
 import * as usageTables from "./usageTables";
 import * as confusions2 from "./confusions2";
 import * as fixedPhrases from "./fixedPhrases";
-import * as grammarStyle1 from "./grammarStyle1";
 import * as grammarStyle2 from "./grammarStyle2";
 import * as idioms1 from "./idioms1";
 import * as idioms2 from "./idioms2";
@@ -54,6 +55,9 @@ import * as nounSlots from "./nounSlots";
 import * as agreementFrames from "./agreementFrames";
 import * as neighbourTypos from "./neighbourTypos";
 import * as clashFrames from "./clashFrames";
+
+// The rule files read the findings of another frame rule (library enFrameRuleFindings).
+useEnFrameRules((id) => frameRuleDetector(id, {}));
 
 export const PREDICATES = mergePredicates();
 
@@ -89,7 +93,6 @@ export const FIXERS = mergePredicates<Fixer>(
   adverbSlots.FIXERS,
   comparisonSlots.FIXERS,
   tenseSlots.FIXERS,
-  grammarStyle1.FIXERS,
   grammarStyle2.FIXERS,
   fixedPhrases.FIXERS,
   confusions1.FIXERS,
@@ -115,4 +118,4 @@ export const FIXERS = mergePredicates<Fixer>(
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(grammarStyle1.FILTERS, fixedPhrases.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(fixedPhrases.FILTERS);

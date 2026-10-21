@@ -61,3 +61,5 @@ export {
   englishLexiconInflect,
   englishNounPair,
 } from "../implementations/helpers/EnglishLexicon";
+// The findings of another frame rule (library/english/rules.ts).
+export { enFrameRuleFindings } from "./english/rules";

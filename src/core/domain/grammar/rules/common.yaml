@@ -8523,7 +8523,7 @@ rules:
         message: review_msg_pique_interest
     cacheable: true
   # Finite predicative clauses establish degree, rather than quantity or noun modifiers.
-  # english/grammarStyle1.ts also runs this rule (englishDegree.ts, doubledDegree).
+  # Rule en.moreMostDegree of en.yaml also runs this rule (library enFrameRuleFindings).
   - id: doubledDegree
     checks: [englishDoubledDegree]
     lang: en
