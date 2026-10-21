@@ -50,3 +50,7 @@ export {
 
 // The casing of a fix like the typed words (library/english/words.ts).
 export { recase as enRecase } from "./english/words";
+
+// Group 1 (agreementSlots, clauseAgreementSlots, missingVerbSlots, relativeSlots,
+// agreementFrames, realWordFrames, verbSlots): lexicon readings that its rules read.
+export { englishCountNoun, englishNounPair } from "../implementations/helpers/EnglishLexicon";

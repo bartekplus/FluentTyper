@@ -4,15 +4,21 @@ import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, FixResult, FrameRef, MatchResult } from "../../library";
 import {
+  ENGLISH_MASS_NOUNS,
   EN_DETERMINERS,
   EN_FUNCTION_WORDS,
+  MASS_WITH_COUNT_SENSE,
   enAfterBreak,
+  enNounNumber,
   enNounVerb,
   enParticiple,
   enTokensAfter,
   enWordBefore,
+  englishCountNoun,
   englishInflect,
   englishLemma,
+  englishNounPair,
+  englishVerbForms,
   englishWordInfo,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
@@ -93,6 +99,61 @@ export const VS_OBJECT =
 export function vsNextWord(ctx: DetectContext, end: number) {
   const token = enTokensAfter(ctx, end, 1)[0];
   return token?.kind === "word" ? token.lower : "";
+}
+
+// en.yaml rule en.agreementFrames def AF_NOT_COUNTED
+export const AF_NOT_COUNTED =
+  /^(?:men|women|children|people|feet|teeth|mice|geese|oxen|data|media|criteria|phenomena|alumni|one|two|three|four|five|six|seven|eight|nine|ten|hundred|thousand|day|night|year|time|week|month|morning|evening|afternoon|summer|winter|spring|autumn|season|life|weekend|today|tonight|tomorrow|yesterday)$/;
+
+// en.yaml rule en.agreementFrames def afCountNoun
+export function afCountNoun(word: string) {
+  if (word !== word.toLowerCase() || EN_FUNCTION_WORDS.has(word) || AF_NOT_COUNTED.test(word))
+    return null;
+  if (ENGLISH_MASS_NOUNS.has(word) || MASS_WITH_COUNT_SENSE.has(word)) return null;
+  const r = rwRead(word);
+  return /^(?:kind|sort|type)$/.test(word)
+    ? `${word}s`
+    : !r?.noun || r.plural || r.adjective || r.adverb || (!englishCountNoun(word) && r.verbs.length)
+      ? null
+      : (englishNounPair(word)?.plural ??
+        (/(?:s|x|z|ch|sh)$/.test(word)
+          ? `${word}es`
+          : /[^aeiou]y$/.test(word)
+            ? `${word.slice(0, -1)}ies`
+            : `${word}s`));
+}
+
+// en.yaml rule en.agreementFrames def afPhraseEnds
+export function afPhraseEnds(ctx: DetectContext, end: number, strict: boolean) {
+  const next = enTokensAfter(ctx, end, 1)[0];
+  return next?.kind === "end" || next?.kind === "comma"
+    ? true
+    : next?.kind === "word" && afWordEnds(next.lower, strict);
+}
+
+// en.yaml rule en.agreementFrames def afWordEnds
+export function afWordEnds(word: string, strict: boolean) {
+  if (
+    /^(?:is|are|was|were|have|has|had|will|can|could|would|should|to|in|on|at|for|from|with|that|which|who|exist)$/.test(
+      word,
+    )
+  )
+    return true;
+  const r = rwRead(word);
+  return (
+    !strict &&
+    !!r?.verbs.some((v) => v.form === "third" || v.form === "past") &&
+    !r.noun &&
+    !r.plural
+  );
+}
+
+// en.yaml rule en.agreementFrames def afPluralSubject
+export function afPluralSubject(ctx: DetectContext, index: number, noun: string) {
+  if (!(enAfterBreak(ctx, index) && !/^(?:data|media|news|series|species|means)$/.test(noun)))
+    return false;
+  const r = rwRead(noun);
+  return enNounNumber(noun)?.number === "plural" && !!r?.plural && !r.adjective;
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -537,6 +598,119 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       : opens && r?.verbs.some((v) => v.form === "base") && !r.noun
         ? "used"
         : null;
+  },
+  // en.yaml rule en.agreementFrames frame 1
+  "@en.agreementFrames/1": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    const before = enWordBefore(ctx, m.index);
+    if (!(
+      (!before && enAfterBreak(ctx, m.index)) ||
+      /^(?:hope|think|guess|believe|and|but|so|because|since|if)$/.test(before)
+    ))
+      return null;
+    const low = next.toLowerCase();
+    const r = rwRead(target);
+    if (!r?.verbs.some((v) => v.form === "base" && v.lemma === target)) return null;
+    if (EN_FUNCTION_WORDS.has(target) || r.verbs.some((v) => v.form === "past")) return null;
+    const predicate =
+      /^(?:no|it|me|us|them|you|him|her|the|a|an|very|so|really|pretty|quite|true|fair|good|great|nice|fine|right|wrong|cool|amazing|awesome|bad|weird|strange|interesting|familiar|sense|perfect)$/.test(
+        low,
+      );
+    const verbOnly =
+      !r.noun &&
+      !r.adjective &&
+      !r.adverb &&
+      !r.plural &&
+      /^(?:us|them|me|him|you|my|our|your|their|his|its|these|those|everyone|people)$/.test(low);
+    if ((!predicate && !verbOnly) || (r.noun && /^(?:the|a|an)$/.test(low))) return null;
+    if (r.adjective && !/^(?:very|so|really|pretty|quite|no|it|me|us|them)$/.test(low)) return null;
+    return englishInflect(target, "third");
+  },
+  // en.yaml rule en.agreementFrames frame 2
+  "@en.agreementFrames/2": (m: RegExpExecArray): FixResult => {
+    const subject = m.groups!.subject;
+    const target = m.groups!.target;
+    if (!(/^[A-Z][a-z]+$/.test(subject) && !EN_FUNCTION_WORDS.has(subject.toLowerCase())))
+      return null;
+    const forms = englishVerbForms(target);
+    if (!forms || forms.past !== target || forms.participle === target || forms.lemma === target)
+      return null;
+    return forms.lemma;
+  },
+  // en.yaml rule en.agreementFrames frame 3
+  "@en.agreementFrames/3": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const mods = m.groups!.mods;
+    const target = m.groups!.target;
+    const words = mods.toLowerCase().trim().split(/\s+/).filter(Boolean);
+    if (words.some((w) => EN_FUNCTION_WORDS.has(w) || !(rwRead(w)?.adjective || rwRead(w)?.noun)))
+      return null;
+    const plural = afCountNoun(target);
+    return plural && afPhraseEnds(ctx, m.index + m[0].length, false) ? plural : null;
+  },
+  // en.yaml rule en.agreementFrames frame 4
+  "@en.agreementFrames/4": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return afCountNoun(target);
+  },
+  // en.yaml rule en.agreementFrames frame 5
+  "@en.agreementFrames/5": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const plural = englishCountNoun(target) ? afCountNoun(target) : null;
+    return plural && afPhraseEnds(ctx, m.index + m[0].length, true) ? plural : null;
+  },
+  // en.yaml rule en.agreementFrames frame 6
+  "@en.agreementFrames/6": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return englishCountNoun(target) ? afCountNoun(target) : null;
+  },
+  // en.yaml rule en.agreementFrames frame 7
+  "@en.agreementFrames/7": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const plural = afCountNoun(target);
+    return plural && afPhraseEnds(ctx, m.index + m[0].length, false) ? plural : null;
+  },
+  // en.yaml rule en.agreementFrames frame 8
+  "@en.agreementFrames/8": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const verb = enNounVerb(target);
+    return verb ? enParticiple(verb) : null;
+  },
+  // en.yaml rule en.agreementFrames frame 9
+  "@en.agreementFrames/9": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.toLowerCase().replace(/^bag/, "beg");
+  },
+  // en.yaml rule en.agreementFrames frame 10
+  "@en.agreementFrames/10": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return /s$/i.test(target) ? "bags" : "bag";
+  },
+  // en.yaml rule en.agreementFrames frame 11
+  "@en.agreementFrames/11": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const noun = m.groups!.noun;
+    const target = m.groups!.target;
+    if (!afPluralSubject(ctx, m.index, noun.toLowerCase())) return null;
+    const verb = target.toLowerCase();
+    const r = rwRead(verb);
+    if (!r || r.noun || r.plural || r.adjective) return null;
+    const lemma = r.verbs.find((v) => v.form === "third")?.lemma;
+    return lemma && r.verbs.every((v) => v.lemma === lemma) ? lemma : null;
+  },
+  // en.yaml rule en.agreementFrames frame 12
+  "@en.agreementFrames/12": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    const noun = target.toLowerCase();
+    const forms = enNounNumber(noun);
+    const r = rwRead(noun);
+    if (forms?.number !== "plural" || !r?.plural || r.adjective) return null;
+    const v = rwRead(verb);
+    if (!v?.verbs.some((x) => x.form === "third")) return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    const closed =
+      next?.kind === "word" && (EN_FUNCTION_WORDS.has(next.lower) || /ly$/.test(next.lower));
+    return (!r.verbs.length && !v.noun) || closed ? forms.singular : null;
   },
 };
 

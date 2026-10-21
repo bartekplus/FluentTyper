@@ -16502,7 +16502,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:this|that)(?:[ \\t\\u00a0]{1,8}(?:probably|hardly|really|just|also|still|always|never|definitely|certainly))?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["this", "that"],
-    fixer: "en:agreementFramesA",
+    fixer: "en:@en.agreementFrames/1",
     message: "review_msg_subject_verb",
     cue: ["this", "that"],
   }),
@@ -16510,7 +16510,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<subject>[A-Za-z]+)[ \\t\\u00a0]{1,8}did(?:[ \\t\\u00a0]{1,8}(?:really|just|actually))?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["did"],
-    fixer: "en:agreementFramesA2",
+    fixer: "en:@en.agreementFrames/2",
     message: "review_msg_auxiliary_base",
     check: "englishAuxiliaryBaseVerb",
     cue: ["did"],
@@ -16519,7 +16519,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:one|two|three|four|five|six|seven|eight|nine|ten|\\d+)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:my|our|your|his|her|their)(?<mods>(?:[ \\t\\u00a0]{1,8}[a-z]+){0,2}?)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:agreementFramesA3",
+    fixer: "en:@en.agreementFrames/3",
     check: "englishNounNumber",
     cue: ["of"],
   }),
@@ -16527,7 +16527,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])of[ \\t\\u00a0]{1,8}all[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:of|around|in|at)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["all"],
-    fixer: "en:agreementFramesA4",
+    fixer: "en:@en.agreementFrames/4",
     check: "englishNounNumber",
     cue: ["all"],
   }),
@@ -16553,7 +16553,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "thousands",
       "millions",
     ],
-    fixer: "en:agreementFramesA5",
+    fixer: "en:@en.agreementFrames/5",
     check: "englishNounNumber",
     cue: ["of"],
   }),
@@ -16561,7 +16561,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:are|were|be)[ \\t\\u00a0]{1,8}all[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?])",
     literals: ["all"],
-    fixer: "en:agreementFramesA6",
+    fixer: "en:@en.agreementFrames/6",
     check: "englishNounNumber",
     cue: ["all"],
   }),
@@ -16569,7 +16569,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])there(?:[ \\t\\u00a0]{1,8}(?:are|were)|['’]re)[ \\t\\u00a0]{1,8}(?:many|several|a[ \\t\\u00a0]{1,8}few|few|a[ \\t\\u00a0]{1,8}lot|lots[ \\t\\u00a0]{1,8}of|\\d+|two|three|four|five|ten)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:agreementFramesA7",
+    fixer: "en:@en.agreementFrames/7",
     check: "englishNounNumber",
     cue: ["there"],
   }),
@@ -16589,7 +16589,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "haven",
       "hadn",
     ],
-    fixer: "en:agreementFramesA8",
+    fixer: "en:@en.agreementFrames/8",
     message: "review_msg_perfect_participle",
     check: "englishPerfectParticiples",
     cue: ["have", "has", "had", "haven", "hasn", "hadn"],
@@ -16598,7 +16598,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<target>bag|bags|bagged|bagging)[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}(?:mercy|help|forgiveness|attention|justice|money|food|more|me|him|her|them)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["bag", "bags", "bagged", "bagging"],
-    fixer: "en:agreementFramesBag",
+    fixer: "en:@en.agreementFrames/9",
     message: "review_msg_confused_word",
     check: "englishConfusedWords",
     cue: ["bagging", "bagged", "bag", "bags"],
@@ -16607,7 +16607,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:a|my|the|brown|paper|plastic|your|his|her|our|their|school|shopping|tea)[ \\t\\u00a0]{1,8}(?<target>begs?)[ \\t\\u00a0]{1,8}(?:full|of|are|is|was|were)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["beg"],
-    fixer: "en:agreementFramesBegs",
+    fixer: "en:@en.agreementFrames/10",
     message: "review_msg_confused_word",
     check: "englishConfusedWords",
     cue: ["beg", "begs"],
@@ -16616,14 +16616,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[.!?\\n])[ \\t\\u00a0\"“]{0,8})(?<noun>[a-z]+s)[ \\t\\u00a0]{1,8}(?<target>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:agreementFramesA9",
+    fixer: "en:@en.agreementFrames/11",
     message: "review_msg_subject_verb",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])this[ \\t\\u00a0]{1,8}(?<target>[a-z]+s)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["this"],
-    fixer: "en:agreementFramesA10",
+    fixer: "en:@en.agreementFrames/12",
     check: "englishNounNumber",
     cue: ["this"],
   }),

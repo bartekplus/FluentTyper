@@ -57,7 +57,6 @@ import * as slipFrames from "./slipFrames";
 import * as clauseGaps from "./clauseGaps";
 import * as misheardWords from "./misheardWords";
 import * as nounSlots from "./nounSlots";
-import * as agreementFrames from "./agreementFrames";
 import * as neighbourTypos from "./neighbourTypos";
 import * as clashFrames from "./clashFrames";
 
@@ -76,7 +75,6 @@ export const FIXERS = mergePredicates<Fixer>(
   idioms1.FIXERS,
   idioms2.FIXERS,
   idioms4.FIXERS,
-  agreementFrames.FIXERS,
   clauseFrames.FIXERS,
   britishUsage.FIXERS,
   misheardWords.FIXERS,
