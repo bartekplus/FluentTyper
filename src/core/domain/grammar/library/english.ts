@@ -59,5 +59,6 @@ export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/
 export {
   englishCountNoun as enCountNoun,
   englishLexiconInflect as enLexiconInflect,
+  englishListedNoun as enListedNoun,
   englishNounPair as enNounPair,
 } from "../implementations/helpers/EnglishLexicon";

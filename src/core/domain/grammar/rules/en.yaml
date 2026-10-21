@@ -3366,6 +3366,294 @@ rules:
     style: match
     message: review_msg_fixed_prepositions
     filter: usSlots
+    sets:
+      COLLOCATION_BE: [is, are, was, were, am, be, been, being, feel, felt, feels, seem, seems]
+      COLLOCATION_POSSESSIVES: [my, your, his, her, its, our, their]
+    defs:
+      # A plain word the lexicon knows: not a name, a typo or a token glued to code.
+      collocationKnown:
+        args: "token: EnToken | undefined"
+        return: >-
+          token?.kind === "word" && (EN_FUNCTION_WORDS.has(token.lower) ||
+          !!englishWordInfo(token.lower) || !!enListedNoun(token.lower))
+      # "believe to be": a base verb makes it an infinitive.
+      collocationNoInfinitive:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        return: '!read?.verbs.some((v) => v.form === "base" && v.lemma === word) || !!read?.noun'
+      # The guards of the head table get the context, the head word and the 4 tokens after it
+      # (the preposition first).
+      # The word after the preposition opens a noun phrase: no verb, adverb or clause word.
+      # "afraid of the dark", but not a determiner left hanging ("discussed about the").
+      collocationObject:
+        args: "_ctx: DetectContext, _head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        let:
+          next: after[1]
+        return: >-
+          !next ? false
+          : next.kind === "number" ? true
+          : next.kind !== "word" ? false
+          : EN_OBJECT_PRONOUNS.has(next.lower) ? true
+          : EN_DETERMINERS.has(next.lower) || COLLOCATION_POSSESSIVES.has(next.lower) ? collocationKnown(after[2])
+          : EN_FUNCTION_WORDS.has(next.lower) || !collocationKnown(next) ? false
+          : collocationNoInfinitive(next.lower)
+      # A person after the preposition: an object pronoun or a determiner and noun.
+      collocationPerson:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          !!after[1] && after[1].kind === "word" &&
+          (/^(?:me|him|her|us|them|you|everyone|everybody|people)$/.test(after[1].lower) ||
+          (COLLOCATION_POSSESSIVES.has(after[1].lower) && collocationObject(ctx, head, after)))
+      # Only a pronoun person: "kind with him", not "kind with your words".
+      collocationPronoun:
+        args: "_ctx: DetectContext, _head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: "!!after[1] && /^(?:me|him|her|us|them|you|everyone|everybody|people|others)$/.test(after[1].lower)"
+      # A linking verb right before the adjective: "is guilty for", not "felt guilty for leaving".
+      collocationAfterBe:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          EN_BE_FINITE.has(enWordBefore(ctx, head.start)) && collocationObject(ctx, head, after) &&
+          !/ing$/.test(after[1].lower)
+      collocationBoth:
+        args: "...guards: (typeof collocationObject)[]"
+        type: "(ctx: DetectContext, head: EnToken, after: readonly EnToken[]) => boolean"
+        return: (ctx, head, after) => guards.every((g) => g(ctx, head, after))
+      collocationNotBefore:
+        args: "words: RegExp"
+        type: "(ctx: DetectContext, head: EnToken) => boolean"
+        return: (ctx, head) => !words.test(enWordBefore(ctx, head.start))
+      collocationNotNext:
+        args: "words: RegExp"
+        type: "(ctx: DetectContext, head: EnToken, after: readonly EnToken[]) => boolean"
+        return: (_ctx, _head, after) => !after[1] || !words.test(after[1].lower)
+      # A verb in a clause: after a subject, modal, "to" or do-form ("they lack of", not "the
+      # lack of").
+      collocationVerbSlot:
+        args: "ctx: DetectContext, head: EnToken"
+        let:
+          before: enWordBefore(ctx, head.start)
+        return: >-
+          EN_SUBJECT_PRONOUNS.has(before) ||
+          /^(?:to|will|would|can|could|should|may|might|must|do|does|did|don['’]t|doesn['’]t|didn['’]t|please|also|still|really|often|never|always|just|people|many|most|some|kids|children|users)$/.test(before)
+      # Adverbial phrases that open with the typed preposition: "satisfied of course", "proud on
+      # that day", "interested at first", "scared from the start". "discussed about five
+      # issues": "about" as "roughly".
+      COLLOCATION_IDIOM: >-
+        ({
+        of: /^course$/,
+        at: /^(?:first|last|least|all|once|times|present|home|work|night|the (?:time|moment|start|end|same)|this (?:point|stage|time)|that (?:point|stage|time))$/,
+        on: /^(?:average|and|top|time|purpose|occasion|behalf|board|paper|balance|the (?:day|whole|other|one|spot|way|weekend)|that (?:day|night|occasion)|this (?:day|occasion)|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/,
+        from: /^(?:the (?:start|beginning|outset|get|first)|time|then|now|scratch|birth|childhood|day)$/,
+        with: /^(?:no|respect|regard|time|age)$/,
+        to: /^(?:date|this (?:day|point))$/,
+        about: /^(?:time|it|half|[0-9][0-9.,]*|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|a (?:dozen|hundred|thousand|million|few|couple|third|quarter|week|month|year)|an hour)$/,
+        for: /^(?:now|sure|example|instance|good|once|ages|years|hours|days|weeks|months|a (?:while|moment|minute|second|bit|time|long)|the (?:first|second|third|last|next|moment|most|time))$/
+        }) as Record<string, RegExp>
+      collocationIdiom:
+        args: "prep: EnToken, after: readonly EnToken[]"
+        let:
+          pattern: COLLOCATION_IDIOM[prep.lower]
+          one: after[1]?.lower ?? ""
+        return: '!!pattern && (pattern.test(one) || pattern.test(`${one} ${after[2]?.lower ?? ""}`))'
+      # "married with a doctor", not "married with two kids". "married with a three-year-old
+      # daughter": a household, not a spouse.
+      collocationSpouse:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          !!after[1] && after[1].kind === "word" &&
+          (collocationPerson(ctx, head, after) || /^(?:a|an|the)$/.test(after[1].lower)) &&
+          !/^(?:children|kids|no|two|three|four|five|several|many)$/.test(after[1].lower) &&
+          !/^[^.!?;\n]{0,40}?(?:child|children|kids?|bab(?:y|ies)|family|daughters?|sons?|twins|year-old|years? old|dog|cat)\b/i.test(ctx.text.slice(after[1].start, after[1].start + 48))
+      # "believe to ghosts": a bare noun or name, not "believe to be".
+      collocationBareNoun:
+        args: "_ctx: DetectContext, _head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        let:
+          next: after[1]
+        return: >-
+          next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower) &&
+          !!englishWordInfo(next.lower)?.noun && !englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base")
+      # [heads, typed prepositions, the fixed one, guard]. "" as the fixed one deletes the typed
+      # word. A verb head that ends in "+" stands for all its inflections from the lexicon. The
+      # head frame of en.collocations lists every typed preposition (a test checks it).
+      COLLOCATION_ROWS: >-
+        [
+        ["afraid scared frightened terrified", "from", "of", collocationObject],
+        ["interested", "for at", "in", collocationObject],
+        ["full", "with", "of", collocationObject],
+        ["guilty", "for", "of", collocationAfterBe],
+        ["satisfied", "of", "with", collocationObject],
+        ["jealous envious", "on at", "of", collocationObject],
+        ["famous", "of", "for", collocationObject],
+        ["dependent reliant", "of from", "on", collocationObject],
+        ["proud", "on", "of", collocationObject],
+        ["keen", "of", "on", collocationObject],
+        ["tired", "about", "of", collocationObject],
+        ["addicted", "with on", "to", collocationObject],
+        ["allergic", "of from with", "to", collocationObject],
+        ["similar", "with", "to", collocationBoth(collocationObject, collocationNotNext(/^(?:respect|regard)$/))],
+        ["similar", "as", "to", collocationBoth(collocationObject, collocationNotBefore(/^(?:as|so|how|too)$/))],
+        ["different", "of", "from", collocationObject],
+        ["angry", "on against", ["with", "at"], collocationPerson],
+        ["crowded filled", "of", "with", collocationObject],
+        ["excited", "of", "about", collocationObject],
+        ["surprised", "of", ["by", "at"], collocationObject],
+        ["disappointed", "from of", ["with", "by", "in"], collocationObject],
+        ["kind", "with", "to", collocationPronoun],
+        ["far", "of", "from", collocationBoth(collocationObject, collocationNotNext(/^(?:a|an)$/), collocationNotBefore(/^(?:so|thus|as|how|too)$/))],
+        ["based", "of", "on", collocationObject],
+        ["regardless", "from", "of", collocationObject],
+        ["married", "with", "to", collocationBoth(collocationSpouse, (ctx, head) => /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am)$/.test(enWordBefore(ctx, head.start)))],
+        ["marry marries married marrying", "with", "", collocationBoth(collocationSpouse, collocationNotBefore(/^(?:get|gets|got|getting|be|been|being|is|are|was|were|am|happily|newly|recently|once|still|just|now|not)$/))],
+        ["participate+", "to", "in", collocationObject],
+        ["consist+", "to from on", "of", collocationObject],
+        ["depend+", "of from", "on", collocationObject],
+        ["rely+", "of", "on", collocationObject],
+        ["believe+", "to", "in", collocationBareNoun],
+        ["recover+", "of", "from", collocationObject],
+        ["invest+", "on", "in", collocationBoth(collocationObject, collocationNotNext(/^behalf$/))],
+        ["specialize+ specialise+", "on", "in", collocationObject],
+        ["resemble+", "to with", "", collocationObject],
+        ["suffer suffers suffered", "of", "from", collocationObject],
+        ["suffering", "of", "from", collocationBoth(collocationObject, (ctx, head) => COLLOCATION_BE.has(enWordBefore(ctx, head.start)))],
+        ["lack lacks lacked", "of", "", collocationBoth(collocationObject, collocationVerbSlot)],
+        ["discuss+", "about", "", collocationBoth(collocationObject, (ctx, head) => !/\n[ \t]*$/.test(ctx.text.slice(Math.max(0, head.start - 8), head.start)))],
+        ["mentioned", "about", "", collocationObject],
+        ["mention", "about", "", collocationBoth(collocationObject, collocationVerbSlot)],
+        ["yell+ shout+ scream+", "on", "at", collocationPerson],
+        ["abstain+ refrain+", "of", "from", collocationObject],
+        ["benefited benefitted benefiting benefitting", "of", "from", collocationObject],
+        ["charged", "of", "with", collocationObject],
+        ["comply+", "to", "with", collocationObject],
+        ["persist+", "on", "in", collocationObject],
+        ["retire+", "of", "from", collocationObject],
+        ["differ+", "of", "from", collocationObject],
+        ["participation", "to", "in", collocationObject],
+        ["interest", "about", "in", collocationObject],
+        ["acquainted", "to", "with", collocationObject],
+        ["accused", "for", "of", collocationAfterBe],
+        ["absorbed", "at", "in", collocationObject]
+        ] as const
+      # The base, -s, past, participle and -ing forms of a verb head, as the lexicon spells them.
+      collocationInflections:
+        args: "lemma: string"
+        let:
+          irregular: EN_VERB_FORMS.find((row) => row.lemma === lemma)
+        return: >-
+          [lemma, irregular?.participle, enLexiconInflect(lemma, "third") ?? undefined,
+          enLexiconInflect(lemma, "past") ?? undefined, enLexiconInflect(lemma, "ing") ?? undefined]
+          .filter(Boolean) as string[]
+      # The head table: each form of a head word and its rows.
+      collocationBuild:
+        type: "Map<string, { wrong: ReadonlySet<string>; right: readonly string[]; guard: typeof collocationObject }[]>"
+        return: >-
+          COLLOCATION_ROWS.flatMap(([words, wrong, right, guard]) => words.split(" ")
+          .flatMap((word) => word.endsWith("+") ? collocationInflections(word.slice(0, -1)) : [word])
+          .map((form) => ({ form, entry: { wrong: new Set(wrong.split(" ")), right: typeof right === "string" ? [right] : right, guard } })))
+          .reduce((map, { form, entry }) => map.set(form, [...(map.get(form) ?? []), entry]),
+          new Map<string, { wrong: ReadonlySet<string>; right: readonly string[]; guard: typeof collocationObject }[]>())
+      # The head table is built at the first use.
+      COLLOCATION_TABLE: new Map<string, ReturnType<typeof collocationBuild>>()
+      collocationTable:
+        return: 'COLLOCATION_TABLE.get("heads") ?? COLLOCATION_TABLE.set("heads", collocationBuild()).get("heads")!'
+      # A word of the head table and the wrong preposition after it. A deletion takes the space
+      # after the word, as the phrase templates do ("discuss about ").
+      collocationHead:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          lower: m[0].toLowerCase()
+          entries: collocationTable().get(lower)
+          head: '({ text: m[0], lower, start: m.index, end: m.index + m[0].length, kind: "word" as const })'
+          after: enTokensAfter(ctx, head.end, 4)
+          prep: after[0]
+          entry: "entries.find((e) => e.wrong.has(prep.lower) && (!e.guard || e.guard(ctx, head, after)))"
+          deletion: entry.right.length === 1 && entry.right[0] === ""
+        when:
+          - entries && !ctx.dictionary.has(lower)
+          # Lowercase, or capitalized at a sentence start.
+          - m[0] === lower || m[0] === lower[0].toUpperCase() + lower.slice(1)
+          - prep?.kind === "word" && prep.text === prep.lower && !ctx.dictionary.has(prep.lower)
+          - entry && !collocationIdiom(prep, after) && !namedExampleBefore(ctx.text, head.start)
+        return: >-
+          ({ ruleId: "englishFixedPrepositions", messageKey: "review_msg_fixed_prepositions",
+          range: deletion ? { start: prep.start, end: after[1].start } : { start: prep.start, end: prep.end },
+          alternatives: [...entry.right], ...(entry.right.length > 1 ? { requiresChoice: true as const } : {}),
+          context: enEvidence(ctx, head.start, prep.end) })
+      # The target of a frame is lowercase, or capitalized at a sentence start ("In Monday");
+      # never a user word.
+      collocationOpen:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        let:
+          target: m.groups!.target.trim()
+        return: target.slice(1) === target.slice(1).toLowerCase() && !hasUserOrCasedWord(ctx, m[0])
+      # The finding of a frame: `fixed` for the `target` group.
+      collocationFinding:
+        args: "m: RegExpExecArray, ctx: DetectContext, fixed: string"
+        type: RawFinding
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+        return: >-
+          ({ ruleId: "englishFixedPrepositions", messageKey: "review_msg_fixed_prepositions",
+          range: { start, end }, alternatives: [caseLike(m.groups!.target, fixed)],
+          context: enEvidence(ctx, m.index, end) })
+      # No noun follows: the phrase ends, or a clause or adverb word comes next.
+      collocationPhraseEnd:
+        args: "ctx: DetectContext, end: number"
+        let:
+          next: enTokensAfter(ctx, end, 1)[0]
+        return: >-
+          !next || next.kind === "end" || next.kind === "comma" || (next.kind === "word" &&
+          (EN_FUNCTION_WORDS.has(next.lower) ||
+          /^(?:early|late|safely|tonight|today|yesterday|tomorrow|alone|together|afterwards|before|after)$/.test(next.lower)))
+      # The -ing form of a base verb, or null.
+      collocationIngOf:
+        args: "verb: string"
+        type: string | null
+        let:
+          lower: verb.toLowerCase()
+        when: englishWordInfo(lower)?.verbs.some((v) => v.form === "base" && v.lemma === lower)
+        return: enLexiconInflect(lower, "ing") ?? null
+      collocationDayFix:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: string | null
+        let:
+          before: enWordBefore(ctx, m.index)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when: '!(next?.kind === "word" && /[''’]/.test(next.text))'
+        return: >-
+          /^(?:you|meet|meeting|meetings|class|classes|appointment|party|exam|test|game|match|starts|start|begins|ends|closed|opens|open|due|deadline|leave|leaves|leaving|arrive|arrives|arriving|arrived|born|held|scheduled|planned)$/.test(before) ||
+          (m.groups!.target.toLowerCase() === "at" && enAfterBreak(ctx, m.index)) ? "on" : null
+      collocationLotFix:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: string | null
+        let:
+          noun: m.groups!.noun.toLowerCase()
+        when: "!EN_OBJECT_PRONOUNS.has(enWordBefore(ctx, m.index))"
+        return: >-
+          noun === "people" || (enNounOnly(noun) === "plural" &&
+          !/^(?:times|ways|days|years|months|weeks|hours|minutes|seconds)$/.test(noun)) ? "lot of" : null
+      collocationGerundFix:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: string | null
+        let:
+          head: m.groups!.head
+          verb: m.groups!.verb
+          ing: collocationIngOf(verb)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          object: 'next?.kind === "word" && (EN_DETERMINERS.has(next.lower) || EN_OBJECT_PRONOUNS.has(next.lower))'
+        when:
+          - ing
+          # "succeeded to power in 1990": a noun reading needs an object after it.
+          - "!(englishWordInfo(verb.toLowerCase())?.noun && !object)"
+        return: '`${/^ins/i.test(head) ? "on" : /^suc/i.test(head) ? "in" : "of"} ${ing}`'
     frames:
       # A word that governs a fixed preposition, typed with another one: "afraid from the dark"
       # (of), "participated to the event" (in). Every word from 40 characters before the chunk
@@ -3380,52 +3668,106 @@ rules:
       # Wednesday", "slept in Tuesday": particles stay. Only after an event or a meeting, and
       # not before a possessive ("in Friday night's briefing").
       - regex: "(?<target>in|at){{S}}(?:mon|tues|wednes|thurs|fri|satur|sun)days?{{E}}"
-        fixer: collocationDayOn
+        let:
+          fixed: collocationDayFix(m, ctx)
+        when:
+          - collocationOpen(m, ctx)
+          - fixed !== null
+        return: collocationFinding(m, ctx, fixed)
       # "born on 1990", "founded at 2015": a bare year takes "in".
       - regex: "(?:born|died|married|founded|built|established|launched|released|published|started|began|opened|retired|graduated|moved|formed|created){{S}}(?<target>on|at){{S}}(?:1[5-9]|20)[0-9]{2}{{E}}(?![/.:-][0-9])"
-        fixer: collocationYearIn
+        let:
+          fixed: 'collocationPhraseEnd(ctx, m.index + m[0].length) ? "in" : null'
+        when:
+          - collocationOpen(m, ctx)
+          - fixed !== null
+        return: collocationFinding(m, ctx, fixed)
       # "starts in 5 pm": a clock time takes "at".
       - regex: "(?<target>in|on){{S}}(?:[0-9]|1[0-2])(?::[0-5][0-9])?[ \\t\\u00a0]{0,8}(?:am|pm|a\\.m\\.|p\\.m\\.|o['’]clock)(?![\\p{L}\\p{N}])"
-        fixer: collocationClockAt
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "at")
       # "at the morning" → "in"; "on the evening" without "of" → "in".
       - regex: "(?<target>at|on){{S}}the{{S}}(?:morning|afternoon|evening){{E}}"
-        fixer: collocationPartOfDayIn
+        let:
+          # "on the evening of May 5", "on the morning before": a particular day keeps "on".
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - collocationOpen(m, ctx)
+          - >-
+            !next || next.kind === "end" || next.kind === "comma" ||
+            /^(?:and|but|so|because|too|again|together|alone|anyway)$/.test(next.lower)
+        return: collocationFinding(m, ctx, "in")
       # "A lot people came": "a lot of"; not "liked it a lot people say".
       - regex: "(?<![\\p{L}'’])a{{S}}(?<target>lot){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: collocationLotOf
+        let:
+          fixed: collocationLotFix(m, ctx)
+        when:
+          - collocationOpen(m, ctx)
+          - fixed !== null
+        return: collocationFinding(m, ctx, fixed)
       # "between three to five": "between ... and".
       - regex: "between{{S}}{{COLLOCATION_NUMBER}}(?:[ \\t\\u00a0]{0,8}(?:%|am|pm|percent|years|hours|days|weeks|months|minutes))?{{S}}(?<target>to){{S}}{{COLLOCATION_NUMBER}}{{E}}"
-        fixer: collocationBetweenAnd
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "and")
       # "went to home": "home" is the direction itself.
       - regex: "(?:go|goes|going|gone|went|come|comes|coming|came|get|gets|getting|got|return|returns|returned|returning|head|heads|headed|heading|walk|walks|walked|walking|drive|drives|drove|driving|run|runs|ran|running|hurry|hurried|rush|rushed|take|takes|took|taking|bring|brings|brought|send|sends|sent)(?:{{S}}(?:back|straight|directly|me|him|her|us|them|you))?(?<target>{{S}}to){{S}}home{{E}}"
-        fixer: collocationHome
+        when:
+          - collocationOpen(m, ctx)
+          - /home$/.test(m[0]) && collocationPhraseEnd(ctx, m.index + m[0].length)
+        return: collocationFinding(m, ctx, "")
       - regex: "(?:return|returns|returned|returning)(?<target>{{S}}at){{S}}home{{E}}"
-        fixer: collocationHome
+        when:
+          - collocationOpen(m, ctx)
+          - /home$/.test(m[0]) && collocationPhraseEnd(ctx, m.index + m[0].length)
+        return: collocationFinding(m, ctx, "")
       # "stopped him of leaving": hindering verbs take "from".
       - regex: "(?:stop|stops|stopped|stopping|prevent|prevents|prevented|preventing|prohibit|prohibits|prohibited|prohibiting|discourage|discourages|discouraged|discouraging|dissuade|dissuaded|ban|bans|banned|banning){{S}}(?:me|you|him|her|us|them|it|people|others|users|(?:the|my|your|his|her|our|their){{S}}[a-z]+){{S}}(?<target>of){{S}}(?<ing>[a-z]+ing){{E}}"
-        fixer: collocationFrom
+        when:
+          - collocationOpen(m, ctx)
+          - englishWordInfo(ing.toLowerCase())?.verbs.some((v) => v.form === "ing")
+        return: collocationFinding(m, ctx, "from")
       # "insisted to pay" → "insisted on paying"; "succeeded to open", "capable to finish".
       - regex: "(?<head>insist|insists|insisted|insisting|succeed|succeeds|succeeded|succeeding|capable|incapable){{S}}(?<target>to{{S}}(?<verb>[a-z]+)){{E}}"
-        fixer: collocationGerund
+        let:
+          fixed: collocationGerundFix(m, ctx)
+        when:
+          - collocationOpen(m, ctx)
+          - fixed !== null
+        return: collocationFinding(m, ctx, fixed)
       # "listen music", "listened the song": "listen to".
       - regex: "(?<target>listen|listens|listened|listening){{S}}(?:the|a|an|my|your|his|our|their|him|them|us|music|songs?|podcasts?|radio|audiobooks?){{E}}"
-        fixer: collocationListenTo
+        when: collocationOpen(m, ctx)
+        return: "collocationFinding(m, ctx, `${target} to`)"
       # "travel with a bus": "by bus".
       - regex: "(?:travel|travels|traveled|travelled|traveling|travelling|commute|commutes|commuted|commuting){{S}}(?<target>with{{S}}(?:a|the){{S}}(?<vehicle>bus|train|plane|taxi|boat|ship|ferry|subway|metro|tram|coach)){{E}}"
-        fixer: collocationByVehicle
+        when:
+          - collocationOpen(m, ctx)
+          - collocationPhraseEnd(ctx, m.index + m[0].length)
+        return: "collocationFinding(m, ctx, `by ${vehicle}`)"
       - regex: "(?:take|takes|took|taken|taking){{S}}into{{S}}(?:consideration|account)(?<target>{{S}}of){{E}}"
-        fixer: collocationDrop
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "")
       - regex: "in{{S}}front{{S}}(?<target>to){{S}}(?=(?:the|a|an|my|your|his|her|our|their|this|that|these|those|me|him|us|them|everyone){{E}})"
-        fixer: collocationInFrontOf
+        when:
+          - collocationOpen(m, ctx)
+          # "from the sternum in front to the spine behind": a span, not "in front of".
+          - '!/\bfrom\b[^.!?;]*$/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index))'
+        return: collocationFinding(m, ctx, "of")
       # "in my birthday" → "on"; "in page 21" → "on"; "in the left hand side" → "on".
       - regex: "(?<target>in){{S}}(?:my|your|his|her|our|their|the){{S}}birthday{{E}}"
-        fixer: collocationBirthdayOn
+        when:
+          - collocationOpen(m, ctx)
+          - collocationPhraseEnd(ctx, m.index + m[0].length)
+        return: collocationFinding(m, ctx, "on")
       - regex: "(?<target>in){{S}}page{{S}}[0-9]+{{E}}"
-        fixer: collocationOn
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "on")
       - regex: "(?<target>in){{S}}the{{S}}(?:left|right)(?:(?:{{S}}|-)hand)?{{S}}side{{E}}"
-        fixer: collocationOn
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "on")
       - regex: "in{{S}}exchange{{S}}(?<target>of){{E}}"
-        fixer: collocationFor
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "for")
   - id: en.tenseTimeWords
     checks: [englishTenseConsistency]
     style: match

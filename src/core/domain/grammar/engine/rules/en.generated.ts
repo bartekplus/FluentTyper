@@ -12,9 +12,11 @@ import type {
 } from "../../library";
 import {
   ENGLISH_MASS_NOUNS,
+  EN_BE_FINITE,
   EN_DETERMINERS,
   EN_FUNCTION_WORDS,
   EN_OBJECT_PRONOUNS,
+  EN_SUBJECT_PRONOUNS,
   EN_VERB_FORMS,
   caseLike,
   dateSide,
@@ -24,6 +26,7 @@ import {
   enEvidence,
   enInfo,
   enLexiconInflect,
+  enListedNoun,
   enNounOnly,
   enNounPair,
   enTokensAfter,
@@ -34,6 +37,7 @@ import {
   englishWordInfo,
   finding,
   hasUserOrCasedWord,
+  namedExampleBefore,
   recentPast,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
@@ -120,6 +124,32 @@ export const ADVERB_COMPOUND_VERBS: ReadonlySet<string> = new Set([
   "soft launch",
   "hard code",
   "cross check",
+]);
+
+export const COLLOCATION_BE: ReadonlySet<string> = new Set([
+  "is",
+  "are",
+  "was",
+  "were",
+  "am",
+  "be",
+  "been",
+  "being",
+  "feel",
+  "felt",
+  "feels",
+  "seem",
+  "seems",
+]);
+
+export const COLLOCATION_POSSESSIVES: ReadonlySet<string> = new Set([
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
 ]);
 
 export const PASSIVE_STATIVE: ReadonlySet<string> = new Set([
@@ -463,6 +493,446 @@ export function comparisonSuperlative(word: string) {
 // en.yaml rule en.superlativeArticle def COMPARISON_SET_PHRASES
 export const COMPARISON_SET_PHRASES =
   /^(?:friends?|man|men|practices?|case|value|priority|quality|effort|seller|sellers|interests?|regards|wishes)$/;
+
+// en.yaml rule en.collocations def collocationKnown
+export function collocationKnown(token: EnToken | undefined) {
+  return (
+    token?.kind === "word" &&
+    (EN_FUNCTION_WORDS.has(token.lower) ||
+      !!englishWordInfo(token.lower) ||
+      !!enListedNoun(token.lower))
+  );
+}
+
+// en.yaml rule en.collocations def collocationNoInfinitive
+export function collocationNoInfinitive(word: string) {
+  const read = englishWordInfo(word);
+  return !read?.verbs.some((v) => v.form === "base" && v.lemma === word) || !!read?.noun;
+}
+
+// en.yaml rule en.collocations def collocationObject
+export function collocationObject(
+  _ctx: DetectContext,
+  _head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  const next = after[1];
+  return !next
+    ? false
+    : next.kind === "number"
+      ? true
+      : next.kind !== "word"
+        ? false
+        : EN_OBJECT_PRONOUNS.has(next.lower)
+          ? true
+          : EN_DETERMINERS.has(next.lower) || COLLOCATION_POSSESSIVES.has(next.lower)
+            ? collocationKnown(after[2])
+            : EN_FUNCTION_WORDS.has(next.lower) || !collocationKnown(next)
+              ? false
+              : collocationNoInfinitive(next.lower);
+}
+
+// en.yaml rule en.collocations def collocationPerson
+export function collocationPerson(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    !!after[1] &&
+    after[1].kind === "word" &&
+    (/^(?:me|him|her|us|them|you|everyone|everybody|people)$/.test(after[1].lower) ||
+      (COLLOCATION_POSSESSIVES.has(after[1].lower) && collocationObject(ctx, head, after)))
+  );
+}
+
+// en.yaml rule en.collocations def collocationPronoun
+export function collocationPronoun(
+  _ctx: DetectContext,
+  _head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    !!after[1] &&
+    /^(?:me|him|her|us|them|you|everyone|everybody|people|others)$/.test(after[1].lower)
+  );
+}
+
+// en.yaml rule en.collocations def collocationAfterBe
+export function collocationAfterBe(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    EN_BE_FINITE.has(enWordBefore(ctx, head.start)) &&
+    collocationObject(ctx, head, after) &&
+    !/ing$/.test(after[1].lower)
+  );
+}
+
+// en.yaml rule en.collocations def collocationBoth
+export function collocationBoth(
+  ...guards: (typeof collocationObject)[]
+): (ctx: DetectContext, head: EnToken, after: readonly EnToken[]) => boolean {
+  return (ctx, head, after) => guards.every((g) => g(ctx, head, after));
+}
+
+// en.yaml rule en.collocations def collocationNotBefore
+export function collocationNotBefore(
+  words: RegExp,
+): (ctx: DetectContext, head: EnToken) => boolean {
+  return (ctx, head) => !words.test(enWordBefore(ctx, head.start));
+}
+
+// en.yaml rule en.collocations def collocationNotNext
+export function collocationNotNext(
+  words: RegExp,
+): (ctx: DetectContext, head: EnToken, after: readonly EnToken[]) => boolean {
+  return (_ctx, _head, after) => !after[1] || !words.test(after[1].lower);
+}
+
+// en.yaml rule en.collocations def collocationVerbSlot
+export function collocationVerbSlot(ctx: DetectContext, head: EnToken) {
+  const before = enWordBefore(ctx, head.start);
+  return (
+    EN_SUBJECT_PRONOUNS.has(before) ||
+    /^(?:to|will|would|can|could|should|may|might|must|do|does|did|don['’]t|doesn['’]t|didn['’]t|please|also|still|really|often|never|always|just|people|many|most|some|kids|children|users)$/.test(
+      before,
+    )
+  );
+}
+
+// en.yaml rule en.collocations def COLLOCATION_IDIOM
+export const COLLOCATION_IDIOM = {
+  of: /^course$/,
+  at: /^(?:first|last|least|all|once|times|present|home|work|night|the (?:time|moment|start|end|same)|this (?:point|stage|time)|that (?:point|stage|time))$/,
+  on: /^(?:average|and|top|time|purpose|occasion|behalf|board|paper|balance|the (?:day|whole|other|one|spot|way|weekend)|that (?:day|night|occasion)|this (?:day|occasion)|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/,
+  from: /^(?:the (?:start|beginning|outset|get|first)|time|then|now|scratch|birth|childhood|day)$/,
+  with: /^(?:no|respect|regard|time|age)$/,
+  to: /^(?:date|this (?:day|point))$/,
+  about:
+    /^(?:time|it|half|[0-9][0-9.,]*|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|a (?:dozen|hundred|thousand|million|few|couple|third|quarter|week|month|year)|an hour)$/,
+  for: /^(?:now|sure|example|instance|good|once|ages|years|hours|days|weeks|months|a (?:while|moment|minute|second|bit|time|long)|the (?:first|second|third|last|next|moment|most|time))$/,
+} as Record<string, RegExp>;
+
+// en.yaml rule en.collocations def collocationIdiom
+export function collocationIdiom(prep: EnToken, after: readonly EnToken[]) {
+  const pattern = COLLOCATION_IDIOM[prep.lower];
+  const one = after[1]?.lower ?? "";
+  return !!pattern && (pattern.test(one) || pattern.test(`${one} ${after[2]?.lower ?? ""}`));
+}
+
+// en.yaml rule en.collocations def collocationSpouse
+export function collocationSpouse(
+  ctx: DetectContext,
+  head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  return (
+    !!after[1] &&
+    after[1].kind === "word" &&
+    (collocationPerson(ctx, head, after) || /^(?:a|an|the)$/.test(after[1].lower)) &&
+    !/^(?:children|kids|no|two|three|four|five|several|many)$/.test(after[1].lower) &&
+    !/^[^.!?;\n]{0,40}?(?:child|children|kids?|bab(?:y|ies)|family|daughters?|sons?|twins|year-old|years? old|dog|cat)\b/i.test(
+      ctx.text.slice(after[1].start, after[1].start + 48),
+    )
+  );
+}
+
+// en.yaml rule en.collocations def collocationBareNoun
+export function collocationBareNoun(
+  _ctx: DetectContext,
+  _head: EnToken,
+  after: readonly EnToken[],
+): boolean {
+  const next = after[1];
+  return (
+    next?.kind === "word" &&
+    !EN_FUNCTION_WORDS.has(next.lower) &&
+    !!englishWordInfo(next.lower)?.noun &&
+    !englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base")
+  );
+}
+
+// en.yaml rule en.collocations def COLLOCATION_ROWS
+export const COLLOCATION_ROWS = [
+  ["afraid scared frightened terrified", "from", "of", collocationObject],
+  ["interested", "for at", "in", collocationObject],
+  ["full", "with", "of", collocationObject],
+  ["guilty", "for", "of", collocationAfterBe],
+  ["satisfied", "of", "with", collocationObject],
+  ["jealous envious", "on at", "of", collocationObject],
+  ["famous", "of", "for", collocationObject],
+  ["dependent reliant", "of from", "on", collocationObject],
+  ["proud", "on", "of", collocationObject],
+  ["keen", "of", "on", collocationObject],
+  ["tired", "about", "of", collocationObject],
+  ["addicted", "with on", "to", collocationObject],
+  ["allergic", "of from with", "to", collocationObject],
+  [
+    "similar",
+    "with",
+    "to",
+    collocationBoth(collocationObject, collocationNotNext(/^(?:respect|regard)$/)),
+  ],
+  [
+    "similar",
+    "as",
+    "to",
+    collocationBoth(collocationObject, collocationNotBefore(/^(?:as|so|how|too)$/)),
+  ],
+  ["different", "of", "from", collocationObject],
+  ["angry", "on against", ["with", "at"], collocationPerson],
+  ["crowded filled", "of", "with", collocationObject],
+  ["excited", "of", "about", collocationObject],
+  ["surprised", "of", ["by", "at"], collocationObject],
+  ["disappointed", "from of", ["with", "by", "in"], collocationObject],
+  ["kind", "with", "to", collocationPronoun],
+  [
+    "far",
+    "of",
+    "from",
+    collocationBoth(
+      collocationObject,
+      collocationNotNext(/^(?:a|an)$/),
+      collocationNotBefore(/^(?:so|thus|as|how|too)$/),
+    ),
+  ],
+  ["based", "of", "on", collocationObject],
+  ["regardless", "from", "of", collocationObject],
+  [
+    "married",
+    "with",
+    "to",
+    collocationBoth(collocationSpouse, (ctx, head) =>
+      /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am)$/.test(
+        enWordBefore(ctx, head.start),
+      ),
+    ),
+  ],
+  [
+    "marry marries married marrying",
+    "with",
+    "",
+    collocationBoth(
+      collocationSpouse,
+      collocationNotBefore(
+        /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am|happily|newly|recently|once|still|just|now|not)$/,
+      ),
+    ),
+  ],
+  ["participate+", "to", "in", collocationObject],
+  ["consist+", "to from on", "of", collocationObject],
+  ["depend+", "of from", "on", collocationObject],
+  ["rely+", "of", "on", collocationObject],
+  ["believe+", "to", "in", collocationBareNoun],
+  ["recover+", "of", "from", collocationObject],
+  ["invest+", "on", "in", collocationBoth(collocationObject, collocationNotNext(/^behalf$/))],
+  ["specialize+ specialise+", "on", "in", collocationObject],
+  ["resemble+", "to with", "", collocationObject],
+  ["suffer suffers suffered", "of", "from", collocationObject],
+  [
+    "suffering",
+    "of",
+    "from",
+    collocationBoth(collocationObject, (ctx, head) =>
+      COLLOCATION_BE.has(enWordBefore(ctx, head.start)),
+    ),
+  ],
+  ["lack lacks lacked", "of", "", collocationBoth(collocationObject, collocationVerbSlot)],
+  [
+    "discuss+",
+    "about",
+    "",
+    collocationBoth(
+      collocationObject,
+      (ctx, head) => !/\n[ \t]*$/.test(ctx.text.slice(Math.max(0, head.start - 8), head.start)),
+    ),
+  ],
+  ["mentioned", "about", "", collocationObject],
+  ["mention", "about", "", collocationBoth(collocationObject, collocationVerbSlot)],
+  ["yell+ shout+ scream+", "on", "at", collocationPerson],
+  ["abstain+ refrain+", "of", "from", collocationObject],
+  ["benefited benefitted benefiting benefitting", "of", "from", collocationObject],
+  ["charged", "of", "with", collocationObject],
+  ["comply+", "to", "with", collocationObject],
+  ["persist+", "on", "in", collocationObject],
+  ["retire+", "of", "from", collocationObject],
+  ["differ+", "of", "from", collocationObject],
+  ["participation", "to", "in", collocationObject],
+  ["interest", "about", "in", collocationObject],
+  ["acquainted", "to", "with", collocationObject],
+  ["accused", "for", "of", collocationAfterBe],
+  ["absorbed", "at", "in", collocationObject],
+] as const;
+
+// en.yaml rule en.collocations def collocationInflections
+export function collocationInflections(lemma: string) {
+  const irregular = EN_VERB_FORMS.find((row) => row.lemma === lemma);
+  return [
+    lemma,
+    irregular?.participle,
+    enLexiconInflect(lemma, "third") ?? undefined,
+    enLexiconInflect(lemma, "past") ?? undefined,
+    enLexiconInflect(lemma, "ing") ?? undefined,
+  ].filter(Boolean) as string[];
+}
+
+// en.yaml rule en.collocations def collocationBuild
+export function collocationBuild(): Map<
+  string,
+  { wrong: ReadonlySet<string>; right: readonly string[]; guard: typeof collocationObject }[]
+> {
+  return COLLOCATION_ROWS.flatMap(([words, wrong, right, guard]) =>
+    words
+      .split(" ")
+      .flatMap((word) => (word.endsWith("+") ? collocationInflections(word.slice(0, -1)) : [word]))
+      .map((form) => ({
+        form,
+        entry: {
+          wrong: new Set(wrong.split(" ")),
+          right: typeof right === "string" ? [right] : right,
+          guard,
+        },
+      })),
+  ).reduce(
+    (map, { form, entry }) => map.set(form, [...(map.get(form) ?? []), entry]),
+    new Map<
+      string,
+      { wrong: ReadonlySet<string>; right: readonly string[]; guard: typeof collocationObject }[]
+    >(),
+  );
+}
+
+// en.yaml rule en.collocations def COLLOCATION_TABLE
+export const COLLOCATION_TABLE = new Map<string, ReturnType<typeof collocationBuild>>();
+
+// en.yaml rule en.collocations def collocationTable
+export function collocationTable() {
+  return (
+    COLLOCATION_TABLE.get("heads") ??
+    COLLOCATION_TABLE.set("heads", collocationBuild()).get("heads")!
+  );
+}
+
+// en.yaml rule en.collocations def collocationHead
+export function collocationHead(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const lower = m[0].toLowerCase();
+  const entries = collocationTable().get(lower);
+  if (!(entries && !ctx.dictionary.has(lower))) return null;
+  if (!(m[0] === lower || m[0] === lower[0].toUpperCase() + lower.slice(1))) return null;
+  const head = {
+    text: m[0],
+    lower,
+    start: m.index,
+    end: m.index + m[0].length,
+    kind: "word" as const,
+  };
+  const after = enTokensAfter(ctx, head.end, 4);
+  const prep = after[0];
+  if (!(prep?.kind === "word" && prep.text === prep.lower && !ctx.dictionary.has(prep.lower)))
+    return null;
+  const entry = entries.find(
+    (e) => e.wrong.has(prep.lower) && (!e.guard || e.guard(ctx, head, after)),
+  );
+  if (!(entry && !collocationIdiom(prep, after) && !namedExampleBefore(ctx.text, head.start)))
+    return null;
+  const deletion = entry.right.length === 1 && entry.right[0] === "";
+  return {
+    ruleId: "englishFixedPrepositions",
+    messageKey: "review_msg_fixed_prepositions",
+    range: deletion
+      ? { start: prep.start, end: after[1].start }
+      : { start: prep.start, end: prep.end },
+    alternatives: [...entry.right],
+    ...(entry.right.length > 1 ? { requiresChoice: true as const } : {}),
+    context: enEvidence(ctx, head.start, prep.end),
+  };
+}
+
+// en.yaml rule en.collocations def collocationOpen
+export function collocationOpen(m: RegExpExecArray, ctx: DetectContext) {
+  const target = m.groups!.target.trim();
+  return target.slice(1) === target.slice(1).toLowerCase() && !hasUserOrCasedWord(ctx, m[0]);
+}
+
+// en.yaml rule en.collocations def collocationFinding
+export function collocationFinding(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  fixed: string,
+): RawFinding {
+  const start = m.indices!.groups!.target[0];
+  const end = m.indices!.groups!.target[1];
+  return {
+    ruleId: "englishFixedPrepositions",
+    messageKey: "review_msg_fixed_prepositions",
+    range: { start, end },
+    alternatives: [caseLike(m.groups!.target, fixed)],
+    context: enEvidence(ctx, m.index, end),
+  };
+}
+
+// en.yaml rule en.collocations def collocationPhraseEnd
+export function collocationPhraseEnd(ctx: DetectContext, end: number) {
+  const next = enTokensAfter(ctx, end, 1)[0];
+  return (
+    !next ||
+    next.kind === "end" ||
+    next.kind === "comma" ||
+    (next.kind === "word" &&
+      (EN_FUNCTION_WORDS.has(next.lower) ||
+        /^(?:early|late|safely|tonight|today|yesterday|tomorrow|alone|together|afterwards|before|after)$/.test(
+          next.lower,
+        )))
+  );
+}
+
+// en.yaml rule en.collocations def collocationIngOf
+export function collocationIngOf(verb: string): string | null {
+  const lower = verb.toLowerCase();
+  if (!englishWordInfo(lower)?.verbs.some((v) => v.form === "base" && v.lemma === lower))
+    return null;
+  return enLexiconInflect(lower, "ing") ?? null;
+}
+
+// en.yaml rule en.collocations def collocationDayFix
+export function collocationDayFix(m: RegExpExecArray, ctx: DetectContext): string | null {
+  const before = enWordBefore(ctx, m.index);
+  const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+  if (next?.kind === "word" && /['’]/.test(next.text)) return null;
+  return /^(?:you|meet|meeting|meetings|class|classes|appointment|party|exam|test|game|match|starts|start|begins|ends|closed|opens|open|due|deadline|leave|leaves|leaving|arrive|arrives|arriving|arrived|born|held|scheduled|planned)$/.test(
+    before,
+  ) ||
+    (m.groups!.target.toLowerCase() === "at" && enAfterBreak(ctx, m.index))
+    ? "on"
+    : null;
+}
+
+// en.yaml rule en.collocations def collocationLotFix
+export function collocationLotFix(m: RegExpExecArray, ctx: DetectContext): string | null {
+  if (EN_OBJECT_PRONOUNS.has(enWordBefore(ctx, m.index))) return null;
+  const noun = m.groups!.noun.toLowerCase();
+  return noun === "people" ||
+    (enNounOnly(noun) === "plural" &&
+      !/^(?:times|ways|days|years|months|weeks|hours|minutes|seconds)$/.test(noun))
+    ? "lot of"
+    : null;
+}
+
+// en.yaml rule en.collocations def collocationGerundFix
+export function collocationGerundFix(m: RegExpExecArray, ctx: DetectContext): string | null {
+  const head = m.groups!.head;
+  const verb = m.groups!.verb;
+  const ing = collocationIngOf(verb);
+  if (!ing) return null;
+  const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+  const object =
+    next?.kind === "word" && (EN_DETERMINERS.has(next.lower) || EN_OBJECT_PRONOUNS.has(next.lower));
+  if (englishWordInfo(verb.toLowerCase())?.noun && !object) return null;
+  return `${/^ins/i.test(head) ? "on" : /^suc/i.test(head) ? "in" : "of"} ${ing}`;
+}
 
 // en.yaml rule en.tenseTimeWords def TENSE_OTHER_CLAUSE
 export const TENSE_OTHER_CLAUSE =
@@ -1312,6 +1782,121 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives: [caseLike(target, "than")],
       context: enEvidence(ctx, m.index, end),
     };
+  },
+  // en.yaml rule en.collocations frame 2
+  "@en.collocations/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    const fixed = collocationDayFix(m, ctx);
+    if (!(fixed !== null)) return null;
+    return collocationFinding(m, ctx, fixed);
+  },
+  // en.yaml rule en.collocations frame 3
+  "@en.collocations/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    const fixed = collocationPhraseEnd(ctx, m.index + m[0].length) ? "in" : null;
+    if (!(fixed !== null)) return null;
+    return collocationFinding(m, ctx, fixed);
+  },
+  // en.yaml rule en.collocations frame 4
+  "@en.collocations/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    return collocationFinding(m, ctx, "at");
+  },
+  // en.yaml rule en.collocations frame 5
+  "@en.collocations/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (!(
+      !next ||
+      next.kind === "end" ||
+      next.kind === "comma" ||
+      /^(?:and|but|so|because|too|again|together|alone|anyway)$/.test(next.lower)
+    ))
+      return null;
+    return collocationFinding(m, ctx, "in");
+  },
+  // en.yaml rule en.collocations frame 6
+  "@en.collocations/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    const fixed = collocationLotFix(m, ctx);
+    if (!(fixed !== null)) return null;
+    return collocationFinding(m, ctx, fixed);
+  },
+  // en.yaml rule en.collocations frame 7
+  "@en.collocations/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    return collocationFinding(m, ctx, "and");
+  },
+  // en.yaml rule en.collocations frame 8
+  "@en.collocations/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    if (!(/home$/.test(m[0]) && collocationPhraseEnd(ctx, m.index + m[0].length))) return null;
+    return collocationFinding(m, ctx, "");
+  },
+  // en.yaml rule en.collocations frame 9
+  "@en.collocations/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    if (!(/home$/.test(m[0]) && collocationPhraseEnd(ctx, m.index + m[0].length))) return null;
+    return collocationFinding(m, ctx, "");
+  },
+  // en.yaml rule en.collocations frame 10
+  "@en.collocations/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const ing = m.groups!.ing;
+    if (!collocationOpen(m, ctx)) return null;
+    if (!englishWordInfo(ing.toLowerCase())?.verbs.some((v) => v.form === "ing")) return null;
+    return collocationFinding(m, ctx, "from");
+  },
+  // en.yaml rule en.collocations frame 11
+  "@en.collocations/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    const fixed = collocationGerundFix(m, ctx);
+    if (!(fixed !== null)) return null;
+    return collocationFinding(m, ctx, fixed);
+  },
+  // en.yaml rule en.collocations frame 12
+  "@en.collocations/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!collocationOpen(m, ctx)) return null;
+    return collocationFinding(m, ctx, `${target} to`);
+  },
+  // en.yaml rule en.collocations frame 13
+  "@en.collocations/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const vehicle = m.groups!.vehicle;
+    if (!collocationOpen(m, ctx)) return null;
+    if (!collocationPhraseEnd(ctx, m.index + m[0].length)) return null;
+    return collocationFinding(m, ctx, `by ${vehicle}`);
+  },
+  // en.yaml rule en.collocations frame 14
+  "@en.collocations/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    return collocationFinding(m, ctx, "");
+  },
+  // en.yaml rule en.collocations frame 15
+  "@en.collocations/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    if (/\bfrom\b[^.!?;]*$/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index))) return null;
+    return collocationFinding(m, ctx, "of");
+  },
+  // en.yaml rule en.collocations frame 16
+  "@en.collocations/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    if (!collocationPhraseEnd(ctx, m.index + m[0].length)) return null;
+    return collocationFinding(m, ctx, "on");
+  },
+  // en.yaml rule en.collocations frame 17
+  "@en.collocations/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    return collocationFinding(m, ctx, "on");
+  },
+  // en.yaml rule en.collocations frame 18
+  "@en.collocations/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    return collocationFinding(m, ctx, "on");
+  },
+  // en.yaml rule en.collocations frame 19
+  "@en.collocations/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!collocationOpen(m, ctx)) return null;
+    return collocationFinding(m, ctx, "for");
   },
   // en.yaml rule en.tenseTimeWords frame 1
   "@en.tenseTimeWords/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

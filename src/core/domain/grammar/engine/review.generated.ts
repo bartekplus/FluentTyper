@@ -11070,7 +11070,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>in|at)[ \\t\\u00a0]{1,8}(?:mon|tues|wednes|thurs|fri|satur|sun)days?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["mon", "tues", "wednes", "thurs", "fri", "satur", "sun"],
-    fixer: "en:collocationDayOn",
+    fixer: "en:@en.collocations/2",
   }),
   frame({
     pattern:
@@ -11094,43 +11094,43 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "formed",
       "created",
     ],
-    fixer: "en:collocationYearIn",
+    fixer: "en:@en.collocations/3",
   }),
   frame({
     pattern:
       "(?<target>in|on)[ \\t\\u00a0]{1,8}(?:[0-9]|1[0-2])(?::[0-5][0-9])?[ \\t\\u00a0]{0,8}(?:am|pm|a\\.m\\.|p\\.m\\.|o['’]clock)(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "en:collocationClockAt",
+    fixer: "en:@en.collocations/4",
   }),
   frame({
     pattern:
       "(?<target>at|on)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:morning|afternoon|evening)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["morning", "afternoon", "evening"],
-    fixer: "en:collocationPartOfDayIn",
+    fixer: "en:@en.collocations/5",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])a[ \\t\\u00a0]{1,8}(?<target>lot)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["lot"],
-    fixer: "en:collocationLotOf",
+    fixer: "en:@en.collocations/6",
   }),
   frame({
     pattern:
       "between[ \\t\\u00a0]{1,8}(?:[0-9]+(?:[.,][0-9]+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)(?:[ \\t\\u00a0]{0,8}(?:%|am|pm|percent|years|hours|days|weeks|months|minutes))?[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?:[0-9]+(?:[.,][0-9]+)?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["between"],
-    fixer: "en:collocationBetweenAnd",
+    fixer: "en:@en.collocations/7",
   }),
   frame({
     pattern:
       "(?:go|goes|going|gone|went|come|comes|coming|came|get|gets|getting|got|return|returns|returned|returning|head|heads|headed|heading|walk|walks|walked|walking|drive|drives|drove|driving|run|runs|ran|running|hurry|hurried|rush|rushed|take|takes|took|taking|bring|brings|brought|send|sends|sent)(?:[ \\t\\u00a0]{1,8}(?:back|straight|directly|me|him|her|us|them|you))?(?<target>[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}home(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["home"],
-    fixer: "en:collocationHome",
+    fixer: "en:@en.collocations/8",
   }),
   frame({
     pattern:
       "(?:return|returns|returned|returning)(?<target>[ \\t\\u00a0]{1,8}at)[ \\t\\u00a0]{1,8}home(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["return", "returns", "returned", "returning"],
-    fixer: "en:collocationHome",
+    fixer: "en:@en.collocations/9",
   }),
   frame({
     pattern:
@@ -11159,7 +11159,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "banned",
       "banning",
     ],
-    fixer: "en:collocationFrom",
+    fixer: "en:@en.collocations/10",
   }),
   frame({
     pattern:
@@ -11176,13 +11176,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "capable",
       "incapable",
     ],
-    fixer: "en:collocationGerund",
+    fixer: "en:@en.collocations/11",
   }),
   frame({
     pattern:
       "(?<target>listen|listens|listened|listening)[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|his|our|their|him|them|us|music|songs?|podcasts?|radio|audiobooks?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["listen", "listens", "listened", "listening"],
-    fixer: "en:collocationListenTo",
+    fixer: "en:@en.collocations/12",
   }),
   frame({
     pattern:
@@ -11199,43 +11199,43 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "commuted",
       "commuting",
     ],
-    fixer: "en:collocationByVehicle",
+    fixer: "en:@en.collocations/13",
   }),
   frame({
     pattern:
       "(?:take|takes|took|taken|taking)[ \\t\\u00a0]{1,8}into[ \\t\\u00a0]{1,8}(?:consideration|account)(?<target>[ \\t\\u00a0]{1,8}of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["consideration", "account"],
-    fixer: "en:collocationDrop",
+    fixer: "en:@en.collocations/14",
   }),
   frame({
     pattern:
       "in[ \\t\\u00a0]{1,8}front[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?=(?:the|a|an|my|your|his|her|our|their|this|that|these|those|me|him|us|them|everyone)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["front"],
-    fixer: "en:collocationInFrontOf",
+    fixer: "en:@en.collocations/15",
   }),
   frame({
     pattern:
       "(?<target>in)[ \\t\\u00a0]{1,8}(?:my|your|his|her|our|their|the)[ \\t\\u00a0]{1,8}birthday(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["birthday"],
-    fixer: "en:collocationBirthdayOn",
+    fixer: "en:@en.collocations/16",
   }),
   frame({
     pattern:
       "(?<target>in)[ \\t\\u00a0]{1,8}page[ \\t\\u00a0]{1,8}[0-9]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["page"],
-    fixer: "en:collocationOn",
+    fixer: "en:@en.collocations/17",
   }),
   frame({
     pattern:
       "(?<target>in)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:left|right)(?:(?:[ \\t\\u00a0]{1,8}|-)hand)?[ \\t\\u00a0]{1,8}side(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["left", "right"],
-    fixer: "en:collocationOn",
+    fixer: "en:@en.collocations/18",
   }),
   frame({
     pattern:
       "in[ \\t\\u00a0]{1,8}exchange[ \\t\\u00a0]{1,8}(?<target>of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["exchange"],
-    fixer: "en:collocationFor",
+    fixer: "en:@en.collocations/19",
   }),
   frame({
     pattern:
