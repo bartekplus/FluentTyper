@@ -405,6 +405,23 @@ export function plainBaseVerb(word: string) {
   );
 }
 
+// en.yaml rule en.neighbourTypos def YOUR_ADDRESS
+export const YOUR_ADDRESS =
+  /^(?:two|three|four|sir|madam|man|dude|guy|bro|buddy|pal|mate|kid|boy|girl|honey|dear|darling|babe|baby|idiot|fool|genius|moron|jerk|liar|coward|loser|monster|angel|hero|lot|too|all|both|alone)$/;
+
+// en.yaml rule en.neighbourTypos def yourNounFits
+export function yourNounFits(word: string, head: boolean) {
+  if (YOUR_ADDRESS.test(word) || EN_FUNCTION_WORDS.has(word)) return false;
+  const info = typoInfo(word);
+  return !info
+    ? enNounOnly(word) === "singular"
+    : info.verbs.length || info.adverb || info.plural
+      ? false
+      : head
+        ? info.noun && !info.adjective
+        : info.noun || info.adjective;
+}
+
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.idiomPhrases2 frame 5
@@ -1511,6 +1528,209 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     )
       return null;
     return plainBaseVerb(verb) || /^(?:do|start|go|be|have)$/.test(verb) ? "to" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 5
+  "@en.neighbourTypos/5": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    const info = typoInfo(verb);
+    return info?.verbs.some((v) => v.form === "base" || v.form === "past") &&
+      !info.noun &&
+      !info.adjective
+      ? "them"
+      : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 6
+  "@en.neighbourTypos/6": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    if (EN_DETERMINERS.has(lead.toLowerCase())) return null;
+    return /^(?:far|so|then|now)$/i.test(lead) ? ["they", "to"] : ["to", "they"];
+  },
+  // en.yaml rule en.neighbourTypos frame 8
+  "@en.neighbourTypos/8": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "other" ? "others" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 9
+  "@en.neighbourTypos/9": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const before = enWordBefore(ctx, m.index);
+    const info = typoInfo(before);
+    return !before ||
+      EN_FUNCTION_WORDS.has(before) ||
+      /self$|selves$/.test(before) ||
+      (info && !info.noun && !/ing$/.test(before))
+      ? null
+      : "and";
+  },
+  // en.yaml rule en.neighbourTypos frame 10
+  "@en.neighbourTypos/10": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "In" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 12
+  "@en.neighbourTypos/12": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "He's" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 20
+  "@en.neighbourTypos/20": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return EN_DETERMINERS.has(enWordBefore(ctx, m.index)) ? null : "please";
+  },
+  // en.yaml rule en.neighbourTypos frame 43
+  "@en.neighbourTypos/43": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return EN_DETERMINERS.has(enWordBefore(ctx, m.index)) ? null : "with";
+  },
+  // en.yaml rule en.neighbourTypos frame 48
+  "@en.neighbourTypos/48": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    const target = m.groups!.target;
+    const after = m.groups!.after;
+    const typed = lead.toLowerCase();
+    const pronoun = /^(?:it|this|that|which|there)$/.test(typed);
+    const noun =
+      !EN_FUNCTION_WORDS.has(typed) &&
+      !/^(?:when|where|why|how|what|who|whom|whose|then|only|never|so|nor)$/.test(typed) &&
+      !!typoInfo(typed)?.noun;
+    const info = typoInfo(after);
+    const participle =
+      after === "ready" ||
+      (!!info?.verbs.some((v) => v.form === "participle") &&
+        !info.verbs.some((v) => v.form === "base" || v.form === "third"));
+    const sure = pronoun || (noun && !info?.verbs.some((v) => v.form === "past"));
+    return sure && participle ? target.replace(/he$/i, "be") : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 65
+  "@en.neighbourTypos/65": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "ned" ? "need" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 70
+  "@en.neighbourTypos/70": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "Thank" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 73
+  "@en.neighbourTypos/73": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.replace(/precedence$/i, "precedent");
+  },
+  // en.yaml rule en.neighbourTypos frame 74
+  "@en.neighbourTypos/74": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    return /^[ \t ]*-/.test(ctx.text.slice(m.index + m[0].length))
+      ? null
+      : target.replace(/comma$/i, "coma");
+  },
+  // en.yaml rule en.neighbourTypos frame 75
+  "@en.neighbourTypos/75": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.replace(/flew$/i, "flu");
+  },
+  // en.yaml rule en.neighbourTypos frame 80
+  "@en.neighbourTypos/80": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "That being said" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 84
+  "@en.neighbourTypos/84": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const word = target.toLowerCase();
+    const info = typoInfo(word);
+    if (!info?.adverb || info.adjective || info.noun) return null;
+    return (
+      [
+        word.replace(/ily$/, "y"),
+        word.replace(/ically$/, "ical"),
+        word.replace(/bly$/, "ble"),
+        word.slice(0, -2),
+      ].find((c) => c !== word && !!typoInfo(c)?.adjective) ?? null
+    );
+  },
+  // en.yaml rule en.neighbourTypos frame 85
+  "@en.neighbourTypos/85": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const verb = m.groups!.verb;
+    return enAfterBreak(ctx, m.index) &&
+      typoInfo(verb)?.verbs.some((v) => v.form === "base" || v.form === "third")
+      ? "Sometimes"
+      : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 87
+  "@en.neighbourTypos/87": (m: RegExpExecArray): FixResult => {
+    const one = m.groups!.one;
+    const two = m.groups!.two;
+    return !!typoInfo(one)?.adjective && !!typoInfo(two)?.adjective ? "not" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 88
+  "@en.neighbourTypos/88": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    const after = m.groups!.after;
+    const word = after?.toLowerCase();
+    const info = typoInfo(next);
+    if (!info || EN_FUNCTION_WORDS.has(next) || info.adjective) return null;
+    return info.verbs.some((v) => v.form === "base" && v.lemma === next) &&
+      !info.noun &&
+      !!word &&
+      !/^(?:and|or|with|from)$/.test(word)
+      ? "and"
+      : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 89
+  "@en.neighbourTypos/89": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const word = noun.toLowerCase();
+    if (
+      EN_FUNCTION_WORDS.has(word) ||
+      /^(?:first|last|next|alone|himself|once|twice|soon|later)$/.test(word)
+    )
+      return null;
+    const info = typoInfo(word);
+    return target === "he" &&
+      info?.noun &&
+      !info.plural &&
+      !info.verbs.length &&
+      !info.adjective &&
+      !info.adverb
+      ? ["the", "her"]
+      : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 92
+  "@en.neighbourTypos/92": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const lead = m.groups!.lead;
+    const noun = m.groups!.noun;
+    const next = m.groups!.next;
+    const info = typoInfo(noun);
+    if (!info?.noun || info.verbs.length || info.adjective || EN_FUNCTION_WORDS.has(noun))
+      return null;
+    return lead
+      ? "our"
+      : enAfterBreak(ctx, m.index) &&
+          (/^(?:has|is|was|will|can|had)$/i.test(next) ||
+            typoInfo(next)?.verbs.some((x) => x.form === "third"))
+        ? "our"
+        : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 93
+  "@en.neighbourTypos/93": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const mods = m.groups!.mods;
+    const noun = m.groups!.noun;
+    const before = enWordBefore(ctx, m.index);
+    const opener = before
+      ? /^(?:if|because|since|unless|once|now|otherwise|but|so)$/.test(before)
+      : enAfterBreak(ctx, m.index);
+    if (!opener || /\p{Lu}/u.test(m[0].slice(3))) return null;
+    const words = [
+      ...mods
+        .trim()
+        .split(/[ \t ]+/)
+        .filter(Boolean),
+      noun,
+    ];
+    return words.every((word, i) => yourNounFits(word, i === words.length - 1)) ? "your" : null;
+  },
+  // en.yaml rule en.neighbourTypos frame 94
+  "@en.neighbourTypos/94": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    return !YOUR_ADDRESS.test(noun) &&
+      !EN_FUNCTION_WORDS.has(noun) &&
+      enNounOnly(noun) === "singular"
+      ? "your"
+      : null;
   },
 };
 

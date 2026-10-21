@@ -6965,6 +6965,25 @@ rules:
     checks: [englishPhraseCorrections, englishConfusedWords, englishThenThan, englishYourYouAre]
     style: slot
     message: review_msg_confused_word
+    defs:
+      # Words after "you" that address a person or count people: "you idiot", "you two".
+      YOUR_ADDRESS: /^(?:two|three|four|sir|madam|man|dude|guy|bro|buddy|pal|mate|kid|boy|girl|honey|dear|darling|babe|baby|idiot|fool|genius|moron|jerk|liar|coward|loser|monster|angel|hero|lot|too|all|both|alone)$/
+      # A word of a noun subject after "you": modifiers are adjectives or nouns; the head is a
+      # singular noun. None is a verb.
+      yourNounFits:
+        args: "word: string, head: boolean"
+        let:
+          info: typoInfo(word)
+        when: "!(YOUR_ADDRESS.test(word) || EN_FUNCTION_WORDS.has(word))"
+        return: >-
+          !info
+            ? enNounOnly(word) === "singular"
+            : info.verbs.length || info.adverb || info.plural
+              ? false
+              : head
+                ? info.noun && !info.adjective
+                : info.noun || info.adjective
+        else: "false"
     frames:
       # know / now
       - regex: "(?<![\\p{L}'’])(?:don['’]t|doesn['’]t|didn['’]t|do{{S}}not|does{{S}}not|did{{S}}not){{S}}(?<target>now){{E}}(?={{S}}(?:if|whether|what|how|why|who|where|that|and|anything|it|the){{E}})"
@@ -6987,11 +7006,14 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<verb>[a-z]+){{S}}(?<target>they)(?=[ \\t\\u00a0]*[.!?])"
         check: englishConfusedWords
         cue: ["they"]
-        fixer: neighbourTyposThey
+        let:
+          info: typoInfo(verb)
+        return: 'info?.verbs.some((v) => v.form === "base" || v.form === "past") && !info.noun && !info.adjective ? "them" : null'
       - regex: "(?<![\\p{L}'’])(?<lead>[a-z]+){{S}}(?<target>the){{S}}(?:be(?!{{S}}all)|have{{S}}(?:you|it|them|been|told|imported|done|seen|made)){{E}}"
         check: englishConfusedWords
         cue: ["the"]
-        fixer: neighbourTyposThe
+        when: "!EN_DETERMINERS.has(lead.toLowerCase())"
+        return: '/^(?:far|so|then|now)$/i.test(lead) ? ["they", "to"] : ["to", "they"]'
       - regex: "(?<![\\p{L}'’])(?:with|by|to|for|from|help|helps|helped|told|tell|ask|asked|and){{S}}(?<target>other){{E}}(?={{S}}(?:about|in|via|also|run|have|do|think|say){{E}})"
         check: englishConfusedWords
         cue: ["other"]
@@ -6999,17 +7021,28 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:with|by|to|for|from|help|helps|helped|told|tell|ask|asked){{S}}(?<target>other)(?=[ \\t\\u00a0]*[.!?,])"
         check: englishConfusedWords
         cue: ["other"]
-        fixer: neighbourTyposOther
+        return: 'target === "other" ? "others" : null'
       # "This an all of the above", "in Dutch an already deleted": and. After a preposition or
       # a pronoun, "an already full room" and "to an also inactive unit" keep the article.
       - regex: "(?<![\\p{L}'’])(?<target>an){{E}}(?={{S}}(?:all{{S}}(?:of|the|things)|also|already){{E}})"
         check: englishConfusedWords
         cue: ["an"]
-        fixer: neighbourTyposAn
+        # "This an all of the above", "in Dutch an already deleted": and. After a preposition or a
+        # pronoun, "an already full room" and "to an also inactive unit" keep the article.
+        let:
+          before: enWordBefore(ctx, m.index)
+          info: typoInfo(before)
+        return: >-
+          !before ||
+          EN_FUNCTION_WORDS.has(before) ||
+          /self$|selves$/.test(before) ||
+          (info && !info.noun && !/ing$/.test(before))
+            ? null
+            : "and"
       - regex: "(?<![\\p{L}'’])(?<target>I){{E}}(?={{S}}(?:my|this|that|our|your|his|her|their){{E}})"
         check: englishConfusedWords
         cue: ["i"]
-        fixer: neighbourTyposI
+        return: 'enAfterBreak(ctx, m.index) ? "In" : null'
       - regex: "(?<![\\p{L}'’])(?:in|for|of|at|on|with|from){{S}}(?<target>thus){{E}}(?={{S}}(?:group|case|way|point|reason|purpose|time|team|project){{E}})"
         message: review_msg_typo
         cue: ["thus"]
@@ -7017,7 +7050,8 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>His){{E}}(?={{S}}(?:a|an|so|very|not|always|never|really|going|been|my|the{{S}}best){{E}})"
         check: englishConfusedWords
         cue: ["his"]
-        fixer: neighbourTyposHis
+        return: >-
+          enAfterBreak(ctx, m.index) ? "He's" : null
       - regex: "(?<![\\p{L}'’])(?:\\d+){{S}}(?<target>hears){{E}}(?={{S}}(?:old|ago){{E}})"
         message: review_msg_typo
         cue: ["hears"]
@@ -7049,7 +7083,8 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:oh|please|so){{S}}(?<target>pleas){{E}}(?={{S}}(?:help|let|send|call|tell|do|check|find|give|make|note|contact){{E}})"
         message: review_msg_typo
         cue: ["pleas"]
-        fixer: neighbourTyposPleas
+        # Not after a determiner ("the pleas").
+        return: 'EN_DETERMINERS.has(enWordBefore(ctx, m.index)) ? null : "please"'
       - regex: "(?<![\\p{L}'’])(?:i|we|you|they|he|she|have|has|had|never){{S}}(?<target>herd){{E}}(?={{S}}(?:of|about|that|from|nothing|something|anything|so){{E}})"
         check: englishConfusedWords
         cue: ["herd"]
@@ -7140,7 +7175,8 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:that|it|this){{S}}(?<target>whit){{E}}(?={{S}}(?:{{NEIGHBOURTYPOS_OBJECT}}){{E}})"
         message: review_msg_typo
         cue: ["whit"]
-        fixer: neighbourTyposWhit
+        # Not after a determiner ("a whit").
+        return: 'EN_DETERMINERS.has(enWordBefore(ctx, m.index)) ? null : "with"'
       - regex: "(?<![\\p{L}'’])(?:let['’]s|to|will|can|should|must|we|i|please|could){{S}}(?<target>asses){{E}}(?={{S}}(?:the|a|your|our|their|his|her|my|it|this|these|whether|how|what){{E}})"
         check: englishConfusedWords
         cue: ["asses"]
@@ -7161,7 +7197,25 @@ rules:
       # participle that cannot follow an inverted "he".
       - regex: "(?<![\\p{L}'’])(?:(?<lead>[a-z]+)){{S}}(?<target>(?:will|can|could|should|would|must){{S}}he){{E}}(?={{S}}(?:(?<after>[a-z]+)){{E}})"
         check: englishConfusedWords
-        fixer: neighbourTyposWill
+        # "It will he turned on", "The door will he locked": a subject before the modal, then a
+        # participle that cannot follow an inverted "he".
+        let:
+          typed: lead.toLowerCase()
+          pronoun: /^(?:it|this|that|which|there)$/.test(typed)
+          # "When will he…", "Only then will he…": an inverted question or clause.
+          noun: >-
+            !EN_FUNCTION_WORDS.has(typed) &&
+            !/^(?:when|where|why|how|what|who|whom|whose|then|only|never|so|nor)$/.test(typed) &&
+            !!typoInfo(typed)?.noun
+          info: typoInfo(after)
+          participle: >-
+            after === "ready" ||
+            (!!info?.verbs.some((v) => v.form === "participle") &&
+              !info.verbs.some((v) => v.form === "base" || v.form === "third"))
+          # "his garbage can he had there": after a noun, "can he" + a past form may be a relative
+          # clause. Only a participle that is no past form is sure.
+          sure: 'pronoun || (noun && !info?.verbs.some((v) => v.form === "past"))'
+        return: 'sure && participle ? target.replace(/he$/i, "be") : null'
       - regex: "(?<![\\p{L}'’])(?:i|we|you|they){{S}}(?<target>dun){{E}}(?={{S}}(?:know|care|think|want|like|have|get|understand|see|need|mind){{E}})"
         message: review_msg_typo
         cue: ["dun"]
@@ -7230,7 +7284,8 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:i|we|you|they|don['’]t|doesn['’]t|didn['’]t|won['’]t|not|will|would|really|just|also|might|may){{S}}(?<target>ned){{E}}(?={{S}}(?:to|too|a|an|the|some|more|help|it|this|that|your|my|our|their|them|you|me|us){{E}})"
         message: review_msg_typo
         cue: ["ned"]
-        fixer: neighbourTyposNed
+        # Lowercase only: "Ned" is a name ("Will Ned help?").
+        return: 'target === "ned" ? "need" : null'
       - regex: "(?<![\\p{L}'’])(?:wouldn['’]t|won['’]t|to|will|can|could|should|must|might|['’]ll|don['’]t){{S}}(?<target>git){{E}}(?={{S}}(?:a|an|the|some|my|your|this|that|them|me|him|her|us|rid|back|out|up|it){{E}})"
         check: englishConfusedWords
         cue: ["git"]
@@ -7250,7 +7305,7 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>Than){{E}}(?={{S}}(?:you){{E}})"
         check: englishConfusedWords
         cue: ["than"]
-        fixer: neighbourTyposThan
+        return: 'enAfterBreak(ctx, m.index) ? "Thank" : null'
       - regex: "(?<![\\p{L}'’])(?:i|he|she|it){{S}}(?<target>as){{E}}(?={{S}}(?:looking|going|trying|thinking|wondering|working|waiting){{E}})"
         check: englishConfusedWords
         cue: ["as"]
@@ -7261,13 +7316,13 @@ rules:
         fix: "want"
       - regex: "(?<![\\p{L}'’])(?:set|sets|setting|establish|established|establishes|create|created|creates){{S}}(?<target>a(?:{{S}}(?:new|dangerous|bad|good|legal))?{{S}}precedence){{E}}"
         check: englishConfusedWords
-        fixer: neighbourTyposA
+        return: 'target.replace(/precedence$/i, "precedent")'
       - regex: "(?<![\\p{L}'’])(?:been|was|is|fell|slipped|put|remain|remained|remains|in|into){{S}}(?<target>a{{S}}comma){{E}}"
         check: englishConfusedWords
-        fixer: neighbourTyposA2
+        return: '/^[ \t ]*-/.test(ctx.text.slice(m.index + m[0].length)) ? null : target.replace(/comma$/i, "coma")'
       - regex: "(?<![\\p{L}'’])(?:have|has|had|got|get|gets|with|caught|catch|getting|having){{S}}(?<target>the{{S}}flew){{E}}"
         check: englishConfusedWords
-        fixer: neighbourTyposThe2
+        return: 'target.replace(/flew$/i, "flu")'
       - regex: "(?<![\\p{L}'’])(?:take|takes|took|taken|taking)(?:{{S}}[a-z]+){0,2}{{S}}for{{S}}(?<target>granite){{E}}"
         check: englishConfusedWords
         cue: ["granite"]
@@ -7288,7 +7343,7 @@ rules:
       - regex: "(?<target>That{{S}}being{{S}}sad)(?=[ \\t\\u00a0]*[,.…])"
         check: englishConfusedWords
         cue: ["sad"]
-        fixer: neighbourTyposThat
+        return: 'enAfterBreak(ctx, m.index) ? "That being said" : null'
       - regex: "(?<![\\p{L}'’])in{{S}}the{{S}}(?<target>passed)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:few|two|three|years?|weeks?|months?|days?){{E}})"
         check: englishConfusedWords
         cue: ["passed"]
@@ -7306,11 +7361,22 @@ rules:
         check: englishConfusedWords
         message: review_msg_adverb_form
         cue: ["manner", "way", "fashion"]
-        fixer: neighbourTyposA3
+        # "He did it in a hastily manner": the adjective before manner.
+        let:
+          word: target.toLowerCase()
+          info: typoInfo(word)
+        when: "!(!info?.adverb || info.adjective || info.noun)"
+        return: >-
+          [word.replace(/ily$/, "y"), word.replace(/ically$/, "ical"), word.replace(/bly$/, "ble"), word.slice(0, -2)].find(
+            (c) => c !== word && !!typoInfo(c)?.adjective,
+          ) ?? null
       - regex: "(?<target>Sometime){{S}}(?:I|we|you|they|he|she|it){{S}}(?<verb>[a-z]+){{E}}"
         message: review_msg_typo
         cue: ["sometime"]
-        fixer: neighbourTyposSometime
+        return: >-
+          enAfterBreak(ctx, m.index) && typoInfo(verb)?.verbs.some((v) => v.form === "base" || v.form === "third")
+            ? "Sometimes"
+            : null
       # "the largest cake in the wold": world.
       - regex: "(?<![\\p{L}'’])(?:in{{S}}the|around{{S}}the|the{{S}}whole|the{{S}}entire|our|this|troubled|modern|real|whole|entire){{S}}(?<target>wold){{E}}"
         message: review_msg_typo
@@ -7320,17 +7386,39 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:is|are|was|were|be|['’]s){{S}}(?<one>[a-z]+){{S}}(?<target>nut){{S}}(?<two>[a-z]+){{E}}"
         message: review_msg_typo
         cue: ["nut"]
-        fixer: neighbourTyposNut
+        # "red nut white", "hexagonal nut square": not between two adjectives.
+        return: '!!typoInfo(one)?.adjective && !!typoInfo(two)?.adjective ? "not" : null'
       # "drop by an see what's up": and before a plain verb.
       - regex: "(?<![\\p{L}'’])(?<target>an){{S}}(?<next>[a-z]+)(?={{S}}(?<after>what|how|if|it|you|me|them|him|her|us|the|and|or|with|from){{E}}|[ \\t\\u00a0]*[,.])"
         message: review_msg_typo
         cue: ["an"]
-        fixer: neighbourTyposAn2
+        # "drop by an see what's up": a plain verb with its object. A plural stays: "an arts and crafts
+        # fair", "an innings of fifty".
+        let:
+          word: after?.toLowerCase()
+          info: typoInfo(next)
+        when: "!(!info || EN_FUNCTION_WORDS.has(next) || info.adjective)"
+        return: >-
+          info.verbs.some((v) => v.form === "base" && v.lemma === next) &&
+          !info.noun &&
+          !!word &&
+          !/^(?:and|or|with|from)$/.test(word)
+            ? "and"
+            : null
       # "He said he company has", "what he problem is": the (or her) before a noun.
       - regex: "(?<![\\p{L}'’])(?<target>he){{S}}(?<noun>[a-z]+){{S}}(?:is|was|has|had|will|would|can|could|does|did|said|says){{E}}"
         message: review_msg_typo
         cue: ["he"]
-        fixer: neighbourTyposHe
+        # "He said he company has", "what he problem is": the (or her) before a noun. "he first had to
+        # leave", "he alone was": an adverb or a function word after he.
+        let:
+          word: noun.toLowerCase()
+          info: typoInfo(word)
+        when: "!(EN_FUNCTION_WORDS.has(word) || /^(?:first|last|next|alone|himself|once|twice|soon|later)$/.test(word))"
+        return: >-
+          target === "he" && info?.noun && !info.plural && !info.verbs.length && !info.adjective && !info.adverb
+            ? ["the", "her"]
+            : null
       # "The duvet envelopes her", "will envelope your feet": the verb envelop.
       - regex: "(?<![\\p{L}'’])(?:will|to|can|would|that|which|it|they|blankets|duvet){{S}}(?<target>envelope){{E}}(?={{S}}(?:you|your|him|her|them|me|us|the|it){{E}})"
         check: englishConfusedWords
@@ -7344,19 +7432,39 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:(?<lead>at|in|from|with|for|about|into|evaluated|reviewed|updated|improved){{S}})?(?<target>out){{S}}(?<noun>[a-z]+){{S}}(?<next>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["out"]
-        fixer: neighbourTyposOut
+        # "We evaluated out method", "Out time has come": our before a noun. At a sentence start the
+        # noun must have its verb next: "Out time has come".
+        let:
+          info: typoInfo(noun)
+        when: "!(!info?.noun || info.verbs.length || info.adjective || EN_FUNCTION_WORDS.has(noun))"
+        return: >-
+          lead
+            ? "our"
+            : enAfterBreak(ctx, m.index) &&
+                (/^(?:has|is|was|will|can|had)$/i.test(next) || typoInfo(next)?.verbs.some((x) => x.form === "third"))
+              ? "our"
+              : null
       # "if you father can help", "Now you current site is live": "your" before a noun subject.
       - regex: "(?<![\\p{L}'’])(?<target>you)(?<mods>(?:{{S}}[a-z]+){0,2}){{S}}(?<noun>[a-z]+){{S}}(?:is|was|has|had|will|would|can|could|should|must|does|did|may|might){{E}}"
         check: englishYourYouAre
         message: review_msg_your_possessive
         cue: ["you"]
-        fixer: neighbourTyposYou
+        # "if you father can help", "Now you current site is live": "your" before a noun subject. Only
+        # where a clause opens: "I told you lunch was ready" and "Without you life is cruel" keep "you"
+        # as an object.
+        let:
+          before: enWordBefore(ctx, m.index)
+          opener: "before ? /^(?:if|because|since|unless|once|now|otherwise|but|so)$/.test(before) : enAfterBreak(ctx, m.index)"
+          words: '[...mods.trim().split(/[ \t ]+/).filter(Boolean), noun]'
+        when: '!(!opener || /\p{Lu}/u.test(m[0].slice(3)))'
+        return: 'words.every((word, i) => yourNounFits(word, i === words.length - 1)) ? "your" : null'
       # "for you and you family": a second "you" before a noun.
       - regex: "you{{S}}and{{S}}(?<target>you){{S}}(?<noun>[a-z]+)(?=[ \\t\\u00a0]*(?:[.!?,;]|$))"
         check: englishYourYouAre
         message: review_msg_your_possessive
         cue: ["you"]
-        fixer: neighbourTyposYou2
+        # "for you and you family": a second "you" before a noun.
+        return: '!YOUR_ADDRESS.test(noun) && !EN_FUNCTION_WORDS.has(noun) && enNounOnly(noun) === "singular" ? "your" : null'
   - id: en.clashFrames
     checks:
       [
