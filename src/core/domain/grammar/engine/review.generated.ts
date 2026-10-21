@@ -4282,12 +4282,16 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "requires",
     ],
     fixer: "common:adviseTo",
+    gate: "(?:advise[ds]?|encourage[ds]?|permit(?:ted)?|requires)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
       "(?<subject>(?!(?:it|this|that|there|what|which|who)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[A-Za-z]+)[ \\t\\u00a0]{1,8}(?:can|could|will|would|should|may|might|must)(?:[ \\t\\u00a0]{1,8}not)?[ \\t\\u00a0]{1,8}(?<target>require)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["require"],
     fixer: "common:requireTo",
+    gate: "require[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4871,6 +4875,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: [],
     fixer: "common:correlativeSubjects",
     owner: "b",
+    gate: "(?:and|or)[ \\t\\u00a0]{1,8}(?:me|myself|him|them)[ \\t\\u00a0]",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -5336,6 +5342,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     ],
     fixer: "common:toTooDegree",
     check: "englishToToo",
+    gate: "to[ \\t\\u00a0]{1,8}(?:big|small|large|short|hot|cold|late|early|hard|easy|good|bad|high|loud|heavy|tired|hungry|busy|far|soon|much|many|expensive|difficult|complicated|ambitious|young|old|strict|risky|dangerous|tight|full|sweet|weak|strong|lazy)",
+    gateFlags: "giu",
   }),
   frame({
     pattern:

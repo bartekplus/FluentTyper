@@ -4780,9 +4780,14 @@ rules:
       # "She advised to wait", "The method requires to sort the list": with no object, these
       # verbs take the -ing form. A passive ("are advised to") has its subject as the object.
       - regex: "(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t){{S}})(?:(?:(?<subject>{{SUBJECT}})|(?<plural>[a-z]{3,}s)){{S}}(?:{{COMPLEMENT_MODALS}}{{S}}(?:not{{S}})?|{{COMPLEMENT_NEGATIVE}})(?:advise|advised|encourage|encouraged|permit|permitted)|to{{S}}(?:advise|encourage|permit)|(?<head>advises|encourages|requires)){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
+        # Skips the frame when no advise/encourage/permit/requires + "to" stands in the text.
+        gate: "(?:advise[ds]?|encourage[ds]?|permit(?:ted)?|requires)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: adviseTo
       # "We may require to sign": a person after a modal is required to do something.
       - regex: "(?<subject>(?!(?:it|this|that|there|what|which|who){{E}})[A-Za-z]+){{S}}{{COMPLEMENT_MODALS}}(?:{{S}}not)?{{S}}(?<target>require){{S}}to{{S}}{{COMPLEMENT_WORD}}"
+        gate: "require[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: requireTo
       # "We went ahead and fix it": the second verb shares the tense of went, gone or goes; "go
       # ahead and fixed it" shares the base form. A noun can start a new clause ("went ahead and
@@ -5210,6 +5215,9 @@ rules:
       # "Both Ana and me helped", "Either Ana or me will call", "Ana or myself can help".
       - regex: "(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0]){{CASE_COORDINATION_START}}(?:(?<lead>both|either|neither){{S}})?(?<a>{{CASE_CONJUNCT}}){{S}}(?<conj>and|or|nor){{S}}(?<b>me|myself|him|them)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
         owner: b
+        # Skips the frame when no "and/or me|myself|him|them" stands in the text.
+        gate: "(?:and|or)[ \\t\\u00a0]{1,8}(?:me|myself|him|them)[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: correlativeSubjects
       # "Whom is coming?", "to whomever wrote it": whom before its own finite verb is the subject.
       - regex: '(?<whom>whom(?:ever|soever)?){{S}}(?:(?<aux>{{CASE_AUX}})(?:{{S}}{{CASE_INSERT}})?{{S}}["“'']?(?<evidence>[a-z]+)|(?<verb>[a-z]+)){{E}}'
@@ -5385,6 +5393,10 @@ rules:
       # A clitic keeps its owner ("It’s to hard"); a soft line break may split the frame.
       - regex: "(?:[a-z]+(?=['’]))?{{CONFUSION_LINKING}}(?:{{S}}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})(?:(?:not|way|far|just|a{{S}}bit|much|still|also|really|simply){{S}})?(?<target>to){{S}}{{CONFUSION_DEGREE_ADJECTIVE}}(?:{{S}}(?:to|for){{S}}[a-z]+{{E}}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)))"
         check: englishToToo
+        # Skips the frame when no "to" + a degree adjective stands in the text. Keep the list the
+        # same as CONFUSION_DEGREE_ADJECTIVE.
+        gate: "to[ \\t\\u00a0]{1,8}(?:big|small|large|short|hot|cold|late|early|hard|easy|good|bad|high|loud|heavy|tired|hungry|busy|far|soon|much|many|expensive|difficult|complicated|ambitious|young|old|strict|risky|dangerous|tight|full|sweet|weak|strong|lazy)"
+        gateFlags: giu
         fixer: toTooDegree
       - regex: "(?:(?:go|goes|going|gone|went|take|takes|took|taken|push|pushed|carry|carried|speak|spoke|spoken|speaking|talk|talked|celebrate|celebrated|act|acted|judge|judged){{S}}(?<target>to){{S}}(?:far|soon)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:with|for|on|in|this|and|but|when|because|like){{E}})|(?<![Tt]he{{S}}|[Aa]{{S}}|[Tt]his{{S}}|[Tt]hat{{S}}|[Oo]ne{{S}}|[Nn]o{{S}}|[Bb]est{{S}}|[Ww]hich{{S}})way{{S}}(?<target>to){{S}}(?:much|many|long|big|small|far|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often)){{E}}"
         check: englishToToo
