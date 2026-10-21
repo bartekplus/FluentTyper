@@ -285,6 +285,268 @@ export const PRONOUNS: ReadonlySet<string> = new Set([
   "dir",
 ]);
 
+export const COMPOUND_PARTICLES: ReadonlySet<string> = new Set([
+  "ab",
+  "an",
+  "auf",
+  "aus",
+  "bei",
+  "ein",
+  "fest",
+  "fort",
+  "her",
+  "herab",
+  "heran",
+  "herauf",
+  "heraus",
+  "herbei",
+  "herein",
+  "herüber",
+  "herum",
+  "herunter",
+  "hervor",
+  "hin",
+  "hinab",
+  "hinauf",
+  "hinaus",
+  "hinein",
+  "hinüber",
+  "hinunter",
+  "hinweg",
+  "los",
+  "nach",
+  "nieder",
+  "vor",
+  "voran",
+  "voraus",
+  "vorbei",
+  "vorüber",
+  "weg",
+  "weiter",
+  "wieder",
+  "zurück",
+  "zusammen",
+  "zu",
+  "bereit",
+  "statt",
+  "teil",
+  "kennen",
+  "fertig",
+  "frei",
+  "zufrieden",
+  "wohl",
+  "hoch",
+  "dar",
+  "empor",
+  "entgegen",
+  "unter",
+  "zurecht",
+]);
+
+export const NOT_FINITE: ReadonlySet<string> = new Set([
+  "nicht",
+  "jetzt",
+  "erst",
+  "oft",
+  "fast",
+  "meist",
+  "zuletzt",
+  "sonst",
+  "selbst",
+  "gut",
+  "recht",
+  "weit",
+  "halt",
+  "damit",
+  "dort",
+  "mit",
+  "seit",
+  "womit",
+  "somit",
+  "leicht",
+  "vielleicht",
+  "direkt",
+  "exakt",
+]);
+
+export const NOT_PARTICLE_AFTER: ReadonlySet<string> = new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "einer",
+  "eines",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "mein",
+  "meinen",
+  "meinem",
+  "dein",
+  "deinen",
+  "deinem",
+  "sein",
+  "seinen",
+  "seinem",
+  "ihren",
+  "ihrem",
+  "unseren",
+  "unserem",
+  "gerade",
+  "da",
+  "hier",
+  "wo",
+  "dort",
+  "all",
+  "immer",
+  "außen",
+  "bergauf",
+  "bergab",
+]);
+
+export const CLAUSE_PARTICLES: ReadonlySet<string> = new Set([
+  "herab",
+  "heran",
+  "herauf",
+  "heraus",
+  "herbei",
+  "herein",
+  "herüber",
+  "herum",
+  "herunter",
+  "hervor",
+  "hinab",
+  "hinauf",
+  "hinaus",
+  "hinein",
+  "hinüber",
+  "hinunter",
+  "hinweg",
+  "los",
+  "unter",
+  "nieder",
+  "empor",
+  "zurecht",
+  "zu",
+]);
+
+export const COMPOUND_COPULAS: ReadonlySet<string> = new Set([
+  "ist",
+  "sind",
+  "war",
+  "waren",
+  "bin",
+  "bist",
+  "seid",
+  "wäre",
+  "wären",
+  "sei",
+]);
+
+export const COMPOUND_LIGHT_VERBS: ReadonlySet<string> = new Set([
+  "bringen",
+  "kommen",
+  "stellen",
+  "nehmen",
+  "machen",
+  "haben",
+  "werden",
+  "fallen",
+  "führen",
+  "gelangen",
+  "setzen",
+  "ziehen",
+  "rufen",
+  "zwingen",
+  "bewegen",
+  "dienen",
+  "geben",
+  "halten",
+  "nennen",
+  "treiben",
+  "reichen",
+  "schicken",
+]);
+
+export const COMPOUND_BARE_VERBS: ReadonlySet<string> = new Set([
+  "gehen",
+  "fahren",
+  "kommen",
+  "laufen",
+  "lassen",
+  "sehen",
+  "hören",
+  "fühlen",
+  "spüren",
+  "bleiben",
+  "lernen",
+  "lehren",
+  "helfen",
+  "schicken",
+  "legen",
+  "sein",
+]);
+
+export const PAIR_UNINFLECTED: ReadonlySet<string> = new Set([
+  "lila",
+  "rosa",
+  "pink",
+  "beige",
+  "orange",
+  "oliv",
+  "super",
+  "klasse",
+  "prima",
+  "spitze",
+  "extra",
+  "top",
+  "mega",
+  "okay",
+  "live",
+  "online",
+  "offline",
+  "cool",
+  "fair",
+  "gratis",
+  "egal",
+  "pleite",
+  "schuld",
+  "quitt",
+  "wenig",
+  "viel",
+  "mehr",
+  "genug",
+  "ganz",
+  "gut",
+  "klein",
+  "halt",
+  "solch",
+  "welch",
+  "manch",
+  "paar",
+  "bisschen",
+  "recht",
+  "echt",
+  "voll",
+  "erst",
+  "sicher",
+  "natürlich",
+  "wirklich",
+  "ziemlich",
+  "bestimmt",
+  "eben",
+  "kaum",
+  "fast",
+  "gleich",
+]);
+
 export const DE_SHORT_MONTHS: ReadonlySet<string> = new Set([
   "jan",
   "jän",
@@ -1226,6 +1488,11 @@ export const PHRASAL_JOINED_WRONG: ReadonlySet<string> = new Set([
   "musthave",
 ]);
 
+export const EMAIL_FORMS: Readonly<Record<string, string>> = {
+  Emails: "E-Mails",
+  "E-Mailadresse": "E-Mail-Adresse",
+};
+
 export const DE_MONTHS: Readonly<Record<string, number>> = {
   januar: 1,
   jänner: 1,
@@ -1787,6 +2054,303 @@ export function politeOpens(token: string | undefined) {
 
 // de.yaml def BOUNDARY
 export const BOUNDARY = /^(?:[.!?:;,()"“”„«»–—\n-]|$)/;
+
+// de.yaml def nominalVerb
+export function nominalVerb(word: string) {
+  return germanInfinitive(word) && !/^(?:ge|be|er|ver|ent|zer|emp|miss)\p{Ll}{3,}en$/u.test(word);
+}
+
+// de.yaml rule de.compounds def ORDINAL_STEMS
+export const ORDINAL_STEMS = [
+  "Erst",
+  "Zweit",
+  "Dritt",
+  "Viert",
+  "Fünft",
+  "Sechst",
+  "Siebt",
+  "Acht",
+  "Neunt",
+  "Zehnt",
+  "Elft",
+  "Zwölft",
+  "Dreizehnt",
+];
+
+// de.yaml rule de.compounds def FIXED_PREFIX
+export const FIXED_PREFIX = /^(?:be|ver|er|ent|zer|emp|miss)\p{Ll}{3,}$/u;
+
+// de.yaml rule de.compounds def compoundFinding
+export function compoundFinding(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  replacement: string | null,
+): RawFinding | null {
+  const typed = m.groups!.target;
+  if (!(!!replacement && replacement !== typed && !ctx.dictionary.has(typed.toLowerCase())))
+    return null;
+  const span = m.indices!.groups!.target;
+  return {
+    ruleId: "germanCompounds",
+    messageKey: "review_msg_closed_compound",
+    range: { start: span[0], end: span[1] },
+    alternatives: [deLikeTyped(typed, replacement)],
+    context: { start: Math.max(0, span[0] - 40), end: span[1] + 20 },
+  };
+}
+
+// de.yaml rule de.compounds def emailRest
+export function emailRest(rest: string | undefined) {
+  return rest === undefined || !rest.startsWith("-")
+    ? (rest ?? "")
+    : `-${rest[1].toUpperCase()}${rest.slice(2)}`;
+}
+
+// de.yaml rule de.compounds def particleJoins
+export function particleJoins(particle: string, infinitive: string) {
+  return germanInfinitive(infinitive) && germanInfinitive(particle + infinitive);
+}
+
+// de.yaml rule de.compounds def compoundJoinsVerb
+export function compoundJoinsVerb(particle: string, verb: string) {
+  if (germanAuxiliary(verb)) return false;
+  const participle = /^ge(\p{Ll}{2,}?)(?:en|t)$/u.exec(verb);
+  const listed = germanInfinitiveOf(verb);
+  const stem = /^(.+?)(?:e|st|t|est|et|te|test|ten|tet)$/u.exec(verb)?.[1];
+  return participle
+    ? particle !== "zu" && particleJoins(particle, `${participle[1]}en`)
+    : /(?:en|ern|eln)$/.test(verb) && germanInfinitive(verb)
+      ? particle !== "zu" && particleJoins(particle, verb)
+      : listed
+        ? particleJoins(particle, listed)
+        : particle !== "zu" &&
+            germanPastInfinitives(verb).some((inf) => particleJoins(particle, inf))
+          ? true
+          : !stem || (particle === "zu" && verb.endsWith("e"))
+            ? false
+            : particleJoins(particle, `${stem}en`) || particleJoins(particle, `${stem}n`);
+}
+
+// de.yaml rule de.compounds def zuParticipleJoins
+export function zuParticipleJoins(ctx: DetectContext, index: number, aux: string | undefined) {
+  const clause =
+    ctx.text
+      .slice(Math.max(0, index - 80), index)
+      .split(/[.!?;:,\n]/)
+      .at(-1)!
+      .match(/\p{L}+/gu) ?? [];
+  return (
+    clause.some((t) => /^(?:hab(?:e|en|t)|hast|hat|hatte\p{Ll}*|hätte\p{Ll}*)$/u.test(t)) &&
+    !clause.some(
+      (t) =>
+        COMPOUND_COPULAS.has(t) ||
+        /^(?:wirk|schein|schien|bleib|blieb|wird|wurde)\p{Ll}*$/u.test(t),
+    ) &&
+    !clause.some((t) => /^(?:da|wo)$/i.test(t)) &&
+    !aux
+  );
+}
+
+// de.yaml rule de.compounds def infinitiveClause
+export function infinitiveClause(ctx: DetectContext, index: number, particle: string) {
+  const before = ctx.text.slice(Math.max(0, index - 120), index);
+  const clause = /(?:^|[.!?;:\n,])([^.!?;:\n,]*)$/.exec(before)?.[1] ?? "";
+  const tokens = clause.match(/\p{L}+/gu) ?? [];
+  const verbs = tokens.filter(
+    (t) =>
+      /^\p{Ll}/u.test(t) &&
+      !COMPOUND_COPULAS.has(t) &&
+      ((/t$/.test(t) && !NOT_FINITE.has(t)) ||
+        germanVerbLike(t) ||
+        /^(?:fing|gab|bot|nahm|sah|schlug|hielt|ließ|kam|ging|fingen|gaben|hörten)$/.test(t)),
+  );
+  return (
+    (verbs.length > 0 && verbs.every((t) => FIXED_PREFIX.test(t) && germanVerbLike(t))) ||
+    ((/,[^,]*$/.test(before) ||
+      tokens.some((t) => /^(?:um|ohne|statt|anstatt)$/i.test(t)) ||
+      CLAUSE_PARTICLES.has(particle)) &&
+      verbs.length === 0)
+  );
+}
+
+// de.yaml rule de.compounds def phrasePlace
+export function phrasePlace(ctx: DetectContext, start: number, end: number, article: boolean) {
+  const rest = ctx.text.slice(end, end + 40);
+  const next = /^[ \t]+(\p{Ll}+)/u.exec(rest)?.[1] ?? "";
+  return article
+    ? /[Dd]anke?[ \t]+(?:sch(?:ö|oe)n[ \t]+)?für(?:[ \t]+da)?s[ \t]+$/.test(
+        ctx.text.slice(Math.max(0, start - 30), start),
+      ) && /^[ \t]*(?:[,.!?;:)]|(?:mit|für|bei|von|an)[ \t]|$)/.test(rest)
+    : /(?:^|[.!?:\n„"])[ \t]*\p{L}+[ \t]+$/u.test(ctx.text.slice(Math.max(0, start - 16), start)) &&
+        !!next &&
+        !/^(?:die|der|das|den|dem|wir|sie|ich|er|es|man)$/.test(next) &&
+        (germanAuxiliary(next) ||
+          germanVerbLike(next) ||
+          (/\p{Ll}{2,}e?t$/u.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`)));
+}
+
+// de.yaml rule de.compounds def nominalPhraseClause
+export function nominalPhraseClause(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  going: boolean,
+  low: string,
+  verb: string,
+) {
+  if (going || germanNounReading(low) !== "noun" || COMPOUND_LIGHT_VERBS.has(verb)) return false;
+  if (!/^[ \t]*(?:[.!?;]|$)/.test(ctx.text.slice(end, end + 4))) return false;
+  if (!/(?<!\p{L})(?:zum|beim|fürs)[ \t]+$/iu.test(ctx.text.slice(Math.max(0, start - 8), start)))
+    return false;
+  const clause =
+    ctx.text
+      .slice(Math.max(0, start - 80), start)
+      .split(/[.!?;:,\n]/)
+      .at(-1)!
+      .match(/\p{L}+/gu) ?? [];
+  const verbs = clause.filter((w) => /^\p{Ll}/u.test(w) && germanVerbLike(w));
+  if (!(verbs.length === 1 && !clause.some((w) => VERB_GOVERNORS.has(w.toLowerCase()))))
+    return false;
+  return !COMPOUND_BARE_VERBS.has(germanInfinitiveOf(verbs[0]) ?? verbs[0]);
+}
+
+// de.yaml rule de.compounds def PAIR_SECOND
+export const PAIR_SECOND = /^[ \t]+(\p{Lu}\p{Ll}{2,})(?![\p{L}\p{M}\p{N}_@/#\\-])/u;
+
+// de.yaml rule de.compounds def PAIR_NUMBER
+export const PAIR_NUMBER =
+  /^(?:\p{N}+|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|viele|mehrere)$/iu;
+
+// de.yaml rule de.compounds def PAIR_FUNCTION_WORDS
+export const PAIR_FUNCTION_WORDS = new Set([
+  ...ARTICLES,
+  ...DEMONSTRATIVES,
+  ...PREPOSITIONS,
+  ...PRONOUNS,
+  ..."ein kein mehr viel wenig ganz halb so sehr nur auch noch schon gut neu alle".split(" "),
+]);
+
+// de.yaml rule de.compounds def PAIR_STEMS
+export const PAIR_STEMS = /^(?:kleinst|größt|höchst|mindest|best|selbst|meist)$/;
+
+// de.yaml rule de.compounds def PAIR_TITLES
+export const PAIR_TITLES = /^(?:Herr|Herrn|Frau|Dr|Prof|Familie|Firma|St|Sankt)$/;
+
+// de.yaml rule de.compounds def PAIR_DETERMINED
+export const PAIR_DETERMINED = new Set(
+  [...ARTICLES, ..."viele vielen mehrere mehreren einige einigen beide beiden".split(" ")].filter(
+    (w) => !/^(?:k?ein(?:e|er|es)|meinen?|deine|seine?|ihre|unsere|eure)$/.test(w),
+  ),
+);
+
+// de.yaml rule de.compounds def pairLinked
+export function pairLinked(word: string) {
+  return ["s", "es", "n", "en"].some(
+    (end) =>
+      word.endsWith(end) &&
+      word.length - end.length >= 3 &&
+      germanNounReading(word.slice(0, -end.length)) !== null,
+  );
+}
+
+// de.yaml rule de.compounds def pairAttribute
+export function pairAttribute(w: string) {
+  return (
+    /^\p{Ll}*(?:ge\p{Ll}+(?:t|en)|iert|end)(?:e|en|er|es|em)?$/u.test(w) ||
+    (/^\p{Ll}+(?:e|en|er|es|em)$/u.test(w) && germanAdjective(w.replace(/(?:e|en|er|es|em)$/, "")))
+  );
+}
+
+// de.yaml rule de.compounds def pairSplitAdjective
+export function pairSplitAdjective(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const first = m[0];
+  if (!(/^\p{Ll}{2,}$/u.test(first) && !/e$/.test(first) && !PAIR_UNINFLECTED.has(first)))
+    return null;
+  if (ARTICLES.has(first) || DEMONSTRATIVES.has(first) || /ge\p{Ll}{2,}en$/u.test(first))
+    return null;
+  if (!(germanAdjective(first) && germanNounReading(first) === null)) return null;
+  const end = m.index + first.length;
+  const pair = PAIR_SECOND.exec(ctx.text.slice(end, end + 48));
+  if (!pair) return null;
+  const low = pair[1].toLowerCase();
+  if (!(germanListedNoun(low) !== null && !germanAdjective(low.replace(/(?:e|en|er|es|em)$/, ""))))
+    return null;
+  if (first === "eigen" && low === "fleisch") return null;
+  if (/(?:ig|lich|isch|sam|bar|haft|los)$/.test(first) && germanNounReading(first + low) === null)
+    return null;
+  const before = deTokensBefore(ctx.text, m.index, 2);
+  const prior = before.at(-1) ?? "";
+  const opening = before.length < 2 || /^[.!?:\n„“"»«]$/.test(before[0]);
+  const det = prior.toLowerCase();
+  if (!(
+    PAIR_DETERMINED.has(det) ||
+    PAIR_NUMBER.test(prior) ||
+    (opening && DEMONSTRATIVES.has(det))
+  ))
+    return null;
+  const stop = end + pair[0].length;
+  const next = deTokensAfter(ctx.text, stop, 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) || next === "zu" || pairAttribute(next)) return null;
+  if (!(!ctx.dictionary.has(first) && !ctx.dictionary.has(low))) return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return {
+    ruleId: "germanCompounds",
+    messageKey: "review_msg_closed_compound",
+    range: { start: m.index, end: stop },
+    alternatives: [first[0].toUpperCase() + first.slice(1) + low],
+    context: { start: Math.max(0, m.index - 40), end: stop + 20 },
+  };
+}
+
+// de.yaml rule de.compounds def nounPairFinding
+export function nounPairFinding(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const first = m[0];
+  if (!/^\p{Lu}\p{Ll}{2,}$/u.test(first)) return null;
+  const end = m.index + first.length;
+  const pair = PAIR_SECOND.exec(ctx.text.slice(end, end + 48));
+  if (!pair) return null;
+  const second = pair[1];
+  const joined = first.toLowerCase() + second.toLowerCase();
+  const low = first.toLowerCase();
+  const fused =
+    /(?:ung|heit|keit|schaft|ion|tät)s$/.test(low) ||
+    (/s$/.test(low) && germanGender(low.slice(0, -1))?.gender === "f");
+  const knownJoin = germanNounReading(joined) !== null;
+  if (joined.length < 8 || (!knownJoin && !fused)) return null;
+  const secondNoun = fused
+    ? germanMayBeNoun(second.toLowerCase())
+    : germanListedNoun(second.toLowerCase()) !== null;
+  if (!(secondNoun && !PAIR_FUNCTION_WORDS.has(low))) return null;
+  if (!(!ctx.dictionary.has(low) && !ctx.dictionary.has(second.toLowerCase()))) return null;
+  const before = deTokensBefore(ctx.text, m.index, 2);
+  const prior = before.at(-1) ?? "";
+  const stop = end + pair[0].length;
+  const next = deTokensAfter(ctx.text, stop, 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) || PAIR_TITLES.test(prior)) return null;
+  if (/^(?:des|eines)$/i.test(prior)) return null;
+  const det = prior.toLowerCase();
+  if (!(knownJoin || PAIR_DETERMINED.has(det) || DEMONSTRATIVES.has(det) || pairAttribute(prior)))
+    return null;
+  if (/^\p{Lu}/u.test(prior) && !BOUNDARY.test(before.at(-2) ?? "")) return null;
+  const opening = BOUNDARY.test(prior);
+  if (opening && germanAdjective(low)) return null;
+  const noun = germanNounReading(low) !== null;
+  if (
+    !(noun && !fused
+      ? (PAIR_NUMBER.test(prior) && /(?:er|en|n|e|s)$/.test(second)) ||
+        (germanDeterminerFits(prior, first) !== true && !!germanDeterminerFits(prior, second))
+      : noun || fused || germanAdjective(low) || PAIR_STEMS.test(low) || pairLinked(low))
+  )
+    return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  return {
+    ruleId: "germanCompounds",
+    messageKey: "review_msg_closed_compound",
+    range: { start: m.index, end: stop },
+    alternatives: [first + second.toLowerCase()],
+    context: { start: Math.max(0, m.index - 40), end: stop + 20 },
+  };
+}
 
 // de.yaml rule de.dates def WEEKDAYS
 export const WEEKDAYS = [
@@ -3587,6 +4151,283 @@ export function joinedFinding(
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // de.yaml rule de.compounds frame 1
+  "@de.compounds/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    return compoundFinding(m, ctx, `Weg ${verb}`);
+  },
+  // de.yaml rule de.compounds frame 2
+  "@de.compounds/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    return compoundFinding(m, ctx, `${first}dem`);
+  },
+  // de.yaml rule de.compounds frame 3
+  "@de.compounds/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    return compoundFinding(m, ctx, `${first}${second}`);
+  },
+  // de.yaml rule de.compounds frame 4
+  "@de.compounds/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const liebe = m.groups!.liebe;
+    const gute = m.groups!.gute;
+    const gverb = m.groups!.gverb;
+    const folge = m.groups!.folge;
+    const prior = deTokensBefore(ctx.text, m.index, 1)[0] ?? "";
+    if (
+      (liebe || gute) &&
+      !/^(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|\p{Lu}\p{Ll}+n?)$/u.test(prior) &&
+      !(gute && /^(?:kam|kamen|kommt|käme|halte|hält|hielt|etwas|nichts|viel|wenig)$/.test(prior))
+    )
+      return null;
+    if (folge && (!/^\p{Lu}\p{Ll}+(?:en|n|ung|e)$/u.test(prior) || prior === "Folge")) return null;
+    return compoundFinding(
+      m,
+      ctx,
+      liebe ? "zuliebe" : gute ? `zugute${gverb?.trim() ?? ""}` : folge ? "zufolge" : "zunichte",
+    );
+  },
+  // de.yaml rule de.compounds frame 5
+  "@de.compounds/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (!germanInfinitive(verb) || germanAuxiliary(verb) || verb.startsWith("zu")) return null;
+    const words =
+      ctx.text
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?;:\n]/)
+        .at(-1)!
+        .match(/\p{L}+/gu) ?? [];
+    if (words.some((w) => VERB_GOVERNORS.has(w.toLowerCase()))) return null;
+    if (words.length < 2 || /!/.test(ctx.text.slice(m.indices!.groups!.target[1]).slice(0, 2)))
+      return null;
+    return compoundFinding(m, ctx, `zu ${verb}`);
+  },
+  // de.yaml rule de.compounds frame 6
+  "@de.compounds/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    if (!germanInfinitive(verb) || germanAuxiliary(verb) || verb === "lassen") return null;
+    const low = noun.toLowerCase();
+    const start = m.indices!.groups!.target[0];
+    const end = m.indices!.groups!.target[1];
+    const prefix = ctx.text.slice(Math.max(0, start - 8), start);
+    const going = verb === "gehen" && (germanInfinitive(low) || !/zum[ \t]+$/i.test(prefix));
+    if (verb === "gehen" ? !going : germanNounReading(low) === null) return null;
+    const contraction = /(?<!\p{L})(zum|beim|vom|vorm)[ \t]+$/iu.exec(prefix)?.[1];
+    return phrasePlace(ctx, start, end, /(?:d(?:as|em)|fürs)[ \t]+$/i.test(prefix)) ||
+      (!!contraction &&
+        !going &&
+        nominalVerb(verb) &&
+        germanDeterminerFits(contraction, noun) === false) ||
+      nominalPhraseClause(ctx, start, end, going, low, verb)
+      ? compoundFinding(m, ctx, `${noun}${verb}`)
+      : null;
+  },
+  // de.yaml rule de.compounds frame 7
+  "@de.compounds/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const self = m.groups!.self;
+    const verb = m.groups!.verb;
+    const low = verb.toLowerCase();
+    if (!(germanInfinitive(low) && !germanAuxiliary(low))) return null;
+    return compoundFinding(m, ctx, `${self[0].toUpperCase()}${self.slice(1)}${low}`);
+  },
+  // de.yaml rule de.compounds frame 8
+  "@de.compounds/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return compoundFinding(
+      m,
+      ctx,
+      /(?<!\p{L})ich(?!\p{L})/iu.test(
+        ctx.text
+          .slice(Math.max(0, m.index - 80), m.index)
+          .split(/[.!?;,:\n]/)
+          .at(-1)!,
+      )
+        ? null
+        : "zu lange",
+    );
+  },
+  // de.yaml rule de.compounds frame 9
+  "@de.compounds/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const particle = m.groups!.particle;
+    const verb = m.groups!.verb;
+    if (!(COMPOUND_PARTICLES.has(particle) && germanInfinitive(verb))) return null;
+    if (/^(?:Reihe|Grund|und|oder)$/.test(prev)) return null;
+    if (!infinitiveClause(ctx, m.indices!.groups!.target[0], particle)) return null;
+    if (!(
+      germanInfinitive(particle + verb) ||
+      (CLAUSE_PARTICLES.has(particle) && particle !== "zu")
+    ))
+      return null;
+    return compoundFinding(m, ctx, `${particle}zu${verb}`);
+  },
+  // de.yaml rule de.compounds frame 10
+  "@de.compounds/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const particle = m.groups!.particle;
+    const verb = m.groups!.verb;
+    const aux = m.groups!.aux;
+    if (aux && !germanAuxiliary(aux)) return null;
+    const before = deTokensBefore(ctx.text, m.index, 3);
+    const prior = before.at(-1)?.toLowerCase() ?? "";
+    const article = /^(?:d|k?ein|mein|dein|sein|ihr|unser)(?:er|ie|as|en|em|es|e)?$/.test(prior);
+    if (NOT_PARTICLE_AFTER.has(prior) && !(article && !/^(?:weg|aus|los|teil)$/.test(particle)))
+      return null;
+    if (before.some((t) => /^[Vv]on$/.test(t)) || before.at(-1) === "Berg") return null;
+    const zuParticiple = particle === "zu" ? /^ge(\p{Ll}{2,}?)(?:en|t)$/u.exec(verb) : null;
+    return compoundFinding(
+      m,
+      ctx,
+      zuParticiple
+        ? zuParticipleJoins(ctx, m.index, aux) && germanInfinitive(`zu${zuParticiple[1]}en`)
+          ? `zu${verb}`
+          : null
+        : compoundJoinsVerb(particle, verb)
+          ? particle + verb
+          : null,
+    );
+  },
+  // de.yaml rule de.compounds frame 11
+  "@de.compounds/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    return compoundFinding(m, ctx, germanInfinitive(`um${verb}`) ? `umzu${verb}` : null);
+  },
+  // de.yaml rule de.compounds frame 12
+  "@de.compounds/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const particle = m.groups!.particle;
+    const verb = m.groups!.verb;
+    return compoundFinding(
+      m,
+      ctx,
+      germanInfinitive(verb) &&
+        (germanInfinitive(particle + verb) || germanVerbLike(particle + verb))
+        ? particle + verb
+        : null,
+    );
+  },
+  // de.yaml rule de.compounds frame 13
+  "@de.compounds/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const day = m.groups!.day;
+    const time = m.groups!.time;
+    return compoundFinding(m, ctx, `${day}${time.toLowerCase()}`);
+  },
+  // de.yaml rule de.compounds frame 14
+  "@de.compounds/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    const suffix = m.groups!.suffix;
+    return compoundFinding(m, ctx, `${n}-${suffix.toLowerCase()}`);
+  },
+  // de.yaml rule de.compounds frame 15
+  "@de.compounds/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const count = m.groups!.count;
+    const times = m.groups!.times;
+    return compoundFinding(
+      m,
+      ctx,
+      count === "ein" &&
+        /^[ \t]+\p{Ll}+er(?:e|es|en|er|em)?(?!\p{L})/u.test(
+          ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30),
+        )
+        ? null
+        : count + times,
+    );
+  },
+  // de.yaml rule de.compounds frame 16
+  "@de.compounds/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    const unit = m.groups!.unit;
+    const noun = m.groups!.noun;
+    return compoundFinding(
+      m,
+      ctx,
+      germanNounReading(noun.toLowerCase()) !== null ? `${n}-${unit}-${noun}` : null,
+    );
+  },
+  // de.yaml rule de.compounds frame 17
+  "@de.compounds/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    const end = m.groups!.end;
+    return compoundFinding(m, ctx, `${ORDINAL_STEMS[Number(n) - 1]}klässler${end ?? ""}`);
+  },
+  // de.yaml rule de.compounds frame 18
+  "@de.compounds/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const acronym = m.groups!.acronym;
+    const noun = m.groups!.noun;
+    return compoundFinding(
+      m,
+      ctx,
+      germanNounReading(noun.toLowerCase()) !== null ? `${acronym}-${noun}` : null,
+    );
+  },
+  // de.yaml rule de.compounds frame 19
+  "@de.compounds/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const article = m.groups!.article;
+    return compoundFinding(m, ctx, `${prep}${article}`);
+  },
+  // de.yaml rule de.compounds frame 20
+  "@de.compounds/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const rest = m.groups!.rest;
+    return compoundFinding(m, ctx, `E-Mail${emailRest(rest)}`);
+  },
+  // de.yaml rule de.compounds frame 21
+  "@de.compounds/21": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pre = m.groups!.pre;
+    const rest = m.groups!.rest;
+    return compoundFinding(
+      m,
+      ctx,
+      /^(?:Gold|Silber|Kupfer|Zinn|Glas|Eisen|Stahl|Feuer)-$/.test(pre)
+        ? null
+        : `${pre}E-Mail${emailRest(rest)}`,
+    );
+  },
+  // de.yaml rule de.compounds frame 22
+  "@de.compounds/22": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const rest = m.groups!.rest;
+    return compoundFinding(m, ctx, `E-Mail${rest}`);
+  },
+  // de.yaml rule de.compounds frame 23
+  "@de.compounds/23": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    return compoundFinding(m, ctx, `E-Mail-${noun[0].toUpperCase()}${noun.slice(1)}`);
+  },
+  // de.yaml rule de.compounds frame 24
+  "@de.compounds/24": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const rest = m.groups!.rest;
+    return compoundFinding(m, ctx, `E-Mail${emailRest(rest)}`);
+  },
+  // de.yaml rule de.compounds frame 25
+  "@de.compounds/25": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return compoundFinding(m, ctx, EMAIL_FORMS[target] ?? "E-Mail-Adressen");
+  },
+  // de.yaml rule de.compounds frame 26
+  "@de.compounds/26": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const size = m.groups!.size;
+    const rest = m.groups!.rest;
+    const tail = (rest ?? "").replace(/^[-\s]+/, "");
+    return compoundFinding(
+      m,
+      ctx,
+      !rest ? `DIN A${size}` : `DIN-A${size}-${tail[0].toUpperCase()}${tail.slice(1)}`,
+    );
+  },
+  // de.yaml rule de.compounds frame 27
+  "@de.compounds/27": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const rest = m.groups!.rest;
+    return compoundFinding(
+      m,
+      ctx,
+      `Add-on${/s$/.test(target.replace(/-.*$/, "")) ? "s" : ""}${rest ?? ""}`,
+    );
+  },
+  // de.yaml rule de.compounds frame 28
+  "@de.compounds/28": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const split = pairSplitAdjective(ctx, m);
+    const pairFinding = nounPairFinding(ctx, m);
+    return [...(split ? [split] : []), ...(pairFinding ? [pairFinding] : [])];
+  },
   // de.yaml rule de.compounds frame 29
   "@de.compounds/29": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return joinedFinding(ctx, m, JOINED_BOUND_FORMS, "germanCompounds");

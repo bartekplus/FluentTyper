@@ -22958,77 +22958,77 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "gegangen",
       "gelaufen",
     ],
-    fixer: "de:wegVerb",
+    fixer: "de:@de.compounds/1",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:^|[.!?\\n„\"])[ \\t]*(?<target>(?<first>Nach|Seit)[ \\t\\u00a0]{1,8}dem)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|ihr|man)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["nach", "seit"],
-    fixer: "de:conjunctionDem",
+    fixer: "de:@de.compounds/2",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:^|[.!?,;:\\n„\"])[ \\t]*(?<target>(?<first>[Ss]o)[ \\t\\u00a0]{1,8}(?<second>weit|bald|lange|lang))(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["weit", "bald", "lange", "lang"],
-    fixer: "de:soConjunction",
+    fixer: "de:@de.compounds/3",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>zu[ \\t\\u00a0]{1,8}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,[ \\t\\u00a0]{1,8}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?:(?<gverb>[ \\t\\u00a0]{1,8}(?:kommen|kommt|kam|kamen|gekommen|halten|hält|hielt|hielten|gehalten))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?=[ \\t]*[.,!?;]))|(?<folge>Folge)(?=[ \\t]*[,.;]|[ \\t\\u00a0]{1,8}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|[ \\t\\u00a0]{1,8}(?:mach|gemacht)))))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["liebe", "gute", "folge", "nichte"],
-    fixer: "de:zuAdverb",
+    fixer: "de:@de.compounds/4",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=,[ \\t\\u00a0]{1,8}(?:(?:das|es|dies)[ \\t\\u00a0]{1,8})?|(?:mich|dich|ihn|uns|euch)[ \\t\\u00a0]{1,8})(?<target>zu(?<verb>\\p{Ll}{3,}))(?=[ \\t]*(?:[.!?;]|,[ \\t\\u00a0]{1,8}(?:dass|ob|wie|was|wo|wer|wann|warum|bevor|hinter)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:zuJoined",
+    fixer: "de:@de.compounds/5",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Lu}\\p{Ll})(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it)[ \\t\\u00a0]{1,8}d(?:as|em))[ \\t\\u00a0]{1,8})(?<target>(?<noun>\\p{Lu}\\p{Ll}+)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+(?:en|ern|eln))))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:nominalPhrase",
+    fixer: "de:@de.compounds/6",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Zz]um|[Bb]eim|[Ff]ürs)[ \\t\\u00a0]{1,8})(?<target>(?<self>[Ss]elb(?:er|st))[ \\t\\u00a0]{1,8}(?<verb>\\p{L}+(?:en|ern|eln)))(?=[ \\t]*(?:[.!?;,]|$)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["selb"],
-    fixer: "de:selfInfinitive",
+    fixer: "de:@de.compounds/7",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Zz]ulange))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["zulange"],
-    fixer: "de:zulange",
+    fixer: "de:@de.compounds/8",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<prev>\\p{L}+,?)[ \\t\\u00a0]{1,8}(?<target>(?<particle>ab|an|auf|aus|bei|ein|fest|fort|her|herab|heran|herauf|heraus|herbei|herein|herüber|herum|herunter|hervor|hin|hinab|hinauf|hinaus|hinein|hinüber|hinunter|hinweg|los|nach|nieder|vor|voran|voraus|vorbei|vorüber|weg|weiter|wieder|zurück|zusammen|zu|bereit|statt|teil|kennen|fertig|frei|zufrieden|wohl|hoch|dar|empor|entgegen|unter|zurecht)[ \\t\\u00a0]{1,8}zu[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:zuInfinitive",
+    fixer: "de:@de.compounds/9",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil|unter|bereit|stand)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}{3,}))(?=(?:[ \\t\\u00a0]{1,8}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:splitAtEnd",
+    fixer: "de:@de.compounds/10",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:sich|damit|dich|mich|uns|euch)[ \\t\\u00a0]{1,8})(?<target>um[ \\t\\u00a0]{1,8}zu[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:umZu",
+    fixer: "de:@de.compounds/11",
     flags: "dgu",
   }),
   frame({
@@ -23049,7 +23049,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "preis",
       "zugute",
     ],
-    fixer: "de:splitInfinitive",
+    fixer: "de:@de.compounds/12",
     flags: "dgu",
   }),
   frame({
@@ -23065,7 +23065,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "sonnabend",
       "sonntag",
     ],
-    fixer: "de:weekdayTime",
+    fixer: "de:@de.compounds/13",
     flags: "dgu",
   }),
   frame({
@@ -23115,14 +23115,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "zeilig",
       "wertig",
     ],
-    fixer: "de:numberSuffix",
+    fixer: "de:@de.compounds/14",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<count>ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|hundert|tausend)[ \\t\\u00a0]{1,8}(?<times>hundertmal|tausendmal)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["hundertmal", "tausendmal"],
-    fixer: "de:countTimes",
+    fixer: "de:@de.compounds/15",
     flags: "dgu",
   }),
   frame({
@@ -23154,49 +23154,49 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "grad",
       "tonnen",
     ],
-    fixer: "de:unitNoun",
+    fixer: "de:@de.compounds/16",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}.])(?<target>(?<n>1[0-3]|[1-9])\\.[ \\t]?[Kk]lässler(?<end>in|innen|n)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["klässler"],
-    fixer: "de:klassler",
+    fixer: "de:@de.compounds/17",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<acronym>US|EU|UN|UNO|IT|PC|PR|EDV|Kfz|KFZ|Pkw|PKW|Lkw|LKW|USB|PDF|HTML|CD|DVD|TV|SMS|GPS|WLAN|SPD|CDU|FDP|DFB|NATO|WHO)[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,})))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:acronymNoun",
+    fixer: "de:@de.compounds/18",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<prep>[Ii]n|[Aa]n|[Aa]uf|[Ff]ür|[Dd]urch|[Uu]m|[Hh]inter|[Üü]ber|[Uu]nter|[Vv]or)['’](?<article>s|n|m)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:fusedArticle",
+    fixer: "de:@de.compounds/19",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?:eMail|e-mail|E-mail|EMail|e-Mail)(?<rest>s|-\\p{L}[\\p{L}-]*)?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["email", "mail", "mail", "email", "mail"],
-    fixer: "de:emailAny",
+    fixer: "de:@de.compounds/20",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<pre>(?:\\p{Lu}[\\p{L}]*|\\p{Lu}{2,})-)(?:Email|EMail|eMail|E-mail|e-mail|E-MAIL)(?<rest>s|-\\p{L}[\\p{L}-]*)?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["email", "email", "email", "mail", "mail", "mail"],
-    fixer: "de:emailTail",
+    fixer: "de:@de.compounds/21",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ee][ \\t]+[Mm](?:ail|AIL|Ail)(?<rest>s?)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ail", "ail", "ail"],
-    fixer: "de:emailApart",
+    fixer: "de:@de.compounds/22",
     flags: "dgu",
   }),
   frame({
@@ -23216,42 +23216,42 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "kommunikation",
       "marketing",
     ],
-    fixer: "de:emailNoun",
+    fixer: "de:@de.compounds/23",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:eine|einer|meine|deine|seine|ihre|Ihre|unsere|eure|keine|jede|diese|per|neue|letzte|kurze)[ \\t\\u00a0]{1,8})(?<target>Email(?<rest>-\\p{L}[\\p{L}-]*)?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["email"],
-    fixer: "de:emailAfter",
+    fixer: "de:@de.compounds/24",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Emails|E-Mailadresse|E-Mailadressen))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["emails", "mailadresse", "mailadressen"],
-    fixer: "de:emails",
+    fixer: "de:@de.compounds/25",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?:DIN|Din|din)(?:-|[ \\t\\u00a0]{1,8})?[Aa](?<size>[0-8])(?<rest>(?:-|[ \\t\\u00a0]{1,8})?Blatt|-\\p{L}+)?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["din", "din", "din"],
-    fixer: "de:din",
+    fixer: "de:@de.compounds/26",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?:AddOn|Addon|addon|AddOns|Addons|addons)(?<rest>-\\p{L}+)?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["addon", "addon", "addon", "addons", "addons", "addons"],
-    fixer: "de:addOn",
+    fixer: "de:@de.compounds/27",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
-    fixer: "de:nounPair",
+    fixer: "de:@de.compounds/28",
     flags: "gu",
     scan: "owned",
   }),

@@ -190,141 +190,482 @@ defs:
     return: 'token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token)'
   # A token that ends a clause, or no token at all.
   BOUNDARY: '/^(?:[.!?:;,()"“”„«»–—\n-]|$)/'
+  # An infinitive that a verb phrase made a noun ends with; no participle ("zum Markt erhoben").
+  nominalVerb:
+    args: "word: string"
+    return: germanInfinitive(word) && !/^(?:ge|be|er|ver|ent|zer|emp|miss)\p{Ll}{3,}en$/u.test(word)
 
 rules:
   - id: de.compounds
     checks: [germanCompounds]
     style: match
     message: review_msg_closed_compound
+    sets:
+      # Particles of separable verbs; "um" and "mit" are left out ("um zu gehen" is "in order to
+      # go"), and "zu" ("zu zu muten") needs the joined verb to be known like the others.
+      COMPOUND_PARTICLES: [
+          ab, an, auf, aus, bei, ein, fest, fort, her, herab, heran, herauf, heraus, herbei, herein, herüber,
+          herum, herunter, hervor, hin, hinab, hinauf, hinaus, hinein, hinüber, hinunter, hinweg, los, nach,
+          nieder, vor, voran, voraus, vorbei, vorüber, weg, weiter, wieder, zurück, zusammen, zu, bereit, statt,
+          teil, kennen, fertig, frei, zufrieden, wohl, hoch, dar, empor, entgegen, unter, zurecht,
+        ]
+      # Adverbs ending in -t, unlike the finite verbs whose particle comes next ("fängt an zu").
+      NOT_FINITE: [nicht, jetzt, erst, oft, fast, meist, zuletzt, sonst, selbst, gut, recht, weit, halt, damit, dort, mit, seit, womit, somit, leicht, vielleicht, direkt, exakt]
+      # Words that make the particle part of another phrase: "den weg", "gerade aus", "da nach",
+      # "immer hin", "außen vor", "all zu".
+      NOT_PARTICLE_AFTER: [
+          der, die, das, den, dem, des, ein, eine, einen, einem, einer, eines, kein, keine, keinen, keinem, mein,
+          meinen, meinem, dein, deinen, deinem, sein, seinen, seinem, ihren, ihrem, unseren, unserem, gerade, da,
+          hier, wo, dort, all, immer, außen, bergauf, bergab,
+        ]
+      # Particles no main verb leaves right before a zu-infinitive ("Er fängt an zu laufen", "Sie
+      # hat vor zu gehen" do), so they open the infinitive with no comma: "kein Grund los zu
+      # brüllen", "Ist es gut unter zu gehen?".
+      CLAUSE_PARTICLES: [
+          herab, heran, herauf, heraus, herbei, herein, herüber, herum, herunter, hervor, hinab, hinauf, hinaus,
+          hinein, hinüber, hinunter, hinweg, los, unter, nieder, empor, zurecht, zu,
+        ]
+      # Forms of "sein", which takes no particle ("ist kein Grund los zu brüllen").
+      COMPOUND_COPULAS: [ist, sind, war, waren, bin, bist, seid, wäre, wären, sei]
+      # Verbs that take a noun after "zum" or "beim" as a fixed phrase ("zum Ausdruck bringen",
+      # "beim Wort nehmen", "zum Opfer fallen").
+      COMPOUND_LIGHT_VERBS: [
+          bringen, kommen, stellen, nehmen, machen, haben, werden, fallen, führen, gelangen, setzen, ziehen,
+          rufen, zwingen, bewegen, dienen, geben, halten, nennen, treiben, reichen, schicken,
+        ]
+      # Full verbs that take a bare infinitive of their own ("Wir fahren zum Hafen angeln", "Sie
+      # lernt beim Meister kochen").
+      COMPOUND_BARE_VERBS: [gehen, fahren, kommen, laufen, lassen, sehen, hören, fühlen, spüren, bleiben, lernen, lehren, helfen, schicken, legen, sein]
+      # Adjectives that take no ending ("ein lila Kleid", "eine super Idee") or that make a fixed
+      # phrase with a noun ("ein wenig Zeit", "ein gut Stück"), and adverbs that the dictionary
+      # also lists as adjectives ("Die erst Mitte Mai gefundene …").
+      PAIR_UNINFLECTED: [
+          lila, rosa, pink, beige, orange, oliv, super, klasse, prima, spitze, extra, top, mega, okay, live, online,
+          offline, cool, fair, gratis, egal, pleite, schuld, quitt, wenig, viel, mehr, genug, ganz, gut, klein, halt,
+          solch, welch, manch, paar, bisschen, recht, echt, voll, erst, sicher, natürlich, wirklich, ziemlich,
+          bestimmt, eben, kaum, fast, gleich,
+        ]
+    maps:
+      EMAIL_FORMS: { Emails: E-Mails, E-Mailadresse: E-Mail-Adresse }
+    defs:
+      ORDINAL_STEMS: '["Erst", "Zweit", "Dritt", "Viert", "Fünft", "Sechst", "Siebt", "Acht", "Neunt", "Zehnt", "Elft", "Zwölft", "Dreizehnt"]'
+      # "beschlossen", "versuchte", "empfahl": a fixed prefix, which no particle splits off.
+      FIXED_PREFIX: '/^(?:be|ver|er|ent|zer|emp|miss)\p{Ll}{3,}$/u'
+      # The finding of a compound frame: the joined form of the `target` group, in its case.
+      compoundFinding:
+        args: "m: RegExpExecArray, ctx: DetectContext, replacement: string | null"
+        type: RawFinding | null
+        let:
+          typed: m.groups!.target
+          span: m.indices!.groups!.target
+        when: "!!replacement && replacement !== typed && !ctx.dictionary.has(typed.toLowerCase())"
+        return: >-
+          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
+          alternatives: [deLikeTyped(typed, replacement)], context: { start: Math.max(0, span[0] - 40), end: span[1] + 20 } })
+      # "-adresse" → "-Adresse", "s" stays.
+      emailRest:
+        args: "rest: string | undefined"
+        return: 'rest === undefined || !rest.startsWith("-") ? rest ?? "" : `-${rest[1].toUpperCase()}${rest.slice(2)}`'
+      particleJoins:
+        args: "particle: string, infinitive: string"
+        return: germanInfinitive(infinitive) && germanInfinitive(particle + infinitive)
+      # Whether the particle and the verb form after it make one verb: "ab sagst" (absagen). "ab
+      # geschickt": a participle; "zu gelassen" may be "too calm". "zu gehen" is a zu-infinitive;
+      # other particles join an infinitive too ("los gehen"). "gibt", "lässt": a listed irregular
+      # form; "sagst", "sagte": a regular one. "vor fuhr", "bereit standen": a strong past form
+      # ("zu lasen" is more likely a misspelled zu-infinitive). "zu lange", "zu enge": "too",
+      # before an adjective in -e.
+      compoundJoinsVerb:
+        args: "particle: string, verb: string"
+        let:
+          participle: '/^ge(\p{Ll}{2,}?)(?:en|t)$/u.exec(verb)'
+          listed: germanInfinitiveOf(verb)
+          stem: '/^(.+?)(?:e|st|t|est|et|te|test|ten|tet)$/u.exec(verb)?.[1]'
+        when: "!germanAuxiliary(verb)"
+        return: >-
+          participle ? particle !== "zu" && particleJoins(particle, `${participle[1]}en`)
+          : /(?:en|ern|eln)$/.test(verb) && germanInfinitive(verb) ? particle !== "zu" && particleJoins(particle, verb)
+          : listed ? particleJoins(particle, listed)
+          : particle !== "zu" && germanPastInfinitives(verb).some((inf) => particleJoins(particle, inf)) ? true
+          : !stem || (particle === "zu" && verb.endsWith("e")) ? false
+          : particleJoins(particle, `${stem}en`) || particleJoins(particle, `${stem}n`)
+        else: "false"
+      # Whether a zu-participle closes a perfect with "haben" ("hatte die Tür zu gemacht"); not
+      # after a linking verb, and not a split "dazu", "wozu" ("hatte da nichts zu gesagt").
+      zuParticipleJoins:
+        args: "ctx: DetectContext, index: number, aux: string | undefined"
+        let:
+          clause: 'ctx.text.slice(Math.max(0, index - 80), index).split(/[.!?;:,\n]/).at(-1)!.match(/\p{L}+/gu) ?? []'
+        return: >-
+          clause.some((t) => /^(?:hab(?:e|en|t)|hast|hat|hatte\p{Ll}*|hätte\p{Ll}*)$/u.test(t)) &&
+          !clause.some((t) => COMPOUND_COPULAS.has(t) || /^(?:wirk|schein|schien|bleib|blieb|wird|wurde)\p{Ll}*$/u.test(t)) &&
+          !clause.some((t) => /^(?:da|wo)$/i.test(t)) && !aux
+      # Whether the words before `index` open an infinitive clause of their own (after a comma, or
+      # "um", "ohne", "statt") with no finite verb whose particle the word could be: "Er
+      # versprach, mich dort hin zu bringen" but not "Fang nicht an zu heulen". "Wir beschlossen
+      # an zu fangen": a verb with a fixed prefix leaves no particle behind.
+      infinitiveClause:
+        args: "ctx: DetectContext, index: number, particle: string"
+        let:
+          before: ctx.text.slice(Math.max(0, index - 120), index)
+          clause: '/(?:^|[.!?;:\n,])([^.!?;:\n,]*)$/.exec(before)?.[1] ?? ""'
+          tokens: 'clause.match(/\p{L}+/gu) ?? []'
+          verbs: >-
+            tokens.filter((t) => /^\p{Ll}/u.test(t) && !COMPOUND_COPULAS.has(t) && ((/t$/.test(t) && !NOT_FINITE.has(t)) ||
+            germanVerbLike(t) || /^(?:fing|gab|bot|nahm|sah|schlug|hielt|ließ|kam|ging|fingen|gaben|hörten)$/.test(t)))
+        return: >-
+          (verbs.length > 0 && verbs.every((t) => FIXED_PREFIX.test(t) && germanVerbLike(t))) ||
+          ((/,[^,]*$/.test(before) || tokens.some((t) => /^(?:um|ohne|statt|anstatt)$/i.test(t)) || CLAUSE_PARTICLES.has(particle)) &&
+          verbs.length === 0)
+      # Where the phrase stands: opening the sentence before the clause's verb ("Beim Haare
+      # schneiden kommen mir …", not "Beim Bäcker kaufen wir Brot"), or after "für das" at the end
+      # of a clause, as thanks for an activity ("Danke für das Korrektur lesen.").
+      phrasePlace:
+        args: "ctx: DetectContext, start: number, end: number, article: boolean"
+        let:
+          rest: ctx.text.slice(end, end + 40)
+          next: '/^[ \t]+(\p{Ll}+)/u.exec(rest)?.[1] ?? ""'
+        return: >-
+          article ? /[Dd]anke?[ \t]+(?:sch(?:ö|oe)n[ \t]+)?für(?:[ \t]+da)?s[ \t]+$/.test(ctx.text.slice(Math.max(0, start - 30), start)) &&
+          /^[ \t]*(?:[,.!?;:)]|(?:mit|für|bei|von|an)[ \t]|$)/.test(rest)
+          : /(?:^|[.!?:\n„"])[ \t]*\p{L}+[ \t]+$/u.test(ctx.text.slice(Math.max(0, start - 16), start)) && !!next &&
+          !/^(?:die|der|das|den|dem|wir|sie|ich|er|es|man)$/.test(next) &&
+          (germanAuxiliary(next) || germanVerbLike(next) || (/\p{Ll}{2,}e?t$/u.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`)))
+      # "Wir treffen uns zum Kaffee trinken.": the clause's verb is a full verb, so the infinitive
+      # closing it cannot be that verb's ("Ich muss beim Arzt anrufen", "Ich gehe zum Bäcker
+      # einkaufen", "Wir bringen es zum Kochen bringen" keep theirs).
+      nominalPhraseClause:
+        args: "ctx: DetectContext, start: number, end: number, going: boolean, low: string, verb: string"
+        let:
+          clause: 'ctx.text.slice(Math.max(0, start - 80), start).split(/[.!?;:,\n]/).at(-1)!.match(/\p{L}+/gu) ?? []'
+          verbs: clause.filter((w) => /^\p{Ll}/u.test(w) && germanVerbLike(w))
+        when:
+          - '!(going || germanNounReading(low) !== "noun" || COMPOUND_LIGHT_VERBS.has(verb))'
+          - '/^[ \t]*(?:[.!?;]|$)/.test(ctx.text.slice(end, end + 4))'
+          - '/(?<!\p{L})(?:zum|beim|fürs)[ \t]+$/iu.test(ctx.text.slice(Math.max(0, start - 8), start))'
+          - verbs.length === 1 && !clause.some((w) => VERB_GOVERNORS.has(w.toLowerCase()))
+        return: "!COMPOUND_BARE_VERBS.has(germanInfinitiveOf(verbs[0]) ?? verbs[0])"
+        else: "false"
+      # A noun compound written as two words: the second word, a capitalized noun.
+      PAIR_SECOND: '/^[ \t]+(\p{Lu}\p{Ll}{2,})(?![\p{L}\p{M}\p{N}_@/#\\-])/u'
+      PAIR_NUMBER: /^(?:\p{N}+|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|viele|mehrere)$/iu
+      # Words before a name, so the pair after them is a name ("Herr Fuchs Bauer").
+      PAIR_FUNCTION_WORDS: >-
+        new Set([...ARTICLES, ...DEMONSTRATIVES, ...PREPOSITIONS, ...PRONOUNS,
+        ..."ein kein mehr viel wenig ganz halb so sehr nur auch noch schon gut neu alle".split(" ")])
+      # Superlative and other stems that only open compounds ("Kleinst|lebewesen", "Selbst|achtung").
+      PAIR_STEMS: /^(?:kleinst|größt|höchst|mindest|best|selbst|meist)$/
+      PAIR_TITLES: /^(?:Herr|Herrn|Frau|Dr|Prof|Familie|Firma|St|Sankt)$/
+      # Determiners and counts after which an adjective before a noun takes an ending. Forms that
+      # also stand alone as a pronoun or a verb ("eine", "meinen", "sein") are left out; "der",
+      # "die", "das" count only at a sentence start ("in dem ständig Soldaten" is a relative
+      # clause).
+      PAIR_DETERMINED: >-
+        new Set([...ARTICLES, ..."viele vielen mehrere mehreren einige einigen beide beiden".split(" ")].filter((w) =>
+        !/^(?:k?ein(?:e|er|es)|meinen?|deine|seine?|ihre|unsere|eure)$/.test(w)))
+      # A noun with a linking -s, -es, -n or -en ("Abfahrts", "Hochleistungs", "Behinderten").
+      pairLinked:
+        args: "word: string"
+        return: >-
+          ["s", "es", "n", "en"].some((end) => word.endsWith(end) && word.length - end.length >= 3 && germanNounReading(word.slice(0, -end.length)) !== null)
+      # An inflected adjective or a participle ("getarnte", "leistenden", "einquartiert").
+      pairAttribute:
+        args: "w: string"
+        return: >-
+          /^\p{Ll}*(?:ge\p{Ll}+(?:t|en)|iert|end)(?:e|en|er|es|em)?$/u.test(w) ||
+          (/^\p{Ll}+(?:e|en|er|es|em)$/u.test(w) && germanAdjective(w.replace(/(?:e|en|er|es|em)$/, "")))
+      # "im roh Zustand", "eine trans Frau", "zwei halb Brüder": an adjective with no ending between
+      # a determiner and a noun takes an ending there, so the two words are one compound
+      # ("Rohzustand"). "der vorangegangen Frage": a participle that lacks its ending. A noun, not
+      # an adjective used as one ("das politisch Machbare"). "sein eigen Fleisch und Blut": an old
+      # fixed phrase. "zum wichtig Thema": a derived adjective opens a compound only where the
+      # lexicon has it. A longer name after it ("die frei Wählbare Liste"), an extended attribute
+      # ("die schnell Hilfe leistenden Helfer") or a zu-infinitive ("ein unter Druck zu lagerndes
+      # Gas") keeps the words apart.
+      pairSplitAdjective:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          first: m[0]
+          end: m.index + first.length
+          pair: PAIR_SECOND.exec(ctx.text.slice(end, end + 48))
+          low: pair[1].toLowerCase()
+          before: deTokensBefore(ctx.text, m.index, 2)
+          prior: before.at(-1) ?? ""
+          opening: 'before.length < 2 || /^[.!?:\n„“"»«]$/.test(before[0])'
+          det: prior.toLowerCase()
+          stop: end + pair[0].length
+          next: deTokensAfter(ctx.text, stop, 1)[0] ?? ""
+        when:
+          - '/^\p{Ll}{2,}$/u.test(first) && !/e$/.test(first) && !PAIR_UNINFLECTED.has(first)'
+          - '!(ARTICLES.has(first) || DEMONSTRATIVES.has(first) || /ge\p{Ll}{2,}en$/u.test(first))'
+          - germanAdjective(first) && germanNounReading(first) === null
+          - pair
+          - germanListedNoun(low) !== null && !germanAdjective(low.replace(/(?:e|en|er|es|em)$/, ""))
+          - '!(first === "eigen" && low === "fleisch")'
+          - "!(/(?:ig|lich|isch|sam|bar|haft|los)$/.test(first) && germanNounReading(first + low) === null)"
+          - PAIR_DETERMINED.has(det) || PAIR_NUMBER.test(prior) || (opening && DEMONSTRATIVES.has(det))
+          - '!(/^\p{Lu}/u.test(next) || next === "zu" || pairAttribute(next))'
+          - "!ctx.dictionary.has(first) && !ctx.dictionary.has(low)"
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: m.index, end: stop },
+          alternatives: [first[0].toUpperCase() + first.slice(1) + low], context: { start: Math.max(0, m.index - 40), end: stop + 20 } })
+      # A word of the chunk: the compound it opens, split by a space. Both parts German nouns or
+      # opening parts ("Joint Venture", "Game Boys" stay English). "Abfahrts", "Regenerierungs": a
+      # word with this linking -s stands in no other place, so the compound needs no lookup
+      # ("Abfahrts" is no genitive). A longer name or title: a capitalized word right before (not
+      # at a sentence start) or after. "des Nachts Bücher lesen": an adverbial genitive. An
+      # unknown compound only after a determiner or an adjective ("nach Hephaistions Tod" is a
+      # name's genitive). At a sentence start a capitalized adjective or adverb is no part ("Viel
+      # Spaß"). A noun of its own ("Fußball Spieler" may be two nouns) needs a number or a
+      # determiner that fits the compound and not the first noun.
+      nounPairFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          first: m[0]
+          end: m.index + first.length
+          pair: PAIR_SECOND.exec(ctx.text.slice(end, end + 48))
+          second: pair[1]
+          joined: first.toLowerCase() + second.toLowerCase()
+          low: first.toLowerCase()
+          fused: '/(?:ung|heit|keit|schaft|ion|tät)s$/.test(low) || (/s$/.test(low) && germanGender(low.slice(0, -1))?.gender === "f")'
+          knownJoin: germanNounReading(joined) !== null
+          secondNoun: "fused ? germanMayBeNoun(second.toLowerCase()) : germanListedNoun(second.toLowerCase()) !== null"
+          before: deTokensBefore(ctx.text, m.index, 2)
+          prior: before.at(-1) ?? ""
+          stop: end + pair[0].length
+          next: deTokensAfter(ctx.text, stop, 1)[0] ?? ""
+          det: prior.toLowerCase()
+          opening: BOUNDARY.test(prior)
+          noun: germanNounReading(low) !== null
+        when:
+          - '/^\p{Lu}\p{Ll}{2,}$/u.test(first)'
+          - pair
+          - "!(joined.length < 8 || (!knownJoin && !fused))"
+          - secondNoun && !PAIR_FUNCTION_WORDS.has(low)
+          - "!ctx.dictionary.has(low) && !ctx.dictionary.has(second.toLowerCase())"
+          - '!(/^\p{Lu}/u.test(next) || PAIR_TITLES.test(prior))'
+          - '!/^(?:des|eines)$/i.test(prior)'
+          - knownJoin || PAIR_DETERMINED.has(det) || DEMONSTRATIVES.has(det) || pairAttribute(prior)
+          - '!(/^\p{Lu}/u.test(prior) && !BOUNDARY.test(before.at(-2) ?? ""))'
+          - "!(opening && germanAdjective(low))"
+          - >-
+            noun && !fused ? (PAIR_NUMBER.test(prior) && /(?:er|en|n|e|s)$/.test(second)) ||
+            (germanDeterminerFits(prior, first) !== true && !!germanDeterminerFits(prior, second))
+            : noun || fused || germanAdjective(low) || PAIR_STEMS.test(low) || pairLinked(low)
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: m.index, end: stop },
+          alternatives: [first + second.toLowerCase()], context: { start: Math.max(0, m.index - 40), end: stop + 20 } })
     frames:
       # "Ich bin ihm über den weggelaufen", "aus dem weggehen": "über den Weg laufen", "aus dem
       # Weg gehen" split the noun from the verb.
       - regex: "{{WG}}(?:(?<=(?:über{{S}}den|aus{{S}}dem){{S}})(?<target>[Ww]eg(?<verb>(?:ge)?(?:laufen|lief|liefen|läuft|gehen|ging|gingen|geht|gegangen|gelaufen)))){{E}}"
         flags: dgu
-        fixer: wegVerb
+        return: "compoundFinding(m, ctx, `Weg ${verb}`)"
       # "Nach dem er gewonnen hatte": "dem" before a subject pronoun at the start of a sentence
       # is the conjunction "nachdem" or "seitdem" (after a comma it may open a relative clause:
       # "der Schlüssel, nach dem ich suche").
       - regex: "{{WG}}(?:(?:^|[.!?\\n„\"])[ \\t]*(?<target>(?<first>Nach|Seit){{S}}dem)(?={{S}}(?:ich|du|er|sie|es|wir|ihr|man){{E}})){{E}}"
         flags: dgu
-        fixer: conjunctionDem
+        return: "compoundFinding(m, ctx, `${first}dem`)"
       # "So weit ich weiß", "so bald das Wetter …": "soweit", "sobald", "solange".
       - regex: "{{WG}}(?:(?:^|[.!?,;:\\n„\"])[ \\t]*(?<target>(?<first>[Ss]o){{S}}(?<second>weit|bald|lange|lang))(?={{S}}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das){{E}})){{E}}"
         flags: dgu
-        fixer: soConjunction
+        return: "compoundFinding(m, ctx, `${first}${second}`)"
       # "ihr zu Liebe.", "den Eltern zu gute kommen", "Berichten zu Folge", "zu Nichte machen":
       # fixed adverbs written apart, in the frames where "zu" is no preposition ("zu Liebe statt
       # Hass", "von Folge zu Folge", "zu gute Noten").
       - regex: "{{WG}}(?:(?<target>zu{{S}}(?:(?<liebe>Liebe)(?=[ \\t]*[.!?]|,{{S}}(?:weil|da|dass|obwohl|denn))|(?<gute>gute)(?:(?<gverb>{{S}}(?:kommen|kommt|kam|kamen|gekommen|halten|hält|hielt|hielten|gehalten)){{E}}|(?=[ \\t]*[.,!?;]))|(?<folge>Folge)(?=[ \\t]*[,.;]|{{S}}\\p{Ll})|(?<nichte>Nichte)(?=[ \\t]*[.!?]|{{S}}(?:mach|gemacht))))){{E}}"
         flags: dgu
-        fixer: zuAdverb
+        let:
+          prior: deTokensBefore(ctx.text, m.index, 1)[0] ?? ""
+        when:
+          # "ihr zu Liebe", "den Eltern zu Liebe": a dative before it; "kam zu gute", "etwas zu gute
+          # kommen": the verb or its object.
+          - >-
+            !((liebe || gute) && !/^(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|\p{Lu}\p{Ll}+n?)$/u.test(prior) &&
+            !(gute && /^(?:kam|kamen|kommt|käme|halte|hält|hielt|etwas|nichts|viel|wenig)$/.test(prior)))
+          # "Berichten zu Folge", not "von Folge zu Folge".
+          - '!(folge && (!/^\p{Lu}\p{Ll}+(?:en|n|ung|e)$/u.test(prior) || prior === "Folge"))'
+        # "zu gute gehalten" → "zugutegehalten": the verb joins too.
+        return: >-
+          compoundFinding(m, ctx, liebe ? "zuliebe" : gute ? `zugute${gverb?.trim() ?? ""}` : folge ? "zufolge" : "zunichte")
       # "Er freute sich, das zuhören.": an infinitive clause after a comma, its zu written onto
       # the verb ("zu hören"); the clause ends after it or opens a dass-clause.
       - regex: "{{WG}}(?:(?<=,{{S}}(?:(?:das|es|dies){{S}})?|(?:mich|dich|ihn|uns|euch){{S}})(?<target>zu(?<verb>\\p{Ll}{3,}))(?=[ \\t]*(?:[.!?;]|,{{S}}(?:dass|ob|wie|was|wo|wer|wann|warum|bevor|hinter){{E}}))){{E}}"
         flags: dgu
-        fixer: zuJoined
+        let:
+          words: 'ctx.text.slice(Math.max(0, m.index - 80), m.index).split(/[.!?;:\n]/).at(-1)!.match(/\p{L}+/gu) ?? []'
+        when:
+          - '!(!germanInfinitive(verb) || germanAuxiliary(verb) || verb.startsWith("zu"))'
+          # The main clause before the comma has its verb ("freute", "gelang"); "Bitte, zuhören!" is an
+          # instruction. "Wir sollten, statt zu reden, zuhören": a modal takes the bare infinitive.
+          - "!words.some((w) => VERB_GOVERNORS.has(w.toLowerCase()))"
+          - '!(words.length < 2 || /!/.test(ctx.text.slice(m.indices!.groups!.target[1]).slice(0, 2)))'
+        return: "compoundFinding(m, ctx, `zu ${verb}`)"
       # "beim Haare schneiden", "zum Auto fahren", "für das Korrektur lesen": a verb phrase made
       # a noun is one word ("beim Haareschneiden").
       - regex: "{{WG}}(?:(?=\\p{Lu}\\p{Ll})(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it){{S}}d(?:as|em)){{S}})(?<target>(?<noun>\\p{Lu}\\p{Ll}+){{S}}(?<verb>\\p{Ll}+(?:en|ern|eln)))){{E}}"
         flags: dgu
-        fixer: nominalPhrase
+        let:
+          low: noun.toLowerCase()
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          prefix: ctx.text.slice(Math.max(0, start - 8), start)
+          # "beim Spazieren gehen", "vorm Schlafen gehen", "beim Gassi gehen": "gehen" made a noun with
+          # an infinitive, or after "beim"; "Zum Arzt gehen ist wichtig" is a phrase.
+          going: 'verb === "gehen" && (germanInfinitive(low) || !/zum[ \t]+$/i.test(prefix))'
+          contraction: '/(?<!\p{L})(zum|beim|vom|vorm)[ \t]+$/iu.exec(prefix)?.[1]'
+        when:
+          - '!(!germanInfinitive(verb) || germanAuxiliary(verb) || verb === "lassen")'
+          - '!(verb === "gehen" ? !going : germanNounReading(low) === null)'
+        # "zum Zeitung lesen", "beim Haare schneiden": a noun the contraction cannot take as its dative
+        # only heads the phrase made a noun.
+        return: >-
+          phrasePlace(ctx, start, end, /(?:d(?:as|em)|fürs)[ \t]+$/i.test(prefix)) ||
+          (!!contraction && !going && nominalVerb(verb) && germanDeterminerFits(contraction, noun) === false) ||
+          nominalPhraseClause(ctx, start, end, going, low, verb) ? compoundFinding(m, ctx, `${noun}${verb}`) : null
       # "Ideen zum selber machen", "beim Selbst Kochen": "selber" or "selbst" with an infinitive
       # after "zum", "beim" or "fürs" is one noun ("zum Selbermachen").
       - regex: "{{WG}}(?:(?<=(?:[Zz]um|[Bb]eim|[Ff]ürs){{S}})(?<target>(?<self>[Ss]elb(?:er|st)){{S}}(?<verb>\\p{L}+(?:en|ern|eln)))(?=[ \\t]*(?:[.!?;,]|$))){{E}}"
         flags: dgu
-        fixer: selfInfinitive
+        let:
+          low: verb.toLowerCase()
+        when: germanInfinitive(low) && !germanAuxiliary(low)
+        return: "compoundFinding(m, ctx, `${self[0].toUpperCase()}${self.slice(1)}${low}`)"
       # "zulange gewartet" → "zu lange"; "wenn ich da zulange" is "zulangen" (help oneself).
       - regex: "{{WG}}(?:(?<target>[Zz]ulange)){{E}}"
         flags: dgu
-        fixer: zulange
+        return: >-
+          compoundFinding(m, ctx, /(?<!\p{L})ich(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 80), m.index).split(/[.!?;,:\n]/).at(-1)!) ? null : "zu lange")
       # A separable verb's zu-infinitive written apart: "auf zu bauen" → "aufzubauen".
       - regex: "{{WG}}(?:(?<prev>\\p{L}+,?){{S}}(?<target>(?<particle>ab|an|auf|aus|bei|ein|fest|fort|her|herab|heran|herauf|heraus|herbei|herein|herüber|herum|herunter|hervor|hin|hinab|hinauf|hinaus|hinein|hinüber|hinunter|hinweg|los|nach|nieder|vor|voran|voraus|vorbei|vorüber|weg|weiter|wieder|zurück|zusammen|zu|bereit|statt|teil|kennen|fertig|frei|zufrieden|wohl|hoch|dar|empor|entgegen|unter|zurecht){{S}}zu{{S}}(?<verb>\\p{Ll}+))){{E}}"
         flags: dgu
-        fixer: zuInfinitive
+        when:
+          - COMPOUND_PARTICLES.has(particle) && germanInfinitive(verb)
+          # "der Reihe nach zu holen", "von Grund auf zu bauen", "auf und ab zu gehen".
+          - '!/^(?:Reihe|Grund|und|oder)$/.test(prev)'
+          - infinitiveClause(ctx, m.indices!.groups!.target[0], particle)
+          # A particle that opens no clause of its own joins even a verb the lexicon lacks
+          # ("hinunterzuziehen", "loszubrüllen").
+          - germanInfinitive(particle + verb) || (CLAUSE_PARTICLES.has(particle) && particle !== "zu")
+        return: "compoundFinding(m, ctx, `${particle}zu${verb}`)"
       # "Falls du ab sagst,", "hat den Brief ab geschickt.", "als sie los gingen": a particle
       # written apart from its verb at the end of a clause, where a main clause would not split
       # it. "wieder", "weiter", "zusammen" and the like are left out: both spellings exist.
       - regex: "{{WG}}(?:(?<target>(?<particle>ab|an|auf|aus|bei|ein|los|nach|vor|weg|zu|dar|her|hin|fort|heraus|herein|hinaus|hinein|herum|statt|teil|unter|bereit|stand){{S}}(?<verb>\\p{Ll}{3,}))(?=(?:{{S}}(?<aux>\\p{Ll}+))?[ \\t]*(?:[,.!?;:)]|$))){{E}}"
         flags: dgu
-        fixer: splitAtEnd
+        let:
+          before: deTokensBefore(ctx.text, m.index, 3)
+          prior: before.at(-1)?.toLowerCase() ?? ""
+          # "das vor geschlagen hatte": an article is the object's, unless the particle is also a noun
+          # ("den weg", "das aus").
+          article: /^(?:d|k?ein|mein|dein|sein|ihr|unser)(?:er|ie|as|en|em|es|e)?$/.test(prior)
+          # "hat die Tür zu gemacht": after a form of "haben", "zu" and a participle make one verb; "ist
+          # zu gelassen", "wirkte zu gelassen" are "too calm".
+          zuParticiple: 'particle === "zu" ? /^ge(\p{Ll}{2,}?)(?:en|t)$/u.exec(verb) : null'
+        when:
+          - "!(aux && !germanAuxiliary(aux))"
+          # "von Anfang an gesagt", "von klein auf gelernt": the particle closes "von …".
+          - '!(NOT_PARTICLE_AFTER.has(prior) && !(article && !/^(?:weg|aus|los|teil)$/.test(particle)))'
+          - '!(before.some((t) => /^[Vv]on$/.test(t)) || before.at(-1) === "Berg")'
+        return: >-
+          compoundFinding(m, ctx, zuParticiple ? (zuParticipleJoins(ctx, m.index, aux) && germanInfinitive(`zu${zuParticiple[1]}en`) ? `zu${verb}` : null)
+          : compoundJoinsVerb(particle, verb) ? particle + verb : null)
       # "sich um zu drehen", "damit um zu gehen": "um" as a particle.
       - regex: "{{WG}}(?:(?<=(?:sich|damit|dich|mich|uns|euch){{S}})(?<target>um{{S}}zu{{S}}(?<verb>\\p{Ll}+))){{E}}"
         flags: dgu
-        fixer: umZu
+        return: "compoundFinding(m, ctx, germanInfinitive(`um${verb}`) ? `umzu${verb}` : null)"
       # "bereit stellen", "kennen lernen", "fertig stellen": a particle before an infinitive.
       - regex: "{{WG}}(?:(?<target>(?<particle>bereit|kennen|fertig|zufrieden|statt|teil|nieder|weg|los|vorbei|hinzu|preis|zugute){{S}}(?<verb>\\p{Ll}+(?:en|ern|eln)))){{E}}"
         flags: dgu
-        fixer: splitInfinitive
+        return: >-
+          compoundFinding(m, ctx, germanInfinitive(verb) && (germanInfinitive(particle + verb) || germanVerbLike(particle + verb)) ? particle + verb : null)
       # Times of day: "Dienstag Abend" → "Dienstagabend".
       - regex: "{{WG}}(?:(?<=(?:am|jeden|diesen|nächsten|letzten|kommenden|vergangenen|bis|ab|seit|vom|zum|Am|Jeden){{S}})(?<target>(?<day>Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|Sonntag){{S}}(?<time>{{DAY_TIMES}}))){{E}}"
         flags: dgu
-        fixer: weekdayTime
+        return: "compoundFinding(m, ctx, `${day}${time.toLowerCase()}`)"
       # Numbers with suffixes: "8 seitig" → "8-seitig".
       - regex: "(?<![\\p{L}\\p{N}.,-])(?<target>(?<n>\\p{N}+)(?:[ \\t]?)(?<suffix>(?:{{NUMBER_SUFFIXES}}|Seitig|Stellig|Prozentig|Teilig|Jährig|Tägig|Stündig|Minütig|Wöchig|Monatig|Sprachig|Farbig|Geschossig|Zimmerig|Türig|Spurig|Köpfig|Sitzig|Bändig|Zeilig|Wertig)(?:e|en|er|es|em)?)){{E}}"
         flags: dgu
-        fixer: numberSuffix
+        return: "compoundFinding(m, ctx, `${n}-${suffix.toLowerCase()}`)"
       # "acht hundertmal", "hundert tausendmal": a number word before "-mal" is one word.
       - regex: "{{WG}}(?:(?<target>(?<count>ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|hundert|tausend){{S}}(?<times>hundertmal|tausendmal))){{E}}"
         flags: dgu
-        fixer: countTimes
+        # "ein tausendmal größeres Problem": "ein" is the noun's article.
+        return: >-
+          compoundFinding(m, ctx, count === "ein" && /^[ \t]+\p{Ll}+er(?:e|es|en|er|em)?(?!\p{L})/u.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30))
+          ? null : count + times)
       # "im 5 Minuten Takt", "ein 9 Euro Ticket": a number and its unit before a noun that a
       # singular determiner goes with are one hyphenated word ("5-Minuten-Takt"). Without such
       # a determiner the unit may measure the noun ("3 Tage Urlaub"). A longer chain ("eine 14
       # Tage Geld zurück Garantie") is left alone.
       - regex: "{{WG}}(?:(?=\\p{N})(?<=(?<!\\p{L})(?:[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Ee]iner|[Ee]ines|[Ii]m|[Aa]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Dd]as|[Dd]em|[Dd]es){{S}})(?<target>(?<n>\\p{N}+){{S}}(?<unit>Minuten|Stunden|Tage|Wochen|Monate|Jahre|Euro|Dollar|Cent|Prozent|Punkte|Meter|Kilometer|Zimmer|Sterne|Gänge|Liter|Kilo|Gramm|Seiten|Personen|Zoll|Grad|Tonnen){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![ \\t]+(?:\\p{Lu}|zurück))){{E}}"
         flags: dgu
-        fixer: unitNoun
+        return: 'compoundFinding(m, ctx, germanNounReading(noun.toLowerCase()) !== null ? `${n}-${unit}-${noun}` : null)'
       # "3. Klässler" → "Drittklässler".
       - regex: "(?<![\\p{L}\\p{N}.])(?<target>(?<n>1[0-3]|[1-9])\\.[ \\t]?[Kk]lässler(?<end>in|innen|n)?){{E}}"
         flags: dgu
-        fixer: klassler
+        return: 'compoundFinding(m, ctx, `${ORDINAL_STEMS[Number(n) - 1]}klässler${end ?? ""}`)'
       # Abbreviations before nouns: "US Bürger" → "US-Bürger".
       - regex: "{{WG}}(?:(?<target>(?<acronym>US|EU|UN|UNO|IT|PC|PR|EDV|Kfz|KFZ|Pkw|PKW|Lkw|LKW|USB|PDF|HTML|CD|DVD|TV|SMS|GPS|WLAN|SPD|CDU|FDP|DFB|NATO|WHO){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))){{E}}"
         flags: dgu
-        fixer: acronymNoun
+        return: 'compoundFinding(m, ctx, germanNounReading(noun.toLowerCase()) !== null ? `${acronym}-${noun}` : null)'
       # "in's Kino", "auf's Dach", "vor'm Haus": a preposition fused with its article takes no
       # apostrophe.
       - regex: "{{WG}}(?:(?<target>(?<prep>[Ii]n|[Aa]n|[Aa]uf|[Ff]ür|[Dd]urch|[Uu]m|[Hh]inter|[Üü]ber|[Uu]nter|[Vv]or)['’](?<article>s|n|m))){{E}}"
         flags: dgu
-        fixer: fusedArticle
+        return: "compoundFinding(m, ctx, `${prep}${article}`)"
       # "eMail", "e-mail", "E-mail", "EMail" are never right; "Email" (enamel) only after a
       # determiner that cannot go with "das Email".
       - regex: "{{WG}}(?:(?<target>(?:eMail|e-mail|E-mail|EMail|e-Mail)(?<rest>s|-\\p{L}[\\p{L}-]*)?)){{E}}"
         flags: dgu
-        fixer: emailAny
+        return: "compoundFinding(m, ctx, `E-Mail${emailRest(rest)}`)"
       # "Spam-Email", "HTML-EMail-Adresse": the mail part of a hyphenated compound.
       - regex: "{{WG}}(?:(?<target>(?<pre>(?:\\p{Lu}[\\p{L}]*|\\p{Lu}{2,})-)(?:Email|EMail|eMail|E-mail|e-mail|E-MAIL)(?<rest>s|-\\p{L}[\\p{L}-]*)?)){{E}}"
         flags: dgu
-        fixer: emailTail
+        # "Gold-Email", "Kupfer-Email": enamel; only a word that is no material.
+        return: >-
+          compoundFinding(m, ctx, /^(?:Gold|Silber|Kupfer|Zinn|Glas|Eisen|Stahl|Feuer)-$/.test(pre) ? null : `${pre}E-Mail${emailRest(rest)}`)
       # "E mail", "e Mails": the letter written apart.
       - regex: "{{WG}}(?:(?<target>[Ee][ \\t]+[Mm](?:ail|AIL|Ail)(?<rest>s?))){{E}}"
         flags: dgu
-        fixer: emailApart
+        return: "compoundFinding(m, ctx, `E-Mail${rest}`)"
       # "E-Mail Adresse", "E-Mail programm": the noun after it joins with a hyphen ("per E-Mail
       # Adressen schicken" sends addresses).
       - regex: "{{WG}}(?:(?<!(?:per|via|als|[Üü]ber|mit){{S}})(?<target>E-Mail{{S}}(?<noun>(?:[Aa]dresse|[Pp]rogramm|[Kk]onto|[Pp]ostfach|[Vv]erkehr|[Aa]nhang|[Ss]ignatur|[Ss]erver|[Vv]erteiler|[Bb]enachrichtigung|[Kk]ommunikation|[Mm]arketing)(?:n|en|e|s|es)?))){{E}}"
         flags: dgu
-        fixer: emailNoun
+        return: "compoundFinding(m, ctx, `E-Mail-${noun[0].toUpperCase()}${noun.slice(1)}`)"
       - regex: "{{WG}}(?:(?<=(?:eine|einer|meine|deine|seine|ihre|Ihre|unsere|eure|keine|jede|diese|per|neue|letzte|kurze){{S}})(?<target>Email(?<rest>-\\p{L}[\\p{L}-]*)?)){{E}}"
         flags: dgu
-        fixer: emailAfter
+        return: "compoundFinding(m, ctx, `E-Mail${emailRest(rest)}`)"
       - regex: "{{WG}}(?:(?<target>Emails|E-Mailadresse|E-Mailadressen)){{E}}"
         flags: dgu
-        fixer: emails
+        return: 'compoundFinding(m, ctx, EMAIL_FORMS[target] ?? "E-Mail-Adressen")'
       # "DinA4" → "DIN A4".
       - regex: "{{WG}}(?:(?<target>(?:DIN|Din|din)(?:-|{{S}})?[Aa](?<size>[0-8])(?<rest>(?:-|{{S}})?Blatt|-\\p{L}+)?)){{E}}"
         flags: dgu
-        fixer: din
+        let:
+          tail: '(rest ?? "").replace(/^[-\s]+/, "")'
+        return: >-
+          compoundFinding(m, ctx, !rest ? `DIN A${size}` : `DIN-A${size}-${tail[0].toUpperCase()}${tail.slice(1)}`)
       - regex: "{{WG}}(?:(?<target>(?:AddOn|Addon|addon|AddOns|Addons|addons)(?<rest>-\\p{L}+)?)){{E}}"
         flags: dgu
-        fixer: addOn
+        return: >-
+          compoundFinding(m, ctx, `Add-on${/s$/.test(target.replace(/-.*$/, "")) ? "s" : ""}${rest ?? ""}`)
       # A compound noun written as two words ("die Abfahrts Zeiten"), and an adjective with no
       # ending that opens a compound ("im roh Zustand"): each word whose start the chunk owns
       # (a word of letters, not glued into a number, path, mention or dotted token).
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
         scan: owned
         flags: gu
-        fixer: nounPair
+        let:
+          split: pairSplitAdjective(ctx, m)
+          pairFinding: nounPairFinding(ctx, m)
+        return: "[...(split ? [split] : []), ...(pairFinding ? [pairFinding] : [])]"
       # "zu teil", "von statten": a bound first part written as two words, or written apart from
       # its verb ("zunichte gemacht").
       - regex: "{{WG}}(?:(?<first>zunichte|inne|zuteil|vonstatten|zugute|preis|zu{{S}}teil|von{{S}}statten|Preis)(?:(?<zu>{{S}}zu)?{{S}}(?<verb>\\p{Ll}+))?{{E}})"
