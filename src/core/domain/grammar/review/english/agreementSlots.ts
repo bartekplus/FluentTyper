@@ -437,32 +437,45 @@ function distantFix(
   return bareVerbOnly(word) && closedAfter(words[at + 1]) ? englishInflect(word, "third") : null;
 }
 
+/** A comma, then one or more spaces or tabs, right before `index`: OPENING_PHRASE needs it. */
+function commaBefore(text: string, index: number): boolean {
+  let i = index;
+  while (i > 0 && (text[i - 1] === " " || text[i - 1] === "\t" || text[i - 1] === "\u00a0")) i--;
+  return i < index && i > 0 && text[i - 1] === ",";
+}
+
 /**
  * "The dogs barks loudly", "The dog are released": a determiner-led subject and its verb.
  * "Cars is useful", "Grammatical errors is bad": a plural with no determiner (`bare`) opens the
  * clause.
  */
 function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): RawFinding | null {
+  // A gerund ("Making mistakes is human") or a closed word opens no bare plural. The bare
+  // target is the first token: test it before the costly tests.
+  if (bare) {
+    const first = m.groups!.target.toLowerCase();
+    if (/ing$/.test(first) || FUNCTION_WORDS.has(first)) return null;
+  }
   // A clause opens at a break, a cue word, a list bullet ("- The message…") or a comma after
   // an opening phrase ("As such, each page…"); not after a list item ("The oceans, our wealth").
+  const before = wordBefore(ctx, m.index);
+  const comma = commaBefore(ctx.text, m.index);
   const opens =
     afterBreak(ctx, m.index) ||
-    CLAUSE_CUE.test(wordBefore(ctx, m.index)) ||
+    CLAUSE_CUE.test(before) ||
     /(?:^|\n)[ \t]*[-*•][ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
-    OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index));
+    (comma && OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)));
   // "Subject to change, the systems seems…", "although the features has…": a weaker opening
   // (a list may go on: "The oceans, our military power have…") that only a plural head uses.
   const later =
     !bare &&
     (/,[ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)) ||
-      LATER_CUE.test(wordBefore(ctx, m.index)));
+      LATER_CUE.test(before));
   if (!opens && !later) return null;
   const pluralOnly = bare || !opens;
   const det = bare ? "" : m.groups!.target.toLowerCase();
   const tokens = tokensAfter(ctx, bare ? m.index : m.index + m[0].length, 9);
   if (tokens.some((t) => t.kind === "other")) return null;
-  // A gerund ("Making mistakes is human") or a closed word opens no bare plural.
-  if (bare && (/ing$/.test(tokens[0].lower) || FUNCTION_WORDS.has(tokens[0].lower))) return null;
   // "bell hooks doesn't…": a sentence opening in lowercase starts with a name or a fragment.
   if (
     bare &&
