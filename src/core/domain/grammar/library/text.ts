@@ -8,3 +8,6 @@ export function remember<T extends object>(set: WeakSet<T>, value: T): T {
   set.add(value);
   return value;
 }
+
+/** A table with no prototype: a typed word such as "constructor" finds no Object member. */
+export { wordTable } from "../review/wordTable";

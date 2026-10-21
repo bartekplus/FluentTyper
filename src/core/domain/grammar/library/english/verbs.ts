@@ -1,5 +1,6 @@
 // The rule library (library/english.ts): English verb forms that the lexicon does not give
 // directly: the past participle of a lemma and the verb of a noun.
+import { wordTable } from "../../review/wordTable";
 import { englishInflect } from "../../implementations/helpers/EnglishInflection";
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
@@ -16,7 +17,7 @@ export const participle = (lemma: string) => {
 };
 
 // Nouns whose verb the suffix rules below do not reach.
-const NOUN_VERBS: Record<string, string> = {
+const NOUN_VERBS: Record<string, string> = wordTable({
   life: "live",
   belief: "believe",
   relief: "relieve",
@@ -27,7 +28,7 @@ const NOUN_VERBS: Record<string, string> = {
   advice: "advise",
   choice: "choose",
   multiple: "multiply",
-};
+});
 
 /** The base verb a noun stands for ("complaint" -> complain, "departures" -> depart). */
 export function nounVerb(noun: string): string | null {

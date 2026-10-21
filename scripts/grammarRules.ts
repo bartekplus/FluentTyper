@@ -308,6 +308,16 @@ const RECORDS: Readonly<Record<CodeKind, readonly [name: string, type: string, d
   live: ["LIVE", "LiveCode", 'The typing rules with code, by rule ("@<rule id>").'],
 };
 
+/**
+ * The source of a YAML map: a table with no prototype (wordTable), also for a nested map, so that
+ * a typed word such as "constructor" finds no Object member.
+ */
+function tableSource(value: unknown): string {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return json(value);
+  const entries = Object.entries(value).map(([key, item]) => `${json(key)}: ${tableSource(item)}`);
+  return `wordTable({ ${entries.join(", ")} })`;
+}
+
 /** The TypeScript type of a YAML value of a map. */
 function tsType(value: unknown): string {
   if (value === null) return "null";
@@ -396,7 +406,7 @@ function codeModule(
   for (const [key, words] of Object.entries(code.sets))
     if (own(key)) parts.push(`${out}const ${key}: ReadonlySet<string> = new Set(${json(words)});`);
   for (const [key, map] of Object.entries(code.maps))
-    if (own(key)) parts.push(`${out}const ${key}: ${tsType(map)} = ${json(map)};`);
+    if (own(key)) parts.push(`${out}const ${key}: ${tsType(map)} = ${tableSource(map)};`);
   for (const def of code.defs) {
     if (!own(def.name)) continue;
     sources.push(def.result, def.otherwise, ...def.steps.map((step) => step.source));
@@ -423,6 +433,8 @@ function codeModule(
   // The names the code reads from outside the module: the file's names in its live module, the
   // library (each name from its file) and common.yaml. The file's own names hide the others.
   const refs = new Set(free.filter((ref) => !(code.names.has(ref) && own(ref))));
+  // A module with maps builds them with the library's wordTable.
+  if (Object.keys(code.maps).some(own)) refs.add("wordTable");
   const live = [...refs].filter((ref) => fromLive.has(ref)).sort();
   const outside = [...refs].filter((ref) => !code.names.has(ref));
   const words = new Set(`${sources.join(" ")} ${typeText.join(" ")}`.match(/[A-Za-z_$][\w$]*/g));

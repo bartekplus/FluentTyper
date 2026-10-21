@@ -859,19 +859,18 @@ rules:
     defs:
       # Spelled-out cardinals (nominative, then the personal "-u" form) for 1–10.
       NUMERAL_CARDINALS: >-
-        ({ 1: ["jeden", "jednego"], 2: ["dwa", "dwóch"], 3: ["trzy", "trzech"], 4: ["cztery", "czterech"],
+        wordTable<readonly [string, string]>({ 1: ["jeden", "jednego"], 2: ["dwa", "dwóch"], 3: ["trzy", "trzech"], 4: ["cztery", "czterech"],
         5: ["pięć", "pięciu"], 6: ["sześć", "sześciu"], 7: ["siedem", "siedmiu"], 8: ["osiem", "ośmiu"],
-        9: ["dziewięć", "dziewięciu"], 10: ["dziesięć", "dziesięciu"] }) as
-        Readonly<Record<number, readonly [string, string]>>
+        9: ["dziewięć", "dziewięciu"], 10: ["dziesięć", "dziesięciu"] })
       # The numeral nouns ("piątka", "setka") without their "-ka" ending.
       NUMERAL_NOUN_STEMS: >-
-        ({ 1: "jedyn", 2: "dwój", 3: "trój", 4: "czwór", 5: "piąt", 6: "szóst", 7: "siódem", 8: "ósem",
+        wordTable<string>({ 1: "jedyn", 2: "dwój", 3: "trój", 4: "czwór", 5: "piąt", 6: "szóst", 7: "siódem", 8: "ósem",
         9: "dziewiąt", 10: "dziesiąt", 11: "jedenast", 12: "dwunast", 13: "trzynast", 14: "czternast",
         15: "piętnast", 16: "szesnast", 17: "siedemnast", 18: "osiemnast", 19: "dziewiętnast",
         20: "dwudziest", 30: "trzydziest", 40: "czterdziest", 50: "pięćdziesiąt", 60: "sześćdziesiąt",
         70: "siedemdziesiąt", 80: "osiemdziesiąt", 90: "dziewięćdziesiąt", 100: "set", 200: "dwuset",
         300: "trzyset", 400: "czteryset", 500: "pięćset", 600: "sześćset", 700: "siedemset",
-        800: "osiemset", 900: "dziewięćset" }) as Readonly<Record<number, string>>
+        800: "osiemset", 900: "dziewięćset" })
       # The fixes of a case ending typed after a number ("5-ty" -> "5.", "6-ciu" -> "sześciu").
       numeralSuffixFix:
         args: "num: string, ending: string, next: string | undefined"
@@ -903,10 +902,9 @@ rules:
         return: plFindingAt(ctx, start, tokenEnd, fixed, "polishNumerals", "review_msg_pl_numeral_suffix")
       # The forms of "złoty" and "grosz": one, two to four, five and more, a fraction.
       NUMERAL_CURRENCY: >-
-        ({ złoty: ["złoty", "złote", "złotych", "złotego"], złote: ["złoty", "złote", "złotych", "złotego"],
+        wordTable<readonly [string, string, string, string]>({ złoty: ["złoty", "złote", "złotych", "złotego"], złote: ["złoty", "złote", "złotych", "złotego"],
         złotych: ["złoty", "złote", "złotych", "złotego"], grosz: ["grosz", "grosze", "groszy", "grosza"],
-        grosze: ["grosz", "grosze", "groszy", "grosza"], groszy: ["grosz", "grosze", "groszy", "grosza"] }) as
-        Readonly<Record<string, readonly [string, string, string, string]>>
+        grosze: ["grosz", "grosze", "groszy", "grosza"], groszy: ["grosz", "grosze", "groszy", "grosza"] })
       # 1 złoty; 2–4 złote (not 12–14); else złotych; a fraction takes "złotego".
       numeralPluralForm:
         args: "amount: string, forms: readonly [string, string, string, string]"
@@ -919,15 +917,14 @@ rules:
           : last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14) ? forms[1] : forms[2]
       # Unit names that take the plural after a number: "100 gramów", "2 kilogramy".
       NUMERAL_UNITS: >-
-        ({ gram: ["gramy", "gramów"], kilogram: ["kilogramy", "kilogramów"], dekagram: ["dekagramy", "dekagramów"],
+        wordTable<readonly [string, string]>({ gram: ["gramy", "gramów"], kilogram: ["kilogramy", "kilogramów"], dekagram: ["dekagramy", "dekagramów"],
         miligram: ["miligramy", "miligramów"], wolt: ["wolty", "woltów"], amper: ["ampery", "amperów"],
-        wat: ["waty", "watów"], kilowat: ["kilowaty", "kilowatów"] }) as
-        Readonly<Record<string, readonly [string, string]>>
+        wat: ["waty", "watów"], kilowat: ["kilowaty", "kilowatów"] })
       NUMERAL_WORDS: >-
-        ({ dwa: 2, trzy: 3, cztery: 4, pięć: 5, sześć: 6, siedem: 7, osiem: 8, dziewięć: 9, dziesięć: 10,
+        wordTable<number>({ dwa: 2, trzy: 3, cztery: 4, pięć: 5, sześć: 6, siedem: 7, osiem: 8, dziewięć: 9, dziesięć: 10,
         dwadzieścia: 20, trzydzieści: 30, czterdzieści: 40, pięćdziesiąt: 50, sto: 100, dwieście: 200,
         trzysta: 300, pięćset: 500, tysiąc: 1000, kilka: 5, kilkanaście: 15, kilkadziesiąt: 50,
-        kilkaset: 500 }) as Readonly<Record<string, number>>
+        kilkaset: 500 })
     frames:
       # A digit (or Roman numeral), a dash or nothing, then a closed set of endings; not a unit ("5kg"):
       # "5-ty" is "5." or "piąty", "6-ciu" is "6" or "sześciu".
@@ -1288,7 +1285,8 @@ rules:
           to,
         ]
     defs:
-      COMMA_PAIRS: "({ tak: /^czy\\s/iu, chcąc: /^nie\\s+chcąc$/iu, bądź: /^co\\s+bądź$/iu, byle: /^jak$/iu, chybił: /^trafił$/iu, wypisz: /^wymaluj$/iu }) as Readonly<Record<string, RegExp>>"
+      COMMA_PAIRS: >-
+        wordTable<RegExp>({ tak: /^czy\s/iu, chcąc: /^nie\s+chcąc$/iu, bądź: /^co\s+bądź$/iu, byle: /^jak$/iu, chybił: /^trafił$/iu, wypisz: /^wymaluj$/iu })
     frames:
       # "mimo, że" -> "mimo że": a compound conjunction takes the comma before it as a whole.
       - regex: "(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<head>mimo|pomimo|podczas|chyba|nawet|jeszcze|a|o|pod[ \\t\\u00a0]+warunkiem|tyle)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<tail>że|iż|gdy|żeby|by|jeśli|jeżeli|gdyby|kiedy|zanim|więc|ile)(?![\\p{L}])"
@@ -1359,8 +1357,8 @@ rules:
     defs:
       # What makes the word after a subordinator part of a set phrase: "kiedy indziej", "póki co".
       COMMA_SET_AFTER: >-
-        ({ kiedy: /^(?:indziej|niekiedy|bądź)$/iu, gdzie: /^(?:indziej|niegdzie|bądź)$/iu,
-        dlaczego: /^(?:innego|innym)$/iu }) as Readonly<Record<string, RegExp>>
+        wordTable<RegExp>({ kiedy: /^(?:indziej|niekiedy|bądź)$/iu, gdzie: /^(?:indziej|niegdzie|bądź)$/iu,
+        dlaczego: /^(?:innego|innym)$/iu })
       COMMA_RELATIVE_WORD: /^(?:{{RELATIVE}})$/
       COMMA_JAKI_WORD: /^(?:{{JAKI}})$/
       COMMA_QUESTION_OR_RELATIVE: /^(?:dlaczego|gdzie|kiedy|{{RELATIVE}})$/
@@ -1370,15 +1368,15 @@ rules:
         ..."{{SUBORDINATORS}}".split("|")])
       # Which conjunctions each adverb may stand before.
       COMMA_ADVERB_SUBS: >-
-        ({ tylko: /^(?:że|żeby|aby|by|gdy|kiedy)$/u, tak: /^(?:żeby|ażeby|aby|by)$/u, właśnie: /^(?:że|gdy|kiedy)$/u,
-        "z tym": /^(?:że|iż)$/u }) as Readonly<Record<string, RegExp>>
+        wordTable<RegExp>({ tylko: /^(?:że|żeby|aby|by|gdy|kiedy)$/u, tak: /^(?:żeby|ażeby|aby|by)$/u, właśnie: /^(?:że|gdy|kiedy)$/u,
+        "z tym": /^(?:że|iż)$/u })
       COMMA_SUBJECT_OR_OBJECT: /^(?:nie|ja|ty|on|ona|ono|my|wy|oni|one|go|ją|je|mu|mi|ci|się|to|mnie|cię|nas|was|ich|jej|im|nam|wam)$/u
       # A compound conjunction takes the comma before it as a whole: "zdradził, mimo że".
       COMMA_COMPOUND_TAILS: >-
-        ({ mimo: /^(?:że|iż)$/u, pomimo: /^(?:że|iż)$/u, nawet: /^(?:jeśli|jeżeli|gdy|kiedy|gdyby\p{L}{0,5})$/u,
+        wordTable<RegExp>({ mimo: /^(?:że|iż)$/u, pomimo: /^(?:że|iż)$/u, nawet: /^(?:jeśli|jeżeli|gdy|kiedy|gdyby\p{L}{0,5})$/u,
         dopiero: /^(?:gdy|kiedy|jak)$/u, zwłaszcza: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u,
         szczególnie: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u, "tym bardziej": /^(?:że|iż)$/u,
-        "pod warunkiem": /^(?:że|iż)$/u, podczas: /^gdy$/u }) as Readonly<Record<string, RegExp>>
+        "pod warunkiem": /^(?:że|iż)$/u, podczas: /^gdy$/u })
       # "który" opens a relative clause here: not a question ("o której?"), not the indefinite
       # "którego z" or "zaniemógł który", and no comma a few words back already opens the clause
       # ("w trakcie którego", "za pomocą którego", "uzwojenie którego"). "i w czasie której":
@@ -1547,11 +1545,11 @@ rules:
     defs:
       # Short form -> long form, used before "mnie"/"mną" (and clusters for w/z).
       PREPOSITION_LONG: >-
-        ({ w: "we", z: "ze", od: "ode", bez: "beze", przez: "przeze", przed: "przede", nad: "nade",
-        pod: "pode", spod: "spode" }) as Readonly<Record<string, string>>
+        wordTable<string>({ w: "we", z: "ze", od: "ode", bez: "beze", przez: "przeze", przed: "przede", nad: "nade",
+        pod: "pode", spod: "spode" })
       PREPOSITION_SHORT: >-
-        Object.fromEntries(Object.entries(PREPOSITION_LONG).map(([short, long]) => [long, short])) as
-        Readonly<Record<string, string>>
+        wordTable(Object.fromEntries(Object.entries(PREPOSITION_LONG).map(([short, long]) => [long, short])) as
+        Readonly<Record<string, string>>)
       # The long form's own fixed phrases: "we dwoje", "przede wszystkim", "ode złego", "spode łba".
       PREPOSITION_LONG_KEPT: "/^(?:mnie|mną|dwoje|troje|czworo|dnie|śnie|łzach|wszystkim|łba|złego|drzwi|krwi|mgle|lwie|lwa|lwem|sobą|wszystko)$/iu"
       # The word opens with two consonants (digraphs count as one).
@@ -2015,9 +2013,9 @@ rules:
       AGREEMENT_AFTER_ENDINGS: [ą]
     defs:
       AGREEMENT_GOVERNED: >-
-        Object.fromEntries(Object.entries(AGREEMENT_GOVERNS).map(([prep, letters]) => [prep,
+        wordTable(Object.fromEntries(Object.entries(AGREEMENT_GOVERNS).map(([prep, letters]) => [prep,
         [...letters].reduce((mask, letter) => tagsOr(mask, plCases(letter + "s " + letter + "p")), 0)])) as
-        Readonly<Record<string, number | undefined>>
+        Readonly<Record<string, number | undefined>>)
       AGREEMENT_NOMINATIVE: plCases("Ns Np")
       AGREEMENT_GENITIVE_CASES: plCases("Gs Gp")
       AGREEMENT_ACCUSATIVE: plCases("As Ap")
@@ -2052,11 +2050,11 @@ rules:
         return: "forms.length <= 2 ? forms.map((form) => plCaseLike(noun, form)) : []"
       # A demonstrative's forms by what they agree with: gender (or plural), cases.
       AGREEMENT_DEMONSTRATIVES: >-
-        ({ ten: [[PL_MASCULINE, plCases("Ns As")]], ta: [[PL_FEMININE, plCases("Ns")]], tę: [[PL_FEMININE, plCases("As")]],
+        wordTable<readonly (readonly [number, number])[]>({ ten: [[PL_MASCULINE, plCases("Ns As")]], ta: [[PL_FEMININE, plCases("Ns")]], tę: [[PL_FEMININE, plCases("As")]],
         tą: [[PL_FEMININE, plCases("Is")]], to: [[PL_NEUTER, plCases("Ns As")]], te: [[0, plCases("Np Ap")]],
         jeden: [[PL_MASCULINE, plCases("Ns As")]], jedna: [[PL_FEMININE, plCases("Ns")]],
         jedną: [[PL_FEMININE, plCases("As Is")]], jedno: [[PL_NEUTER, plCases("Ns As")]],
-        jedne: [[0, plCases("Np Ap")]] }) as Readonly<Record<string, readonly (readonly [number, number])[]>>
+        jedne: [[0, plCases("Np Ap")]] })
       AGREEMENT_FAMILY_TEN: '["ten", "ta", "tę", "tą", "to", "te"]'
       AGREEMENT_FAMILY_JEDEN: '["jeden", "jedna", "jedną", "jedno", "jedne"]'
       agreementDemonstrativeAgrees:
@@ -2129,13 +2127,12 @@ rules:
         else: "false"
       # A cardinal's genitive ("dwieście" -> "dwustu", also "dwuset").
       AGREEMENT_GENITIVE_NUMERALS: >-
-        ({ dwa: ["dwóch"], dwie: ["dwóch"], trzy: ["trzech"], cztery: ["czterech"], pięć: ["pięciu"], sześć: ["sześciu"],
+        wordTable<readonly string[]>({ dwa: ["dwóch"], dwie: ["dwóch"], trzy: ["trzech"], cztery: ["czterech"], pięć: ["pięciu"], sześć: ["sześciu"],
         siedem: ["siedmiu"], osiem: ["ośmiu"], dziewięć: ["dziewięciu"], dziesięć: ["dziesięciu"],
         jedenaście: ["jedenastu"], dwanaście: ["dwunastu"], piętnaście: ["piętnastu"], dwadzieścia: ["dwudziestu"],
         trzydzieści: ["trzydziestu"], czterdzieści: ["czterdziestu"], pięćdziesiąt: ["pięćdziesięciu"], sto: ["stu"],
         dwieście: ["dwustu", "dwuset"], trzysta: ["trzystu"], czterysta: ["czterystu"], pięćset: ["pięciuset"],
-        kilka: ["kilku"], kilkanaście: ["kilkunastu"], kilkadziesiąt: ["kilkudziesięciu"], kilkaset: ["kilkuset"] }) as
-        Readonly<Record<string, readonly string[]>>
+        kilka: ["kilku"], kilkanaście: ["kilkunastu"], kilkadziesiąt: ["kilkudziesięciu"], kilkaset: ["kilkuset"] })
       # Words after which a count stands in the genitive: "około pięciu", "do trzech", "bez dwóch".
       AGREEMENT_GENITIVE_BEFORE: '/(?:^|[^\p{L}])(?:około|ok\.|blisko|niespełna|do|od|bez|dla|spośród|wśród|wobec)[ \t ]{1,8}$/iu'
       AGREEMENT_PREPOSITION_APPROX: 'new RegExp(`(?:^|[^\\p{L}])(?:${PREPOSITIONS})[ \\t\\u00a0]{1,8}(?:około|ok\\.|blisko|niespełna)[ \\t\\u00a0]{1,8}$`, "iu")'
@@ -2230,19 +2227,17 @@ rules:
       # Masculine singular determiners and what they become in the neuter, the plural and the
       # feminine.
       AGREEMENT_MASCULINE_DETERMINERS: >-
-        ({ ten: ["to", "te", "ta"], tamten: ["tamto", "tamte", "tamta"], taki: ["takie", "takie", "taka"],
+        wordTable<readonly [string, string, string]>({ ten: ["to", "te", "ta"], tamten: ["tamto", "tamte", "tamta"], taki: ["takie", "takie", "taka"],
         jeden: ["jedno", "jedne", "jedna"], mój: ["moje", "moje", "moja"], twój: ["twoje", "twoje", "twoja"],
         swój: ["swoje", "swoje", "swoja"], nasz: ["nasze", "nasze", "nasza"], wasz: ["wasze", "wasze", "wasza"],
-        każdy: ["każde", "każde", "każda"], jakiś: ["jakieś", "jakieś", "jakaś"], żaden: ["żadne", "żadne", "żadna"] }) as
-        Readonly<Record<string, readonly [string, string, string]>>
+        każdy: ["każde", "każde", "każda"], jakiś: ["jakieś", "jakieś", "jakaś"], żaden: ["żadne", "żadne", "żadna"] })
       # Nouns typed with a masculine modifier though they are neuter (indeclinable loans: "to
       # menu"), plural only ("te perfumy"; "perfum" is their genitive) or feminine ("ta pomarańcza").
       AGREEMENT_GENDERED: >-
-        ({ menu: [0, "menu"], tiramisu: [0, "tiramisu"], sushi: [0, "sushi"], salami: [0, "salami"], kakao: [0, "kakao"],
+        wordTable<readonly [0 | 1 | 2, string]>({ menu: [0, "menu"], tiramisu: [0, "tiramisu"], sushi: [0, "sushi"], salami: [0, "salami"], kakao: [0, "kakao"],
         musli: [0, "musli"], euro: [0, "euro"], hobby: [0, "hobby"], zoo: [0, "zoo"], graffiti: [0, "graffiti"],
         alibi: [0, "alibi"], kimono: [0, "kimono"], risotto: [0, "risotto"], espresso: [0, "espresso"],
-        bistro: [0, "bistro"], perfum: [1, "perfumy"], pomarańcz: [2, "pomarańcza"] }) as
-        Readonly<Record<string, readonly [0 | 1 | 2, string]>>
+        bistro: [0, "bistro"], perfum: [1, "perfumy"], pomarańcz: [2, "pomarańcza"] })
       AGREEMENT_ADJECTIVE_ENDINGS: '["e", "e", "a"]'
       # A masculine determiner or adjective (nominative singular) as `index` wants it, or null.
       agreementRegendered:
@@ -2407,36 +2402,33 @@ rules:
         return: plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], fixed)], "polishCaseAgreement", "review_msg_pl_preposition_case")
       # Plural instrumental pronouns and their singular forms: masculine or neuter, feminine.
       AGREEMENT_PLURAL_PRONOUNS: >-
-        ({ tymi: ["tym", "tą"], tamtymi: ["tamtym", "tamtą"], takimi: ["takim", "taką"], jakimi: ["jakim", "jaką"],
+        wordTable<readonly [string, string]>({ tymi: ["tym", "tą"], tamtymi: ["tamtym", "tamtą"], takimi: ["takim", "taką"], jakimi: ["jakim", "jaką"],
         jakimiś: ["jakimś", "jakąś"], moimi: ["moim", "moją"], twoimi: ["twoim", "twoją"], swoimi: ["swoim", "swoją"],
         naszymi: ["naszym", "naszą"], waszymi: ["waszym", "waszą"], owymi: ["owym", "ową"],
-        żadnymi: ["żadnym", "żadną"] }) as Readonly<Record<string, readonly [string, string]>>
+        żadnymi: ["żadnym", "żadną"] })
       # Foreign first names in -o and their genitive, dative and instrumental stems.
       AGREEMENT_O_NAMES: >-
-        ({ Bruno: ["Brunona", "Brunonowi", "Brunonem"], Hugo: ["Hugona", "Hugonowi", "Hugonem"],
+        wordTable<readonly [string, string, string]>({ Bruno: ["Brunona", "Brunonowi", "Brunonem"], Hugo: ["Hugona", "Hugonowi", "Hugonem"],
         Otto: ["Ottona", "Ottonowi", "Ottonem"], Pablo: ["Pabla", "Pablowi", "Pablem"], Mario: ["Maria", "Mariowi", "Mariem"],
         Paulo: ["Paula", "Paulowi", "Paulem"], Leonardo: ["Leonarda", "Leonardowi", "Leonardem"],
         Ricardo: ["Ricarda", "Ricardowi", "Ricardem"], Fernando: ["Fernanda", "Fernandowi", "Fernandem"],
         Antonio: ["Antonia", "Antoniowi", "Antoniem"], Alfonso: ["Alfonsa", "Alfonsowi", "Alfonsem"],
         Romano: ["Romana", "Romanowi", "Romanem"], Guido: ["Guida", "Guidowi", "Guidem"],
-        Sergio: ["Sergia", "Sergiowi", "Sergiem"], Claudio: ["Claudia", "Claudiowi", "Claudiem"] }) as
-        Readonly<Record<string, readonly [string, string, string]>>
+        Sergio: ["Sergia", "Sergiowi", "Sergiem"], Claudio: ["Claudia", "Claudiowi", "Claudiem"] })
       # What each form of "który" can refer to: its gender (any for the plural) and number. Men or
       # mixed groups only for "którzy": "kobiety, którzy" is "które".
       AGREEMENT_RELATIVE_READINGS: >-
-        ({ który: [[PL_MASCULINE, false]], która: [[PL_FEMININE, false]], które: [[PL_NEUTER, false], [AGREEMENT_GENDERS, true]],
+        wordTable<readonly (readonly [number, boolean])[]>({ który: [[PL_MASCULINE, false]], która: [[PL_FEMININE, false]], które: [[PL_NEUTER, false], [AGREEMENT_GENDERS, true]],
         którego: [[tagsOr(PL_MASCULINE, PL_NEUTER), false]], której: [[PL_FEMININE, false]],
         któremu: [[tagsOr(PL_MASCULINE, PL_NEUTER), false]], którą: [[PL_FEMININE, false]],
         którym: [[tagsOr(PL_MASCULINE, PL_NEUTER), false], [AGREEMENT_GENDERS, true]],
-        których: [[AGREEMENT_GENDERS, true]], którymi: [[AGREEMENT_GENDERS, true]], którzy: [[PL_MASCULINE, true]] }) as
-        Readonly<Record<string, readonly (readonly [number, boolean])[]>>
+        których: [[AGREEMENT_GENDERS, true]], którymi: [[AGREEMENT_GENDERS, true]], którzy: [[PL_MASCULINE, true]] })
       # The form of "który" in the same case for a masculine, feminine or neuter singular noun, or a
       # plural.
       AGREEMENT_RELATIVE_FORMS: >-
-        ({ który: { f: "która", n: "które", p: "które" }, która: { m: "który", n: "które", p: "które" },
+        wordTable<Partial<Record<"m" | "f" | "n" | "p", string>>>({ który: { f: "która", n: "które", p: "które" }, która: { m: "który", n: "które", p: "które" },
         której: { m: "którego", n: "którego", p: "których" }, któremu: { f: "której", p: "którym" },
-        którymi: { m: "którym", f: "którą", n: "którym" }, którzy: { f: "które", n: "które" } }) as
-        Readonly<Record<string, Partial<Record<"m" | "f" | "n" | "p", string>>>>
+        którymi: { m: "którym", f: "którą", n: "którym" }, którzy: { f: "które", n: "które" } })
       # Words that may stand in the antecedent's clause without being another antecedent.
       AGREEMENT_NEUTRAL: >-
         new Set([...Object.keys(AGREEMENT_GOVERNS), ..."jego jej ich mój moja moje mojego mojej twój twoja twoje swój swoja swoje swojego swojej nasz nasza nasze wasz wasza wasze bardzo już jeszcze też także tylko nawet wczoraj dziś dzisiaj jutro tam tu tutaj się nie".split(" ")])
@@ -3175,16 +3167,16 @@ rules:
     defs:
       # Irregular comparatives the stem rules do not reach.
       DEGREE_IRREGULAR: >-
-        ({ dobry: "lepszy", zły: "gorszy", duży: "większy", mały: "mniejszy", wysoki: "wyższy",
+        wordTable<string>({ dobry: "lepszy", zły: "gorszy", duży: "większy", mały: "mniejszy", wysoki: "wyższy",
         niski: "niższy", bliski: "bliższy", daleki: "dalszy", szeroki: "szerszy", głęboki: "głębszy",
-        lekki: "lżejszy", ciężki: "cięższy", długi: "dłuższy" }) as Record<string, string>
+        lekki: "lżejszy", ciężki: "cięższy", długi: "dłuższy" })
       # Comparative adverbs; adverbs in -o whose comparative changes the stem ("brzydko" -> "brzydziej").
       DEGREE_ADVERBS: >-
-        ({ dobrze: "lepiej", źle: "gorzej", szybko: "szybciej", brzydko: "brzydziej", krótko: "krócej",
+        wordTable<string>({ dobrze: "lepiej", źle: "gorzej", szybko: "szybciej", brzydko: "brzydziej", krótko: "krócej",
         słodko: "słodziej", nisko: "niżej", blisko: "bliżej", wysoko: "wyżej", ciężko: "ciężej",
         lekko: "lżej", rzadko: "rzadziej", głęboko: "głębiej", daleko: "dalej", długo: "dłużej",
         często: "częściej", cicho: "ciszej", głośno: "głośniej", mocno: "mocniej", łatwo: "łatwiej",
-        trudno: "trudniej", tanio: "taniej", drogo: "drożej", wesoło: "weselej" }) as Record<string, string>
+        trudno: "trudniej", tanio: "taniej", drogo: "drożej", wesoło: "weselej" })
       # Adjectives that name an extreme and take no degree.
       DEGREE_UNGRADED: /^(?:optymaln|maksymaln|minimaln)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|ie)$/u
       # The synthetic comparative of a positive adjective, when the lexicon lists one.
@@ -3728,8 +3720,7 @@ rules:
       CLAUSE_AFTER_VERB: /^(?:już|jeszcze|bardzo|tylko|nadal|wciąż|zawsze|też|także|również|długo|się|nie|tam|tu|tutaj|wtedy|wówczas|naprawdę|zbyt|całkiem|zupełnie|ostatnio|mi|mu|jej|im|nam|wam|ci)$/u
       # The nominative a past form's gender and number agree with: "ła" a feminine singular.
       CLAUSE_SUBJECT_OF: >-
-        ({ ł: PL_MASCULINE, ła: PL_FEMININE, ło: PL_NEUTER, li: PL_VIRILE, ły: tagsOr(PL_FEMININE, PL_NEUTER) }) as
-        Readonly<Record<string, number>>
+        wordTable<number>({ ł: PL_MASCULINE, ła: PL_FEMININE, ło: PL_NEUTER, li: PL_VIRILE, ły: tagsOr(PL_FEMININE, PL_NEUTER) })
       # Impersonal predicates: "można", "trzeba", "należy zrobić".
       CLAUSE_PREDICATIVE: /^(?:można|trzeba|należy|należało|należałoby|wypada|wypadało)$/u
       # An infinitive form: "zrobić", "móc", "pomóc", "biec".
@@ -4265,9 +4256,8 @@ rules:
     defs:
       # "cel podróży" for each case form of "destynacja".
       OFFICIALESE_DESTINATION: >-
-        ({ a: "cel podróży", ę: "cel podróży", ą: "celem podróży", i: ["celu podróży", "celów podróży"],
-        e: "cele podróży", om: "celom podróży", ami: "celami podróży", ach: "celach podróży" }) as
-        Readonly<Record<string, string | string[]>>
+        wordTable<string | string[]>({ a: "cel podróży", ę: "cel podróży", ą: "celem podróży", i: ["celu podróży", "celów podróży"],
+        e: "cele podróży", om: "celom podróży", ami: "celami podróży", ach: "celach podróży" })
     frames:
       # "wiodący" (leading) copies English: "czołowy", "główny". Not "wiodąca do lasu", "wiódł prym".
       - regex: "(?<target>wiodąc(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi)){{E}}(?!(?:{{S}}\\p{L}+)?{{S}}(?:{{ROUTE}}){{E}})"
@@ -4321,7 +4311,8 @@ rules:
         args: "word: string"
         return: plFiniteVerb(word) || plPastByShape(word)
       # The form "zostać" gives the adjective after it: masculine, feminine, neuter or plural.
-      SUBJECT_ZOSTAC: "({ został: 0, została: 1, zostało: 2, zostały: 2 }) as Readonly<Record<string, number>>"
+      SUBJECT_ZOSTAC: >-
+        wordTable<number>({ został: 0, została: 1, zostało: 2, zostały: 2 })
       # Plural past forms of verbs that take no direct object, so a plural noun before them is
       # their subject.
       SUBJECT_INTRANSITIVE_PAST: "/^(?:by|bywa|zosta|zostawa|(?:po|przy|wy|w|we|od|ode|do|ze|z|nad|nade|pod|pode)?sz|(?:przy|wy|po|od|do|za)?jecha|przyby|uciek|zniknę|umar|zmar|zginę|spa|siedzie|leże|mieszka|ży|płaka|krzycze|biega|chodzi|przychodzi|wychodzi|wraca|wróci|przyjeżdża|przyleci|odleci|pływa|(?:wy)?roś|zasnę|usnę)(?:li|ły)$/u"

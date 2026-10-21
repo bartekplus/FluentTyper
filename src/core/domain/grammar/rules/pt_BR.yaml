@@ -168,7 +168,8 @@ rules:
         ]
     defs:
       # The verb ending of each subject pronoun.
-      PERSON_ENDING: "({ eu: /o$/, tu: /[ae]s$/, ele: /[ae]$/, ela: /[ae]$/, você: /[ae]$/ }) as Readonly<Record<string, RegExp>>"
+      PERSON_ENDING: >-
+        wordTable<RegExp>({ eu: /o$/, tu: /[ae]s$/, ele: /[ae]$/, ela: /[ae]$/, você: /[ae]$/ })
       # "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
       RECIPROCAL: '/^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu'
       # "dei a ela prática": a pronoun after a preposition is no subject.

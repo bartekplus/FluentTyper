@@ -1,5 +1,6 @@
 // The rule library (library.ts): Portuguese verbs. The stems of the everyday verbs, the forms
 // of the irregular ones, and the conjugation of a form into another tense, mood or person.
+import { wordTable } from "../../review/wordTable";
 import { graphWords } from "../../review/wordGraph";
 import type * as Forms from "../../review/portuguese/verbs.generated";
 import type * as Data from "../../review/portuguese/verbStems.generated";
@@ -235,7 +236,7 @@ export function ptFutureOfPast(past: string): string {
 
 // Present and imperfect subjunctive of the irregular indicatives (present, and imperfect for
 // past governors). "vão" and "vamos" are spelled alike in both moods.
-const IRREGULAR: Record<string, [present: string | null, past: string]> = {};
+const IRREGULAR: Record<string, [present: string | null, past: string]> = wordTable({});
 for (const row of [
   "é seja fosse|são sejam fossem|sou seja fosse|somos sejamos fôssemos|és sejas fosses",
   "era - fosse|eram - fossem|éramos - fôssemos",
@@ -482,7 +483,7 @@ export function ptInflect({ conjugation, stem, tense }: PtVerbReading, person: P
 // Slots: infinitive; present 1sg 3sg 1pl 3pl; preterite 1sg 3sg 3pl; imperfect 3sg 3pl;
 // future 3sg; conditional 3sg; present subjunctive 3sg; imperfect subjunctive 3sg; future
 // subjunctive 3sg; gerund; participle.
-const SLOT_ROWS: Record<string, string> = {
+const SLOT_ROWS: Record<string, string> = wordTable({
   dar: "dou dá damos dão dei deu deram dava davam dará daria dê desse der dando dado",
   fazer:
     "faço faz fazemos fazem fiz fez fizeram fazia faziam fará faria faça fizesse fizer fazendo feito",
@@ -544,7 +545,7 @@ const SLOT_ROWS: Record<string, string> = {
     "contraio contrai contraímos contraem contraí contraiu contraíram contraía contraíam contrairá contrairia contraia contraísse contrair contraindo contraído",
   diferir:
     "difiro difere diferimos diferem diferi diferiu diferiram diferia diferiam diferirá diferiria difira diferisse diferir diferindo diferido",
-};
+});
 
 /** The 17 slot forms of a verb: infinitive; present 1sg 3sg 1pl 3pl; preterite 1sg 3sg 3pl;
  * imperfect 3sg 3pl; future 3sg; conditional 3sg; present, imperfect and future subjunctive
