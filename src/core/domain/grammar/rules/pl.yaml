@@ -2701,68 +2701,296 @@ rules:
     checks: [polishCaseAgreement]
     style: match
     message: review_msg_pl_subject_verb
+    defs:
+      subjectPastForm:
+        args: "word: string"
+        return: plFiniteVerb(word) || plPastByShape(word)
+      # The form "zostać" gives the adjective after it: masculine, feminine, neuter or plural.
+      SUBJECT_ZOSTAC: "({ został: 0, została: 1, zostało: 2, zostały: 2 }) as Readonly<Record<string, number>>"
+      # Plural past forms of verbs that take no direct object, so a plural noun before them is
+      # their subject.
+      SUBJECT_INTRANSITIVE_PAST: "/^(?:by|bywa|zosta|zostawa|(?:po|przy|wy|w|we|od|ode|do|ze|z|nad|nade|pod|pode)?sz|(?:przy|wy|po|od|do|za)?jecha|przyby|uciek|zniknę|umar|zmar|zginę|spa|siedzie|leże|mieszka|ży|płaka|krzycze|biega|chodzi|przychodzi|wychodzi|wraca|wróci|przyjeżdża|przyleci|odleci|pływa|(?:wy)?roś|zasnę|usnę)(?:li|ły)$/u"
+      # Clause openers before a subject; a determiner may stand between ("że te dzieci").
+      SUBJECT_OPENS_CLAUSE: '/(?:^|[.!?…:;]["”’»)]{0,3}\s+|\n\s*|(?:^|[^\p{L}])(?:że|gdy|kiedy|bo|ponieważ|jeśli|jeżeli|choć|chociaż|zanim|aż|a|ale|lecz|więc|wtedy|potem|dziś|wczoraj|tam|tu|tutaj)\s+)$/iu'
+      # Non-virile plural determiners ("te dzieci", "wszystkie kobiety").
+      SUBJECT_PLURAL_DETERMINER: "/^(?:te|tamte|owe|moje|twoje|swoje|nasze|wasze|wszystkie|inne|takie|niektóre|obie|dwie|trzy|cztery)$/iu"
+      # Nouns of time and extent that stand in the accusative beside a verb ("całe noce spali").
+      SUBJECT_DURATION: "/^(?:godziny|noce|minuty|sekundy|lata|doby|niedziele|soboty|wakacje|ferie|święta|popołudnia|chwile|mile)$/u"
+      # Words before a noun that make it a second term, not the subject ("kobiety jak mężczyźni").
+      SUBJECT_NOT_SUBJECT_BEFORE: 'new RegExp(`(?:^|[^\\p{L}])(?:jak|niż|jako|niczym|ani|czy|lub|albo|bądź|${PREPOSITIONS})[ \\t\\u00a0]+$`, "iu")'
+      # A plural past form, also one that is a noun too ("miały").
+      subjectPluralPast:
+        args: "word: string"
+        return: 'word === "były" || word === "byli" || subjectPastForm(word) || tagsAnd(plNounTags(word), PL_VERB) !== 0'
+      # The other plural past form: "-ły" for "-li" and back ("mieli" -> "miały"), when listed.
+      subjectOtherPlural:
+        args: "verb: string"
+        let:
+          stem: verb.slice(0, -2)
+          forms: >-
+            verb.endsWith("li") ? [stem + "ły", ...(stem.endsWith("e") ? [stem.slice(0, -1) + "ały"] : [])]
+            : [stem + "li", ...(stem.endsWith("a") ? [stem.slice(0, -1) + "eli"] : [])]
+          known: forms.filter((form) => subjectPluralPast(form) || plAdjectiveOf(form))
+        return: "known.length === 1 ? known : []"
+      # A "-li" past form after a plural noun: feminine and neuter nouns (and "dzieci") only, as a
+      # man's noun the lexicon does not mark ("kolarze") must not read as a thing's. An
+      # intransitive verb, or a reflexive one after a noun that is no genitive object. The noun
+      # opens its clause, after a plural determiner at most.
+      subjectVirileVerbFits:
+        args: "before: string, lower: string, tags: number, verb: string, reflexive: string | undefined"
+        let:
+          det: '/(\p{L}+)[ \t ]+$/u.exec(before)'
+        when:
+          - "!(tagsAnd(tags, tagsOr(PL_MASCULINE, PL_VIRILE)) || SUBJECT_DURATION.test(lower))"
+          - SUBJECT_INTRANSITIVE_PAST.test(verb) || (!!reflexive && !tagsAnd(tags, plCases("Gp")) && subjectPastForm(verb))
+        return: >-
+          SUBJECT_OPENS_CLAUSE.test(before) || (!!det && (SUBJECT_PLURAL_DETERMINER.test(det[1]) ||
+          plAdjectiveOf(det[1].toLowerCase())?.ending === "e") && SUBJECT_OPENS_CLAUSE.test(before.slice(0, det.index)))
+        else: "false"
+      # Only genitives between "większość" and its verb: "z nich", "ludności", "polskich miast".
+      subjectGenitive:
+        args: "word: string"
+        return: >-
+          /^(?:z|ze|nich|nas|was|tych|tego|tej|ich|jego|jej|(?:m|tw|sw)oj(?:ej|ego)|(?:m|tw|sw)oich|(?:nasz|wasz)(?:ej|ego|ych))$/u.test(word) ||
+          tagsAnd(plNounTags(word), plCases("Gs Gp")) !== 0 || /^(?:ego|ej|ych)$/u.test(plAdjectiveOf(word)?.ending ?? "")
+      # An adjective form read through a "nie-" prefix the lexicon does not list ("nieobecne").
+      predicateAdjectiveWithNie:
+        args: "word: string"
+        let:
+          adjective: plAdjectiveOf(word)
+        return: >-
+          adjective || !word.startsWith("nie") ? adjective
+          : [plAdjectiveOf(word.slice(3))].map((base) => base && { lemma: "nie" + base.lemma, ending: base.ending })[0]
+      predicateVirileLemmaWithNie:
+        args: "word: string"
+        when: word.length >= 4
+        let:
+          lemma: plVirileLemma(word)
+        return: 'lemma || !word.startsWith("nie") ? lemma : [plVirileLemma(word.slice(3))].map((base) => base && "nie" + base)[0]'
+      # "Oficerowie byli nieobecne" -> "nieobecni".
+      predicateVirileFix:
+        args: "adj: string"
+        let:
+          adjective: predicateAdjectiveWithNie(adj)
+        when: adjective?.ending === "e"
+        return: '[plVirileAdjective(adjective.lemma)].filter((virile) => virile !== "")'
+      # "Kobiety były zmęczeni" -> "zmęczone".
+      predicateOtherFix:
+        args: "adj: string"
+        let:
+          lemma: predicateVirileLemmaWithNie(adj)
+        when: "!!lemma && !plAdjectiveOf(adj)"
+        return: '[plAdjectiveForm(lemma, "e")]'
+      # Words before a future "będzie" + infinitive: its subject, a question word or a time.
+      SUBJECT_FUTURE: "/^(?:ja|ty|on|ona|ono|my|wy|oni|one|kto|co|czy|nie|już|też|jutro|wkrótce|zaraz|potem|wtedy|później|dziś|dzisiaj|wieczorem|rano|że|gdy|kiedy|jeśli|i|a|ale)$/iu"
+      # "będzie" + infinitive is a future only after its subject or a time word: "Najlepiej będzie
+      # wyznać", "Zmuszona będę uciec", "Trzeba to będzie zrobić" use it as a copula. "Pierwszym
+      # krokiem będzie wyjechać": an instrumental noun makes "będzie" the copula. "Będą umrzeć
+      # musieli": the modal comes after its infinitive.
+      aspectFutureFits:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        let:
+          before: '/(\p{L}+)[ \t ]+$/u.exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]'
+          tags: "before ? plNounTags(before.toLowerCase()) : 0"
+          after: ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30)
+        when:
+          - "!(before && !SUBJECT_FUTURE.test(before) && !plOnlyNoun(tags))"
+          - '!(tagsAnd(tags, plCases("Is Ip")) && !tagsAnd(tags, plCases("Ns Np")))'
+          - '!/^[ \t ]+(?:mus|mog|móg|chci|chcie|mia|mie|potraf|umia|umie)\p{L}*/iu.test(after)'
+        return: "true"
+        else: "false"
+      # Before the word: a comparison ("jak nikt"), a preposition ("za nic", "o nic").
+      SUBJECT_NOT_NEGATING_BEFORE: 'new RegExp(`(?:^|[^\\p{L}])(?:jak|niż|niczym|prawie|${PREPOSITIONS})[ \\t\\u00a0]+$`, "iu")'
+      # Numerals in the genitive ("od jakichś kilku lat").
+      SUBJECT_GENITIVE_COUNT: "/^(?:kilku|paru|kilkunastu|kilkudziesięciu|kilkuset|dwóch|dwu|trzech|czterech|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|stu|tysięcy|wielu|niewielu)$/u"
+      SUBJECT_SINGULAR_DIRECT: plCases("Ns As Gs Ds Is Ls Vs Np")
+      SUBJECT_PLURAL_OBLIQUE: plCases("Gp Lp")
     frames:
       # "on poszła", "ona przyszedł": the pronoun disagrees with the past form's gender.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona){{S}}{{BETWEEN}}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
-        fixer: pronounGender
+        let:
+          feminine: pronoun.toLowerCase() === "ona"
+        when: "!(feminine === !!fem || !subjectPastForm(verb.toLowerCase()) || plUserOrNamed(ctx, verb))"
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.pronoun[0], m.indices!.groups!.pronoun[1],
+          [plCaseLike(pronoun, feminine ? "on" : "ona")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          context: { start: m.index, end: m.index + m[0].length } })
       # "Przywróciła on pokój": the verb opens the clause, the pronoun follows it.
       - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<verb>\\p{L}{3,}ł(?<fem>a)?){{S}}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdu
-        fixer: pronounGender
+        let:
+          feminine: pronoun.toLowerCase() === "ona"
+        when: "!(feminine === !!fem || !subjectPastForm(verb.toLowerCase()) || plUserOrNamed(ctx, verb))"
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.pronoun[0], m.indices!.groups!.pronoun[1],
+          [plCaseLike(pronoun, feminine ? "on" : "ona")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          context: { start: m.index, end: m.index + m[0].length } })
       # "zostało zrobiony" -> "zrobione": the nominative after "zostać" takes the verb's gender.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>{{ZOSTAC}}){{S}}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
-        fixer: zostacAgreement
+        let:
+          lower: word.toLowerCase()
+          adjective: plAdjectiveOf(lower)
+          forms: '[adjective.lemma, plAdjectiveForm(adjective.lemma, "a"), plAdjectiveForm(adjective.lemma, "e")]'
+          wanted: SUBJECT_ZOSTAC[aux.toLowerCase()]
+        when:
+          - adjective !== null && !plUserOrNamed(ctx, word) && !plOnlyNoun(plNounTags(lower))
+          - forms.includes(lower)
+          - forms[wanted] !== lower
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.word[0], m.indices!.groups!.word[1],
+          [plCaseLike(word, forms[wanted])], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          context: { start: m.index, end: m.index + m[0].length } })
       # "Zrobiony zostało": the participle opens the clause.
       - regex: "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<word>\\p{L}{3,}){{S}}(?<aux>{{ZOSTAC}})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdu
-        fixer: zostacAgreement
+        let:
+          lower: word.toLowerCase()
+          adjective: plAdjectiveOf(lower)
+          forms: '[adjective.lemma, plAdjectiveForm(adjective.lemma, "a"), plAdjectiveForm(adjective.lemma, "e")]'
+          wanted: SUBJECT_ZOSTAC[aux.toLowerCase()]
+        when:
+          - adjective !== null && !plUserOrNamed(ctx, word) && !plOnlyNoun(plNounTags(lower))
+          - forms.includes(lower)
+          - forms[wanted] !== lower
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.word[0], m.indices!.groups!.word[1],
+          [plCaseLike(word, forms[wanted])], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          context: { start: m.index, end: m.index + m[0].length } })
       # A plural subject and its past form: men take "-li" ("studenci przyszli"), everyone and
       # everything else "-ły" ("dzieci przyszły"): "Dzieci byli tutaj" -> "były". The fixer resumes the
       # scan at the noun's end.
       - regex: "(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,}){{S}}{{BETWEEN}}(?<verb>\\p{Ll}{2,}(?:li|ły))(?![\\p{L}\\p{N}_'’@/-])(?<reflexive>{{S}}się)?"
         scan: polish
         flags: gdu
-        fixer: pluralSubjects
+        let:
+          _resumed: frame.resume!(m.index + noun.length)
+          lower: noun.toLowerCase()
+          tags: plNounTags(lower)
+          before: ctx.text.slice(Math.max(0, m.index - 40), m.index)
+        when:
+          - plOnlyNoun(tags) && tagsAnd(tags, plCases("Np")) !== 0 && !plUserOrNamed(ctx, noun + " " + verb)
+          - '!(/\p{Lu}/u.test(noun[0]) && !plSentenceStart(ctx.text, m.index))'
+          - "!SUBJECT_NOT_SUBJECT_BEFORE.test(before)"
+          # A man's plural that is no accusative or singular form ("studenci", "ludzie"; not "metry").
+          - >-
+            verb.endsWith("li") ? subjectVirileVerbFits(before, lower, tags, verb, reflexive)
+            : plMenOnlyPlural(lower) && !tagsAnd(tags, plCases("Ns Gs As Ap")) && subjectPluralPast(verb)
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1],
+          subjectOtherPlural(verb.toLowerCase()), "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          context: { start: m.index, end: m.indices!.groups!.verb[1] } })
       # "Pływanie nie są zdrowe": "są" after a singular subject opening its clause. The fixer
       # resumes the scan at the noun's end.
       - regex: "(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,}){{S}}(?:nie{{S}})?(?<verb>są)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
-        fixer: singularSubjects
+        let:
+          _resumed: frame.resume!(m.index + noun.length)
+          lower: noun.toLowerCase()
+          tags: plNounTags(lower)
+        when:
+          - '!(!plOnlyNoun(tags) || !tagsAnd(tags, plCases("Ns")) || tagsAnd(tags, PL_PLURAL) || /stwo$/u.test(lower))'
+          - SUBJECT_OPENS_CLAUSE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))
+          - "!plUserOrNamed(ctx, noun)"
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1], [],
+          "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          context: { start: m.index, end: m.indices!.groups!.verb[1] } })
       # "Większość (ludności kraju) było" -> "była": before "być" or "zostać", which take no object,
       # "większość" is the subject, a feminine singular.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:{{S}}\\p{L}+){0,3}?){{S}}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
-        fixer: majority
+        let:
+          words: 'between.match(/\p{L}+/gu) ?? []'
+          next: '/^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(m.index + m[0].length))?.[1]'
+        when:
+          # Only genitives between: "z nich", "ludności", "polskich miast".
+          - words.every((word) => subjectGenitive(word.toLowerCase()))
+          # "(Przez) większość czasu było zimno": a span of time before an impersonal predicate.
+          - "!SUBJECT_NOT_SUBJECT_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))"
+          - "!(next && /o$/u.test(next) && !plOnlyNoun(plNounTags(next.toLowerCase())))"
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1],
+          [plCaseLike(verb, verb.slice(0, -1) + "a")], "polishCaseAgreement", "review_msg_pl_subject_verb"),
+          context: { start: m.index, end: m.indices!.groups!.verb[1] } })
       # "będzie zrobić", "będzie zrobił", "zaczął napisać": the compound future's "być" and the phase
       # verbs take an imperfective infinitive.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*){{S}}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów){{S}}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
-        fixer: aspect
+        let:
+          future: /^będ/iu.test(aux)
+          lower: verb.toLowerCase()
+        when:
+          # The future takes an infinitive or a past form; the phase verbs only an infinitive.
+          - "!(!future && !/[ćc]$/u.test(verb))"
+          # "będzie dojrzały": a past form that is also an adjective is the predicate.
+          - "!(!/[ćc]$/u.test(lower) && (plAdjectiveOf(lower) || plNounTags(lower)))"
+          - "!(!plPerfectiveVerb(verb.toLowerCase()) || plUserOrNamed(ctx, verb))"
+          - "!(future && /[ćc]$/u.test(lower)) || aspectFutureFits(ctx, m)"
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1], [],
+          "polishCaseAgreement", "review_msg_pl_aspect"),
+          context: { start: m.index, end: m.indices!.groups!.verb[1] } })
       # "Nigdy tego zrobiłam", "Nikt przyszedł": a negative pronoun or adverb without "nie".
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic){{S}}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu){{S}}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
-        fixer: doubleNegation
+        when:
+          - plFiniteVerb(verb) || plPastByShape(verb)
+          - "!SUBJECT_NOT_NEGATING_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))"
+          - "!plUserOrNamed(ctx, verb)"
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.verb[0], m.indices!.groups!.verb[1], ["nie " + verb],
+          "polishCaseAgreement", "review_msg_pl_double_negation"),
+          context: { start: m.index, end: m.indices!.groups!.verb[1] } })
       # "Oficerowie byli nieobecne" -> "nieobecni", "Kobiety były zmęczeni" -> "zmęczone": a plural
       # "być" or "zostać" and the adjective that ends its clause.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?){{S}}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu){{S}})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0]))"
         scan: polish
         flags: gdiu
-        fixer: predicateAdjectives
+        let:
+          virileVerb: /li/u.test(verb.toLowerCase())
+          # A subject of the other gender before the verb ("Dzieci byli zmęczone"): the verb is what
+          # disagrees (pluralSubjects), not the adjective.
+          word: '/(\p{L}+)[ \t ]+$/u.exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1].toLowerCase() ?? ""'
+          subject: plNounTags(word)
+          fixes: "virileVerb ? predicateVirileFix(adj) : predicateOtherFix(adj)"
+        when:
+          - "!(tagsAnd(plNounTags(adj), PL_ALL_CASES) || plAmbiguousAdjective(adj) || plUserOrNamed(ctx, adj))"
+          # A thing's plural the lexicon also reads as men's ("praktyki", "powody") is no man's; a man's
+          # noun it does not mark ("kolarze") still has a man's shape.
+          - >-
+            !(plOnlyNoun(subject) && tagsAnd(subject, plCases("Np")) && (virileVerb
+            ? !(plMenOnlyPlural(word) || (tagsAnd(subject, PL_MASCULINE) && plMenPluralShape(word)))
+            : plMenOnlyPlural(word)))
+          - fixes !== null
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.adj[0], m.indices!.groups!.adj[1], fixes,
+          "polishCaseAgreement", "review_msg_pl_agreement"),
+          context: { start: m.index, end: m.indices!.groups!.adj[1] } })
       # "jakiś dziewczyn", "od jakiś kilku lat" -> "jakichś": the genitive or locative plural.
       - regex: "(?<![\\p{L}\\p{N}_'’@/-])(?<target>jakiś){{S}}(?<next>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])"
         scan: polish
         flags: gdiu
-        fixer: jakis
+        let:
+          tags: plNounTags(next.toLowerCase())
+        when:
+          - >-
+            SUBJECT_GENITIVE_COUNT.test(next.toLowerCase()) || (plOnlyNoun(tags) &&
+            tagsAnd(tags, SUBJECT_PLURAL_OBLIQUE) !== 0 && !tagsAnd(tags, SUBJECT_SINGULAR_DIRECT))
+          - "!plUserOrNamed(ctx, next)"
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1],
+          [plCaseLike(target, "jakichś")], "polishCaseAgreement", "review_msg_pl_agreement"),
+          context: { start: m.index, end: m.index + m[0].length } })
   - id: pl.typosFrames
     checks: [englishPhraseCorrections]
     style: polish

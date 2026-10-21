@@ -22388,7 +22388,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/-])(?<pronoun>on|ona)[ \\t\\u00a0]{1,8}(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{2,}ł(?<fem>a)?)(?![\\p{L}\\p{N}_'’@/-])",
     literals: [],
-    fixer: "pl:pronounGender",
+    fixer: "pl:@pl.subjects/1",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -22396,7 +22396,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<verb>\\p{L}{3,}ł(?<fem>a)?)[ \\t\\u00a0]{1,8}(?<pronoun>on|ona)(?![\\p{L}\\p{N}_'’@/-])",
     literals: [],
-    fixer: "pl:pronounGender",
+    fixer: "pl:@pl.subjects/2",
     flags: "gdu",
     scan: "polish",
   }),
@@ -22404,7 +22404,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>został|została|zostało|zostały)[ \\t\\u00a0]{1,8}(?<word>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["został", "została", "zostało", "zostały"],
-    fixer: "pl:zostacAgreement",
+    fixer: "pl:@pl.subjects/3",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -22412,7 +22412,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=\\p{L})(?<=(?:^|[.!?…:;][\"”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<word>\\p{L}{3,})[ \\t\\u00a0]{1,8}(?<aux>został|została|zostało|zostały)(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["został", "została", "zostało", "zostały"],
-    fixer: "pl:zostacAgreement",
+    fixer: "pl:@pl.subjects/4",
     flags: "gdu",
     scan: "polish",
   }),
@@ -22420,7 +22420,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,})[ \\t\\u00a0]{1,8}(?:(?:się|nie|już|też|także|również|wtedy|wczoraj|dziś|zawsze|nigdy|jednak|często|szybko|nagle|wreszcie|tylko)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{Ll}{2,}(?:li|ły))(?![\\p{L}\\p{N}_'’@/-])(?<reflexive>[ \\t\\u00a0]{1,8}się)?",
     literals: [],
-    fixer: "pl:pluralSubjects",
+    fixer: "pl:@pl.subjects/5",
     flags: "gdu",
     scan: "polish",
   }),
@@ -22428,7 +22428,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/.-])(?<noun>\\p{L}{3,})[ \\t\\u00a0]{1,8}(?:nie[ \\t\\u00a0]{1,8})?(?<verb>są)(?![\\p{L}\\p{N}_'’@/-])",
     literals: [],
-    fixer: "pl:singularSubjects",
+    fixer: "pl:@pl.subjects/6",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -22436,7 +22436,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/-])większość(?<between>(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,3}?)[ \\t\\u00a0]{1,8}(?<verb>było|zostało|pozostało)(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["większość"],
-    fixer: "pl:majority",
+    fixer: "pl:@pl.subjects/7",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -22444,7 +22444,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/-])(?<aux>będ(?:ę|ziesz|zie|ziemy|ziecie|ą)|zacz(?:ął|ęła|ęło|ęli|ęły|nę|niesz|nie|niemy|niecie|ną)|zaczyna\\p{L}*|przesta\\p{L}*|przestanie|kończy\\p{L}*|skończy\\p{L}*)[ \\t\\u00a0]{1,8}(?:(?:się|nie|to|go|ją|je|mu|mi|jej|im|ci|już|znowu|znów)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{4,})(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["będ", "zacz", "zaczyna", "przesta", "przestanie", "kończy", "skończy"],
-    fixer: "pl:aspect",
+    fixer: "pl:@pl.subjects/8",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -22452,7 +22452,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/-])(?<neg>nigdy|nikt|nikogo|nikomu|niczego|nigdzie|nic)[ \\t\\u00a0]{1,8}(?:(?:tego|to|go|ją|je|mu|mi|jej|im|nam|wam|ci|się|już|tam|tu)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["nigdy", "nikt", "nikogo", "nikomu", "niczego", "nigdzie", "nic"],
-    fixer: "pl:doubleNegation",
+    fixer: "pl:@pl.subjects/9",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -22460,7 +22460,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/-])(?<verb>(?:by|zosta)(?:li|ły)(?:śmy|ście)?)[ \\t\\u00a0]{1,8}(?:(?:bardzo|już|nadal|wciąż|też|także|również|zawsze|naprawdę|zbyt|całkiem|zupełnie|wtedy|tam|tu)[ \\t\\u00a0]{1,8})?(?<adj>\\p{L}{4,})(?=[ \\t\\u00a0]{0,8}(?:[.,;:!?…)]|$|(?:i|oraz|a|ale)[ \\t\\u00a0]))",
     literals: [],
-    fixer: "pl:predicateAdjectives",
+    fixer: "pl:@pl.subjects/10",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -22468,7 +22468,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/-])(?<target>jakiś)[ \\t\\u00a0]{1,8}(?<next>\\p{L}{3,})(?![\\p{L}\\p{N}_'’@/-])",
     literals: ["jakiś"],
-    fixer: "pl:jakis",
+    fixer: "pl:@pl.subjects/11",
     flags: "gdiu",
     scan: "polish",
   }),
