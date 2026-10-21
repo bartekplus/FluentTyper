@@ -80,7 +80,10 @@ export async function readLibrary(): Promise<Library> {
       if (!map.has(name)) map.set(name, from);
     };
     for (const m of text.matchAll(/export\s+(type\s+)?\{([^}]*)\}/g))
-      for (const name of names(m[2])) set(m[1] ? types : values, name);
+      for (const name of names(m[2]))
+        // An inline `type` marks one name of the list as a type: export { a, type B }.
+        if (name.startsWith("type ")) set(types, name.slice(5).trim());
+        else set(m[1] ? types : values, name);
     for (const m of text.matchAll(/export\s+(?:type|interface)\s+([A-Za-z_$][\w$]*)/g))
       set(types, m[1]);
     for (const m of text.matchAll(/export\s+(?:const|function|class)\s+([A-Za-z_$][\w$]*)/g))

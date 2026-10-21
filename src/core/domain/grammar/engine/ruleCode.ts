@@ -138,10 +138,9 @@ export interface CodeScope {
 
 type Expand = (source: string, where: string) => string;
 
-/** The names of a file: `known` may be read; `taken` are defined by the file, common.yaml or the library. */
+/** The names an expression of a file may read: its own, common.yaml's and the library's. */
 export interface Names {
   readonly known: (name: string) => boolean;
-  readonly taken: (name: string) => boolean;
 }
 
 /**
@@ -263,7 +262,7 @@ export function fileCode(
     (name !== "common" && scope.shared.has(ref)) ||
     !!scope.library?.has(ref);
   // Without the library's names any other name may be one of them: the type checker decides.
-  const fileNames: Names = { known: (ref) => taken(ref) || !scope.library, taken };
+  const fileNames: Names = { known: (ref) => taken(ref) || !scope.library };
   const defs: DefCode[] = [];
   for (const [at, key, spec] of specs) {
     const where = `${at} def ${key}`;
