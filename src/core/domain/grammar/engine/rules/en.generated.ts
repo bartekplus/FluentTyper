@@ -31,6 +31,7 @@ import {
   enListedNoun,
   enListedWithoutPlural,
   enNextWord,
+  enReadThrough,
   enRuleFindings,
   enWordKey,
   enWordsAround,
@@ -44,7 +45,6 @@ import {
   hasUserOrCasedWord,
   hasVerbForm,
   lastNonBlankBefore,
-  memoize,
   namedExampleBefore,
   phraseRows,
   remember,
@@ -2558,169 +2558,6 @@ export const COMPOUND_NOUN_HEADS: ReadonlySet<string> = new Set([
 
 export const COMPOUND_ARTICLE_HEADS: ReadonlySet<string> = new Set(["back", "chin"]);
 
-export const COMPOUND_HYPHENED_MODIFIERS: ReadonlySet<string> = new Set([
-  "end to end",
-  "day to day",
-  "month to month",
-  "year to year",
-  "step by step",
-  "door to door",
-  "face to face",
-  "head to head",
-  "back to back",
-  "peer to peer",
-  "person to person",
-  "point to point",
-  "one to one",
-  "one to many",
-  "many to many",
-  "up to date",
-  "state of the art",
-  "straight up",
-  "for profit",
-  "not for profit",
-  "much needed",
-  "long awaited",
-  "long established",
-  "long standing",
-  "long lasting",
-  "short lived",
-  "long lived",
-  "life changing",
-  "life saving",
-  "life threatening",
-  "time consuming",
-  "mind blowing",
-  "eye catching",
-  "record breaking",
-  "award winning",
-  "best selling",
-  "fast growing",
-  "never ending",
-  "so called",
-  "all knowing",
-  "all seeing",
-  "all powerful",
-  "all inclusive",
-  "all encompassing",
-  "all natural",
-  "all new",
-  "go to",
-  "go to market",
-  "easy to use",
-  "easy to understand",
-  "easy to read",
-  "easy to learn",
-  "easy to install",
-  "easy to follow",
-  "simple to use",
-  "hard to find",
-  "hard to use",
-  "difficult to use",
-  "ready to use",
-  "all time",
-  "million dollar",
-  "billion dollar",
-  "multi million dollar",
-  "second largest",
-  "third largest",
-  "fourth largest",
-  "fifth largest",
-  "second biggest",
-  "third biggest",
-  "second highest",
-  "second best",
-  "third best",
-  "out of the way",
-  "out of the box",
-  "out of place",
-  "off the shelf",
-  "one of a kind",
-  "last minute",
-  "long term",
-  "short term",
-  "well known",
-  "high quality",
-  "low cost",
-  "real time",
-  "open source",
-  "first class",
-  "second hand",
-  "full scale",
-  "large scale",
-  "small scale",
-  "world class",
-  "top notch",
-  "high level",
-  "low level",
-  "high end",
-  "low end",
-  "old fashioned",
-  "user friendly",
-  "above mentioned",
-  "tailor made",
-  "even handed",
-  "read only",
-  "ill advised",
-  "well meaning",
-  "well established",
-  "brand new",
-  "first hand",
-  "duty free",
-  "tax free",
-  "heavy duty",
-  "cut throat",
-  "do or die",
-  "wall to wall",
-  "coast to coast",
-  "out of body",
-  "rags to riches",
-  "mom and pop",
-  "hand to hand",
-  "fly by night",
-  "card carrying",
-  "cooling off",
-  "cut and paste",
-  "bug eyed",
-  "dual purpose",
-  "knife edge",
-  "follow on",
-  "new look",
-  "down and out",
-  "brick red",
-  "full time",
-  "part time",
-  "open ended",
-  "hard working",
-  "good looking",
-  "middle aged",
-  "left handed",
-  "right handed",
-  "long distance",
-  "long range",
-  "short range",
-  "high speed",
-  "high risk",
-  "low risk",
-  "last ditch",
-  "far reaching",
-  "single use",
-]);
-
-export const COMPOUND_HYPHENED_NOUNS: ReadonlySet<string> = new Set([
-  "all in one",
-  "one off",
-  "catch all",
-  "know it all",
-  "do it yourself",
-  "drive through",
-  "about face",
-  "post it",
-  "zero day",
-  "no go",
-  "hands on",
-]);
-
 export const FIXED_CONFORM: Readonly<Record<string, string>> = {
   conform: "confirm",
   conforms: "confirms",
@@ -2810,6 +2647,177 @@ export const REM_BE_FOR: Readonly<Record<string, string>> = {
   he: "is",
   she: "is",
   it: "is",
+};
+
+export const COMPOUND_ARTICLE_MODIFIERS: Readonly<Record<string, string>> = {
+  "end to end": "end-to-end",
+  "day to day": "day-to-day",
+  "month to month": "month-to-month",
+  "year to year": "year-to-year",
+  "step by step": "step-by-step",
+  "door to door": "door-to-door",
+  "face to face": "face-to-face",
+  "head to head": "head-to-head",
+  "back to back": "back-to-back",
+  "peer to peer": "peer-to-peer",
+  "person to person": "person-to-person",
+  "point to point": "point-to-point",
+  "one to one": "one-to-one",
+  "one to many": "one-to-many",
+  "many to many": "many-to-many",
+  "up to date": "up-to-date",
+  "state of the art": "state-of-the-art",
+  "straight up": "straight-up",
+  "for profit": "for-profit",
+  "not for profit": "not-for-profit",
+  "much needed": "much-needed",
+  "long awaited": "long-awaited",
+  "long established": "long-established",
+  "long standing": "long-standing",
+  "long lasting": "long-lasting",
+  "short lived": "short-lived",
+  "long lived": "long-lived",
+  "life changing": "life-changing",
+  "life saving": "life-saving",
+  "life threatening": "life-threatening",
+  "time consuming": "time-consuming",
+  "mind blowing": "mind-blowing",
+  "eye catching": "eye-catching",
+  "record breaking": "record-breaking",
+  "award winning": "award-winning",
+  "best selling": "best-selling",
+  "fast growing": "fast-growing",
+  "never ending": "never-ending",
+  "so called": "so-called",
+  "all knowing": "all-knowing",
+  "all seeing": "all-seeing",
+  "all powerful": "all-powerful",
+  "all inclusive": "all-inclusive",
+  "all encompassing": "all-encompassing",
+  "all natural": "all-natural",
+  "all new": "all-new",
+  "go to": "go-to",
+  "go to market": "go-to-market",
+  "easy to use": "easy-to-use",
+  "easy to understand": "easy-to-understand",
+  "easy to read": "easy-to-read",
+  "easy to learn": "easy-to-learn",
+  "easy to install": "easy-to-install",
+  "easy to follow": "easy-to-follow",
+  "simple to use": "simple-to-use",
+  "hard to find": "hard-to-find",
+  "hard to use": "hard-to-use",
+  "difficult to use": "difficult-to-use",
+  "ready to use": "ready-to-use",
+  "all time": "all-time",
+  "million dollar": "million-dollar",
+  "billion dollar": "billion-dollar",
+  "multi million dollar": "multi-million-dollar",
+  "second largest": "second-largest",
+  "third largest": "third-largest",
+  "fourth largest": "fourth-largest",
+  "fifth largest": "fifth-largest",
+  "second biggest": "second-biggest",
+  "third biggest": "third-biggest",
+  "second highest": "second-highest",
+  "second best": "second-best",
+  "third best": "third-best",
+  "out of the way": "out-of-the-way",
+  "out of the box": "out-of-the-box",
+  "out of place": "out-of-place",
+  "off the shelf": "off-the-shelf",
+  "one of a kind": "one-of-a-kind",
+  "last minute": "last-minute",
+  "long term": "long-term",
+  "short term": "short-term",
+  "well known": "well-known",
+  "high quality": "high-quality",
+  "low cost": "low-cost",
+  "real time": "real-time",
+  "open source": "open-source",
+  "first class": "first-class",
+  "second hand": "second-hand",
+  "full scale": "full-scale",
+  "large scale": "large-scale",
+  "small scale": "small-scale",
+  "world class": "world-class",
+  "top notch": "top-notch",
+  "high level": "high-level",
+  "low level": "low-level",
+  "high end": "high-end",
+  "low end": "low-end",
+  "old fashioned": "old-fashioned",
+  "user friendly": "user-friendly",
+  "above mentioned": "above-mentioned",
+  "tailor made": "tailor-made",
+  "even handed": "even-handed",
+  "read only": "read-only",
+  "ill advised": "ill-advised",
+  "well meaning": "well-meaning",
+  "well established": "well-established",
+  "brand new": "brand-new",
+  "first hand": "first-hand",
+  "duty free": "duty-free",
+  "tax free": "tax-free",
+  "heavy duty": "heavy-duty",
+  "cut throat": "cut-throat",
+  "do or die": "do-or-die",
+  "wall to wall": "wall-to-wall",
+  "coast to coast": "coast-to-coast",
+  "out of body": "out-of-body",
+  "rags to riches": "rags-to-riches",
+  "mom and pop": "mom-and-pop",
+  "hand to hand": "hand-to-hand",
+  "fly by night": "fly-by-night",
+  "card carrying": "card-carrying",
+  "cooling off": "cooling-off",
+  "cut and paste": "cut-and-paste",
+  "bug eyed": "bug-eyed",
+  "dual purpose": "dual-purpose",
+  "knife edge": "knife-edge",
+  "follow on": "follow-on",
+  "new look": "new-look",
+  "down and out": "down-and-out",
+  "brick red": "brick-red",
+  "full time": "full-time",
+  "part time": "part-time",
+  "open ended": "open-ended",
+  "hard working": "hard-working",
+  "good looking": "good-looking",
+  "middle aged": "middle-aged",
+  "left handed": "left-handed",
+  "right handed": "right-handed",
+  "long distance": "long-distance",
+  "long range": "long-range",
+  "short range": "short-range",
+  "high speed": "high-speed",
+  "high risk": "high-risk",
+  "low risk": "low-risk",
+  "last ditch": "last-ditch",
+  "far reaching": "far-reaching",
+  "single use": "single-use",
+  "life long": "lifelong",
+  "under cover": "undercover",
+  "out going": "outgoing",
+  "on board": "onboard",
+};
+
+export const COMPOUND_ARTICLE_NOUNS: Readonly<Record<string, string>> = {
+  "all in one": "all-in-one",
+  "one off": "one-off",
+  "catch all": "catch-all",
+  "know it all": "know-it-all",
+  "do it yourself": "do-it-yourself",
+  "drive through": "drive-through",
+  "about face": "about-face",
+  "post it": "post-it",
+  "zero day": "zero-day",
+  "no go": "no-go",
+  "hands on": "hands-on",
+  "home work": "homework",
+  "drive way": "driveway",
+  "check box": "checkbox",
+  "over use": "overuse",
 };
 
 export const COMPOUND_PHRASAL_NOUNS: Readonly<Record<string, readonly string[]>> = {
@@ -4115,12 +4123,34 @@ export function confOpenDevice(
 
 // en.yaml rule en.confusedWords def CONF_HANDLERS
 export const CONF_HANDLERS = {
-  ...Object.fromEntries(Object.keys(CONF_NOUN_FOR_VERB).map((w) => [w, confNounForVerb])),
-  ...Object.fromEntries(Object.keys(CONF_VERB_FOR_NOUN).map((w) => [w, confVerbForNoun])),
-  ...Object.fromEntries(Object.keys(CONF_BE_ADJECTIVE).map((w) => [w, confBeAdjective])),
-  ...Object.fromEntries(Object.keys(CONF_BRAND).map((w) => [w, confBrandish])),
-  ...Object.fromEntries(Object.keys(CONF_DENY).map((w) => [w, confDeny])),
-  ...Object.fromEntries(Object.keys(CONF_TURN).map((w) => [w, confOpenDevice])),
+  advice: confNounForVerb,
+  belief: confNounForVerb,
+  breath: confNounForVerb,
+  intent: confNounForVerb,
+  emphasis: confNounForVerb,
+  response: confNounForVerb,
+  thing: confNounForVerb,
+  advise: confVerbForNoun,
+  believe: confVerbForNoun,
+  breathe: confVerbForNoun,
+  intend: confVerbForNoun,
+  bias: confBeAdjective,
+  concern: confBeAdjective,
+  prejudice: confBeAdjective,
+  worry: confBeAdjective,
+  shock: confBeAdjective,
+  brandish: confBrandish,
+  brandishes: confBrandish,
+  brandished: confBrandish,
+  brandishing: confBrandish,
+  deny: confDeny,
+  denies: confDeny,
+  denied: confDeny,
+  denying: confDeny,
+  open: confOpenDevice,
+  opens: confOpenDevice,
+  opened: confOpenDevice,
+  opening: confOpenDevice,
   effect: confEffect,
   effects: confEffect,
   affect: confAffect,
@@ -5433,14 +5463,26 @@ export const STYLE2_IT_TIME_LEAD =
 export const STYLE2_EXISTENTIAL_LEAD =
   /\b(?:if|when|that|which|because|and|but|so|where|whether)[ \t ]+$/i;
 
+// en.yaml rule en.irregularWordForms def LEXICAL_INFO
+export const LEXICAL_INFO = new Map<string, ReturnType<typeof englishWordInfo>>();
+
 // en.yaml rule en.irregularWordForms def lexInfoOf
-export const lexInfoOf = memoize(englishWordInfo, 20000);
+export function lexInfoOf(w: string) {
+  return enReadThrough(LEXICAL_INFO, w, englishWordInfo, 20000);
+}
+
+// en.yaml rule en.irregularWordForms def LEXICAL_KNOWN
+export const LEXICAL_KNOWN = new Map<string, boolean>();
 
 // en.yaml rule en.irregularWordForms def lexKnownOf
-export const lexKnownOf = memoize(
-  (w: string) => LEXICAL_FUNCTION_WORDS.has(w) || !!lexInfoOf(w) || enListedNoun(w) !== null,
-  20000,
-);
+export function lexKnownOf(w: string) {
+  return enReadThrough(LEXICAL_KNOWN, w, lexKnownRead, 20000);
+}
+
+// en.yaml rule en.irregularWordForms def lexKnownRead
+export function lexKnownRead(w: string) {
+  return LEXICAL_FUNCTION_WORDS.has(w) || !!lexInfoOf(w) || enListedNoun(w) !== null;
+}
 
 // en.yaml rule en.irregularWordForms def lexInfo
 export function lexInfo(word: string) {
@@ -5472,34 +5514,45 @@ export function lexContext(ctx: DetectContext, start: number, end: number) {
 }
 
 // en.yaml rule en.irregularWordForms def LEXICAL_REGULAR_PASTS
-export const LEXICAL_REGULAR_PASTS = new Map(
-  EN_VERB_FORMS.flatMap((verb) =>
-    [
-      `${verb.lemma}ed`,
-      verb.lemma.endsWith("e") ? `${verb.lemma}d` : "",
-      /[^aeiou][aeiou][b-df-hj-np-tv-z]$/.test(verb.lemma)
-        ? `${verb.lemma}${verb.lemma.at(-1)}ed`
-        : "",
-    ]
-      .filter(
-        (form) =>
-          form &&
-          !LEXICAL_VALID_VARIANTS.has(form) &&
-          form !== verb.past &&
-          form !== verb.participle,
-      )
-      .map((form) => [form, verb] as const),
-  ),
-);
+export const LEXICAL_REGULAR_PASTS = new Map<string, (typeof EN_VERB_FORMS)[number]>();
+
+// en.yaml rule en.irregularWordForms def lexRegularPasts
+export function lexRegularPasts(table: typeof LEXICAL_REGULAR_PASTS) {
+  return table.size
+    ? table
+    : EN_VERB_FORMS.flatMap((verb) =>
+        [
+          `${verb.lemma}ed`,
+          verb.lemma.endsWith("e") ? `${verb.lemma}d` : "",
+          /[^aeiou][aeiou][b-df-hj-np-tv-z]$/.test(verb.lemma)
+            ? `${verb.lemma}${verb.lemma.at(-1)}ed`
+            : "",
+        ]
+          .filter(
+            (form) =>
+              form &&
+              !LEXICAL_VALID_VARIANTS.has(form) &&
+              form !== verb.past &&
+              form !== verb.participle,
+          )
+          .map((form) => [form, verb] as const),
+      ).reduce((map, [form, verb]) => map.set(form, verb), table);
+}
 
 // en.yaml rule en.irregularWordForms def LEXICAL_REGULAR_PLURALS
-export const LEXICAL_REGULAR_PLURALS = new Map(
-  [...LEXICAL_IRREGULAR_NOUNS]
-    .map((singular) => [singular, englishNounForms(singular)] as const)
-    .flatMap(([singular, forms]) =>
-      forms ? [[singular + "s", forms] as const, [singular + "es", forms] as const] : [],
-    ),
-);
+export const LEXICAL_REGULAR_PLURALS = new Map<string, { singular: string; plural: string }>();
+
+// en.yaml rule en.irregularWordForms def lexRegularPlurals
+export function lexRegularPlurals(table: typeof LEXICAL_REGULAR_PLURALS) {
+  return table.size
+    ? table
+    : [...LEXICAL_IRREGULAR_NOUNS]
+        .map((singular) => [singular, englishNounForms(singular)] as const)
+        .flatMap(([singular, forms]) =>
+          forms ? [[singular + "s", forms] as const, [singular + "es", forms] as const] : [],
+        )
+        .reduce((map, [form, forms]) => map.set(form, forms), table);
+}
 
 // en.yaml rule en.irregularWordForms def LEXICAL_PARTICIPLE_BEFORE
 export const LEXICAL_PARTICIPLE_BEFORE =
@@ -5512,7 +5565,7 @@ export const LEXICAL_VERB_BEFORE =
 // en.yaml rule en.irregularWordForms def lexIrregularFor
 export function lexIrregularFor(word: string, before: string): string[] | null {
   const w = word.toLowerCase();
-  const verb = LEXICAL_REGULAR_PASTS.get(w);
+  const verb = lexRegularPasts(LEXICAL_REGULAR_PASTS).get(w);
   return verb ? lexIrregularPast(w, verb, before) : lexIrregularPlural(word, w, before);
 }
 
@@ -5534,7 +5587,7 @@ export function lexIrregularPlural(word: string, w: string, before: string) {
 export function lexPluralCut(w: string, cut: number, last: number): number {
   return cut > last
     ? -1
-    : LEXICAL_REGULAR_PLURALS.has(w.slice(cut))
+    : lexRegularPlurals(LEXICAL_REGULAR_PLURALS).has(w.slice(cut))
       ? cut
       : lexPluralCut(w, cut + 1, last);
 }
@@ -5549,7 +5602,7 @@ export function lexListed(w: string, singular: string) {
 
 // en.yaml rule en.irregularWordForms def lexTablePlural
 export function lexTablePlural(w: string, cut: number) {
-  const forms = LEXICAL_REGULAR_PLURALS.get(w.slice(cut))!;
+  const forms = lexRegularPlurals(LEXICAL_REGULAR_PLURALS).get(w.slice(cut))!;
   const head = w.slice(0, cut);
   const singular = head + forms.singular;
   return lexListed(w, singular) ? null : [head + forms.plural, `${singular}'s`];
@@ -6114,9 +6167,16 @@ export const COMPOUND_PREMODIFIER =
   /^(?:first|second|third|final|last|next|quick|big|small|major|minor|huge|brief|daily|weekly|monthly|annual|usual|regular|complete|full|proper|good|great|real|official|early|late|short|long|new|old|initial|informal|formal|official|massive|total)$/i;
 
 // en.yaml rule en.compoundForms def COMPOUND_VERB_FORMS
-export const COMPOUND_VERB_FORMS = new Map(
-  Object.entries(COMPOUND_VERBS).flatMap(([typed, joined]) => compoundVerbForms(typed, joined)),
-);
+export const COMPOUND_VERB_FORMS = new Map<string, readonly [string, string]>();
+
+// en.yaml rule en.compoundForms def compoundVerbFormMap
+export function compoundVerbFormMap(table: typeof COMPOUND_VERB_FORMS) {
+  return table.size
+    ? table
+    : Object.entries(COMPOUND_VERBS)
+        .flatMap(([typed, joined]) => compoundVerbForms(typed, joined))
+        .reduce((map, [typed, entry]) => map.set(typed, entry), table);
+}
 
 // en.yaml rule en.compoundForms def compoundVerbForms
 export function compoundVerbForms(
@@ -6143,26 +6203,6 @@ export function compoundVerbForms(
 // en.yaml rule en.compoundForms def COMPOUND_TO_OBJECT
 export const COMPOUND_TO_OBJECT =
   /^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|everything|something|anything|someone|everyone|today|tomorrow|now|again|yet|before|online|myself|yourself|himself|herself|ourselves|themselves)$/i;
-
-// en.yaml rule en.compoundForms def COMPOUND_ARTICLE_MODIFIERS
-export const COMPOUND_ARTICLE_MODIFIERS = {
-  ...Object.fromEntries(
-    [...COMPOUND_HYPHENED_MODIFIERS].map((key) => [key, key.replaceAll(" ", "-")]),
-  ),
-  "life long": "lifelong",
-  "under cover": "undercover",
-  "out going": "outgoing",
-  "on board": "onboard",
-} as Readonly<Record<string, string>>;
-
-// en.yaml rule en.compoundForms def COMPOUND_ARTICLE_NOUNS
-export const COMPOUND_ARTICLE_NOUNS = {
-  ...Object.fromEntries([...COMPOUND_HYPHENED_NOUNS].map((key) => [key, key.replaceAll(" ", "-")])),
-  "home work": "homework",
-  "drive way": "driveway",
-  "check box": "checkbox",
-  "over use": "overuse",
-} as Readonly<Record<string, string>>;
 
 // en.yaml rule en.compoundForms def COMPOUND_NOT_NOUN
 export const COMPOUND_NOT_NOUN =
@@ -6767,7 +6807,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       irregular &&
       owned &&
       (w.endsWith("ed")
-        ? LEXICAL_REGULAR_PASTS.has(w)
+        ? lexRegularPasts(LEXICAL_REGULAR_PASTS).has(w)
         : w.length > 3 && w.endsWith("s") && !lexInfoOf(w));
     const neighbour =
       unknown || regular ? undefined : lexWordBeforeSpace(ctx.scanText, index, prior);
@@ -7491,7 +7531,9 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const have = m.groups!.have;
     const be = m.groups!.be;
     const target = m.groups!.target;
-    const entry = COMPOUND_VERB_FORMS.get(target.toLowerCase().split(/\s+/).join(" "));
+    const entry = compoundVerbFormMap(COMPOUND_VERB_FORMS).get(
+      target.toLowerCase().split(/\s+/).join(" "),
+    );
     if (!entry) return null;
     const third = /^(?:he|she)$/i.test(subject ?? "");
     const ok =

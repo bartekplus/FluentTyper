@@ -93,3 +93,5 @@ export {
   useRuleDetectors as enUseRuleDetectors,
 } from "./english/views";
 export type { ViewSwap as EnViewSwap } from "./english/views";
+// Group 5: a read through a cache that a rule file keeps (library/english/cache.ts).
+export { readThrough as enReadThrough } from "./english/cache";

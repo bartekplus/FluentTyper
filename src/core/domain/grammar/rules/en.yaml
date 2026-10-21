@@ -1782,12 +1782,12 @@ rules:
       # The handler of each target word.
       CONF_HANDLERS: >-
         ({
-          ...Object.fromEntries(Object.keys(CONF_NOUN_FOR_VERB).map((w) => [w, confNounForVerb])),
-          ...Object.fromEntries(Object.keys(CONF_VERB_FOR_NOUN).map((w) => [w, confVerbForNoun])),
-          ...Object.fromEntries(Object.keys(CONF_BE_ADJECTIVE).map((w) => [w, confBeAdjective])),
-          ...Object.fromEntries(Object.keys(CONF_BRAND).map((w) => [w, confBrandish])),
-          ...Object.fromEntries(Object.keys(CONF_DENY).map((w) => [w, confDeny])),
-          ...Object.fromEntries(Object.keys(CONF_TURN).map((w) => [w, confOpenDevice])),
+          advice: confNounForVerb, belief: confNounForVerb, breath: confNounForVerb, intent: confNounForVerb, emphasis: confNounForVerb, response: confNounForVerb, thing: confNounForVerb,
+          advise: confVerbForNoun, believe: confVerbForNoun, breathe: confVerbForNoun, intend: confVerbForNoun,
+          bias: confBeAdjective, concern: confBeAdjective, prejudice: confBeAdjective, worry: confBeAdjective, shock: confBeAdjective,
+          brandish: confBrandish, brandishes: confBrandish, brandished: confBrandish, brandishing: confBrandish,
+          deny: confDeny, denies: confDeny, denied: confDeny, denying: confDeny,
+          open: confOpenDevice, opens: confOpenDevice, opened: confOpenDevice, opening: confOpenDevice,
           effect: confEffect, effects: confEffect, affect: confAffect, affects: confAffect,
           safe: confSafe, weight: confWeight, bough: confBough, fell: confFell, quiet: confQuiet, find: confFind,
           hop: confHop, hops: confHop, hope: confHop, hopes: confHop, hoped: confHop, hoping: confHop,
@@ -5299,11 +5299,19 @@ rules:
           "ad infinitum",
         ]
     defs:
-      # Memoized: the same words recur, and a lexicon lookup tries every affix rule.
-      lexInfoOf: memoize(englishWordInfo, 20000)
+      # Read through a cache: the same words recur, and a lexicon lookup tries every affix rule.
+      LEXICAL_INFO: "new Map<string, ReturnType<typeof englishWordInfo>>()"
+      lexInfoOf:
+        args: "w: string"
+        return: enReadThrough(LEXICAL_INFO, w, englishWordInfo, 20000)
       # A word the lexicon knows (lowercase): the word check asks this for each word.
-      lexKnownOf: >-
-        memoize((w: string) => LEXICAL_FUNCTION_WORDS.has(w) || !!lexInfoOf(w) || enListedNoun(w) !== null, 20000)
+      LEXICAL_KNOWN: "new Map<string, boolean>()"
+      lexKnownOf:
+        args: "w: string"
+        return: enReadThrough(LEXICAL_KNOWN, w, lexKnownRead, 20000)
+      lexKnownRead:
+        args: "w: string"
+        return: LEXICAL_FUNCTION_WORDS.has(w) || !!lexInfoOf(w) || enListedNoun(w) !== null
       lexInfo:
         args: "word: string"
         return: lexInfoOf(word.toLowerCase())
@@ -5325,18 +5333,26 @@ rules:
       lexContext:
         args: "ctx: DetectContext, start: number, end: number"
         return: "({ start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 40) })"
-      # The regular pasts of the irregular verbs, with their verb.
-      LEXICAL_REGULAR_PASTS: >-
-        new Map(EN_VERB_FORMS.flatMap((verb) =>
+      # The regular pasts of the irregular verbs, with their verb (filled on first use).
+      LEXICAL_REGULAR_PASTS: "new Map<string, (typeof EN_VERB_FORMS)[number]>()"
+      lexRegularPasts:
+        args: "table: typeof LEXICAL_REGULAR_PASTS"
+        return: >-
+          table.size ? table : EN_VERB_FORMS.flatMap((verb) =>
           [`${verb.lemma}ed`, verb.lemma.endsWith("e") ? `${verb.lemma}d` : "",
             /[^aeiou][aeiou][b-df-hj-np-tv-z]$/.test(verb.lemma) ? `${verb.lemma}${verb.lemma.at(-1)}ed` : ""]
             .filter((form) => form && !LEXICAL_VALID_VARIANTS.has(form) && form !== verb.past && form !== verb.participle)
-            .map((form) => [form, verb] as const)))
-      # The regular plurals of the irregular nouns, with their forms.
-      LEXICAL_REGULAR_PLURALS: >-
-        new Map([...LEXICAL_IRREGULAR_NOUNS]
-          .map((singular) => [singular, englishNounForms(singular)] as const)
-          .flatMap(([singular, forms]) => forms ? [[singular + "s", forms] as const, [singular + "es", forms] as const] : []))
+            .map((form) => [form, verb] as const))
+            .reduce((map, [form, verb]) => map.set(form, verb), table)
+      # The regular plurals of the irregular nouns, with their forms (filled on first use).
+      LEXICAL_REGULAR_PLURALS: "new Map<string, { singular: string; plural: string }>()"
+      lexRegularPlurals:
+        args: "table: typeof LEXICAL_REGULAR_PLURALS"
+        return: >-
+          table.size ? table : [...LEXICAL_IRREGULAR_NOUNS]
+            .map((singular) => [singular, englishNounForms(singular)] as const)
+            .flatMap(([singular, forms]) => forms ? [[singular + "s", forms] as const, [singular + "es", forms] as const] : [])
+            .reduce((map, [form, forms]) => map.set(form, forms), table)
       LEXICAL_PARTICIPLE_BEFORE: '/(?:^|[^\p{L}])(?:have|has|had|having|[''’]ve|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t\u00a0]+(?:(?:not|never|already|just|also|all|now)[ \t\u00a0]+)?$/iu'
       # A past needs its subject or auxiliary right before it: "I eated", "had runned", "and
       # drinked". "malformed finded constructions" only names the word.
@@ -5347,7 +5363,7 @@ rules:
         type: "string[] | null"
         let:
           w: word.toLowerCase()
-          verb: LEXICAL_REGULAR_PASTS.get(w)
+          verb: lexRegularPasts(LEXICAL_REGULAR_PASTS).get(w)
         return: "verb ? lexIrregularPast(w, verb, before) : lexIrregularPlural(word, w, before)"
       lexIrregularPast:
         args: "w: string, verb: (typeof EN_VERB_FORMS)[number], before: string"
@@ -5367,7 +5383,7 @@ rules:
       lexPluralCut:
         args: "w: string, cut: number, last: number"
         type: number
-        return: "cut > last ? -1 : LEXICAL_REGULAR_PLURALS.has(w.slice(cut)) ? cut : lexPluralCut(w, cut + 1, last)"
+        return: "cut > last ? -1 : lexRegularPlurals(LEXICAL_REGULAR_PLURALS).has(w.slice(cut)) ? cut : lexPluralCut(w, cut + 1, last)"
       # The dictionary's own -s plural ("shamans") is no error; "meatloafs" is, as "meatloaf" is
       # listed without one.
       lexListed:
@@ -5376,7 +5392,7 @@ rules:
       lexTablePlural:
         args: "w: string, cut: number"
         let:
-          forms: LEXICAL_REGULAR_PLURALS.get(w.slice(cut))!
+          forms: lexRegularPlurals(LEXICAL_REGULAR_PLURALS).get(w.slice(cut))!
           head: w.slice(0, cut)
           singular: head + forms.singular
         return: "lexListed(w, singular) ? null : [head + forms.plural, `${singular}'s`]"
@@ -5510,7 +5526,7 @@ rules:
           owned: index >= ctx.from && index < ctx.to
           regular: >-
             irregular && owned
-            && (w.endsWith("ed") ? LEXICAL_REGULAR_PASTS.has(w) : w.length > 3 && w.endsWith("s") && !lexInfoOf(w))
+            && (w.endsWith("ed") ? lexRegularPasts(LEXICAL_REGULAR_PASTS).has(w) : w.length > 3 && w.endsWith("s") && !lexInfoOf(w))
           neighbour: "unknown || regular ? undefined : lexWordBeforeSpace(ctx.scanText, index, prior)"
           end: index + word.length
           forms: regular && lexIrregularFor(word, ctx.text.slice(Math.max(0, index - 40), index))
@@ -6789,169 +6805,176 @@ rules:
       # "a chin up", "the back up": these also read as a body part with an adverb after a
       # possessive ("keep your chin up"), so only an article may come before them.
       COMPOUND_ARTICLE_HEADS: [back, chin]
-      # Modifiers after an article or possessive that take a hyphen: "the end to end trip",
-      # "your go to person".
-      COMPOUND_HYPHENED_MODIFIERS:
-        - "end to end"
-        - "day to day"
-        - "month to month"
-        - "year to year"
-        - "step by step"
-        - "door to door"
-        - "face to face"
-        - "head to head"
-        - "back to back"
-        - "peer to peer"
-        - "person to person"
-        - "point to point"
-        - "one to one"
-        - "one to many"
-        - "many to many"
-        - "up to date"
-        - "state of the art"
-        - "straight up"
-        - "for profit"
-        - "not for profit"
-        - "much needed"
-        - "long awaited"
-        - "long established"
-        - "long standing"
-        - "long lasting"
-        - "short lived"
-        - "long lived"
-        - "life changing"
-        - "life saving"
-        - "life threatening"
-        - "time consuming"
-        - "mind blowing"
-        - "eye catching"
-        - "record breaking"
-        - "award winning"
-        - "best selling"
-        - "fast growing"
-        - "never ending"
-        - "so called"
-        - "all knowing"
-        - "all seeing"
-        - "all powerful"
-        - "all inclusive"
-        - "all encompassing"
-        - "all natural"
-        - "all new"
-        - "go to"
-        - "go to market"
-        - "easy to use"
-        - "easy to understand"
-        - "easy to read"
-        - "easy to learn"
-        - "easy to install"
-        - "easy to follow"
-        - "simple to use"
-        - "hard to find"
-        - "hard to use"
-        - "difficult to use"
-        - "ready to use"
-        - "all time"
-        - "million dollar"
-        - "billion dollar"
-        - "multi million dollar"
-        - "second largest"
-        - "third largest"
-        - "fourth largest"
-        - "fifth largest"
-        - "second biggest"
-        - "third biggest"
-        - "second highest"
-        - "second best"
-        - "third best"
-        - "out of the way"
-        - "out of the box"
-        - "out of place"
-        - "off the shelf"
-        - "one of a kind"
-        - "last minute"
-        - "long term"
-        - "short term"
-        - "well known"
-        - "high quality"
-        - "low cost"
-        - "real time"
-        - "open source"
-        - "first class"
-        - "second hand"
-        - "full scale"
-        - "large scale"
-        - "small scale"
-        - "world class"
-        - "top notch"
-        - "high level"
-        - "low level"
-        - "high end"
-        - "low end"
-        - "old fashioned"
-        - "user friendly"
-        - "above mentioned"
-        - "tailor made"
-        - "even handed"
-        - "read only"
-        - "ill advised"
-        - "well meaning"
-        - "well established"
-        - "brand new"
-        - "first hand"
-        - "duty free"
-        - "tax free"
-        - "heavy duty"
-        - "cut throat"
-        - "do or die"
-        - "wall to wall"
-        - "coast to coast"
-        - "out of body"
-        - "rags to riches"
-        - "mom and pop"
-        - "hand to hand"
-        - "fly by night"
-        - "card carrying"
-        - "cooling off"
-        - "cut and paste"
-        - "bug eyed"
-        - "dual purpose"
-        - "knife edge"
-        - "follow on"
-        - "new look"
-        - "down and out"
-        - "brick red"
-        - "full time"
-        - "part time"
-        - "open ended"
-        - "hard working"
-        - "good looking"
-        - "middle aged"
-        - "left handed"
-        - "right handed"
-        - "long distance"
-        - "long range"
-        - "short range"
-        - "high speed"
-        - "high risk"
-        - "low risk"
-        - "last ditch"
-        - "far reaching"
-        - "single use"
-      # Compound nouns that may also close the phrase: "a one off", "a know it all".
-      COMPOUND_HYPHENED_NOUNS:
-        - "all in one"
-        - "one off"
-        - "catch all"
-        - "know it all"
-        - "do it yourself"
-        - "drive through"
-        - "about face"
-        - "post it"
-        - "zero day"
-        - "no go"
-        - "hands on"
     maps:
+      # Modifiers after an article or possessive: "the end to end trip", "your go to person".
+      COMPOUND_ARTICLE_MODIFIERS:
+        "end to end": "end-to-end"
+        "day to day": "day-to-day"
+        "month to month": "month-to-month"
+        "year to year": "year-to-year"
+        "step by step": "step-by-step"
+        "door to door": "door-to-door"
+        "face to face": "face-to-face"
+        "head to head": "head-to-head"
+        "back to back": "back-to-back"
+        "peer to peer": "peer-to-peer"
+        "person to person": "person-to-person"
+        "point to point": "point-to-point"
+        "one to one": "one-to-one"
+        "one to many": "one-to-many"
+        "many to many": "many-to-many"
+        "up to date": "up-to-date"
+        "state of the art": "state-of-the-art"
+        "straight up": "straight-up"
+        "for profit": "for-profit"
+        "not for profit": "not-for-profit"
+        "much needed": "much-needed"
+        "long awaited": "long-awaited"
+        "long established": "long-established"
+        "long standing": "long-standing"
+        "long lasting": "long-lasting"
+        "short lived": "short-lived"
+        "long lived": "long-lived"
+        "life changing": "life-changing"
+        "life saving": "life-saving"
+        "life threatening": "life-threatening"
+        "time consuming": "time-consuming"
+        "mind blowing": "mind-blowing"
+        "eye catching": "eye-catching"
+        "record breaking": "record-breaking"
+        "award winning": "award-winning"
+        "best selling": "best-selling"
+        "fast growing": "fast-growing"
+        "never ending": "never-ending"
+        "so called": "so-called"
+        "all knowing": "all-knowing"
+        "all seeing": "all-seeing"
+        "all powerful": "all-powerful"
+        "all inclusive": "all-inclusive"
+        "all encompassing": "all-encompassing"
+        "all natural": "all-natural"
+        "all new": "all-new"
+        "go to": "go-to"
+        "go to market": "go-to-market"
+        "easy to use": "easy-to-use"
+        "easy to understand": "easy-to-understand"
+        "easy to read": "easy-to-read"
+        "easy to learn": "easy-to-learn"
+        "easy to install": "easy-to-install"
+        "easy to follow": "easy-to-follow"
+        "simple to use": "simple-to-use"
+        "hard to find": "hard-to-find"
+        "hard to use": "hard-to-use"
+        "difficult to use": "difficult-to-use"
+        "ready to use": "ready-to-use"
+        "all time": "all-time"
+        "million dollar": "million-dollar"
+        "billion dollar": "billion-dollar"
+        "multi million dollar": "multi-million-dollar"
+        "second largest": "second-largest"
+        "third largest": "third-largest"
+        "fourth largest": "fourth-largest"
+        "fifth largest": "fifth-largest"
+        "second biggest": "second-biggest"
+        "third biggest": "third-biggest"
+        "second highest": "second-highest"
+        "second best": "second-best"
+        "third best": "third-best"
+        "out of the way": "out-of-the-way"
+        "out of the box": "out-of-the-box"
+        "out of place": "out-of-place"
+        "off the shelf": "off-the-shelf"
+        "one of a kind": "one-of-a-kind"
+        "last minute": "last-minute"
+        "long term": "long-term"
+        "short term": "short-term"
+        "well known": "well-known"
+        "high quality": "high-quality"
+        "low cost": "low-cost"
+        "real time": "real-time"
+        "open source": "open-source"
+        "first class": "first-class"
+        "second hand": "second-hand"
+        "full scale": "full-scale"
+        "large scale": "large-scale"
+        "small scale": "small-scale"
+        "world class": "world-class"
+        "top notch": "top-notch"
+        "high level": "high-level"
+        "low level": "low-level"
+        "high end": "high-end"
+        "low end": "low-end"
+        "old fashioned": "old-fashioned"
+        "user friendly": "user-friendly"
+        "above mentioned": "above-mentioned"
+        "tailor made": "tailor-made"
+        "even handed": "even-handed"
+        "read only": "read-only"
+        "ill advised": "ill-advised"
+        "well meaning": "well-meaning"
+        "well established": "well-established"
+        "brand new": "brand-new"
+        "first hand": "first-hand"
+        "duty free": "duty-free"
+        "tax free": "tax-free"
+        "heavy duty": "heavy-duty"
+        "cut throat": "cut-throat"
+        "do or die": "do-or-die"
+        "wall to wall": "wall-to-wall"
+        "coast to coast": "coast-to-coast"
+        "out of body": "out-of-body"
+        "rags to riches": "rags-to-riches"
+        "mom and pop": "mom-and-pop"
+        "hand to hand": "hand-to-hand"
+        "fly by night": "fly-by-night"
+        "card carrying": "card-carrying"
+        "cooling off": "cooling-off"
+        "cut and paste": "cut-and-paste"
+        "bug eyed": "bug-eyed"
+        "dual purpose": "dual-purpose"
+        "knife edge": "knife-edge"
+        "follow on": "follow-on"
+        "new look": "new-look"
+        "down and out": "down-and-out"
+        "brick red": "brick-red"
+        "full time": "full-time"
+        "part time": "part-time"
+        "open ended": "open-ended"
+        "hard working": "hard-working"
+        "good looking": "good-looking"
+        "middle aged": "middle-aged"
+        "left handed": "left-handed"
+        "right handed": "right-handed"
+        "long distance": "long-distance"
+        "long range": "long-range"
+        "short range": "short-range"
+        "high speed": "high-speed"
+        "high risk": "high-risk"
+        "low risk": "low-risk"
+        "last ditch": "last-ditch"
+        "far reaching": "far-reaching"
+        "single use": "single-use"
+        "life long": "lifelong"
+        "under cover": "undercover"
+        "out going": "outgoing"
+        "on board": "onboard"
+      # Compound nouns that may also close the phrase: "a one off", "a know it all".
+      COMPOUND_ARTICLE_NOUNS:
+        "all in one": "all-in-one"
+        "one off": "one-off"
+        "catch all": "catch-all"
+        "know it all": "know-it-all"
+        "do it yourself": "do-it-yourself"
+        "drive through": "drive-through"
+        "about face": "about-face"
+        "post it": "post-it"
+        "zero day": "zero-day"
+        "no go": "no-go"
+        "hands on": "hands-on"
+        "home work": "homework"
+        "drive way": "driveway"
+        "check box": "checkbox"
+        "over use": "overuse"
       # Phrasal verbs whose noun is joined or hyphenated: "a warm up" is "a warm-up". A word
       # after the particle that opens a noun phrase makes it a preposition: "the walk through
       # the park".
@@ -7129,8 +7152,12 @@ rules:
         return: compoundFound(ctx, m, [fix], "englishClosedCompounds", "review_msg_closed_compound")
       COMPOUND_PREMODIFIER: "/^(?:first|second|third|final|last|next|quick|big|small|major|minor|huge|brief|daily|weekly|monthly|annual|usual|regular|complete|full|proper|good|great|real|official|early|late|short|long|new|old|initial|informal|formal|official|massive|total)$/i"
       # Every form of every compound verb: typed lowercase "a b" -> [joined, form].
-      COMPOUND_VERB_FORMS: >-
-        new Map(Object.entries(COMPOUND_VERBS).flatMap(([typed, joined]) => compoundVerbForms(typed, joined)))
+      COMPOUND_VERB_FORMS: "new Map<string, readonly [string, string]>()"
+      compoundVerbFormMap:
+        args: "table: typeof COMPOUND_VERB_FORMS"
+        return: >-
+          table.size ? table : Object.entries(COMPOUND_VERBS).flatMap(([typed, joined]) => compoundVerbForms(typed, joined))
+            .reduce((map, [typed, entry]) => map.set(typed, entry), table)
       compoundVerbForms:
         args: "typed: string, joined: string"
         type: "(readonly [string, readonly [string, string]])[]"
@@ -7148,12 +7175,6 @@ rules:
                 inflected ? [[`${first} ${inflected}`, [`${first}${sep}${inflected}`, form]] as const] : []))]
       # Words after "to" that make the compound a verb with an object: "to peer review your work".
       COMPOUND_TO_OBJECT: "/^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|everything|something|anything|someone|everyone|today|tomorrow|now|again|yet|before|online|myself|yourself|himself|herself|ourselves|themselves)$/i"
-      COMPOUND_ARTICLE_MODIFIERS: >-
-        ({ ...Object.fromEntries([...COMPOUND_HYPHENED_MODIFIERS].map((key) => [key, key.replaceAll(" ", "-")])),
-          "life long": "lifelong", "under cover": "undercover", "out going": "outgoing", "on board": "onboard" }) as Readonly<Record<string, string>>
-      COMPOUND_ARTICLE_NOUNS: >-
-        ({ ...Object.fromEntries([...COMPOUND_HYPHENED_NOUNS].map((key) => [key, key.replaceAll(" ", "-")])),
-          "home work": "homework", "drive way": "driveway", "check box": "checkbox", "over use": "overuse" }) as Readonly<Record<string, string>>
       COMPOUND_NOT_NOUN: "/^(?:of|to|in|on|at|for|from|with|by|and|or|but|is|are|was|were|be|been|has|have|had|will|would|can|could|may|might|must|shall|should|it|this|that|there|then|than|as|so|very|too|now|here|again|also|not|before|after|the|a|an|zone|zones|frame|frames|line|lines|limit|limits|slot|slots|stamp|stamps|span|travel)$/i"
       # A noun or adjective (or an unknown word) heads the phrase after a modifier.
       compoundNounNext:
@@ -7336,7 +7357,7 @@ rules:
       - regex: "(?=\\p{L}){{COMPOUNDFORMS_SLOT}}{{S}}{{COMPOUNDFORMS_ADVERB}}(?<target>{{COMPOUNDFORMS_VERB_KEYS}}){{E}}"
         check: englishClosedCompounds
         let:
-          entry: COMPOUND_VERB_FORMS.get(target.toLowerCase().split(/\s+/).join(" "))
+          entry: compoundVerbFormMap(COMPOUND_VERB_FORMS).get(target.toLowerCase().split(/\s+/).join(" "))
           third: '/^(?:he|she)$/i.test(subject ?? "")'
           ok: >-
             modal || asked ? entry[1] === "base"
