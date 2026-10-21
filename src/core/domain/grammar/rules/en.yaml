@@ -2968,6 +2968,12 @@ rules:
       AS_CLAUSE_QUANTIFIERS: [all, some, many, most, several, both, few, any, no, each, every]
       AS_CLAUSE_NUMBERS: [two, three, four, five, six, seven, eight, nine, ten]
       AS_CLAUSE_PRONOUNS: [me, him, us, them, it]
+      # Sets, not new Set(...) in AS_ENGLISH_CLAUSE: an unused profile then drops out of the
+      # content script bundle with the lexicon it reads.
+      AS_CLAUSE_COORDINATORS: [and, or]
+      AS_CLAUSE_JOINS: [and]
+      AS_CLAUSE_RELATIVES: [who, which, that]
+      AS_CLAUSE_CLITICS: []
     maps:
       AS_TO_PLURAL:
         {
@@ -3247,11 +3253,11 @@ rules:
           quantifiers: AS_CLAUSE_QUANTIFIERS,
           numbers: AS_CLAUSE_NUMBERS,
           notHeads: EN_FUNCTION_WORDS,
-          coordinators: new Set(["and", "or"]),
-          joins: new Set(["and"]),
+          coordinators: AS_CLAUSE_COORDINATORS,
+          joins: AS_CLAUSE_JOINS,
           pronouns: AS_CLAUSE_PRONOUNS,
-          relatives: new Set(["who", "which", "that"]),
-          clitics: new Set<string>(),
+          relatives: AS_CLAUSE_RELATIVES,
+          clitics: AS_CLAUSE_CLITICS,
           isAdverb: (t: ClauseToken) => asClauseAdverb(t),
           isNoun: (text: string, t: ClauseToken) => asClauseNoun(text, t),
           nominal: () => false,

@@ -174,6 +174,14 @@ export const AS_CLAUSE_NUMBERS: ReadonlySet<string> = new Set([
 
 export const AS_CLAUSE_PRONOUNS: ReadonlySet<string> = new Set(["me", "him", "us", "them", "it"]);
 
+export const AS_CLAUSE_COORDINATORS: ReadonlySet<string> = new Set(["and", "or"]);
+
+export const AS_CLAUSE_JOINS: ReadonlySet<string> = new Set(["and"]);
+
+export const AS_CLAUSE_RELATIVES: ReadonlySet<string> = new Set(["who", "which", "that"]);
+
+export const AS_CLAUSE_CLITICS: ReadonlySet<string> = new Set([]);
+
 export const MV_BE: Readonly<Record<string, string>> = {
   i: "am",
   you: "are",
@@ -783,11 +791,11 @@ export const AS_ENGLISH_CLAUSE = {
   quantifiers: AS_CLAUSE_QUANTIFIERS,
   numbers: AS_CLAUSE_NUMBERS,
   notHeads: EN_FUNCTION_WORDS,
-  coordinators: new Set(["and", "or"]),
-  joins: new Set(["and"]),
+  coordinators: AS_CLAUSE_COORDINATORS,
+  joins: AS_CLAUSE_JOINS,
   pronouns: AS_CLAUSE_PRONOUNS,
-  relatives: new Set(["who", "which", "that"]),
-  clitics: new Set<string>(),
+  relatives: AS_CLAUSE_RELATIVES,
+  clitics: AS_CLAUSE_CLITICS,
   isAdverb: (t: ClauseToken) => asClauseAdverb(t),
   isNoun: (text: string, t: ClauseToken) => asClauseNoun(text, t),
   nominal: () => false,
