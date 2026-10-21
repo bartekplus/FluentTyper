@@ -5332,11 +5332,16 @@ rules:
     frames:
       # Copular comparison + complete comparison argument; temporal sentence tails abstain.
       - regex: "(?:is|are|was|were){{S}}(?:(?:much|even|far|slightly){{S}})?{{CONFUSION_COMPARATIVE}}{{S}}(?<target>then){{S}}{{CONFUSION_ARGUMENT}}{{COMPLETE_OR_PAREN}}"
+        # The gate: "then" and the start of the argument after it.
+        gate: "then[ \\t\\u00a0]{1,8}(?:the|my|your|our|their|me|him|her|us|them)"
+        gateFlags: giu
         fixer: thenThan
       # A comparison closed by an object pronoun or "ever": "taller then me", "busier then ever",
       # and the fixed "rather then" and "easier said then done". "earlier then him" and
       # "then you/her/it" can be a sequence or a new clause, so they are left out.
       - regex: "(?:{{CONFUSION_COMPARATIVE}}|{{CONFUSION_MORE_COMPARATIVES}}){{S}}(?<target>then){{S}}(?:me|him|us|them|mine|yours|hers|ours|theirs|ever|usual|expected){{E}}"
+        gate: "then[ \\t\\u00a0]{1,8}(?:me|him|us|them|mine|yours|hers|ours|theirs|ever|usual|expected)"
+        gateFlags: giu
         fixer: thenThan
       # "I would rather then leave" may be "rather, then,": only "X rather then Y".
       - regex: "(?<!(?:would|had|should|['’]d){{S}})rather{{S}}(?<target>then){{E}}"
@@ -5396,6 +5401,9 @@ rules:
       # then/than and to/too where the other reading has no grammatical slot. Identifiers and
       # names in the evidence ("versionName") abstain.
       - regex: "(?=[a-z]+(?:{{S}}[a-z]+)?{{S}}then(?![\\p{L}]))(?<!(?:more|most|less){{S}})(?:{{CONFUSION_COMPARATIVE}}|{{CONFUSION_COMPARISON_WORDS}}|(?:more|less){{S}}(?![a-z]+er{{E}})[a-z]+|(?<=(?:no{{S}}one|nobody|nothing|anything|anyone|someone|something|none|no){{S}})other){{S}}(?<target>then){{S}}(?:{{CONFUSION_COMPARED}}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:{{S}}(?!(?:[a-z]+ed){{E}})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:at|in|for|on|with|by|when|so){{E}})){{E}}"
+        # The gate: "then" and the start of a compared word or noun phrase after it.
+        gate: "then[ \\t\\u00a0]{1,8}(?:me|him|us|them|hers|his|ours|theirs|yours|mine|any|nothing|nobody|ever|before|usual|expected|necessary|needed|last|[0-9]|the|a|my|your|our|their|its|this|that|those|these|you|her)"
+        gateFlags: giu
         fixer: thenComparison
       - regex: "(?:now{{S}}and|until|till|since|by|back){{S}}(?<target>than)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:…)]|$))"
         fixer: thanTemporal

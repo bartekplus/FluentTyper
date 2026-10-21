@@ -5046,6 +5046,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "safer",
     ],
     fixer: "common:thenThan",
+    gate: "then[ \\t\\u00a0]{1,8}(?:the|my|your|our|their|me|him|her|us|them)",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -5094,6 +5096,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "nicer",
     ],
     fixer: "common:thenThan",
+    gate: "then[ \\t\\u00a0]{1,8}(?:me|him|us|them|mine|yours|hers|ours|theirs|ever|usual|expected)",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -5279,6 +5283,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "other",
     ],
     fixer: "common:thenComparison",
+    gate: "then[ \\t\\u00a0]{1,8}(?:me|him|us|them|hers|his|ours|theirs|yours|mine|any|nothing|nobody|ever|before|usual|expected|necessary|needed|last|[0-9]|the|a|my|your|our|their|its|this|that|those|these|you|her)",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
