@@ -4,11 +4,8 @@ import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/r
 import * as adjectives from "./adjectives";
 import * as agreement from "./agreement";
 import * as determiners from "./determiners";
-import * as hyphenation from "./hyphenation";
 import * as mood from "./mood";
-import * as negation from "./negation";
 import * as nounNumber from "./nounNumber";
-import * as questions from "./questions";
 import * as smallWords from "./smallWords";
 import * as style from "./style";
 import * as tout from "./tout";
@@ -22,13 +19,10 @@ export const FIXERS = mergePredicates<Fixer>(
   verbForms.FIXERS,
   agreement.FIXERS,
   style.FIXERS,
-  hyphenation.FIXERS,
   tout.FIXERS,
   mood.FIXERS,
   smallWords.FIXERS,
   nounNumber.FIXERS,
-  questions.FIXERS,
-  negation.FIXERS,
   determiners.FIXERS,
 );
 

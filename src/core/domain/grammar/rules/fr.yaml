@@ -2232,73 +2232,713 @@ rules:
     checks: [frenchHyphenation]
     style: match
     message: review_msg_fr_hyphen
+    # Hyphens French grammar requires: the inverted subject of a question ("pouvez-vous",
+    # "a-t-il", "est-ce") and the adverb "peut-être".
+    maps:
+      PRONOUN_PERSON: { je: 1, tu: 2, il: 4, elle: 4, on: 4, nous: 8, vous: 16, ils: 32, elles: 32 }
+    sets:
+      QUESTION_WORDS:
+        [que, qu', où, comment, pourquoi, quand, combien, quel, quelle, quels, quelles, quoi, qui]
+      CE_VERBS: [est, était, sera, serait, fut]
+      # After an inverted "ce": a clause, a pronoun or a common attribute ("est-ce possible ?").
+      CE_FOLLOWERS:
+        [
+          que,
+          qu',
+          qui,
+          là,
+          vrai,
+          possible,
+          grave,
+          normal,
+          bien,
+          mal,
+          juste,
+          faux,
+          exact,
+          sûr,
+          clair,
+          utile,
+          nécessaire,
+          obligatoire,
+          important,
+          ça,
+          cela,
+          vous,
+          toi,
+          lui,
+          moi,
+          elle,
+          eux,
+          nous,
+          elles,
+          pas,
+          vraiment,
+          encore,
+          toujours,
+          donc,
+        ]
+      # "son" is also the noun "sound" ("quel est ce son ?"): left out.
+      HYPHEN_DETERMINERS:
+        [
+          le,
+          la,
+          les,
+          l',
+          un,
+          une,
+          des,
+          du,
+          ce,
+          cet,
+          cette,
+          ces,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          sa,
+          ses,
+          notre,
+          nos,
+          votre,
+          vos,
+          leur,
+          leurs,
+        ]
+      # Prefixes that never stand alone: "anti inflation" -> "anti-inflation", "néo-rural" ->
+      # "néorural"; the dictionary says which spelling exists.
+      PREFIX_WORDS:
+        [
+          anti,
+          auto,
+          néo,
+          géo,
+          méga,
+          mini,
+          ultra,
+          hyper,
+          multi,
+          psycho,
+          franco,
+          afro,
+          vice,
+          vidéo,
+          micro,
+          macro,
+          post,
+          co,
+          cyber,
+          extra,
+          inter,
+          intra,
+          semi,
+          pseudo,
+          quasi,
+          poly,
+          télé,
+          bio,
+          éco,
+          rétro,
+          zig,
+          anglo,
+          germano,
+          italo,
+          hispano,
+          gréco,
+          judéo,
+          sino,
+          russo,
+          austro,
+          euro,
+        ]
+      # Prefixes the dictionary may not list with a given word, which then take a hyphen: always
+      # for a nationality ("franco-allemandes"), before a vowel for the others ("anti-inflation").
+      NATIONALITY_PREFIXES:
+        [franco, afro, anglo, germano, italo, hispano, gréco, judéo, sino, russo, austro, euro]
+      VOWEL_HYPHEN_PREFIXES: [anti, ultra, néo, semi, cyber, co]
+      CLOSING_PREFIXES: [néo, géo, méga, psycho, post, micro, macro]
+      # "sur", "sous" and "contre" are prepositions too: only before a participle or an infinitive.
+      PREPOSITION_PREFIXES: [sur, sous, contre]
+      # The pronoun after an imperative joins it: "dis-lui", "regarde-la", "prends-en". Verbs
+      # whose object pronoun stays with them before an infinitive ("laisse-moi faire",
+      # "faites-les entrer"); with others it belongs to the infinitive ("viens le voir").
+      CAUSATIVE: [laisser, faire, regarder, écouter, voir, sentir, entendre]
+      # What may follow an object pronoun (never a noun, which would make "la" an article).
+      AFTER_PRONOUN:
+        [
+          à,
+          au,
+          aux,
+          dans,
+          sur,
+          sous,
+          avec,
+          pour,
+          en,
+          par,
+          chez,
+          vers,
+          de,
+          d',
+          du,
+          des,
+          un,
+          une,
+          ici,
+          là,
+          bien,
+          vite,
+          maintenant,
+          encore,
+          demain,
+          donc,
+          alors,
+          moi,
+          toi,
+          lui,
+          nous,
+          leur,
+          "y",
+        ]
+      # "prends-en un", "parlez-en à ta sœur": what follows a pronoun "en" or "y".
+      EN_FOLLOWERS:
+        [
+          un,
+          une,
+          des,
+          deux,
+          trois,
+          à,
+          au,
+          aux,
+          plus,
+          moins,
+          encore,
+          autant,
+          beaucoup,
+          assez,
+          davantage,
+        ]
+      IMPERATIVE_CLAUSE_OPENERS: [et, puis, alors, mais, sinon, donc, ou]
+      PEU_BEFORE:
+        [
+          à,
+          un,
+          très,
+          trop,
+          si,
+          assez,
+          bien,
+          pour,
+          de,
+          le,
+          ce,
+          tout,
+          aussi,
+          ne,
+          n',
+          qui,
+          ça,
+          cela,
+          ici,
+          sous,
+          avant,
+        ]
+      # Prefixes that the 1990 spelling welds or keeps with a hyphen, both accepted ("co-auteur").
+      WELDED_PREFIXES:
+        [
+          co,
+          re,
+          ré,
+          pré,
+          anti,
+          auto,
+          néo,
+          post,
+          mini,
+          maxi,
+          multi,
+          ultra,
+          super,
+          hyper,
+          semi,
+          demi,
+          mi,
+          sous,
+          sur,
+          contre,
+          extra,
+          inter,
+          intra,
+          micro,
+          macro,
+          méga,
+          mono,
+          poly,
+          pro,
+          pseudo,
+          quasi,
+          télé,
+          vice,
+          ex,
+          non,
+          bi,
+          tri,
+          dé,
+          dés,
+          in,
+          im,
+          para,
+          éco,
+          bio,
+          géo,
+          euro,
+          cyber,
+          agro,
+          socio,
+          psycho,
+          électro,
+          thermo,
+          hydro,
+          aéro,
+          audio,
+          vidéo,
+          photo,
+          radio,
+          cardio,
+          neuro,
+          techno,
+          info,
+          crypto,
+        ]
+      # Compounds that are no noun, so no determiner comes before them.
+      BARE_COMPOUNDS: ["c'est-à-dire"]
+      # Words before a noun phrase: a compound after them is a noun ("un coffre fort", "en arrière
+      # plan"), not a verb and its complement ("il se lève tôt").
+      NOUN_PHRASE_OPENERS:
+        [
+          le,
+          la,
+          les,
+          l',
+          un,
+          une,
+          des,
+          du,
+          au,
+          aux,
+          ce,
+          cet,
+          cette,
+          ces,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          son,
+          sa,
+          ses,
+          notre,
+          nos,
+          votre,
+          vos,
+          leur,
+          leurs,
+        ]
+      # "le", "la", "les", "l'" are also object pronouns before a verb ("l'avons", "le sans faute").
+      PRONOUN_ARTICLES: [le, la, les, "l'"]
+      # Second words that make a clause of the pair ("le nord est froid", "peut être", "chez vous").
+      VERB_SECONDS:
+        [est, a, sont, ont, fait, font, être, avoir, vous, nous, moi, toi, lui, eux, là, ci, cent]
+      ARTICLE_CONTEXT:
+        [
+          de,
+          d',
+          à,
+          dans,
+          sur,
+          sous,
+          pour,
+          par,
+          avec,
+          sans,
+          chez,
+          vers,
+          entre,
+          après,
+          avant,
+          contre,
+          pendant,
+          depuis,
+          et,
+          ou,
+          mais,
+          que,
+          qu',
+          car,
+        ]
+    defs:
+      COMPOUND_PATTERNS: new Map<string, RegExp>()
+      # The sentence from `index` on ends with a question mark.
+      inQuestion:
+        args: "text: string, index: number"
+        let:
+          end: 'text.slice(index, index + 300).search(/[.!?…\n]/)'
+        return: 'end >= 0 && text[index + end] === "?"'
+      # "le but est ce que tu dis": only a clause start or a question word inverts. "quel est ce
+      # bruit ?": "ce" before a noun is its determiner.
+      ceInversion:
+        args: "ctx: DetectContext, start: number, end: number, lower: string, before: FrenchToken[], i: number, after: FrenchToken[]"
+        let:
+          following: after[0]
+          next: after[0]?.w
+        return: >-
+          CE_VERBS.has(lower) &&
+          (before[i]
+            ? QUESTION_WORDS.has(before[i].w) || ["et", "mais", "alors", "ou", "donc"].includes(before[i].w)
+            : SENTENCE_START.test(ctx.text.slice(Math.max(0, start - 4), start))) &&
+          !(
+            following &&
+            !CE_FOLLOWERS.has(following.w) &&
+            !HYPHEN_DETERMINERS.has(following.w) &&
+            (!verbReadings(following.w).some((r) => r.slot === "Q") || isVerbHomograph(following.w))
+          ) &&
+          !(!inQuestion(ctx.text, end) && next !== "que" && next !== "qu'" && next !== "qui")
+      # "As tu": a verb that is also a noun inverts only at the start or after a question word.
+      # "je" after a verb in -e takes "-é-je": left to the writer. The pronoun is the subject of
+      # the next verb: "quand tu viens tu manges".
+      pronounInversion:
+        args: "ctx: DetectContext, end: number, lower: string, pronoun: string, euphonic: boolean, before: FrenchToken[], i: number, after: FrenchToken[]"
+        let:
+          opening: "!before[i] || QUESTION_WORDS.has(before[i].w)"
+          next: after[0]
+        return: >-
+          (euphonic || inQuestion(ctx.text, end)) &&
+          !(isVerbHomograph(lower) && !euphonic && !opening) &&
+          hasPerson(finitePersons(lower), PRONOUN_PERSON[pronoun]) &&
+          !(pronoun === "je" && /e$/.test(lower)) &&
+          !(next && hasPerson(finitePersons(next.w), PRONOUN_PERSON[pronoun]) && !isVerbHomograph(next.w))
+      # "toi et moi", "vous aussi", "en quelques secondes", "en or": not an object pronoun. "lui",
+      # "leur", "moi" are pronouns before anything but a verb; "la", "les", "le" are articles
+      # before a noun.
+      imperativeObject:
+        args: "readings: VerbReading[], pronoun: string, next: FrenchToken | undefined"
+        when:
+          - "!!next"
+          - '!["et", "ou", "aussi", "même", "mêmes", "tous", "deux"].includes(next.w)'
+          - '!verbReadings(next.w).some((r) => r.slot === "G")'
+          - '!((pronoun === "en" || pronoun === "y") && !EN_FOLLOWERS.has(next.w))'
+        return: >-
+          verbReadings(next.w).some((r) => r.slot === "I")
+            ? readings.some((r) => CAUSATIVE.has(r.lemma))
+            : AFTER_PRONOUN.has(next.w)
+              ? true
+              : !["le", "la", "les", "leur"].includes(pronoun) && !verbReadings(next.w).some((r) => typeof r.slot === "number")
+        else: "false"
+      knownWord:
+        args: "word: string"
+        return: isFrenchWord(word) || adjectiveReadings(word).length > 0
+      # The sticky regex of a hyphenated compound written with spaces or hyphens between its parts.
+      compoundPattern:
+        args: "compound: string"
+        return: >-
+          COMPOUND_PATTERNS.get(compound) ??
+          COMPOUND_PATTERNS.set(
+            compound,
+            new RegExp(`${compound.split("-").map((p) => p.replaceAll("'", "['’]")).join("(?:[ \\t]{1,8}|-)")}(?![\\p{L}\\p{M}\\p{N}_'’-])`, "uy"),
+          ).get(compound)!
+      # "le", "la", "les", "l'" are articles after a preposition or at a clause start; after a
+      # verb ("Visez le sans faute") or a subject ("nous l'avons") they are pronouns.
+      # The match of a compound at `index`, when the text writes a space between two parts.
+      compoundHit:
+        args: "text: string, compound: string, index: number"
+        let:
+          hit: execAt(compoundPattern(compound), text, index)
+        return: "hit && /[ \\t]/.test(hit[0]) ? hit : null"
+      spacedArticle:
+        args: "ctx: DetectContext, previous: FrenchToken, first: string"
+        let:
+          before: tokensBefore(ctx.text, previous.start, 1)[0]
+        when: PRONOUN_ARTICLES.has(previous.w)
+        return: '!before || ARTICLE_CONTEXT.has(before.w) || !(verbReadings(first).some((r) => typeof r.slot === "number") || verbReadings(before.w).length)'
+        else: "true"
     frames:
-      # "pouvez vous", "a t il", "est ce que": an inverted subject joined with hyphens.
+      # "pouvez vous", "a t il", "est ce que": an inverted subject joined with hyphens. A subject
+      # before the verb ("tu viens tu manges ?") leaves nothing to invert. The euphonic t only
+      # between vowels: "a-t-il", but "est-il", "faut-il".
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>\\p{L}+)(?:[ \\t]*-[ \\t]+|[ \\t]+-[ \\t]*|[ \\t]+(?<t>t['’]|t[ \\t]+|-t-|t-)[ \\t]*|[ \\t]+)(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles|ce){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: inversion
-      # "il partira peut être demain", "peu être": the adverb "peut-être".
+        let:
+          lowerPronoun: pronoun.toLowerCase()
+          lower: verb.toLowerCase()
+          end: m.index + m[0].length
+          before: tokensBefore(ctx.text, m.index, 6)
+          after: tokensAfter(ctx.text, end, 2)
+          i: 'skipWhile(before, 0, (t) => CLITICS.has(t.w) || t.w === "ne" || t.w === "n''")'
+          fixed: '`${verb}${["il", "elle", "on"].includes(lowerPronoun) && /[aeé]$/i.test(verb) ? "-t-" : "-"}${pronoun}`'
+        when:
+          - m.index >= ctx.from
+          - "!(namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(lower))"
+          - "!before.slice(0, i + 1).some((t) => SUBJECT_PRONOUNS.has(t.w) && !CLITICS.has(t.w))"
+          - '!(before[i] && ["ça", "cela", "ceci", "qui"].includes(before[i].w))'
+          - >-
+            lowerPronoun === "ce"
+              ? ceInversion(ctx, m.index, end, lower, before, i, after)
+              : pronounInversion(ctx, end, lower, lowerPronoun, !!t, before, i, after)
+          - fixed !== ctx.source.slice(m.index, end)
+        return: finding(frame.ruleId, frame.messageKey, m.index, end, [fixed])
+      # "il partira peut être demain", "peu être": the adverb "peut-être". "Peut être résilié
+      # chaque mois.": a contract-style "can be" + participle. "il peut être tard" is pouvoir +
+      # être: only after another verb is it the adverb, and not after a subject clause ("tout ce
+      # que vous dites peut être utilisé"). "peu être" is a slip wherever "peu" modifies nothing
+      # ("un peu être seul", "il peu" for "il peut" are left alone). "il n'est peut être pas", "il
+      # aura peut être": être and avoir also spell nouns ("est", "aura") but are verbs after a
+      # subject. "peut être que", "bientôt peut être ?", "et peut être même plus": no verb phrase
+      # follows.
       - regex: "{{WORD_START}}peut?[ \\t]+être{{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: maybe
-      # "Dis lui bonjour" -> "Dis-lui", "Regarde la." -> "Regarde-la".
+        let:
+          start: m.index
+          before: tokensBefore(ctx.text, start, 2)
+          previous: before[0]
+          next: tokensAfter(ctx.text, start + m[0].length, 1)[0]
+          sentenceStart: >-
+            !previous &&
+            SENTENCE_START.test(ctx.text.slice(Math.max(0, start - 4), start)) &&
+            !(next && verbReadings(next.w).some((r) => r.slot === "Q"))
+          clauseSubject: 'tokensBefore(ctx.text, start, 20).some((t) => ["que", "qu''", "qui", "dont", "où", "ce"].includes(t.w))'
+          afterVerb: >-
+            previous &&
+            !clauseSubject &&
+            /^\p{Ll}/u.test(ctx.text.slice(previous.start, previous.end)) &&
+            !isVerbHomograph(previous.w) &&
+            verbReadings(previous.w).some((r) => typeof r.slot === "number" && r.lemma !== "pouvoir")
+          peu: '/^peu[ \t]/i.test(m[0]) && !(previous && (PEU_BEFORE.has(previous.w) || SUBJECT_PRONOUNS.has(previous.w)))'
+          afterAuxiliary: >-
+            previous &&
+            !clauseSubject &&
+            verbReadings(previous.w).some((r) => typeof r.slot === "number" && (r.lemma === "être" || r.lemma === "avoir")) &&
+            !!before[1] &&
+            (SUBJECT_PRONOUNS.has(before[1].w) || ["c'", "n'", "ne"].includes(before[1].w))
+          rest: ctx.text.slice(start + m[0].length)
+          adverbial: >-
+            (next && ["que", "qu'", "même", "parce"].includes(next.w)) ||
+            /^[\s  ]*[?!,.…]/u.test(rest) ||
+            (previous && ["avec", "ainsi", "bientôt", "voire", "ou"].includes(previous.w))
+        when:
+          - m.index >= ctx.from
+          - "!namedExampleBefore(ctx.text, start)"
+          - sentenceStart || afterVerb || peu || afterAuxiliary || adverbial
+        return: 'finding(frame.ruleId, frame.messageKey, start, start + m[0].length, [carryCase(m[0], "peut-être")])'
+      # "Dis lui bonjour" -> "Dis-lui", "Regarde la." -> "Regarde-la". "Puis vous", "et
+      # complètes vous concernant": a conjunction or an adjective. A capital or a question mark
+      # ahead: an inverted question, handled with the subject.
       - regex: "{{WORD_START}}(?<verb>\\p{L}+)[ \\t]+(?<pronoun>moi|toi|lui|nous|vous|leur|le|la|les|en|y|m['’]en|t['’]en){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: imperative
+        let:
+          lower: verb.toLowerCase()
+          lowerPronoun: pronoun.toLowerCase().replaceAll("’", "'")
+          end: m.index + m[0].length
+          before: tokensBefore(ctx.text, m.index, 1)
+          readings: verbReadings(lower)
+          next: tokensAfter(ctx.text, end, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - "!(namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(lower))"
+          - '!/\p{Lu}/u.test(verb.slice(1))'
+          - >-
+            !(before[0]
+              ? !IMPERATIVE_CLAUSE_OPENERS.has(before[0].w)
+              : /[\p{L}\p{N}][\s  ]*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index)))
+          - '!(lower === "puis" || adjectiveReadings(lower).length)'
+          - >-
+            readings.some(
+              (r) =>
+                typeof r.slot === "number" &&
+                r.tense === 1 &&
+                (hasPerson(r.slot, TU + NOUS + VOUS) || (hasPerson(r.slot, JE) && lower.endsWith("e"))))
+          - '!(/^[^.!\n]*\?/u.test(ctx.text.slice(end, end + 80)) && (lowerPronoun === "nous" || lowerPronoun === "vous"))'
+          - '/^[\s  ]*(?:$|[.!,;:)…])/u.test(ctx.text.slice(end)) || imperativeObject(readings, lowerPronoun, next)'
+        return: 'finding(frame.ruleId, "review_msg_closed_compound", m.index, end, [`${verb}-${pronoun}`])'
       # "At-il", "vat-elle", "Yat-il": the euphonic t glued to its verb.
       - regex: "{{WORD_START}}(?<y>y[ \\t]?)?(?<verb>a|va)t-(?<pronoun>il|elle|on){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: gluedT
+        when:
+          - m.index >= ctx.from
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: 'finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [`${y ? `${y[0]} ` : ""}${y ? verb.toLowerCase() : verb}-t-${pronoun}`])'
       # "Donne-le moi" -> "Donne-le-moi", "Souvenez-vous en." -> "Souvenez-vous-en": a second
-      # pronoun after a hyphenated imperative joins it too.
+      # pronoun after a hyphenated imperative joins it too. "Allez-vous y aller ?": "y" belongs
+      # to the infinitive; only a clause end tells. "Fais-le toi même", "Regarde-les nous
+      # quitter": not a second object pronoun.
       - regex: "(?<=\\p{L}-)(?<first>le|la|les|moi|toi|lui|nous|vous|leur)[ \\t]+(?<second>moi|toi|lui|nous|vous|leur|en|y){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: secondPronoun
-      # "il peut-être têtu" -> "peut être": pouvoir + être after a subject pronoun.
+        let:
+          lowerFirst: first.toLowerCase()
+          lowerSecond: second.toLowerCase()
+          end: m.index + m[0].length
+          closes: '/^[\s  ]*(?:$|[.!,;:)…])/u.test(ctx.text.slice(end))'
+          next: tokensAfter(ctx.text, end, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - >-
+            lowerSecond === "en" || lowerSecond === "y"
+              ? closes
+              : ["le", "la", "les"].includes(lowerFirst) &&
+                !(!closes && (!next || next.w === "même" || (next && verbReadings(next.w).some((r) => r.slot === "I"))))
+        return: 'finding(frame.ruleId, frame.messageKey, m.index, end, [m[0].replace(/[ \t]+/, "-")])'
+      # "il peut-être têtu" -> "peut être": pouvoir + être after a subject pronoun. "peut*on
+      # peut-être": the pronoun of another verb. "il est peut-être", "il a peut-être": an
+      # auxiliary before it makes the adverb.
       - regex: "{{WORD_START}}peut-être{{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: verbalMaybe
+        let:
+          before: tokensBefore(ctx.text, m.index, 2)
+          i: 'before[0] && (before[0].w === "ne" || before[0].w === "n''") ? 1 : 0'
+          next: tokensAfter(ctx.text, m.index + m[0].length, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - '!(!before[i] || !["il", "elle", "on", "ce", "cela", "ça"].includes(before[i].w))'
+          - '!/[^\s  ]$/u.test(ctx.text.slice(0, before[i].start))'
+          - '!(!next || verbReadings(next.w).some((r) => typeof r.slot === "number"))'
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [carryCase(m[0], "peut être")], {
+            context: { start: before[i].start, end: next.end },
+          })
       # A prefix and its word written apart or with a hyphen: the dictionary spelling of the
-      # compound ("co incidences" -> "coïncidences").
+      # compound ("co incidences" -> "coïncidences"). "anti-reflets", "auto-bronzant": many
+      # hyphenated forms are accepted spellings; only learned prefixes that always close up lose
+      # the hyphen. A capitalized prefix may be a name ("Nous and Co accompagne").
       - regex: "{{WORD_START}}(?<prefix>anti|auto|néo|géo|méga|mini|ultra|hyper|multi|psycho|franco|afro|vice|vidéo|micro|macro|post|co|cyber|extra|inter|intra|semi|pseudo|quasi|poly|télé|bio|éco|rétro|zig|anglo|germano|italo|hispano|gréco|judéo|sino|russo|austro|euro|sur|sous|contre)(?:[ \\t]+|-)(?<word>\\p{L}{3,}){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: prefixCompound
+        let:
+          typed: m[0]
+          lowerPrefix: prefix.toLowerCase()
+          lowerWord: word.toLowerCase()
+          hyphen: typed.includes("-")
+          joined: "`${lowerPrefix}${lowerWord}`"
+          hyphenated: "`${lowerPrefix}-${lowerWord}`"
+          # "co incidences" -> "coïncidences": a vowel after "co" takes a diaeresis when joined.
+          diaeresis: '`co${lowerWord[0] === "i" ? "ï" : "ë"}${lowerWord.slice(1)}`'
+          dictionaryForm: >-
+            hyphen
+              ? CLOSING_PREFIXES.has(lowerPrefix) && !isFrenchWord(hyphenated) && isFrenchWord(joined) && isFrenchWord(lowerWord)
+                ? joined
+                : null
+              : lowerPrefix === "sous" || lowerPrefix === "contre" || lowerPrefix === "vice"
+                ? isFrenchWord(hyphenated)
+                  ? hyphenated
+                  : null
+                : isFrenchWord(joined)
+                  ? joined
+                  : isFrenchWord(hyphenated)
+                    ? hyphenated
+                    : lowerPrefix === "co" && /^[ie]/.test(lowerWord) && isFrenchWord(diaeresis)
+                      ? diaeresis
+                      : null
+          fixed: >-
+            dictionaryForm ??
+            (!hyphen &&
+            prefix === lowerPrefix &&
+            (isFrenchWord(lowerWord) || adjectiveReadings(lowerWord).length > 0) &&
+            (NATIONALITY_PREFIXES.has(lowerPrefix) || (VOWEL_HYPHEN_PREFIXES.has(lowerPrefix) && /^[aeiouyéèêâîôûh]/.test(lowerWord)))
+              ? hyphenated
+              : null)
+        when:
+          - m.index >= ctx.from
+          - '!(/^\p{Lu}/u.test(word) || ctx.dictionary.has(lowerWord) || namedExampleBefore(ctx.text, m.index))'
+          - >-
+            !PREPOSITION_PREFIXES.has(lowerPrefix) ||
+            (!hyphen && !isNounLemma(lowerWord) && verbReadings(lowerWord).some((r) => r.slot === "Q" || r.slot === "I"))
+          - "!!fixed"
+        return: 'finding(frame.ruleId, "review_msg_closed_compound", m.index, m.index + typed.length, [carryCase(typed, fixed)])'
       # "un coffre fort", "les non voyants", "l'agro industrie": a compound the dictionary
-      # hyphenates, written as two words after a determiner, or with a combining form in -o ("agro",
-      # "anglo") that is no word of its own.
+      # hyphenates, written as two words after a determiner, or with a combining form in -o
+      # ("agro", "anglo") that is no word of its own. "non voyants": the dictionary lists the
+      # singular.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<first>\\p{Ll}+)(?=[ \\t]{1,3}(?<second>\\p{Ll}+){{WORD_END}})"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: spacedCompound
+        let:
+          compound: >-
+            isDictionaryCompound(`${first}-${second}`) ||
+            isDictionaryCompound(`${first}-${second.replace(/(?<=..)[sx]$/, "")}`) ||
+            isDictionaryCompound(`${first.replace(/(?<=..)[sx]$/, "")}-${second.replace(/(?<=..)[sx]$/, "")}`)
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          gapStart: m.index + first.length
+          secondStart: ctx.text.indexOf(second, gapStart)
+        when:
+          - m.index >= ctx.from
+          - compound
+          - "!(PREFIX_WORDS.has(first) || VERB_SECONDS.has(second))"
+          - '!(verbReadings(second).some((r) => typeof r.slot === "number") && !isVerbHomograph(second))'
+          - >-
+            (/..o$/.test(first) && !isFrenchWord(first)) ||
+            (!!previous && NOUN_PHRASE_OPENERS.has(previous.w) && spacedArticle(ctx, previous, first))
+          - "!(namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(first))"
+        return: 'finding(frame.ruleId, frame.messageKey, gapStart, secondStart, ["-"], { context: { start: m.index, end: secondStart + second.length } })'
       # "vio-loniste" -> "violoniste", "jour-nal" -> "journal": a word cut by a hyphen, where a part
-      # is no word of its own and the joined form is one.
+      # is no word of its own and the joined form is one. "start-ups": the plural of a dictionary
+      # compound.
       - regex: "{{WORD_START}}(?<first>\\p{Ll}[\\p{Ll}\\p{M}]*)-[ ]?(?<second>\\p{Ll}[\\p{Ll}\\p{M}]*){{WORD_END}}"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: splitWord
+        let:
+          joined: first + second
+        when:
+          - m.index >= ctx.from
+          - "!(first.length < 2 || second.length < 2 || WELDED_PREFIXES.has(first))"
+          - "!(knownWord(first) && knownWord(second))"
+          - >-
+            !(!knownWord(joined) ||
+              isDictionaryCompound(`${first}-${second}`) ||
+              isDictionaryCompound(`${first}-${second.replace(/[sx]$/, "")}`))
+          - "!(ctx.dictionary.has(joined) || namedExampleBefore(ctx.text, m.index))"
+        return: 'finding(frame.ruleId, "review_msg_split_word", m.index, m.index + m[0].length, [joined])'
       # "Aix en Provence", "Jean Marc", "le rez de chaussée": a name the dictionary hyphenates (its
-      # case as listed) or a compound noun of three parts or more after a determiner.
+      # case as listed) or a compound noun of three parts or more after a determiner. "Tout Paris
+      # est à la fête": a capitalized common word opening a sentence.
       - regex: "{{WORD_START}}\\p{L}+(?:['’]\\p{L}+)?(?=[ \\t]{1,8}\\p{L}|-\\p{L})"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: longCompound
+        let:
+          lower: m[0].toLowerCase()
+          opening: '!/[\p{L},;(]\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))'
+          compound: compoundsStartingWith(m[0].replaceAll("’", "'")).find((c) => compoundHit(ctx.text, c, m.index) !== null)
+          hit: "compound ? compoundHit(ctx.text, compound, m.index) : null"
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - "!(lower !== m[0] && opening && isFrenchWord(lower))"
+          - "!!compound && !!hit"
+          - "!(/^\\p{Ll}/u.test(compound) && !BARE_COMPOUNDS.has(compound) && (!previous || !NOUN_PHRASE_OPENERS.has(previous.w)))"
+          - "!(namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(compound.toLowerCase()))"
+        return: >-
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + hit[0].length, [compound.replaceAll("'", /’/.test(hit[0]) ? "’" : "'")])
   - id: fr.subjectVerbAgreement
     checks: [frenchSubjectVerbAgreement]
     style: match
@@ -3291,20 +3931,222 @@ rules:
     checks: [frenchMissingNe]
     style: match
     message: review_msg_fr_missing_ne
+    # Written French keeps the "ne" of a negation that spoken French drops: "j'ai pas compris" ->
+    # "je n'ai pas compris", "on sait jamais" -> "on ne sait jamais". Opt-in: the dropped "ne" is
+    # the norm of informal writing.
+    sets:
+      # h-initial verbs that elide ("je n'habite pas").
+      MUTE_H: [habiter, habituer, hésiter, hériter, honorer, humilier, héberger, hiberner]
+      NE_SUBJECTS:
+        [je, tu, il, elle, "on", nous, vous, ils, elles, ça, cela, ceci, c', j', t', personne, rien]
+      NE_DETERMINERS:
+        [
+          le,
+          la,
+          les,
+          l',
+          un,
+          une,
+          ce,
+          cet,
+          cette,
+          ces,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          son,
+          sa,
+          ses,
+          notre,
+          nos,
+          votre,
+          vos,
+          leur,
+          leurs,
+        ]
+      # "jamais" meaning "ever": after a relative, a comparison or a doubt.
+      EVER:
+        [
+          que,
+          qu',
+          qui,
+          si,
+          sans,
+          avant,
+          plus,
+          moins,
+          meilleur,
+          meilleure,
+          pire,
+          seul,
+          seule,
+          quiconque,
+          premier,
+          première,
+          dernier,
+          dernière,
+        ]
+      # "pas mal", "pas loin", "pas à pas": no negation of the verb.
+      NOT_NEGATING_PAS: [mal, loin, cher, moins, plus, tard]
+      AFTER_PLUS: [jamais, rien, personne, aucun, aucune, guère]
+      # "je joue plus beaucoup", "c'est plus très loin", "plus du tout": "plus" before a degree word
+      # only negates ("more" would follow it).
+      DEGREE_AFTER_PLUS: [beaucoup, très, trop, tellement, vraiment, du]
+      # "ils peuvent plus penser": after these verbs "plus" and an infinitive negate.
+      NE_MODALS: [pouvoir, vouloir, savoir, oser, devoir, falloir]
+      # "il parle à personne", "il pense à rien": a preposition between the verb and its object.
+      OBJECT_PREPOSITIONS: [à, de, "d'", avec, pour, sur, chez]
+      # What may open the clause before a subject "personne" or "rien": "Plus personne", "que rien".
+      NE_SUBJECT_OPENERS: [plus, que, qu', et, mais, si, car, donc, alors, quand]
+      NEGATED_CLITICS: [me, m', te, t', se, s', "y", en, le, la, les, l', lui, leur, nous, vous]
+    maps:
+      # Elided subjects and their full form: "j'ai" -> "je n'ai".
+      NE_ELIDED_SUBJECT: { "j'": je, "c'": ce }
+    defs:
+      NE_VOWEL: /^[aeiouyâàäéèêëîïôöûùüœæ]/i
+      neFinite:
+        args: "word: string"
+        return: 'verbReadings(word).some((r) => typeof r.slot === "number")'
+      # "Personne vient" -> "Personne ne vient", "Rien va plus" -> "Rien ne va": "personne" or
+      # "rien" as the clause's subject; undefined when it is not one. "Personne morale": an
+      # adjective; a noun homograph is the verb there ("Rien bouge"). "Personne est un terme...":
+      # the noun named and defined.
+      subjectNegation:
+        args: "ctx: DetectContext, m: RegExpExecArray, before: FrenchToken[]"
+        type: RawFinding | null | undefined
+        let:
+          after: tokensAfter(ctx.text, m.index + m[0].length, 4)
+          i: 'skipWhile(after, 0, (t) => CLITICS.has(t.w) && t.w !== "nous" && t.w !== "vous")'
+          verb: after[i]
+          head: after[0]
+          elides: >-
+            NE_VOWEL.test(head.w) ||
+            (head === verb && head.w.startsWith("h") && verbReadings(head.w).some((r) => MUTE_H.has(r.lemma)))
+          apostrophe: 'ctx.text.slice(Math.max(0, m.index - 200), m.index).includes("’") ? "’" : "''"'
+        when:
+          - before.every((t) => NE_SUBJECT_OPENERS.has(t.w))
+          - "!(!verb || verb.hyphen || !hasPerson(finitePersons(verb.w), IL))"
+          - '!/\p{Lu}/u.test(ctx.text.slice(verb.start, verb.end))'
+          - "!adjectiveReadings(verb.w).length"
+          - '!(verbReadings(verb.w).some((r) => r.lemma === "être") && NE_DETERMINERS.has(after[i + 1]?.w ?? ""))'
+        return: >-
+          namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(m[0].toLowerCase())
+            ? null
+            : {
+                ruleId: "frenchMissingNe",
+                messageKey: "review_msg_fr_missing_ne",
+                range: { start: head.start, end: verb.end },
+                alternatives: [`${elides ? `n${apostrophe}` : "ne "}${ctx.text.slice(head.start, verb.end)}`],
+                context: { start: m.index, end: verb.end },
+              }
+        else: undefined
+      # The subject and the clitics before the verb, and the finding that puts "ne" before them.
+      # "Vous inquiétez pas", "T'as pas": the chain's first pronoun is the subject. "finiras pas
+      # comprendre": "par" mistyped, not a negation. "t'a pas": an elided "tu" needs a
+      # second-person verb. "j'ai pas" -> "je n'ai pas", "t'as pas" -> "tu n'as pas".
+      negatedClause:
+        args: "ctx: DetectContext, m: RegExpExecArray, anchor: string, before: FrenchToken[], skip: number, verb: FrenchToken"
+        type: RawFinding | null
+        let:
+          found: "before.findIndex((t, k) => k >= 1 + skip && !(CLITICS.has(t.w) && !(k > 1 + skip && NE_ELIDED_SUBJECT[t.w])))"
+          i: "found < 0 ? Math.max(before.length, 1 + skip) : found"
+          lead: before[i - 1]
+          own: before[i]
+          tLead: '!own && i > 1 + skip && lead.w === "t''" && i === 2 + skip'
+          vLead: '!own && i > 1 + skip && !tLead && (lead.w === "vous" || lead.w === "nous")'
+          subject: "own ? own : tLead || vLead ? lead : undefined"
+          first: "own ? lead : tLead ? verb : vLead ? (before[i - 2] ?? verb) : lead"
+          typedSubject: ctx.text.slice(subject.start, subject.end)
+          isName: '/^\p{Lu}\p{L}+$/u.test(typedSubject) && capitalizedName(ctx.text, subject.start, typedSubject) && !neFinite(subject.w)'
+          isNoun: '!neFinite(subject.w) && NE_DETERMINERS.has(before[i + 1]?.w ?? "")'
+          apostrophe: 'ctx.text.slice(Math.max(0, m.index - 200), m.index).includes("’") ? "’" : "''"'
+          headWord: first.w.replace(/'$/, "")
+          elides: 'NE_VOWEL.test(headWord) || (headWord.startsWith("h") && verbReadings(headWord).some((r) => MUTE_H.has(r.lemma)))'
+          elided: 'subject.w === "t''" ? "tu" : NE_ELIDED_SUBJECT[subject.w]'
+          start: "elided && subject.end === first.start ? subject.start : first.start"
+          replacement: '(elides ? `n${apostrophe}` : "ne ") + ctx.text.slice(first.start, verb.end)'
+        when:
+          - "!!subject"
+          - NE_SUBJECTS.has(subject.w) || isName || isNoun
+          - "!(namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(anchor))"
+          - '!(anchor === "pas" && verbReadings(verb.w).some((r) => r.lemma === "finir"))'
+          - '!(subject.w === "t''" && !hasPerson(finitePersons(verb.w), TU))'
+        return: >-
+          finding("frenchMissingNe", "review_msg_fr_missing_ne", start, verb.end, [
+            start === subject.start
+              ? `${/^\p{Lu}/u.test(typedSubject) ? elided[0].toUpperCase() + elided.slice(1) : elided} ${replacement}`
+              : replacement,
+          ], { context: { start: subject.start, end: m.index + m[0].length } })
+      # A negation word after its verb with no "ne". "un pas", "le faux pas": a noun. "de personne
+      # à personne": person to person. "rien que pour toi" (only), "rien ne l'arrête" (a new
+      # subject).
+      missingNeVerb:
+        args: "ctx: DetectContext, m: RegExpExecArray, anchor: string, before: FrenchToken[]"
+        type: RawFinding | null
+        let:
+          skip: '(anchor === "personne" || anchor === "rien") && OBJECT_PREPOSITIONS.has(before[0]?.w ?? "") ? 1 : 0'
+          verb: before[skip]
+          pair: tokensAfter(ctx.text, m.index + m[0].length, 2)
+          next: pair[0]
+          second: pair[1]
+        when:
+          - "!(!verb || verb.hyphen || verb.end + 3 < (skip ? before[0].start : m.index))"
+          - '!(/\p{Lu}/u.test(ctx.text.slice(verb.start, verb.end).slice(1)) || !neFinite(verb.w))'
+          - >-
+            !(isInflectedNoun(verb.w) &&
+              !verbReadings(verb.w).some((r) => r.lemma === "être") &&
+              !["avoir", "aller", "faire"].some((l) => verbReadings(verb.w).some((r) => r.lemma === l)))
+          - '!(anchor === "pas" && next && NOT_NEGATING_PAS.has(next.w))'
+          - '!(anchor === "pas" && next?.w === "à" && second?.w === "pas")'
+          - '!(skip && next?.w === "à")'
+          - >-
+            !(anchor === "plus" &&
+              !(next &&
+                (AFTER_PLUS.has(next.w) ||
+                  (DEGREE_AFTER_PLUS.has(next.w) && (next.w !== "du" || second?.w === "tout")) ||
+                  (verbReadings(verb.w).some((r) => NE_MODALS.has(r.lemma)) && verbReadings(next.w).some((r) => r.slot === "I")))))
+          - '!(anchor === "rien" && next && ["que", "qu''", "ne", "n''"].includes(next.w))'
+          - '!(anchor === "jamais" && before.some((t) => EVER.has(t.w)))'
+        return: negatedClause(ctx, m, anchor, before, skip, verb)
     frames:
       # A negation word with no "ne" before the verb: "j'ai pas compris" -> "je n'ai pas compris".
       - regex: "{{WORD_START}}(?:pas|jamais|plus|rien|personne|guère|aucune?){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: missingNe
+        let:
+          anchor: m[0].toLowerCase()
+          before: tokensBefore(ctx.text, m.index, 8)
+          subjectResult: 'anchor === "personne" || anchor === "rien" ? subjectNegation(ctx, m, before) : undefined'
+        when:
+          - m.index >= ctx.from
+          - '!before.some((t) => t.w === "ne" || t.w === "n''" || t.w === "ni")'
+        return: "subjectResult !== undefined ? subjectResult : missingNeVerb(ctx, m, anchor, before)"
       # "pour pas qu'il se fâche" -> "pour qu'il ne se fâche pas": the written negation of the
       # purpose clause wraps its verb.
       - regex: "{{WORD_START}}pour[ \\t]+pas[ \\t]+qu(?:e[ \\t]+|['’])"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: pourPasQue
+        let:
+          after: tokensAfter(ctx.text, m.index + m[0].length, 6)
+          subject: after[0]
+          i: skipWords(after, 1, NEGATED_CLITICS)
+          verb: after[i]
+          apostrophe: '/’/.test(ctx.text.slice(m.index, verb.end)) ? "’" : "''"'
+          head: "after[1] && i > 1 ? after[1] : verb"
+        when:
+          - m.index >= ctx.from
+          - "!(!subject || !(NE_SUBJECTS.has(subject.w) || subject.w in NE_ELIDED_SUBJECT))"
+          - "!(!verb || verb.hyphen || !neFinite(verb.w))"
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          finding(frame.ruleId, frame.messageKey, m.index, verb.end, [
+            `${ctx.text.slice(m.index, m.index + 4)} ${/['’]$/.test(m[0]) ? `qu${apostrophe}` : "que "}${NE_ELIDED_SUBJECT[subject.w] ?? ctx.text.slice(subject.start, subject.end)} ${NE_VOWEL.test(head.w) ? `n${apostrophe}` : "ne "}${ctx.text.slice(head.start, verb.end)} pas`,
+          ], { context: { start: m.index, end: verb.end } })
   - id: fr.smallWords
     checks: [frenchHomophones]
     style: match
@@ -4154,25 +4996,131 @@ rules:
     checks: [frenchSubjectVerbAgreement]
     style: match
     message: review_msg_fr_subject_verb
+    # A subject pronoun joined after its verb agrees with it as before it: "sont-ils",
+    # "manges-tu", "pouvais-je", "partirons-nous". The euphonic t stands only before a singular:
+    # "viendra-t-il".
+    maps:
+      # The pronoun of the other number or of the other plural person.
+      PRONOUN_SWAP: { il: ils, elle: elles, ils: il, elles: elle, nous: vous, vous: nous }
+      # A stressed pronoun is the antecedent of "qui", whose verb takes its person: "toi qui as",
+      # "moi qui pensais", "nous qui partirons".
+      STRESSED_PERSON: { moi: 1, toi: 2, lui: 4, elle: 4, nous: 8, vous: 16, eux: 32, elles: 32 }
+    defs:
+      # The verb and pronoun joined, with the euphonic t a third singular after a vowel needs.
+      joinedInversion:
+        args: "verb: string, pronoun: string"
+        return: '`${verb}${PRONOUN_PERSON[pronoun.toLowerCase()] === IL && /[aeéc]$/i.test(verb) ? "-t-" : "-"}${pronoun}`'
+      # The form of a reading's verb for a person ("peut-je" -> "puis-je").
+      invertedForm:
+        args: "r: VerbReading, person: number"
+        let:
+          form: conjugate(r, person)[0]
+        return: 'form === "peux" && person === JE ? "puis" : form'
+      # The inverted pairs that agree: the pronoun of the other number, or the verb for the
+      # pronoun ("peut-tu" -> "peux-tu", "peut-je" -> "puis-je").
+      inversionFinding:
+        args: "m: RegExpExecArray, typedVerb: string, typedPronoun: string, readings: VerbReading[], persons: number, alternatives: string[]"
+        let:
+          verb: typedVerb.toLowerCase()
+          pronoun: typedPronoun.toLowerCase()
+          person: PRONOUN_PERSON[pronoun]
+          swapped: PRONOUN_SWAP[pronoun]
+          unique: >-
+            [
+              ...new Set([
+                ...alternatives,
+                ...(swapped && hasPerson(persons, PRONOUN_PERSON[swapped])
+                  ? [joinedInversion(typedVerb, carryCase(typedPronoun, swapped))]
+                  : []),
+                ...readings
+                  .map((r) => invertedForm(r, person))
+                  .filter((form) => form && form !== verb)
+                  .map((form) => joinedInversion(carryCase(typedVerb, form), typedPronoun)),
+              ]),
+            ]
+        when: unique.length > 0 && unique.length <= 3
+        return: >-
+          finding("frenchSubjectVerbAgreement", "review_msg_fr_subject_verb", m.index, m.index + m[0].length, unique, {
+            ...(unique.length > 1 ? { requiresChoice: true as const } : {}),
+          })
     frames:
       # "sont-il" -> "sont-ils", "mange-tu" -> "manges-tu", "pouvait-ils" -> "pouvaient-ils".
+      # "dussé-je", "aimé-je": the literary first person in -é. "Aidez-nous", "Laissons-vous":
+      # after an imperative "nous" and "vous" are objects. Only a question word before the verb
+      # makes them its subject. "aiment-t-ils": the verb agrees, the euphonic t goes.
       - regex: "{{WORD_START}}(?<verb>\\p{L}+)-(?<t>t-)?(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: invertedAgreement
+        let:
+          lower: verb.toLowerCase()
+          person: PRONOUN_PERSON[pronoun.toLowerCase()]
+          readings: 'verbReadings(lower).filter((r) => typeof r.slot === "number")'
+          persons: finitePersons(lower)
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - '!(/\p{Lu}/u.test(verb.slice(1)) || ctx.dictionary.has(lower))'
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - readings.length > 0
+          - "!(hasPerson(persons, person) && !(!!t && person !== IL))"
+          - '!(person === JE && lower.endsWith("é"))'
+          - "!(person === NOUS || person === VOUS) || (!!previous && QUESTION_WORDS.has(previous.w))"
+        return: "inversionFinding(m, verb, pronoun, readings, persons, hasPerson(persons, person) ? [`${verb}-${pronoun}`] : [])"
       # "Peux il partir ?": a verb and a subject pronoun with no hyphen, at a question's start.
+      # "Mange il viendra ?": the pronoun is the subject of the verb after it.
       - regex: "{{WORD_START}}(?<verb>\\p{L}+)[ \\t]{1,4}(?<pronoun>je|tu|il|elle|on|nous|vous|ils|elles){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: spacedInversion
-      # "C'est toi qui a" -> "as", "Et moi qui pensait" -> "pensais".
+        let:
+          lower: verb.toLowerCase()
+          end: m.index + m[0].length
+          before: tokensBefore(ctx.text, m.index, 1)[0]
+          opening: "before ? QUESTION_WORDS.has(before.w) : SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))"
+          readings: verbReadings(lower)
+          persons: finitePersons(lower)
+          person: PRONOUN_PERSON[pronoun.toLowerCase()]
+          next: tokensAfter(ctx.text, end, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - '!(/\p{Lu}/u.test(verb.slice(1)) || ctx.dictionary.has(lower))'
+          - "!(!opening || !inQuestion(ctx.text, end) || isVerbHomograph(lower))"
+          - '!(!readings.length || !readings.every((r) => typeof r.slot === "number"))'
+          - "!(hasPerson(persons, person) || namedExampleBefore(ctx.text, m.index))"
+          - "!(next && !isVerbHomograph(next.w) && hasPerson(finitePersons(next.w), person))"
+        return: inversionFinding(m, verb, pronoun, readings, persons, [])
+      # "C'est toi qui a" -> "as", "Et moi qui pensait" -> "pensais". "Ceux me l'avaient dit": the
+      # plural demonstrative as a subject. Only where nothing else may be the antecedent: the
+      # sentence start, "et", "mais", or "c'est" / "ce sont". "un ami de toi qui est venu" may be
+      # about the friend. "elle et moi qui savions": a coordinated antecedent.
       - regex: "{{WORD_START}}(?:(?<pronoun>moi|toi|lui|elle|nous|vous|eux|elles)(?:[ \\t]+seule?s?)?[ \\t]+qui|(?<demonstrative>ceux|celles)){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: pronounAntecedent
+        let:
+          person: "pronoun ? STRESSED_PERSON[pronoun.toLowerCase()] : ILS"
+          before: tokensBefore(ctx.text, m.index, 2)
+          previous: before[0]?.w
+          presented: '["est", "sont", "était", "étaient", "sera"].includes(previous ?? "") && ["c''", "ce"].includes(before[1]?.w ?? "")'
+          opening: '["et", "mais"].includes(previous ?? "") && !before[1]'
+          after: tokensAfter(ctx.text, m.index + m[0].length, 5)
+          verb: 'after[skipWhile(after, 0, (t) => CLITICS.has(t.w) || t.w === "ne" || t.w === "n''")]'
+          auxiliary: 'verbReadings(verb.w).some((r) => r.lemma === "avoir" || r.lemma === "être")'
+          readings: verbReadings(verb.w)
+          forms: "[...new Set(readings.map((r) => conjugate(r, person)[0]).filter(Boolean))]"
+          found: wordFinding(ctx, verb.start, verb.w, forms, frame.ruleId, frame.messageKey)
+        when:
+          - m.index >= ctx.from
+          - "!(previous && !presented && !opening)"
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - "!(!verb || verb.hyphen)"
+          - "!(isVerbHomograph(verb.w) && !auxiliary)"
+          - ctx.text.slice(verb.start, verb.end) === verb.w
+          - '!(!readings.length || !readings.every((r) => typeof r.slot === "number"))'
+          - "!readings.some((r) => hasPerson(r.slot, person))"
+          - "!(!forms.length || forms.length > 2)"
+        return: "found && { ...found, context: { start: m.index, end: verb.end } }"
   - id: fr.imperative
     checks: [frenchVerbForms]
     style: match

@@ -29,10 +29,13 @@ import {
   VOUS,
   accentedNoun,
   adjectiveReadings,
+  capitalizedName,
   carryCase,
+  compoundsStartingWith,
   conjugate,
   contextYear,
   daysInMonth,
+  execAt,
   finding,
   finitePersons,
   finiteReading,
@@ -791,6 +794,417 @@ export const OBJECT_DETERMINERS: ReadonlySet<string> = new Set([
   "leurs",
 ]);
 
+export const QUESTION_WORDS: ReadonlySet<string> = new Set([
+  "que",
+  "qu'",
+  "où",
+  "comment",
+  "pourquoi",
+  "quand",
+  "combien",
+  "quel",
+  "quelle",
+  "quels",
+  "quelles",
+  "quoi",
+  "qui",
+]);
+
+export const CE_VERBS: ReadonlySet<string> = new Set(["est", "était", "sera", "serait", "fut"]);
+
+export const CE_FOLLOWERS: ReadonlySet<string> = new Set([
+  "que",
+  "qu'",
+  "qui",
+  "là",
+  "vrai",
+  "possible",
+  "grave",
+  "normal",
+  "bien",
+  "mal",
+  "juste",
+  "faux",
+  "exact",
+  "sûr",
+  "clair",
+  "utile",
+  "nécessaire",
+  "obligatoire",
+  "important",
+  "ça",
+  "cela",
+  "vous",
+  "toi",
+  "lui",
+  "moi",
+  "elle",
+  "eux",
+  "nous",
+  "elles",
+  "pas",
+  "vraiment",
+  "encore",
+  "toujours",
+  "donc",
+]);
+
+export const HYPHEN_DETERMINERS: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "les",
+  "l'",
+  "un",
+  "une",
+  "des",
+  "du",
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+  "mon",
+  "ma",
+  "mes",
+  "ton",
+  "ta",
+  "tes",
+  "sa",
+  "ses",
+  "notre",
+  "nos",
+  "votre",
+  "vos",
+  "leur",
+  "leurs",
+]);
+
+export const PREFIX_WORDS: ReadonlySet<string> = new Set([
+  "anti",
+  "auto",
+  "néo",
+  "géo",
+  "méga",
+  "mini",
+  "ultra",
+  "hyper",
+  "multi",
+  "psycho",
+  "franco",
+  "afro",
+  "vice",
+  "vidéo",
+  "micro",
+  "macro",
+  "post",
+  "co",
+  "cyber",
+  "extra",
+  "inter",
+  "intra",
+  "semi",
+  "pseudo",
+  "quasi",
+  "poly",
+  "télé",
+  "bio",
+  "éco",
+  "rétro",
+  "zig",
+  "anglo",
+  "germano",
+  "italo",
+  "hispano",
+  "gréco",
+  "judéo",
+  "sino",
+  "russo",
+  "austro",
+  "euro",
+]);
+
+export const NATIONALITY_PREFIXES: ReadonlySet<string> = new Set([
+  "franco",
+  "afro",
+  "anglo",
+  "germano",
+  "italo",
+  "hispano",
+  "gréco",
+  "judéo",
+  "sino",
+  "russo",
+  "austro",
+  "euro",
+]);
+
+export const VOWEL_HYPHEN_PREFIXES: ReadonlySet<string> = new Set([
+  "anti",
+  "ultra",
+  "néo",
+  "semi",
+  "cyber",
+  "co",
+]);
+
+export const CLOSING_PREFIXES: ReadonlySet<string> = new Set([
+  "néo",
+  "géo",
+  "méga",
+  "psycho",
+  "post",
+  "micro",
+  "macro",
+]);
+
+export const PREPOSITION_PREFIXES: ReadonlySet<string> = new Set(["sur", "sous", "contre"]);
+
+export const CAUSATIVE: ReadonlySet<string> = new Set([
+  "laisser",
+  "faire",
+  "regarder",
+  "écouter",
+  "voir",
+  "sentir",
+  "entendre",
+]);
+
+export const AFTER_PRONOUN: ReadonlySet<string> = new Set([
+  "à",
+  "au",
+  "aux",
+  "dans",
+  "sur",
+  "sous",
+  "avec",
+  "pour",
+  "en",
+  "par",
+  "chez",
+  "vers",
+  "de",
+  "d'",
+  "du",
+  "des",
+  "un",
+  "une",
+  "ici",
+  "là",
+  "bien",
+  "vite",
+  "maintenant",
+  "encore",
+  "demain",
+  "donc",
+  "alors",
+  "moi",
+  "toi",
+  "lui",
+  "nous",
+  "leur",
+  "y",
+]);
+
+export const EN_FOLLOWERS: ReadonlySet<string> = new Set([
+  "un",
+  "une",
+  "des",
+  "deux",
+  "trois",
+  "à",
+  "au",
+  "aux",
+  "plus",
+  "moins",
+  "encore",
+  "autant",
+  "beaucoup",
+  "assez",
+  "davantage",
+]);
+
+export const IMPERATIVE_CLAUSE_OPENERS: ReadonlySet<string> = new Set([
+  "et",
+  "puis",
+  "alors",
+  "mais",
+  "sinon",
+  "donc",
+  "ou",
+]);
+
+export const PEU_BEFORE: ReadonlySet<string> = new Set([
+  "à",
+  "un",
+  "très",
+  "trop",
+  "si",
+  "assez",
+  "bien",
+  "pour",
+  "de",
+  "le",
+  "ce",
+  "tout",
+  "aussi",
+  "ne",
+  "n'",
+  "qui",
+  "ça",
+  "cela",
+  "ici",
+  "sous",
+  "avant",
+]);
+
+export const WELDED_PREFIXES: ReadonlySet<string> = new Set([
+  "co",
+  "re",
+  "ré",
+  "pré",
+  "anti",
+  "auto",
+  "néo",
+  "post",
+  "mini",
+  "maxi",
+  "multi",
+  "ultra",
+  "super",
+  "hyper",
+  "semi",
+  "demi",
+  "mi",
+  "sous",
+  "sur",
+  "contre",
+  "extra",
+  "inter",
+  "intra",
+  "micro",
+  "macro",
+  "méga",
+  "mono",
+  "poly",
+  "pro",
+  "pseudo",
+  "quasi",
+  "télé",
+  "vice",
+  "ex",
+  "non",
+  "bi",
+  "tri",
+  "dé",
+  "dés",
+  "in",
+  "im",
+  "para",
+  "éco",
+  "bio",
+  "géo",
+  "euro",
+  "cyber",
+  "agro",
+  "socio",
+  "psycho",
+  "électro",
+  "thermo",
+  "hydro",
+  "aéro",
+  "audio",
+  "vidéo",
+  "photo",
+  "radio",
+  "cardio",
+  "neuro",
+  "techno",
+  "info",
+  "crypto",
+]);
+
+export const BARE_COMPOUNDS: ReadonlySet<string> = new Set(["c'est-à-dire"]);
+
+export const NOUN_PHRASE_OPENERS: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "les",
+  "l'",
+  "un",
+  "une",
+  "des",
+  "du",
+  "au",
+  "aux",
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+  "mon",
+  "ma",
+  "mes",
+  "ton",
+  "ta",
+  "tes",
+  "son",
+  "sa",
+  "ses",
+  "notre",
+  "nos",
+  "votre",
+  "vos",
+  "leur",
+  "leurs",
+]);
+
+export const PRONOUN_ARTICLES: ReadonlySet<string> = new Set(["le", "la", "les", "l'"]);
+
+export const VERB_SECONDS: ReadonlySet<string> = new Set([
+  "est",
+  "a",
+  "sont",
+  "ont",
+  "fait",
+  "font",
+  "être",
+  "avoir",
+  "vous",
+  "nous",
+  "moi",
+  "toi",
+  "lui",
+  "eux",
+  "là",
+  "ci",
+  "cent",
+]);
+
+export const ARTICLE_CONTEXT: ReadonlySet<string> = new Set([
+  "de",
+  "d'",
+  "à",
+  "dans",
+  "sur",
+  "sous",
+  "pour",
+  "par",
+  "avec",
+  "sans",
+  "chez",
+  "vers",
+  "entre",
+  "après",
+  "avant",
+  "contre",
+  "pendant",
+  "depuis",
+  "et",
+  "ou",
+  "mais",
+  "que",
+  "qu'",
+  "car",
+]);
+
 export const NO_ELISION: ReadonlySet<string> = new Set([
   "oui",
   "onze",
@@ -1137,6 +1551,164 @@ export const LA_ADVERB_FOLLOWERS: ReadonlySet<string> = new Set([
   "parce",
   "et",
   "ou",
+]);
+
+export const MUTE_H: ReadonlySet<string> = new Set([
+  "habiter",
+  "habituer",
+  "hésiter",
+  "hériter",
+  "honorer",
+  "humilier",
+  "héberger",
+  "hiberner",
+]);
+
+export const NE_SUBJECTS: ReadonlySet<string> = new Set([
+  "je",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "nous",
+  "vous",
+  "ils",
+  "elles",
+  "ça",
+  "cela",
+  "ceci",
+  "c'",
+  "j'",
+  "t'",
+  "personne",
+  "rien",
+]);
+
+export const NE_DETERMINERS: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "les",
+  "l'",
+  "un",
+  "une",
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+  "mon",
+  "ma",
+  "mes",
+  "ton",
+  "ta",
+  "tes",
+  "son",
+  "sa",
+  "ses",
+  "notre",
+  "nos",
+  "votre",
+  "vos",
+  "leur",
+  "leurs",
+]);
+
+export const EVER: ReadonlySet<string> = new Set([
+  "que",
+  "qu'",
+  "qui",
+  "si",
+  "sans",
+  "avant",
+  "plus",
+  "moins",
+  "meilleur",
+  "meilleure",
+  "pire",
+  "seul",
+  "seule",
+  "quiconque",
+  "premier",
+  "première",
+  "dernier",
+  "dernière",
+]);
+
+export const NOT_NEGATING_PAS: ReadonlySet<string> = new Set([
+  "mal",
+  "loin",
+  "cher",
+  "moins",
+  "plus",
+  "tard",
+]);
+
+export const AFTER_PLUS: ReadonlySet<string> = new Set([
+  "jamais",
+  "rien",
+  "personne",
+  "aucun",
+  "aucune",
+  "guère",
+]);
+
+export const DEGREE_AFTER_PLUS: ReadonlySet<string> = new Set([
+  "beaucoup",
+  "très",
+  "trop",
+  "tellement",
+  "vraiment",
+  "du",
+]);
+
+export const NE_MODALS: ReadonlySet<string> = new Set([
+  "pouvoir",
+  "vouloir",
+  "savoir",
+  "oser",
+  "devoir",
+  "falloir",
+]);
+
+export const OBJECT_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "à",
+  "de",
+  "d'",
+  "avec",
+  "pour",
+  "sur",
+  "chez",
+]);
+
+export const NE_SUBJECT_OPENERS: ReadonlySet<string> = new Set([
+  "plus",
+  "que",
+  "qu'",
+  "et",
+  "mais",
+  "si",
+  "car",
+  "donc",
+  "alors",
+  "quand",
+]);
+
+export const NEGATED_CLITICS: ReadonlySet<string> = new Set([
+  "me",
+  "m'",
+  "te",
+  "t'",
+  "se",
+  "s'",
+  "y",
+  "en",
+  "le",
+  "la",
+  "les",
+  "l'",
+  "lui",
+  "leur",
+  "nous",
+  "vous",
 ]);
 
 export const CLITIC_SUBJECTS: ReadonlySet<string> = new Set(["je", "tu", "il", "ils", "on"]);
@@ -2028,6 +2600,18 @@ export const AN_DETERMINERS: Readonly<Record<string, string>> = {
   ses: "ses",
 };
 
+export const PRONOUN_PERSON: Readonly<Record<string, number>> = {
+  je: 1,
+  tu: 2,
+  il: 4,
+  elle: 4,
+  on: 4,
+  nous: 8,
+  vous: 16,
+  ils: 32,
+  elles: 32,
+};
+
 export const ELIDED: Readonly<Record<string, string>> = {
   je: "j",
   me: "m",
@@ -2082,6 +2666,8 @@ export const GENDER_SWAP: Readonly<Record<string, readonly string[] | readonly (
     aucun: ["aucune", "aucune"],
     aucune: ["aucun", "aucun"],
   };
+
+export const NE_ELIDED_SUBJECT: Readonly<Record<string, string>> = { "j'": "je", "c'": "ce" };
 
 export const COUNTRY_PREPOSITIONS: Readonly<Record<string, string>> = {
   France: "en",
@@ -2303,6 +2889,26 @@ export const AUX_SUBJECT_FORMS: Readonly<Record<string, readonly string[]>> = {
   vous: ["fs", "mp", "fp"],
   ils: ["mp"],
   elles: ["fp"],
+};
+
+export const PRONOUN_SWAP: Readonly<Record<string, string>> = {
+  il: "ils",
+  elle: "elles",
+  ils: "il",
+  elles: "elle",
+  nous: "vous",
+  vous: "nous",
+};
+
+export const STRESSED_PERSON: Readonly<Record<string, number>> = {
+  moi: 1,
+  toi: 2,
+  lui: 4,
+  elle: 4,
+  nous: 8,
+  vous: 16,
+  eux: 32,
+  elles: 32,
 };
 
 export const IMPERATIVE_SINGULAR: Readonly<Record<string, string>> = {
@@ -3980,6 +4586,122 @@ export function etToEst(ctx: DetectContext, m: RegExpExecArray): RawFinding | nu
     : etSubject(ctx, before, next, pair[1], fix);
 }
 
+// fr.yaml rule fr.hyphenation def COMPOUND_PATTERNS
+export const COMPOUND_PATTERNS = new Map<string, RegExp>();
+
+// fr.yaml rule fr.hyphenation def inQuestion
+export function inQuestion(text: string, index: number) {
+  const end = text.slice(index, index + 300).search(/[.!?…\n]/);
+  return end >= 0 && text[index + end] === "?";
+}
+
+// fr.yaml rule fr.hyphenation def ceInversion
+export function ceInversion(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  lower: string,
+  before: FrenchToken[],
+  i: number,
+  after: FrenchToken[],
+) {
+  const following = after[0];
+  const next = after[0]?.w;
+  return (
+    CE_VERBS.has(lower) &&
+    (before[i]
+      ? QUESTION_WORDS.has(before[i].w) ||
+        ["et", "mais", "alors", "ou", "donc"].includes(before[i].w)
+      : SENTENCE_START.test(ctx.text.slice(Math.max(0, start - 4), start))) &&
+    !(
+      following &&
+      !CE_FOLLOWERS.has(following.w) &&
+      !HYPHEN_DETERMINERS.has(following.w) &&
+      (!verbReadings(following.w).some((r) => r.slot === "Q") || isVerbHomograph(following.w))
+    ) &&
+    !(!inQuestion(ctx.text, end) && next !== "que" && next !== "qu'" && next !== "qui")
+  );
+}
+
+// fr.yaml rule fr.hyphenation def pronounInversion
+export function pronounInversion(
+  ctx: DetectContext,
+  end: number,
+  lower: string,
+  pronoun: string,
+  euphonic: boolean,
+  before: FrenchToken[],
+  i: number,
+  after: FrenchToken[],
+) {
+  const opening = !before[i] || QUESTION_WORDS.has(before[i].w);
+  const next = after[0];
+  return (
+    (euphonic || inQuestion(ctx.text, end)) &&
+    !(isVerbHomograph(lower) && !euphonic && !opening) &&
+    hasPerson(finitePersons(lower), PRONOUN_PERSON[pronoun]) &&
+    !(pronoun === "je" && /e$/.test(lower)) &&
+    !(next && hasPerson(finitePersons(next.w), PRONOUN_PERSON[pronoun]) && !isVerbHomograph(next.w))
+  );
+}
+
+// fr.yaml rule fr.hyphenation def imperativeObject
+export function imperativeObject(
+  readings: VerbReading[],
+  pronoun: string,
+  next: FrenchToken | undefined,
+) {
+  if (!next) return false;
+  if (["et", "ou", "aussi", "même", "mêmes", "tous", "deux"].includes(next.w)) return false;
+  if (verbReadings(next.w).some((r) => r.slot === "G")) return false;
+  if ((pronoun === "en" || pronoun === "y") && !EN_FOLLOWERS.has(next.w)) return false;
+  return verbReadings(next.w).some((r) => r.slot === "I")
+    ? readings.some((r) => CAUSATIVE.has(r.lemma))
+    : AFTER_PRONOUN.has(next.w)
+      ? true
+      : !["le", "la", "les", "leur"].includes(pronoun) &&
+        !verbReadings(next.w).some((r) => typeof r.slot === "number");
+}
+
+// fr.yaml rule fr.hyphenation def knownWord
+export function knownWord(word: string) {
+  return isFrenchWord(word) || adjectiveReadings(word).length > 0;
+}
+
+// fr.yaml rule fr.hyphenation def compoundPattern
+export function compoundPattern(compound: string) {
+  return (
+    COMPOUND_PATTERNS.get(compound) ??
+    COMPOUND_PATTERNS.set(
+      compound,
+      new RegExp(
+        `${compound
+          .split("-")
+          .map((p) => p.replaceAll("'", "['’]"))
+          .join("(?:[ \\t]{1,8}|-)")}(?![\\p{L}\\p{M}\\p{N}_'’-])`,
+        "uy",
+      ),
+    ).get(compound)!
+  );
+}
+
+// fr.yaml rule fr.hyphenation def compoundHit
+export function compoundHit(text: string, compound: string, index: number) {
+  const hit = execAt(compoundPattern(compound), text, index);
+  return hit && /[ \t]/.test(hit[0]) ? hit : null;
+}
+
+// fr.yaml rule fr.hyphenation def spacedArticle
+export function spacedArticle(ctx: DetectContext, previous: FrenchToken, first: string) {
+  if (!PRONOUN_ARTICLES.has(previous.w)) return true;
+  const before = tokensBefore(ctx.text, previous.start, 1)[0];
+  return (
+    !before ||
+    ARTICLE_CONTEXT.has(before.w) ||
+    !(verbReadings(first).some((r) => typeof r.slot === "number") || verbReadings(before.w).length)
+  );
+}
+
 // fr.yaml rule fr.elision def ELISION_VOWEL
 export const ELISION_VOWEL = /^[aeiouâàäéèêëîïôöûùüœæ]/i;
 
@@ -4197,6 +4919,147 @@ export function genderBeforeNoun(
   return nounGender(next.w) === gender ? gender : null;
 }
 
+// fr.yaml rule fr.negation def NE_VOWEL
+export const NE_VOWEL = /^[aeiouyâàäéèêëîïôöûùüœæ]/i;
+
+// fr.yaml rule fr.negation def neFinite
+export function neFinite(word: string) {
+  return verbReadings(word).some((r) => typeof r.slot === "number");
+}
+
+// fr.yaml rule fr.negation def subjectNegation
+export function subjectNegation(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  before: FrenchToken[],
+): RawFinding | null | undefined {
+  if (!before.every((t) => NE_SUBJECT_OPENERS.has(t.w))) return undefined;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 4);
+  const i = skipWhile(after, 0, (t) => CLITICS.has(t.w) && t.w !== "nous" && t.w !== "vous");
+  const verb = after[i];
+  if (!verb || verb.hyphen || !hasPerson(finitePersons(verb.w), IL)) return undefined;
+  if (/\p{Lu}/u.test(ctx.text.slice(verb.start, verb.end))) return undefined;
+  if (adjectiveReadings(verb.w).length) return undefined;
+  if (
+    verbReadings(verb.w).some((r) => r.lemma === "être") &&
+    NE_DETERMINERS.has(after[i + 1]?.w ?? "")
+  )
+    return undefined;
+  const head = after[0];
+  const elides =
+    NE_VOWEL.test(head.w) ||
+    (head === verb &&
+      head.w.startsWith("h") &&
+      verbReadings(head.w).some((r) => MUTE_H.has(r.lemma)));
+  const apostrophe = ctx.text.slice(Math.max(0, m.index - 200), m.index).includes("’") ? "’" : "'";
+  return namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(m[0].toLowerCase())
+    ? null
+    : {
+        ruleId: "frenchMissingNe",
+        messageKey: "review_msg_fr_missing_ne",
+        range: { start: head.start, end: verb.end },
+        alternatives: [
+          `${elides ? `n${apostrophe}` : "ne "}${ctx.text.slice(head.start, verb.end)}`,
+        ],
+        context: { start: m.index, end: verb.end },
+      };
+}
+
+// fr.yaml rule fr.negation def negatedClause
+export function negatedClause(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  anchor: string,
+  before: FrenchToken[],
+  skip: number,
+  verb: FrenchToken,
+): RawFinding | null {
+  const found = before.findIndex(
+    (t, k) => k >= 1 + skip && !(CLITICS.has(t.w) && !(k > 1 + skip && NE_ELIDED_SUBJECT[t.w])),
+  );
+  const i = found < 0 ? Math.max(before.length, 1 + skip) : found;
+  const lead = before[i - 1];
+  const own = before[i];
+  const tLead = !own && i > 1 + skip && lead.w === "t'" && i === 2 + skip;
+  const vLead = !own && i > 1 + skip && !tLead && (lead.w === "vous" || lead.w === "nous");
+  const subject = own ? own : tLead || vLead ? lead : undefined;
+  if (!subject) return null;
+  const first = own ? lead : tLead ? verb : vLead ? (before[i - 2] ?? verb) : lead;
+  const typedSubject = ctx.text.slice(subject.start, subject.end);
+  const isName =
+    /^\p{Lu}\p{L}+$/u.test(typedSubject) &&
+    capitalizedName(ctx.text, subject.start, typedSubject) &&
+    !neFinite(subject.w);
+  const isNoun = !neFinite(subject.w) && NE_DETERMINERS.has(before[i + 1]?.w ?? "");
+  if (!(NE_SUBJECTS.has(subject.w) || isName || isNoun)) return null;
+  if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(anchor)) return null;
+  if (anchor === "pas" && verbReadings(verb.w).some((r) => r.lemma === "finir")) return null;
+  if (subject.w === "t'" && !hasPerson(finitePersons(verb.w), TU)) return null;
+  const apostrophe = ctx.text.slice(Math.max(0, m.index - 200), m.index).includes("’") ? "’" : "'";
+  const headWord = first.w.replace(/'$/, "");
+  const elides =
+    NE_VOWEL.test(headWord) ||
+    (headWord.startsWith("h") && verbReadings(headWord).some((r) => MUTE_H.has(r.lemma)));
+  const elided = subject.w === "t'" ? "tu" : NE_ELIDED_SUBJECT[subject.w];
+  const start = elided && subject.end === first.start ? subject.start : first.start;
+  const replacement = (elides ? `n${apostrophe}` : "ne ") + ctx.text.slice(first.start, verb.end);
+  return finding(
+    "frenchMissingNe",
+    "review_msg_fr_missing_ne",
+    start,
+    verb.end,
+    [
+      start === subject.start
+        ? `${/^\p{Lu}/u.test(typedSubject) ? elided[0].toUpperCase() + elided.slice(1) : elided} ${replacement}`
+        : replacement,
+    ],
+    { context: { start: subject.start, end: m.index + m[0].length } },
+  );
+}
+
+// fr.yaml rule fr.negation def missingNeVerb
+export function missingNeVerb(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  anchor: string,
+  before: FrenchToken[],
+): RawFinding | null {
+  const skip =
+    (anchor === "personne" || anchor === "rien") && OBJECT_PREPOSITIONS.has(before[0]?.w ?? "")
+      ? 1
+      : 0;
+  const verb = before[skip];
+  if (!verb || verb.hyphen || verb.end + 3 < (skip ? before[0].start : m.index)) return null;
+  if (/\p{Lu}/u.test(ctx.text.slice(verb.start, verb.end).slice(1)) || !neFinite(verb.w))
+    return null;
+  if (
+    isInflectedNoun(verb.w) &&
+    !verbReadings(verb.w).some((r) => r.lemma === "être") &&
+    !["avoir", "aller", "faire"].some((l) => verbReadings(verb.w).some((r) => r.lemma === l))
+  )
+    return null;
+  const pair = tokensAfter(ctx.text, m.index + m[0].length, 2);
+  const next = pair[0];
+  if (anchor === "pas" && next && NOT_NEGATING_PAS.has(next.w)) return null;
+  const second = pair[1];
+  if (anchor === "pas" && next?.w === "à" && second?.w === "pas") return null;
+  if (skip && next?.w === "à") return null;
+  if (
+    anchor === "plus" &&
+    !(
+      next &&
+      (AFTER_PLUS.has(next.w) ||
+        (DEGREE_AFTER_PLUS.has(next.w) && (next.w !== "du" || second?.w === "tout")) ||
+        (verbReadings(verb.w).some((r) => NE_MODALS.has(r.lemma)) &&
+          verbReadings(next.w).some((r) => r.slot === "I")))
+    )
+  )
+    return null;
+  if (anchor === "rien" && next && ["que", "qu'", "ne", "n'"].includes(next.w)) return null;
+  if (anchor === "jamais" && before.some((t) => EVER.has(t.w))) return null;
+  return negatedClause(ctx, m, anchor, before, skip, verb);
+}
+
 // fr.yaml rule fr.ordinals def ordinalSuffix
 export function ordinalSuffix(number: string, typed: string) {
   const plural = /s$/i.test(typed) ? "s" : "";
@@ -4353,6 +5216,55 @@ export function participleOf(word: string, lemmas: ReadonlySet<string>) {
   return (
     verbReadings(word).some((r) => r.slot === "Q" && lemmas.has(r.lemma)) &&
     verbReadings(word).every((r) => r.slot === "Q")
+  );
+}
+
+// fr.yaml rule fr.questions def joinedInversion
+export function joinedInversion(verb: string, pronoun: string) {
+  return `${verb}${PRONOUN_PERSON[pronoun.toLowerCase()] === IL && /[aeéc]$/i.test(verb) ? "-t-" : "-"}${pronoun}`;
+}
+
+// fr.yaml rule fr.questions def invertedForm
+export function invertedForm(r: VerbReading, person: number) {
+  const form = conjugate(r, person)[0];
+  return form === "peux" && person === JE ? "puis" : form;
+}
+
+// fr.yaml rule fr.questions def inversionFinding
+export function inversionFinding(
+  m: RegExpExecArray,
+  typedVerb: string,
+  typedPronoun: string,
+  readings: VerbReading[],
+  persons: number,
+  alternatives: string[],
+) {
+  const verb = typedVerb.toLowerCase();
+  const pronoun = typedPronoun.toLowerCase();
+  const person = PRONOUN_PERSON[pronoun];
+  const swapped = PRONOUN_SWAP[pronoun];
+  const unique = [
+    ...new Set([
+      ...alternatives,
+      ...(swapped && hasPerson(persons, PRONOUN_PERSON[swapped])
+        ? [joinedInversion(typedVerb, carryCase(typedPronoun, swapped))]
+        : []),
+      ...readings
+        .map((r) => invertedForm(r, person))
+        .filter((form) => form && form !== verb)
+        .map((form) => joinedInversion(carryCase(typedVerb, form), typedPronoun)),
+    ]),
+  ];
+  if (!(unique.length > 0 && unique.length <= 3)) return null;
+  return finding(
+    "frenchSubjectVerbAgreement",
+    "review_msg_fr_subject_verb",
+    m.index,
+    m.index + m[0].length,
+    unique,
+    {
+      ...(unique.length > 1 ? { requiresChoice: true as const } : {}),
+    },
   );
 }
 
@@ -4785,6 +5697,300 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (!(m.index >= ctx.from)) return null;
     return m[0] === "est" ? estToEt(ctx, m) : etToEst(ctx, m);
   },
+  // fr.yaml rule fr.hyphenation frame 1
+  "@fr.hyphenation/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    const t = m.groups!.t;
+    const pronoun = m.groups!.pronoun;
+    if (!(m.index >= ctx.from)) return null;
+    const lowerPronoun = pronoun.toLowerCase();
+    const lower = verb.toLowerCase();
+    if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(lower)) return null;
+    const end = m.index + m[0].length;
+    const before = tokensBefore(ctx.text, m.index, 6);
+    const after = tokensAfter(ctx.text, end, 2);
+    const i = skipWhile(before, 0, (t) => CLITICS.has(t.w) || t.w === "ne" || t.w === "n'");
+    if (before.slice(0, i + 1).some((t) => SUBJECT_PRONOUNS.has(t.w) && !CLITICS.has(t.w)))
+      return null;
+    if (before[i] && ["ça", "cela", "ceci", "qui"].includes(before[i].w)) return null;
+    if (
+      !(lowerPronoun === "ce"
+        ? ceInversion(ctx, m.index, end, lower, before, i, after)
+        : pronounInversion(ctx, end, lower, lowerPronoun, !!t, before, i, after))
+    )
+      return null;
+    const fixed = `${verb}${["il", "elle", "on"].includes(lowerPronoun) && /[aeé]$/i.test(verb) ? "-t-" : "-"}${pronoun}`;
+    if (!(fixed !== ctx.source.slice(m.index, end))) return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, end, [fixed]);
+  },
+  // fr.yaml rule fr.hyphenation frame 2
+  "@fr.hyphenation/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const start = m.index;
+    if (namedExampleBefore(ctx.text, start)) return null;
+    const before = tokensBefore(ctx.text, start, 2);
+    const previous = before[0];
+    const next = tokensAfter(ctx.text, start + m[0].length, 1)[0];
+    const sentenceStart =
+      !previous &&
+      SENTENCE_START.test(ctx.text.slice(Math.max(0, start - 4), start)) &&
+      !(next && verbReadings(next.w).some((r) => r.slot === "Q"));
+    const clauseSubject = tokensBefore(ctx.text, start, 20).some((t) =>
+      ["que", "qu'", "qui", "dont", "où", "ce"].includes(t.w),
+    );
+    const afterVerb =
+      previous &&
+      !clauseSubject &&
+      /^\p{Ll}/u.test(ctx.text.slice(previous.start, previous.end)) &&
+      !isVerbHomograph(previous.w) &&
+      verbReadings(previous.w).some((r) => typeof r.slot === "number" && r.lemma !== "pouvoir");
+    const peu =
+      /^peu[ \t]/i.test(m[0]) &&
+      !(previous && (PEU_BEFORE.has(previous.w) || SUBJECT_PRONOUNS.has(previous.w)));
+    const afterAuxiliary =
+      previous &&
+      !clauseSubject &&
+      verbReadings(previous.w).some(
+        (r) => typeof r.slot === "number" && (r.lemma === "être" || r.lemma === "avoir"),
+      ) &&
+      !!before[1] &&
+      (SUBJECT_PRONOUNS.has(before[1].w) || ["c'", "n'", "ne"].includes(before[1].w));
+    const rest = ctx.text.slice(start + m[0].length);
+    const adverbial =
+      (next && ["que", "qu'", "même", "parce"].includes(next.w)) ||
+      /^[\s  ]*[?!,.…]/u.test(rest) ||
+      (previous && ["avec", "ainsi", "bientôt", "voire", "ou"].includes(previous.w));
+    if (!(sentenceStart || afterVerb || peu || afterAuxiliary || adverbial)) return null;
+    return finding(frame.ruleId, frame.messageKey, start, start + m[0].length, [
+      carryCase(m[0], "peut-être"),
+    ]);
+  },
+  // fr.yaml rule fr.hyphenation frame 3
+  "@fr.hyphenation/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    const pronoun = m.groups!.pronoun;
+    if (!(m.index >= ctx.from)) return null;
+    const lower = verb.toLowerCase();
+    if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(lower)) return null;
+    if (/\p{Lu}/u.test(verb.slice(1))) return null;
+    const lowerPronoun = pronoun.toLowerCase().replaceAll("’", "'");
+    const end = m.index + m[0].length;
+    const before = tokensBefore(ctx.text, m.index, 1);
+    if (
+      before[0]
+        ? !IMPERATIVE_CLAUSE_OPENERS.has(before[0].w)
+        : /[\p{L}\p{N}][\s  ]*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))
+    )
+      return null;
+    if (lower === "puis" || adjectiveReadings(lower).length) return null;
+    const readings = verbReadings(lower);
+    if (
+      !readings.some(
+        (r) =>
+          typeof r.slot === "number" &&
+          r.tense === 1 &&
+          (hasPerson(r.slot, TU + NOUS + VOUS) || (hasPerson(r.slot, JE) && lower.endsWith("e"))),
+      )
+    )
+      return null;
+    if (
+      /^[^.!\n]*\?/u.test(ctx.text.slice(end, end + 80)) &&
+      (lowerPronoun === "nous" || lowerPronoun === "vous")
+    )
+      return null;
+    const next = tokensAfter(ctx.text, end, 1)[0];
+    if (!(
+      /^[\s  ]*(?:$|[.!,;:)…])/u.test(ctx.text.slice(end)) ||
+      imperativeObject(readings, lowerPronoun, next)
+    ))
+      return null;
+    return finding(frame.ruleId, "review_msg_closed_compound", m.index, end, [
+      `${verb}-${pronoun}`,
+    ]);
+  },
+  // fr.yaml rule fr.hyphenation frame 4
+  "@fr.hyphenation/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const y = m.groups!.y;
+    const verb = m.groups!.verb;
+    const pronoun = m.groups!.pronoun;
+    if (!(m.index >= ctx.from)) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [
+      `${y ? `${y[0]} ` : ""}${y ? verb.toLowerCase() : verb}-t-${pronoun}`,
+    ]);
+  },
+  // fr.yaml rule fr.hyphenation frame 5
+  "@fr.hyphenation/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    if (!(m.index >= ctx.from)) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const lowerFirst = first.toLowerCase();
+    const lowerSecond = second.toLowerCase();
+    const end = m.index + m[0].length;
+    const closes = /^[\s  ]*(?:$|[.!,;:)…])/u.test(ctx.text.slice(end));
+    const next = tokensAfter(ctx.text, end, 1)[0];
+    if (
+      !(lowerSecond === "en" || lowerSecond === "y"
+        ? closes
+        : ["le", "la", "les"].includes(lowerFirst) &&
+          !(
+            !closes &&
+            (!next ||
+              next.w === "même" ||
+              (next && verbReadings(next.w).some((r) => r.slot === "I")))
+          ))
+    )
+      return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, end, [m[0].replace(/[ \t]+/, "-")]);
+  },
+  // fr.yaml rule fr.hyphenation frame 6
+  "@fr.hyphenation/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const before = tokensBefore(ctx.text, m.index, 2);
+    const i = before[0] && (before[0].w === "ne" || before[0].w === "n'") ? 1 : 0;
+    if (!before[i] || !["il", "elle", "on", "ce", "cela", "ça"].includes(before[i].w)) return null;
+    if (/[^\s  ]$/u.test(ctx.text.slice(0, before[i].start))) return null;
+    const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+    if (!next || verbReadings(next.w).some((r) => typeof r.slot === "number")) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(
+      frame.ruleId,
+      frame.messageKey,
+      m.index,
+      m.index + m[0].length,
+      [carryCase(m[0], "peut être")],
+      {
+        context: { start: before[i].start, end: next.end },
+      },
+    );
+  },
+  // fr.yaml rule fr.hyphenation frame 7
+  "@fr.hyphenation/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const prefix = m.groups!.prefix;
+    const word = m.groups!.word;
+    if (!(m.index >= ctx.from)) return null;
+    const typed = m[0];
+    const lowerPrefix = prefix.toLowerCase();
+    const lowerWord = word.toLowerCase();
+    if (
+      /^\p{Lu}/u.test(word) ||
+      ctx.dictionary.has(lowerWord) ||
+      namedExampleBefore(ctx.text, m.index)
+    )
+      return null;
+    const hyphen = typed.includes("-");
+    if (!(
+      !PREPOSITION_PREFIXES.has(lowerPrefix) ||
+      (!hyphen &&
+        !isNounLemma(lowerWord) &&
+        verbReadings(lowerWord).some((r) => r.slot === "Q" || r.slot === "I"))
+    ))
+      return null;
+    const joined = `${lowerPrefix}${lowerWord}`;
+    const hyphenated = `${lowerPrefix}-${lowerWord}`;
+    const diaeresis = `co${lowerWord[0] === "i" ? "ï" : "ë"}${lowerWord.slice(1)}`;
+    const dictionaryForm = hyphen
+      ? CLOSING_PREFIXES.has(lowerPrefix) &&
+        !isFrenchWord(hyphenated) &&
+        isFrenchWord(joined) &&
+        isFrenchWord(lowerWord)
+        ? joined
+        : null
+      : lowerPrefix === "sous" || lowerPrefix === "contre" || lowerPrefix === "vice"
+        ? isFrenchWord(hyphenated)
+          ? hyphenated
+          : null
+        : isFrenchWord(joined)
+          ? joined
+          : isFrenchWord(hyphenated)
+            ? hyphenated
+            : lowerPrefix === "co" && /^[ie]/.test(lowerWord) && isFrenchWord(diaeresis)
+              ? diaeresis
+              : null;
+    const fixed =
+      dictionaryForm ??
+      (!hyphen &&
+      prefix === lowerPrefix &&
+      (isFrenchWord(lowerWord) || adjectiveReadings(lowerWord).length > 0) &&
+      (NATIONALITY_PREFIXES.has(lowerPrefix) ||
+        (VOWEL_HYPHEN_PREFIXES.has(lowerPrefix) && /^[aeiouyéèêâîôûh]/.test(lowerWord)))
+        ? hyphenated
+        : null);
+    if (!fixed) return null;
+    return finding(frame.ruleId, "review_msg_closed_compound", m.index, m.index + typed.length, [
+      carryCase(typed, fixed),
+    ]);
+  },
+  // fr.yaml rule fr.hyphenation frame 8
+  "@fr.hyphenation/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    if (!(m.index >= ctx.from)) return null;
+    const compound =
+      isDictionaryCompound(`${first}-${second}`) ||
+      isDictionaryCompound(`${first}-${second.replace(/(?<=..)[sx]$/, "")}`) ||
+      isDictionaryCompound(
+        `${first.replace(/(?<=..)[sx]$/, "")}-${second.replace(/(?<=..)[sx]$/, "")}`,
+      );
+    if (!compound) return null;
+    if (PREFIX_WORDS.has(first) || VERB_SECONDS.has(second)) return null;
+    if (verbReadings(second).some((r) => typeof r.slot === "number") && !isVerbHomograph(second))
+      return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (!(
+      (/..o$/.test(first) && !isFrenchWord(first)) ||
+      (!!previous && NOUN_PHRASE_OPENERS.has(previous.w) && spacedArticle(ctx, previous, first))
+    ))
+      return null;
+    if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(first)) return null;
+    const gapStart = m.index + first.length;
+    const secondStart = ctx.text.indexOf(second, gapStart);
+    return finding(frame.ruleId, frame.messageKey, gapStart, secondStart, ["-"], {
+      context: { start: m.index, end: secondStart + second.length },
+    });
+  },
+  // fr.yaml rule fr.hyphenation frame 9
+  "@fr.hyphenation/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    if (!(m.index >= ctx.from)) return null;
+    if (first.length < 2 || second.length < 2 || WELDED_PREFIXES.has(first)) return null;
+    if (knownWord(first) && knownWord(second)) return null;
+    const joined = first + second;
+    if (
+      !knownWord(joined) ||
+      isDictionaryCompound(`${first}-${second}`) ||
+      isDictionaryCompound(`${first}-${second.replace(/[sx]$/, "")}`)
+    )
+      return null;
+    if (ctx.dictionary.has(joined) || namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(frame.ruleId, "review_msg_split_word", m.index, m.index + m[0].length, [joined]);
+  },
+  // fr.yaml rule fr.hyphenation frame 10
+  "@fr.hyphenation/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const lower = m[0].toLowerCase();
+    const opening = !/[\p{L},;(]\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+    if (lower !== m[0] && opening && isFrenchWord(lower)) return null;
+    const compound = compoundsStartingWith(m[0].replaceAll("’", "'")).find(
+      (c) => compoundHit(ctx.text, c, m.index) !== null,
+    );
+    const hit = compound ? compoundHit(ctx.text, compound, m.index) : null;
+    if (!(!!compound && !!hit)) return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (
+      /^\p{Ll}/u.test(compound) &&
+      !BARE_COMPOUNDS.has(compound) &&
+      (!previous || !NOUN_PHRASE_OPENERS.has(previous.w))
+    )
+      return null;
+    if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(compound.toLowerCase()))
+      return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, m.index + hit[0].length, [
+      compound.replaceAll("'", /’/.test(hit[0]) ? "’" : "'"),
+    ]);
+  },
   // fr.yaml rule fr.elision frame 1
   "@fr.elision/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     if (!(m.index >= ctx.from)) return null;
@@ -5065,6 +6271,39 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       context: { start: m.index, end: start + noun.length },
     };
   },
+  // fr.yaml rule fr.negation frame 1
+  "@fr.negation/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const anchor = m[0].toLowerCase();
+    const before = tokensBefore(ctx.text, m.index, 8);
+    if (before.some((t) => t.w === "ne" || t.w === "n'" || t.w === "ni")) return null;
+    const subjectResult =
+      anchor === "personne" || anchor === "rien" ? subjectNegation(ctx, m, before) : undefined;
+    return subjectResult !== undefined ? subjectResult : missingNeVerb(ctx, m, anchor, before);
+  },
+  // fr.yaml rule fr.negation frame 2
+  "@fr.negation/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+    const subject = after[0];
+    if (!subject || !(NE_SUBJECTS.has(subject.w) || subject.w in NE_ELIDED_SUBJECT)) return null;
+    const i = skipWords(after, 1, NEGATED_CLITICS);
+    const verb = after[i];
+    if (!verb || verb.hyphen || !neFinite(verb.w)) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const apostrophe = /’/.test(ctx.text.slice(m.index, verb.end)) ? "’" : "'";
+    const head = after[1] && i > 1 ? after[1] : verb;
+    return finding(
+      frame.ruleId,
+      frame.messageKey,
+      m.index,
+      verb.end,
+      [
+        `${ctx.text.slice(m.index, m.index + 4)} ${/['’]$/.test(m[0]) ? `qu${apostrophe}` : "que "}${NE_ELIDED_SUBJECT[subject.w] ?? ctx.text.slice(subject.start, subject.end)} ${NE_VOWEL.test(head.w) ? `n${apostrophe}` : "ne "}${ctx.text.slice(head.start, verb.end)} pas`,
+      ],
+      { context: { start: m.index, end: verb.end } },
+    );
+  },
   // fr.yaml rule fr.ordinals frame 1
   "@fr.ordinals/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     const number = m.groups!.number;
@@ -5255,6 +6494,83 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     return finding(frame.ruleId, frame.messageKey, start, m.index + typed.length, [replacement], {
       context: { start: subject.start, end },
     });
+  },
+  // fr.yaml rule fr.questions frame 1
+  "@fr.questions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const t = m.groups!.t;
+    const pronoun = m.groups!.pronoun;
+    if (!(m.index >= ctx.from)) return null;
+    const lower = verb.toLowerCase();
+    if (/\p{Lu}/u.test(verb.slice(1)) || ctx.dictionary.has(lower)) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const person = PRONOUN_PERSON[pronoun.toLowerCase()];
+    const readings = verbReadings(lower).filter((r) => typeof r.slot === "number");
+    if (!(readings.length > 0)) return null;
+    const persons = finitePersons(lower);
+    if (hasPerson(persons, person) && !(!!t && person !== IL)) return null;
+    if (person === JE && lower.endsWith("é")) return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (!(!(person === NOUS || person === VOUS) || (!!previous && QUESTION_WORDS.has(previous.w))))
+      return null;
+    return inversionFinding(
+      m,
+      verb,
+      pronoun,
+      readings,
+      persons,
+      hasPerson(persons, person) ? [`${verb}-${pronoun}`] : [],
+    );
+  },
+  // fr.yaml rule fr.questions frame 2
+  "@fr.questions/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const pronoun = m.groups!.pronoun;
+    if (!(m.index >= ctx.from)) return null;
+    const lower = verb.toLowerCase();
+    if (/\p{Lu}/u.test(verb.slice(1)) || ctx.dictionary.has(lower)) return null;
+    const end = m.index + m[0].length;
+    const before = tokensBefore(ctx.text, m.index, 1)[0];
+    const opening = before
+      ? QUESTION_WORDS.has(before.w)
+      : SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index));
+    if (!opening || !inQuestion(ctx.text, end) || isVerbHomograph(lower)) return null;
+    const readings = verbReadings(lower);
+    if (!readings.length || !readings.every((r) => typeof r.slot === "number")) return null;
+    const persons = finitePersons(lower);
+    const person = PRONOUN_PERSON[pronoun.toLowerCase()];
+    if (hasPerson(persons, person) || namedExampleBefore(ctx.text, m.index)) return null;
+    const next = tokensAfter(ctx.text, end, 1)[0];
+    if (next && !isVerbHomograph(next.w) && hasPerson(finitePersons(next.w), person)) return null;
+    return inversionFinding(m, verb, pronoun, readings, persons, []);
+  },
+  // fr.yaml rule fr.questions frame 3
+  "@fr.questions/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    if (!(m.index >= ctx.from)) return null;
+    const person = pronoun ? STRESSED_PERSON[pronoun.toLowerCase()] : ILS;
+    const before = tokensBefore(ctx.text, m.index, 2);
+    const previous = before[0]?.w;
+    const presented =
+      ["est", "sont", "était", "étaient", "sera"].includes(previous ?? "") &&
+      ["c'", "ce"].includes(before[1]?.w ?? "");
+    const opening = ["et", "mais"].includes(previous ?? "") && !before[1];
+    if (previous && !presented && !opening) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const after = tokensAfter(ctx.text, m.index + m[0].length, 5);
+    const verb =
+      after[skipWhile(after, 0, (t) => CLITICS.has(t.w) || t.w === "ne" || t.w === "n'")];
+    if (!verb || verb.hyphen) return null;
+    const auxiliary = verbReadings(verb.w).some((r) => r.lemma === "avoir" || r.lemma === "être");
+    if (isVerbHomograph(verb.w) && !auxiliary) return null;
+    if (!(ctx.text.slice(verb.start, verb.end) === verb.w)) return null;
+    const readings = verbReadings(verb.w);
+    if (!readings.length || !readings.every((r) => typeof r.slot === "number")) return null;
+    if (readings.some((r) => hasPerson(r.slot, person))) return null;
+    const forms = [...new Set(readings.map((r) => conjugate(r, person)[0]).filter(Boolean))];
+    if (!forms.length || forms.length > 2) return null;
+    const found = wordFinding(ctx, verb.start, verb.w, forms, frame.ruleId, frame.messageKey);
+    return found && { ...found, context: { start: m.index, end: verb.end } };
   },
   // fr.yaml rule fr.imperative frame 1
   "@fr.imperative/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
