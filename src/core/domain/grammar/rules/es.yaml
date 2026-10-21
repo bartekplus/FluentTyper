@@ -4376,7 +4376,7 @@ rules:
           - "!(esKeepsTyped(ctx, m[1]) || ctx.dictionary.has(word) || namedExampleBefore(ctx.text, m.index))"
         return: >-
           esFinding("spanishConfusions", "review_msg_closed_compound", m.index, m.index + m[0].length,
-          [esCarryCase(m[1], esJoinPrefix(prefix, word))], { bulkBlock: "context-dependent" })
+          [carryCase(m[1], esJoinPrefix(prefix, word))], { bulkBlock: "context-dependent" })
   - id: es.splitCompounds
     checks: [spanishConfusions]
     group: spanishConfusions
@@ -5316,7 +5316,7 @@ rules:
             messageKey: "review_msg_weekday_no_year" as const,
             range: { start: m.index, end: dayStart + day.length },
             alternatives: [
-              ...weekdays.map((w) => `${esCarryCase(weekday, ES_WEEKDAY_LIST[w])}${m[2]}${day}`),
+              ...weekdays.map((w) => `${carryCase(weekday, ES_WEEKDAY_LIST[w])}${m[2]}${day}`),
               ...(near === null ? [] : [`${weekday}${m[2]}${near}`]),
             ],
             requiresChoice: true as const,
@@ -5358,7 +5358,7 @@ rules:
                   ruleId: "spanishTypography" as const,
                   messageKey: "review_msg_spanish_date" as const,
                   range: { start: m.index, end: m.index + weekday.length },
-                  alternatives: [esCarryCase(weekday, ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))])],
+                  alternatives: [carryCase(weekday, ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))])],
                   context: { start: m.index, end: m.index + m[0].length },
                   bulkBlock: "ambiguous" as const,
                 }

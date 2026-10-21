@@ -11,7 +11,6 @@ export {
   around as esAround,
   attributeOf as esAttributeOf,
   BOUNDARY as ES_BOUNDARY,
-  carryCase as esCarryCase,
   CLITICS as ES_CLITICS,
   CONJUNCTIONS as ES_CONJUNCTIONS,
   DETERMINERS as ES_DETERMINERS,
