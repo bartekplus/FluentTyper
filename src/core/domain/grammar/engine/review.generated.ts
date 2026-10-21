@@ -3976,7 +3976,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [2741, 2742, 2743, 2744],
     message: "review_msg_arabic_demonstrative_gender",
     style: "match",
-    filter: "ar_SA:numberOverlaps",
+    filter: "ar_SA:@ar_SA.agreement/filter",
     source: "ar_SA",
   },
   {
@@ -3995,7 +3995,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [2747, 2748, 2749, 2750, 2751, 2752, 2753],
     message: "review_msg_arabic_impossible_date",
     style: "match",
-    filter: "ar_SA:dateOrderAfterOthers",
+    filter: "ar_SA:@ar_SA.dates/filter",
     source: "ar_SA",
   },
   {
@@ -30088,7 +30088,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?[بلك]?(?:هذا|هذه|ذلك|تلك|هذان|هاتان|هذين|هاتين)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:demonstrative",
+    fixer: "ar_SA:@ar_SA.agreement/1",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30096,7 +30096,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])(?:الذي|التي)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:relativePronoun",
+    fixer: "ar_SA:@ar_SA.agreement/2",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30105,7 +30105,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?(?:[بك]?ال|لل)\\p{L}{2,}(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:definiteAdjective",
+    fixer: "ar_SA:@ar_SA.agreement/3",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30114,7 +30114,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])(?:في|إلى|على|عن|مع|بين|حول|نحو|عند|لدى|بعد|قبل|خلال|دون|منذ|ضد|عبر|من|[وبلك]{0,2}(?:ثلاثة|ثلاث|أربعة|أربع|خمسة|خمس|ستة|ست|سبعة|سبع|ثمانية|ثماني|ثمان|تسعة|تسع|واحد|واحدة|اثنان|اثنين|اثنتان|اثنتين|اثنا|اثنتا|اثني|اثنتي|أحد|إحدى|عشر|عشرة|مئة|مائة|مئتان|مئتين|مائتان|مائتين|ألف|ألفا|ألفان|ألفين|آلاف|مليون|مليونا|مليونان|مليونين|ملايين|مليار|ملياران|مليارين|\\p{L}+(?:مئة|مائة)|(?:عشر|ثلاث|أربع|خمس|ست|سبع|ثمان|تسع)(?:ون|ين)))(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:numbers",
+    fixer: "ar_SA:@ar_SA.agreement/4",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30123,7 +30123,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])(?:في|إلى|على|عن|مع|بين|حول|نحو|عند|لدى|بعد|قبل|خلال|دون|ضد|عبر|إن|كأن|ليت|لعل|[وف]?(?:لا|لم|لن|أن|كي|لكي))(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:caseEnding",
+    fixer: "ar_SA:@ar_SA.caseEndings/1",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30131,7 +30131,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "ل\\u064E?م(?:\\u0651\\u064E?|\\u064E\\u0651)ا[ \\t\\u00a0]+",
     literals: [],
-    fixer: "ar_SA:lammaJussive",
+    fixer: "ar_SA:@ar_SA.caseEndings/2",
     flags: "gu",
     scan: "text",
     lookback: 108,
@@ -30140,7 +30140,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?:(?<weekday>الثلاثاء|الأربعاء|الإثنين|الاثنين|الخميس|الجمعة|الأحد|السبت)[ \\t\\u00a0]+(?:،[ \\t\\u00a0]*)?)?(?<day>[0-9٠-٩۰-۹]{1,2})(?:(?:[ \\t\\u00a0]+|[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*)(?<monthName>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)|[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*(?<monthDigits>[0-9٠-٩۰-۹]{1,2})(?=[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*[0-9٠-٩۰-۹]))(?:(?:[ \\t\\u00a0]+|[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*)(?<year>[0-9٠-٩۰-۹]{2,4}))?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:date",
+    fixer: "ar_SA:@ar_SA.dates/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -30149,7 +30149,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])(?:ل?(?:ال)?(?:عام|سنة)|صيف|شتاء|ربيع|خريف)[ \\t\\u00a0]+(?<target>[0-9٠-٩۰-۹]{5,})(?![\\p{L}\\p{M}\\p{N}])",
     literals: [],
-    fixer: "ar_SA:longYear",
+    fixer: "ar_SA:@ar_SA.dates/2",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -30158,15 +30158,15 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{L}\\p{N}][-./])(?<year>[0-9٠-٩۰-۹]{4})-(?<month>[0-9٠-٩۰-۹]{2})-(?<day>[0-9٠-٩۰-۹]{2})(?![*_~]{0,3}[\\p{L}\\p{N}])(?![-./][\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:invalidIsoDate",
+    fixer: "ar_SA:@ar_SA.dates/3",
     flags: "gdu",
     owner: "none",
   }),
   frame({
     pattern:
-      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<y>[0-9٠-٩۰-۹]{4})[ \\t\\u00a0]+(?<m>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<d>[0-9٠-٩۰-۹]{1,2})(?![\\p{L}\\p{M}\\p{N}]))",
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<yearPart>[0-9٠-٩۰-۹]{4})[ \\t\\u00a0]+(?<monthPart>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<dayPart>[0-9٠-٩۰-۹]{1,2})(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:dayMonthYear",
+    fixer: "ar_SA:@ar_SA.dates/4",
     message: "review_msg_arabic_date_order",
     flags: "gu",
     scan: "owned",
@@ -30174,9 +30174,9 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<m>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<d>[0-9٠-٩۰-۹]{1,2})[ \\t\\u00a0]+(?<w>الثلاثاء|الأربعاء|الإثنين|الاثنين|الخميس|الجمعة|الأحد|السبت)(?![\\p{L}\\p{M}\\p{N}]))",
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<monthPart>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<dayPart>[0-9٠-٩۰-۹]{1,2})[ \\t\\u00a0]+(?<weekdayPart>الثلاثاء|الأربعاء|الإثنين|الاثنين|الخميس|الجمعة|الأحد|السبت)(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:weekdayDayMonth",
+    fixer: "ar_SA:@ar_SA.dates/5",
     message: "review_msg_arabic_date_order",
     flags: "gu",
     scan: "owned",
@@ -30184,9 +30184,9 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<m>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<d>[0-9٠-٩۰-۹]{1,2})[ \\t\\u00a0]+(?<y>[0-9٠-٩۰-۹]{4})(?![\\p{L}\\p{M}\\p{N}]))",
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<monthPart>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<dayPart>[0-9٠-٩۰-۹]{1,2})[ \\t\\u00a0]+(?<yearPart>[0-9٠-٩۰-۹]{4})(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:dayMonthYear",
+    fixer: "ar_SA:@ar_SA.dates/6",
     message: "review_msg_arabic_date_order",
     flags: "gu",
     scan: "owned",
@@ -30194,9 +30194,9 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<y>[0-9٠-٩۰-۹]{4})[ \\t\\u00a0]+(?<m>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)(?![\\p{L}\\p{M}\\p{N}]|[ \\t\\u00a0]+[0-9٠-٩۰-۹]))",
+      "(?<target>(?<![\\p{L}\\p{M}\\p{N}])(?<yearPart>[0-9٠-٩۰-۹]{4})[ \\t\\u00a0]+(?<monthPart>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)(?![\\p{L}\\p{M}\\p{N}]|[ \\t\\u00a0]+[0-9٠-٩۰-۹]))",
     literals: [],
-    fixer: "ar_SA:monthYear",
+    fixer: "ar_SA:@ar_SA.dates/7",
     message: "review_msg_arabic_date_order",
     flags: "gu",
     scan: "owned",
@@ -30205,7 +30205,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])[وف]?(?:عن|من)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:joinedParticle",
+    fixer: "ar_SA:@ar_SA.syntax/1",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30213,7 +30213,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}])كلما[^.!؟?\\n،]{1,80}،[ \\t\\u00a0]*(?<target>كلما[ \\t\\u00a0]+)",
     literals: [],
-    fixer: "ar_SA:kullama",
+    fixer: "ar_SA:@ar_SA.kullama/1",
     flags: "dgu",
     scan: "owned",
     lookback: 160,
@@ -30222,7 +30222,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}])إلا(?:[ \\t\\u00a0]+[\\p{L}\\p{M}]+){1,5}(?<target>[ \\t\\u00a0]+فقط)(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "ar_SA:illaFaqat",
+    fixer: "ar_SA:@ar_SA.redundantWords/1",
     flags: "dgu",
     scan: "owned",
     lookback: 160,
@@ -30231,7 +30231,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}])بين[ \\t\\u00a0]+(?<first>[\\p{L}]+)[ \\t\\u00a0]+(?<target>وبين[ \\t\\u00a0]+)(?=\\p{L})",
     literals: [],
-    fixer: "ar_SA:bayna",
+    fixer: "ar_SA:@ar_SA.redundantWords/2",
     flags: "dgu",
     scan: "owned",
     lookback: 160,
@@ -30239,7 +30239,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])ذاتا(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:dualPossessor",
+    fixer: "ar_SA:@ar_SA.style/1",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30247,7 +30247,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])\\p{L}+(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:indefiniteAdjective",
+    fixer: "ar_SA:@ar_SA.style/2",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30256,7 +30256,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?(?:هذا|هذه|ذلك|تلك)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:demonstrativePredicate",
+    fixer: "ar_SA:@ar_SA.style/3",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30264,7 +30264,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])\\p{L}+(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:indefiniteSubject",
+    fixer: "ar_SA:@ar_SA.style/4",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30273,7 +30273,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?س?(?:قام|قامت|قاموا|قمت|قمنا|قمتم|قمن|يقوم|تقوم|يقومون|تقومون|نقوم|أقوم|يقم|تقم|نقم|أقم|يقوموا|تقوموا)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:lightVerbs",
+    fixer: "ar_SA:@ar_SA.style/5",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30282,7 +30282,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])و(?:الذي|التي|الذين|اللذان|اللتان|اللذين|اللتين|اللواتي|اللاتي)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:andRelatives",
+    fixer: "ar_SA:@ar_SA.style/6",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30291,7 +30291,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?ال(?:أكبر|أصغر|أفضل|أحسن|أسوأ|أكثر|أقل|أشد|أعظم|أهم|أعلى|أدنى|أقوى|أضعف|أطول|أقصر|أسرع|أقرب|أبعد|أغنى|أفقر|أجمل|أقدم|أحدث|أوسع|أضيق|أدهى|أعجب|أخطر|أصعب|أسهل|أعمق|أثقل|أخف|أغلى|أرخص|أذكى|أبرز|أنسب|أقصى|أوسط)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:elatives",
+    fixer: "ar_SA:@ar_SA.style/7",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30300,7 +30300,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?(?:عمل|عملت|عملوا|يعمل|تعمل|يعملون|نعمل|أعمل|اشتغل|اشتغلت|يشتغل|تشتغل)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:asRole",
+    fixer: "ar_SA:@ar_SA.style/8",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30308,7 +30308,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])[وف]?سيما(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:laSiyyama",
+    fixer: "ar_SA:@ar_SA.style/9",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30316,7 +30316,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])[وف]?(?:بال|لل|ال)قيام(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:doingTheAct",
+    fixer: "ar_SA:@ar_SA.style/10",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30325,7 +30325,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?ب(?:شكل|صورة|أسلوب|طريقة)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:inAWay",
+    fixer: "ar_SA:@ar_SA.style/11",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30334,7 +30334,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?ل(?:ساعة|ساعات|ساعتين|يومين|أسابيع|أسبوعين|شهرين|سنة|سنوات|سنين|سنتين|عامين|دقيقة|دقائق|دقيقتين|فترة|مدة|لحظة|لحظات|يوم|أيام|أسبوع|شهر|أشهر|شهور|عام|أعوام|قرن|قرون)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:forADuration",
+    fixer: "ar_SA:@ar_SA.style/12",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30343,7 +30343,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])(?:[وفبل]?(?:ال|لل)?(?:رغب(?:ة|ات|ته|تها|تهم|تي|تنا|تك|تكم)|علاق(?:ة|ات|ته|تها|تهم|تي|تنا|تك|تكم|اته|اتها|اتهم|اتنا))|و?تحسبا)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:nounPrepositions",
+    fixer: "ar_SA:@ar_SA.style/13",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30351,7 +30351,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])(?:سوى|غير)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:exceptPreposition",
+    fixer: "ar_SA:@ar_SA.style/14",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30359,7 +30359,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])(?:أبدا|[وف]?أثناء)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:timeAdverbs",
+    fixer: "ar_SA:@ar_SA.style/15",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30367,7 +30367,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])[وف]?أما(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:eitherOr",
+    fixer: "ar_SA:@ar_SA.style/16",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30375,7 +30375,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])[وف]?هامة?(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:important",
+    fixer: "ar_SA:@ar_SA.style/17",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30384,7 +30384,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?(?:أعطى|أعطت|أعطوا|يعطي|تعطي|يعطون|نعطي|(?:كلف|كلفت|كلفوا|يكلف|تكلف|يكلفون|غرم|غرمت|يغرم|أصحبت|أصحبوا)(?:ه|ها|هم|ني|نا|ك|كم)|تاجرت|تاجروا|يتاجر|تتاجر|يتاجرون|نتاجر|أتاجر)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:directObjects",
+    fixer: "ar_SA:@ar_SA.style/18",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30392,7 +30392,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])عبارة(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:amountsTo",
+    fixer: "ar_SA:@ar_SA.style/19",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30401,7 +30401,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])[وف]?(?:[يت](?:تناسب|تنافى|تلاءم|تلائم|تعارض|تناقض|تطابق|توافق|تكامل|تساوى)(?:ون|ان)?|تناسبت|تنافت|تعارضت|تناقضت|تطابقت|توافقت)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:mutualWaw",
+    fixer: "ar_SA:@ar_SA.style/20",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30409,7 +30409,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])إلا(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:exceptAnd",
+    fixer: "ar_SA:@ar_SA.style/21",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30417,7 +30417,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])[وف]?نحن(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:weAs",
+    fixer: "ar_SA:@ar_SA.style/22",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30425,7 +30425,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}])بين(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:whileJoined",
+    fixer: "ar_SA:@ar_SA.style/23",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30434,7 +30434,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])(?:شمالي|جنوبي|شرقي|غربي)(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:compassAdverb",
+    fixer: "ar_SA:@ar_SA.style/24",
     flags: "gu",
     scan: "text",
     lookback: 96,
@@ -30443,7 +30443,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}])\\p{L}*(?:ستقل|فتح|تستر|صادق|فتقد|تماد)\\p{L}*(?=\\u064B?(?![\\p{L}\\p{M}\\p{N}]))",
     literals: [],
-    fixer: "ar_SA:gappedUsage",
+    fixer: "ar_SA:@ar_SA.style/25",
     flags: "gu",
     scan: "text",
     lookback: 96,

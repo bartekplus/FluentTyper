@@ -108,11 +108,6 @@ import {
   PREDICATES as SWEDISH,
 } from "./swedish/ruleDetectors";
 import {
-  FILTERS as ARABIC_FILTERS,
-  FIXERS as ARABIC_FIXERS,
-  PREDICATES as ARABIC,
-} from "./arabic/ruleDetectors";
-import {
   FILTERS as PORTUGUESE_FILTERS,
   FIXERS as PORTUGUESE_FIXERS,
   PREDICATES as PORTUGUESE,
@@ -1748,7 +1743,6 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     de: GERMAN,
     el: GREEK,
     sv: SWEDISH,
-    ar_SA: ARABIC,
     pt_BR: PORTUGUESE,
     pl: POLISH,
     es: SPANISH,
@@ -1760,7 +1754,6 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     de: GERMAN_FIXERS,
     el: GREEK_FIXERS,
     sv: SWEDISH_FIXERS,
-    ar_SA: ARABIC_FIXERS,
     pt_BR: PORTUGUESE_FIXERS,
     pl: POLISH_FIXERS,
     es: SPANISH_FIXERS,
@@ -1772,7 +1765,6 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     de: GERMAN_FILTERS,
     el: GREEK_FILTERS,
     sv: SWEDISH_FILTERS,
-    ar_SA: ARABIC_FILTERS,
     pt_BR: PORTUGUESE_FILTERS,
     pl: POLISH_FILTERS,
     es: SPANISH_FILTERS,

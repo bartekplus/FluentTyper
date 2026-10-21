@@ -2,12 +2,2703 @@
 // The code of grammar/rules/ar_SA.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
+import type {
+  ArabicFinding,
+  ArabicStep,
+  ArabicToken,
+  DetectContext,
+  FrameRef,
+  MatchResult,
+  RawFinding,
+  TextRange,
+} from "../../library";
+import {
+  arabicFemininePluralStem,
+  arabicTags,
+  arabicTokenAt,
+  arabicTokens,
+  contextYear,
+  daysInMonth,
+  digitValue,
+  invalidIsoDate,
+  namedExampleBefore,
+  weekdayOf,
+  yearsFor,
+} from "../../library";
+
+export const PLURAL_HOMOGRAPHS: ReadonlySet<string> = new Set(["صور", "فرق", "أسس"]);
+
+export const FEMININE_POSSESSED: ReadonlySet<string> = new Set([
+  "كتف",
+  "يد",
+  "كف",
+  "أرض",
+  "شمس",
+  "نار",
+  "حرب",
+  "بئر",
+  "كأس",
+  "فأس",
+  "ريح",
+]);
+
+export const PREPOSITIONS: ReadonlySet<string> = new Set([
+  "في",
+  "إلى",
+  "على",
+  "عن",
+  "مع",
+  "بين",
+  "حول",
+  "نحو",
+  "عند",
+  "لدى",
+  "بعد",
+  "قبل",
+  "خلال",
+  "دون",
+  "منذ",
+  "ضد",
+  "عبر",
+]);
+
+export const NOT_ADJECTIVE: ReadonlySet<string> = new Set([
+  "عديد",
+  "كثير",
+  "قليل",
+  "آن",
+  "جميع",
+  "بعض",
+  "مزيد",
+  "آتي",
+  "تالي",
+  "حامل",
+  "مرضع",
+  "طالق",
+  "عاقر",
+]);
+
+export const ADVERBIAL: ReadonlySet<string> = new Set([
+  "حقيقة",
+  "نهاية",
+  "بداية",
+  "واقع",
+  "مقابل",
+  "أساس",
+  "عادة",
+  "غالب",
+  "أصل",
+  "ختام",
+  "نتيجة",
+]);
+
+export const ACCUSATIVE_GOVERNORS: ReadonlySet<string> = new Set(["إن", "أن", "كأن", "ليت", "لعل"]);
+
+export const FRONTED_OK: ReadonlySet<string> = new Set([
+  "سلام",
+  "ويل",
+  "طوبى",
+  "تحية",
+  "شكر",
+  "مرحبا",
+  "أهلا",
+  "عذرا",
+  "خير",
+  "شر",
+  "عجب",
+  "حمد",
+]);
+
+export const PREDICATE_HEAD: ReadonlySet<string> = new Set([
+  "في",
+  "عند",
+  "لدى",
+  "مع",
+  "تحت",
+  "فوق",
+  "أمام",
+  "خلف",
+  "داخل",
+]);
+
+export const STYLE_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "في",
+  "على",
+  "من",
+  "إلى",
+  "عن",
+  "مع",
+  "عند",
+  "لدى",
+  "حول",
+  "خلال",
+  "بين",
+]);
+
+export const MASCULINE_IN_TA: ReadonlySet<string> = new Set([
+  "خليفة",
+  "علامة",
+  "رحالة",
+  "داعية",
+  "نابغة",
+]);
+
+export const SEPARATE_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "على",
+  "في",
+  "من",
+  "إلى",
+  "عن",
+  "مع",
+]);
+
+// ar_SA.yaml def FEMININE
+export const FEMININE = new Set(
+  "أرض شمس نار حرب دار ريح بئر عصا كأس فأس يد عين أذن كتف ساق قدم كف خنصر بنصر فخذ ضبع عروس أم بنت أخت عجوز جهنم ذات فتاة حياة صلاة زكاة نجاة وفاة مباراة مساواة معاناة مأساة قناة نواة حصاة شاة أداة مرآة".split(
+    " ",
+  ),
+);
+
+// ar_SA.yaml def EITHER_GENDER
+export const EITHER_GENDER = new Set(
+  "طريق سوق سبيل حال روح نفس سلم سن ذراع عضد إبط ضلع كبد عنق لسان سكين فرس عقرب أرنب بلد ملح سماء".split(
+    " ",
+  ),
+);
+
+// ar_SA.yaml def NOT_FEMININE
+export const NOT_FEMININE = new Set(
+  "خليفة علامة رحالة داعية نابغة طلبة أساتذة تلامذة كتبة سحرة خونة بررة كفرة فجرة جبابرة عباقرة صيادلة فلاسفة أباطرة قياصرة أئمة".split(
+    " ",
+  ),
+);
+
+// ar_SA.yaml def MASCULINE_IN_T
+export const MASCULINE_IN_T = new Set(
+  "بيت وقت صوت موت زيت سبت نبت تخت صمت سكوت ثبات نبات تابوت حانوت عفريت كبريت ياقوت".split(" "),
+);
+
+// ar_SA.yaml def MASCULINE
+export const MASCULINE = new Set(
+  "رجل ولد أب أخ عم خال ابن ملك أمير بطل شاب صبي فتى شيخ جد زوج وزير رئيس طالب معلم مدير طبيب كاتب لاعب ذقن سلام".split(
+    " ",
+  ),
+);
+
+// ar_SA.yaml def PHRASE_START
+export const PHRASE_START = new Set(
+  "في إلى على عن مع من هذا هذه ذلك تلك هؤلاء أولئك إن أن لكن كأن لعل ليت أما".split(" "),
+);
+
+// ar_SA.yaml def PERSON
+export const PERSON = new Set(
+  "طالب معلم مدرس مدير مهندس طبيب وزير سفير صديق زميل رئيس أمير ملك رفيق شريك عميل موظف مسؤول مندوب مراسل مذيع ممثل مغني لاعب مدرب باحث عالم كاتب شاعر صحفي محام قاض نائب مواطن مسافر زائر ضيف جار طفل حفيد زوج عم خال جد حبيب خطيب عريس ممرض صيدلي خادم سائق بائع تاجر عامل فلاح خباز طباخ نجار رسام مصور مخرج منتج مؤلف مترجم محاسب مستشار مشرف مفتش محقق شرطي ضابط جندي حارس قائد بطل مقاتل لاجئ مهاجر سجين أسير مريض متسابق مشارك متطوع متدرب زعيم نجم حاكم والد سيد مالك ساكن سكرتير مساعد متحدث ناشط ناقد قارئ مستمع مشاهد مستخدم عازف راقص فائز خاسر متهم مجرم شاهد جريح مصاب قتيل ميت قط كلب أسد ذئب حمار ديك ملاك شيخ أستاذ وريث دكتور حاج إمام".split(
+    " ",
+  ),
+);
+
+// ar_SA.yaml def walkTokens
+export function walkTokens(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  step: ArabicStep,
+) {
+  const list = arabicTokens(ctx);
+  const i = arabicTokenAt(list, m.index);
+  if (!(i >= 0)) return null;
+  return [step(ctx, list, i) ?? []].flat().map((f) => ({ ruleId: frame.ruleId, ...f }));
+}
+
+// ar_SA.yaml def ownsAt
+export function ownsAt(ctx: DetectContext, at: number) {
+  return at >= ctx.from && at < ctx.to && !namedExampleBefore(ctx.text, at);
+}
+
+// ar_SA.yaml def adjacentToken
+export function adjacentToken(token: ArabicToken) {
+  return /^\u064B?[ \t\u00a0]+$/u.test(token.gap);
+}
+
+// ar_SA.yaml def opensSentence
+export function opensSentence(ctx: DetectContext, token: ArabicToken) {
+  const lead = ctx.text.slice(Math.max(0, token.start - 8), token.start);
+  return (
+    /[.!؟?\n][\s\u200e\u200f]*$/u.test(lead) ||
+    (token.start <= 8 && /^[\s\u200e\u200f]*$/u.test(lead))
+  );
+}
+
+// ar_SA.yaml def withoutAl
+export function withoutAl(word: string) {
+  return word.startsWith("ال") ? word.slice(2) : word;
+}
+
+// ar_SA.yaml def nounGender
+export function nounGender(stem: string): "m" | "f" | null | undefined {
+  if (!(!EITHER_GENDER.has(stem) && !NOT_FEMININE.has(stem))) return null;
+  const tags = arabicTags(stem);
+  return FEMININE.has(stem)
+    ? "f"
+    : tags.includes("f") && !stem.endsWith("اة")
+      ? "f"
+      : tags.includes("m")
+        ? "m"
+        : undefined;
+}
+
+// ar_SA.yaml def BROKEN_PLURAL_SHAPE
+export const BROKEN_PLURAL_SHAPE =
+  /^(?:أ\p{L}{3}|أ\p{L}{2}ا\p{L}|\p{L}{2}ا\p{L}{2}|\p{L}{2}ا\p{L}ي\p{L}|\p{L}{2}و\p{L}|\p{L}{3}ان)$/u;
+
+// ar_SA.yaml def masculineSingular
+export function masculineSingular(stem: string): boolean {
+  if (!(nounGender(stem) === "m" && !BROKEN_PLURAL_SHAPE.test(stem) && !NUMBER_WORDS.test(stem)))
+    return false;
+  return /^\p{L}{2}ا\p{L}$/u.test(stem)
+    ? !arabicTags(stem.replace("ا", "")).includes("m")
+    : stem.length > 3 ||
+        (!PLURAL_HOMOGRAPHS.has(stem) &&
+          !arabicTags(`${stem.slice(0, 2)}ي${stem[2]}`).includes("m"));
+}
+
+// ar_SA.yaml def singularGender
+export function singularGender(stem: string): "m" | "f" | undefined {
+  return MASCULINE.has(stem) || masculineSingular(stem)
+    ? "m"
+    : nounGender(stem) === "f"
+      ? "f"
+      : undefined;
+}
+
+// ar_SA.yaml def definiteFeminine
+export function definiteFeminine(word: string): boolean {
+  if (!word.startsWith("ال")) return false;
+  const stem = word.slice(2);
+  if (!(!NOT_FEMININE.has(stem) && !stem.endsWith("اة"))) return false;
+  return (stem.endsWith("ة") && stem.length > 2) || FEMININE.has(stem);
+}
+
+// ar_SA.yaml def NOT_FEMININE_DUAL
+export const NOT_FEMININE_DUAL = /(?:ستان|ستين|^بستان|^فستان|^كتان|^بهتان|^شتان)$/u;
+
+// ar_SA.yaml def POSSESSED
+export const POSSESSED = /^(?<stem>\p{L}{2,}?)(?:ه|ها|هم|هما|هن|ك|كم|كن|ي|نا)$/u;
+
+// ar_SA.yaml def POSSESSIVE
+export const POSSESSIVE = /(?:ه|ها|هم|هما|هن|ك|كم|كن|ي|نا)$/u;
+
+// ar_SA.yaml def possessedFeminine
+export function possessedFeminine(word: string) {
+  const stem = POSSESSED.exec(word)?.groups!.stem;
+  return stem !== undefined && FEMININE_POSSESSED.has(stem);
+}
+
+// ar_SA.yaml def DUAL_CONSTRUCT
+export const DUAL_CONSTRUCT = /^(?<stem>\p{L}{2,})[اي](?:ه|ها|هم|هما|هن|ك|كم|كن|ي|نا)$/u;
+
+// ar_SA.yaml def feminineDualConstruct
+export function feminineDualConstruct(word: string): boolean {
+  const stem = DUAL_CONSTRUCT.exec(word)?.groups!.stem;
+  if (!stem) return false;
+  return (
+    (stem.endsWith("ت") && stem.length > 2 && !MASCULINE_IN_T.has(stem)) ||
+    FEMININE_POSSESSED.has(stem)
+  );
+}
+
+// ar_SA.yaml def dual
+export function dual(
+  word: string,
+): { gender: "m" | "f"; oblique: boolean; stem: string } | null | undefined {
+  const parts = /^(?<stem>\p{L}{2,})(?<ending>ان|ين)$/u.exec(word)?.groups;
+  if (!parts) return null;
+  const stem = parts.stem;
+  const oblique = parts.ending === "ين";
+  const noun = withoutAl(stem);
+  return stem.endsWith("ت") &&
+    noun.length > 2 &&
+    !NOT_FEMININE_DUAL.test(word) &&
+    !MASCULINE_IN_T.has(noun)
+    ? { gender: "f", oblique, stem }
+    : FEMININE.has(noun)
+      ? { gender: "f", oblique, stem }
+      : noun.length < 3
+        ? undefined
+        : { gender: "m", oblique, stem };
+}
+
+// ar_SA.yaml def soundPlural
+export function soundPlural(word: string) {
+  const parts = /^(?<stem>\p{L}+)(?<ending>ون|ين)$/u.exec(word)?.groups;
+  if (!parts) return null;
+  const noun = withoutAl(parts.stem);
+  if (!(noun.length >= 4 && !/^(?:تلفزي|تليفزي)/u.test(noun))) return null;
+  if (!(noun.startsWith("م") || noun[1] === "ا" || (noun.endsWith("ي") && noun.length > 4)))
+    return null;
+  return { stem: parts.stem, oblique: parts.ending === "ين" };
+}
+
+// ar_SA.yaml def DEMONSTRATIVE
+export const DEMONSTRATIVE = /^(?<pre>[وف]?[بلك]?)(?<dem>هذا|هذه|ذلك|تلك|هذان|هاتان|هذين|هاتين)$/u;
+
+// ar_SA.yaml def NUMBER_WORDS
+export const NUMBER_WORDS =
+  /^[وبلك]{0,2}(?:ثلاثة|ثلاث|أربعة|أربع|خمسة|خمس|ستة|ست|سبعة|سبع|ثمانية|ثماني|تسعة|تسع|ثمان|واحد|واحدة|اثنان|اثنين|اثنتان|اثنتين|عشر|عشرة|مئة|مائة|مئتان|مئتين|مائتان|مائتين|ألف|ألفا|ألفان|ألفين|آلاف|مليون|مليونا|مليونان|مليونين|ملايين|مليار|ملياران|مليارين|\p{L}+مئة|\p{L}+مائة|(?:عشر|ثلاث|أربع|خمس|ست|سبع|ثمان|تسع)(?:ون|ين))$/u;
+
+// ar_SA.yaml def DEFINITE
+export const DEFINITE = /^(?<pre>[وف]?(?:[بك]?ال|لل))(?<stem>\p{L}{2,})$/u;
+
+// ar_SA.yaml def opensPhrase
+export function opensPhrase(ctx: DetectContext, list: readonly ArabicToken[], i: number): boolean {
+  return (
+    opensSentence(ctx, list[i]) ||
+    (i !== 0 &&
+      (/[،,؛:]/u.test(list[i].gap) ||
+        PHRASE_START.has(list[i - 1].word.replace(/^[وف](?=\p{L}{2})/u, "")) ||
+        DEMONSTRATIVE.test(list[i - 1].word)))
+  );
+}
+
+// ar_SA.yaml def adjective
+export function adjective(
+  stem: string,
+  plainOnly?: boolean,
+): { base: string; gender: "m" | "f" } | null {
+  const feminine = stem.endsWith("ة");
+  const base = feminine ? stem.slice(0, -1) : stem;
+  const tags = arabicTags(base);
+  if (!(!PERSON.has(base) && !NOT_ADJECTIVE.has(base) && tags.includes("a") && !tags.includes("p")))
+    return null;
+  if (!(!arabicTags(`${base}ة`) && !(plainOnly && !feminine && tags.includes("m")))) return null;
+  return { base, gender: feminine ? "f" : "m" };
+}
+
+// ar_SA.yaml def agreeing
+export function agreeing(adj: { base: string; gender: "m" | "f" }) {
+  return adj.gender === "f" ? adj.base : `${adj.base}ة`;
+}
+
+// ar_SA.yaml def NAME_HEAD
+export const NAME_HEAD = /^(?:ابن|بن|أبو|أبي|أبا|أم|بنت)$/u;
+
+// ar_SA.yaml def plainNounGender
+export function plainNounGender(word: string) {
+  const possessed = /^(?<stem>\p{L}{2,}?)(?:ي|ه|ها|ك|نا|هم)$/u.exec(word)?.groups!.stem;
+  const stem = possessed?.endsWith("ت") ? `${possessed.slice(0, -1)}ة` : possessed;
+  const noun = [word, stem].find(
+    (s) =>
+      s &&
+      (FEMININE.has(s) ||
+        MASCULINE.has(s) ||
+        (!arabicTags(s).includes("v") && (arabicTags(s).includes("f") || masculineSingular(s)))),
+  );
+  return noun ? singularGender(noun) : undefined;
+}
+
+// ar_SA.yaml def feminineSoundPlural
+export function feminineSoundPlural(word: string) {
+  return word.endsWith("ات") && arabicFemininePluralStem(withoutAl(word).slice(0, -2));
+}
+
+// ar_SA.yaml def masculinePluralAt
+export function masculinePluralAt(word: string) {
+  if (!(word.endsWith("ات") && !feminineSoundPlural(word))) return null;
+  const stem = withoutAl(word).slice(0, -2);
+  if (!(arabicTags(stem).includes("p") && !FEMININE.has(stem) && !EITHER_GENDER.has(stem)))
+    return null;
+  if (!(!arabicTags(`${stem}ة`) && !(/[وي]$/u.test(stem) && arabicTags(`${stem.slice(0, -1)}ة`))))
+    return null;
+  return stem;
+}
+
+// ar_SA.yaml def moodFix
+export function moodFix(word: string, jussive: boolean): string | null | undefined {
+  const five = /^(?<stem>[يت]\p{L}{2,})ون$/u.exec(word)?.groups!.stem;
+  return five
+    ? five.endsWith("ا") || (five.length === 3 && five[1] === "ت")
+      ? undefined
+      : five + "وا"
+    : jussive && /^[يأن]\p{L}+[يوى]$/u.test(word) && word.length >= 3
+      ? word.slice(0, -1)
+      : undefined;
+}
+
+// ar_SA.yaml def replaceTarget
+export function replaceTarget(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  messageKey: ArabicFinding["messageKey"],
+  alternative: string,
+): RawFinding | null {
+  const span = m.indices!.groups!.target;
+  if (!ownsAt(ctx, span[0])) return null;
+  return {
+    ruleId: frame.ruleId,
+    messageKey,
+    range: { start: span[0], end: span[1] },
+    alternatives: [alternative],
+    context: { start: m.index, end: m.index + m[0].length },
+  };
+}
+
+// ar_SA.yaml rule ar_SA.agreement def PRONOUN_AFTER
+export const PRONOUN_AFTER = new Set(
+  "في إلى على عن مع بين حول نحو عند لدى بعد قبل خلال دون منذ ضد عبر رغم مثل غير من".split(" "),
+);
+
+// ar_SA.yaml rule ar_SA.agreement def NUMBER_KEYS
+export const NUMBER_KEYS = new Set(
+  "review_msg_arabic_number_case review_msg_arabic_counted_singular review_msg_arabic_number_gender".split(
+    " ",
+  ),
+);
+
+// ar_SA.yaml rule ar_SA.agreement def DUAL_FORMS
+export const DUAL_FORMS = { m: ["هذان", "هذين"], f: ["هاتان", "هاتين"] } as const;
+
+// ar_SA.yaml rule ar_SA.agreement def demonstrative
+export function demonstrative(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding | null | undefined {
+  const parts = DEMONSTRATIVE.exec(list[i].word)?.groups;
+  const noun = list[i + 1];
+  if (!(parts && noun && adjacentToken(noun) && ownsAt(ctx, list[i].start))) return null;
+  const pre = parts.pre;
+  const dem = parts.dem;
+  const before =
+    i > 0 && adjacentToken(list[i]) ? list[i - 1].word.replace(/^[وف](?=\p{L}{2})/u, "") : "";
+  const far = dem === "ذلك" || dem === "تلك";
+  if (far && (/[بلك]$/u.test(pre) || PRONOUN_AFTER.has(before))) return null;
+  const at = list[i].start + pre.length;
+  const context = { start: list[i].start, end: noun.end };
+  const d = dual(noun.word);
+  return dem === "هذا" || dem === "ذلك"
+    ? definiteFeminine(noun.word) || possessedFeminine(noun.word)
+      ? {
+          messageKey: "review_msg_arabic_demonstrative_gender",
+          range: { start: at, end: list[i].end },
+          alternatives: [dem === "هذا" ? "هذه" : "تلك"],
+          context,
+        }
+      : undefined
+    : dem === "هذه" || dem === "تلك"
+      ? noun.word.startsWith("ال") &&
+        (MASCULINE.has(withoutAl(noun.word)) || masculineSingular(withoutAl(noun.word)))
+        ? {
+            messageKey: "review_msg_arabic_demonstrative_gender",
+            range: { start: at, end: list[i].end },
+            alternatives: [dem === "هذه" ? "هذا" : "ذلك"],
+            context,
+          }
+        : undefined
+      : d
+        ? demonstrativeDual(noun, d, dem, pre, before, at, list[i].end, context)
+        : (dem === "هذان" || dem === "هذين") && feminineDualConstruct(noun.word)
+          ? {
+              messageKey: "review_msg_arabic_demonstrative_gender",
+              range: { start: at, end: list[i].end },
+              alternatives: [dem === "هذان" ? "هاتان" : "هاتين"],
+              context,
+            }
+          : undefined;
+}
+
+// ar_SA.yaml rule ar_SA.agreement def demonstrativeDual
+export function demonstrativeDual(
+  noun: ArabicToken,
+  d: { gender: "m" | "f"; oblique: boolean; stem: string },
+  dem: string,
+  pre: string,
+  before: string,
+  at: number,
+  end: number,
+  context: TextRange,
+): ArabicFinding | null {
+  const afterPreposition = (pre.length > 0 && /[بلك]$/u.test(pre)) || PREPOSITIONS.has(before);
+  const demOblique = dem === "هذين" || dem === "هاتين";
+  const genderFix = (dem.startsWith("ها") ? "f" : "m") !== d.gender;
+  const options = (
+    afterPreposition
+      ? [[true, true]]
+      : demOblique === d.oblique
+        ? [[demOblique, d.oblique]]
+        : [
+            [d.oblique, d.oblique],
+            [demOblique, demOblique],
+          ]
+  ) as [boolean, boolean][];
+  const alternatives = options
+    .map(([demCase, nounCase]) => ({
+      fixedDem: DUAL_FORMS[d.gender][demCase ? 1 : 0],
+      fixedNoun: d.stem + (nounCase ? "ين" : "ان"),
+    }))
+    .filter(({ fixedDem, fixedNoun }) => fixedDem !== dem || fixedNoun !== noun.word);
+  if (!(alternatives.length > 0)) return null;
+  const nounChanges = alternatives.some(({ fixedNoun }) => fixedNoun !== noun.word);
+  return {
+    messageKey: genderFix
+      ? "review_msg_arabic_demonstrative_gender"
+      : "review_msg_arabic_dual_case",
+    range: { start: at, end: nounChanges ? noun.end : end },
+    alternatives: alternatives.map(({ fixedDem, fixedNoun }) =>
+      nounChanges ? fixedDem + noun.gap + fixedNoun : fixedDem,
+    ),
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    context,
+  };
+}
+
+// ar_SA.yaml rule ar_SA.agreement def RESUMED
+export const RESUMED = /^\p{L}{2,}?(?<subject>ت|نا|تم|تما|تن)(?<object>ه|ها)$/u;
+
+// ar_SA.yaml rule ar_SA.agreement def TWO_OBJECTS
+export const TWO_OBJECTS =
+  /^(?:[وف]?)(?:أعطي|منح|أهدي|سلم|أرسل|بع|وعد|علم|أخبر|سأل|أعر|ناول|أطعم|ألبس|كسو|أري|قدم|حمل|أعد|أهد)/u;
+
+// ar_SA.yaml rule ar_SA.agreement def LATER_PRONOUN
+export const LATER_PRONOUN = /^(?:ل|إلي|من|علي|في|ب|عن|مع|عند|لدي)(?:ه|ها|هم)$/u;
+
+// ar_SA.yaml rule ar_SA.agreement def headBefore
+export function headBefore(before: string) {
+  const word = before.replace(/^[وف]/u, "");
+  return before.startsWith("ال") || !(/[mfa]/u.test(arabicTags(word)) || /(?:ة|ات)$/u.test(word));
+}
+
+// ar_SA.yaml rule ar_SA.agreement def masculineAntecedent
+export function masculineAntecedent(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): boolean {
+  const noun = DEFINITE.exec(list[i].word)?.groups;
+  if (!(noun && singularGender(noun.stem) === "m")) return false;
+  return (
+    /(?:[بك]ال|لل)$/u.test(noun.pre) || opensPhrase(ctx, list, i) || headBefore(list[i - 1].word)
+  );
+}
+
+// ar_SA.yaml rule ar_SA.agreement def relativePronoun
+export function relativePronoun(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding | null | undefined {
+  if (!(i >= 1 && i + 1 < list.length)) return null;
+  const relative = list[i].word;
+  if (!(relative === "الذي" || relative === "التي")) return null;
+  const antecedent = list[i - 1].word.replace(/^[وف]?(?:[بلك](?=ال))?/u, "");
+  const verb = list[i + 1];
+  if (!(adjacentToken(list[i]) && adjacentToken(verb) && ownsAt(ctx, list[i].start))) return null;
+  if (!(antecedent.startsWith("ال") || antecedent.startsWith("لل"))) return null;
+  const after = list[i + 2];
+  const resumed = RESUMED.exec(verb.word)?.groups;
+  if (!(resumed && !TWO_OBJECTS.test(verb.word))) return null;
+  if (after && adjacentToken(after) && LATER_PRONOUN.test(after.word)) return null;
+  const noun = antecedent.startsWith("لل") ? "ال" + antecedent.slice(2) : antecedent;
+  const context = { start: list[i - 1].start, end: verb.end };
+  return relative === "الذي" && resumed.object === "ها" && definiteFeminine(noun)
+    ? {
+        messageKey: "review_msg_arabic_relative_gender",
+        range: { start: list[i].start, end: list[i].end },
+        alternatives: ["التي"],
+        context,
+      }
+    : relative === "التي" && resumed.object === "ه" && masculineAntecedent(ctx, list, i - 1)
+      ? {
+          messageKey: "review_msg_arabic_relative_gender",
+          range: { start: list[i].start, end: list[i].end },
+          alternatives: ["الذي"],
+          context,
+        }
+      : relative === "التي" &&
+          resumed.object === "ه" &&
+          resumed.subject !== "ت" &&
+          !definiteFeminine(noun) &&
+          !noun.endsWith("ات")
+        ? {
+            messageKey: "review_msg_arabic_relative_gender",
+            range: { start: list[i].start, end: verb.end },
+            alternatives: [`الذي${verb.gap}${verb.word}`, `التي${verb.gap}${verb.word}ا`],
+            requiresChoice: true,
+            context,
+          }
+        : undefined;
+}
+
+// ar_SA.yaml rule ar_SA.agreement def definiteAdjective
+export function definiteAdjective(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding | null {
+  const noun = DEFINITE.exec(list[i].word)?.groups;
+  const after = list[i + 1];
+  if (!(noun && after?.word.startsWith("ال") && adjacentToken(after) && ownsAt(ctx, after.start)))
+    return null;
+  const attached = /(?:[بك]ال|لل)$/u.test(noun.pre);
+  if (!((attached || opensPhrase(ctx, list, i)) && !ADVERBIAL.has(noun.stem))) return null;
+  const gender = singularGender(noun.stem);
+  const adj = gender && adjective(after.word.slice(2));
+  if (!(adj && adj.gender !== gender)) return null;
+  return {
+    messageKey: "review_msg_arabic_adjective_gender",
+    range: { start: after.start, end: after.end },
+    alternatives: [`ال${agreeing(adj)}`],
+    context: { start: list[i].start, end: after.end },
+  };
+}
+
+// ar_SA.yaml rule ar_SA.agreement def UNITS
+export const UNITS = [
+  ["ثلاثة", "ثلاث"],
+  ["أربعة", "أربع"],
+  ["خمسة", "خمس"],
+  ["ستة", "ست"],
+  ["سبعة", "سبع"],
+  ["ثمانية", "ثماني"],
+  ["تسعة", "تسع"],
+] as (readonly [string, string])[];
+
+// ar_SA.yaml rule ar_SA.agreement def UNIT_FORMS
+export const UNIT_FORMS = new Map<string, readonly [string, string]>([
+  ...UNITS.flatMap(
+    (pair) =>
+      [
+        [pair[0], pair],
+        [pair[1], pair],
+      ] as const,
+  ),
+  ["ثمان", UNITS[5]],
+]);
+
+// ar_SA.yaml rule ar_SA.agreement def TEN_FORMS
+export const TEN_FORMS = ["عشرة", "عشر"] as const;
+
+// ar_SA.yaml rule ar_SA.agreement def TENS
+export const TENS =
+  /^(?<pre>[وبلك]{0,2})(?<stem>عشر|ثلاث|أربع|خمس|ست|سبع|ثمان|تسع)(?<ending>ون|ين)$/u;
+
+// ar_SA.yaml rule ar_SA.agreement def NOMINATIVE_NUMBERS
+export const NOMINATIVE_NUMBERS = new Map([
+  ["اثنان", "اثنين"],
+  ["اثنتان", "اثنتين"],
+  ["مئتان", "مئتين"],
+  ["مائتان", "مائتين"],
+  ["ألفان", "ألفين"],
+  ["مليونان", "مليونين"],
+  ["ملياران", "مليارين"],
+]);
+
+// ar_SA.yaml rule ar_SA.agreement def TEEN_UNIT
+export const TEEN_UNIT =
+  /^[وبلك]{0,2}(?:أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u;
+
+// ar_SA.yaml rule ar_SA.agreement def TEEN_UNIT_PARTS
+export const TEEN_UNIT_PARTS =
+  /^(?<pre>[وبلك]{0,2})(?<n>أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u;
+
+// ar_SA.yaml rule ar_SA.agreement def ORDINAL
+export const ORDINAL = /^(?:ال)?(?:حادي|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع)$/u;
+
+// ar_SA.yaml rule ar_SA.agreement def numberFinding
+export function numberFinding(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  alternative: string,
+  key: ArabicFinding["messageKey"],
+): ArabicFinding[] {
+  if (!(ownsAt(ctx, start) && ctx.source.slice(start, end) !== alternative)) return [];
+  return [
+    {
+      messageKey: key,
+      range: { start, end },
+      alternatives: [alternative],
+      context: { start, end: Math.min(ctx.text.length, end + 24) },
+    },
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.agreement def obliqueNumbers
+export function obliqueNumbers(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+  j: number,
+): ArabicFinding[] {
+  if (!(j < list.length && (j === i || adjacentToken(list[j])) && NUMBER_WORDS.test(list[j].word)))
+    return [];
+  const part = list[j].word;
+  const tens = TENS.exec(part);
+  const split = /^([وبلك]{0,2})(.*)$/u.exec(part);
+  const pre = split?.[1] ?? "";
+  const rest = split?.[2] ?? part;
+  const oblique = tens
+    ? tens.groups!.ending === "ون"
+      ? pre + tens.groups!.stem + "ين"
+      : undefined
+    : NOMINATIVE_NUMBERS.has(rest)
+      ? pre + NOMINATIVE_NUMBERS.get(rest)
+      : undefined;
+  return [
+    ...(oblique
+      ? numberFinding(ctx, list[j].start, list[j].end, oblique, "review_msg_arabic_number_case")
+      : []),
+    ...obliqueNumbers(ctx, list, i, j + 1),
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.agreement def countedGender
+export function countedGender(
+  token: ArabicToken | undefined,
+  text: string,
+): "m" | "f" | null | undefined {
+  if (!(token && adjacentToken(token))) return null;
+  const word = token.word;
+  return word.endsWith("ة") && !NOT_FEMININE.has(word)
+    ? "f"
+    : /^\p{L}{2,}ا$/u.test(word) && !/(?:اء|ىا)$/u.test(word)
+      ? "m"
+      : text[token.end] === "\u064B" && !word.endsWith("ة")
+        ? "m"
+        : undefined;
+}
+
+// ar_SA.yaml rule ar_SA.agreement def elevenTwelve
+export function elevenTwelve(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+  word: string,
+  next: ArabicToken | undefined,
+  afterNext: ArabicToken | undefined,
+): ArabicFinding[] | null {
+  if (!(next && adjacentToken(next) && /^(?:عشر|عشرة)$/u.test(next.word))) return null;
+  const gender = countedGender(afterNext, ctx.text);
+  const units = TEEN_UNIT_PARTS.exec(word)?.groups;
+  if (!(units && gender)) return null;
+  const f = gender === "f";
+  const n = units.n;
+  const unit =
+    n === "أحد" || n === "إحدى"
+      ? f
+        ? "إحدى"
+        : "أحد"
+      : /^اثن/u.test(n)
+        ? (f ? "اثنت" : "اثن") + (n === "اثني" || n === "اثنتي" ? "ي" : "ا")
+        : UNIT_FORMS.get(n)![f ? 1 : 0];
+  const ten = f ? "عشرة" : "عشر";
+  return units.pre + unit !== word || ten !== next.word
+    ? numberFinding(
+        ctx,
+        list[i].start,
+        next.end,
+        units.pre + unit + next.gap + ten,
+        "review_msg_arabic_number_gender",
+      )
+    : [];
+}
+
+// ar_SA.yaml rule ar_SA.agreement def twentyToNinetyNine
+export function twentyToNinetyNine(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+  word: string,
+  afterNext: ArabicToken | undefined,
+): ArabicFinding[] {
+  const unit = /^(?<pre>[بلك]?)(?<n>\p{L}+)$/u.exec(word)!.groups!;
+  const gender = countedGender(afterNext, ctx.text);
+  if (!gender) return [];
+  const f = gender === "f";
+  const forms = UNIT_FORMS.get(unit.n);
+  const fixed = forms
+    ? forms[f ? 1 : 0]
+    : unit.n === "واحد" || unit.n === "واحدة"
+      ? f
+        ? "واحدة"
+        : "واحد"
+      : /^(?:اثنان|اثنتان|اثنين|اثنتين)$/u.test(unit.n)
+        ? (f ? "اثنت" : "اثن") + unit.n.slice(unit.n.startsWith("اثنت") ? 4 : 3)
+        : undefined;
+  return fixed && fixed !== unit.n
+    ? numberFinding(
+        ctx,
+        list[i].start,
+        list[i].end,
+        unit.pre + fixed,
+        "review_msg_arabic_number_gender",
+      )
+    : [];
+}
+
+// ar_SA.yaml rule ar_SA.agreement def countForm
+export function countForm(
+  ctx: DetectContext,
+  token: ArabicToken,
+  parts: Record<string, string>,
+  forms: readonly [string, string] | undefined,
+  k: number,
+): ArabicFinding[] {
+  return forms && parts.n !== forms[k]
+    ? numberFinding(
+        ctx,
+        token.start,
+        token.end,
+        parts.pre + forms[k],
+        "review_msg_arabic_number_gender",
+      )
+    : [];
+}
+
+// ar_SA.yaml rule ar_SA.agreement def countedNoun
+export function countedNoun(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+  word: string,
+  next: ArabicToken | undefined,
+  teen: boolean,
+  masculine: string | null | undefined,
+): ArabicFinding[] {
+  const counted = next && adjacentToken(next) ? soundPlural(next.word) : undefined;
+  const ordinal = i > 0 && ORDINAL.test(list[i - 1].word);
+  const parts = /^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!.groups!;
+  return [
+    ...(counted && next && !next.word.startsWith("ال") && !ordinal
+      ? countForm(ctx, list[i], parts, parts.n === "عشر" ? TEN_FORMS : UNIT_FORMS.get(parts.n), 0)
+      : []),
+    ...(next && adjacentToken(next) && feminineSoundPlural(next.word) && !next.word.startsWith("ال")
+      ? countForm(
+          ctx,
+          list[i],
+          parts,
+          parts.n === "عشرة" && !teen ? TEN_FORMS : UNIT_FORMS.get(parts.n),
+          1,
+        )
+      : []),
+    ...(masculine
+      ? countForm(
+          ctx,
+          list[i],
+          parts,
+          parts.n === "عشر" && !teen ? TEN_FORMS : UNIT_FORMS.get(parts.n),
+          0,
+        )
+      : []),
+    ...(/^[وبلك]{0,2}أحد$/u.test(word) &&
+    next &&
+    adjacentToken(next) &&
+    next.word.startsWith("ال") &&
+    feminineSoundPlural(next.word)
+      ? numberFinding(
+          ctx,
+          list[i].start,
+          list[i].end,
+          word.replace("أحد", "إحدى"),
+          "review_msg_arabic_number_gender",
+        )
+      : []),
+    ...(/^[وبلك]{0,2}إحدى$/u.test(word) &&
+    next &&
+    adjacentToken(next) &&
+    (soundPlural(next.word) || masculinePluralAt(next.word))
+      ? numberFinding(
+          ctx,
+          list[i].start,
+          list[i].end,
+          word.replace("إحدى", "أحد"),
+          "review_msg_arabic_number_gender",
+        )
+      : []),
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.agreement def numbers
+export function numbers(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] {
+  const word = list[i].word;
+  const next = list[i + 1];
+  const afterNext = list[i + 2];
+  const attached = /^[بلك](?=\p{L})/u.test(word) && NUMBER_WORDS.test(word);
+  const oblique =
+    PREPOSITIONS.has(word) || word === "من" || attached
+      ? obliqueNumbers(ctx, list, i, attached ? i : i + 1)
+      : [];
+  const teen =
+    i > 0 &&
+    /^(?:عشر|عشرة)$/u.test(word) &&
+    adjacentToken(list[i]) &&
+    TEEN_UNIT.test(list[i - 1].word);
+  const tens = teen || TENS.test(word);
+  const masculine =
+    next && adjacentToken(next) && !next.word.startsWith("ال")
+      ? masculinePluralAt(next.word)
+      : undefined;
+  const stem = next?.word.endsWith("ات") ? next.word.slice(0, -2) : "";
+  return [
+    ...oblique,
+    ...(tens &&
+    next &&
+    adjacentToken(next) &&
+    feminineSoundPlural(next.word) &&
+    !next.word.startsWith("ال") &&
+    !next.word.endsWith("يات")
+      ? numberFinding(
+          ctx,
+          next.start,
+          next.end,
+          next.word.slice(0, -2) + "ة",
+          "review_msg_arabic_counted_singular",
+        )
+      : []),
+    ...(tens && masculine && next
+      ? numberFinding(
+          ctx,
+          next.start,
+          next.end,
+          next.word.slice(0, -2) + (masculine.endsWith("اء") ? "" : "ا"),
+          "review_msg_arabic_counted_singular",
+        )
+      : []),
+    ...(tens &&
+    next &&
+    stem.length > 1 &&
+    adjacentToken(next) &&
+    !stem.startsWith("ال") &&
+    !/[اىةء]$/u.test(stem) &&
+    !feminineSoundPlural(next.word) &&
+    !masculine &&
+    arabicTags(stem).includes("a") &&
+    ownsAt(ctx, next.start)
+      ? [
+          {
+            messageKey: "review_msg_arabic_counted_singular" as const,
+            range: { start: next.start, end: next.end },
+            alternatives: [`${stem}ة`, `${stem}ا`],
+            requiresChoice: true as const,
+            context: { start: list[i].start, end: next.end },
+          },
+        ]
+      : []),
+    ...(elevenTwelve(ctx, list, i, word, next, afterNext) ??
+      (next && adjacentToken(next) && TENS.exec(next.word)?.groups!.pre === "و"
+        ? twentyToNinetyNine(ctx, list, i, word, afterNext)
+        : countedNoun(ctx, list, i, word, next, teen, masculine))),
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.agreement def isNumberFinding
+export function isNumberFinding(f: RawFinding) {
+  return NUMBER_KEYS.has(f.messageKey);
+}
+
+// ar_SA.yaml rule ar_SA.caseEndings def CASE_PREPOSITIONS
+export const CASE_PREPOSITIONS = new Set(
+  "في إلى على عن مع بين حول نحو عند لدى بعد قبل خلال دون ضد عبر".split(" "),
+);
+
+// ar_SA.yaml rule ar_SA.caseEndings def JUSSIVE
+export const JUSSIVE = /^[وف]?لم$/u;
+
+// ar_SA.yaml rule ar_SA.caseEndings def SUBJUNCTIVE
+export const SUBJUNCTIVE = /^[وف]?(?:لن|أن|كي|لكي)$/u;
+
+// ar_SA.yaml rule ar_SA.caseEndings def NEGATING_LA
+export const NEGATING_LA = /^[وف]?لا$/u;
+
+// ar_SA.yaml rule ar_SA.caseEndings def GOVERNS_LA
+export const GOVERNS_LA = /^[وفب]?(?:أن|كي|لكي|حتى)$/u;
+
+// ar_SA.yaml rule ar_SA.caseEndings def GOVERNS_LATER
+export const GOVERNS_LATER = /^[وف]?(?:لم|لن|أن|كي|لكي|حتى|لئلا|ألا)$/u;
+
+// ar_SA.yaml rule ar_SA.caseEndings def LAMMA
+export const LAMMA = /(?<![\p{L}\p{M}])[وف]?ل\u064E?م(?:\u0651\u064E?|\u064E\u0651)ا[ \t\u00a0]+$/u;
+
+// ar_SA.yaml rule ar_SA.caseEndings def governedCase
+export function governedCase(next: ArabicToken, context: TextRange): ArabicFinding | null {
+  const plural = soundPlural(next.word);
+  const d = plural ? undefined : dual(next.word);
+  const fixed =
+    plural && !plural.oblique
+      ? plural.stem + "ين"
+      : d &&
+          !d.oblique &&
+          (d.gender === "f" ||
+            /^(?:ال)?(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[اوي]\p{L})$/u.test(d.stem))
+        ? d.stem + "ين"
+        : undefined;
+  if (!(fixed && !/^(?:ال)?مهرج$/u.test(fixed.slice(0, -2)))) return null;
+  return {
+    messageKey: "review_msg_arabic_case_ending",
+    range: { start: next.start, end: next.end },
+    alternatives: [fixed],
+    context,
+  };
+}
+
+// ar_SA.yaml rule ar_SA.caseEndings def governedEarlier
+export function governedEarlier(list: readonly ArabicToken[], i: number, k: number): boolean {
+  return (
+    k >= 0 &&
+    k >= i - 8 &&
+    !/[.!؟?\n]/u.test(list[k + 1].gap) &&
+    (GOVERNS_LATER.test(list[k].word) || governedEarlier(list, i, k - 1))
+  );
+}
+
+// ar_SA.yaml rule ar_SA.caseEndings def indicative
+export function indicative(list: readonly ArabicToken[], i: number) {
+  const verb = /^ي(?<stem>\p{L}{3,})وا$/u.exec(list[i + 1].word);
+  if (!verb) return null;
+  if (i > 0 && adjacentToken(list[i]) && GOVERNS_LA.test(list[i - 1].word)) return null;
+  if (!(list[i].word === "لا" || !governedEarlier(list, i, i - 1))) return null;
+  return `ي${verb.groups!.stem}ون`;
+}
+
+// ar_SA.yaml rule ar_SA.caseEndings def moodAfter
+export function moodAfter(
+  ctx: DetectContext,
+  head: string,
+  next: ArabicToken,
+  context: TextRange,
+): ArabicFinding | null {
+  const jussive = JUSSIVE.test(head);
+  if (!(jussive || SUBJUNCTIVE.test(head))) return null;
+  const sentenceEnd = /[.!؟?\n]/u.exec(ctx.text.slice(next.end, next.end + 200));
+  if (sentenceEnd && /[؟?]/u.test(sentenceEnd[0])) return null;
+  const fixed = moodFix(next.word, jussive);
+  if (!fixed) return null;
+  return {
+    messageKey: jussive ? "review_msg_arabic_jussive" : "review_msg_arabic_subjunctive",
+    range: { start: next.start, end: next.end },
+    alternatives: [fixed],
+    context,
+  };
+}
+
+// ar_SA.yaml rule ar_SA.caseEndings def caseEnding
+export function caseEnding(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding | null | undefined {
+  const head = list[i].word;
+  const next = list[i + 1];
+  if (!(next && adjacentToken(next) && ownsAt(ctx, next.start))) return null;
+  const context = { start: list[i].start, end: next.end };
+  const fixed = NEGATING_LA.test(head) ? indicative(list, i) : undefined;
+  return CASE_PREPOSITIONS.has(head) || ACCUSATIVE_GOVERNORS.has(head)
+    ? governedCase(next, context)
+    : NEGATING_LA.test(head)
+      ? fixed
+        ? {
+            messageKey: "review_msg_arabic_indicative",
+            range: { start: next.start, end: next.end },
+            alternatives: [fixed],
+            context,
+          }
+        : undefined
+      : moodAfter(ctx, head, next, context);
+}
+
+// ar_SA.yaml rule ar_SA.dates def MONTHS
+export const MONTHS = [
+  ["يناير", "كانون الثاني", "جانفي"],
+  ["فبراير", "شباط", "فيفري"],
+  ["مارس", "آذار"],
+  ["أبريل", "ابريل", "إبريل", "نيسان", "أفريل"],
+  ["مايو", "أيار", "ماي"],
+  ["يونيو", "يونيه", "حزيران", "جوان"],
+  ["يوليو", "يوليه", "تموز", "جويلية"],
+  ["أغسطس", "اغسطس", "آب", "أوت"],
+  ["سبتمبر", "أيلول"],
+  ["أكتوبر", "اكتوبر", "تشرين الأول"],
+  ["نوفمبر", "تشرين الثاني"],
+  ["ديسمبر", "كانون الأول"],
+];
+
+// ar_SA.yaml rule ar_SA.dates def MONTH_NUMBER
+export const MONTH_NUMBER = new Map(
+  MONTHS.flatMap((names, index) => names.map((name) => [name, index + 1] as const)),
+);
+
+// ar_SA.yaml rule ar_SA.dates def WEEKDAYS
+export const WEEKDAYS = [
+  ["الأحد"],
+  ["الإثنين", "الاثنين"],
+  ["الثلاثاء"],
+  ["الأربعاء"],
+  ["الخميس"],
+  ["الجمعة"],
+  ["السبت"],
+];
+
+// ar_SA.yaml rule ar_SA.dates def WEEKDAY_NUMBER
+export const WEEKDAY_NUMBER = new Map(
+  WEEKDAYS.flatMap((names, index) => names.map((name) => [name, index] as const)),
+);
+
+// ar_SA.yaml rule ar_SA.dates def FULL_NUMERIC
+export const FULL_NUMERIC =
+  /[0-9٠-٩۰-۹]{1,2}(?<a>[ \t\u00a0]*[/.-][ \t\u00a0]*)[0-9٠-٩۰-۹]{1,2}(?<b>[ \t\u00a0]*[/.-][ \t\u00a0]*)(?:[12١٢۱۲][0-9٠-٩۰-۹]{3})$/u;
+
+// ar_SA.yaml rule ar_SA.dates def NUMBER_BEFORE
+export const NUMBER_BEFORE = /(?:[0-9٠-٩۰-۹][ \t\u00a0]*[/.-][ \t\u00a0]*|#[ \t\u00a0]*)$/u;
+
+// ar_SA.yaml rule ar_SA.dates def NUMBER_AFTER
+export const NUMBER_AFTER = /^[ \t\u00a0]*[/.-][ \t\u00a0]*[0-9٠-٩۰-۹]/u;
+
+// ar_SA.yaml rule ar_SA.dates def ID_CUE
+export const ID_CUE =
+  /(?:الإصدار|إصدار|الاصدار|اصدار|النسخة|نسخة|التحديث|تحديث|رقم|الرقم|هاتف|الهاتف|كود|الكود|رمز|الرمز|version|(?<!\p{L})v)[ \t\u00a0:]*$/iu;
+
+// ar_SA.yaml rule ar_SA.dates def fullDate
+export function fullDate(text: string, m: RegExpExecArray): boolean {
+  const before = text.slice(Math.max(0, m.index - 24), m.index);
+  const after = text.slice(m.index + m[0].length);
+  if (!(!NUMBER_BEFORE.test(before) && !NUMBER_AFTER.test(after) && !ID_CUE.test(before)))
+    return false;
+  const numeric = FULL_NUMERIC.exec(m[0]);
+  return (
+    !!m.groups!.monthName || (!!numeric && numeric.groups!.a.trim() === numeric.groups!.b.trim())
+  );
+}
+
+// ar_SA.yaml rule ar_SA.dates def dateOwns
+export function dateOwns(ctx: DetectContext, m: RegExpExecArray) {
+  return m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index);
+}
+
+// ar_SA.yaml rule ar_SA.dates def weekdayNoYear
+export function weekdayNoYear(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  frame: FrameRef,
+  weekday: string,
+  month: number,
+  d: number,
+  range: TextRange,
+): RawFinding[] {
+  const years = yearsFor(month, d, contextYear(ctx.text, m.index, ctx.lang));
+  const weekdays = [...new Set(years.map((year) => weekdayOf(year, month, d)))];
+  if (!(years.length > 0 && !weekdays.includes(WEEKDAY_NUMBER.get(weekday)!))) return [];
+  return [
+    {
+      ruleId: frame.ruleId,
+      messageKey: "review_msg_weekday_no_year",
+      range: { start: m.index, end: m.index + weekday.length },
+      alternatives: weekdays.map((w) => WEEKDAYS[w][0]),
+      requiresChoice: true,
+      context: range,
+    },
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.dates def dateOrder
+export function dateOrder(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  frame: FrameRef,
+  parts: readonly string[],
+): RawFinding | null {
+  if (!dateOwns(ctx, m)) return null;
+  const gap = /[ \t\u00a0]+/.exec(m[0])![0];
+  return {
+    ruleId: frame.ruleId,
+    messageKey: "review_msg_arabic_date_order",
+    range: { start: m.index, end: m.index + m[0].length },
+    alternatives: [parts.join(gap)],
+  };
+}
+
+// ar_SA.yaml rule ar_SA.syntax def JOINED
+export const JOINED = new Map([
+  ["عن ما", "عما"],
+  ["من ما", "مما"],
+  ["عن من", "عمن"],
+]);
+
+// ar_SA.yaml rule ar_SA.syntax def CONTINUING
+export const CONTINUING = /^(?:زال|يزال|تزال|زالت|زالوا|دام|برح|يبرح|انفك|ينفك|فتئ|يفتأ)$/u;
+
+// ar_SA.yaml rule ar_SA.syntax def joinedParticle
+export function joinedParticle(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding | null {
+  if (!(i + 2 < list.length)) return null;
+  const first = list[i];
+  const second = list[i + 1];
+  const next = list[i + 2];
+  const pre = /^[وف](?:عن|من)$/u.test(first.word) ? first.word[0] : "";
+  const joined = JOINED.get(`${first.word.slice(pre.length)} ${second.word}`);
+  if (!(joined && adjacentToken(second) && adjacentToken(next) && ownsAt(ctx, first.start)))
+    return null;
+  if (!(!CONTINUING.test(next.word) && !/^و[يتنأ]\p{L}{2}/u.test(next.word))) return null;
+  return {
+    messageKey: "review_msg_arabic_joined_particle",
+    range: { start: first.start, end: second.end },
+    alternatives: [pre + joined],
+    context: { start: first.start, end: next.end },
+  };
+}
+
+// ar_SA.yaml rule ar_SA.redundantWords def PRONOUN_SUFFIX
+export const PRONOUN_SUFFIX = /(?:ي|ه|ها|هما|هم|هن|ك|كما|كم|كن|نا)$/u;
+
+// ar_SA.yaml rule ar_SA.style def PLAIN_VERBAL_NOUNS
+export const PLAIN_VERBAL_NOUNS = new Set(
+  "ضرب قتل فتح نقل دفع رفع حفظ طبخ غسل رسم كشف زرع قراءة زراعة صناعة".split(" "),
+);
+
+// ar_SA.yaml rule ar_SA.style def ELATIVES
+export const ELATIVES = new Set(
+  "أكبر أصغر أفضل أحسن أسوأ أكثر أقل أشد أعظم أهم أعلى أدنى أقوى أضعف أطول أقصر أسرع أقرب أبعد أغنى أفقر أجمل أقدم أحدث أوسع أضيق أدهى أعجب أخطر أصعب أسهل أعمق أثقل أخف أغلى أرخص أذكى أبرز أنسب".split(
+    " ",
+  ),
+);
+
+// ar_SA.yaml rule ar_SA.style def dualPossessor
+export function dualPossessor(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding | null {
+  if (!(i >= 1 && i + 1 < list.length)) return null;
+  if (!(list[i].word === "ذاتا" && adjacentToken(list[i]) && adjacentToken(list[i + 1])))
+    return null;
+  const before = list[i - 1].word;
+  if (!(
+    (before === "هاتان" || before === "اثنتان" || dual(before)?.gender === "f") &&
+    before.endsWith("ان") &&
+    ownsAt(ctx, list[i].start)
+  ))
+    return null;
+  return {
+    messageKey: "review_msg_style_phrasing",
+    range: { start: list[i].start, end: list[i].end },
+    alternatives: ["ذواتا"],
+    context: { start: list[i - 1].start, end: list[i + 1].end },
+  };
+}
+
+// ar_SA.yaml rule ar_SA.style def indefiniteAdjective
+export function indefiniteAdjective(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding | null {
+  const word = list[i].word.replace(/^[وف](?=\p{L}{3})/u, "");
+  const after = list[i + 1];
+  if (!(after && !word.startsWith("ال") && adjacentToken(after) && ownsAt(ctx, after.start)))
+    return null;
+  if (NAME_HEAD.test(word)) return null;
+  if (!(
+    (opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word))) &&
+    !(i + 2 < list.length && adjacentToken(list[i + 2]))
+  ))
+    return null;
+  if (!(!after.word.startsWith("ال") && ctx.text[after.end] !== "\u064B")) return null;
+  const gender = plainNounGender(word);
+  const adj = gender && adjective(after.word, true);
+  if (!(adj && adj.gender !== gender)) return null;
+  return {
+    messageKey: "review_msg_arabic_adjective_gender",
+    range: { start: after.start, end: after.end },
+    alternatives: [agreeing(adj)],
+    context: { start: list[i].start, end: after.end },
+  };
+}
+
+// ar_SA.yaml rule ar_SA.style def QUANTIFIERS
+export const QUANTIFIERS = /^(?:بعض|كل|جميع|عدد|معظم|أغلب|غير|مثل|نفس)/u;
+
+// ar_SA.yaml rule ar_SA.style def demonstrativePredicate
+export function demonstrativePredicate(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding | null {
+  const parts = /^(?<pre>[وف]?)(?<dem>هذا|هذه|ذلك|تلك)$/u.exec(list[i].word)?.groups;
+  const noun = list[i + 1];
+  if (!(parts && noun && adjacentToken(noun) && ownsAt(ctx, list[i].start))) return null;
+  if (!(!noun.word.startsWith("ال") && !NAME_HEAD.test(noun.word) && !possessedFeminine(noun.word)))
+    return null;
+  if (QUANTIFIERS.test(noun.word)) return null;
+  if (!opensSentence(ctx, list[i])) return null;
+  const gender = plainNounGender(noun.word);
+  const near = parts.dem.startsWith("ه");
+  const fixed =
+    gender === "f" && (parts.dem === "هذا" || parts.dem === "ذلك")
+      ? near
+        ? "هذه"
+        : "تلك"
+      : gender === "m" && (parts.dem === "هذه" || parts.dem === "تلك")
+        ? near
+          ? "هذا"
+          : "ذلك"
+        : undefined;
+  if (!fixed) return null;
+  return {
+    messageKey: "review_msg_arabic_demonstrative_gender",
+    range: { start: list[i].start + parts.pre.length, end: list[i].end },
+    alternatives: [fixed],
+    context: { start: list[i].start, end: noun.end },
+  };
+}
+
+// ar_SA.yaml rule ar_SA.style def LINKING_OBJECT
+export const LINKING_OBJECT = /^(?:[بلك]?(?:ذلك|هذا|هذه|تلك)|أن|أنه|أنها|ما)$/u;
+
+// ar_SA.yaml rule ar_SA.style def PRONOUN_PLACE
+export const PRONOUN_PLACE = /^(?:عند|لدى|لدي|مع)(?:ي|ه|ها|ك|كم|كما|نا|هم|هما|هن)$/u;
+
+// ar_SA.yaml rule ar_SA.style def attachedPreposition
+export function attachedPreposition(word: string): boolean {
+  const rest = /^[بلك](?<rest>\p{L}{2,})$/u.exec(word)?.groups!.rest;
+  if (!(rest && !arabicTags(word))) return false;
+  return rest.startsWith("ال") || !!arabicTags(rest) || !!arabicTags(rest.replace(POSSESSIVE, ""));
+}
+
+// ar_SA.yaml rule ar_SA.style def nounLike
+export function nounLike(s: string | undefined) {
+  return (
+    !!s &&
+    ((/[mfa]/u.test(arabicTags(s)) && !arabicTags(s).includes("v")) || MASCULINE.has(s)) &&
+    !s.startsWith("ال") &&
+    !/[اى]$/u.test(s)
+  );
+}
+
+// ar_SA.yaml rule ar_SA.style def constructEnd
+export function constructEnd(list: readonly ArabicToken[], i: number, last: number): number {
+  return last + 1 < list.length &&
+    last - i < 4 &&
+    adjacentToken(list[last + 1]) &&
+    !/^[وفبلك]{0,2}ال/u.test(list[last].word) &&
+    !POSSESSIVE.test(list[last].word)
+    ? constructEnd(list, i, last + 1)
+    : last;
+}
+
+// ar_SA.yaml rule ar_SA.style def indefiniteSubject
+export function indefiniteSubject(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const subject = list[i];
+  if (!(opensSentence(ctx, subject) && ownsAt(ctx, subject.start))) return null;
+  if (FRONTED_OK.has(subject.word)) return null;
+  const dualStem = /^(?<stem>\p{L}{2,})ان$/u.exec(subject.word)?.groups!.stem;
+  if (!(nounLike(subject.word) || (dualStem && !arabicTags(subject.word) && nounLike(dualStem))))
+    return null;
+  const head = list[i + 1];
+  if (!adjacentToken(head)) return null;
+  const placeHead = PRONOUN_PLACE.test(head.word);
+  if (!(placeHead || PREDICATE_HEAD.has(head.word) || attachedPreposition(head.word))) return null;
+  const last = placeHead
+    ? i + 1
+    : constructEnd(list, i, PREDICATE_HEAD.has(head.word) ? i + 2 : i + 1);
+  if (!(last < list.length && adjacentToken(list[last]))) return null;
+  if (list.slice(i + 1, last + 1).some((token) => LINKING_OBJECT.test(token.word))) return null;
+  if (!(head.word.slice(1) !== subject.word)) return null;
+  const tags = arabicTags(subject.word);
+  if (tags.includes("a") && !tags.includes("m") && !head.word.startsWith("ك")) return null;
+  const end = list[last].end;
+  if (!/^(?:[.!\n]|$)/u.test(ctx.text.slice(end, end + 1))) return null;
+  return [
+    {
+      messageKey: "review_msg_arabic_indefinite_subject",
+      range: { start: subject.start, end },
+      alternatives: [`${ctx.text.slice(head.start, end)}${head.gap}${subject.word}`],
+      context: { start: subject.start, end },
+    },
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def QAMA
+export const QAMA = [
+  "قام",
+  "قامت",
+  "قاموا",
+  "قمت",
+  "قمنا",
+  "قمتم",
+  "قمن",
+  "يقوم",
+  "تقوم",
+  "يقومون",
+  "تقومون",
+  "نقوم",
+  "أقوم",
+  "يقم",
+  "تقم",
+  "نقم",
+  "أقم",
+  "يقوموا",
+  "تقوموا",
+];
+
+// ar_SA.yaml rule ar_SA.style def QAMA_SLOT
+export const QAMA_SLOT = new Map(QAMA.map((form, slot) => [form, slot] as const));
+
+// ar_SA.yaml rule ar_SA.style def slotForm
+export function slotForm(past: string, present: string, slot: number) {
+  const first = present.startsWith("أ") ? "آ" + present.slice(1) : "أ" + present;
+  return [
+    past,
+    past + "ت",
+    past + "وا",
+    past + "ت",
+    past + "نا",
+    past + "تم",
+    past + "ن",
+    "ي" + present,
+    "ت" + present,
+    "ي" + present + "ون",
+    "ت" + present + "ون",
+    "ن" + present,
+    first,
+    "ي" + present,
+    "ت" + present,
+    "ن" + present,
+    first,
+    "ي" + present + "وا",
+    "ت" + present + "وا",
+  ][slot];
+}
+
+// ar_SA.yaml rule ar_SA.style def VERBAL_NOUNS
+export const VERBAL_NOUNS = new Map<string, readonly [string, string]>([
+  ["عمل", ["عمل", "عمل"]],
+  ["أكل", ["أكل", "أكل"]],
+  ["دراسة", ["درس", "درس"]],
+  ["كتابة", ["كتب", "كتب"]],
+  ["شرح", ["شرح", "شرح"]],
+  ["فحص", ["فحص", "فحص"]],
+  ["جمع", ["جمع", "جمع"]],
+  ["بحث", ["بحث", "بحث"]],
+  ["سؤال", ["سأل", "سأل"]],
+  ["تحليل", ["حلل", "حلل"]],
+  ["تنظيم", ["نظم", "نظم"]],
+  ["تطوير", ["طور", "طور"]],
+  ["تصميم", ["صمم", "صمم"]],
+  ["تقديم", ["قدم", "قدم"]],
+  ["تنفيذ", ["نفذ", "نفذ"]],
+  ["تحقيق", ["حقق", "حقق"]],
+  ["تغيير", ["غير", "غير"]],
+  ["تسجيل", ["سجل", "سجل"]],
+  ["تعديل", ["عدل", "عدل"]],
+  ["ترجمة", ["ترجم", "ترجم"]],
+  ["مراجعة", ["راجع", "راجع"]],
+  ["مساعدة", ["ساعد", "ساعد"]],
+  ["مناقشة", ["ناقش", "ناقش"]],
+  ["متابعة", ["تابع", "تابع"]],
+  ["مشاركة", ["شارك", "شارك"]],
+  ["إرسال", ["أرسل", "رسل"]],
+  ["إصلاح", ["أصلح", "صلح"]],
+  ["إعلان", ["أعلن", "علن"]],
+  ["إغلاق", ["أغلق", "غلق"]],
+  ["إنتاج", ["أنتج", "نتج"]],
+  ["استخدام", ["استخدم", "ستخدم"]],
+  ["استقبال", ["استقبل", "ستقبل"]],
+]);
+
+// ar_SA.yaml rule ar_SA.style def WEAK
+export const WEAK = /[اويىءئؤأإآ]/u;
+
+// ar_SA.yaml rule ar_SA.style def DERIVED_PATTERNS
+export const DERIVED_PATTERNS = [
+  [/^است(\p{L})(\p{L})ا(\p{L})$/u, [2, 3], "است$1$2$3", "ست$1$2$3"],
+  [/^ان(\p{L})(\p{L})ا(\p{L})$/u, [1, 2, 3], "ان$1$2$3", "ن$1$2$3"],
+  [/^ا(\p{L})ت(\p{L})ا(\p{L})$/u, [1, 2, 3], "ا$1ت$2$3", "$1ت$2$3"],
+  [/^إ(\p{L})(\p{L})ا(\p{L})$/u, [1, 2, 3], "أ$1$2$3", "$1$2$3"],
+  [/^ت(\p{L})(\p{L})ي(\p{L})$/u, [2, 3], "$1$2$3", "$1$2$3"],
+  [/^م(\p{L})ا(\p{L})(\p{L})ة$/u, [1, 2, 3], "$1ا$2$3", "$1ا$2$3"],
+  [/^ت(\p{L})ا(\p{L})(\p{L})$/u, [1, 2, 3], "ت$1ا$2$3", "ت$1ا$2$3"],
+] as [RegExp, number[], string, string][];
+
+// ar_SA.yaml rule ar_SA.style def derivedFrom
+export function derivedFrom(noun: string, k: number): readonly [string, string] | null | undefined {
+  if (!(k < DERIVED_PATTERNS.length)) return null;
+  const pattern = DERIVED_PATTERNS[k];
+  const parts = pattern[0].exec(noun);
+  return parts && pattern[1].every((radical) => !WEAK.test(parts[radical]))
+    ? ([noun.replace(pattern[0], pattern[2]), noun.replace(pattern[0], pattern[3])] as const)
+    : derivedFrom(noun, k + 1);
+}
+
+// ar_SA.yaml rule ar_SA.style def derivedStems
+export function derivedStems(noun: string) {
+  return VERBAL_NOUNS.get(noun) ?? derivedFrom(noun, 0);
+}
+
+// ar_SA.yaml rule ar_SA.style def QAMA_WORD
+export const QAMA_WORD = /^(?<pre>[وف]?)(?<future>س?)(?<verb>\p{L}+)$/u;
+
+// ar_SA.yaml rule ar_SA.style def lightVerbs
+export function lightVerbs(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const parts = QAMA_WORD.exec(list[i].word);
+  const slot = parts && QAMA_SLOT.get(parts.groups!.verb);
+  if (!(slot !== undefined && slot !== null && ownsAt(ctx, list[i].start))) return null;
+  if (parts!.groups!.future && slot < 7) return null;
+  const noun = list[i + 1];
+  if (!adjacentToken(noun)) return null;
+  const nounParts = /^ب(?<article>ال)?(?<noun>\p{L}+)$/u.exec(noun.word);
+  const stems = nounParts && derivedStems(nounParts.groups!.noun);
+  if (!stems) return null;
+  const after = list[i + 2];
+  const next = after && adjacentToken(after) ? after.word : "";
+  if (
+    !(nounParts.groups!.article
+      ? next === "" || STYLE_PREPOSITIONS.has(next)
+      : next.startsWith("ال"))
+  )
+    return null;
+  return [
+    {
+      messageKey: "review_msg_style_phrasing",
+      range: { start: list[i].start, end: noun.end },
+      alternatives: [
+        parts!.groups!.pre + parts!.groups!.future + slotForm(stems[0], stems[1], slot),
+      ],
+      context: { start: list[i].start, end: after?.end ?? noun.end },
+    },
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def RELATIVE
+export const RELATIVE = /^(?:الذي|التي|الذين|اللذان|اللتان|اللذين|اللتين|اللواتي|اللاتي)$/u;
+
+// ar_SA.yaml rule ar_SA.style def andRelatives
+export function andRelatives(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i >= 1)) return null;
+  const word = list[i].word;
+  if (!(word.startsWith("و") && RELATIVE.test(word.slice(1)) && ownsAt(ctx, list[i].start)))
+    return null;
+  if (!(/^،?[ \t\u00a0]*$/u.test(list[i].gap) && /^(?:[وفبلك]{0,2})ال/u.test(list[i - 1].word)))
+    return null;
+  const sentence = ctx.text.slice(Math.max(0, list[i].start - 200), list[i].start);
+  const clause = sentence.slice(sentence.search(/[^.!؟?\n]*$/u));
+  if (/(?<![\p{L}])(?:و)?(?:الذي|التي|الذين|اللذان|اللتان|اللواتي|اللاتي)(?![\p{L}])/u.test(clause))
+    return null;
+  return [
+    {
+      messageKey: "review_msg_style_phrasing",
+      range: { start: list[i].start, end: list[i].start + 1 },
+      alternatives: [""],
+      context: { start: list[i - 1].start, end: list[i].end },
+    },
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def FEMININE_ELATIVE
+export const FEMININE_ELATIVE = new Map([
+  ["أعلى", "عليا"],
+  ["أدنى", "دنيا"],
+  ["أكبر", "كبرى"],
+  ["أصغر", "صغرى"],
+  ["أفضل", "فضلى"],
+  ["أعظم", "عظمى"],
+  ["أقصى", "قصوى"],
+  ["أوسط", "وسطى"],
+  ["أحسن", "حسنى"],
+]);
+
+// ar_SA.yaml rule ar_SA.style def BROKEN_PLURAL
+export const BROKEN_PLURAL = /^(?:[وفبلك]{0,2})ال\p{L}{2}ا\p{L}(?!ي)\p{L}$/u;
+
+// ar_SA.yaml rule ar_SA.style def PLURAL_AF3AL
+export const PLURAL_AF3AL = /^(?:[وفبلك]{0,2})الأ\p{L}{2}ا\p{L}$/u;
+
+// ar_SA.yaml rule ar_SA.style def elativeHeadOpens
+export function elativeHeadOpens(list: readonly ArabicToken[], i: number) {
+  const before = i > 1 && adjacentToken(list[i - 1]) ? list[i - 2].word : "";
+  return !before || STYLE_PREPOSITIONS.has(before) || /^(?:[وفبلك]{0,2})ال/u.test(before);
+}
+
+// ar_SA.yaml rule ar_SA.style def elativeComparison
+export function elativeComparison(
+  list: readonly ArabicToken[],
+  i: number,
+  elative: string,
+  previous: string,
+  next: ArabicToken,
+): ArabicFinding[] | null {
+  const people = PLURAL_AF3AL.test(previous);
+  if (!(
+    people ||
+    /^(?:[وفبلك]{0,2})ال\p{L}{2,}ات$/u.test(previous) ||
+    BROKEN_PLURAL.test(previous)
+  ))
+    return null;
+  return [
+    {
+      messageKey: "review_msg_style_phrasing",
+      range: { start: list[i].start, end: list[i].end },
+      alternatives: [`التي هي ${elative}`, ...(people ? [`الذين هم ${elative}`] : [])],
+      ...(people ? { requiresChoice: true as const } : {}),
+      context: { start: list[i].start, end: next.end },
+    },
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def elativeAgreement
+export function elativeAgreement(
+  list: readonly ArabicToken[],
+  i: number,
+  elative: string,
+  pre: string,
+  previous: string,
+): ArabicFinding[] | null {
+  const feminine = FEMININE_ELATIVE.get(elative);
+  const dualParts = /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,})ت(?<ending>ان|ين)$/u.exec(
+    previous,
+  )?.groups;
+  const noun =
+    /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,}ة)$/u.exec(previous)?.groups!.stem ??
+    (BROKEN_PLURAL.test(previous) ? previous : undefined);
+  return feminine && !pre && previous === "هي"
+    ? [
+        {
+          messageKey: "review_msg_style_phrasing",
+          range: { start: list[i].start, end: list[i].end },
+          alternatives: ["ال" + feminine],
+        },
+      ]
+    : feminine?.endsWith("ى") && !pre && dualParts && arabicTags(`${dualParts.stem}ة`).includes("f")
+      ? elativeHeadOpens(list, i)
+        ? [
+            {
+              messageKey: "review_msg_style_phrasing",
+              range: { start: list[i].start, end: list[i].end },
+              alternatives: [`ال${feminine.slice(0, -1)}ي${dualParts.ending}`],
+              context: { start: list[i - 1].start, end: list[i].end },
+            },
+          ]
+        : []
+      : feminine && !pre && noun && !MASCULINE_IN_TA.has(noun) && elativeHeadOpens(list, i)
+        ? [
+            {
+              messageKey: "review_msg_style_phrasing",
+              range: { start: list[i].start, end: list[i].end },
+              alternatives: ["ال" + feminine],
+              context: { start: list[i - 1].start, end: list[i].end },
+            },
+          ]
+        : [];
+}
+
+// ar_SA.yaml rule ar_SA.style def elatives
+export function elatives(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  const parts = /^(?<pre>[وف]?)ال(?<elative>\p{L}+)$/u.exec(list[i].word);
+  const elative = parts?.groups!.elative;
+  if (!(elative && (ELATIVES.has(elative) || FEMININE_ELATIVE.has(elative)))) return null;
+  if (!ownsAt(ctx, list[i].start)) return null;
+  const pre = parts.groups!.pre;
+  const previous = i > 0 && adjacentToken(list[i]) ? list[i - 1].word : "";
+  const next = list[i + 1];
+  const afterMin = list[i + 2]?.word ?? "";
+  const comparative = ELATIVES.has(elative) && next?.word === "من" && adjacentToken(next);
+  return comparative &&
+    !/^(?:[وفبلك]{0,2})ال/u.test(previous) &&
+    !/^(?:بين|بينها|بينهم|نوعه|نوعها|نوعهم)$/u.test(afterMin)
+    ? [
+        {
+          messageKey: "review_msg_style_phrasing",
+          range: { start: list[i].start, end: list[i].end },
+          alternatives: [pre + elative],
+          context: { start: list[i].start, end: next.end },
+        },
+      ]
+    : ((comparative && !pre && /^[ \t\u00a0]+[0-9٠-٩]/u.test(ctx.text.slice(next.end, next.end + 8))
+        ? elativeComparison(list, i, elative, previous, next)
+        : null) ?? elativeAgreement(list, i, elative, pre, previous));
+}
+
+// ar_SA.yaml rule ar_SA.style def WORK
+export const WORK =
+  /^[وف]?(?:عمل|عملت|عملوا|يعمل|تعمل|يعملون|نعمل|أعمل|اشتغل|اشتغلت|يشتغل|تشتغل)$/u;
+
+// ar_SA.yaml rule ar_SA.style def roleAt
+export function roleAt(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+  j: number,
+): ArabicFinding[] | null {
+  const role = list[j];
+  if (!(j <= i + 2 && role && adjacentToken(role))) return null;
+  return /^ك(?!ال)\p{L}{3,}$/u.test(role.word) && ownsAt(ctx, role.start)
+    ? [
+        {
+          messageKey: "review_msg_style_phrasing",
+          range: { start: role.start, end: role.start + 1 },
+          alternatives: ["بصفة "],
+          context: { start: list[i].start, end: role.end },
+        },
+      ]
+    : role.word.startsWith("ك")
+      ? null
+      : roleAt(ctx, list, i, j + 1);
+}
+
+// ar_SA.yaml rule ar_SA.style def asRole
+export function asRole(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length && WORK.test(list[i].word))) return null;
+  return roleAt(ctx, list, i, i + 1);
+}
+
+// ar_SA.yaml rule ar_SA.style def laSiyyama
+export function laSiyyama(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  const token = list[i];
+  if (!(/^[وف]?سيما$/u.test(token.word) && ownsAt(ctx, token.start))) return null;
+  if (i > 0 && adjacentToken(token) && /^[وف]?لا$/u.test(list[i - 1].word)) return null;
+  return [
+    {
+      messageKey: "review_msg_style_phrasing",
+      range: { start: token.end - 4, end: token.end },
+      alternatives: ["لا سيما"],
+      context: { start: token.start, end: token.end },
+    },
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def withLam
+export function withLam(word: string) {
+  return word.startsWith("الل")
+    ? "ل" + word.slice(2)
+    : word.startsWith("ال")
+      ? "ل" + word.slice(1)
+      : "ل" + word;
+}
+
+// ar_SA.yaml rule ar_SA.style def styleFinding
+export function styleFinding(start: number, end: number, fixed: string): ArabicFinding {
+  return { messageKey: "review_msg_style_phrasing", range: { start, end }, alternatives: [fixed] };
+}
+
+// ar_SA.yaml rule ar_SA.style def ownedStyle
+export function ownedStyle(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  fixed: string,
+): ArabicFinding[] {
+  return ownsAt(ctx, start) ? [styleFinding(start, end, fixed)] : [];
+}
+
+// ar_SA.yaml rule ar_SA.style def doingTheAct
+export function doingTheAct(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const parts = /^(?<conj>[وف]?)(?<prep>بال|لل|ال)قيام$/u.exec(list[i].word);
+  const act = list[i + 1];
+  const actParts = /^ب(?<article>ال)?(?<noun>\p{L}{3,})$/u.exec(act.word);
+  if (!(parts && actParts && adjacentToken(act) && ownsAt(ctx, list[i].start))) return null;
+  const noun = actParts.groups!.noun;
+  if (!(derivedStems(noun) || PLAIN_VERBAL_NOUNS.has(noun))) return null;
+  const phrase = (actParts.groups!.article ?? "") + noun;
+  const prep = parts.groups!.prep;
+  return [
+    styleFinding(
+      list[i].start,
+      act.end,
+      parts.groups!.conj +
+        (prep === "بال" ? "ب" + phrase : prep === "لل" ? withLam(phrase) : phrase),
+    ),
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def ADVERBS
+export const ADVERBS = new Map([
+  ["عام", "عموما"],
+  ["خاص", "خصوصا"],
+  ["كبير", "كثيرا"],
+  ["جيد", "جيدا"],
+  ["قوي", "بقوة"],
+  ["سريع", "بسرعة"],
+  ["دائم", "دائما"],
+  ["مستمر", "باستمرار"],
+  ["مباشر", "مباشرة"],
+  ["واضح", "بوضوح"],
+  ["كامل", "كاملا"],
+]);
+
+// ar_SA.yaml rule ar_SA.style def ADJECTIVE_SHAPE
+export const ADJECTIVE_SHAPE = /^(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[يو]\p{L})$/u;
+
+// ar_SA.yaml rule ar_SA.style def inAWay
+export function inAWay(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const parts = /^(?<pre>[وف]?)ب(?<way>شكل|صورة|أسلوب|طريقة)$/u.exec(list[i].word);
+  const next = list[i + 1];
+  if (!(parts && adjacentToken(next) && ownsAt(ctx, list[i].start))) return null;
+  const feminineWay = parts.groups!.way.endsWith("ة");
+  if (!(feminineWay ? next.word.endsWith("ة") : !next.word.endsWith("ة"))) return null;
+  const adj = feminineWay ? next.word.slice(0, -1) : next.word;
+  if (adj.startsWith("ال")) return null;
+  const fixed =
+    ADVERBS.get(adj) ??
+    (/^\p{L}{2,}ي$/u.test(adj)
+      ? adj + "ا"
+      : ADJECTIVE_SHAPE.test(adj)
+        ? `على نحو ${adj}`
+        : undefined);
+  if (!fixed) return null;
+  return [styleFinding(list[i].start, next.end, parts.groups!.pre + fixed)];
+}
+
+// ar_SA.yaml rule ar_SA.style def DURATIONS
+export const DURATIONS = new Map([
+  ..."ساعة ساعات ساعتين يومين أسابيع أسبوعين شهرين سنة سنوات سنين سنتين عامين دقيقة دقائق دقيقتين فترة مدة لحظة لحظات"
+    .split(" ")
+    .map((word) => [word, word] as const),
+  ...["يوم", "أيام", "أسبوع", "شهر", "أشهر", "شهور", "عام", "أعوام", "قرن", "قرون"].map(
+    (word) => [word, word + "ا"] as const,
+  ),
+]);
+
+// ar_SA.yaml rule ar_SA.style def SINGULAR_DURATION
+export const SINGULAR_DURATION = /^(?:ساعة|يوم|أسبوع|شهر|سنة|عام|دقيقة|لحظة|قرن)$/u;
+
+// ar_SA.yaml rule ar_SA.style def DURATION_ADJECTIVE
+export const DURATION_ADJECTIVE = /^(?:واحد|واحدة|كامل|كاملة|طويل|طويلة|قصير|قصيرة|أو)$/u;
+
+// ar_SA.yaml rule ar_SA.style def VERB_LIKE
+export const VERB_LIKE = /^[وف]?(?:س?[يتنأ]\p{L}{2,}(?:ون)?|\p{L}{2,}(?<!ا)(?:ت|تم|نا|وا))$/u;
+
+// ar_SA.yaml rule ar_SA.style def forADuration
+export function forADuration(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i >= 1)) return null;
+  const parts = /^(?<pre>[وف]?)ل(?<noun>\p{L}+)$/u.exec(list[i].word);
+  const fixed = parts && DURATIONS.get(parts.groups!.noun);
+  if (!(fixed && adjacentToken(list[i]) && ownsAt(ctx, list[i].start))) return null;
+  const next = list[i + 1] && adjacentToken(list[i + 1]) ? list[i + 1].word : "";
+  if (next.startsWith("ال")) return null;
+  if (SINGULAR_DURATION.test(parts.groups!.noun) && next && !DURATION_ADJECTIVE.test(next))
+    return null;
+  const previous = list[i - 1].word;
+  if (!(
+    (VERB_LIKE.test(previous) && !previous.endsWith("ة")) ||
+    (/^ال\p{L}+$/u.test(previous) &&
+      i > 1 &&
+      adjacentToken(list[i - 1]) &&
+      VERB_LIKE.test(list[i - 2].word))
+  ))
+    return null;
+  return [styleFinding(list[i].start, list[i].end, parts.groups!.pre + fixed)];
+}
+
+// ar_SA.yaml rule ar_SA.style def NOT_LAM_PREPOSITION
+export const NOT_LAM_PREPOSITION =
+  /^(?:لا|لم|لن|لكن\p{L}*|لكي|لدى|لدي\p{L}*|لأن\p{L}*|لما|لقد|لعل|لو|ليس\p{L}*|ليت|لذلك|لهذا|لهذه|لي)$/u;
+
+// ar_SA.yaml rule ar_SA.style def MA_PRONOUNS
+export const MA_PRONOUNS = new Map([
+  ["معه", "به"],
+  ["معها", "بها"],
+  ["معهم", "بهم"],
+  ["معي", "بي"],
+  ["معنا", "بنا"],
+  ["معك", "بك"],
+  ["معكم", "بكم"],
+]);
+
+// ar_SA.yaml rule ar_SA.style def LI_PRONOUNS
+export const LI_PRONOUNS = new Map([
+  ["له", "فيه"],
+  ["لها", "فيها"],
+  ["لهم", "فيهم"],
+]);
+
+// ar_SA.yaml rule ar_SA.style def WISH
+export const WISH = /^[وفبل]?(?:ال|لل)?رغب(?:ة|ات|ته|تها|تهم|تي|تنا|تك|تكم)$/u;
+
+// ar_SA.yaml rule ar_SA.style def RELATION
+export const RELATION =
+  /^[وفبل]?(?:ال|لل)?علاق(?:ة|ات|ته|تها|تهم|تي|تنا|تك|تكم|اته|اتها|اتهم|اتنا)$/u;
+
+// ar_SA.yaml rule ar_SA.style def nounPrepositions
+export function nounPrepositions(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 2 < list.length)) return null;
+  if (!adjacentToken(list[i + 1])) return null;
+  const head = list[i].word;
+  const j =
+    /^[^ل]\p{L}{2,}ة$/u.test(list[i + 1].word) && adjacentToken(list[i + 2]) ? i + 2 : i + 1;
+  const word = list[j].word;
+  return WISH.test(head)
+    ? /^ل\p{L}{2,}$/u.test(word) && !NOT_LAM_PREPOSITION.test(word)
+      ? ownedStyle(
+          ctx,
+          list[j].start,
+          list[j].end,
+          LI_PRONOUNS.get(word) ??
+            (word.startsWith("لل") ? "في ال" + word.slice(2) : "في " + word.slice(1)),
+        )
+      : []
+    : RELATION.test(head)
+      ? MA_PRONOUNS.has(word)
+        ? ownedStyle(ctx, list[j].start, list[j].end, MA_PRONOUNS.get(word)!)
+        : word === "مع" && list[j + 1] && adjacentToken(list[j + 1])
+          ? ownedStyle(ctx, list[j].start, list[j + 1].end, "ب" + list[j + 1].word)
+          : []
+      : /^و?تحسبا$/u.test(head) && list[i + 1].word === "من" && adjacentToken(list[i + 2])
+        ? ownedStyle(ctx, list[i + 1].start, list[i + 2].end, withLam(list[i + 2].word))
+        : [];
+}
+
+// ar_SA.yaml rule ar_SA.style def NOT_AFTER_GHAYR
+export const NOT_AFTER_GHAYR = /^بال(?:غ|ضرورة|كامل|مرة|تأكيد|طبع)/u;
+
+// ar_SA.yaml rule ar_SA.style def exceptPreposition
+export function exceptPreposition(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const word = list[i].word;
+  if (!(
+    (word === "سوى" || word === "غير") &&
+    adjacentToken(list[i + 1]) &&
+    ownsAt(ctx, list[i].start)
+  ))
+    return null;
+  const next = list[i + 1].word;
+  const attached = /^(?<p>[بل])(?<rest>ال\p{L}{2,})$/u.exec(
+    next.startsWith("لل") ? "لال" + next.slice(2) : next,
+  );
+  if (word === "غير" && (attached?.groups!.p !== "ب" || NOT_AFTER_GHAYR.test(next))) return null;
+  const fixed = SEPARATE_PREPOSITIONS.has(next)
+    ? `${next} ${word}`
+    : attached && `${attached.groups!.p}${word} ${attached.groups!.rest}`;
+  if (!fixed) return null;
+  return [styleFinding(list[i].start, list[i + 1].end, fixed)];
+}
+
+// ar_SA.yaml rule ar_SA.style def CLAUSE_BREAK
+export const CLAUSE_BREAK = /[.،,؛;!؟?:\n]/u;
+
+// ar_SA.yaml rule ar_SA.style def STILL_PAST
+export const STILL_PAST = /^(?:زال|زلت|زالت|زلنا|زالوا|دام|دمت|برح|انفك)$/u;
+
+// ar_SA.yaml rule ar_SA.style def neverPast
+export function neverPast(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+  k: number,
+): ArabicFinding[] {
+  if (!(
+    k >= 0 &&
+    k >= i - 5 &&
+    !CLAUSE_BREAK.test(list[k + 1].gap) &&
+    !/^[وف]?(?:لن|لا)$/u.test(list[k].word)
+  ))
+    return [];
+  return list[k].word === "لم" || (list[k].word === "ما" && !STILL_PAST.test(list[k + 1].word))
+    ? [
+        styleFinding(
+          list[i].start,
+          list[i].end + (ctx.text[list[i].end] === "\u064B" ? 1 : 0),
+          "قط",
+        ),
+      ]
+    : neverPast(ctx, list, i, k - 1);
+}
+
+// ar_SA.yaml rule ar_SA.style def timeAdverbs
+export function timeAdverbs(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] {
+  const word = list[i].word;
+  const during = /^(?<pre>[وف]?)أثناء$/u.exec(word);
+  return [
+    ...(word === "أبدا" && ownsAt(ctx, list[i].start) ? neverPast(ctx, list, i, i - 1) : []),
+    ...(during &&
+    ownsAt(ctx, list[i].start) &&
+    !/^[وف]?(?:في|من)$/u.test(i > 0 && !CLAUSE_BREAK.test(list[i].gap) ? list[i - 1].word : "")
+      ? [styleFinding(list[i].start, list[i].end, during.groups!.pre + "في أثناء")]
+      : []),
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def secondEither
+export function secondEither(list: readonly ArabicToken[], i: number, k: number): number {
+  return k + 1 < list.length && k < i + 14 && !/[.!؟?\n]/u.test(list[k].gap)
+    ? list[k].word === "وأما" && list[k + 1].word === "أن"
+      ? k
+      : secondEither(list, i, k + 1)
+    : -1;
+}
+
+// ar_SA.yaml rule ar_SA.style def eitherOr
+export function eitherOr(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const first = /^(?<pre>[وف]?)أما$/u.exec(list[i].word);
+  if (!(first && list[i + 1].word === "أن" && adjacentToken(list[i + 1]))) return null;
+  const k = secondEither(list, i, i + 2);
+  if (!(k >= 0)) return null;
+  return [
+    ...ownedStyle(ctx, list[i].start, list[i].end, first.groups!.pre + "إما"),
+    ...ownedStyle(ctx, list[k].start, list[k].end, "وإما"),
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def HAMM
+export const HAMM = /^(?<pre>[وف]?)هام(?<f>ة?)$/u;
+
+// ar_SA.yaml rule ar_SA.style def important
+export function important(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i >= 1)) return null;
+  const parts = HAMM.exec(list[i].word);
+  if (!(parts && adjacentToken(list[i]) && /^[وف]?ال\p{L}{2,}$/u.test(list[i - 1].word)))
+    return null;
+  const next = list[i + 1];
+  if (!(
+    (!next ||
+      CLAUSE_BREAK.test(ctx.text.slice(list[i].end, next.start)) ||
+      /^(?:جدا|للغاية|لنا|لي|لك|لكم|له|لها|لهم)$/u.test(next.word)) &&
+    ownsAt(ctx, list[i].start)
+  ))
+    return null;
+  return [styleFinding(list[i].start, list[i].end, `${parts.groups!.pre}مهم${parts.groups!.f}`)];
+}
+
+// ar_SA.yaml rule ar_SA.style def DIRECT_LI
+export const DIRECT_LI = /^[وف]?(?:أعطى|أعطت|أعطوا|يعطي|تعطي|يعطون|نعطي)$/u;
+
+// ar_SA.yaml rule ar_SA.style def DIRECT_BI
+export const DIRECT_BI =
+  /^[وف]?(?:كلف|كلفت|كلفوا|يكلف|تكلف|يكلفون|غرم|غرمت|يغرم|أصحبت|أصحبوا)(?:ه|ها|هم|ني|نا|ك|كم)$/u;
+
+// ar_SA.yaml rule ar_SA.style def BI_PRONOUN
+export const BI_PRONOUN = new Map([
+  ["به", "إياه"],
+  ["بها", "إياها"],
+  ["بهم", "إياهم"],
+]);
+
+// ar_SA.yaml rule ar_SA.style def TRADE
+export const TRADE = /^[وف]?(?:تاجرت|تاجروا|يتاجر|تتاجر|يتاجرون|نتاجر|أتاجر)$/u;
+
+// ar_SA.yaml rule ar_SA.style def directObjects
+export function directObjects(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const object = list[i + 1];
+  if (!(adjacentToken(object) && ownsAt(ctx, object.start))) return null;
+  const word = object.word;
+  const fixed =
+    DIRECT_LI.test(list[i].word) && /^ل\p{L}{3,}$/u.test(word) && !NOT_LAM_PREPOSITION.test(word)
+      ? word.startsWith("لل")
+        ? "ال" + word.slice(2)
+        : word.slice(1)
+      : DIRECT_BI.test(list[i].word) && /^ب(?:ال\p{L}{2,}|\p{L}{3,}ة)$/u.test(word)
+        ? word.slice(1)
+        : DIRECT_BI.test(list[i].word) && BI_PRONOUN.has(word)
+          ? BI_PRONOUN.get(word)!
+          : TRADE.test(list[i].word) && /^ب\p{L}{3,}$/u.test(word)
+            ? "في " + word.slice(1)
+            : undefined;
+  if (!(fixed !== undefined)) return null;
+  return [styleFinding(object.start, object.end, fixed)];
+}
+
+// ar_SA.yaml rule ar_SA.style def amountsTo
+export function amountsTo(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 2 < list.length)) return null;
+  if (!(list[i].word === "عبارة" && list[i + 1].word === "عن" && adjacentToken(list[i + 1])))
+    return null;
+  if (!(adjacentToken(list[i + 2]) && ownsAt(ctx, list[i].start))) return null;
+  if (i > 0 && /^(?:هو|هي|هم)$/u.test(list[i - 1].word)) return null;
+  return [styleFinding(list[i].start, list[i + 2].start, "")];
+}
+
+// ar_SA.yaml rule ar_SA.style def MUTUAL
+export const MUTUAL =
+  /^[وف]?(?:[يت](?:تناسب|تنافى|تلاءم|تلائم|تعارض|تناقض|تطابق|توافق|تكامل|تساوى)(?:ون|ان)?|تناسبت|تنافت|تعارضت|تناقضت|تطابقت|توافقت)$/u;
+
+// ar_SA.yaml rule ar_SA.style def WAW_ROOT
+export const WAW_ROOT =
+  /^و(?:ال)?(?:ضع|قت|جه|جو|زن|صف|ظيف|عد|اقع|سع|طن|حد|لد|قع|سائل|سيل|ثيق|صول|قوف|جب|عي|زير|زار|رق|رد|فق|فر|سط|حش|هم|راث|ريث|صي)/u;
+
+// ar_SA.yaml rule ar_SA.style def mutualWaw
+export function mutualWaw(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const partner = list[i + 1];
+  if (!(MUTUAL.test(list[i].word) && adjacentToken(partner) && ownsAt(ctx, partner.start)))
+    return null;
+  const parts = /^و(?<rest>\p{L}{2,})$/u.exec(partner.word);
+  if (!(parts && !WAW_ROOT.test(partner.word))) return null;
+  if (list.slice(i + 2, i + 5).some((token) => /^مع\p{L}*$/u.test(token.word))) return null;
+  return [styleFinding(partner.start, partner.end, `مع ${parts.groups!.rest}`)];
+}
+
+// ar_SA.yaml rule ar_SA.style def NEGATION
+export const NEGATION = /^[وف]?(?:ما|لا|لم|لن|ليس|ليست)$/u;
+
+// ar_SA.yaml rule ar_SA.style def NOT_AFTER_ILLA_WAW
+export const NOT_AFTER_ILLA_WAW =
+  /^و(?:هو|هي|هم|هن|أنا|نحن|أنت|أنتم|قد|لكن|لا|في\p{L}*|ل(?:ه|ها|هم|هما|نا|ي|ك|كم)|ب(?:ه|ها|هم)|علي\p{L}*|من\p{L}*|عند\p{L}*|مع\p{L}*|ال\p{L}*)$|^و(?:جد|صل|قع|ضع|قف|لد|عد|جب|ثق|رد|سع|هب|زن|فى|كل|دع|صف|لي|عى|قى|رث)/u;
+
+// ar_SA.yaml rule ar_SA.style def negatedBefore
+export function negatedBefore(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+  j: number,
+): boolean {
+  return (
+    j >= Math.max(0, i - 6) &&
+    !CLAUSE_BREAK.test(ctx.text.slice(list[j].end, list[j + 1].start)) &&
+    (NEGATION.test(list[j].word) || negatedBefore(ctx, list, i, j - 1))
+  );
+}
+
+// ar_SA.yaml rule ar_SA.style def exceptAnd
+export function exceptAnd(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i >= 1 && i + 1 < list.length)) return null;
+  const verb = list[i + 1];
+  if (!(list[i].word === "إلا" && adjacentToken(verb) && ownsAt(ctx, verb.start))) return null;
+  if (!(/^و\p{L}{3,6}$/u.test(verb.word) && !NOT_AFTER_ILLA_WAW.test(verb.word))) return null;
+  if (!negatedBefore(ctx, list, i, i - 1)) return null;
+  return [styleFinding(verb.start, verb.start + 1, "")];
+}
+
+// ar_SA.yaml rule ar_SA.style def weAs
+export function weAs(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 1 < list.length)) return null;
+  const group = list[i + 1];
+  if (!(/^[وف]?نحن$/u.test(list[i].word) && adjacentToken(group) && ownsAt(ctx, group.start)))
+    return null;
+  const parts = /^ك(?<who>م\p{L}{3,}(?:ين|ون)|عرب|بشر)$/u.exec(group.word);
+  if (!parts) return null;
+  return [styleFinding(group.start, group.end, "ال" + parts.groups!.who)];
+}
+
+// ar_SA.yaml rule ar_SA.style def whileJoined
+export function whileJoined(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 2 < list.length)) return null;
+  if (!(list[i].word === "بين" && list[i + 1].word === "ما" && adjacentToken(list[i + 1])))
+    return null;
+  const leadStart = Math.max(0, list[i].start - 40);
+  const lead = ctx.text.slice(leadStart, list[i].start);
+  if (!(/(?:[.!؟?\n]|^)[^\p{L}\p{N}]*$/u.test(lead) && !(leadStart > 0 && !/[.!؟?\n]/u.test(lead))))
+    return null;
+  if (!/^(?:كان|كانت|كنت|كنا|كانوا|كنتم)$/u.test(list[i + 2].word)) return null;
+  const clause = list.slice(i + 3, i + 10);
+  const end = clause.findIndex((token) => CLAUSE_BREAK.test(token.gap));
+  if ((end < 0 ? clause : clause.slice(0, end)).some((token) => token.word === "وما")) return null;
+  if (!ownsAt(ctx, list[i].start)) return null;
+  return [styleFinding(list[i].start, list[i + 1].end, "بينما")];
+}
+
+// ar_SA.yaml rule ar_SA.style def LIES
+export const LIES =
+  /^[وف]?(?:يقع|تقع|وقع|وقعت|يمتد|تمتد|امتد|امتدت|يبعد|تبعد|يقيم|تقيم|أقام|أقامت)$/u;
+
+// ar_SA.yaml rule ar_SA.style def COMPASS
+export const COMPASS = /^(?:شمالي|جنوبي|شرقي|غربي)$/u;
+
+// ar_SA.yaml rule ar_SA.style def compassAdverb
+export function compassAdverb(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i >= 1 && i + 1 < list.length)) return null;
+  const place = list[i + 1];
+  if (!(COMPASS.test(list[i].word) && adjacentToken(list[i]) && adjacentToken(place))) return null;
+  if (!(!place.word.startsWith("ال") && ownsAt(ctx, list[i].start))) return null;
+  if (!(
+    (LIES.test(list[i - 1].word) || (i > 1 && LIES.test(list[i - 2].word))) &&
+    !STYLE_PREPOSITIONS.has(list[i - 1].word)
+  ))
+    return null;
+  return [styleFinding(list[i].start, list[i].end, list[i].word.slice(0, -1))];
+}
+
+// ar_SA.yaml rule ar_SA.style def verbForms
+export function verbForms(past: string, present: string, fixPast: string, fixPresent: string) {
+  const seen = new Map(
+    QAMA.map(
+      (_, slot) => [slotForm(past, present, slot), slotForm(fixPast, fixPresent, slot)] as const,
+    ),
+  );
+  const dropped = new Set<string>();
+  return new Map(
+    [...seen].filter(
+      ([typed, fixed]) =>
+        !(fixed !== typed && seen.has(fixed) && !dropped.has(fixed) && dropped.add(typed)),
+    ),
+  );
+}
+
+// ar_SA.yaml rule ar_SA.style def GAPPED
+export const GAPPED = [
+  [verbForms("استقل", "ستقل", "ركب", "ركب"), /^(?:ال)?(?:سيار|قطار|طائر|حافل|سفين)\p{L}*$/u],
+  [verbForms("فتح", "فتح", "أطلق", "طلق"), /^(?:النار|الرصاص)$/u],
+  [verbForms("تستر", "تستر", "ستر", "ستر"), /^على\p{L}*$/u],
+  [verbForms("صادق", "صادق", "صدق", "صدق"), /^على\p{L}*$/u],
+  [verbForms("افتقد", "فتقد", "افتقر", "فتقر"), /^إلى$/u],
+  [
+    new Map([
+      ["تمادى", "تطاول"],
+      ["تمادت", "تطاولت"],
+      ["تمادوا", "تطاولوا"],
+      ["يتمادى", "يتطاول"],
+      ["تتمادى", "تتطاول"],
+      ["يتمادون", "يتطاولون"],
+    ]),
+    /^على\p{L}*$/u,
+  ],
+] as [ReadonlyMap<string, string>, RegExp][];
+
+// ar_SA.yaml rule ar_SA.style def GAP_PREPOSITION
+export const GAP_PREPOSITION = /^(?:في|على|إلى|من|عن|مع|ب\p{L}+|ل\p{L}+)$/u;
+
+// ar_SA.yaml rule ar_SA.style def SPACES
+export const SPACES = /^[ \t\u00a0]+$/u;
+
+// ar_SA.yaml rule ar_SA.style def gappedTarget
+export function gappedTarget(
+  list: readonly ArabicToken[],
+  i: number,
+  target: RegExp,
+  k: number,
+): number {
+  return k <= i + 3 &&
+    k < list.length &&
+    SPACES.test(list[k].gap) &&
+    SPACES.test(list[k - 1].gap) &&
+    !GAP_PREPOSITION.test(list[k - 1].word)
+    ? target.test(list[k].word)
+      ? k
+      : gappedTarget(list, i, target, k + 1)
+    : -1;
+}
+
+// ar_SA.yaml rule ar_SA.style def gappedEntry
+export function gappedEntry(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+  verbs: ReadonlyMap<string, string>,
+  target: RegExp,
+): ArabicFinding[] {
+  const word = list[i].word;
+  const pre = verbs.has(word) || !/^[وف]/u.test(word) ? "" : word[0];
+  const fixed = verbs.get(word.slice(pre.length));
+  if (!fixed) return [];
+  if (!(gappedTarget(list, i, target, i + 2) >= 0 && ownsAt(ctx, list[i].start))) return [];
+  return [
+    {
+      messageKey: "review_msg_style_phrasing",
+      range: { start: list[i].start, end: list[i].end },
+      alternatives: [pre + fixed],
+    },
+  ];
+}
+
+// ar_SA.yaml rule ar_SA.style def gappedUsage
+export function gappedUsage(
+  ctx: DetectContext,
+  list: readonly ArabicToken[],
+  i: number,
+): ArabicFinding[] | null {
+  if (!(i + 2 < list.length)) return null;
+  return GAPPED.flatMap(([verbs, target]) => gappedEntry(ctx, list, i, verbs, target));
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // ar_SA.yaml rule ar_SA.agreement frame 1
+  "@ar_SA.agreement/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, demonstrative);
+  },
+  // ar_SA.yaml rule ar_SA.agreement frame 2
+  "@ar_SA.agreement/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, relativePronoun);
+  },
+  // ar_SA.yaml rule ar_SA.agreement frame 3
+  "@ar_SA.agreement/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, definiteAdjective);
+  },
+  // ar_SA.yaml rule ar_SA.agreement frame 4
+  "@ar_SA.agreement/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, numbers);
+  },
+  // ar_SA.yaml rule ar_SA.caseEndings frame 1
+  "@ar_SA.caseEndings/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    return walkTokens(m, ctx, frame, caseEnding);
+  },
+  // ar_SA.yaml rule ar_SA.caseEndings frame 2
+  "@ar_SA.caseEndings/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const list = arabicTokens(ctx);
+    const token = list[arabicTokenAt(list, m.index + m[0].length)];
+    if (!token) return null;
+    const lamma = LAMMA.exec(ctx.text.slice(Math.max(0, token.start - 12), token.start));
+    const fixed = lamma && ownsAt(ctx, token.start) ? moodFix(token.word, true) : undefined;
+    if (!fixed) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: "review_msg_arabic_jussive",
+      range: { start: token.start, end: token.end },
+      alternatives: [fixed],
+      context: { start: token.start - lamma![0].length, end: token.end },
+    };
+  },
+  // ar_SA.yaml rule ar_SA.dates frame 1
+  "@ar_SA.dates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const weekday = m.groups!.weekday;
+    const day = m.groups!.day;
+    const monthName = m.groups!.monthName;
+    const monthDigits = m.groups!.monthDigits;
+    const year = m.groups!.year;
+    if (!dateOwns(ctx, m)) return null;
+    const d = digitValue(day);
+    const month = monthName ? MONTH_NUMBER.get(monthName)! : digitValue(monthDigits);
+    const y = year === undefined ? undefined : digitValue(year);
+    const outOfRange = d < 1 || d > 31 || month < 1 || month > 12;
+    if (outOfRange && !fullDate(ctx.text, m)) return null;
+    const fullYear = y !== undefined && year.length === 4 ? y : undefined;
+    if (
+      outOfRange &&
+      !monthName &&
+      (d > 39 ||
+        month > 39 ||
+        (d >= 1 && d <= 12 && month >= 1 && month <= daysInMonth(d, fullYear)))
+    )
+      return null;
+    const range = { start: m.index, end: m.index + m[0].length };
+    return outOfRange || d > daysInMonth(month, fullYear)
+      ? {
+          ruleId: frame.ruleId,
+          messageKey: "review_msg_arabic_impossible_date",
+          range,
+          alternatives: [],
+          warningOnly: true,
+        }
+      : [
+          ...(weekday && y === undefined
+            ? weekdayNoYear(ctx, m, frame, weekday, month, d, range)
+            : []),
+          ...(weekday &&
+          fullYear !== undefined &&
+          weekdayOf(fullYear, month, d) !== WEEKDAY_NUMBER.get(weekday)
+            ? [
+                {
+                  ruleId: frame.ruleId,
+                  messageKey: "review_msg_arabic_weekday_mismatch" as const,
+                  range,
+                  alternatives: [],
+                  warningOnly: true as const,
+                },
+              ]
+            : []),
+        ];
+  },
+  // ar_SA.yaml rule ar_SA.dates frame 2
+  "@ar_SA.dates/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (!dateOwns(ctx, m)) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: "review_msg_arabic_impossible_date",
+      range: { start: m.index + m[0].length - target.length, end: m.index + m[0].length },
+      alternatives: [],
+      warningOnly: true,
+    };
+  },
+  // ar_SA.yaml rule ar_SA.dates frame 3
+  "@ar_SA.dates/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const range = invalidIsoDate(m, ctx);
+    if (!range) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range,
+      alternatives: [],
+      warningOnly: true,
+    };
+  },
+  // ar_SA.yaml rule ar_SA.dates frame 4
+  "@ar_SA.dates/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const yearPart = m.groups!.yearPart;
+    const monthPart = m.groups!.monthPart;
+    const dayPart = m.groups!.dayPart;
+    return dateOrder(ctx, m, frame, [dayPart, monthPart, yearPart]);
+  },
+  // ar_SA.yaml rule ar_SA.dates frame 5
+  "@ar_SA.dates/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const monthPart = m.groups!.monthPart;
+    const dayPart = m.groups!.dayPart;
+    const weekdayPart = m.groups!.weekdayPart;
+    return dateOrder(ctx, m, frame, [weekdayPart, dayPart, monthPart]);
+  },
+  // ar_SA.yaml rule ar_SA.dates frame 6
+  "@ar_SA.dates/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const monthPart = m.groups!.monthPart;
+    const dayPart = m.groups!.dayPart;
+    const yearPart = m.groups!.yearPart;
+    return dateOrder(ctx, m, frame, [dayPart, monthPart, yearPart]);
+  },
+  // ar_SA.yaml rule ar_SA.dates frame 7
+  "@ar_SA.dates/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const yearPart = m.groups!.yearPart;
+    const monthPart = m.groups!.monthPart;
+    return dateOrder(ctx, m, frame, [monthPart, yearPart]);
+  },
+  // ar_SA.yaml rule ar_SA.syntax frame 1
+  "@ar_SA.syntax/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, joinedParticle);
+  },
+  // ar_SA.yaml rule ar_SA.kullama frame 1
+  "@ar_SA.kullama/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return replaceTarget(m, ctx, frame, "review_msg_arabic_kullama", "");
+  },
+  // ar_SA.yaml rule ar_SA.redundantWords frame 1
+  "@ar_SA.redundantWords/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    return replaceTarget(m, ctx, frame, "review_msg_style_phrasing", "");
+  },
+  // ar_SA.yaml rule ar_SA.redundantWords frame 2
+  "@ar_SA.redundantWords/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const first = m.groups!.first;
+    if (PRONOUN_SUFFIX.test(first) && !first.startsWith("ال")) return null;
+    return replaceTarget(m, ctx, frame, "review_msg_style_phrasing", "و");
+  },
+  // ar_SA.yaml rule ar_SA.style frame 1
+  "@ar_SA.style/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, dualPossessor);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 2
+  "@ar_SA.style/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, indefiniteAdjective);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 3
+  "@ar_SA.style/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, demonstrativePredicate);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 4
+  "@ar_SA.style/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, indefiniteSubject);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 5
+  "@ar_SA.style/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, lightVerbs);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 6
+  "@ar_SA.style/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, andRelatives);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 7
+  "@ar_SA.style/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, elatives);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 8
+  "@ar_SA.style/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, asRole);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 9
+  "@ar_SA.style/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, laSiyyama);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 10
+  "@ar_SA.style/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, doingTheAct);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 11
+  "@ar_SA.style/11": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, inAWay);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 12
+  "@ar_SA.style/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, forADuration);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 13
+  "@ar_SA.style/13": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, nounPrepositions);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 14
+  "@ar_SA.style/14": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, exceptPreposition);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 15
+  "@ar_SA.style/15": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, timeAdverbs);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 16
+  "@ar_SA.style/16": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, eitherOr);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 17
+  "@ar_SA.style/17": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, important);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 18
+  "@ar_SA.style/18": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, directObjects);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 19
+  "@ar_SA.style/19": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, amountsTo);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 20
+  "@ar_SA.style/20": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, mutualWaw);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 21
+  "@ar_SA.style/21": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, exceptAnd);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 22
+  "@ar_SA.style/22": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, weAs);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 23
+  "@ar_SA.style/23": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, whileJoined);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 24
+  "@ar_SA.style/24": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, compassAdverb);
+  },
+  // ar_SA.yaml rule ar_SA.style frame 25
+  "@ar_SA.style/25": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return walkTokens(m, ctx, frame, gappedUsage);
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
-export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
+export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // ar_SA.yaml rule ar_SA.agreement filter
+  "@ar_SA.agreement/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return findings.reduce(
+      (kept, f) =>
+        !isNumberFinding(f) ||
+        f.requiresChoice ||
+        !kept.some(
+          (k) => isNumberFinding(k) && k.range.start < f.range.end && f.range.start < k.range.end,
+        )
+          ? [...kept, f]
+          : kept,
+      [] as RawFinding[],
+    );
+  },
+  // ar_SA.yaml rule ar_SA.dates filter
+  "@ar_SA.dates/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const split = findings.findIndex((f) => f.messageKey === "review_msg_arabic_date_order");
+    if (!(split >= 0)) return findings;
+    return findings
+      .slice(split)
+      .reduce(
+        (kept, f) =>
+          kept.some((k) => k.range.start <= f.range.start && f.range.start < k.range.end)
+            ? kept
+            : [...kept, f],
+        findings.slice(0, split),
+      );
+  },
+};
 
 /** The Review detectors of rules with code, by rule ("@<rule id>"). */
 export const DETECTORS: Readonly<Record<string, Detector>> = {};

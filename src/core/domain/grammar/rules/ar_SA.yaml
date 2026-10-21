@@ -7,69 +7,830 @@ fragments:
   NOT_WORD: "(?![\\p{L}\\p{M}\\p{N}])"
   GAP: "[ \\t\\u00a0]+"
   SEP: "[ \\t\\u00a0]*[/.-][ \\t\\u00a0]*"
-  # The month and weekday names of MONTHS and WEEKDAYS in review/arabic/dates.ts, longest
-  # first. Keep them in step with these tables.
+  # The month and weekday names of MONTHS and WEEKDAYS (rule ar_SA.dates), longest first. Keep
+  # them in step with these tables.
   MONTH: "كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب"
   WEEKDAY: "الثلاثاء|الأربعاء|الإثنين|الاثنين|الخميس|الجمعة|الأحد|السبت"
-  # The end of a word token of review/arabic/checks.ts: a tanwin fath may follow the word.
+  # The end of a word token (arabicTokens of the library): a tanwin fath may follow the word.
   END: "(?=\\u064B?{{NOT_WORD}})"
-  # Any word token of review/arabic/checks.ts.
+  # Any word token.
   WORD: "{{START}}\\p{L}+{{END}}"
-  # The number words of NUMBER_WORDS and of the 11-12 units in review/arabic/checks.ts. Keep
-  # them in step with these tables.
+  # The number words of NUMBER_WORDS and of the 11-12 units (rule ar_SA.agreement). Keep them
+  # in step with these tables.
   NUMBER: "ثلاثة|ثلاث|أربعة|أربع|خمسة|خمس|ستة|ست|سبعة|سبع|ثمانية|ثماني|ثمان|تسعة|تسع|واحد|واحدة|اثنان|اثنين|اثنتان|اثنتين|اثنا|اثنتا|اثني|اثنتي|أحد|إحدى|عشر|عشرة|مئة|مائة|مئتان|مئتين|مائتان|مائتين|ألف|ألفا|ألفان|ألفين|آلاف|مليون|مليونا|مليونان|مليونين|ملايين|مليار|ملياران|مليارين|\\p{L}+(?:مئة|مائة)|(?:عشر|ثلاث|أربع|خمس|ست|سبع|ثمان|تسع)(?:ون|ين)"
-  # PREPOSITIONS of review/arabic/checks.ts.
+  # PREPOSITIONS.
   PREPOSITION: "في|إلى|على|عن|مع|بين|حول|نحو|عند|لدى|بعد|قبل|خلال|دون|منذ|ضد|عبر"
-  # The forms of قام: QAMA of review/arabic/styleFrames.ts.
+  # The forms of قام: QAMA (rule ar_SA.style).
   QAMA: "قام|قامت|قاموا|قمت|قمنا|قمتم|قمن|يقوم|تقوم|يقومون|تقومون|نقوم|أقوم|يقم|تقم|نقم|أقم|يقوموا|تقوموا"
-  # ELATIVES and FEMININE_ELATIVE of review/arabic/styleFrames.ts.
+  # ELATIVES and FEMININE_ELATIVE (rule ar_SA.style).
   ELATIVE: "أكبر|أصغر|أفضل|أحسن|أسوأ|أكثر|أقل|أشد|أعظم|أهم|أعلى|أدنى|أقوى|أضعف|أطول|أقصر|أسرع|أقرب|أبعد|أغنى|أفقر|أجمل|أقدم|أحدث|أوسع|أضيق|أدهى|أعجب|أخطر|أصعب|أسهل|أعمق|أثقل|أخف|أغلى|أرخص|أذكى|أبرز|أنسب|أقصى|أوسط"
-  # DURATIONS of review/arabic/styleFrames.ts.
+  # DURATIONS (rule ar_SA.style).
   DURATION: "ساعة|ساعات|ساعتين|يومين|أسابيع|أسبوعين|شهرين|سنة|سنوات|سنين|سنتين|عامين|دقيقة|دقائق|دقيقتين|فترة|مدة|لحظة|لحظات|يوم|أيام|أسبوع|شهر|أشهر|شهور|عام|أعوام|قرن|قرون"
 
+# The code of the rules' expressions (`let`, `when`, `return`): the helpers of the token rules
+# (ar_SA.agreement, ar_SA.caseEndings, ar_SA.syntax, ar_SA.style).
+sets:
+  # Plurals spelled like a masculine singular: "طرق" (of طريق), "صور", "فرق".
+  PLURAL_HOMOGRAPHS: [صور, فرق, أسس]
+  # Feminine nouns without ة that are never also a verb or "self" when a pronoun is added
+  # ("يده", "كتفها"; not ساقه "drove him", عينه "itself", أذنه "allowed him").
+  FEMININE_POSSESSED: [كتف, يد, كف, أرض, شمس, نار, حرب, بئر, كأس, فأس, ريح]
+  PREPOSITIONS: [في, إلى, على, عن, مع, بين, حول, نحو, عند, لدى, بعد, قبل, خلال, دون, منذ, ضد, عبر]
+  # Quantity words and adverbs that take ة in the dictionary, and adjectives only used for women
+  # ("الأم الحامل").
+  NOT_ADJECTIVE: [عديد, كثير, قليل, آن, جميع, بعض, مزيد, آتي, تالي, حامل, مرضع, طالق, عاقر]
+
+defs:
+  # Feminine nouns without ة (body pairs, earth, sun, fire, war, female kin...), and singulars in
+  # اة (other اة words are human plurals: قضاة, دعاة).
+  FEMININE: >-
+    new Set("أرض شمس نار حرب دار ريح بئر عصا كأس فأس يد عين أذن كتف ساق قدم كف خنصر
+    بنصر فخذ ضبع عروس أم بنت أخت عجوز جهنم ذات فتاة حياة صلاة زكاة نجاة وفاة مباراة
+    مساواة معاناة مأساة قناة نواة حصاة شاة أداة مرآة".split(" "))
+  # Nouns used with either gender: no gender check relies on them.
+  EITHER_GENDER: >-
+    new Set("طريق سوق سبيل حال روح نفس سلم سن ذراع عضد إبط ضلع كبد عنق لسان سكين فرس
+    عقرب أرنب بلد ملح سماء".split(" "))
+  # Masculine words with ة, and human plurals that take هؤلاء (not هذه).
+  NOT_FEMININE: >-
+    new Set("خليفة علامة رحالة داعية نابغة طلبة أساتذة تلامذة كتبة سحرة خونة بررة كفرة
+    فجرة جبابرة عباقرة صيادلة فلاسفة أباطرة قياصرة أئمة".split(" "))
+  # Masculine nouns whose own last letter is ت: their duals are not feminine.
+  MASCULINE_IN_T: >-
+    new Set("بيت وقت صوت موت زيت سبت نبت تخت صمت سكوت ثبات نبات تابوت حانوت عفريت
+    كبريت ياقوت".split(" "))
+  # Masculine nouns, mostly people, that never take هذه/تلك as their article ("هذه البطل"); a
+  # broken plural of things would ("هذه الكتب"), so none is listed.
+  MASCULINE: >-
+    new Set("رجل ولد أب أخ عم خال ابن ملك أمير بطل شاب صبي فتى شيخ جد زوج وزير رئيس
+    طالب معلم مدير طبيب كاتب لاعب ذقن سلام".split(" "))
+  # Words after which a definite noun starts its own phrase (it is not the second term of a
+  # construct): plain prepositions, demonstratives, إنّ and its sisters. Adverbial ones ("ما بعد
+  # البيع") often close a compound that the adjective does not describe.
+  PHRASE_START: >-
+    new Set("في إلى على عن مع من هذا هذه ذلك تلك هؤلاء أولئك إن أن لكن كأن لعل ليت أما".split(" "))
+  # Agent, kin and role nouns that also take ة: after a noun they may start a new noun phrase,
+  # not describe it.
+  PERSON: >-
+    new Set("طالب معلم مدرس مدير مهندس طبيب وزير سفير صديق زميل رئيس أمير ملك رفيق
+    شريك عميل موظف مسؤول مندوب مراسل مذيع ممثل مغني لاعب مدرب باحث عالم كاتب شاعر صحفي
+    محام قاض نائب مواطن مسافر زائر ضيف جار طفل حفيد زوج عم خال جد حبيب خطيب عريس ممرض
+    صيدلي خادم سائق بائع تاجر عامل فلاح خباز طباخ نجار رسام مصور مخرج منتج مؤلف مترجم
+    محاسب مستشار مشرف مفتش محقق شرطي ضابط جندي حارس قائد بطل مقاتل لاجئ مهاجر سجين
+    أسير مريض متسابق مشارك متطوع متدرب زعيم نجم حاكم والد سيد مالك ساكن سكرتير مساعد
+    متحدث ناشط ناقد قارئ مستمع مشاهد مستخدم عازف راقص فائز خاسر متهم مجرم شاهد جريح
+    مصاب قتيل ميت قط كلب أسد ذئب حمار ديك ملاك شيخ أستاذ وريث دكتور حاج إمام".split(" "))
+  # The words of the chunk around the match: `step` reads the word that starts at the match.
+  # Each finding gets the rule id of the frame.
+  walkTokens:
+    args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef, step: ArabicStep"
+    let:
+      list: arabicTokens(ctx)
+      i: arabicTokenAt(list, m.index)
+    when: i >= 0
+    return: "[step(ctx, list, i) ?? []].flat().map((f) => ({ ruleId: frame.ruleId, ...f }))"
+  # The chunk owns the word at `at`, and no named example comes before it.
+  ownsAt:
+    args: "ctx: DetectContext, at: number"
+    return: at >= ctx.from && at < ctx.to && !namedExampleBefore(ctx.text, at)
+  # Two words in a row: only spaces (and a tanwin) between them.
+  adjacentToken:
+    args: "token: ArabicToken"
+    return: '/^\u064B?[ \t\u00a0]+$/u.test(token.gap)'
+  # The word opens the text or a sentence.
+  opensSentence:
+    args: "ctx: DetectContext, token: ArabicToken"
+    let:
+      lead: ctx.text.slice(Math.max(0, token.start - 8), token.start)
+    return: '/[.!؟?\n][\s\u200e\u200f]*$/u.test(lead) || (token.start <= 8 && /^[\s\u200e\u200f]*$/u.test(lead))'
+  # The word without "ال".
+  withoutAl:
+    args: "word: string"
+    return: 'word.startsWith("ال") ? word.slice(2) : word'
+  # A bare singular noun's gender, or none when it is unknown or either.
+  nounGender:
+    args: "stem: string"
+    type: '"m" | "f" | null | undefined'
+    when: "!EITHER_GENDER.has(stem) && !NOT_FEMININE.has(stem)"
+    let:
+      tags: arabicTags(stem)
+    return: 'FEMININE.has(stem) ? "f" : tags.includes("f") && !stem.endsWith("اة") ? "f" : tags.includes("m") ? "m" : undefined'
+  # Shapes of broken plurals (أفعل, أفعال, مفاعل/فعائل, مفاعيل, فعول, فعلان). A singular of the
+  # same shape (أستاذ, تعاون, دخول, عنوان) is skipped too.
+  BROKEN_PLURAL_SHAPE: '/^(?:أ\p{L}{3}|أ\p{L}{2}ا\p{L}|\p{L}{2}ا\p{L}{2}|\p{L}{2}ا\p{L}ي\p{L}|\p{L}{2}و\p{L}|\p{L}{3}ان)$/u'
+  # "قميص", "اجتماع": a masculine singular noun, not a word that may be a broken plural. فعال
+  # plurals of فعل nouns: "محال", "جبال".
+  masculineSingular:
+    args: "stem: string"
+    type: boolean
+    when: nounGender(stem) === "m" && !BROKEN_PLURAL_SHAPE.test(stem) && !NUMBER_WORDS.test(stem)
+    return: >-
+      /^\p{L}{2}ا\p{L}$/u.test(stem)
+        ? !arabicTags(stem.replace("ا", "")).includes("m")
+        : stem.length > 3 || (!PLURAL_HOMOGRAPHS.has(stem) && !arabicTags(`${stem.slice(0, 2)}ي${stem[2]}`).includes("m"))
+    else: "false"
+  # A bare noun's gender when it is surely singular ("قميص" m, "غرفة" f, not "أحكام").
+  singularGender:
+    args: "stem: string"
+    type: '"m" | "f" | undefined'
+    return: 'MASCULINE.has(stem) || masculineSingular(stem) ? "m" : nounGender(stem) === "f" ? "f" : undefined'
+  # A definite singular feminine noun: "السلامة", "الأرض".
+  definiteFeminine:
+    args: "word: string"
+    type: boolean
+    let:
+      stem: word.slice(2)
+    when:
+      - word.startsWith("ال")
+      - '!NOT_FEMININE.has(stem) && !stem.endsWith("اة")'
+    return: (stem.endsWith("ة") && stem.length > 2) || FEMININE.has(stem)
+    else: "false"
+  # Words in -تان that are not duals of a feminine noun.
+  NOT_FEMININE_DUAL: /(?:ستان|ستين|^بستان|^فستان|^كتان|^بهتان|^شتان)$/u
+  POSSESSED: '/^(?<stem>\p{L}{2,}?)(?:ه|ها|هم|هما|هن|ك|كم|كن|ي|نا)$/u'
+  POSSESSIVE: /(?:ه|ها|هم|هما|هن|ك|كم|كن|ي|نا)$/u
+  # "كتفه", "يدها": a feminine noun with a possessive pronoun.
+  possessedFeminine:
+    args: "word: string"
+    let:
+      stem: POSSESSED.exec(word)?.groups!.stem
+    return: stem !== undefined && FEMININE_POSSESSED.has(stem)
+  DUAL_CONSTRUCT: '/^(?<stem>\p{L}{2,})[اي](?:ه|ها|هم|هما|هن|ك|كم|كن|ي|نا)$/u'
+  # "بطاقتاه", "كتفيها": a feminine dual with a pronoun.
+  feminineDualConstruct:
+    args: "word: string"
+    type: boolean
+    let:
+      stem: DUAL_CONSTRUCT.exec(word)?.groups!.stem
+    when: stem
+    return: (stem.endsWith("ت") && stem.length > 2 && !MASCULINE_IN_T.has(stem)) || FEMININE_POSSESSED.has(stem)
+    else: "false"
+  # A dual noun ("البطاقتان", "كتفين"), its gender and case, or none.
+  dual:
+    args: "word: string"
+    type: "{ gender: 'm' | 'f'; oblique: boolean; stem: string } | null | undefined"
+    let:
+      parts: '/^(?<stem>\p{L}{2,})(?<ending>ان|ين)$/u.exec(word)?.groups'
+      stem: parts.stem
+      oblique: parts.ending === "ين"
+      noun: withoutAl(stem)
+    when: parts
+    return: >-
+      stem.endsWith("ت") && noun.length > 2 && !NOT_FEMININE_DUAL.test(word) && !MASCULINE_IN_T.has(noun)
+        ? { gender: "f", oblique, stem }
+        : FEMININE.has(noun)
+          ? { gender: "f", oblique, stem }
+          : noun.length < 3
+            ? undefined
+            : { gender: "m", oblique, stem }
+  # A sound masculine plural or a dual by its shape ("المسافرون", "عاملين", "صفحتان"): a
+  # participle (م-, فاعل) or a nisba (-ي) before -ون/-ين, or a feminine dual in -تان/-تين.
+  # Singulars that end the same way ("قانون", "مكان", "مضمون", "تلفزيون") have a shorter stem or
+  # another pattern.
+  soundPlural:
+    args: "word: string"
+    let:
+      parts: '/^(?<stem>\p{L}+)(?<ending>ون|ين)$/u.exec(word)?.groups'
+      noun: withoutAl(parts.stem)
+    when:
+      - parts
+      - "noun.length >= 4 && !/^(?:تلفزي|تليفزي)/u.test(noun)"
+      - 'noun.startsWith("م") || noun[1] === "ا" || (noun.endsWith("ي") && noun.length > 4)'
+    return: '{ stem: parts.stem, oblique: parts.ending === "ين" }'
+  DEMONSTRATIVE: /^(?<pre>[وف]?[بلك]?)(?<dem>هذا|هذه|ذلك|تلك|هذان|هاتان|هذين|هاتين)$/u
+  # The number words: a unit, a ten, a hundred, a thousand, a million or a billion.
+  NUMBER_WORDS: '/^[وبلك]{0,2}(?:ثلاثة|ثلاث|أربعة|أربع|خمسة|خمس|ستة|ست|سبعة|سبع|ثمانية|ثماني|تسعة|تسع|ثمان|واحد|واحدة|اثنان|اثنين|اثنتان|اثنتين|عشر|عشرة|مئة|مائة|مئتان|مئتين|مائتان|مائتين|ألف|ألفا|ألفان|ألفين|آلاف|مليون|مليونا|مليونان|مليونين|ملايين|مليار|ملياران|مليارين|\p{L}+مئة|\p{L}+مائة|(?:عشر|ثلاث|أربع|خمس|ست|سبع|ثمان|تسع)(?:ون|ين))$/u'
+  # A definite word and its proclitics: "بالغرفة" -> "بال" + "غرفة", "للبيت" -> "لل" + "بيت".
+  DEFINITE: '/^(?<pre>[وف]?(?:[بك]?ال|لل))(?<stem>\p{L}{2,})$/u'
+  # The noun at `i` starts its own phrase: it opens a sentence or clause, or a preposition, a
+  # demonstrative or إنّ comes before it.
+  opensPhrase:
+    args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+    type: boolean
+    return: >-
+      opensSentence(ctx, list[i]) ||
+      (i !== 0 &&
+        (/[،,؛:]/u.test(list[i].gap) ||
+          PHRASE_START.has(list[i - 1].word.replace(/^[وف](?=\p{L}{2})/u, "")) ||
+          DEMONSTRATIVE.test(list[i - 1].word)))
+  # "جديد" / "جديدة": a word that takes ة (from ar_SA.dic), and its gender. A feminine form that
+  # is a noun of its own ("مدرسة", "جامعة") and an agent noun ("مدير") are not. With
+  # `plainOnly`, neither is a masculine form that is also a noun.
+  adjective:
+    args: "stem: string, plainOnly?: boolean"
+    type: "{ base: string; gender: 'm' | 'f' } | null"
+    let:
+      feminine: stem.endsWith("ة")
+      base: "feminine ? stem.slice(0, -1) : stem"
+      tags: arabicTags(base)
+    when:
+      - '!PERSON.has(base) && !NOT_ADJECTIVE.has(base) && tags.includes("a") && !tags.includes("p")'
+      - '!arabicTags(`${base}ة`) && !(plainOnly && !feminine && tags.includes("m"))'
+    return: '{ base, gender: feminine ? "f" : "m" }'
+  # The form of an adjective that agrees with the other gender.
+  agreeing:
+    args: "adj: { base: string; gender: 'm' | 'f' }"
+    return: 'adj.gender === "f" ? adj.base : `${adj.base}ة`'
+  # "ابن تيمية", "أبي حنيفة": a name, not a noun and its adjective.
+  NAME_HEAD: /^(?:ابن|بن|أبو|أبي|أبا|أم|بنت)$/u
+  # The gender of an indefinite or possessed singular noun that is never a verb ("سلامته" f).
+  plainNounGender:
+    args: "word: string"
+    let:
+      possessed: '/^(?<stem>\p{L}{2,}?)(?:ي|ه|ها|ك|نا|هم)$/u.exec(word)?.groups!.stem'
+      stem: 'possessed?.endsWith("ت") ? `${possessed.slice(0, -1)}ة` : possessed'
+      noun: >-
+        [word, stem].find(
+          (s) =>
+            s &&
+            (FEMININE.has(s) ||
+              MASCULINE.has(s) ||
+              (!arabicTags(s).includes("v") && (arabicTags(s).includes("f") || masculineSingular(s)))),
+        )
+    return: "noun ? singularGender(noun) : undefined"
+  # "ساعات", "الشركات": the -ات plural of a noun in ة (from ar_SA.dic).
+  feminineSoundPlural:
+    args: "word: string"
+    return: word.endsWith("ات") && arabicFemininePluralStem(withoutAl(word).slice(0, -2))
+  # "اجتماعات" -> "اجتماع": the singular of a masculine noun's -ات plural (from ar_SA.dic). "سنوات",
+  # "لغات" are the plurals of سنة and لغة.
+  masculinePluralAt:
+    args: "word: string"
+    let:
+      stem: withoutAl(word).slice(0, -2)
+    when:
+      - word.endsWith("ات") && !feminineSoundPlural(word)
+      - arabicTags(stem).includes("p") && !FEMININE.has(stem) && !EITHER_GENDER.has(stem)
+      - "!arabicTags(`${stem}ة`) && !(/[وي]$/u.test(stem) && arabicTags(`${stem.slice(0, -1)}ة`))"
+    return: stem
+  # The five verbs drop their ن ("يذهبوا"); after لم a final long vowel shortens ("يجر"). Singular
+  # verbs whose root ends in -ون ("يتكون", "يتعاون") are not plurals.
+  moodFix:
+    args: "word: string, jussive: boolean"
+    type: string | null | undefined
+    let:
+      five: '/^(?<stem>[يت]\p{L}{2,})ون$/u.exec(word)?.groups!.stem'
+    return: >-
+      five
+        ? five.endsWith("ا") || (five.length === 3 && five[1] === "ت")
+          ? undefined
+          : five + "وا"
+        : jussive && /^[يأن]\p{L}+[يوى]$/u.test(word) && word.length >= 3
+          ? word.slice(0, -1)
+          : undefined
+  # A finding that removes or replaces the `target` group of `m`, when the chunk owns its start.
+  replaceTarget:
+    args: 'm: RegExpExecArray, ctx: DetectContext, frame: FrameRef, messageKey: ArabicFinding["messageKey"], alternative: string'
+    type: RawFinding | null
+    let:
+      span: m.indices!.groups!.target
+    when: ownsAt(ctx, span[0])
+    return: >-
+      {
+        ruleId: frame.ruleId,
+        messageKey,
+        range: { start: span[0], end: span[1] },
+        alternatives: [alternative],
+        context: { start: m.index, end: m.index + m[0].length },
+      }
+
 rules:
-  # The token frames: each frame matches the words that a token walker of
-  # review/arabic/checks.ts tests first. Its fixer reads the token list of the chunk (the words
-  # from 96 characters before the chunk to 160 after it) around that word. The word that owns a
-  # finding is at or after its frame match, so a match after the chunk gives no finding.
+  # The token frames: each frame matches the word that a token step tests first. The step reads
+  # the token list of the chunk (arabicTokens: the words from 96 characters before the chunk to
+  # 160 after it) around that word. The word that owns a finding is at or after its frame match,
+  # so a match after the chunk gives no finding.
   - id: ar_SA.agreement
     checks: [arabicAgreement]
     style: match
     message: review_msg_arabic_demonstrative_gender
-    # The filter drops a number finding that overlaps an earlier number finding.
-    filter: numberOverlaps
+    sets:
+      # Nouns that open a sentence adverb after a preposition ("في الحقيقة المدير ...").
+      ADVERBIAL: [حقيقة, نهاية, بداية, واقع, مقابل, أساس, عادة, غالب, أصل, ختام, نتيجة]
+    defs:
+      # "بعد ذلك" + a new clause: after these, ذلك/تلك is a pronoun, not an article phrase.
+      PRONOUN_AFTER: >-
+        new Set("في إلى على عن مع بين حول نحو عند لدى بعد قبل خلال دون منذ ضد عبر رغم
+        مثل غير من".split(" "))
+      NUMBER_KEYS: >-
+        new Set("review_msg_arabic_number_case review_msg_arabic_counted_singular
+        review_msg_arabic_number_gender".split(" "))
+      DUAL_FORMS: '({ m: ["هذان", "هذين"], f: ["هاتان", "هاتين"] }) as const'
+      # "هذا السلامة", "هذان البطاقتان", "هذين الكتابان": a demonstrative agrees with its noun.
+      demonstrative:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding | null | undefined
+        let:
+          parts: DEMONSTRATIVE.exec(list[i].word)?.groups
+          noun: list[i + 1]
+          pre: parts.pre
+          dem: parts.dem
+          before: 'i > 0 && adjacentToken(list[i]) ? list[i - 1].word.replace(/^[وف](?=\p{L}{2})/u, "") : ""'
+          far: dem === "ذلك" || dem === "تلك"
+          at: list[i].start + pre.length
+          context: "{ start: list[i].start, end: noun.end }"
+          d: dual(noun.word)
+        when:
+          - parts && noun && adjacentToken(noun) && ownsAt(ctx, list[i].start)
+          - "!(far && (/[بلك]$/u.test(pre) || PRONOUN_AFTER.has(before)))"
+        return: >-
+          dem === "هذا" || dem === "ذلك"
+            ? definiteFeminine(noun.word) || possessedFeminine(noun.word)
+              ? {
+                  messageKey: "review_msg_arabic_demonstrative_gender",
+                  range: { start: at, end: list[i].end },
+                  alternatives: [dem === "هذا" ? "هذه" : "تلك"],
+                  context,
+                }
+              : undefined
+            : dem === "هذه" || dem === "تلك"
+              ? noun.word.startsWith("ال") && (MASCULINE.has(withoutAl(noun.word)) || masculineSingular(withoutAl(noun.word)))
+                ? {
+                    messageKey: "review_msg_arabic_demonstrative_gender",
+                    range: { start: at, end: list[i].end },
+                    alternatives: [dem === "هذه" ? "هذا" : "ذلك"],
+                    context,
+                  }
+                : undefined
+              : d
+                ? demonstrativeDual(noun, d, dem, pre, before, at, list[i].end, context)
+                : (dem === "هذان" || dem === "هذين") && feminineDualConstruct(noun.word)
+                  ? {
+                      messageKey: "review_msg_arabic_demonstrative_gender",
+                      range: { start: at, end: list[i].end },
+                      alternatives: [dem === "هذان" ? "هاتان" : "هاتين"],
+                      context,
+                    }
+                  : undefined
+      # A dual demonstrative and its dual noun agree in gender and case. After a preposition both
+      # are oblique; otherwise either side may be the slip.
+      demonstrativeDual:
+        args: "noun: ArabicToken, d: { gender: 'm' | 'f'; oblique: boolean; stem: string }, dem: string, pre: string, before: string, at: number, end: number, context: TextRange"
+        type: ArabicFinding | null
+        let:
+          afterPreposition: (pre.length > 0 && /[بلك]$/u.test(pre)) || PREPOSITIONS.has(before)
+          demOblique: dem === "هذين" || dem === "هاتين"
+          genderFix: '(dem.startsWith("ها") ? "f" : "m") !== d.gender'
+          options: >-
+            (afterPreposition
+              ? [[true, true]]
+              : demOblique === d.oblique
+                ? [[demOblique, d.oblique]]
+                : [
+                    [d.oblique, d.oblique],
+                    [demOblique, demOblique],
+                  ]) as [boolean, boolean][]
+          alternatives: >-
+            options
+              .map(([demCase, nounCase]) => ({
+                fixedDem: DUAL_FORMS[d.gender][demCase ? 1 : 0],
+                fixedNoun: d.stem + (nounCase ? "ين" : "ان"),
+              }))
+              .filter(({ fixedDem, fixedNoun }) => fixedDem !== dem || fixedNoun !== noun.word)
+          nounChanges: alternatives.some(({ fixedNoun }) => fixedNoun !== noun.word)
+        when: alternatives.length > 0
+        return: >-
+          {
+            messageKey: genderFix ? "review_msg_arabic_demonstrative_gender" : "review_msg_arabic_dual_case",
+            range: { start: at, end: nounChanges ? noun.end : end },
+            alternatives: alternatives.map(({ fixedDem, fixedNoun }) => (nounChanges ? fixedDem + noun.gap + fixedNoun : fixedDem)),
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+            context,
+          }
+      # A verb whose subject is "I/you/we" and whose object pronoun refers back to the
+      # antecedent: "سمعتها", "جلبناه", "قرأتموها".
+      RESUMED: '/^\p{L}{2,}?(?<subject>ت|نا|تم|تما|تن)(?<object>ه|ها)$/u'
+      # Verbs taking two objects: "الكتب التي أعطيناه" (that we gave him) is fine.
+      TWO_OBJECTS: /^(?:[وف]?)(?:أعطي|منح|أهدي|سلم|أرسل|بع|وعد|علم|أخبر|سأل|أعر|ناول|أطعم|ألبس|كسو|أري|قدم|حمل|أعد|أهد)/u
+      # "التي بعته لها": the antecedent comes back in a later preposition instead.
+      LATER_PRONOUN: /^(?:ل|إلي|من|علي|في|ب|عن|مع|عند|لدي)(?:ه|ها|هم)$/u
+      # The word before a definite noun lets that noun head a relative clause: a definite word, or
+      # a word that no indefinite noun can be ("صورة الرجل التي" can describe صورة).
+      headBefore:
+        args: "before: string"
+        let:
+          word: before.replace(/^[وف]/u, "")
+        return: 'before.startsWith("ال") || !(/[mfa]/u.test(arabicTags(word)) || /(?:ة|ات)$/u.test(word))'
+      # The definite word at `i` is a masculine singular noun, and no indefinite noun before it
+      # can be the head the relative clause describes ("صورة الرجل التي").
+      masculineAntecedent:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: boolean
+        let:
+          noun: DEFINITE.exec(list[i].word)?.groups
+        when: noun && singularGender(noun.stem) === "m"
+        return: "/(?:[بك]ال|لل)$/u.test(noun.pre) || opensPhrase(ctx, list, i) || headBefore(list[i - 1].word)"
+        else: "false"
+      # "الوشاية الذي سمعتها", "الطعام التي جلبناه": a relative pronoun agrees with its
+      # antecedent, and the pronoun that takes it up in the clause shows its gender. "القول التي
+      # سمعته": the antecedent is a masculine singular noun of its own phrase. A broken plural
+      # ("الكتب") takes التي: then the slip is in the pronoun.
+      relativePronoun:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding | null | undefined
+        let:
+          relative: list[i].word
+          antecedent: 'list[i - 1].word.replace(/^[وف]?(?:[بلك](?=ال))?/u, "")'
+          verb: list[i + 1]
+          after: list[i + 2]
+          resumed: RESUMED.exec(verb.word)?.groups
+          noun: 'antecedent.startsWith("لل") ? "ال" + antecedent.slice(2) : antecedent'
+          context: "{ start: list[i - 1].start, end: verb.end }"
+        when:
+          - i >= 1 && i + 1 < list.length
+          - relative === "الذي" || relative === "التي"
+          - adjacentToken(list[i]) && adjacentToken(verb) && ownsAt(ctx, list[i].start)
+          - antecedent.startsWith("ال") || antecedent.startsWith("لل")
+          - resumed && !TWO_OBJECTS.test(verb.word)
+          - "!(after && adjacentToken(after) && LATER_PRONOUN.test(after.word))"
+        return: >-
+          relative === "الذي" && resumed.object === "ها" && definiteFeminine(noun)
+            ? {
+                messageKey: "review_msg_arabic_relative_gender",
+                range: { start: list[i].start, end: list[i].end },
+                alternatives: ["التي"],
+                context,
+              }
+            : relative === "التي" && resumed.object === "ه" && masculineAntecedent(ctx, list, i - 1)
+              ? {
+                  messageKey: "review_msg_arabic_relative_gender",
+                  range: { start: list[i].start, end: list[i].end },
+                  alternatives: ["الذي"],
+                  context,
+                }
+              : relative === "التي" && resumed.object === "ه" && resumed.subject !== "ت" && !definiteFeminine(noun) && !noun.endsWith("ات")
+                ? {
+                    messageKey: "review_msg_arabic_relative_gender",
+                    range: { start: list[i].start, end: verb.end },
+                    alternatives: [`الذي${verb.gap}${verb.word}`, `التي${verb.gap}${verb.word}ا`],
+                    requiresChoice: true,
+                    context,
+                  }
+                : undefined
+      # "القميص الجديدة", "في الغرفة الكبير": a definite adjective agrees in gender with the
+      # definite singular noun before it. Only where the noun starts its phrase: after a
+      # construct ("باب الغرفة الكبير") the adjective may describe the first noun, and after a
+      # verb the second word may be its object.
+      definiteAdjective:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding | null
+        let:
+          noun: DEFINITE.exec(list[i].word)?.groups
+          after: list[i + 1]
+          attached: "/(?:[بك]ال|لل)$/u.test(noun.pre)"
+          gender: singularGender(noun.stem)
+          adj: gender && adjective(after.word.slice(2))
+        when:
+          - noun && after?.word.startsWith("ال") && adjacentToken(after) && ownsAt(ctx, after.start)
+          - (attached || opensPhrase(ctx, list, i)) && !ADVERBIAL.has(noun.stem)
+          - adj && adj.gender !== gender
+        return: >-
+          {
+            messageKey: "review_msg_arabic_adjective_gender",
+            range: { start: after.start, end: after.end },
+            alternatives: [`ال${agreeing(adj)}`],
+            context: { start: list[i].start, end: after.end },
+          }
+      # The units 3-10: the form before a masculine noun and the form before a feminine noun.
+      UNITS: '[["ثلاثة", "ثلاث"], ["أربعة", "أربع"], ["خمسة", "خمس"], ["ستة", "ست"], ["سبعة", "سبع"], ["ثمانية", "ثماني"], ["تسعة", "تسع"]] as (readonly [string, string])[]'
+      # Unit word -> [form before a masculine noun, form before a feminine noun].
+      UNIT_FORMS: 'new Map<string, readonly [string, string]>([...UNITS.flatMap((pair) => [[pair[0], pair], [pair[1], pair]] as const), ["ثمان", UNITS[5]]])'
+      TEN_FORMS: '["عشرة", "عشر"] as const'
+      TENS: /^(?<pre>[وبلك]{0,2})(?<stem>عشر|ثلاث|أربع|خمس|ست|سبع|ثمان|تسع)(?<ending>ون|ين)$/u
+      NOMINATIVE_NUMBERS: 'new Map([["اثنان", "اثنين"], ["اثنتان", "اثنتين"], ["مئتان", "مئتين"], ["مائتان", "مائتين"], ["ألفان", "ألفين"], ["مليونان", "مليونين"], ["ملياران", "مليارين"]])'
+      # The units of 11-19.
+      TEEN_UNIT: /^[وبلك]{0,2}(?:أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u
+      TEEN_UNIT_PARTS: /^(?<pre>[وبلك]{0,2})(?<n>أحد|إحدى|اثنا|اثنتا|اثني|اثنتي|ثلاث|ثلاثة|أربع|أربعة|خمس|خمسة|ست|ستة|سبع|سبعة|ثمان|ثماني|ثمانية|تسع|تسعة)$/u
+      # "التاسع عشر والعشرين": an ordinal, not a count.
+      ORDINAL: /^(?:ال)?(?:حادي|ثاني|ثالث|رابع|خامس|سادس|سابع|ثامن|تاسع)$/u
+      # A number finding with one fix, when the chunk owns it and it changes the text.
+      numberFinding:
+        args: 'ctx: DetectContext, start: number, end: number, alternative: string, key: ArabicFinding["messageKey"]'
+        type: ArabicFinding[]
+        when: ownsAt(ctx, start) && ctx.source.slice(start, end) !== alternative
+        return: "[{ messageKey: key, range: { start, end }, alternatives: [alternative], context: { start, end: Math.min(ctx.text.length, end + 24) } }]"
+        else: "[]"
+      # A number phrase after a preposition: every nominative part becomes oblique. `j` is the
+      # part to read.
+      obliqueNumbers:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number, j: number"
+        type: ArabicFinding[]
+        when: j < list.length && (j === i || adjacentToken(list[j])) && NUMBER_WORDS.test(list[j].word)
+        let:
+          part: list[j].word
+          tens: TENS.exec(part)
+          split: "/^([وبلك]{0,2})(.*)$/u.exec(part)"
+          pre: split?.[1] ?? ""
+          rest: split?.[2] ?? part
+          oblique: >-
+            tens
+              ? tens.groups!.ending === "ون"
+                ? pre + tens.groups!.stem + "ين"
+                : undefined
+              : NOMINATIVE_NUMBERS.has(rest)
+                ? pre + NOMINATIVE_NUMBERS.get(rest)
+                : undefined
+        return: >-
+          [
+            ...(oblique ? numberFinding(ctx, list[j].start, list[j].end, oblique, "review_msg_arabic_number_case") : []),
+            ...obliqueNumbers(ctx, list, i, j + 1),
+          ]
+        else: "[]"
+      # The counted noun's gender: "طالبة" is feminine, "رجلا" (tanwin alif) masculine.
+      countedGender:
+        args: "token: ArabicToken | undefined, text: string"
+        type: '"m" | "f" | null | undefined'
+        when: token && adjacentToken(token)
+        let:
+          word: token.word
+        return: >-
+          word.endsWith("ة") && !NOT_FEMININE.has(word)
+            ? "f"
+            : /^\p{L}{2,}ا$/u.test(word) && !/(?:اء|ىا)$/u.test(word)
+              ? "m"
+              : text[token.end] === "\u064B" && !word.endsWith("ة")
+                ? "m"
+                : undefined
+      # 11 and 12: the parts agree with each other and with the noun. None when the frame is no
+      # unit before عشر with a counted noun.
+      elevenTwelve:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number, word: string, next: ArabicToken | undefined, afterNext: ArabicToken | undefined"
+        type: ArabicFinding[] | null
+        let:
+          gender: countedGender(afterNext, ctx.text)
+          units: TEEN_UNIT_PARTS.exec(word)?.groups
+          f: gender === "f"
+          n: units.n
+          unit: >-
+            n === "أحد" || n === "إحدى"
+              ? f
+                ? "إحدى"
+                : "أحد"
+              : /^اثن/u.test(n)
+                ? (f ? "اثنت" : "اثن") + (n === "اثني" || n === "اثنتي" ? "ي" : "ا")
+                : UNIT_FORMS.get(n)![f ? 1 : 0]
+          ten: 'f ? "عشرة" : "عشر"'
+        when:
+          - next && adjacentToken(next) && /^(?:عشر|عشرة)$/u.test(next.word)
+          - units && gender
+        return: >-
+          units.pre + unit !== word || ten !== next.word
+            ? numberFinding(ctx, list[i].start, next.end, units.pre + unit + next.gap + ten, "review_msg_arabic_number_gender")
+            : []
+      # 21-99: the unit before "و" + tens takes the opposite gender of the noun (1 and 2 the same).
+      twentyToNinetyNine:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number, word: string, afterNext: ArabicToken | undefined"
+        type: ArabicFinding[]
+        let:
+          unit: '/^(?<pre>[بلك]?)(?<n>\p{L}+)$/u.exec(word)!.groups!'
+          gender: countedGender(afterNext, ctx.text)
+          f: gender === "f"
+          forms: UNIT_FORMS.get(unit.n)
+          fixed: >-
+            forms
+              ? forms[f ? 1 : 0]
+              : unit.n === "واحد" || unit.n === "واحدة"
+                ? f
+                  ? "واحدة"
+                  : "واحد"
+                : /^(?:اثنان|اثنتان|اثنين|اثنتين)$/u.test(unit.n)
+                  ? (f ? "اثنت" : "اثن") + unit.n.slice(unit.n.startsWith("اثنت") ? 4 : 3)
+                  : undefined
+        when: gender
+        return: 'fixed && fixed !== unit.n ? numberFinding(ctx, list[i].start, list[i].end, unit.pre + fixed, "review_msg_arabic_number_gender") : []'
+        else: "[]"
+      # The count of 3-10 in the form `k` of `forms` (0: before a masculine noun, 1: before a
+      # feminine noun).
+      countForm:
+        args: "ctx: DetectContext, token: ArabicToken, parts: Record<string, string>, forms: readonly [string, string] | undefined, k: number"
+        type: ArabicFinding[]
+        return: 'forms && parts.n !== forms[k] ? numberFinding(ctx, token.start, token.end, parts.pre + forms[k], "review_msg_arabic_number_gender") : []'
+      # 3-10 before a sound masculine plural: the masculine count takes ة. 3-10 before a feminine
+      # -ات plural: the count drops its ة ("ثلاث ساعات"). 3-10 before a masculine noun's -ات
+      # plural: the count takes ة ("ثلاثة اجتماعات"). "أحد" before a definite feminine plural is
+      # "إحدى" ("إحدى الشركات"); "إحدى" before a masculine plural is "أحد".
+      countedNoun:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number, word: string, next: ArabicToken | undefined, teen: boolean, masculine: string | null | undefined"
+        type: ArabicFinding[]
+        let:
+          counted: "next && adjacentToken(next) ? soundPlural(next.word) : undefined"
+          ordinal: i > 0 && ORDINAL.test(list[i - 1].word)
+          parts: '/^(?<pre>[وبلك]{0,2})(?<n>\p{L}+)$/u.exec(word)!.groups!'
+        return: >-
+          [
+            ...(counted && next && !next.word.startsWith("ال") && !ordinal
+              ? countForm(ctx, list[i], parts, parts.n === "عشر" ? TEN_FORMS : UNIT_FORMS.get(parts.n), 0)
+              : []),
+            ...(next && adjacentToken(next) && feminineSoundPlural(next.word) && !next.word.startsWith("ال")
+              ? countForm(ctx, list[i], parts, parts.n === "عشرة" && !teen ? TEN_FORMS : UNIT_FORMS.get(parts.n), 1)
+              : []),
+            ...(masculine
+              ? countForm(ctx, list[i], parts, parts.n === "عشر" && !teen ? TEN_FORMS : UNIT_FORMS.get(parts.n), 0)
+              : []),
+            ...(/^[وبلك]{0,2}أحد$/u.test(word) && next && adjacentToken(next) && next.word.startsWith("ال") && feminineSoundPlural(next.word)
+              ? numberFinding(ctx, list[i].start, list[i].end, word.replace("أحد", "إحدى"), "review_msg_arabic_number_gender")
+              : []),
+            ...(/^[وبلك]{0,2}إحدى$/u.test(word) && next && adjacentToken(next) && (soundPlural(next.word) || masculinePluralAt(next.word))
+              ? numberFinding(ctx, list[i].start, list[i].end, word.replace("إحدى", "أحد"), "review_msg_arabic_number_gender")
+              : []),
+          ]
+      # 11-19 and 21-99 agree with the counted noun; after a preposition they are oblique. "خمس
+      # وعشرون طالبات": after 11-99 the counted noun is singular. "خمسة عشر اجتماعات" ->
+      # "اجتماعا": a masculine noun after 11-99 is singular, with tanwin alif. "عشرون طالبات": the
+      # -ات plural of a word that takes ة (طالب/طالبة); the dictionary gives masculine nouns the
+      # same plural (منتج/منتجات), so the writer picks the feminine or the masculine singular.
+      numbers:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[]
+        let:
+          word: list[i].word
+          next: list[i + 1]
+          afterNext: list[i + 2]
+          attached: /^[بلك](?=\p{L})/u.test(word) && NUMBER_WORDS.test(word)
+          oblique: 'PREPOSITIONS.has(word) || word === "من" || attached ? obliqueNumbers(ctx, list, i, attached ? i : i + 1) : []'
+          teen: i > 0 && /^(?:عشر|عشرة)$/u.test(word) && adjacentToken(list[i]) && TEEN_UNIT.test(list[i - 1].word)
+          tens: teen || TENS.test(word)
+          masculine: 'next && adjacentToken(next) && !next.word.startsWith("ال") ? masculinePluralAt(next.word) : undefined'
+          stem: 'next?.word.endsWith("ات") ? next.word.slice(0, -2) : ""'
+        return: >-
+          [
+            ...oblique,
+            ...(tens && next && adjacentToken(next) && feminineSoundPlural(next.word) && !next.word.startsWith("ال") && !next.word.endsWith("يات")
+              ? numberFinding(ctx, next.start, next.end, next.word.slice(0, -2) + "ة", "review_msg_arabic_counted_singular")
+              : []),
+            ...(tens && masculine && next
+              ? numberFinding(ctx, next.start, next.end, next.word.slice(0, -2) + (masculine.endsWith("اء") ? "" : "ا"), "review_msg_arabic_counted_singular")
+              : []),
+            ...(tens &&
+            next &&
+            stem.length > 1 &&
+            adjacentToken(next) &&
+            !stem.startsWith("ال") &&
+            !/[اىةء]$/u.test(stem) &&
+            !feminineSoundPlural(next.word) &&
+            !masculine &&
+            arabicTags(stem).includes("a") &&
+            ownsAt(ctx, next.start)
+              ? [
+                  {
+                    messageKey: "review_msg_arabic_counted_singular" as const,
+                    range: { start: next.start, end: next.end },
+                    alternatives: [`${stem}ة`, `${stem}ا`],
+                    requiresChoice: true as const,
+                    context: { start: list[i].start, end: next.end },
+                  },
+                ]
+              : []),
+            ...(elevenTwelve(ctx, list, i, word, next, afterNext) ??
+              (next && adjacentToken(next) && TENS.exec(next.word)?.groups!.pre === "و"
+                ? twentyToNinetyNine(ctx, list, i, word, afterNext)
+                : countedNoun(ctx, list, i, word, next, teen, masculine))),
+          ]
+      # A number-case, counted-singular or number-gender finding.
+      isNumberFinding:
+        args: "f: RawFinding"
+        return: NUMBER_KEYS.has(f.messageKey)
+    # A number finding with one fix gives way to an earlier number finding that it overlaps. The
+    # finding with a choice ("عشرون طالبات") never gives way.
+    filter:
+      return: >-
+        findings.reduce(
+          (kept, f) =>
+            !isNumberFinding(f) ||
+            f.requiresChoice ||
+            !kept.some((k) => isNumberFinding(k) && k.range.start < f.range.end && f.range.start < k.range.end)
+              ? [...kept, f]
+              : kept,
+          [] as RawFinding[],
+        )
     frames:
       # "هذا السلامة", "هذان البطاقتان", "هذين الكتابان": a demonstrative agrees with its noun.
       - regex: "{{START}}[وف]?[بلك]?(?:هذا|هذه|ذلك|تلك|هذان|هاتان|هذين|هاتين){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: demonstrative
+        return: walkTokens(m, ctx, frame, demonstrative)
       # "الوشاية الذي سمعتها", "الطعام التي جلبناه": a relative pronoun agrees with its
       # antecedent.
       - regex: "{{START}}(?:الذي|التي){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: relativePronoun
+        return: walkTokens(m, ctx, frame, relativePronoun)
       # "القميص الجديدة", "في الغرفة الكبير": a definite adjective agrees with the definite
       # noun before it. The frame matches the noun.
       - regex: "{{START}}[وف]?(?:[بك]?ال|لل)\\p{L}{2,}{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: definiteAdjective
+        return: walkTokens(m, ctx, frame, definiteAdjective)
       # 11-19 and 21-99 agree with the counted noun; after a preposition they are oblique. The
       # frame matches a preposition or a number word.
       - regex: "{{START}}(?:{{PREPOSITION}}|من|[وبلك]{0,2}(?:{{NUMBER}})){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: numbers
+        return: walkTokens(m, ctx, frame, numbers)
   - id: ar_SA.caseEndings
     checks: [arabicCaseEndings]
     style: match
     message: review_msg_arabic_case_ending
+    sets:
+      # إنّ and its sisters (لكنّ is left out: unvowelled it is also the light لكن).
+      ACCUSATIVE_GOVERNORS: [إن, أن, كأن, ليت, لعل]
+    defs:
+      CASE_PREPOSITIONS: >-
+        new Set("في إلى على عن مع بين حول نحو عند لدى بعد قبل خلال دون ضد عبر".split(" "))
+      JUSSIVE: /^[وف]?لم$/u
+      SUBJUNCTIVE: /^[وف]?(?:لن|أن|كي|لكي)$/u
+      NEGATING_LA: /^[وف]?لا$/u
+      # Particles that put the verb after لا in the subjunctive or jussive: "أن لا يذهبوا".
+      GOVERNS_LA: /^[وفب]?(?:أن|كي|لكي|حتى)$/u
+      GOVERNS_LATER: /^[وف]?(?:لم|لن|أن|كي|لكي|حتى|لئلا|ألا)$/u
+      LAMMA: '/(?<![\p{L}\p{M}])[وف]?ل\u064E?م(?:\u0651\u064E?|\u064E\u0651)ا[ \t\u00a0]+$/u'
+      # "في المسافرون", "إن الكتابان": a sound plural or dual is oblique after a preposition or
+      # إنّ.
+      governedCase:
+        args: "next: ArabicToken, context: TextRange"
+        type: ArabicFinding | null
+        let:
+          plural: soundPlural(next.word)
+          d: "plural ? undefined : dual(next.word)"
+          fixed: >-
+            plural && !plural.oblique
+              ? plural.stem + "ين"
+              : d && !d.oblique && (d.gender === "f" || /^(?:ال)?(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[اوي]\p{L})$/u.test(d.stem))
+                ? d.stem + "ين"
+                : undefined
+        when: fixed && !/^(?:ال)?مهرج$/u.test(fixed.slice(0, -2))
+        return: >-
+          {
+            messageKey: "review_msg_arabic_case_ending",
+            range: { start: next.start, end: next.end },
+            alternatives: [fixed],
+            context,
+          }
+      # The negating لا at `k` (or a particle before it) governs the verb: لم, لن, أن, كي, حتى ...
+      # in the same sentence, up to 8 words back.
+      governedEarlier:
+        args: "list: readonly ArabicToken[], i: number, k: number"
+        type: boolean
+        return: 'k >= 0 && k >= i - 8 && !/[.!؟?\n]/u.test(list[k + 1].gap) && (GOVERNS_LATER.test(list[k].word) || governedEarlier(list, i, k - 1))'
+      # "لا يخافوا" -> "لا يخافون": a third-person verb after negating لا keeps its ن (prohibitive
+      # لا with the third person is rare; with the second it is the normal command, "لا
+      # تخافوا", and is left alone). Not after أن/كي/حتى, nor in a "ولا" that continues a لم or
+      # أن clause ("لم يأكلوا ولا يشربوا").
+      indicative:
+        args: "list: readonly ArabicToken[], i: number"
+        let:
+          verb: '/^ي(?<stem>\p{L}{3,})وا$/u.exec(list[i + 1].word)'
+        when:
+          - verb
+          - "!(i > 0 && adjacentToken(list[i]) && GOVERNS_LA.test(list[i - 1].word))"
+          - list[i].word === "لا" || !governedEarlier(list, i, i - 1)
+        return: "`ي${verb.groups!.stem}ون`"
+      # "لم يستطيعون", "لن يذهبون": the five verbs drop their ن, and "لم يجري" shortens its last
+      # vowel. "لِمَ" (why) also opens a question with an indicative verb.
+      moodAfter:
+        args: "ctx: DetectContext, head: string, next: ArabicToken, context: TextRange"
+        type: ArabicFinding | null
+        let:
+          jussive: JUSSIVE.test(head)
+          sentenceEnd: '/[.!؟?\n]/u.exec(ctx.text.slice(next.end, next.end + 200))'
+          fixed: moodFix(next.word, jussive)
+        when:
+          - jussive || SUBJUNCTIVE.test(head)
+          - "!(sentenceEnd && /[؟?]/u.test(sentenceEnd[0]))"
+          - fixed
+        return: >-
+          {
+            messageKey: jussive ? "review_msg_arabic_jussive" : "review_msg_arabic_subjunctive",
+            range: { start: next.start, end: next.end },
+            alternatives: [fixed],
+            context,
+          }
+      # The word after a preposition, إنّ and its sisters, لا, لم, لن, أن, كي or لكي.
+      caseEnding:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding | null | undefined
+        let:
+          head: list[i].word
+          next: list[i + 1]
+          context: "{ start: list[i].start, end: next.end }"
+          fixed: "NEGATING_LA.test(head) ? indicative(list, i) : undefined"
+        when: next && adjacentToken(next) && ownsAt(ctx, next.start)
+        return: >-
+          CASE_PREPOSITIONS.has(head) || ACCUSATIVE_GOVERNORS.has(head)
+            ? governedCase(next, context)
+            : NEGATING_LA.test(head)
+              ? fixed
+                ? {
+                    messageKey: "review_msg_arabic_indicative",
+                    range: { start: next.start, end: next.end },
+                    alternatives: [fixed],
+                    context,
+                  }
+                : undefined
+              : moodAfter(ctx, head, next, context)
     frames:
       # "في المسافرون", "إن الكتابان", "لم يستطيعون", "لن يذهبون", "لا يخافوا": the word after
       # a preposition, إنّ and its sisters, لا, لم, لن, أن, كي or لكي.
@@ -77,36 +838,183 @@ rules:
         scan: text
         lookback: 96
         flags: gu
-        fixer: caseEnding
+        return: walkTokens(m, ctx, frame, caseEnding)
       # "لمّا يأتون" (not yet): لمّا takes the jussive too. Only with its shadda written: bare
       # لما is also "for what" before an indicative verb. The frame matches لمّا and the spaces
-      # after it; the fixer reads the 12 characters before the next word.
+      # after it; the code reads the 12 characters before the next word.
       - regex: "ل\\u064E?م(?:\\u0651\\u064E?|\\u064E\\u0651)ا[ \\t\\u00a0]+"
         scan: text
         lookback: 108
         flags: gu
-        fixer: lammaJussive
+        let:
+          list: arabicTokens(ctx)
+          token: list[arabicTokenAt(list, m.index + m[0].length)]
+          lamma: LAMMA.exec(ctx.text.slice(Math.max(0, token.start - 12), token.start))
+          fixed: "lamma && ownsAt(ctx, token.start) ? moodFix(token.word, true) : undefined"
+        when:
+          - token
+          - fixed
+        return: >-
+          {
+            ruleId: frame.ruleId,
+            messageKey: "review_msg_arabic_jussive",
+            range: { start: token.start, end: token.end },
+            alternatives: [fixed],
+            context: { start: token.start - lamma![0].length, end: token.end },
+          }
   - id: ar_SA.dates
     checks: [arabicDates]
     style: match
     message: review_msg_arabic_impossible_date
-    # The filter drops a date-order finding that starts in an earlier finding.
-    filter: dateOrderAfterOthers
+    defs:
+      # Month names by number: the Egyptian/Gulf forms, the Levantine (Syriac) ones and the
+      # Maghrebi (French-derived) ones.
+      MONTHS: >-
+        [
+          ["يناير", "كانون الثاني", "جانفي"],
+          ["فبراير", "شباط", "فيفري"],
+          ["مارس", "آذار"],
+          ["أبريل", "ابريل", "إبريل", "نيسان", "أفريل"],
+          ["مايو", "أيار", "ماي"],
+          ["يونيو", "يونيه", "حزيران", "جوان"],
+          ["يوليو", "يوليه", "تموز", "جويلية"],
+          ["أغسطس", "اغسطس", "آب", "أوت"],
+          ["سبتمبر", "أيلول"],
+          ["أكتوبر", "اكتوبر", "تشرين الأول"],
+          ["نوفمبر", "تشرين الثاني"],
+          ["ديسمبر", "كانون الأول"],
+        ]
+      MONTH_NUMBER: new Map(MONTHS.flatMap((names, index) => names.map((name) => [name, index + 1] as const)))
+      # Sunday first, as Date.getUTCDay counts.
+      WEEKDAYS: '[["الأحد"], ["الإثنين", "الاثنين"], ["الثلاثاء"], ["الأربعاء"], ["الخميس"], ["الجمعة"], ["السبت"]]'
+      WEEKDAY_NUMBER: new Map(WEEKDAYS.flatMap((names, index) => names.map((name) => [name, index] as const)))
+      # A day or month out of range is a date only in a full date: "15/13/2024", "32 يناير".
+      # Versions, scores, ranges and IDs are not dates: "1.13.40", "3-13", "10-32", "12-45-2024-7".
+      FULL_NUMERIC: "/{{DIGIT}}{1,2}(?<a>{{SEP}}){{DIGIT}}{1,2}(?<b>{{SEP}})(?:[12١٢۱۲]{{DIGIT}}{3})$/u"
+      NUMBER_BEFORE: "/(?:{{DIGIT}}{{SEP}}|#[ \\t\\u00a0]*)$/u"
+      NUMBER_AFTER: "/^{{SEP}}{{DIGIT}}/u"
+      ID_CUE: '/(?:الإصدار|إصدار|الاصدار|اصدار|النسخة|نسخة|التحديث|تحديث|رقم|الرقم|هاتف|الهاتف|كود|الكود|رمز|الرمز|version|(?<!\p{L})v)[ \t\u00a0:]*$/iu'
+      # A full date: no number or ID word around it, and a month name or the same separator twice.
+      fullDate:
+        args: "text: string, m: RegExpExecArray"
+        type: boolean
+        let:
+          before: text.slice(Math.max(0, m.index - 24), m.index)
+          after: text.slice(m.index + m[0].length)
+          numeric: FULL_NUMERIC.exec(m[0])
+        when: "!NUMBER_BEFORE.test(before) && !NUMBER_AFTER.test(after) && !ID_CUE.test(before)"
+        return: "!!m.groups!.monthName || (!!numeric && numeric.groups!.a.trim() === numeric.groups!.b.trim())"
+        else: "false"
+      # The match starts in the chunk, outside named examples (the scan starts 64 before it).
+      dateOwns:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        return: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+      # A weekday with no year: the weekday is checked against each year the date can mean.
+      weekdayNoYear:
+        args: "ctx: DetectContext, m: RegExpExecArray, frame: FrameRef, weekday: string, month: number, d: number, range: TextRange"
+        type: RawFinding[]
+        let:
+          years: yearsFor(month, d, contextYear(ctx.text, m.index, ctx.lang))
+          weekdays: "[...new Set(years.map((year) => weekdayOf(year, month, d)))]"
+        when: years.length > 0 && !weekdays.includes(WEEKDAY_NUMBER.get(weekday)!)
+        return: >-
+          [
+            {
+              ruleId: frame.ruleId,
+              messageKey: "review_msg_weekday_no_year",
+              range: { start: m.index, end: m.index + weekday.length },
+              alternatives: weekdays.map((w) => WEEKDAYS[w][0]),
+              requiresChoice: true,
+              context: range,
+            },
+          ]
+        else: "[]"
+      # A date in the wrong order: the fix puts its parts day first.
+      dateOrder:
+        args: "ctx: DetectContext, m: RegExpExecArray, frame: FrameRef, parts: readonly string[]"
+        type: RawFinding | null
+        let:
+          gap: '/[ \t\u00a0]+/.exec(m[0])![0]'
+        when: dateOwns(ctx, m)
+        return: >-
+          {
+            ruleId: frame.ruleId,
+            messageKey: "review_msg_arabic_date_order",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [parts.join(gap)],
+          }
+    # A date-order finding (the last frames) that starts in an earlier finding is dropped.
+    filter:
+      let:
+        split: findings.findIndex((f) => f.messageKey === "review_msg_arabic_date_order")
+      when: split >= 0
+      return: >-
+        findings
+          .slice(split)
+          .reduce(
+            (kept, f) => (kept.some((k) => k.range.start <= f.range.start && f.range.start < k.range.end) ? kept : [...kept, f]),
+            findings.slice(0, split),
+          )
     frames:
       # Dates that cannot exist (31 September, 29 February 2001) and a weekday that does not
       # fall on its date. A day, then a month name (any separator) or a month number (/ - .
-      # and a year).
+      # and a year). A numeric out-of-range date needs parts near a real date and no month-first
+      # reading: "12/25/2020" is real; "3-45-2020" (a score) and "99/73/2022" stay silent.
       - regex: "(?<target>{{START}}(?:(?<weekday>{{WEEKDAY}}){{GAP}}(?:،[ \\t\\u00a0]*)?)?(?<day>{{DIGIT}}{1,2})(?:(?:{{GAP}}|{{SEP}})(?<monthName>{{MONTH}})|{{SEP}}(?<monthDigits>{{DIGIT}}{1,2})(?={{SEP}}{{DIGIT}}))(?:(?:{{GAP}}|{{SEP}})(?<year>{{DIGIT}}{2,4}))?{{NOT_WORD}})"
         scan: owned
         lookback: 64
         flags: gu
-        fixer: date
+        let:
+          d: digitValue(day)
+          month: "monthName ? MONTH_NUMBER.get(monthName)! : digitValue(monthDigits)"
+          y: "year === undefined ? undefined : digitValue(year)"
+          outOfRange: d < 1 || d > 31 || month < 1 || month > 12
+          fullYear: "y !== undefined && year.length === 4 ? y : undefined"
+          range: "{ start: m.index, end: m.index + m[0].length }"
+        when:
+          - dateOwns(ctx, m)
+          - "!(outOfRange && !fullDate(ctx.text, m))"
+          - >-
+            !(outOfRange &&
+              !monthName &&
+              (d > 39 || month > 39 || (d >= 1 && d <= 12 && month >= 1 && month <= daysInMonth(d, fullYear))))
+        return: >-
+          outOfRange || d > daysInMonth(month, fullYear)
+            ? {
+                ruleId: frame.ruleId,
+                messageKey: "review_msg_arabic_impossible_date",
+                range,
+                alternatives: [],
+                warningOnly: true,
+              }
+            : [
+                ...(weekday && y === undefined ? weekdayNoYear(ctx, m, frame, weekday, month, d, range) : []),
+                ...(weekday && fullYear !== undefined && weekdayOf(fullYear, month, d) !== WEEKDAY_NUMBER.get(weekday)
+                  ? [
+                      {
+                        ruleId: frame.ruleId,
+                        messageKey: "review_msg_arabic_weekday_mismatch" as const,
+                        range,
+                        alternatives: [],
+                        warningOnly: true as const,
+                      },
+                    ]
+                  : []),
+              ]
       # A five-digit year.
       - regex: "{{START}}(?:ل?(?:ال)?(?:عام|سنة)|صيف|شتاء|ربيع|خريف){{GAP}}(?<target>{{DIGIT}}{5,}){{NOT_WORD}}"
         scan: owned
         lookback: 64
         flags: gu
-        fixer: longYear
+        when: dateOwns(ctx, m)
+        return: >-
+          {
+            ruleId: frame.ruleId,
+            messageKey: "review_msg_arabic_impossible_date",
+            range: { start: m.index + m[0].length - target.length, end: m.index + m[0].length },
+            alternatives: [],
+            warningOnly: true,
+          }
       # An ISO date that no calendar has ("2025-02-30", "2023-02-29"). The year first makes the
       # form clear in each language. A fourth numeric part before or after ("1-2025-02-30",
       # "2025-02-30-7", "2025-02-30.1") makes it an ID, not a date. Arabic-Indic digits count too
@@ -115,43 +1023,79 @@ rules:
       - regex: "{{ISO_DATE}}"
         flags: gdu
         owner: none
-        fixer: common:invalidIsoDate
+        let:
+          range: invalidIsoDate(m, ctx)
+        when: range
+        return: >-
+          {
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range,
+            alternatives: [],
+            warningOnly: true,
+          }
       # Year first or month first: Arabic dates run day, month, year.
-      - regex: "(?<target>{{START}}(?<y>{{DIGIT}}{4}){{GAP}}(?<m>{{MONTH}}){{GAP}}(?<d>{{DIGIT}}{1,2}){{NOT_WORD}})"
+      - regex: "(?<target>{{START}}(?<yearPart>{{DIGIT}}{4}){{GAP}}(?<monthPart>{{MONTH}}){{GAP}}(?<dayPart>{{DIGIT}}{1,2}){{NOT_WORD}})"
         scan: owned
         lookback: 64
         flags: gu
         message: review_msg_arabic_date_order
-        fixer: dayMonthYear
-      - regex: "(?<target>{{START}}(?<m>{{MONTH}}){{GAP}}(?<d>{{DIGIT}}{1,2}){{GAP}}(?<w>{{WEEKDAY}}){{NOT_WORD}})"
+        return: dateOrder(ctx, m, frame, [dayPart, monthPart, yearPart])
+      - regex: "(?<target>{{START}}(?<monthPart>{{MONTH}}){{GAP}}(?<dayPart>{{DIGIT}}{1,2}){{GAP}}(?<weekdayPart>{{WEEKDAY}}){{NOT_WORD}})"
         scan: owned
         lookback: 64
         flags: gu
         message: review_msg_arabic_date_order
-        fixer: weekdayDayMonth
-      - regex: "(?<target>{{START}}(?<m>{{MONTH}}){{GAP}}(?<d>{{DIGIT}}{1,2}){{GAP}}(?<y>{{DIGIT}}{4}){{NOT_WORD}})"
+        return: dateOrder(ctx, m, frame, [weekdayPart, dayPart, monthPart])
+      - regex: "(?<target>{{START}}(?<monthPart>{{MONTH}}){{GAP}}(?<dayPart>{{DIGIT}}{1,2}){{GAP}}(?<yearPart>{{DIGIT}}{4}){{NOT_WORD}})"
         scan: owned
         lookback: 64
         flags: gu
         message: review_msg_arabic_date_order
-        fixer: dayMonthYear
-      - regex: "(?<target>{{START}}(?<y>{{DIGIT}}{4}){{GAP}}(?<m>{{MONTH}})(?![\\p{L}\\p{M}\\p{N}]|{{GAP}}{{DIGIT}}))"
+        return: dateOrder(ctx, m, frame, [dayPart, monthPart, yearPart])
+      - regex: "(?<target>{{START}}(?<yearPart>{{DIGIT}}{4}){{GAP}}(?<monthPart>{{MONTH}})(?![\\p{L}\\p{M}\\p{N}]|{{GAP}}{{DIGIT}}))"
         scan: owned
         lookback: 64
         flags: gu
         message: review_msg_arabic_date_order
-        fixer: monthYear
+        return: dateOrder(ctx, m, frame, [monthPart, yearPart])
   - id: ar_SA.syntax
     checks: [arabicSyntax]
     style: match
     message: review_msg_arabic_joined_particle
+    defs:
+      JOINED: 'new Map([["عن ما", "عما"], ["من ما", "مما"], ["عن من", "عمن"]])'
+      # "مَن ما زال": a relative مَن before a negated verb of continuing stays apart.
+      CONTINUING: /^(?:زال|يزال|تزال|زالت|زالوا|دام|برح|يبرح|انفك|ينفك|فتئ|يفتأ)$/u
+      # عن and من join ما and مَن ("عما", "مما", "عمن"). A word must follow on the same line; و +
+      # an imperfect after ما is left alone (ما may be quoted as a word).
+      joinedParticle:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding | null
+        let:
+          first: list[i]
+          second: list[i + 1]
+          next: list[i + 2]
+          pre: '/^[وف](?:عن|من)$/u.test(first.word) ? first.word[0] : ""'
+          joined: JOINED.get(`${first.word.slice(pre.length)} ${second.word}`)
+        when:
+          - i + 2 < list.length
+          - joined && adjacentToken(second) && adjacentToken(next) && ownsAt(ctx, first.start)
+          - '!CONTINUING.test(next.word) && !/^و[يتنأ]\p{L}{2}/u.test(next.word)'
+        return: >-
+          {
+            messageKey: "review_msg_arabic_joined_particle",
+            range: { start: first.start, end: second.end },
+            alternatives: [pre + joined],
+            context: { start: first.start, end: next.end },
+          }
     frames:
       # عن and من join ما and مَن ("عما", "مما", "عمن").
       - regex: "{{START}}[وف]?(?:عن|من){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: joinedParticle
+        return: walkTokens(m, ctx, frame, joinedParticle)
   - id: ar_SA.kullama
     checks: [arabicSyntax]
     style: match
@@ -162,185 +1106,1073 @@ rules:
         scan: owned
         lookback: 160
         flags: dgu
-        fixer: kullama
+        return: replaceTarget(m, ctx, frame, "review_msg_arabic_kullama", "")
   - id: ar_SA.redundantWords
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
+    defs:
+      # A pronoun suffix on the first term: "بيني وبينه" repeats بين as it must.
+      PRONOUN_SUFFIX: /(?:ي|ه|ها|هما|هم|هن|ك|كما|كم|كن|نا)$/u
     frames:
       # Optional style: "فقط" after إلا.
       - regex: "(?<![\\p{L}\\p{M}])إلا(?:[ \\t\\u00a0]+[\\p{L}\\p{M}]+){1,5}(?<target>[ \\t\\u00a0]+فقط)(?![\\p{L}\\p{M}])"
         scan: owned
         lookback: 160
         flags: dgu
-        fixer: illaFaqat
+        return: replaceTarget(m, ctx, frame, "review_msg_style_phrasing", "")
       # Optional style: بين repeated before a second noun ("بين محمد وعلي").
       - regex: "(?<![\\p{L}\\p{M}])بين[ \\t\\u00a0]+(?<first>[\\p{L}]+)[ \\t\\u00a0]+(?<target>وبين[ \\t\\u00a0]+)(?=\\p{L})"
         scan: owned
         lookback: 160
         flags: dgu
-        fixer: bayna
+        when: '!(PRONOUN_SUFFIX.test(first) && !first.startsWith("ال"))'
+        return: replaceTarget(m, ctx, frame, "review_msg_style_phrasing", "و")
   - id: ar_SA.style
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
+    sets:
+      # Indefinite words that open a greeting, prayer or exclamation before their predicate.
+      FRONTED_OK: [سلام, ويل, طوبى, تحية, شكر, مرحبا, أهلا, عذرا, خير, شر, عجب, حمد]
+      # Prepositions that head a predicate; ب, ل and ك attach to the next word.
+      PREDICATE_HEAD: [في, عند, لدى, مع, تحت, فوق, أمام, خلف, داخل]
+      # The prepositions of the style steps.
+      STYLE_PREPOSITIONS: [في, على, من, إلى, عن, مع, عند, لدى, حول, خلال, بين]
+      # Masculine words with ة: an elative after them does not take the feminine form.
+      MASCULINE_IN_TA: [خليفة, علامة, رحالة, داعية, نابغة]
+      SEPARATE_PREPOSITIONS: [على, في, من, إلى, عن, مع]
+    defs:
+      # Form I verbal nouns used after القيام بـ, with no verb built from them here.
+      PLAIN_VERBAL_NOUNS: >-
+        new Set("ضرب قتل فتح نقل دفع رفع حفظ طبخ غسل رسم كشف زرع قراءة زراعة صناعة".split(" "))
+      ELATIVES: >-
+        new Set("أكبر أصغر أفضل أحسن أسوأ أكثر أقل أشد أعظم أهم أعلى أدنى أقوى أضعف
+        أطول أقصر أسرع أقرب أبعد أغنى أفقر أجمل أقدم أحدث أوسع أضيق أدهى أعجب أخطر
+        أصعب أسهل أعمق أثقل أخف أغلى أرخص أذكى أبرز أنسب".split(" "))
+      # Optional: "المرأتان ذاتا مكانة" -> "ذواتا", the classical feminine dual of ذو.
+      dualPossessor:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding | null
+        let:
+          before: list[i - 1].word
+        when:
+          - i >= 1 && i + 1 < list.length
+          - list[i].word === "ذاتا" && adjacentToken(list[i]) && adjacentToken(list[i + 1])
+          - (before === "هاتان" || before === "اثنتان" || dual(before)?.gender === "f") && before.endsWith("ان") && ownsAt(ctx, list[i].start)
+        return: >-
+          {
+            messageKey: "review_msg_style_phrasing",
+            range: { start: list[i].start, end: list[i].end },
+            alternatives: ["ذواتا"],
+            context: { start: list[i - 1].start, end: list[i + 1].end },
+          }
+      # Optional: "هذا قميص قديمة.", "خنصري مجروح.": an indefinite adjective after an indefinite
+      # or possessed singular noun, in a short clause that the pair opens (or that follows a
+      # demonstrative) and ends. Two indefinite nouns elsewhere are mostly a construct ("موافقة
+      # ولي الأمر"), so it is advice.
+      indefiniteAdjective:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding | null
+        let:
+          word: 'list[i].word.replace(/^[وف](?=\p{L}{3})/u, "")'
+          after: list[i + 1]
+          gender: plainNounGender(word)
+          adj: gender && adjective(after.word, true)
+        when:
+          - after && !word.startsWith("ال") && adjacentToken(after) && ownsAt(ctx, after.start)
+          - "!NAME_HEAD.test(word)"
+          - >-
+            (opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word))) &&
+            !(i + 2 < list.length && adjacentToken(list[i + 2]))
+          - '!after.word.startsWith("ال") && ctx.text[after.end] !== "\u064B"'
+          - adj && adj.gender !== gender
+        return: >-
+          {
+            messageKey: "review_msg_arabic_adjective_gender",
+            range: { start: after.start, end: after.end },
+            alternatives: [agreeing(adj)],
+            context: { start: list[i].start, end: after.end },
+          }
+      # "وهذه بعض الأمثلة": a quantity word takes the gender of the noun after it.
+      QUANTIFIERS: /^(?:بعض|كل|جميع|عدد|معظم|أغلب|غير|مثل|نفس)/u
+      # Optional: "هذا سلامة", "تلك سلام": a singular demonstrative before an indefinite or
+      # possessed noun takes the noun's gender. Writers differ when the demonstrative stands for
+      # an earlier matter ("وهذا نتيجة طبيعية"), so it is advice. Only a demonstrative that opens
+      # its sentence: after a verb ("كان ذلك وسيلة") it is a pronoun for an earlier matter.
+      demonstrativePredicate:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding | null
+        let:
+          parts: "/^(?<pre>[وف]?)(?<dem>هذا|هذه|ذلك|تلك)$/u.exec(list[i].word)?.groups"
+          noun: list[i + 1]
+          gender: plainNounGender(noun.word)
+          near: parts.dem.startsWith("ه")
+          fixed: >-
+            gender === "f" && (parts.dem === "هذا" || parts.dem === "ذلك")
+              ? near
+                ? "هذه"
+                : "تلك"
+              : gender === "m" && (parts.dem === "هذه" || parts.dem === "تلك")
+                ? near
+                  ? "هذا"
+                  : "ذلك"
+                : undefined
+        when:
+          - parts && noun && adjacentToken(noun) && ownsAt(ctx, list[i].start)
+          - '!noun.word.startsWith("ال") && !NAME_HEAD.test(noun.word) && !possessedFeminine(noun.word)'
+          - "!QUANTIFIERS.test(noun.word)"
+          - opensSentence(ctx, list[i])
+          - fixed
+        return: >-
+          {
+            messageKey: "review_msg_arabic_demonstrative_gender",
+            range: { start: list[i].start + parts.pre.length, end: list[i].end },
+            alternatives: [fixed],
+            context: { start: list[i].start, end: noun.end },
+          }
+      # A predicate about "that" or a clause ("علاوة على ذلك", "دليل على أن") is a linking phrase.
+      LINKING_OBJECT: /^(?:[بلك]?(?:ذلك|هذا|هذه|تلك)|أن|أنه|أنها|ما)$/u
+      PRONOUN_PLACE: /^(?:عند|لدى|لدي|مع)(?:ي|ه|ها|ك|كم|كما|نا|هم|هما|هن)$/u
+      # "بالبيت", "لبيتنا", "كالأسد": ب, ل or ك on a known or definite word.
+      attachedPreposition:
+        args: "word: string"
+        type: boolean
+        let:
+          rest: '/^[بلك](?<rest>\p{L}{2,})$/u.exec(word)?.groups!.rest'
+        when: rest && !arabicTags(word)
+        return: rest.startsWith("ال") || !!arabicTags(rest) || !!arabicTags(rest.replace(POSSESSIVE, ""))
+        else: "false"
+      # A noun or adjective of the lexicon that is no verb, no definite word and no word in ا or ى.
+      nounLike:
+        args: "s: string | undefined"
+        return: >-
+          !!s &&
+          ((/[mfa]/u.test(arabicTags(s)) && !arabicTags(s).includes("v")) || MASCULINE.has(s)) &&
+          !s.startsWith("ال") &&
+          !/[اى]$/u.test(s)
+      # The last word of a predicate's noun phrase: a construct goes on while its last word is a
+      # bare noun ("في بيت الولد"), up to 4 words after the subject at `i`.
+      constructEnd:
+        args: "list: readonly ArabicToken[], i: number, last: number"
+        type: number
+        return: >-
+          last + 1 < list.length &&
+          last - i < 4 &&
+          adjacentToken(list[last + 1]) &&
+          !/^[وفبلك]{0,2}ال/u.test(list[last].word) &&
+          !POSSESSIVE.test(list[last].word)
+            ? constructEnd(list, i, last + 1)
+            : last
+      # Optional: "كتاب في البيت." -> "في البيت كتاب.": an indefinite noun that opens a short
+      # sentence goes after its prepositional predicate (عندك, or a preposition, separate or
+      # attached, and its noun phrase). A headline keeps this order, so it is advice. "خطوة
+      # بخطوة" is left alone; an adjective only before a likeness ("شجاع كالأسد"). The sentence
+      # ends right after the predicate.
+      indefiniteSubject:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          subject: list[i]
+          dualStem: '/^(?<stem>\p{L}{2,})ان$/u.exec(subject.word)?.groups!.stem'
+          head: list[i + 1]
+          placeHead: PRONOUN_PLACE.test(head.word)
+          last: "placeHead ? i + 1 : constructEnd(list, i, PREDICATE_HEAD.has(head.word) ? i + 2 : i + 1)"
+          tags: arabicTags(subject.word)
+          end: list[last].end
+        when:
+          - i + 1 < list.length
+          - opensSentence(ctx, subject) && ownsAt(ctx, subject.start)
+          - "!FRONTED_OK.has(subject.word)"
+          - nounLike(subject.word) || (dualStem && !arabicTags(subject.word) && nounLike(dualStem))
+          - adjacentToken(head)
+          - placeHead || PREDICATE_HEAD.has(head.word) || attachedPreposition(head.word)
+          - last < list.length && adjacentToken(list[last])
+          - "!list.slice(i + 1, last + 1).some((token) => LINKING_OBJECT.test(token.word))"
+          - head.word.slice(1) !== subject.word
+          - '!(tags.includes("a") && !tags.includes("m") && !head.word.startsWith("ك"))'
+          - '/^(?:[.!\n]|$)/u.test(ctx.text.slice(end, end + 1))'
+        return: >-
+          [
+            {
+              messageKey: "review_msg_arabic_indefinite_subject",
+              range: { start: subject.start, end },
+              alternatives: [`${ctx.text.slice(head.start, end)}${head.gap}${subject.word}`],
+              context: { start: subject.start, end },
+            },
+          ]
+      # قام's forms, and the slot each one fills in a verb's paradigm.
+      QAMA: '["قام", "قامت", "قاموا", "قمت", "قمنا", "قمتم", "قمن", "يقوم", "تقوم", "يقومون", "تقومون", "نقوم", "أقوم", "يقم", "تقم", "نقم", "أقم", "يقوموا", "تقوموا"]'
+      QAMA_SLOT: new Map(QAMA.map((form, slot) => [form, slot] as const))
+      # A sound verb's form in the slot of QAMA, from its past and imperfect stems.
+      slotForm:
+        args: "past: string, present: string, slot: number"
+        let:
+          first: 'present.startsWith("أ") ? "آ" + present.slice(1) : "أ" + present'
+        return: >-
+          [
+            past,
+            past + "ت",
+            past + "وا",
+            past + "ت",
+            past + "نا",
+            past + "تم",
+            past + "ن",
+            "ي" + present,
+            "ت" + present,
+            "ي" + present + "ون",
+            "ت" + present + "ون",
+            "ن" + present,
+            first,
+            "ي" + present,
+            "ت" + present,
+            "ن" + present,
+            first,
+            "ي" + present + "وا",
+            "ت" + present + "وا",
+          ][slot]
+      # Verbal noun -> [past stem, imperfect stem] of a verb with no weak or doubled radical in
+      # the forms built here.
+      VERBAL_NOUNS: >-
+        new Map<string, readonly [string, string]>([
+          ["عمل", ["عمل", "عمل"]],
+          ["أكل", ["أكل", "أكل"]],
+          ["دراسة", ["درس", "درس"]],
+          ["كتابة", ["كتب", "كتب"]],
+          ["شرح", ["شرح", "شرح"]],
+          ["فحص", ["فحص", "فحص"]],
+          ["جمع", ["جمع", "جمع"]],
+          ["بحث", ["بحث", "بحث"]],
+          ["سؤال", ["سأل", "سأل"]],
+          ["تحليل", ["حلل", "حلل"]],
+          ["تنظيم", ["نظم", "نظم"]],
+          ["تطوير", ["طور", "طور"]],
+          ["تصميم", ["صمم", "صمم"]],
+          ["تقديم", ["قدم", "قدم"]],
+          ["تنفيذ", ["نفذ", "نفذ"]],
+          ["تحقيق", ["حقق", "حقق"]],
+          ["تغيير", ["غير", "غير"]],
+          ["تسجيل", ["سجل", "سجل"]],
+          ["تعديل", ["عدل", "عدل"]],
+          ["ترجمة", ["ترجم", "ترجم"]],
+          ["مراجعة", ["راجع", "راجع"]],
+          ["مساعدة", ["ساعد", "ساعد"]],
+          ["مناقشة", ["ناقش", "ناقش"]],
+          ["متابعة", ["تابع", "تابع"]],
+          ["مشاركة", ["شارك", "شارك"]],
+          ["إرسال", ["أرسل", "رسل"]],
+          ["إصلاح", ["أصلح", "صلح"]],
+          ["إعلان", ["أعلن", "علن"]],
+          ["إغلاق", ["أغلق", "غلق"]],
+          ["إنتاج", ["أنتج", "نتج"]],
+          ["استخدام", ["استخدم", "ستخدم"]],
+          ["استقبال", ["استقبل", "ستقبل"]],
+        ])
+      WEAK: /[اويىءئؤأإآ]/u
+      # The patterns of derived verbal nouns: the regex, the radicals that must be sound (weak
+      # radicals change these patterns), and the past and imperfect stems. تفعيل -> فعّل, مفاعلة
+      # -> فاعل, إفعال -> أفعل, افتعال -> افتعل, انفعال -> انفعل, استفعال -> استفعل, تفاعل -> تفاعل.
+      DERIVED_PATTERNS: >-
+        [
+          [/^است(\p{L})(\p{L})ا(\p{L})$/u, [2, 3], "است$1$2$3", "ست$1$2$3"],
+          [/^ان(\p{L})(\p{L})ا(\p{L})$/u, [1, 2, 3], "ان$1$2$3", "ن$1$2$3"],
+          [/^ا(\p{L})ت(\p{L})ا(\p{L})$/u, [1, 2, 3], "ا$1ت$2$3", "$1ت$2$3"],
+          [/^إ(\p{L})(\p{L})ا(\p{L})$/u, [1, 2, 3], "أ$1$2$3", "$1$2$3"],
+          [/^ت(\p{L})(\p{L})ي(\p{L})$/u, [2, 3], "$1$2$3", "$1$2$3"],
+          [/^م(\p{L})ا(\p{L})(\p{L})ة$/u, [1, 2, 3], "$1ا$2$3", "$1ا$2$3"],
+          [/^ت(\p{L})ا(\p{L})(\p{L})$/u, [1, 2, 3], "ت$1ا$2$3", "ت$1ا$2$3"],
+        ] as [RegExp, number[], string, string][]
+      # The verb stems of the verbal noun by pattern `k` of DERIVED_PATTERNS or a later one.
+      derivedFrom:
+        args: "noun: string, k: number"
+        type: readonly [string, string] | null | undefined
+        when: k < DERIVED_PATTERNS.length
+        let:
+          pattern: DERIVED_PATTERNS[k]
+          parts: pattern[0].exec(noun)
+        return: >-
+          parts && pattern[1].every((radical) => !WEAK.test(parts[radical]))
+            ? ([noun.replace(pattern[0], pattern[2]), noun.replace(pattern[0], pattern[3])] as const)
+            : derivedFrom(noun, k + 1)
+      # The verb stems of a verbal noun: a known one, or a derived pattern.
+      derivedStems:
+        args: "noun: string"
+        return: VERBAL_NOUNS.get(noun) ?? derivedFrom(noun, 0)
+      QAMA_WORD: /^(?<pre>[وف]?)(?<future>س?)(?<verb>\p{L}+)$/u
+      # "قام بدراسة الملف" -> "درس الملف": the light verb قام بـ + verbal noun says what the verb
+      # alone says. Only when the noun has its object after it (a definite genitive) or, with the
+      # article, a preposition or the clause end: an adjective on the noun ("بزيارة رسمية") has
+      # no place on the verb.
+      lightVerbs:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          parts: QAMA_WORD.exec(list[i].word)
+          slot: parts && QAMA_SLOT.get(parts.groups!.verb)
+          noun: list[i + 1]
+          nounParts: '/^ب(?<article>ال)?(?<noun>\p{L}+)$/u.exec(noun.word)'
+          stems: nounParts && derivedStems(nounParts.groups!.noun)
+          after: list[i + 2]
+          next: 'after && adjacentToken(after) ? after.word : ""'
+        when:
+          - i + 1 < list.length
+          - slot !== undefined && slot !== null && ownsAt(ctx, list[i].start)
+          - "!(parts!.groups!.future && slot < 7)"
+          - adjacentToken(noun)
+          - stems
+          - 'nounParts.groups!.article ? next === "" || STYLE_PREPOSITIONS.has(next) : next.startsWith("ال")'
+        return: >-
+          [
+            {
+              messageKey: "review_msg_style_phrasing",
+              range: { start: list[i].start, end: noun.end },
+              alternatives: [parts!.groups!.pre + parts!.groups!.future + slotForm(stems[0], stems[1], slot)],
+              context: { start: list[i].start, end: after?.end ?? noun.end },
+            },
+          ]
+      RELATIVE: /^(?:الذي|التي|الذين|اللذان|اللتان|اللذين|اللتين|اللواتي|اللاتي)$/u
+      # "السياسة الجديدة والتي ستطبق" -> "التي": a relative pronoun right after its antecedent
+      # takes no "و" (a calque of ", which"). A second relative clause joined to a first one keeps
+      # it.
+      andRelatives:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          word: list[i].word
+          sentence: ctx.text.slice(Math.max(0, list[i].start - 200), list[i].start)
+          clause: sentence.slice(sentence.search(/[^.!؟?\n]*$/u))
+        when:
+          - i >= 1
+          - word.startsWith("و") && RELATIVE.test(word.slice(1)) && ownsAt(ctx, list[i].start)
+          - '/^،?[ \t\u00a0]*$/u.test(list[i].gap) && /^(?:[وفبلك]{0,2})ال/u.test(list[i - 1].word)'
+          - '!/(?<![\p{L}])(?:و)?(?:الذي|التي|الذين|اللذان|اللتان|اللواتي|اللاتي)(?![\p{L}])/u.test(clause)'
+        return: >-
+          [
+            {
+              messageKey: "review_msg_style_phrasing",
+              range: { start: list[i].start, end: list[i].start + 1 },
+              alternatives: [""],
+              context: { start: list[i - 1].start, end: list[i].end },
+            },
+          ]
+      # Feminine elatives: "المرتبة العليا", "الحرب الكبرى".
+      FEMININE_ELATIVE: 'new Map([["أعلى", "عليا"], ["أدنى", "دنيا"], ["أكبر", "كبرى"], ["أصغر", "صغرى"], ["أفضل", "فضلى"], ["أعظم", "عظمى"], ["أقصى", "قصوى"], ["أوسط", "وسطى"], ["أحسن", "حسنى"]])'
+      # A definite plural of things on فعائل/مفاعل/فواعل ("النتائج", "المدارس", "الشوارع"): it
+      # agrees as a feminine singular ("النتائج الفضلى"). Not a nisba ("الصحافي").
+      BROKEN_PLURAL: '/^(?:[وفبلك]{0,2})ال\p{L}{2}ا\p{L}(?!ي)\p{L}$/u'
+      # أفعال ("الأعداد", "الأطفال"): things or people.
+      PLURAL_AF3AL: '/^(?:[وفبلك]{0,2})الأ\p{L}{2}ا\p{L}$/u'
+      # The noun before an elative opens its phrase: no word, a preposition or a definite word
+      # comes before it. The feminine noun must not close an idafa ("مستوى الجودة الأعلى" is the
+      # level's).
+      elativeHeadOpens:
+        args: "list: readonly ArabicToken[], i: number"
+        let:
+          before: 'i > 1 && adjacentToken(list[i - 1]) ? list[i - 2].word : ""'
+        return: "!before || STYLE_PREPOSITIONS.has(before) || /^(?:[وفبلك]{0,2})ال/u.test(before)"
+      # "الأعداد الأكبر من 10": a number after من compares, it is no part. Only after a plural:
+      # "الجزء الأكبر من 2020" is a part of the year. أفعال may name people: "الأطفال الذين هم
+      # أكبر من عشر سنين".
+      elativeComparison:
+        args: "list: readonly ArabicToken[], i: number, elative: string, previous: string, next: ArabicToken"
+        type: ArabicFinding[] | null
+        let:
+          people: PLURAL_AF3AL.test(previous)
+        when: people || /^(?:[وفبلك]{0,2})ال\p{L}{2,}ات$/u.test(previous) || BROKEN_PLURAL.test(previous)
+        return: >-
+          [
+            {
+              messageKey: "review_msg_style_phrasing",
+              range: { start: list[i].start, end: list[i].end },
+              alternatives: [`التي هي ${elative}`, ...(people ? [`الذين هم ${elative}`] : [])],
+              ...(people ? { requiresChoice: true as const } : {}),
+              context: { start: list[i].start, end: next.end },
+            },
+          ]
+      # An elative with ال agrees with a feminine noun: "هي الأكبر بين القارات" -> "هي الكبرى", a
+      # feminine dual ("الدولتان الأعظم" -> "العظميان", "المدينتين الأكبر" -> "الكبريين"), a
+      # feminine singular or a broken plural of things ("المرتبة الأعلى" -> "المرتبة العليا").
+      elativeAgreement:
+        args: "list: readonly ArabicToken[], i: number, elative: string, pre: string, previous: string"
+        type: ArabicFinding[] | null
+        let:
+          feminine: FEMININE_ELATIVE.get(elative)
+          dualParts: '/^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,})ت(?<ending>ان|ين)$/u.exec(previous)?.groups'
+          noun: >-
+            /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,}ة)$/u.exec(previous)?.groups!.stem ??
+            (BROKEN_PLURAL.test(previous) ? previous : undefined)
+        return: >-
+          feminine && !pre && previous === "هي"
+            ? [
+                {
+                  messageKey: "review_msg_style_phrasing",
+                  range: { start: list[i].start, end: list[i].end },
+                  alternatives: ["ال" + feminine],
+                },
+              ]
+            : feminine?.endsWith("ى") && !pre && dualParts && arabicTags(`${dualParts.stem}ة`).includes("f")
+              ? elativeHeadOpens(list, i)
+                ? [
+                    {
+                      messageKey: "review_msg_style_phrasing",
+                      range: { start: list[i].start, end: list[i].end },
+                      alternatives: [`ال${feminine.slice(0, -1)}ي${dualParts.ending}`],
+                      context: { start: list[i - 1].start, end: list[i].end },
+                    },
+                  ]
+                : []
+              : feminine && !pre && noun && !MASCULINE_IN_TA.has(noun) && elativeHeadOpens(list, i)
+                ? [
+                    {
+                      messageKey: "review_msg_style_phrasing",
+                      range: { start: list[i].start, end: list[i].end },
+                      alternatives: ["ال" + feminine],
+                      context: { start: list[i - 1].start, end: list[i].end },
+                    },
+                  ]
+                : []
+      # "والأدهى من ذلك" -> "وأدهى من ذلك": an elative with ال takes no من of comparison
+      # (partitive "الجزء الأكبر من الوقت" after a noun is fine).
+      elatives:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          parts: '/^(?<pre>[وف]?)ال(?<elative>\p{L}+)$/u.exec(list[i].word)'
+          elative: parts?.groups!.elative
+          pre: parts.groups!.pre
+          previous: 'i > 0 && adjacentToken(list[i]) ? list[i - 1].word : ""'
+          next: list[i + 1]
+          afterMin: list[i + 2]?.word ?? ""
+          comparative: ELATIVES.has(elative) && next?.word === "من" && adjacentToken(next)
+        when:
+          - elative && (ELATIVES.has(elative) || FEMININE_ELATIVE.has(elative))
+          - ownsAt(ctx, list[i].start)
+        return: >-
+          comparative && !/^(?:[وفبلك]{0,2})ال/u.test(previous) && !/^(?:بين|بينها|بينهم|نوعه|نوعها|نوعهم)$/u.test(afterMin)
+            ? [
+                {
+                  messageKey: "review_msg_style_phrasing",
+                  range: { start: list[i].start, end: list[i].end },
+                  alternatives: [pre + elative],
+                  context: { start: list[i].start, end: next.end },
+                },
+              ]
+            : ((comparative && !pre && /^[ \t\u00a0]+[0-9٠-٩]/u.test(ctx.text.slice(next.end, next.end + 8))
+                ? elativeComparison(list, i, elative, previous, next)
+                : null) ?? elativeAgreement(list, i, elative, pre, previous))
+      WORK: /^[وف]?(?:عمل|عملت|عملوا|يعمل|تعمل|يعملون|نعمل|أعمل|اشتغل|اشتغلت|يشتغل|تشتغل)$/u
+      # The role after a verb of work, at `j` (one or two words after it), with كـ.
+      roleAt:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number, j: number"
+        type: ArabicFinding[] | null
+        let:
+          role: list[j]
+        when: j <= i + 2 && role && adjacentToken(role)
+        return: >-
+          /^ك(?!ال)\p{L}{3,}$/u.test(role.word) && ownsAt(ctx, role.start)
+            ? [
+                {
+                  messageKey: "review_msg_style_phrasing",
+                  range: { start: role.start, end: role.start + 1 },
+                  alternatives: ["بصفة "],
+                  context: { start: list[i].start, end: role.end },
+                },
+              ]
+            : role.word.startsWith("ك")
+              ? null
+              : roleAt(ctx, list, i, j + 1)
+      # "يعمل كمدير" -> "يعمل بصفة مدير": كـ compares; a role is بصفة.
+      asRole:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        when: i + 1 < list.length && WORK.test(list[i].word)
+        return: roleAt(ctx, list, i, i + 1)
+      # "سيما الراتب" -> "لا سيما الراتب": سيّما is not used without لا.
+      laSiyyama:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          token: list[i]
+        when:
+          - /^[وف]?سيما$/u.test(token.word) && ownsAt(ctx, token.start)
+          - "!(i > 0 && adjacentToken(token) && /^[وف]?لا$/u.test(list[i - 1].word))"
+        return: >-
+          [
+            {
+              messageKey: "review_msg_style_phrasing",
+              range: { start: token.end - 4, end: token.end },
+              alternatives: ["لا سيما"],
+              context: { start: token.start, end: token.end },
+            },
+          ]
+      # "ل" + a word: "الكتاب" -> "للكتاب", "اللغة" -> "للغة".
+      withLam:
+        args: "word: string"
+        return: 'word.startsWith("الل") ? "ل" + word.slice(2) : word.startsWith("ال") ? "ل" + word.slice(1) : "ل" + word'
+      # A style finding with one fix.
+      styleFinding:
+        args: "start: number, end: number, fixed: string"
+        type: ArabicFinding
+        return: '{ messageKey: "review_msg_style_phrasing", range: { start, end }, alternatives: [fixed] }'
+      # A style finding when the chunk owns its start.
+      ownedStyle:
+        args: "ctx: DetectContext, start: number, end: number, fixed: string"
+        type: ArabicFinding[]
+        return: "ownsAt(ctx, start) ? [styleFinding(start, end, fixed)] : []"
+      # "القيام بدراسة الملف" -> "دراسة الملف": the verbal noun alone names the act. Only for a
+      # noun that is itself a verbal noun ("القيام بالواجب" keeps its verb).
+      doingTheAct:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          parts: "/^(?<conj>[وف]?)(?<prep>بال|لل|ال)قيام$/u.exec(list[i].word)"
+          act: list[i + 1]
+          actParts: '/^ب(?<article>ال)?(?<noun>\p{L}{3,})$/u.exec(act.word)'
+          noun: actParts.groups!.noun
+          phrase: (actParts.groups!.article ?? "") + noun
+          prep: parts.groups!.prep
+        when:
+          - i + 1 < list.length
+          - parts && actParts && adjacentToken(act) && ownsAt(ctx, list[i].start)
+          - derivedStems(noun) || PLAIN_VERBAL_NOUNS.has(noun)
+        return: '[styleFinding(list[i].start, act.end, parts.groups!.conj + (prep === "بال" ? "ب" + phrase : prep === "لل" ? withLam(phrase) : phrase))]'
+      # "بشكل كبير" -> "كثيرا": adverbs for the commonest adjectives.
+      ADVERBS: 'new Map([["عام", "عموما"], ["خاص", "خصوصا"], ["كبير", "كثيرا"], ["جيد", "جيدا"], ["قوي", "بقوة"], ["سريع", "بسرعة"], ["دائم", "دائما"], ["مستمر", "باستمرار"], ["مباشر", "مباشرة"], ["واضح", "بوضوح"], ["كامل", "كاملا"]])'
+      # Adjective shapes: participles (م-), فاعل, فعيل, فعول.
+      ADJECTIVE_SHAPE: '/^(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[يو]\p{L})$/u'
+      # "بشكل مناسب" -> "على نحو مناسب", "بصورة يومية" -> "يوميا", "بأسلوب عام" -> "عموما": a calque
+      # of "in a ... way"; a relational adjective makes an adverb, others take على نحو.
+      inAWay:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          parts: "/^(?<pre>[وف]?)ب(?<way>شكل|صورة|أسلوب|طريقة)$/u.exec(list[i].word)"
+          next: list[i + 1]
+          feminineWay: parts.groups!.way.endsWith("ة")
+          adj: "feminineWay ? next.word.slice(0, -1) : next.word"
+          fixed: >-
+            ADVERBS.get(adj) ??
+            (/^\p{L}{2,}ي$/u.test(adj) ? adj + "ا" : ADJECTIVE_SHAPE.test(adj) ? `على نحو ${adj}` : undefined)
+        when:
+          - i + 1 < list.length
+          - parts && adjacentToken(next) && ownsAt(ctx, list[i].start)
+          - 'feminineWay ? next.word.endsWith("ة") : !next.word.endsWith("ة")'
+          - '!adj.startsWith("ال")'
+          - fixed
+        return: "[styleFinding(list[i].start, next.end, parts.groups!.pre + fixed)]"
+      # Durations and their accusative: "لأيام" -> "أياما".
+      DURATIONS: >-
+        new Map([
+          ..."ساعة ساعات ساعتين يومين أسابيع أسبوعين شهرين سنة سنوات سنين سنتين عامين دقيقة دقائق دقيقتين فترة مدة لحظة لحظات"
+            .split(" ")
+            .map((word) => [word, word] as const),
+          ...["يوم", "أيام", "أسبوع", "شهر", "أشهر", "شهور", "عام", "أعوام", "قرن", "قرون"].map((word) => [word, word + "ا"] as const),
+        ])
+      SINGULAR_DURATION: /^(?:ساعة|يوم|أسبوع|شهر|سنة|عام|دقيقة|لحظة|قرن)$/u
+      DURATION_ADJECTIVE: /^(?:واحد|واحدة|كامل|كاملة|طويل|طويلة|قصير|قصيرة|أو)$/u
+      # A finite verb by its shape: a past with a subject ending, or an imperfect.
+      VERB_LIKE: '/^[وف]?(?:س?[يتنأ]\p{L}{2,}(?:ون)?|\p{L}{2,}(?<!ا)(?:ت|تم|نا|وا))$/u'
+      # "عملت لساعات" -> "عملت ساعات": a duration after a verb is an adverb in the accusative,
+      # with no لـ. Not after a noun ("خطة لعامين"), nor before a genitive ("ليوم الجمعة").
+      forADuration:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          parts: '/^(?<pre>[وف]?)ل(?<noun>\p{L}+)$/u.exec(list[i].word)'
+          fixed: parts && DURATIONS.get(parts.groups!.noun)
+          next: 'list[i + 1] && adjacentToken(list[i + 1]) ? list[i + 1].word : ""'
+          previous: list[i - 1].word
+        when:
+          - i >= 1
+          - fixed && adjacentToken(list[i]) && ownsAt(ctx, list[i].start)
+          - '!next.startsWith("ال")'
+          - "!(SINGULAR_DURATION.test(parts.groups!.noun) && next && !DURATION_ADJECTIVE.test(next))"
+          - >-
+            (VERB_LIKE.test(previous) && !previous.endsWith("ة")) ||
+            (/^ال\p{L}+$/u.test(previous) && i > 1 && adjacentToken(list[i - 1]) && VERB_LIKE.test(list[i - 2].word))
+        return: "[styleFinding(list[i].start, list[i].end, parts.groups!.pre + fixed)]"
+      NOT_LAM_PREPOSITION: '/^(?:لا|لم|لن|لكن\p{L}*|لكي|لدى|لدي\p{L}*|لأن\p{L}*|لما|لقد|لعل|لو|ليس\p{L}*|ليت|لذلك|لهذا|لهذه|لي)$/u'
+      MA_PRONOUNS: 'new Map([["معه", "به"], ["معها", "بها"], ["معهم", "بهم"], ["معي", "بي"], ["معنا", "بنا"], ["معك", "بك"], ["معكم", "بكم"]])'
+      LI_PRONOUNS: 'new Map([["له", "فيه"], ["لها", "فيها"], ["لهم", "فيهم"]])'
+      WISH: /^[وفبل]?(?:ال|لل)?رغب(?:ة|ات|ته|تها|تهم|تي|تنا|تك|تكم)$/u
+      RELATION: /^[وفبل]?(?:ال|لل)?علاق(?:ة|ات|ته|تها|تهم|تي|تنا|تك|تكم|اته|اتها|اتهم|اتنا)$/u
+      # Prepositions after nouns: a wish is "في" ("رغبة في الكتابة"), a relation "بـ" ("علاقة
+      # بابنه"), caution "لـ" ("تحسبا لكل طارئ"). One feminine adjective may stand between the
+      # noun and its preposition ("رغبة شديدة لـ", "علاقة وثيقة مع").
+      nounPrepositions:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          head: list[i].word
+          j: '/^[^ل]\p{L}{2,}ة$/u.test(list[i + 1].word) && adjacentToken(list[i + 2]) ? i + 2 : i + 1'
+          word: list[j].word
+        when:
+          - i + 2 < list.length
+          - adjacentToken(list[i + 1])
+        return: >-
+          WISH.test(head)
+            ? /^ل\p{L}{2,}$/u.test(word) && !NOT_LAM_PREPOSITION.test(word)
+              ? ownedStyle(ctx, list[j].start, list[j].end, LI_PRONOUNS.get(word) ?? (word.startsWith("لل") ? "في ال" + word.slice(2) : "في " + word.slice(1)))
+              : []
+            : RELATION.test(head)
+              ? MA_PRONOUNS.has(word)
+                ? ownedStyle(ctx, list[j].start, list[j].end, MA_PRONOUNS.get(word)!)
+                : word === "مع" && list[j + 1] && adjacentToken(list[j + 1])
+                  ? ownedStyle(ctx, list[j].start, list[j + 1].end, "ب" + list[j + 1].word)
+                  : []
+              : /^و?تحسبا$/u.test(head) && list[i + 1].word === "من" && adjacentToken(list[i + 2])
+                ? ownedStyle(ctx, list[i + 1].start, list[i + 2].end, withLam(list[i + 2].word))
+                : []
+      # "غير بالغ" (not adult), "غير بالضرورة" (not necessarily): adverbs, not an object.
+      NOT_AFTER_GHAYR: /^بال(?:غ|ضرورة|كامل|مرة|تأكيد|طبع)/u
+      # "لا تستعن سوى بالله" -> "بسوى الله", "غير بالله" -> "بغير الله": the preposition goes before
+      # the word of exception (for غير only بـ: "غير بالغ" is "not adult").
+      exceptPreposition:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          word: list[i].word
+          next: list[i + 1].word
+          attached: '/^(?<p>[بل])(?<rest>ال\p{L}{2,})$/u.exec(next.startsWith("لل") ? "لال" + next.slice(2) : next)'
+          fixed: "SEPARATE_PREPOSITIONS.has(next) ? `${next} ${word}` : attached && `${attached.groups!.p}${word} ${attached.groups!.rest}`"
+        when:
+          - i + 1 < list.length
+          - (word === "سوى" || word === "غير") && adjacentToken(list[i + 1]) && ownsAt(ctx, list[i].start)
+          - '!(word === "غير" && (attached?.groups!.p !== "ب" || NOT_AFTER_GHAYR.test(next)))'
+          - fixed
+        return: "[styleFinding(list[i].start, list[i + 1].end, fixed)]"
+      CLAUSE_BREAK: /[.،,؛;!؟?:\n]/u
+      STILL_PAST: /^(?:زال|زلت|زالت|زلنا|زالوا|دام|دمت|برح|انفك)$/u
+      # أبدًا after a past negation, up to 5 words back in the clause (k is the word to read).
+      neverPast:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number, k: number"
+        type: ArabicFinding[]
+        when: k >= 0 && k >= i - 5 && !CLAUSE_BREAK.test(list[k + 1].gap) && !/^[وف]?(?:لن|لا)$/u.test(list[k].word)
+        return: >-
+          list[k].word === "لم" || (list[k].word === "ما" && !STILL_PAST.test(list[k + 1].word))
+            ? [styleFinding(list[i].start, list[i].end + (ctx.text[list[i].end] === "\u064B" ? 1 : 0), "قط")]
+            : neverPast(ctx, list, i, k - 1)
+        else: "[]"
+      # "لم أره أبدا" -> "لم أره قط": أبدًا is for the future, قطّ for the past; "أثناء العمل" ->
+      # "في أثناء العمل".
+      timeAdverbs:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[]
+        let:
+          word: list[i].word
+          during: "/^(?<pre>[وف]?)أثناء$/u.exec(word)"
+        return: >-
+          [
+            ...(word === "أبدا" && ownsAt(ctx, list[i].start) ? neverPast(ctx, list, i, i - 1) : []),
+            ...(during &&
+            ownsAt(ctx, list[i].start) &&
+            !/^[وف]?(?:في|من)$/u.test(i > 0 && !CLAUSE_BREAK.test(list[i].gap) ? list[i - 1].word : "")
+              ? [styleFinding(list[i].start, list[i].end, during.groups!.pre + "في أثناء")]
+              : []),
+          ]
+      # The second "وأما أن" of an either-or, from `k` to 13 words after the first, in its
+      # sentence, or -1.
+      secondEither:
+        args: "list: readonly ArabicToken[], i: number, k: number"
+        type: number
+        return: >-
+          k + 1 < list.length && k < i + 14 && !/[.!؟?\n]/u.test(list[k].gap)
+            ? list[k].word === "وأما" && list[k + 1].word === "أن"
+              ? k
+              : secondEither(list, i, k + 1)
+            : -1
+      # "فأما أن تحفظه وأما أن تضيعه" -> "فإما ... وإما": the choice is إمّا.
+      eitherOr:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          first: "/^(?<pre>[وف]?)أما$/u.exec(list[i].word)"
+          k: secondEither(list, i, i + 2)
+        when:
+          - i + 1 < list.length
+          - first && list[i + 1].word === "أن" && adjacentToken(list[i + 1])
+          - k >= 0
+        return: >-
+          [
+            ...ownedStyle(ctx, list[i].start, list[i].end, first.groups!.pre + "إما"),
+            ...ownedStyle(ctx, list[k].start, list[k].end, "وإما"),
+          ]
+      # هامّ is "worrying": an important matter is مهمّ. A bare هام is also "wandered", so only as
+      # a predicate closing the clause ("الأمر هام", "القرار هام جدا").
+      HAMM: /^(?<pre>[وف]?)هام(?<f>ة?)$/u
+      important:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          parts: HAMM.exec(list[i].word)
+          next: list[i + 1]
+        when:
+          - i >= 1
+          - parts && adjacentToken(list[i]) && /^[وف]?ال\p{L}{2,}$/u.test(list[i - 1].word)
+          - >-
+            (!next ||
+              CLAUSE_BREAK.test(ctx.text.slice(list[i].end, next.start)) ||
+              /^(?:جدا|للغاية|لنا|لي|لك|لكم|له|لها|لهم)$/u.test(next.word)) &&
+            ownsAt(ctx, list[i].start)
+        return: "[styleFinding(list[i].start, list[i].end, `${parts.groups!.pre}مهم${parts.groups!.f}`)]"
+      # Verbs that take their objects directly: "أعطى صاحبه كتابا", "كلفه العمل" (not the bare
+      # "أصحبه", also "I accompany him").
+      DIRECT_LI: /^[وف]?(?:أعطى|أعطت|أعطوا|يعطي|تعطي|يعطون|نعطي)$/u
+      DIRECT_BI: /^[وف]?(?:كلف|كلفت|كلفوا|يكلف|تكلف|يكلفون|غرم|غرمت|يغرم|أصحبت|أصحبوا)(?:ه|ها|هم|ني|نا|ك|كم)$/u
+      BI_PRONOUN: 'new Map([["به", "إياه"], ["بها", "إياها"], ["بهم", "إياهم"]])'
+      # One trades in (في) goods. Not the bare "تاجر", also "a merchant".
+      TRADE: /^[وف]?(?:تاجرت|تاجروا|يتاجر|تتاجر|يتاجرون|نتاجر|أتاجر)$/u
+      # "أعطى لصاحبه كتابا" -> "أعطى صاحبه", "كلفه بالعمل" -> "كلفه العمل", "كلفه به" -> "كلفه
+      # إياه", "يتاجر بالقطن" -> "يتاجر في القطن".
+      directObjects:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          object: list[i + 1]
+          word: object.word
+          fixed: >-
+            DIRECT_LI.test(list[i].word) && /^ل\p{L}{3,}$/u.test(word) && !NOT_LAM_PREPOSITION.test(word)
+              ? word.startsWith("لل")
+                ? "ال" + word.slice(2)
+                : word.slice(1)
+              : DIRECT_BI.test(list[i].word) && /^ب(?:ال\p{L}{2,}|\p{L}{3,}ة)$/u.test(word)
+                ? word.slice(1)
+                : DIRECT_BI.test(list[i].word) && BI_PRONOUN.has(word)
+                  ? BI_PRONOUN.get(word)!
+                  : TRADE.test(list[i].word) && /^ب\p{L}{3,}$/u.test(word)
+                    ? "في " + word.slice(1)
+                    : undefined
+        when:
+          - i + 1 < list.length
+          - adjacentToken(object) && ownsAt(ctx, object.start)
+          - fixed !== undefined
+        return: "[styleFinding(object.start, object.end, fixed)]"
+      # "الجهاز عبارة عن صندوق" -> "الجهاز صندوق": عبارة عن adds nothing to the predicate. After
+      # هو/هي the table rows keep the pronoun.
+      amountsTo:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        when:
+          - i + 2 < list.length
+          - list[i].word === "عبارة" && list[i + 1].word === "عن" && adjacentToken(list[i + 1])
+          - adjacentToken(list[i + 2]) && ownsAt(ctx, list[i].start)
+          - "!(i > 0 && /^(?:هو|هي|هم)$/u.test(list[i - 1].word))"
+        return: '[styleFinding(list[i].start, list[i + 2].start, "")]'
+      # Verbs of mutual fit: "يتناسب مع رأيه" (or "يتناسب هو ورأيه"), not "يتناسب ورأيه".
+      MUTUAL: /^[وف]?(?:[يت](?:تناسب|تنافى|تلاءم|تلائم|تعارض|تناقض|تطابق|توافق|تكامل|تساوى)(?:ون|ان)?|تناسبت|تنافت|تعارضت|تناقضت|تطابقت|توافقت)$/u
+      # Words whose own first letter is و: "لا يتناسب وضعه مع دخله" (his situation).
+      WAW_ROOT: /^و(?:ال)?(?:ضع|قت|جه|جو|زن|صف|ظيف|عد|اقع|سع|طن|حد|لد|قع|سائل|سيل|ثيق|صول|قوف|جب|عي|زير|زار|رق|رد|فق|فر|سط|حش|هم|راث|ريث|صي)/u
+      # "يتناسب ورأيه" -> "يتناسب مع رأيه": with no pronoun between, the partner takes مع. "لا
+      # يتناسب ... مع": the partner comes later, this is the subject.
+      mutualWaw:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          partner: list[i + 1]
+          parts: '/^و(?<rest>\p{L}{2,})$/u.exec(partner.word)'
+        when:
+          - i + 1 < list.length
+          - MUTUAL.test(list[i].word) && adjacentToken(partner) && ownsAt(ctx, partner.start)
+          - parts && !WAW_ROOT.test(partner.word)
+          - '!list.slice(i + 2, i + 5).some((token) => /^مع\p{L}*$/u.test(token.word))'
+        return: "[styleFinding(partner.start, partner.end, `مع ${parts.groups!.rest}`)]"
+      NEGATION: /^[وف]?(?:ما|لا|لم|لن|ليس|ليست)$/u
+      # After و, a word that is no verb: a pronoun, قد of a state, a preposition with a pronoun,
+      # or a verb whose root starts with و ("إلا وجدته").
+      NOT_AFTER_ILLA_WAW: '/^و(?:هو|هي|هم|هن|أنا|نحن|أنت|أنتم|قد|لكن|لا|في\p{L}*|ل(?:ه|ها|هم|هما|نا|ي|ك|كم)|ب(?:ه|ها|هم)|علي\p{L}*|من\p{L}*|عند\p{L}*|مع\p{L}*|ال\p{L}*)$|^و(?:جد|صل|قع|ضع|قف|لد|عد|جب|ثق|رد|سع|هب|زن|فى|كل|دع|صف|لي|عى|قى|رث)/u'
+      # A negation in the clause before the exception, up to 6 words back (j is the word to read).
+      negatedBefore:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number, j: number"
+        type: boolean
+        return: >-
+          j >= Math.max(0, i - 6) &&
+          !CLAUSE_BREAK.test(ctx.text.slice(list[j].end, list[j + 1].start)) &&
+          (NEGATION.test(list[j].word) || negatedBefore(ctx, list, i, j - 1))
+      # "ما تحدث إلا وقال خيرا" -> "إلا قال": after an exception the verb takes no و.
+      exceptAnd:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          verb: list[i + 1]
+        when:
+          - i >= 1 && i + 1 < list.length
+          - list[i].word === "إلا" && adjacentToken(verb) && ownsAt(ctx, verb.start)
+          - '/^و\p{L}{3,6}$/u.test(verb.word) && !NOT_AFTER_ILLA_WAW.test(verb.word)'
+          - negatedBefore(ctx, list, i, i - 1)
+        return: '[styleFinding(verb.start, verb.start + 1, "")]'
+      # "نحن كمعلمين" -> "نحن المعلمين": "we, the teachers" is the specifying accusative.
+      weAs:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          group: list[i + 1]
+          parts: '/^ك(?<who>م\p{L}{3,}(?:ين|ون)|عرب|بشر)$/u.exec(group.word)'
+        when:
+          - i + 1 < list.length
+          - /^[وف]?نحن$/u.test(list[i].word) && adjacentToken(group) && ownsAt(ctx, group.start)
+          - parts
+        return: '[styleFinding(group.start, group.end, "ال" + parts.groups!.who)]'
+      # "بين ما كنت عائدا" at a sentence start -> "بينما" (while), not "between what". "بين ما كان
+      # وما سيكون": between the two.
+      whileJoined:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          leadStart: Math.max(0, list[i].start - 40)
+          lead: ctx.text.slice(leadStart, list[i].start)
+          clause: list.slice(i + 3, i + 10)
+          end: clause.findIndex((token) => CLAUSE_BREAK.test(token.gap))
+        when:
+          - i + 2 < list.length
+          - list[i].word === "بين" && list[i + 1].word === "ما" && adjacentToken(list[i + 1])
+          - '/(?:[.!؟?\n]|^)[^\p{L}\p{N}]*$/u.test(lead) && !(leadStart > 0 && !/[.!؟?\n]/u.test(lead))'
+          - /^(?:كان|كانت|كنت|كنا|كانوا|كنتم)$/u.test(list[i + 2].word)
+          - '!(end < 0 ? clause : clause.slice(0, end)).some((token) => token.word === "وما")'
+          - ownsAt(ctx, list[i].start)
+        return: '[styleFinding(list[i].start, list[i + 1].end, "بينما")]'
+      LIES: /^[وف]?(?:يقع|تقع|وقع|وقعت|يمتد|تمتد|امتد|امتدت|يبعد|تبعد|يقيم|تقيم|أقام|أقامت)$/u
+      COMPASS: /^(?:شمالي|جنوبي|شرقي|غربي)$/u
+      # "تقع دمشق جنوبي حلب" -> "جنوب حلب": the place word is the adverb; the -ي adjective names a
+      # part ("في جنوبي لبنان" is left alone).
+      compassAdverb:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        let:
+          place: list[i + 1]
+        when:
+          - i >= 1 && i + 1 < list.length
+          - COMPASS.test(list[i].word) && adjacentToken(list[i]) && adjacentToken(place)
+          - '!place.word.startsWith("ال") && ownsAt(ctx, list[i].start)'
+          - (LIES.test(list[i - 1].word) || (i > 1 && LIES.test(list[i - 2].word))) && !STYLE_PREPOSITIONS.has(list[i - 1].word)
+        return: "[styleFinding(list[i].start, list[i].end, list[i].word.slice(0, -1))]"
+      # The forms of a sound verb (by its past and imperfect stems) and their replacements, by
+      # the slots of QAMA. A later slot of the same form wins. "تتعطش" -> "تعطش" would land on the
+      # typed past "تعطش": such a form is left out (DROPPED keeps the forms left out so far).
+      verbForms:
+        args: "past: string, present: string, fixPast: string, fixPresent: string"
+        let:
+          seen: new Map(QAMA.map((_, slot) => [slotForm(past, present, slot), slotForm(fixPast, fixPresent, slot)] as const))
+          dropped: new Set<string>()
+        return: >-
+          new Map(
+            [...seen].filter(
+              ([typed, fixed]) => !(fixed !== typed && seen.has(fixed) && !dropped.has(fixed) && dropped.add(typed)),
+            ),
+          )
+      # Optional "say, don't say" advice from Arabic usage guides: a modern verb sense careful
+      # writers replace with the classical one. The adjacent forms are phrase rows; these entries
+      # cover a verb split from its confirming word, with the subject or a word between them:
+      # "استقل الوزير السيارة", "فتحت الشرطة النار". "تمادى الطالب على زميله": against a person
+      # it is تطاول على.
+      GAPPED: >-
+        [
+          [verbForms("استقل", "ستقل", "ركب", "ركب"), /^(?:ال)?(?:سيار|قطار|طائر|حافل|سفين)\p{L}*$/u],
+          [verbForms("فتح", "فتح", "أطلق", "طلق"), /^(?:النار|الرصاص)$/u],
+          [verbForms("تستر", "تستر", "ستر", "ستر"), /^على\p{L}*$/u],
+          [verbForms("صادق", "صادق", "صدق", "صدق"), /^على\p{L}*$/u],
+          [verbForms("افتقد", "فتقد", "افتقر", "فتقر"), /^إلى$/u],
+          [
+            new Map([
+              ["تمادى", "تطاول"],
+              ["تمادت", "تطاولت"],
+              ["تمادوا", "تطاولوا"],
+              ["يتمادى", "يتطاول"],
+              ["تتمادى", "تتطاول"],
+              ["يتمادون", "يتطاولون"],
+            ]),
+            /^على\p{L}*$/u,
+          ],
+        ] as [ReadonlyMap<string, string>, RegExp][]
+      # A preposition between them opens its own phrase: "تمادى في الكذب على الناس".
+      GAP_PREPOSITION: /^(?:في|على|إلى|من|عن|مع|ب\p{L}+|ل\p{L}+)$/u
+      SPACES: /^[ \t\u00a0]+$/u
+      # The confirming word of a gapped verb at `k` (two or three words after the verb at `i`,
+      # with only spaces between), or -1.
+      gappedTarget:
+        args: "list: readonly ArabicToken[], i: number, target: RegExp, k: number"
+        type: number
+        return: >-
+          k <= i + 3 && k < list.length && SPACES.test(list[k].gap) && SPACES.test(list[k - 1].gap) && !GAP_PREPOSITION.test(list[k - 1].word)
+            ? target.test(list[k].word)
+              ? k
+              : gappedTarget(list, i, target, k + 1)
+            : -1
+      # A verb of one GAPPED entry ("فتحت" is a verb of its own; "وفتحت" carries و): the verb
+      # gets the replacement.
+      gappedEntry:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number, verbs: ReadonlyMap<string, string>, target: RegExp"
+        type: ArabicFinding[]
+        let:
+          word: list[i].word
+          pre: 'verbs.has(word) || !/^[وف]/u.test(word) ? "" : word[0]'
+          fixed: verbs.get(word.slice(pre.length))
+        when:
+          - fixed
+          - gappedTarget(list, i, target, i + 2) >= 0 && ownsAt(ctx, list[i].start)
+        return: '[{ messageKey: "review_msg_style_phrasing", range: { start: list[i].start, end: list[i].end }, alternatives: [pre + fixed] }]'
+        else: "[]"
+      # A verb from GAPPED, one or two words, then its confirming word, with only spaces between.
+      gappedUsage:
+        args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
+        type: ArabicFinding[] | null
+        when: i + 2 < list.length
+        return: "GAPPED.flatMap(([verbs, target]) => gappedEntry(ctx, list, i, verbs, target))"
     frames:
       # Optional: "المرأتان ذاتا مكانة" -> "ذواتا".
       - regex: "{{START}}ذاتا{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: dualPossessor
+        return: walkTokens(m, ctx, frame, dualPossessor)
       # Optional: "هذا قميص قديمة.": an indefinite adjective after an indefinite noun. Every word
       # can be the noun.
       - regex: "{{WORD}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: indefiniteAdjective
+        return: walkTokens(m, ctx, frame, indefiniteAdjective)
       # Optional: "هذا سلامة", "تلك سلام": a demonstrative before an indefinite noun.
       - regex: "{{START}}[وف]?(?:هذا|هذه|ذلك|تلك){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: demonstrativePredicate
+        return: walkTokens(m, ctx, frame, demonstrativePredicate)
       # Optional: "كتاب في البيت." -> "في البيت كتاب.". Every word that opens a sentence can be
       # the subject.
       - regex: "{{WORD}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: indefiniteSubject
-      # The style walkers of review/arabic/styleFrames.ts.
+        return: walkTokens(m, ctx, frame, indefiniteSubject)
       # "قام بدراسة الملف" -> "درس الملف": a form of قام (with و, ف or س).
       - regex: "{{START}}[وف]?س?(?:{{QAMA}}){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: lightVerbs
+        return: walkTokens(m, ctx, frame, lightVerbs)
       # "السياسة الجديدة والتي ستطبق" -> "التي".
       - regex: "{{START}}و(?:الذي|التي|الذين|اللذان|اللتان|اللذين|اللتين|اللواتي|اللاتي){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: andRelatives
+        return: walkTokens(m, ctx, frame, andRelatives)
       # "والأدهى من ذلك" -> "وأدهى من ذلك", "المرتبة الأعلى" -> "المرتبة العليا".
       - regex: "{{START}}[وف]?ال(?:{{ELATIVE}}){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: elatives
+        return: walkTokens(m, ctx, frame, elatives)
       # "يعمل كمدير" -> "يعمل بصفة مدير".
       - regex: "{{START}}[وف]?(?:عمل|عملت|عملوا|يعمل|تعمل|يعملون|نعمل|أعمل|اشتغل|اشتغلت|يشتغل|تشتغل){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: asRole
+        return: walkTokens(m, ctx, frame, asRole)
       # "سيما الراتب" -> "لا سيما الراتب".
       - regex: "{{START}}[وف]?سيما{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: laSiyyama
+        return: walkTokens(m, ctx, frame, laSiyyama)
       # "القيام بدراسة الملف" -> "دراسة الملف".
       - regex: "{{START}}[وف]?(?:بال|لل|ال)قيام{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: doingTheAct
+        return: walkTokens(m, ctx, frame, doingTheAct)
       # "بشكل مناسب" -> "على نحو مناسب", "بصورة يومية" -> "يوميا".
       - regex: "{{START}}[وف]?ب(?:شكل|صورة|أسلوب|طريقة){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: inAWay
+        return: walkTokens(m, ctx, frame, inAWay)
       # "عملت لساعات" -> "عملت ساعات".
       - regex: "{{START}}[وف]?ل(?:{{DURATION}}){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: forADuration
+        return: walkTokens(m, ctx, frame, forADuration)
       # "رغبة لـ" -> "رغبة في", "علاقة معه" -> "علاقة به", "تحسبا من" -> "تحسبا لـ".
       - regex: "{{START}}(?:[وفبل]?(?:ال|لل)?(?:رغب(?:ة|ات|ته|تها|تهم|تي|تنا|تك|تكم)|علاق(?:ة|ات|ته|تها|تهم|تي|تنا|تك|تكم|اته|اتها|اتهم|اتنا))|و?تحسبا){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: nounPrepositions
+        return: walkTokens(m, ctx, frame, nounPrepositions)
       # "لا تستعن سوى بالله" -> "بسوى الله", "غير بالله" -> "بغير الله".
       - regex: "{{START}}(?:سوى|غير){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: exceptPreposition
+        return: walkTokens(m, ctx, frame, exceptPreposition)
       # "لم أره أبدا" -> "لم أره قط", "أثناء العمل" -> "في أثناء العمل".
       - regex: "{{START}}(?:أبدا|[وف]?أثناء){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: timeAdverbs
+        return: walkTokens(m, ctx, frame, timeAdverbs)
       # "فأما أن تحفظه وأما أن تضيعه" -> "فإما ... وإما".
       - regex: "{{START}}[وف]?أما{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: eitherOr
+        return: walkTokens(m, ctx, frame, eitherOr)
       # "الأمر هام" -> "الأمر مهم".
       - regex: "{{START}}[وف]?هامة?{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: important
+        return: walkTokens(m, ctx, frame, important)
       # "أعطى لصاحبه كتابا" -> "أعطى صاحبه", "كلفه بالعمل" -> "كلفه العمل", "يتاجر بالقطن" ->
-      # "يتاجر في القطن": DIRECT_LI, DIRECT_BI and TRADE of review/arabic/styleFrames.ts.
+      # "يتاجر في القطن": DIRECT_LI, DIRECT_BI and TRADE.
       - regex: "{{START}}[وف]?(?:أعطى|أعطت|أعطوا|يعطي|تعطي|يعطون|نعطي|(?:كلف|كلفت|كلفوا|يكلف|تكلف|يكلفون|غرم|غرمت|يغرم|أصحبت|أصحبوا)(?:ه|ها|هم|ني|نا|ك|كم)|تاجرت|تاجروا|يتاجر|تتاجر|يتاجرون|نتاجر|أتاجر){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: directObjects
+        return: walkTokens(m, ctx, frame, directObjects)
       # "الجهاز عبارة عن صندوق" -> "الجهاز صندوق".
       - regex: "{{START}}عبارة{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: amountsTo
-      # "يتناسب ورأيه" -> "يتناسب مع رأيه": MUTUAL of review/arabic/styleFrames.ts.
+        return: walkTokens(m, ctx, frame, amountsTo)
+      # "يتناسب ورأيه" -> "يتناسب مع رأيه": MUTUAL.
       - regex: "{{START}}[وف]?(?:[يت](?:تناسب|تنافى|تلاءم|تلائم|تعارض|تناقض|تطابق|توافق|تكامل|تساوى)(?:ون|ان)?|تناسبت|تنافت|تعارضت|تناقضت|تطابقت|توافقت){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: mutualWaw
+        return: walkTokens(m, ctx, frame, mutualWaw)
       # "ما تحدث إلا وقال خيرا" -> "إلا قال".
       - regex: "{{START}}إلا{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: exceptAnd
+        return: walkTokens(m, ctx, frame, exceptAnd)
       # "نحن كمعلمين" -> "نحن المعلمين".
       - regex: "{{START}}[وف]?نحن{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: weAs
+        return: walkTokens(m, ctx, frame, weAs)
       # "بين ما كنت عائدا" at a sentence start -> "بينما".
       - regex: "{{START}}بين{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: whileJoined
+        return: walkTokens(m, ctx, frame, whileJoined)
       # "تقع دمشق جنوبي حلب" -> "جنوب حلب".
       - regex: "{{START}}(?:شمالي|جنوبي|شرقي|غربي){{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: compassAdverb
-      # "استقل الوزير السيارة" -> "ركب": a verb of GAPPED in review/arabic/usage.ts, one or two
-      # words before its confirming word. Each form of these verbs holds the imperfect stem of
-      # its entry (ستقل, فتح, تستر, صادق, فتقد) or تماد.
+        return: walkTokens(m, ctx, frame, compassAdverb)
+      # "استقل الوزير السيارة" -> "ركب": a verb of GAPPED, one or two words before its confirming
+      # word. Each form of these verbs holds the imperfect stem of its entry (ستقل, فتح, تستر,
+      # صادق, فتقد) or تماد.
       - regex: "{{START}}\\p{L}*(?:ستقل|فتح|تستر|صادق|فتقد|تماد)\\p{L}*{{END}}"
         scan: text
         lookback: 96
         flags: gu
-        fixer: gappedUsage
+        return: walkTokens(m, ctx, frame, gappedUsage)
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:
