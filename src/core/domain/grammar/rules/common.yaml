@@ -8028,13 +8028,13 @@ rules:
         /(?:^|[^A-Za-z'’])(?:(?:could|would|should|might|must)(?:n['’]?t)?|may|will|won['’]?t|shall|can(?:not|['’]?t)?|to)(?:[ \t ]+not)?[ \t ]+$/i
       # Clitic owners: 'd and 's need a pronoun subject ("John's saw" is possessive).
       LEADS: >-
-        ({
-          ve: /^(?:i|you|we|they|who|what|that|there|could|would|should|must|might|may)$/,
-          d: /^(?:i|you|we|they|he|she|it|who|that|there)$/,
-          s: /^(?:he|she|it|that|there|here|what|who|where|(?:every|some|no|any)(?:thing|one|body))$/,
-          re: /^(?:you|we|they)$/,
-          m: /^i$/,
-        }) as Readonly<Record<string, RegExp>>
+        wordTable<RegExp>({
+        ve: /^(?:i|you|we|they|who|what|that|there|could|would|should|must|might|may)$/,
+        d: /^(?:i|you|we|they|he|she|it|who|that|there)$/,
+        s: /^(?:he|she|it|that|there|here|what|who|where|(?:every|some|no|any)(?:thing|one|body))$/,
+        re: /^(?:you|we|they)$/,
+        m: /^i$/,
+        })
       OPENS_CLAUSE: >-
         /(?:[.!?;:,"“(\n]|(?:^|[^A-Za-z])(?:and|but|or|so|why|how|where|when|what|who|which))[ \t ]*$/i
       # -ing forms that are also everyday nouns ("We have training on Monday") need an object
@@ -10030,7 +10030,7 @@ rules:
       INVERSION_AUX: >-
         /^(?:am|is|are|was|were|has|have|had|can|could|will|would|should|must|may|might|shall|do|does|did)$/i
       INVERSION_SUBJECT_OF: >-
-        ({ s: /^(?:he|she|it)$/i, re: /^(?:you|we|they)$/i, ve: /^(?:I|you|we|they)$/i, m: /^I$/, ll: /./ }) as Readonly<Record<string, RegExp>>
+        wordTable<RegExp>({ s: /^(?:he|she|it)$/i, re: /^(?:you|we|they)$/i, ve: /^(?:I|you|we|they)$/i, m: /^I$/, ll: /./ })
       # "does it work", "did they go": do-support for a fronted lexical verb, or null when
       # unclear. "Not only we people are…": a noun, not a verb, when a finite verb follows.
       doSupport:
@@ -11304,15 +11304,15 @@ rules:
           })
       # "don;t" is only read as a contraction with a base that takes that ending.
       SEMICOLON_BASES: >-
-        ({
-          t: /^(?:don|can|won|isn|aren|wasn|weren|didn|doesn|haven|hasn|hadn|shouldn|couldn|wouldn|mustn|needn|ain)$/i,
-          m: /^i$/i,
-          s: /^(?:it|let|that|there|here|he|she|what|who|where|how)$/i,
-          d: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
-          ll: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
-          re: /^(?:you|we|they|there|who|what)$/i,
-          ve: /^(?:i|you|we|they|who|could|would|should|might|must)$/i,
-        }) as Readonly<Record<string, RegExp>>
+        wordTable<RegExp>({
+        t: /^(?:don|can|won|isn|aren|wasn|weren|didn|doesn|haven|hasn|hadn|shouldn|couldn|wouldn|mustn|needn|ain)$/i,
+        m: /^i$/i,
+        s: /^(?:it|let|that|there|here|he|she|what|who|where|how)$/i,
+        d: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+        ll: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+        re: /^(?:you|we|they|there|who|what)$/i,
+        ve: /^(?:i|you|we|they|who|could|would|should|might|must)$/i,
+        })
       # 'We"ll', 'wasn"t', 'Tom"s': an English contraction or possessive typed with the double
       # quote at `index`. A base after an opening quote ('the "if"s') is a quoted word.
       quotedContraction:

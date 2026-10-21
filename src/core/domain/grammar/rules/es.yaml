@@ -2349,14 +2349,14 @@ rules:
     defs:
       # The gender and number of each demonstrative.
       ES_DEMONSTRATIVE_FORM: >-
-        ({
-          este: { feminine: false, plural: false }, estos: { feminine: false, plural: true },
-          ese: { feminine: false, plural: false }, esos: { feminine: false, plural: true },
-          aquel: { feminine: false, plural: false }, aquellos: { feminine: false, plural: true },
-          esta: { feminine: true, plural: false }, estas: { feminine: true, plural: true },
-          esa: { feminine: true, plural: false }, esas: { feminine: true, plural: true },
-          aquella: { feminine: true, plural: false }, aquellas: { feminine: true, plural: true },
-        }) as Readonly<Record<string, { feminine: boolean; plural: boolean }>>
+        wordTable<{ feminine: boolean; plural: boolean }>({
+        este: { feminine: false, plural: false }, estos: { feminine: false, plural: true },
+        ese: { feminine: false, plural: false }, esos: { feminine: false, plural: true },
+        aquel: { feminine: false, plural: false }, aquellos: { feminine: false, plural: true },
+        esta: { feminine: true, plural: false }, estas: { feminine: true, plural: true },
+        esa: { feminine: true, plural: false }, esas: { feminine: true, plural: true },
+        aquella: { feminine: true, plural: false }, aquellas: { feminine: true, plural: true },
+        })
       # Future and imperfect forms whose plain spelling is a noun: "sera" (a basket), "veras" (de
       # veras), "venia" (leave). A subject, "no" or a sentence start before them makes them verbs.
       ES_PLAIN_TWINS: 'new Map([["sera", "será"], ["seras", "serás"], ["serian", "serían"], ["veras", "verás"], ["venia", "venía"]])'

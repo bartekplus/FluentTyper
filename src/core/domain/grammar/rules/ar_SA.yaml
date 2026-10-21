@@ -314,7 +314,8 @@ rules:
       NUMBER_KEYS: >-
         new Set("review_msg_arabic_number_case review_msg_arabic_counted_singular
         review_msg_arabic_number_gender".split(" "))
-      DUAL_FORMS: '({ m: ["هذان", "هذين"], f: ["هاتان", "هاتين"] }) as const'
+      DUAL_FORMS: >-
+        wordTable(({ m: ["هذان", "هذين"], f: ["هاتان", "هاتين"] }) as const)
       # "هذا السلامة", "هذان البطاقتان", "هذين الكتابان": a demonstrative agrees with its noun.
       demonstrative:
         args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"

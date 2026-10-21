@@ -328,15 +328,15 @@ defs:
   # Nouns of fixed noun-and-verb phrases that are lowercase only as a slip, and their verbs' stems.
   NEHMEN: /^(?:nehm|nimm|nahm|nähm|genommen)/
   COLLOCATIONS: >-
-    ({
-      abstand: NEHMEN, abschied: NEHMEN, anteil: NEHMEN, bezug: NEHMEN, einfluss: NEHMEN,
-      kenntnis: NEHMEN, rücksicht: NEHMEN, stellung: NEHMEN,
-      folge: /^(?:leist|geleistet)/, widerstand: /^(?:leist|geleistet)/, beistand: /^(?:leist|geleistet)/,
-      nutzen: /^(?:zieh|zog|zög|gezogen)/, bilanz: /^(?:zieh|zog|zög|gezogen)/,
-      bescheid: /^(?:geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst)/,
-      rechnung: /^(?:trag|träg|trug|trüg|getragen)/, abhilfe: /^(?:schaff|schuf|geschaffen)/,
-      rücksprache: /^(?:halt|hält|hielt|gehalten)/,
-    }) as Readonly<Record<string, RegExp>>
+    wordTable<RegExp>({
+    abstand: NEHMEN, abschied: NEHMEN, anteil: NEHMEN, bezug: NEHMEN, einfluss: NEHMEN,
+    kenntnis: NEHMEN, rücksicht: NEHMEN, stellung: NEHMEN,
+    folge: /^(?:leist|geleistet)/, widerstand: /^(?:leist|geleistet)/, beistand: /^(?:leist|geleistet)/,
+    nutzen: /^(?:zieh|zog|zög|gezogen)/, bilanz: /^(?:zieh|zog|zög|gezogen)/,
+    bescheid: /^(?:geb|gib|gab|gäb|gegeben|sag|gesagt|weiß|wiss|wusst|gewusst)/,
+    rechnung: /^(?:trag|träg|trug|trüg|getragen)/, abhilfe: /^(?:schaff|schuf|geschaffen)/,
+    rücksprache: /^(?:halt|hält|hielt|gehalten)/,
+    })
   # Languages, which are nouns after "ist": "Das ist Englisch".
   LANGUAGES: "/(?:deutsch|^englisch|französisch|spanisch|italienisch|russisch|polnisch|türkisch|griechisch|chinesisch|japanisch|arabisch|niederländisch|schwedisch|portugiesisch|latein)$/"
   # The words of a text, in lowercase.
@@ -3726,22 +3726,22 @@ rules:
       # The verbs each idiom needs somewhere in its sentence, and its fix ("Leim": two fixes from
       # the typed words).
       IDIOM_VERBS: >-
-        ({
-          Punkt: [idiomVerb("bring|bracht|bräch"), "den"],
-          Kopf: [idiomVerb("stell"), "den"],
-          Plan: [idiomVerb("ruf|rief"), "den"],
-          PlanBare: [idiomVerb("ruf|rief"), "auf den Plan"],
-          Teppich: [idiomVerb("kehr"), "den"],
-          Leim: [idiomVerb("geh|ging|gangen"), ""],
-          Strömen: [idiomVerb("regn|gieß|goss|gossen|schütt"), "in"],
-          Schach: [idiomVerb("halt|hält|hielt"), "in"],
-          Strang: [idiomVerb("zieh|zog|zogen"), "einem"],
-          Strenge: [idiomVerb("schlag|schlug|schläg|schlagen"), "Stränge"],
-          Zaun: [idiomVerb("halt|hält|hielt"), "Zaum"],
-          Zaum: [idiomVerb("brech|brach|brich|brochen"), "Zaun"],
-          Angriff: [idiomVerb("nehm|nimm|nahm|nommen"), "in Angriff"],
-          Auge: [idiomVerb("behalt|behält|behielt|fass|fasst"), "im"],
-        }) as Readonly<Record<string, readonly [RegExp, string]>>
+        wordTable<readonly [RegExp, string]>({
+        Punkt: [idiomVerb("bring|bracht|bräch"), "den"],
+        Kopf: [idiomVerb("stell"), "den"],
+        Plan: [idiomVerb("ruf|rief"), "den"],
+        PlanBare: [idiomVerb("ruf|rief"), "auf den Plan"],
+        Teppich: [idiomVerb("kehr"), "den"],
+        Leim: [idiomVerb("geh|ging|gangen"), ""],
+        Strömen: [idiomVerb("regn|gieß|goss|gossen|schütt"), "in"],
+        Schach: [idiomVerb("halt|hält|hielt"), "in"],
+        Strang: [idiomVerb("zieh|zog|zogen"), "einem"],
+        Strenge: [idiomVerb("schlag|schlug|schläg|schlagen"), "Stränge"],
+        Zaun: [idiomVerb("halt|hält|hielt"), "Zaum"],
+        Zaum: [idiomVerb("brech|brach|brich|brochen"), "Zaun"],
+        Angriff: [idiomVerb("nehm|nimm|nahm|nommen"), "in Angriff"],
+        Auge: [idiomVerb("behalt|behält|behielt|fass|fasst"), "im"],
+        })
       # The sentence around a match, cut at its ends or 200 characters away.
       sentenceAround:
         args: "m: RegExpExecArray"

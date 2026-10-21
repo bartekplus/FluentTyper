@@ -1,5 +1,6 @@
 // The rule library (library.ts): Portuguese clauses. The words of the shared clause reader, and
 // the verb of a clause after its subject.
+import { wordTable } from "../../review/wordTable";
 import type { ClauseProfile } from "../../review/clauseReader";
 import { ptNoun } from "./nouns";
 import { PT_NOT_FINITE, ptFiniteVerb, type PtPerson } from "./verbs";
@@ -42,7 +43,7 @@ export const PT_CLAUSE: ClauseProfile = {
 
 // -------------------------------------------------------------- the verb of a clause
 
-const PRONOUNS: Record<string, PtPerson> = {
+const PRONOUNS: Record<string, PtPerson> = wordTable({
   eu: "1s",
   tu: "2s",
   ele: "3s",
@@ -63,7 +64,7 @@ const PRONOUNS: Record<string, PtPerson> = {
   vocês: "3p",
   todos: "3p",
   todas: "3p",
-};
+});
 const SUBJECT_DETERMINERS = words(
   `o a os as um uma uns umas este esta estes estas esse essa esses essas aquele aquela aqueles
   aquelas meu minha meus minhas teu tua teus tuas seu sua seus suas nosso nossa nossos nossas

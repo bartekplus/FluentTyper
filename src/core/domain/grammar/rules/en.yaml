@@ -1781,22 +1781,22 @@ rules:
         return: confHit(t, [CONF_TURN[t.w]])
       # The handler of each target word.
       CONF_HANDLERS: >-
-        ({
-          advice: confNounForVerb, belief: confNounForVerb, breath: confNounForVerb, intent: confNounForVerb, emphasis: confNounForVerb, response: confNounForVerb, thing: confNounForVerb,
-          advise: confVerbForNoun, believe: confVerbForNoun, breathe: confVerbForNoun, intend: confVerbForNoun,
-          bias: confBeAdjective, concern: confBeAdjective, prejudice: confBeAdjective, worry: confBeAdjective, shock: confBeAdjective,
-          brandish: confBrandish, brandishes: confBrandish, brandished: confBrandish, brandishing: confBrandish,
-          deny: confDeny, denies: confDeny, denied: confDeny, denying: confDeny,
-          open: confOpenDevice, opens: confOpenDevice, opened: confOpenDevice, opening: confOpenDevice,
-          effect: confEffect, effects: confEffect, affect: confAffect, affects: confAffect,
-          safe: confSafe, weight: confWeight, bough: confBough, fell: confFell, quiet: confQuiet, find: confFind,
-          hop: confHop, hops: confHop, hope: confHop, hopes: confHop, hoped: confHop, hoping: confHop,
-          cant: confCant, rogue: confRogue, roller: confRoller, summery: confSummery, theses: confTheses,
-          whatever: confEverRelative, whoever: confEverRelative, whenever: confEverRelative, wherever: confEverRelative,
-          everyday: confEveryday, that: confThatThan, then: confThenThan,
-          its: confIts, "it's": confIts, lets: confLets, "let's": confLets, let: confLets,
-          "you're": confYoure, were: confWere,
-        }) as Readonly<Record<string, typeof confNounForVerb>>
+        wordTable<typeof confNounForVerb>({
+        advice: confNounForVerb, belief: confNounForVerb, breath: confNounForVerb, intent: confNounForVerb, emphasis: confNounForVerb, response: confNounForVerb, thing: confNounForVerb,
+        advise: confVerbForNoun, believe: confVerbForNoun, breathe: confVerbForNoun, intend: confVerbForNoun,
+        bias: confBeAdjective, concern: confBeAdjective, prejudice: confBeAdjective, worry: confBeAdjective, shock: confBeAdjective,
+        brandish: confBrandish, brandishes: confBrandish, brandished: confBrandish, brandishing: confBrandish,
+        deny: confDeny, denies: confDeny, denied: confDeny, denying: confDeny,
+        open: confOpenDevice, opens: confOpenDevice, opened: confOpenDevice, opening: confOpenDevice,
+        effect: confEffect, effects: confEffect, affect: confAffect, affects: confAffect,
+        safe: confSafe, weight: confWeight, bough: confBough, fell: confFell, quiet: confQuiet, find: confFind,
+        hop: confHop, hops: confHop, hope: confHop, hopes: confHop, hoped: confHop, hoping: confHop,
+        cant: confCant, rogue: confRogue, roller: confRoller, summery: confSummery, theses: confTheses,
+        whatever: confEverRelative, whoever: confEverRelative, whenever: confEverRelative, wherever: confEverRelative,
+        everyday: confEveryday, that: confThatThan, then: confThenThan,
+        its: confIts, "it's": confIts, lets: confLets, "let's": confLets, let: confLets,
+        "you're": confYoure, were: confWere,
+        })
       CONF_QUOTE: '/^["“”''‘’]$/'
       # A quoted example: a quote within a word of each side ("I cant go" in a style guide).
       confMentioned:
@@ -3403,17 +3403,17 @@ rules:
           conf2Emit(ctx, start, end, "englishWereWhere", "review_msg_were_where", ["were"], [start, n1.end])
       # The handler of each trigger word.
       CONF2_HANDLERS: >-
-        ({
-          cold: conf2Cold, dos: conf2Dos, wok: conf2Wok, rally: conf2Rally, pleas: conf2Pleas,
-          boarder: conf2Boarder, thieve: conf2Thieve, threat: conf2Threat, principle: conf2Principle,
-          shutdown: conf2Shutdown, though: conf2Though, heart: conf2Heart, mach: conf2Mach,
-          exited: conf2Exited, ready: conf2Ready, way: conf2Way, do: conf2Do, waist: conf2Waist,
-          relay: conf2Relay, off: conf2Off, tuff: conf2Tuff, yea: conf2Yea, price: conf2Price,
-          loose: conf2Loose, lose: conf2Lose, they: conf2They, there: conf2There, their: conf2Their,
-          "they're": conf2Theyre, to: conf2To, where: conf2Where,
-          herd: conf2Heart, match: conf2Mach, boarders: conf2Boarder, prices: conf2Price, prise: conf2Price,
-          prises: conf2Price, yeh: conf2Yea, theyre: conf2Theyre,
-        }) as Readonly<Record<string, typeof conf2Cold>>
+        wordTable<typeof conf2Cold>({
+        cold: conf2Cold, dos: conf2Dos, wok: conf2Wok, rally: conf2Rally, pleas: conf2Pleas,
+        boarder: conf2Boarder, thieve: conf2Thieve, threat: conf2Threat, principle: conf2Principle,
+        shutdown: conf2Shutdown, though: conf2Though, heart: conf2Heart, mach: conf2Mach,
+        exited: conf2Exited, ready: conf2Ready, way: conf2Way, do: conf2Do, waist: conf2Waist,
+        relay: conf2Relay, off: conf2Off, tuff: conf2Tuff, yea: conf2Yea, price: conf2Price,
+        loose: conf2Loose, lose: conf2Lose, they: conf2They, there: conf2There, their: conf2Their,
+        "they're": conf2Theyre, to: conf2To, where: conf2Where,
+        herd: conf2Heart, match: conf2Mach, boarders: conf2Boarder, prices: conf2Price, prise: conf2Price,
+        prises: conf2Price, yeh: conf2Yea, theyre: conf2Theyre,
+        })
     frames:
       # Typo-like confusions resolved by the words around one trigger word. "all ready" starts
       # one word before its trigger, so the scan reads 16 characters past the chunk. One match
@@ -5360,27 +5360,27 @@ rules:
         /(?<![\p{L}\p{N}_'’@/#\\-])(?:one|this|each|every|single|(?<that>that)){{S}}$/iu
       # Uncountable nouns, the count word that measures them, and countable synonyms.
       STYLE1_MASS: >-
-        ({
-          advice: { unit: "piece of", count: [["tip", "tips"], ["suggestion", "suggestions"]] },
-          information: { unit: "piece of" },
-          info: { unit: "piece of" },
-          furniture: { unit: "piece of" },
-          luggage: { unit: "piece of", count: [["suitcase", "suitcases"], ["bag", "bags"]] },
-          baggage: { unit: "piece of", count: [["bag", "bags"]] },
-          equipment: { unit: "piece of" },
-          evidence: { unit: "piece of" },
-          feedback: { unit: "piece of" },
-          software: {
-            unit: "piece of",
-            count: [["application", "applications"], ["software package", "software packages"]],
-          },
-          firmware: { unit: "piece of" },
-          hardware: { unit: "piece of" },
-          malware: { unit: "piece of" },
-          ransomware: { unit: "piece of" },
-          clothing: { unit: "item of", count: [["garment", "garments"]] },
-          punctuation: { unit: "punctuation mark", count: [["punctuation mark", "punctuation marks"]] },
-        }) as Readonly<Record<string, { unit: string; count?: readonly (readonly [string, string])[] }>>
+        wordTable<{ unit: string; count?: readonly (readonly [string, string])[] }>({
+        advice: { unit: "piece of", count: [["tip", "tips"], ["suggestion", "suggestions"]] },
+        information: { unit: "piece of" },
+        info: { unit: "piece of" },
+        furniture: { unit: "piece of" },
+        luggage: { unit: "piece of", count: [["suitcase", "suitcases"], ["bag", "bags"]] },
+        baggage: { unit: "piece of", count: [["bag", "bags"]] },
+        equipment: { unit: "piece of" },
+        evidence: { unit: "piece of" },
+        feedback: { unit: "piece of" },
+        software: {
+        unit: "piece of",
+        count: [["application", "applications"], ["software package", "software packages"]],
+        },
+        firmware: { unit: "piece of" },
+        hardware: { unit: "piece of" },
+        malware: { unit: "piece of" },
+        ransomware: { unit: "piece of" },
+        clothing: { unit: "item of", count: [["garment", "garments"]] },
+        punctuation: { unit: "punctuation mark", count: [["punctuation mark", "punctuation marks"]] },
+        })
       STYLE1_COUNTED_BEFORE: >-
         /(?<![\p{L}\p{N}_'’-])(?:(?<single>an?|one|another|each|every|single)|(?<several>(?<how>how{{S}}|so{{S}}|too{{S}})?many|(?<afew>a{{S}})?few|fewer|several|multiple|both|numerous|two|three|four|five|six|seven|eight|nine|ten|[2-9]|[1-9][0-9]+)){{S}}$/iu
       STYLE1_JUDGED_BEFORE: >-
@@ -5737,24 +5737,24 @@ rules:
         }
     defs:
       STYLE1_STYLE_WORDS: >-
-        ({
-          fav: ["favorite"],
-          favs: ["favorites"],
-          fave: ["favorite"],
-          faves: ["favorites"],
-          ppl: ["people"],
-          omg: ["oh my god"],
-          rly: ["really"],
-          eli5: ["explain like I'm five"],
-          iykyk: ["if you know, you know"],
-          iiuc: ["if I understand correctly"],
-          shit: ["crap", "sh*t"],
-          fuck: ["****"],
-          fucking: ["****ing"],
-          fucked: ["****ed"],
-          fucker: ["****er"],
-          fuckers: ["****ers"],
-        }) as Readonly<Record<string, string[]>>
+        wordTable<string[]>({
+        fav: ["favorite"],
+        favs: ["favorites"],
+        fave: ["favorite"],
+        faves: ["favorites"],
+        ppl: ["people"],
+        omg: ["oh my god"],
+        rly: ["really"],
+        eli5: ["explain like I'm five"],
+        iykyk: ["if you know, you know"],
+        iiuc: ["if I understand correctly"],
+        shit: ["crap", "sh*t"],
+        fuck: ["****"],
+        fucking: ["****ing"],
+        fucked: ["****ed"],
+        fucker: ["****er"],
+        fuckers: ["****ers"],
+        })
       STYLE1_MARKER_COMPLEMENTS: /^(?:of|far|much|many|long|often|hard|good|bad|little|few|more|less)$/
       STYLE1_INTENSIFIED: /^[ \t ]+(?:is|isn['’]t|was|wasn['’]t|are|has|does|doesn['’]t|can|will|would|should|must)\b/i
       # "PPL" in capitals is also an acronym, unless the text around it shouts too.
@@ -7481,13 +7481,13 @@ rules:
       # Words wrong on the left of a slash; the slash token is otherwise read as a path. "bias"
       # needs a form of "be" before it ("I am bias/prefer…").
       REM_SLASHED: >-
-        ({
-          infront: { to: "in front", ruleId: "englishClosedCompounds", messageKey: "review_msg_closed_compound" },
-          bias: { to: "biased", ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" },
-          deref: { to: "dereference", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
-          derefs: { to: "dereferences", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
-          dirs: { to: "directories", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
-        }) as Readonly<Record<string, { to: string; ruleId: RawFinding["ruleId"]; messageKey: RawFinding["messageKey"] }>>
+        wordTable<{ to: string; ruleId: RawFinding["ruleId"]; messageKey: RawFinding["messageKey"] }>({
+        infront: { to: "in front", ruleId: "englishClosedCompounds", messageKey: "review_msg_closed_compound" },
+        bias: { to: "biased", ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" },
+        deref: { to: "dereference", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
+        derefs: { to: "dereferences", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
+        dirs: { to: "directories", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
+        })
       # Slashed tokens that are prose, not paths: "w/o", "prev/next", a decade before a slash
       # ("1970's/early"), the slashed words and the slash-token rows. Review's technical-token
       # guard lets them through (review/reviewDiagnostics.ts reads it).
@@ -8635,13 +8635,13 @@ rules:
         else: "false"
       # Prefixes that are hyphenated before their word: "quasi judicial", "mid thirties", "pre 1995".
       COMPOUND_PREFIX_WORDS: >-
-        ({
-          quasi: /^[a-z]{4,}$/,
-          mid: /^(?:1[0-9]{3}s?|20[0-9]{2}s?|[0-9]{2}s|twenties|thirties|forties|fifties|sixties|seventies|eighties|nineties|teens|century|season|week|month|year|morning|afternoon|evening|sentence|air|flight|game|range|size|level|term|life|career|race|summer|winter|spring|autumn|fall|january|february|march|april|may|june|july|august|september|october|november|december)$/i,
-          pre: /^(?:1[0-9]{3}|20[0-9]{2})s?$/,
-          post: /^(?:1[0-9]{3}|20[0-9]{2})s?$/,
-          anti: /^\p{Lu}\p{Ll}{3,}$/u,
-        }) as Readonly<Record<string, RegExp>>
+        wordTable<RegExp>({
+        quasi: /^[a-z]{4,}$/,
+        mid: /^(?:1[0-9]{3}s?|20[0-9]{2}s?|[0-9]{2}s|twenties|thirties|forties|fifties|sixties|seventies|eighties|nineties|teens|century|season|week|month|year|morning|afternoon|evening|sentence|air|flight|game|range|size|level|term|life|career|race|summer|winter|spring|autumn|fall|january|february|march|april|may|june|july|august|september|october|november|december)$/i,
+        pre: /^(?:1[0-9]{3}|20[0-9]{2})s?$/,
+        post: /^(?:1[0-9]{3}|20[0-9]{2})s?$/,
+        anti: /^\p{Lu}\p{Ll}{3,}$/u,
+        })
       # Numbers and units joined before a noun: "a 10 page report", "a two year old car".
       COMPOUND_NOT_A_HEAD: "/^(?:ago|old|olds|later|earlier|before|after|of|and|or|to|in|on|at|for|from|with|by|per|each|is|was|are|were|left|long|away|late|early|off|behind|ahead|apart|tall|high|wide|deep|thick|away|younger|older|more|less|than|time|times|out|into|over|back|down|up|running|straight|old|this|that|the|a|an|it|he|she|we|they|you|i|there|here|now|then|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred|thousand)$/i"
       COMPOUND_STEP_KIN: "/^(?:daughters?|sons?|mothers?|fathers?|sisters?|brothers?|child|children|kids?|parents?|dads?|moms?|mums?|siblings?)$/i"
@@ -14754,7 +14754,7 @@ rules:
       # that day", "interested at first", "scared from the start". "discussed about five
       # issues": "about" as "roughly".
       COLLOCATION_IDIOM: >-
-        ({
+        wordTable<RegExp>({
         of: /^course$/,
         at: /^(?:first|last|least|all|once|times|present|home|work|night|the (?:time|moment|start|end|same)|this (?:point|stage|time)|that (?:point|stage|time))$/,
         on: /^(?:average|and|top|time|purpose|occasion|behalf|board|paper|balance|the (?:day|whole|other|one|spot|way|weekend)|that (?:day|night|occasion)|this (?:day|occasion)|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/,
@@ -14763,7 +14763,7 @@ rules:
         to: /^(?:date|this (?:day|point))$/,
         about: /^(?:time|it|half|[0-9][0-9.,]*|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|a (?:dozen|hundred|thousand|million|few|couple|third|quarter|week|month|year)|an hour)$/,
         for: /^(?:now|sure|example|instance|good|once|ages|years|hours|days|weeks|months|a (?:while|moment|minute|second|bit|time|long)|the (?:first|second|third|last|next|moment|most|time))$/
-        }) as Record<string, RegExp>
+        })
       collocationIdiom:
         args: "prep: EnToken, after: readonly EnToken[]"
         let:
@@ -17219,7 +17219,7 @@ rules:
       # that only the product has. Products named in the names table ("Google Docs") are matched
       # there.
       NAMES_PRODUCT_NOUNS: >-
-        ({ excel: NAMES_EXCEL_NOUNS, word: NAMES_WORD_NOUNS, outlook: NAMES_OUTLOOK_NOUNS, chrome: NAMES_CHROME_NOUNS, opera: NAMES_OPERA_NOUNS, google: NAMES_GOOGLE_NOUNS, twitter: NAMES_TWITTER_NOUNS, slack: NAMES_SLACK_NOUNS, kindle: NAMES_KINDLE_NOUNS, react: NAMES_REACT_NOUNS, mac: NAMES_MAC_NOUNS, windows: NAMES_WINDOWS_NOUNS, apple: NAMES_APPLE_NOUNS }) as Record<string, ReadonlySet<string> | undefined>
+        wordTable<ReadonlySet<string> | undefined>({ excel: NAMES_EXCEL_NOUNS, word: NAMES_WORD_NOUNS, outlook: NAMES_OUTLOOK_NOUNS, chrome: NAMES_CHROME_NOUNS, opera: NAMES_OPERA_NOUNS, google: NAMES_GOOGLE_NOUNS, twitter: NAMES_TWITTER_NOUNS, slack: NAMES_SLACK_NOUNS, kindle: NAMES_KINDLE_NOUNS, react: NAMES_REACT_NOUNS, mac: NAMES_MAC_NOUNS, windows: NAMES_WINDOWS_NOUNS, apple: NAMES_APPLE_NOUNS })
       namesContext:
         args: "ctx: DetectContext, start: number, end: number"
         return: "({ start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 40) })"
@@ -18071,17 +18071,17 @@ rules:
       # "big in size", "few in number", "bitter in taste": the adjective already names the
       # dimension.
       PLAIN_DIMENSIONS: >-
-        ({
-          size: /^(?:big|bigger|biggest|small|smaller|smallest|large|larger|largest|tiny|huge|enormous|little|massive|immense)$/,
-          shape: /^(?:round|square|oval|circular|rectangular|triangular|spherical|cylindrical)$/,
-          colour: /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
-          color: /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
-          number: /^(?:few|fewer|fewest|many|numerous)$/,
-          duration: /^(?:brief|briefer|briefest|short|shorter|shortest|long|longer|longest)$/,
-          taste: /^(?:bitter|sweet|sour|salty|sweeter|sourer)$/,
-          height: /^(?:tall|taller|tallest)$/,
-          weight: /^(?:heavy|heavier|heaviest|light|lighter|lightest)$/,
-        }) as Readonly<Record<string, RegExp>>
+        wordTable<RegExp>({
+        size: /^(?:big|bigger|biggest|small|smaller|smallest|large|larger|largest|tiny|huge|enormous|little|massive|immense)$/,
+        shape: /^(?:round|square|oval|circular|rectangular|triangular|spherical|cylindrical)$/,
+        colour: /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
+        color: /^(?:red|redder|blue|green|yellow|black|white|pink|purple|orange|brown|grey|gray|violet)$/,
+        number: /^(?:few|fewer|fewest|many|numerous)$/,
+        duration: /^(?:brief|briefer|briefest|short|shorter|shortest|long|longer|longest)$/,
+        taste: /^(?:bitter|sweet|sour|salty|sweeter|sourer)$/,
+        height: /^(?:tall|taller|tallest)$/,
+        weight: /^(?:heavy|heavier|heaviest|light|lighter|lightest)$/,
+        })
     frames:
       # "Why do not you", "Are not you": a negative question puts "not" after the subject or
       # contracts it. Not "had"/"were": "Had not they..." may be a conditional, which never
@@ -19313,9 +19313,10 @@ rules:
       ADDRESSED: /^(?:guy|guys|idiot|fool|dummy|moron|genius|darling|honey|baby|sir|madam|man|dude|bro|mate|sis|buddy|pal|lot|kid|boy|girl|people|folks|all|both|two|three|alone|yourself|there|here|too|also|something|anything|nothing|everything|everyone|anyone|someone|one|ones|each|most|now|then|again|later|soon|today|tonight|first|last|instead|anyway|maybe|perhaps|men|women|children|ladies|gentlemen)$/
       # The same nouns in a plain verb slot ("Please login", "to backup your files"), and their -s
       # forms after he/she/it ("He logins daily" → "logs in").
-      SLOT_BASE: '({ ...SETUP_BASE, login: "log in", logout: "log out" }) as Readonly<Record<string, string>>'
+      SLOT_BASE: >-
+        wordTable<string>({ ...SETUP_BASE, login: "log in", logout: "log out" })
       SLOT_THIRD: >-
-        Object.fromEntries(Object.entries(SLOT_BASE).map(([noun, verb]) => [`${noun}s`, verb.replace(" ", "s ")])) as Readonly<Record<string, string>>
+        wordTable(Object.fromEntries(Object.entries(SLOT_BASE).map(([noun, verb]) => [`${noun}s`, verb.replace(" ", "s ")])) as Readonly<Record<string, string>>)
       # The sentence goes on in plain words to its punctuation: not typed half-way ("Please login
       # to"), not glued to a token ("continue.next", "continue_id"), not an accented word.
       PLAIN_REST: '/^(?:[ \t\u00a0]+[A-Za-z0-9]+(?:[''’][A-Za-z]+)?)*[ \t\u00a0]*[.!?,;:](?![\p{L}\p{N}_])/u'

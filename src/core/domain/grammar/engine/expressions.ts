@@ -411,6 +411,7 @@ class Parser {
         this.expression();
         this.eat("]");
       } else if (this.is("(")) this.args();
+      else if (this.is("<") && this.callTypeArguments()) this.args();
       else if (this.is("!") && !this.lex.src.startsWith("!=", this.tok.at)) {
         // The TypeScript non-null assertion: `m.groups!.target`.
         this.advance();
@@ -663,6 +664,19 @@ class Parser {
       this.advance();
       one();
     }
+  }
+
+  /** True, after them, when type arguments and "(" come next: a call such as `f<string>(x)`. */
+  private callTypeArguments(): boolean {
+    const save = this.save();
+    try {
+      this.typeArguments();
+      if (this.is("(")) return true;
+    } catch (error) {
+      if (!(error instanceof ParseError)) throw error;
+    }
+    this.restore(save);
+    return false;
   }
 
   private typeArguments() {
