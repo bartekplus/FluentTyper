@@ -28,10 +28,17 @@ const FUNCTION_WORDS = new Set(
 );
 // Memoized: the same words recur, and a lexicon lookup tries every affix rule.
 const infoOf = memoize(englishWordInfo, 20_000);
-const knownOf = memoize(
-  (w) => FUNCTION_WORDS.has(w) || !!infoOf(w) || englishListedNoun(w) !== null,
-  20_000,
-);
+// One Map read per call (memoize reads two times): the word check asks this for each word.
+const KNOWN = new Map<string, boolean>();
+function knownOf(w: string): boolean {
+  let answer = KNOWN.get(w);
+  if (answer === undefined) {
+    if (KNOWN.size >= 20_000) KNOWN.clear();
+    answer = FUNCTION_WORDS.has(w) || !!infoOf(w) || englishListedNoun(w) !== null;
+    KNOWN.set(w, answer);
+  }
+  return answer;
+}
 const info = (word: string) => infoOf(lower(word));
 const known = (word: string) => knownOf(lower(word));
 
@@ -201,13 +208,21 @@ const NOT_WORD_BEFORE = /[\p{L}\p{M}\p{N}_'’@/#\\.-]/u;
  * check reads. Null when a space and a word do not come right before `index`.
  */
 function wordBeforeSpace(text: string, index: number) {
-  if (text[index - 1] !== " ") return null;
+  if (text.charCodeAt(index - 1) !== 32) return null;
+  // The word checked before ends here. It is a WORD match, so the read below gives it again.
+  if (previous.text === text && previous.end === index - 1)
+    return { index: previous.index, word: previous.word, unknown: previous.unknown };
   let start = index - 1;
-  while (start > 0 && /[A-Za-z]/.test(text[start - 1])) start--;
+  while (start > 0 && isAsciiLetter(text.charCodeAt(start - 1))) start--;
   if (start === index - 1 || NOT_WORD_BEFORE.test(text[start - 1] ?? "")) return null;
   const word = text.slice(start, index - 1);
-  return { index: start, word, unknown: !known(word.toLowerCase()) };
+  return { index: start, word, unknown: !known(word) };
 }
+const isAsciiLetter = (code: number) => (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+// The last two words that wordCheck read: a word reads the word before it again as its
+// neighbour.
+let previous = { text: "", end: -1, index: 0, word: "", unknown: false };
+let current = { ...previous };
 
 /** The irregular-form and space checks of one word. */
 function wordCheck(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
@@ -216,7 +231,15 @@ function wordCheck(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
   const { index } = m;
   const word = m[0];
   const w = word.toLowerCase();
-  const unknown = !known(w);
+  const unknown = !knownOf(w);
+  const read = previous;
+  previous = current;
+  current = read;
+  current.text = ctx.scanText;
+  current.end = index + word.length;
+  current.index = index;
+  current.word = word;
+  current.unknown = unknown;
   // Read only when needed: most words and their neighbours are known.
   let neighbour: ReturnType<typeof wordBeforeSpace> | undefined;
   const before = () => (neighbour ??= wordBeforeSpace(ctx.scanText, index));
@@ -225,7 +248,7 @@ function wordCheck(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
   const regular =
     irregular &&
     owned &&
-    (w.endsWith("ed") ? REGULAR_PASTS.has(w) : w.length > 3 && w.endsWith("s") && !info(w));
+    (w.endsWith("ed") ? REGULAR_PASTS.has(w) : w.length > 3 && w.endsWith("s") && !infoOf(w));
   if (!unknown && !regular && !before()?.unknown) return null;
   if (!plainAt(ctx, word, index) || ctx.dictionary.has(w)) return null;
   const end = index + word.length;
