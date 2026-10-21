@@ -32,7 +32,7 @@ export const LIVE_RULES: readonly {
     patterns: [],
   },
   { check: "englishTheirThereBeVerb", predicate: "EnglishTheirThereBeVerbRule", patterns: [] },
-  { check: "englishAlotCorrection", predicate: "EnglishAlotCorrectionRule", patterns: [] },
+  { check: "englishAlotCorrection", predicate: "common:@englishAlotCorrection.live", patterns: [] },
   {
     check: "englishPronounVerbWhitelistAgreement",
     predicate: "EnglishPronounVerbWhitelistAgreementRule",

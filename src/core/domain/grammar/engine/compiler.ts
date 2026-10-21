@@ -2,7 +2,14 @@ import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../la
 import { isTokenPredicate } from "./predicates";
 import { parseRows, type PhraseRow } from "./rows";
 import { tokenKey } from "./tokenizer";
-import { fileCode, frameCode, type CodeScope, type FileCode, type Names } from "./ruleCode";
+import {
+  fileCode,
+  functionCode,
+  type CodeScope,
+  type FileCode,
+  type FunctionCode,
+  type Names,
+} from "./ruleCode";
 import {
   CLAUSE,
   COMPLETE,
@@ -96,6 +103,13 @@ const RULE_KEYS = new Set<keyof RuleSpec>([
   "filter",
   "group",
   "findings",
+  "let",
+  "when",
+  "return",
+  "triggers",
+  "defs",
+  "sets",
+  "maps",
 ]);
 const FRAME_KEYS = new Set([
   "regex",
@@ -465,7 +479,11 @@ export function compileRuleFiles(
   for (const [name, file] of files) {
     const expand = (source: string, at: string) =>
       expandFrame(source, fragmentsOf(file), at, errors);
-    const read = fileCode(name, file, scope, expand, errors);
+    const sections = [
+      [`${name}.yaml`, file] as const,
+      ...(file.rules ?? []).map((rule) => [`${name}.yaml rule ${rule.id}`, rule] as const),
+    ];
+    const read = fileCode(name, sections, scope, expand, errors);
     fileCodes[name] = read.code;
     namesOf.set(name, read.names);
   }
@@ -487,16 +505,61 @@ export function compileRuleFiles(
     if (!spec.checks?.length) errors.push(`${where}: "checks" names no check`);
     for (const id of spec.checks ?? [])
       if (!checks.has(id)) errors.push(`${where}: unknown check "${id}"`);
-    // A frame rule may also name a predicate: it runs after the frames.
-    if (
-      [spec.pattern, spec.frames ?? spec.predicate, spec.findings].filter((k) => k !== undefined)
-        .length !== 1 ||
-      (spec.pattern !== undefined && spec.predicate !== undefined)
-    )
-      errors.push(`${where}: give exactly one of "predicate", "pattern", "frames" and "findings"`);
     const check = checks.get(spec.checks?.[0]);
     const modes = spec.modes ?? ["review"];
     const lang = code(spec.lang ?? file.lang);
+    const expand = (source: string, at: string) =>
+      expandFrame(source, fragmentsOf(file), at, errors);
+    const addCode = (fn: FunctionCode | undefined) => {
+      if (fn) (fileCodes[name].functions as FunctionCode[]).push(fn);
+    };
+    // A rule's own code (`let`, `when`, `return`) is its predicate: the detector of a Review rule
+    // (after the frames of a frame rule) or the `apply` of a typing rule.
+    let predicate = spec.predicate;
+    if (spec.return !== undefined || spec.let !== undefined || spec.when !== undefined) {
+      if (spec.predicate !== undefined)
+        errors.push(`${where}: give "predicate" or a "return" expression, not both`);
+      const live = modes.includes("live");
+      if (live && !spec.triggers?.length)
+        errors.push(`${where}: a typing rule with code needs "triggers"`);
+      addCode(
+        functionCode(
+          `@${spec.id}`,
+          live ? "live" : "detector",
+          where,
+          spec,
+          namesOf.get(name)!,
+          expand,
+          errors,
+          undefined,
+          live ? spec.triggers : undefined,
+        ),
+      );
+      predicate = `${name}:@${spec.id}`;
+    } else if (spec.triggers !== undefined) errors.push(`${where}: "triggers" needs "return"`);
+    // A filter as code: `filter:` with `let`, `when` and `return` over `findings`.
+    let filter = typeof spec.filter === "string" ? spec.filter : undefined;
+    if (spec.filter !== undefined && typeof spec.filter !== "string") {
+      addCode(
+        functionCode(
+          `@${spec.id}/filter`,
+          "filter",
+          `${where} filter`,
+          spec.filter,
+          namesOf.get(name)!,
+          expand,
+          errors,
+        ),
+      );
+      filter = `${name}:@${spec.id}/filter`;
+    }
+    // A frame rule may also name a predicate: it runs after the frames.
+    if (
+      [spec.pattern, spec.frames ?? predicate, spec.findings].filter((k) => k !== undefined)
+        .length !== 1 ||
+      (spec.pattern !== undefined && predicate !== undefined)
+    )
+      errors.push(`${where}: give exactly one of "predicate", "pattern", "frames" and "findings"`);
 
     if (spec.findings !== undefined) {
       if (!["style", "terminology", "quotation"].includes(spec.findings))
@@ -511,19 +574,19 @@ export function compileRuleFiles(
       });
       continue;
     }
-    if (spec.predicate !== undefined && spec.frames === undefined) {
+    if (predicate !== undefined && spec.frames === undefined) {
       if (modes.includes("live")) {
         if (modes.length > 1) errors.push(`${where}: a live predicate rule has only mode "live"`);
         if (livePredicates.has(spec.checks[0]))
           errors.push(`${where}: check ${spec.checks[0]} already has a live predicate`);
-        livePredicates.set(spec.checks[0], spec.predicate);
+        livePredicates.set(spec.checks[0], predicate);
         continue;
       }
       rules.push({
         id: spec.id,
         checks: [...spec.checks],
         ...(lang ? { lang } : {}),
-        predicate: spec.predicate.includes(":") ? spec.predicate : `${name}:${spec.predicate}`,
+        predicate: predicate.includes(":") ? predicate : `${name}:${predicate}`,
         ...(spec.cacheable ? { cacheable: true as const } : {}),
         ...(spec.group === undefined ? {} : { group: spec.group }),
         source: name,
@@ -633,17 +696,11 @@ export function compileRuleFiles(
         const fixCode =
           entry.return === undefined
             ? undefined
-            : frameCode(
-                key,
-                spec.style ?? "frame",
-                at,
+            : functionCode(key, "fixer", at, entry, namesOf.get(name)!, expand, errors, {
+                style: spec.style ?? "frame",
                 pattern,
-                entry,
-                namesOf.get(name)!,
-                (source, where) => expandFrame(source, fragmentsOf(file), where, errors),
-                errors,
-              );
-        if (fixCode) (fileCodes[name].frames as FileCode["frames"][number][]).push(fixCode);
+              });
+        addCode(fixCode);
         const fixer = fixCode ? key : entry.fixer;
         frames.push({
           pattern,
@@ -680,18 +737,14 @@ export function compileRuleFiles(
         checks: [...spec.checks],
         ...(lang ? { lang } : {}),
         frames: indexes,
-        ...(spec.predicate === undefined
+        ...(predicate === undefined
           ? {}
-          : {
-              predicate: spec.predicate.includes(":")
-                ? spec.predicate
-                : `${name}:${spec.predicate}`,
-            }),
+          : { predicate: predicate.includes(":") ? predicate : `${name}:${predicate}` }),
         message: spec.message!,
         ...(spec.style && spec.style !== "frame" ? { style: spec.style } : {}),
-        ...(spec.filter === undefined
+        ...(filter === undefined
           ? {}
-          : { filter: spec.filter.includes(":") ? spec.filter : `${name}:${spec.filter}` }),
+          : { filter: filter.includes(":") ? filter : `${name}:${filter}` }),
         ...(spec.cacheable ? { cacheable: true as const } : {}),
         ...(spec.group === undefined ? {} : { group: spec.group }),
         source: name,

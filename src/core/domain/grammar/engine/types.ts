@@ -1,4 +1,4 @@
-import type { DefSpec, FrameCodeSpec } from "./ruleCode";
+import type { BodySpec, CodeSections, DefSpec } from "./ruleCode";
 /**
  * The declarative grammar rule format (src/core/domain/grammar/rules/*.yaml) and its
  * compiled form. scripts/compile-grammar-rules.ts validates the files and writes the
@@ -92,7 +92,7 @@ export interface CheckSpec {
  * inserts a fragment (the file's `fragments`, or S, E, COMPLETE, COMPLETE_OR_PAREN, CLAUSE,
  * TOKEN_END), and `{{notAfter:a|b}}` a "not right after these words" guard.
  */
-export interface FrameSpec extends FrameCodeSpec {
+export interface FrameSpec extends BodySpec {
   regex: string;
   /** The fix, or the fixes to choose from. */
   fix?: string | readonly string[];
@@ -157,8 +157,10 @@ export interface FrameSpec extends FrameCodeSpec {
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
-export interface RuleSpec {
+export interface RuleSpec extends BodySpec, CodeSections {
   id: string;
+  /** Typing rules with code: the events the rule runs on ("insertChar", "wordBoundary"). */
+  triggers?: readonly string[];
   /** The checks whose findings this rule reports; the first one by default. */
   checks: readonly string[];
   /** "*", a two-letter code or a locale ("pt_BR"). Default: the file's language. */
@@ -207,7 +209,7 @@ export interface RuleSpec {
    */
   style?: FrameStyle;
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
-  filter?: string;
+  filter?: string | BodySpec;
   /**
    * A rule that reports findings Review made before the rule scan, in the chunk: "style" (the
    * style advice), "terminology" (the user's preferred terms) or "quotation" (unclosed quotes).

@@ -6,7 +6,7 @@ import type { ReviewMessageKey } from "../review/types";
 import { detectFrames, prepareFrames } from "./frameStyles";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
-import { RULE_FIXERS } from "./rules/index.generated";
+import { RULE_DETECTORS, RULE_FILTERS, RULE_FIXERS } from "./rules/index.generated";
 import { primeFrameLiterals, WORD_START } from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
 import { tokenKey } from "./tokenizer";
@@ -159,7 +159,10 @@ export function frameRuleDetector(
   const messageKey = rule.message as ReviewMessageKey;
   const compiled = rule.frames.map((index) => REVIEW_FRAMES[index]);
   for (const { pattern, literals } of compiled) primeFrameLiterals(pattern, [...literals]);
-  const filter = rule.filter === undefined ? undefined : named(filters, rule.filter);
+  const filter =
+    rule.filter === undefined
+      ? undefined
+      : (named(RULE_FILTERS, rule.filter) ?? named(filters, rule.filter));
   if (rule.filter !== undefined && !filter)
     throw new Error(`Grammar rule ${id}: no filter "${rule.filter}"`);
   const fixOf = (fix: CompiledFrame["fix"], fixer: string | undefined) => {
@@ -203,13 +206,13 @@ export function buildReviewDetectors(
       if (rule.predicate !== undefined) {
         // The frames, then the named predicate: one composite whose parts keep their findings
         // when the other throws.
-        const after = named(predicates, rule.predicate);
+        const after = named(RULE_DETECTORS, rule.predicate) ?? named(predicates, rule.predicate);
         if (!after) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
         const frames = detect;
         detect = (ctx) => detectAll(ctx, [frames, after]);
       }
     } else {
-      const found = named(predicates, rule.predicate!);
+      const found = named(RULE_DETECTORS, rule.predicate!) ?? named(predicates, rule.predicate!);
       if (!found) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
       detect = found;
     }

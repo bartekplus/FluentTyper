@@ -1,4 +1,4 @@
-// Generic text and collection helpers of the rule library (library.ts).
+// The rule library (library.ts): generic text and collection helpers.
 
 /** The word with its first character in capitals ("ehre" -> "Ehre"). */
 export const capitalize = (word: string) => word[0].toUpperCase() + word.slice(1);

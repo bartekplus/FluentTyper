@@ -88,7 +88,7 @@ test("a def signature gives its name and parameter names", () => {
   expect(defSignature("bad(")).toBeNull();
 });
 
-test("a frame's code: each condition runs right after the last binding it reads", () => {
+test("a frame's code: a condition runs after the bindings it reads and the one above it", () => {
   const set = compile({
     lang: "en",
     defs: { LIMIT: "3", short: { args: "w: string", return: "w.length < LIMIT" } },
@@ -110,14 +110,15 @@ test("a frame's code: each condition runs right after the last binding it reads"
       },
     ],
   });
-  const [frame] = set.code.en.frames;
+  const [frame] = set.code.en.functions;
   expect(frame.key).toBe("@en.code/1");
+  expect(frame.kind).toBe("fixer");
   expect(frame.params).toEqual(["m", "ctx"]);
   expect(frame.groups).toEqual(["target", "next"]);
   expect(frame.steps).toEqual([
-    { kind: "when", source: "ctx.from === 0" },
     { kind: "let", name: "word", source: "target.toLowerCase()" },
     { kind: "when", source: "!STOP.has(word)" },
+    { kind: "when", source: "ctx.from === 0" },
     { kind: "let", name: "after", source: "next.toLowerCase()" },
     { kind: "when", source: "short(after)" },
   ]);
@@ -158,4 +159,49 @@ test("the compiler names unknown and reused names", () => {
     'give exactly one of "fix" and "fixer", or a "return" expression',
   ])
     expect(message).toContain(fragment);
+});
+
+test("a rule's own code: a detector, a filter, a typing rule and helpers beside the rule", () => {
+  const live: CheckSpec = { ...check, id: "liveCheck", modes: ["live", "review"], safeToFix: true };
+  const set = compileRuleFiles(
+    [
+      ["common", { lang: "*", checks: [check, live] }],
+      [
+        "en",
+        {
+          lang: "en",
+          rules: [
+            {
+              id: "en.detect",
+              checks: ["demoCheck"],
+              sets: { SHOUT: ["HEY"] },
+              when: "ctx.from === 0",
+              return: "[]",
+              filter: { return: "findings.filter((f) => !SHOUT.has(f.alternatives[0]))" },
+            },
+            {
+              id: "en.type",
+              checks: ["liveCheck"],
+              modes: ["live"],
+              triggers: ["wordBoundary"],
+              let: { typed: "context.beforeCursor.at(-1)" },
+              when: 'typed === "!"',
+              return: "null",
+            },
+          ],
+        },
+      ],
+    ],
+    { library: new Set() },
+  );
+  expect(set.rules[0]).toMatchObject({ predicate: "en:@en.detect" });
+  expect(set.live.find((rule) => rule.check === "liveCheck")?.predicate).toBe("en:@en.type");
+  const kinds = set.code.en.functions.map((fn) => [fn.key, fn.kind, fn.params]);
+  expect(kinds).toEqual([
+    ["@en.detect", "detector", ["ctx"]],
+    ["@en.detect/filter", "filter", ["ctx", "findings"]],
+    ["@en.type", "live", ["context"]],
+  ]);
+  expect(set.code.en.functions[2].triggers).toEqual(["wordBoundary"]);
+  expect(set.code.en.sets).toEqual({ SHOUT: ["HEY"] });
 });

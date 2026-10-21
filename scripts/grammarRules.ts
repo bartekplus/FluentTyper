@@ -10,7 +10,14 @@ import {
 } from "../src/core/domain/grammar/engine/compiler";
 import type { FrameStyle, RuleFile } from "../src/core/domain/grammar/engine/types";
 import { checkExpression } from "../src/core/domain/grammar/engine/expressions";
-import type { CodeStep, FileCode } from "../src/core/domain/grammar/engine/ruleCode";
+import {
+  PARAMS,
+  PORTUGUESE_PARAMS,
+  type CodeKind,
+  type CodeStep,
+  type FileCode,
+  type FunctionCode,
+} from "../src/core/domain/grammar/engine/ruleCode";
 import type { PhraseRow } from "../src/core/domain/grammar/engine/rows";
 import { REVIEW_DATA_LANGUAGES } from "../src/core/domain/grammar/review/reviewLanguageData";
 
@@ -39,10 +46,10 @@ const HEADER =
 
 /**
  * The names the rule library exports, read from its text: importing it would load the Review
- * modules, which import the generated modules this script writes. It re-exports by name only.
+ * modules, which import the generated modules this script writes. library.ts names its exports
+ * or re-exports a library/ file with `export *`; such a file names its exports.
  */
 export async function readLibrary(): Promise<{ values: Set<string>; types: Set<string> }> {
-  const text = await readFile(LIBRARY, "utf8");
   const values = new Set<string>();
   const types = new Set<string>();
   const names = (list: string) =>
@@ -55,13 +62,23 @@ export async function readLibrary(): Promise<{ values: Set<string>; types: Set<s
           .pop()!,
       )
       .filter(Boolean);
-  for (const m of text.matchAll(/export\s+(type\s+)?\{([^}]*)\}/g))
-    for (const name of names(m[2])) (m[1] ? types : values).add(name);
-  for (const m of text.matchAll(/export\s+(?:type|interface)\s+([A-Za-z_$][\w$]*)/g))
-    types.add(m[1]);
-  for (const m of text.matchAll(/export\s+(?:const|function)\s+([A-Za-z_$][\w$]*)/g))
-    values.add(m[1]);
-  if (/export\s+\*/.test(text)) throw new Error("library.ts: re-export names one by one");
+  const read = async (file: string) => {
+    const text = await readFile(file, "utf8");
+    for (const m of text.matchAll(/export\s+(type\s+)?\{([^}]*)\}/g))
+      for (const name of names(m[2])) (m[1] ? types : values).add(name);
+    for (const m of text.matchAll(/export\s+(?:type|interface)\s+([A-Za-z_$][\w$]*)/g))
+      types.add(m[1]);
+    for (const m of text.matchAll(/export\s+(?:const|function|class)\s+([A-Za-z_$][\w$]*)/g))
+      values.add(m[1]);
+    for (const m of text.matchAll(/export\s+\*\s+from\s+"([^"]+)"/g)) {
+      if (file !== LIBRARY || !m[1].startsWith("./library/"))
+        throw new Error(
+          `${path.relative(ROOT, file)}: only library.ts re-exports a library/ file with export *`,
+        );
+      await read(path.join(path.dirname(file), `${m[1]}.ts`));
+    }
+  };
+  await read(LIBRARY);
   return { values, types };
 }
 
@@ -240,13 +257,7 @@ export const TABLES: Readonly<Record<string, readonly PhraseRow[]>> = ${json(set
 `;
 }
 
-// The parameter types and the result type of a generated fixer, by frame style.
-const PARAM_TYPES: Readonly<Record<string, string>> = {
-  m: "RegExpExecArray",
-  ctx: "DetectContext",
-  frame: "FrameRef",
-  target: "string",
-};
+// The result type of a generated fixer, by frame style.
 const RESULTS: Readonly<Record<FrameStyle, string>> = {
   frame: "string | readonly string[] | null",
   template: "string",
@@ -259,6 +270,27 @@ const RESULTS: Readonly<Record<FrameStyle, string>> = {
   comma: "string | null",
   swap: "string | null",
   match: "MatchResult",
+};
+// The result type of the other kinds of function.
+const KIND_RESULTS: Readonly<Record<Exclude<CodeKind, "fixer">, string>> = {
+  filter: "RawFinding[]",
+  detector: "RawFinding[]",
+  live: "GrammarEdit | null",
+};
+// The record each kind of function goes to, and the type of its values.
+const RECORDS: Readonly<Record<CodeKind, readonly [name: string, type: string, doc: string]>> = {
+  fixer: [
+    "FIXERS",
+    "AnyFixer",
+    'The frame fixes, by the name their frames give ("@<rule id>/<frame>").',
+  ],
+  filter: ["FILTERS", "FindingsFilter", 'The findings filters, by rule ("@<rule id>/filter").'],
+  detector: [
+    "DETECTORS",
+    "Detector",
+    'The Review detectors of rules with code, by rule ("@<rule id>").',
+  ],
+  live: ["LIVE", "LiveCode", 'The typing rules with code, by rule ("@<rule id>").'],
 };
 
 /** The TypeScript type of a YAML value of a map. */
@@ -290,7 +322,26 @@ const bodyLines = (steps: readonly CodeStep[], result: string, otherwise: string
   `return ${result};`,
 ];
 
-/** The generated module of one rule file: its sets, maps, defs and frame fixers. */
+/** The source of one function of a rule file. */
+function functionSource(fn: FunctionCode): { text: string; types: string[] } {
+  const portuguese = fn.style === "portuguese";
+  const all = portuguese ? PORTUGUESE_PARAMS : PARAMS[fn.kind];
+  const params = all.slice(0, fn.params.length).map(([param, type]) => `${param}: ${type}`);
+  const result = fn.kind === "fixer" ? RESULTS[fn.style ?? "frame"] : KIND_RESULTS[fn.kind];
+  const lines = [
+    ...fn.groups.map((group) => `const ${group} = m.groups!.${group};`),
+    ...bodyLines(fn.steps, fn.result, fn.otherwise),
+  ];
+  const arrow = `(${params.join(", ")}): ${result} => {\n${lines.join("\n")}\n}`;
+  const text =
+    fn.kind === "live" ? `{ triggers: ${json(fn.triggers ?? [])}, apply: ${arrow} }` : arrow;
+  return {
+    text: `// ${fn.where}\n${json(fn.key)}: ${text}`,
+    types: [...params, result],
+  };
+}
+
+/** The generated module of one rule file: its sets, maps, defs and functions. */
 function ruleModule(
   name: string,
   code: FileCode,
@@ -319,16 +370,13 @@ function ruleModule(
       `// ${def.where}\n${out}function ${def.name}(${def.args})${def.type ? `: ${def.type}` : ""} {\n${lines.join("\n")}\n}`,
     );
   }
-  const fixers = code.frames.map((frame) => {
-    sources.push(frame.fix, ...frame.steps.map((step) => step.source));
-    const params = frame.params.map((param) => `${param}: ${PARAM_TYPES[param]}`);
-    typeText.push(...frame.params.map((param) => PARAM_TYPES[param]), RESULTS[frame.style]);
-    const lines = [
-      ...frame.groups.map((group) => `const ${group} = m.groups!.${group};`),
-      ...bodyLines(frame.steps, frame.fix, frame.style === "portuguese" ? "[]" : "null"),
-    ];
-    return `// ${frame.where}\n${json(frame.key)}: (${params.join(", ")}): ${RESULTS[frame.style]} => {\n${lines.join("\n")}\n}`;
-  });
+  const records = new Map<CodeKind, string[]>();
+  for (const fn of code.functions) {
+    sources.push(fn.result, fn.otherwise, ...fn.steps.map((step) => step.source));
+    const { text, types } = functionSource(fn);
+    typeText.push(...types);
+    records.set(fn.kind, [...(records.get(fn.kind) ?? []), text]);
+  }
   // The library and shared names the code reads, and the library types its text names.
   const refs = new Set<string>();
   for (const source of sources) for (const ref of checkExpression(source).refs) refs.add(ref);
@@ -337,32 +385,38 @@ function ruleModule(
   const types = [...library.types].filter((type) => words.has(type)).sort();
   const fromCommon = common ? [] : [...refs].filter((ref) => shared.has(ref)).sort();
   const imports = [
-    `import type { AnyFixer } from "../reviewRules";`,
+    `import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";`,
+    `import type { LiveCode } from "../liveRules";`,
     types.length ? `import type { ${types.join(", ")} } from "../../library";` : "",
     values.length ? `import { ${values.join(", ")} } from "../../library";` : "",
     fromCommon.length ? `import { ${fromCommon.join(", ")} } from "./common.generated";` : "",
   ].filter(Boolean);
-  return `${HEADER}// The code of grammar/rules/${name}.yaml: its sets, maps, defs and the fixes of its frames.
+  const exports = (Object.keys(RECORDS) as CodeKind[]).map((kind) => {
+    const [record, type, doc] = RECORDS[kind];
+    return `/** ${doc} */\nexport const ${record}: Readonly<Record<string, ${type}>> = {\n${(records.get(kind) ?? []).join(",\n")}\n};`;
+  });
+  return `${HEADER}// The code of grammar/rules/${name}.yaml: its sets, maps, defs and functions.
 ${imports.join("\n")}
 
 ${parts.join("\n\n")}
 
-/** The frame fixes of the file, by the name its compiled frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {
-${fixers.join(",\n")}
-};
+${exports.join("\n\n")}
 `;
 }
 
-/** The index of the generated rule modules: their fixers by rule file. */
+/** The index of the generated rule modules: their functions by rule file. */
 function ruleIndexModule(names: readonly string[]): string {
-  return `${HEADER}import type { AnyFixer } from "../reviewRules";
-${names.map((name) => `import { FIXERS as ${name} } from "./${name}.generated";`).join("\n")}
+  const records = Object.values(RECORDS);
+  return `${HEADER}import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
+import type { LiveCode } from "../liveRules";
+${names.map((name) => `import * as ${name} from "./${name}.generated";`).join("\n")}
 
-/** The frame fixes of the rule files' expressions, by rule file and name. */
-export const RULE_FIXERS: Readonly<Record<string, Readonly<Record<string, AnyFixer>>>> = {
-  ${names.join(", ")}
-};
+${records
+  .map(
+    ([record, type]) =>
+      `export const RULE_${record}: Readonly<Record<string, Readonly<Record<string, ${type}>>>> = {\n${names.map((name) => `${name}: ${name}.${record}`).join(",\n")}\n};`,
+  )
+  .join("\n\n")}
 `;
 }
 

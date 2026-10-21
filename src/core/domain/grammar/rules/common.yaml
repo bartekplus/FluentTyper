@@ -4551,7 +4551,22 @@ rules:
   - id: englishAlotCorrection.live
     checks: [englishAlotCorrection]
     modes: [live]
-    predicate: EnglishAlotCorrectionRule
+    triggers: [wordBoundary]
+    defs:
+      ALOT_REGEX: /\balot$/i
+      # "a lot" in the case of the typed "alot".
+      correctAlot:
+        args: "phrase: string"
+        let:
+          style: detectWordCase(phrase)
+        return: 'style === "upper" ? "A LOT" : style === "title" ? "A lot" : "a lot"'
+    # "alot" at a word boundary -> "a lot", unless the user's dictionary holds "alot".
+    let:
+      matched: matchTrailingEnglishPhrase(context, ALOT_REGEX)
+    when:
+      - "!!matched"
+      - '!normalizeWordSet(context.hints?.userDictionary ?? []).has("alot")'
+    return: replaceFrom(matched.boundary, matched.phraseStart, correctAlot(matched.match[0]))
   - id: englishPronounVerbWhitelistAgreement.live
     checks: [englishPronounVerbWhitelistAgreement]
     modes: [live]

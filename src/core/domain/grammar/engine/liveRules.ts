@@ -27,7 +27,6 @@ import { DuplicatePunctuationCollapseRule } from "../implementations/DuplicatePu
 import { EnglishModalOfCorrectionRule } from "../implementations/EnglishModalOfCorrectionRule";
 import { EnglishYourWelcomeCorrectionRule } from "../implementations/EnglishYourWelcomeCorrectionRule";
 import { EnglishTheirThereBeVerbRule } from "../implementations/EnglishTheirThereBeVerbRule";
-import { EnglishAlotCorrectionRule } from "../implementations/EnglishAlotCorrectionRule";
 import { EnglishPronounVerbWhitelistAgreementRule } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { EnglishArticleAnCorrectionRule } from "../implementations/EnglishArticleAnCorrectionRule";
 import { EnglishOrdinalSuffixRule } from "../implementations/EnglishOrdinalSuffixRule";
@@ -36,11 +35,18 @@ import { AutoBracketCloseRule } from "../implementations/AutoBracketCloseRule";
 import { MeasurementUnitFormattingRule } from "../implementations/MeasurementUnitFormattingRule";
 import { CurrencySpacingRule } from "../implementations/CurrencySpacingRule";
 import { LIVE_PATTERNS, LIVE_RULES } from "./live.generated";
+import { RULE_LIVE } from "./rules/index.generated";
 import { findMatches, type PatternSet } from "./matcher";
 import { tokenize } from "./tokenizer";
 
 export interface LiveRuleOptions {
   insertSpaceAfterAutocomplete: boolean;
+}
+
+/** A typing rule as code (a rule file's `let`, `when` and `return` with `triggers`). */
+export interface LiveCode {
+  readonly triggers: readonly GrammarEventType[];
+  apply(context: GrammarContext, options: LiveRuleOptions): GrammarEdit | null;
 }
 
 /**
@@ -59,7 +65,6 @@ export const LIVE_PREDICATES: Readonly<Record<string, (options: LiveRuleOptions)
     EnglishModalOfCorrectionRule: () => new EnglishModalOfCorrectionRule(),
     EnglishYourWelcomeCorrectionRule: () => new EnglishYourWelcomeCorrectionRule(),
     EnglishTheirThereBeVerbRule: () => new EnglishTheirThereBeVerbRule(),
-    EnglishAlotCorrectionRule: () => new EnglishAlotCorrectionRule(),
     EnglishPronounVerbWhitelistAgreementRule: () => new EnglishPronounVerbWhitelistAgreementRule(),
     EnglishArticleAnCorrectionRule: () => new EnglishArticleAnCorrectionRule(),
     EnglishOrdinalSuffixRule: () => new EnglishOrdinalSuffixRule(),
@@ -131,11 +136,32 @@ export class PatternLiveRule implements GrammarRule {
   }
 }
 
+/** One typing check of the rule files: its code, its named implementation or its live patterns. */
+function build(rule: (typeof LIVE_RULES)[number], options: LiveRuleOptions): GrammarRule {
+  if (!rule.predicate)
+    return new PatternLiveRule(rule.check as GrammarRuleId, new Set(rule.patterns));
+  // "<file>:@<rule id>": the rule's code in its rule file.
+  const [file, key] = rule.predicate.split(":");
+  const code = key === undefined ? undefined : RULE_LIVE[file]?.[key];
+  if (!code) return LIVE_PREDICATES[rule.predicate](options);
+  return {
+    id: rule.check as GrammarRuleId,
+    triggers: [...code.triggers],
+    apply: (context: GrammarContext) => code.apply(context, options),
+  };
+}
+
 /** The typing rules of the rule files, in priority order. */
 export function createLiveRules(options: LiveRuleOptions): GrammarRule[] {
-  return LIVE_RULES.map((rule) =>
-    rule.predicate
-      ? LIVE_PREDICATES[rule.predicate](options)
-      : new PatternLiveRule(rule.check as GrammarRuleId, new Set(rule.patterns)),
-  );
+  return LIVE_RULES.map((rule) => build(rule, options));
+}
+
+/** The typing rule of one check: the facade classes of implementations/ delegate to it. */
+export function liveRule(
+  check: GrammarRuleId,
+  options: LiveRuleOptions = { insertSpaceAfterAutocomplete: false },
+): GrammarRule {
+  const rule = LIVE_RULES.find((entry) => entry.check === check);
+  if (!rule) throw new Error(`No typing rule for check ${check}`);
+  return build(rule, options);
 }

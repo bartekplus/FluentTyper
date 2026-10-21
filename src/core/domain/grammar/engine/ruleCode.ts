@@ -1,6 +1,7 @@
-// The code of a rule file: its `sets`, `maps` and `defs`, and the `let`, `when` and `return` of its
-// frames. The compiler checks each expression and the names it reads; the generator writes the
-// code of each file into a typed module (engine/rules/<file>.generated.ts).
+// The code of a rule file: its `sets`, `maps` and `defs` (of the file or of a rule), and the
+// `let`, `when` and `return` of its frames and rules. The compiler checks each expression and the
+// names it reads; the generator writes the code of each file into a typed module
+// (engine/rules/<file>.generated.ts).
 import { checkExpression, defSignature, EXPRESSION_GLOBALS } from "./expressions";
 import type { FrameStyle } from "./types";
 
@@ -9,18 +10,30 @@ export type CodeStep =
   | { readonly kind: "let"; readonly name: string; readonly source: string }
   | { readonly kind: "when"; readonly source: string };
 
-/** A frame's fix as code. */
-export interface FrameCode {
-  /** The fixer name the compiled frame names ("@<rule id>/<frame number>"). */
+/**
+ * What a function of a rule file is: the fix of a frame, the filter of a rule's findings, the
+ * detector of a Review rule, or a typing rule's `apply`.
+ */
+export type CodeKind = "fixer" | "filter" | "detector" | "live";
+
+/** A function of a rule file, from a frame's or a rule's `let`, `when` and `return`. */
+export interface FunctionCode {
+  /** The name the compiled rule or frame gives it ("@<rule id>" or "@<rule id>/<frame>"). */
   readonly key: string;
-  readonly style: FrameStyle;
+  readonly kind: CodeKind;
+  /** Fixers: the frame style, which sets the parameters and the result type. */
+  readonly style?: FrameStyle;
   readonly where: string;
-  /** The parameters the body reads, in call order: "m", "ctx", "frame" (or "target"). */
+  /** The parameters the body reads, in call order. */
   readonly params: readonly string[];
-  /** The match groups the body reads. */
+  /** Fixers: the match groups the body reads. */
   readonly groups: readonly string[];
   readonly steps: readonly CodeStep[];
-  readonly fix: string;
+  readonly result: string;
+  /** What the function gives when a `when` fails. */
+  readonly otherwise: string;
+  /** Live rules: the events the rule runs on. */
+  readonly triggers?: readonly string[];
 }
 
 /** A def: a constant (no `args`) or a function. */
@@ -39,8 +52,8 @@ export interface FileCode {
   readonly sets: Readonly<Record<string, readonly string[]>>;
   readonly maps: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly defs: readonly DefCode[];
-  readonly frames: readonly FrameCode[];
-  /** The names of the file (sets, maps, defs) that other names read. */
+  readonly functions: readonly FunctionCode[];
+  /** The names the file defines (sets, maps, defs). */
   readonly names: ReadonlySet<string>;
 }
 
@@ -56,15 +69,42 @@ export type DefSpec =
       readonly else?: string;
     };
 
-/** The code fields of a frame as YAML: bindings, conditions and the fix it returns. */
-export interface FrameCodeSpec {
+/** A body as YAML: bindings, conditions and what it returns. */
+export interface BodySpec {
   readonly let?: Readonly<Record<string, string>>;
   readonly when?: string | readonly string[];
   readonly return?: string;
 }
 
+/** The helpers a rule file, or one of its rules, defines for its expressions. */
+export interface CodeSections {
+  readonly sets?: Readonly<Record<string, readonly string[]>>;
+  readonly maps?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  readonly defs?: Readonly<Record<string, DefSpec>>;
+}
+
+/** The parameters of each kind of function, in call order, with their types. */
+export const PARAMS: Readonly<Record<CodeKind, readonly (readonly [string, string])[]>> = {
+  fixer: [
+    ["m", "RegExpExecArray"],
+    ["ctx", "DetectContext"],
+    ["frame", "FrameRef"],
+  ],
+  filter: [
+    ["ctx", "DetectContext"],
+    ["findings", "RawFinding[]"],
+  ],
+  detector: [["ctx", "DetectContext"]],
+  live: [
+    ["context", "GrammarContext"],
+    ["options", "LiveRuleOptions"],
+  ],
+};
+/** Portuguese frames pass their fixer the typed target. */
+export const PORTUGUESE_PARAMS: readonly (readonly [string, string])[] = [["target", "string"]];
+
 /** What a frame of each style gives when one of its `when` conditions fails. */
-export const NO_FIX: Readonly<Partial<Record<FrameStyle, string>>> = {
+const NO_FIX: Readonly<Partial<Record<FrameStyle, string>>> = {
   frame: "null",
   slot: "null",
   carry: "null",
@@ -74,6 +114,11 @@ export const NO_FIX: Readonly<Partial<Record<FrameStyle, string>>> = {
   comma: "null",
   swap: "null",
   match: "null",
+};
+const OTHERWISE: Readonly<Record<Exclude<CodeKind, "fixer">, string>> = {
+  filter: "findings",
+  detector: "[]",
+  live: "null",
 };
 
 const NAME = /^[A-Za-z_$][\w$]*$/;
@@ -95,14 +140,14 @@ export interface Names {
   readonly taken: (name: string) => boolean;
 }
 
-/** Checks a body (lets, whens and its result) and orders the whens: each runs right after the
- * last binding it reads, so a cheap condition ends the body before a costly binding. */
+/**
+ * Checks a body (lets, whens and its result) and orders the whens: each runs right after the
+ * last binding it reads, so a cheap condition ends the body before a costly binding, and never
+ * before the condition written above it.
+ */
 function body(
   where: string,
-  spec: {
-    readonly let?: Readonly<Record<string, string>>;
-    readonly when?: string | readonly string[];
-  },
+  spec: BodySpec,
   result: string,
   bound: ReadonlySet<string>,
   { known, taken }: Names,
@@ -133,18 +178,20 @@ function body(
     lets.push({ name, source: check(source, at).text });
     scope.add(name);
   }
-  const whens = ([] as string[]).concat(spec.when ?? []).map((source, i) => {
+  let previous = -1;
+  const whens = ([] as unknown[]).concat(spec.when ?? []).map((source, i) => {
     const at = `${where} when ${i + 1}`;
     if (typeof source !== "string") {
       errors.push(`${at}: give an expression`);
       return { source: "true", after: -1 };
     }
     const { text, refs } = check(source, at);
-    // The last binding the condition reads.
-    let after = -1;
+    // The last binding the condition reads, or the place of the condition above it.
+    let after = previous;
     lets.forEach((binding, j) => {
-      if (refs.has(binding.name)) after = j;
+      if (refs.has(binding.name)) after = Math.max(after, j);
     });
+    previous = after;
     return { source: text, after };
   });
   const steps: CodeStep[] = [];
@@ -162,14 +209,13 @@ function body(
 const groupsOf = (pattern: string) =>
   new Set([...pattern.matchAll(/\(\?<([A-Za-z_$][\w$]*)>/g)].map((m) => m[1]));
 
-/** Reads the code sections of a file (sets, maps, defs); frames are added with `frameCode`. */
+/**
+ * Reads the helpers of a file: its own sections, then those of its rules in order (`where` names
+ * each). All the names share the file's scope. Functions are added with `functionCode`.
+ */
 export function fileCode(
   name: string,
-  file: {
-    readonly sets?: Readonly<Record<string, unknown>>;
-    readonly maps?: Readonly<Record<string, unknown>>;
-    readonly defs?: Readonly<Record<string, DefSpec>>;
-  },
+  sections: readonly (readonly [where: string, sections: CodeSections])[],
   scope: CodeScope,
   expand: Expand,
   errors: string[],
@@ -183,24 +229,30 @@ export function fileCode(
     if (name !== "common" && scope.shared.has(key))
       errors.push(`${at}: "${key}" is a name of common.yaml`);
     if (scope.library?.has(key)) errors.push(`${at}: "${key}" is a name of the rule library`);
+    if (EXPRESSION_GLOBALS.has(key)) errors.push(`${at}: "${key}" is a global`);
     names.add(key);
   };
-  for (const [key, words] of Object.entries(file.sets ?? {})) {
-    const at = `${name}.yaml set ${key}`;
-    claim(key, at);
-    if (!Array.isArray(words) || !words.every((word) => typeof word === "string"))
-      errors.push(`${at}: give a list of strings`);
-    else sets[key] = [...words];
+  const specs: [string, string, DefSpec][] = [];
+  for (const [where, section] of sections) {
+    for (const [key, words] of Object.entries(section.sets ?? {})) {
+      const at = `${where} set ${key}`;
+      claim(key, at);
+      if (!Array.isArray(words) || !words.every((word) => typeof word === "string"))
+        errors.push(`${at}: give a list of strings`);
+      else sets[key] = [...words];
+    }
+    for (const [key, value] of Object.entries(section.maps ?? {})) {
+      const at = `${where} map ${key}`;
+      claim(key, at);
+      if (typeof value !== "object" || value === null || Array.isArray(value))
+        errors.push(`${at}: give a mapping`);
+      else maps[key] = { ...(value as Record<string, unknown>) };
+    }
+    for (const [key, spec] of Object.entries(section.defs ?? {})) {
+      claim(key, `${where} def ${key}`);
+      specs.push([where, key, spec]);
+    }
   }
-  for (const [key, value] of Object.entries(file.maps ?? {})) {
-    const at = `${name}.yaml map ${key}`;
-    claim(key, at);
-    if (typeof value !== "object" || value === null || Array.isArray(value))
-      errors.push(`${at}: give a mapping`);
-    else maps[key] = { ...(value as Record<string, unknown>) };
-  }
-  const specs = Object.entries(file.defs ?? {});
-  for (const [key] of specs) claim(key, `${name}.yaml def ${key}`);
   const taken = (ref: string) =>
     names.has(ref) ||
     EXPRESSION_GLOBALS.has(ref) ||
@@ -209,8 +261,8 @@ export function fileCode(
   // Without the library's names any other name may be one of them: the type checker decides.
   const fileNames: Names = { known: (ref) => taken(ref) || !scope.library, taken };
   const defs: DefCode[] = [];
-  for (const [key, spec] of specs) {
-    const where = `${name}.yaml def ${key}`;
+  for (const [at, key, spec] of specs) {
+    const where = `${at} def ${key}`;
     if (typeof spec === "string") {
       const { steps, result } = body(where, {}, spec, new Set(), fileNames, expand, errors);
       defs.push({ name: key, where, steps, result, otherwise: "null" });
@@ -227,19 +279,12 @@ export function fileCode(
       errors.push(`${where}: "args" is not a parameter list`);
       continue;
     }
-    const { steps, result } = body(
-      where,
-      spec,
-      spec.return,
-      new Set(signature.params),
-      fileNames,
-      expand,
-      errors,
-    );
+    const params = new Set(signature.params);
+    const { steps, result } = body(where, spec, spec.return, params, fileNames, expand, errors);
     const otherwise =
       spec.else === undefined
         ? "null"
-        : body(where, {}, spec.else, new Set(signature.params), fileNames, expand, errors).result;
+        : body(`${where} else`, {}, spec.else, params, fileNames, expand, errors).result;
     defs.push({
       name: key,
       where,
@@ -250,36 +295,54 @@ export function fileCode(
       otherwise,
     });
   }
-  return { code: { sets, maps, defs, frames: [], names }, names: fileNames };
+  return { code: { sets, maps, defs, functions: [], names }, names: fileNames };
 }
 
-/** The code of one frame with a `return` expression. */
-export function frameCode(
+/**
+ * The function of a frame (kind "fixer", with its style and regex) or of a rule (a filter, a
+ * detector or a live rule) whose body has a `return` expression.
+ */
+export function functionCode(
   key: string,
-  style: FrameStyle,
+  kind: CodeKind,
   where: string,
-  pattern: string,
-  spec: FrameCodeSpec,
+  spec: BodySpec,
   names: Names,
   expand: Expand,
   errors: string[],
-): FrameCode | undefined {
+  frame?: { readonly style: FrameStyle; readonly pattern: string },
+  triggers?: readonly string[],
+): FunctionCode | undefined {
   if (typeof spec.return !== "string") {
     errors.push(`${where}: "return" is one expression`);
     return undefined;
   }
-  const noFix = NO_FIX[style];
-  if (noFix === undefined) errors.push(`${where}: style "${style}" has no "return" expression`);
-  if (style === "cased" && spec.when !== undefined)
-    errors.push(`${where}: a cased frame always gives its fix; it has no "when"`);
-  const groups = groupsOf(pattern);
-  const params = style === "portuguese" ? ["target"] : ["m", "ctx", "frame"];
-  const bound = new Set(style === "portuguese" ? params : [...params, ...groups]);
+  const style = frame?.style;
+  if (style !== undefined) {
+    if (NO_FIX[style] === undefined && style !== "cased")
+      errors.push(`${where}: style "${style}" has no "return" expression`);
+    if (style === "cased" && spec.when !== undefined)
+      errors.push(`${where}: a cased frame always gives its fix; it has no "when"`);
+  }
+  const portuguese = style === "portuguese";
+  const params = (portuguese ? PORTUGUESE_PARAMS : PARAMS[kind]).map(([param]) => param);
+  const groups = frame && !portuguese ? groupsOf(frame.pattern) : new Set<string>();
   for (const group of groups)
     if (names.taken(group))
       errors.push(`${where}: group "${group}" has the name of a def or a library function`);
-  const { steps, result, reads } = body(where, spec, spec.return, bound, names, expand, errors);
-  const usedGroups = style === "portuguese" ? [] : [...groups].filter((g) => reads.has(g));
+  const otherwise = kind === "fixer" ? (NO_FIX[style ?? "frame"] ?? "null") : OTHERWISE[kind];
+  const { steps, result, reads } = body(
+    where,
+    spec,
+    spec.return,
+    new Set([...params, ...groups]),
+    names,
+    expand,
+    errors,
+  );
+  if (steps.some((step) => step.kind === "when"))
+    for (const ref of checkExpression(otherwise).refs) reads.add(ref);
+  const usedGroups = [...groups].filter((g) => reads.has(g));
   // Only the parameters up to the last one the body reads (a group reads `m`).
   const last = params.reduce(
     (at, param, i) => (reads.has(param) || (param === "m" && usedGroups.length) ? i : at),
@@ -287,11 +350,14 @@ export function frameCode(
   );
   return {
     key,
-    style,
+    kind,
+    ...(style === undefined ? {} : { style }),
     where,
     params: params.slice(0, last + 1),
     groups: usedGroups,
     steps,
-    fix: result,
+    result,
+    otherwise,
+    ...(triggers === undefined ? {} : { triggers: [...triggers] }),
   };
 }
