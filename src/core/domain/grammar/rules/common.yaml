@@ -4390,11 +4390,6 @@ exclusive:
   - [styleOxfordComma, styleNoOxfordComma]
   - [englishAmericanSpelling, englishBritishSpelling]
 
-# Opposite checks: each undoes the fix of the others, so only one of a group can be on.
-exclusive:
-  - [styleOxfordComma, styleNoOxfordComma]
-  - [englishAmericanSpelling, englishBritishSpelling]
-
 # Regex fragments of the frame rules: {{NAME}}.
 fragments:
   # The ISO date (yyyy-mm-dd) frame of the language files (fixer common:invalidIsoDate).
