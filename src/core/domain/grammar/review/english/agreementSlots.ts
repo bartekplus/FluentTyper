@@ -979,19 +979,20 @@ export const FIXERS = {
   },
   /** "Tom live in Rome", "Microsoft speak to its customers": a name before a bare verb. */
   agreementNameSubject: (m, ctx) => {
-    // The frame matches at almost every word: the case tests reject most matches first.
+    // The frame matches at almost every word: the word tests reject most matches before the
+    // clause test.
     if (
       !/^[A-Z][a-z]+$/.test(m.groups!.name) ||
       m.groups!.target !== m.groups!.target.toLowerCase()
     )
       return null;
-    if (!opensClause(ctx, m.index, NAME_CUE)) return null;
     const name = m.groups!.name.toLowerCase();
     if (FUNCTION_WORDS.has(name) || NOT_A_NAME.test(name) || COLLECTIVE.has(name)) return null;
     // A name is unknown to the lexicon or only a noun ("Tom"); never a plural.
     const read = englishWordInfo(name);
     if (read ? read.verbs.length || read.adjective || read.adverb || read.plural : /s$/.test(name))
       return null;
+    if (!opensClause(ctx, m.index, NAME_CUE)) return null;
     const [start] = m.indices!.groups!.target;
     const [verb, next] = tokensAfter(ctx, start, 2);
     if (verb?.kind !== "word" || ctx.dictionary.has(verb.lower) || ctx.dictionary.has(name))
