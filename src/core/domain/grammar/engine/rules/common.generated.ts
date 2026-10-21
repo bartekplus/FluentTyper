@@ -4,15 +4,24 @@ import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type {
   DetectContext,
+  EnglishBoundaryContext,
   FrameRef,
   GrammarContext,
   GrammarEdit,
+  LiveRuleOptions,
   MatchResult,
   RawFinding,
 } from "../../library";
 import {
   COMPLETE,
+  NBSP,
+  NNBSP,
+  PUNCTUATION_EQUIVALENTS,
+  SENTENCE_OPENING_MARKS,
+  SPACE_CHARS,
+  SPACING_OR_FILLER_CHARS,
   TOKEN_END,
+  TRAILING_PUNCTUATION_REGEX,
   WORD_START,
   applyWordCase,
   around,
@@ -25,29 +34,510 @@ import {
   englishNounForms,
   englishVerbForms,
   englishWordInfo,
+  execFrom,
+  findTrailingLetterToken,
   finding,
   found,
+  getLastToken,
   group,
   hasCountPrefix,
   hasUserOrCasedWord,
   hasVerbForm,
   invalidIsoDate,
+  isGreekQuestionMark,
+  isInsideProtectedSpan,
   isLang,
+  isLowercaseLetter,
+  isPartOfTechnicalToken,
+  isTechnicalToken,
   isUniquePast,
+  isWordChar,
+  keepsOwnCasing,
+  lastNonSpaceBefore,
   matchTrailingEnglishPhrase,
+  matchingOpenIndex,
   namedExampleBefore,
   nextLowerWord,
   normalizeWordSet,
+  opensClause,
   ownedMatches,
+  parseMeasurementExpression,
   phraseRows,
   plainToken,
   pluralNoun,
   previousWord,
   quotedSpan,
+  readMemo,
   replaceFrom,
+  resolveEnglishBoundaryContext,
+  resolveMeasurementLocale,
+  resolveTypographyProfile,
+  runStart,
+  shouldSkipGenericReplacement,
   simplePastOnly,
+  splitTrailingSpaces,
+  startsSentence,
+  storeMemo,
+  typingEdit,
+  usesFrenchPunctuationSpacing,
   withTextApostrophes,
 } from "../../library";
+
+export const NON_PRONOUN_FOLLOWERS: ReadonlySet<string> = new Set(["is", "in", "are", "of", "not"]);
+
+export const FORCE_PRONOUN_I_PREFIX: ReadonlySet<string> = new Set(["im", "ive"]);
+
+export const CONTRACTION_BARE_VERBS: ReadonlySet<string> = new Set([
+  "be",
+  "go",
+  "do",
+  "get",
+  "see",
+  "find",
+  "wait",
+  "believe",
+  "stop",
+  "help",
+  "make",
+  "say",
+  "tell",
+  "think",
+  "understand",
+  "remember",
+  "sleep",
+  "come",
+  "have",
+  "work",
+  "let",
+  "take",
+  "give",
+  "use",
+  "open",
+  "load",
+  "start",
+  "run",
+  "hear",
+  "figure",
+  "afford",
+  "imagine",
+  "explain",
+  "decide",
+  "read",
+  "write",
+  "send",
+  "call",
+  "try",
+  "keep",
+  "leave",
+  "know",
+  "change",
+  "fix",
+  "happen",
+  "hurt",
+  "matter",
+  "stay",
+  "agree",
+  "check",
+  "bring",
+  "look",
+  "need",
+]);
+
+export const CONTRACTION_ADVERBS: ReadonlySet<string> = new Set([
+  "really",
+  "even",
+  "just",
+  "ever",
+  "always",
+  "possibly",
+  "still",
+  "actually",
+]);
+
+export const OF_IDIOMS: ReadonlySet<string> = new Set([
+  "course",
+  "necessity",
+  "itself",
+  "himself",
+  "herself",
+  "themselves",
+  "late",
+  "old",
+  "sorts",
+  "note",
+  "interest",
+  "value",
+  "which",
+  "whom",
+  "them",
+  "us",
+  "these",
+  "those",
+  "the",
+  "a",
+  "an",
+  "his",
+  "her",
+  "their",
+  "its",
+  "our",
+  "my",
+  "your",
+]);
+
+export const OBJECT_YOU_BEFORE: ReadonlySet<string> = new Set([
+  "tell",
+  "tells",
+  "told",
+  "give",
+  "gives",
+  "gave",
+  "given",
+  "show",
+  "shows",
+  "showed",
+  "shown",
+  "send",
+  "sends",
+  "sent",
+  "ask",
+  "asks",
+  "asked",
+  "thank",
+  "thanks",
+  "thanked",
+  "teach",
+  "teaches",
+  "taught",
+  "pay",
+  "pays",
+  "paid",
+  "bring",
+  "brings",
+  "brought",
+  "buy",
+  "buys",
+  "bought",
+  "owe",
+  "owes",
+  "owed",
+  "lend",
+  "lends",
+  "lent",
+  "sell",
+  "sells",
+  "sold",
+  "write",
+  "writes",
+  "wrote",
+  "written",
+  "remind",
+  "reminds",
+  "reminded",
+  "warn",
+  "warns",
+  "warned",
+  "offer",
+  "offers",
+  "offered",
+  "promise",
+  "promises",
+  "promised",
+  "meet",
+  "met",
+  "love",
+  "hate",
+  "help",
+  "call",
+  "leave",
+  "left",
+  "hit",
+  "hurt",
+  "keep",
+  "kept",
+  "miss",
+  "choose",
+  "chose",
+  "chosen",
+  "lose",
+  "lost",
+  "beat",
+  "catch",
+  "caught",
+  "bless",
+  "blessed",
+  "make",
+  "made",
+  "let",
+  "want",
+  "wanted",
+  "need",
+  "needed",
+  "to",
+  "for",
+  "with",
+  "of",
+  "about",
+  "from",
+  "at",
+  "by",
+  "on",
+  "upon",
+  "onto",
+  "into",
+  "toward",
+  "towards",
+  "against",
+  "without",
+  "behind",
+  "beside",
+  "besides",
+  "around",
+  "near",
+  "among",
+  "between",
+  "beyond",
+  "under",
+  "over",
+  "through",
+  "unto",
+  "within",
+]);
+
+export const CLAUSE_GERUNDS: ReadonlySet<string> = new Set([
+  "knowing",
+  "hearing",
+  "seeing",
+  "finding",
+  "thinking",
+  "believing",
+  "feeling",
+  "noticing",
+  "realizing",
+  "realising",
+  "hoping",
+  "wishing",
+  "saying",
+  "guessing",
+  "supposing",
+  "assuming",
+  "figuring",
+  "imagining",
+  "remembering",
+  "forgetting",
+  "understanding",
+  "learning",
+  "reading",
+  "deciding",
+  "suspecting",
+  "fearing",
+  "expecting",
+  "pretending",
+  "claiming",
+  "admitting",
+  "doubting",
+  "trusting",
+]);
+
+export const ARTICLE_CONTEXT_WORDS: ReadonlySet<string> = new Set([
+  "is",
+  "was",
+  "are",
+  "were",
+  "am",
+  "be",
+  "been",
+  "being",
+  "isn't",
+  "wasn't",
+  "it's",
+  "that's",
+  "there's",
+  "here's",
+  "what's",
+  "he's",
+  "she's",
+  "have",
+  "has",
+  "had",
+  "need",
+  "needs",
+  "needed",
+  "want",
+  "wants",
+  "wanted",
+  "get",
+  "gets",
+  "got",
+  "take",
+  "takes",
+  "took",
+  "buy",
+  "bought",
+  "wait",
+  "for",
+  "with",
+  "in",
+  "of",
+  "to",
+  "at",
+  "on",
+  "about",
+  "like",
+  "into",
+  "after",
+  "before",
+  "without",
+  "within",
+  "during",
+  "such",
+  "what",
+  "quite",
+  "rather",
+  "half",
+  "not",
+  "just",
+  "only",
+  "also",
+  "and",
+  "but",
+]);
+
+export const ARTICLE_QUESTION_OPENERS: ReadonlySet<string> = new Set([
+  "is",
+  "was",
+  "are",
+  "were",
+  "isn't",
+  "wasn't",
+]);
+
+export const WORDS_NOT_INITIALISMS: ReadonlySet<string> = new Set([
+  "man",
+  "new",
+  "small",
+  "short",
+  "friend",
+]);
+
+export const ARTICLE_MASS_NOUNS: ReadonlySet<string> = new Set([
+  "information",
+  "advice",
+  "equipment",
+  "evidence",
+]);
+
+export const MARCH_DATE_WORDS: ReadonlySet<string> = new Set([
+  "on",
+  "in",
+  "since",
+  "until",
+  "till",
+  "from",
+  "by",
+  "of",
+  "between",
+  "after",
+  "before",
+]);
+
+export const MONTH_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "in",
+  "during",
+  "since",
+  "until",
+  "till",
+  "by",
+  "from",
+  "before",
+  "through",
+  "throughout",
+]);
+
+export const MONTH_MODIFIERS: ReadonlySet<string> = new Set([
+  "last",
+  "next",
+  "every",
+  "early",
+  "late",
+]);
+
+export const NOUN_DETERMINERS: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "his",
+  "her",
+  "their",
+  "our",
+  "my",
+  "your",
+  "its",
+  "whose",
+  "one",
+]);
+
+export const OF_MONTH_HEADS: ReadonlySet<string> = new Set([
+  "end",
+  "beginning",
+  "start",
+  "middle",
+  "ides",
+  "rest",
+  "month",
+]);
+
+export const SLASH_SCHEMES: ReadonlySet<string> = new Set([
+  "http",
+  "https",
+  "ftp",
+  "ftps",
+  "file",
+  "ssh",
+  "git",
+  "ws",
+  "wss",
+]);
+
+export const MATH_OPERATORS: ReadonlySet<string> = new Set(["=", "+", "*"]);
+
+export const MATH_QUOTE_CHARS: ReadonlySet<string> = new Set(['"', "'", "`", "”", "’"]);
+
+export const CURRENCY_MARKERS: ReadonlySet<string> = new Set([
+  "EUR",
+  "USD",
+  "GBP",
+  "CHF",
+  "PLN",
+  "SEK",
+  "NOK",
+  "DKK",
+  "CZK",
+  "HUF",
+  "RON",
+  "BGN",
+  "JPY",
+  "CNY",
+  "AUD",
+  "NZD",
+  "BRL",
+  "MXN",
+  "SAR",
+  "AED",
+  "INR",
+  "UAH",
+  "€",
+  "zł",
+  "kr",
+]);
+
+export const COLLAPSIBLE_PUNCTUATION: ReadonlySet<string> = new Set([",", ";", "،", "؛"]);
+
+export const AUTO_CLOSERS: ReadonlySet<string> = new Set([")", "]", "}", "'", '"', "`", ">", "»"]);
+
+export const SYMMETRIC_QUOTES: ReadonlySet<string> = new Set(["'", '"', "`"]);
 
 export const ACRONYMS: ReadonlySet<string> = new Set([
   "NASA",
@@ -1180,6 +1670,61 @@ export const FEELING_VERBS: ReadonlySet<string> = new Set([
   "stress",
 ]);
 
+export const ENGLISH_CONTRACTIONS: Readonly<Record<string, string>> = {
+  im: "i'm",
+  ive: "i've",
+  dont: "don't",
+  isnt: "isn't",
+  arent: "aren't",
+  wasnt: "wasn't",
+  werent: "weren't",
+  didnt: "didn't",
+  doesnt: "doesn't",
+  havent: "haven't",
+  hasnt: "hasn't",
+  hadnt: "hadn't",
+  shouldnt: "shouldn't",
+  couldnt: "couldn't",
+  wouldnt: "wouldn't",
+  mustnt: "mustn't",
+};
+
+export const CONTEXT_CONTRACTIONS: Readonly<Record<string, string>> = {
+  cant: "can't",
+  wont: "won't",
+  ill: "i'll",
+};
+
+export const TYPO_WHITELIST: Readonly<Record<string, string>> = {
+  teh: "the",
+  adn: "and",
+  recieve: "receive",
+  seperate: "separate",
+  occured: "occurred",
+  untill: "until",
+  wich: "which",
+  thier: "their",
+  becuase: "because",
+  definately: "definitely",
+};
+
+export const OPENING_BY_CLOSING_BRACKET: Readonly<Record<string, string>> = {
+  ")": "(",
+  "]": "[",
+  "}": "{",
+};
+
+export const AUTO_PAIRS: Readonly<Record<string, string>> = {
+  "(": ")",
+  "[": "]",
+  "{": "}",
+  "'": "'",
+  '"': '"',
+  "`": "`",
+  "<": ">",
+  "«": "»",
+};
+
 export const CANONICAL: Readonly<Record<string, string>> = {
   github: "GitHub",
   javascript: "JavaScript",
@@ -1498,6 +2043,187 @@ export function isoDateWarning(
   };
 }
 
+// common.yaml rule capitalizeSentenceStart.live def completedWordStart
+export function completedWordStart(text: string): number {
+  const boundary = text.length - 1;
+  if (!(boundary >= 1 && /[ \xA0\n]/.test(text[boundary]) && !/[ \xA0\n]/.test(text[boundary - 1])))
+    return -1;
+  return runStart(text, boundary, /[^ \xA0\n]/);
+}
+
+// common.yaml rule capitalizeSentenceStart.live def capitalizedWord
+export function capitalizedWord(text: string, wordStart: number): GrammarEdit | null {
+  const word = text.slice(wordStart, text.length - 1);
+  const letter = SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0;
+  if (!isLowercaseLetter(word[letter] ?? "")) return null;
+  const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
+  if (isTechnicalToken(bare)) return null;
+  if (keepsOwnCasing(bare)) return null;
+  return typingEdit(
+    `${word.slice(0, letter)}${word[letter].toUpperCase()}${text.slice(wordStart + letter + 1)}`,
+    text.length - wordStart,
+  );
+}
+
+// common.yaml rule englishPronounICapitalization.live def ENGLISH_APOSTROPHE_PRONOUN_REGEX
+export const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|d))$/;
+
+// common.yaml rule englishPronounICapitalization.live def DEFERRED_PRONOUN_I_REGEX
+export const DEFERRED_PRONOUN_I_REGEX = /(?:^|[^\p{L}\p{N}_'’])i([ \t]+)(\S+)$/u;
+
+// common.yaml rule englishPronounICapitalization.live def apostrophePronounI
+export function apostrophePronounI(boundary: EnglishBoundaryContext) {
+  const match = boundary.core.match(ENGLISH_APOSTROPHE_PRONOUN_REGEX);
+  if (!match) return null;
+  const start = boundary.core.length - (1 + match[3].length);
+  if (isPartOfTechnicalToken(boundary.core, start, start + 1)) return null;
+  return replaceFrom(boundary, start, `I${boundary.core.slice(start + 1)}`);
+}
+
+// common.yaml rule englishPronounICapitalization.live def deferredPronounI
+export function deferredPronounI(boundary: EnglishBoundaryContext) {
+  const match = DEFERRED_PRONOUN_I_REGEX.exec(boundary.core);
+  if (!match) return null;
+  const gap = match[1];
+  const following = match[2];
+  if (!(/^\p{L}+$/u.test(following) && !NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())))
+    return null;
+  const index = boundary.core.length - (1 + gap.length + following.length);
+  if (isPartOfTechnicalToken(boundary.core, index, index + 1)) return null;
+  return replaceFrom(boundary, index, `I${gap}${following}`);
+}
+
+// common.yaml rule englishPronounICapitalization.live def lonePronounI
+export function lonePronounI(boundary: EnglishBoundaryContext) {
+  const token = findTrailingLetterToken(boundary.input);
+  if (!token) return null;
+  if (!(token.token === "i")) return null;
+  if (!(token.trailing !== ".")) return null;
+  if (/^[ \t]+$/.test(token.trailing)) return null;
+  if (isPartOfTechnicalToken(token.core, token.tokenStart, token.tokenEnd)) return null;
+  return replaceFrom(boundary, token.tokenStart, "I");
+}
+
+// common.yaml rule englishContractionNormalization.live def CONTRACTION_SUBJECT_BEFORE
+export const CONTRACTION_SUBJECT_BEFORE =
+  /(?:^|[^\p{L}\p{N}_'’])(?:i|you|we|they|he|she|it|who|that|this|there|someone|nobody|everyone)[ \t]+$/iu;
+
+// common.yaml rule englishContractionNormalization.live def CONTRACTION_CLAUSE_OPENER
+export const CONTRACTION_CLAUSE_OPENER =
+  /(?:^|[^\p{L}])(?:and|but|so|then|maybe|ok|okay|yes|no|well|or)$/iu;
+
+// common.yaml rule englishContractionNormalization.live def normalizeContractionToken
+export function normalizeContractionToken(token: string, beforeToken: string): string | null {
+  const lower = token.toLowerCase();
+  const canonical = Object.hasOwn(ENGLISH_CONTRACTIONS, lower)
+    ? ENGLISH_CONTRACTIONS[lower]
+    : undefined;
+  if (!canonical) return null;
+  const lineStart = Math.max(beforeToken.lastIndexOf("\n"), beforeToken.lastIndexOf("\r")) + 1;
+  if (!(
+    !/^[A-Z][a-z]/.test(token) ||
+    !/(?:[A-Z][a-z]*|\b[A-Z]\.)$/.test(beforeToken.slice(lineStart).trimEnd())
+  ))
+    return null;
+  if (FORCE_PRONOUN_I_PREFIX.has(lower) && token === token.toUpperCase()) return null;
+  const cased = applyWordCase(canonical, detectWordCase(token));
+  const normalized = FORCE_PRONOUN_I_PREFIX.has(lower) ? `I${cased.slice(1)}` : cased;
+  if (!(normalized !== token)) return null;
+  return normalized;
+}
+
+// common.yaml rule englishContractionNormalization.live def contractionOpensClause
+export function contractionOpensClause(before: string) {
+  const trimmed = before.replace(/[ \t]+$/u, "");
+  return (
+    trimmed === "" ||
+    /[.!?;:,\n]["'”’)\]]*$/u.test(trimmed) ||
+    CONTRACTION_CLAUSE_OPENER.test(trimmed)
+  );
+}
+
+// common.yaml rule englishContractionNormalization.live def normalizeContractionInContext
+export function normalizeContractionInContext(
+  token: string,
+  before: string,
+  after: string,
+): string | null {
+  const lower = token.toLowerCase();
+  const canonical = Object.hasOwn(CONTEXT_CONTRACTIONS, lower)
+    ? CONTEXT_CONTRACTIONS[lower]
+    : undefined;
+  if (!(!!canonical && !(token === token.toUpperCase() && token.length > 1))) return null;
+  const words = /^[ \t]+(\p{L}+)(?:[ \t]+(\p{L}+))?/u.exec(after);
+  if (!words) return null;
+  const verb = (
+    CONTRACTION_ADVERBS.has(words[1].toLowerCase()) ? words[2] : words[1]
+  )?.toLowerCase();
+  if (!(!!verb && CONTRACTION_BARE_VERBS.has(verb))) return null;
+  if (
+    !(lower === "ill"
+      ? contractionOpensClause(before)
+      : CONTRACTION_SUBJECT_BEFORE.test(before) || contractionOpensClause(before))
+  )
+    return null;
+  if (!(
+    !/^[A-Z][a-z]/.test(token) ||
+    !/[A-Z][a-z]*$/.test(before.slice(before.lastIndexOf("\n") + 1).trimEnd())
+  ))
+    return null;
+  const cased = applyWordCase(canonical, detectWordCase(token));
+  return lower === "ill" ? `I${cased.slice(1)}` : cased;
+}
+
+// common.yaml rule englishTypoWhitelistCorrection.live def correctWhitelistedTypo
+export function correctWhitelistedTypo(
+  token: string,
+  dictionary: ReadonlySet<string>,
+): string | null {
+  const lower = token.toLowerCase();
+  const correction = Object.hasOwn(TYPO_WHITELIST, lower) ? TYPO_WHITELIST[lower] : undefined;
+  if (!(!!correction && !dictionary.has(lower))) return null;
+  const replacement = applyWordCase(correction, detectWordCase(token));
+  if (!(replacement !== token)) return null;
+  return replacement;
+}
+
+// common.yaml rule englishModalOfCorrection.live def MODAL_OF_REGEX
+export const MODAL_OF_REGEX =
+  /\b((?:could|would|should|must|might)(?:n['’]t)?)\s+of\s+([A-Za-z]+)$/i;
+
+// common.yaml rule englishModalOfCorrection.live def NOUN_MIGHT_BEFORE
+export const NOUN_MIGHT_BEFORE = /\b(?:the|its|his|her|their|our|your|my|all|full|with|by|of)\s+$/i;
+
+// common.yaml rule englishModalOfCorrection.live def isNounMight
+export function isNounMight(modal: string, before: string) {
+  return modal.toLowerCase() === "might" && NOUN_MIGHT_BEFORE.test(before.slice(-24));
+}
+
+// common.yaml rule englishModalOfCorrection.live def modalHaveWord
+export function modalHaveWord(modal: string, of: string) {
+  return detectWordCase(modal) === "upper" ? "HAVE" : of === "Of" ? "Have" : "have";
+}
+
+// common.yaml rule englishYourWelcomeCorrection.live def YOUR_WELCOME_REGEX
+export const YOUR_WELCOME_REGEX = /\byour\s+welcome$/i;
+
+// common.yaml rule englishYourWelcomeCorrection.live def correctYourWelcome
+export function correctYourWelcome(firstToken: string): [string, string] {
+  const style = detectWordCase(firstToken);
+  return [
+    style === "upper" ? "YOU'RE" : style === "title" ? "You're" : "you're",
+    applyWordCase("welcome", style === "upper" ? "upper" : "lower"),
+  ];
+}
+
+// common.yaml rule englishTheirThereBeVerb.live def THEIR_THERE_BE_REGEX
+export const THEIR_THERE_BE_REGEX = /\btheir\s+(is|are|was|were)$/i;
+
+// common.yaml rule englishTheirThereBeVerb.live def correctTheirBeVerb
+export function correctTheirBeVerb(their: string, verb: string): [string, string] {
+  return [applyWordCase("there", detectWordCase(their)), applyWordCase(verb, detectWordCase(verb))];
+}
+
 // common.yaml rule englishAlotCorrection.live def ALOT_REGEX
 export const ALOT_REGEX = /\balot$/i;
 
@@ -1505,6 +2231,898 @@ export const ALOT_REGEX = /\balot$/i;
 export function correctAlot(phrase: string) {
   const style = detectWordCase(phrase);
   return style === "upper" ? "A LOT" : style === "title" ? "A lot" : "a lot";
+}
+
+// common.yaml rule englishPronounVerbWhitelistAgreement.live def AGREEMENT_REGEX
+export const AGREEMENT_REGEX = /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i;
+
+// common.yaml rule englishPronounVerbWhitelistAgreement.live def AGREEMENT_CORRECTIONS
+export const AGREEMENT_CORRECTIONS = new Map([
+  ["i is", "i am"],
+  ["i has", "i have"],
+  ["you was", "you were"],
+  ["he are", "he is"],
+  ["she are", "she is"],
+  ["it are", "it is"],
+]);
+
+// common.yaml rule englishPronounVerbWhitelistAgreement.live def VARIABLE_CONTEXT_BEFORE
+export const VARIABLE_CONTEXT_BEFORE =
+  /\b(?:if|while|until|unless|whether|when|where|the|a|each|every|index|variable|counter|iterator|loop)\s+$/i;
+
+// common.yaml rule englishPronounVerbWhitelistAgreement.live def isVariableI
+export function isVariableI(text: string, start: number) {
+  return VARIABLE_CONTEXT_BEFORE.test(text.slice(Math.max(0, start - 24), start));
+}
+
+// common.yaml rule englishPronounVerbWhitelistAgreement.live def correctPronounVerb
+export function correctPronounVerb(phrase: string, corrected: string): [string, string] {
+  const inputPronoun = phrase.split(/\s+/)[0];
+  const parts = corrected.split(" ");
+  const pronounStyle = detectWordCase(inputPronoun || parts[0]);
+  const verbStyle =
+    pronounStyle === "upper" && (inputPronoun || "").toLowerCase() !== "i" ? "upper" : "lower";
+  return [applyWordCase(parts[0], pronounStyle), applyWordCase(parts[1], verbStyle)];
+}
+
+// common.yaml rule englishPronounVerbWhitelistAgreement.live def PREVIOUS_WORD
+export const PREVIOUS_WORD = /([A-Za-z]+)[ \t ]+$/;
+
+// common.yaml rule englishPronounVerbWhitelistAgreement.live def NOT_GERUNDS
+export const NOT_GERUNDS = /^(?:\p{L}*thing|during|morning|evening|ceiling|king|spring|string)$/u;
+
+// common.yaml rule englishPronounVerbWhitelistAgreement.live def isObjectYou
+export function isObjectYou(text: string, youStart: number) {
+  const lookback = Math.max(0, youStart - 32);
+  const previous = PREVIOUS_WORD.exec(text.slice(lookback, youStart));
+  if (!previous) return false;
+  const word = previous[1].toLowerCase();
+  return (
+    OBJECT_YOU_BEFORE.has(word) ||
+    (word.length > 4 &&
+      word.endsWith("ing") &&
+      !NOT_GERUNDS.test(word) &&
+      !CLAUSE_GERUNDS.has(word) &&
+      opensClause(text, lookback + previous.index))
+  );
+}
+
+// common.yaml rule englishArticleAnCorrection.live def ARTICLE_REGEX
+export const ARTICLE_REGEX = /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([A-Za-z]+)$/;
+
+// common.yaml rule englishArticleAnCorrection.live def SENTENCE_START_REGEX
+export const SENTENCE_START_REGEX = /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/;
+
+// common.yaml rule englishArticleAnCorrection.live def ARTICLE_PRECEDING_WORD
+export const ARTICLE_PRECEDING_WORD = /(^|\s)([A-Za-z'’]+)\s+$/;
+
+// common.yaml rule englishArticleAnCorrection.live def isArticleContext
+export function isArticleContext(beforeArticle: string): boolean {
+  return SENTENCE_START_REGEX.test(beforeArticle) || articleAfterWord(beforeArticle);
+}
+
+// common.yaml rule englishArticleAnCorrection.live def articleAfterWord
+export function articleAfterWord(beforeArticle: string): boolean {
+  const match = beforeArticle.match(ARTICLE_PRECEDING_WORD);
+  if (!(!!match && match.index !== undefined)) return false;
+  const preceding = match[2].toLowerCase().replaceAll("’", "'");
+  if (
+    ARTICLE_QUESTION_OPENERS.has(preceding) &&
+    SENTENCE_START_REGEX.test(beforeArticle.slice(0, match.index + match[1].length))
+  )
+    return false;
+  return ARTICLE_CONTEXT_WORDS.has(preceding);
+}
+
+// common.yaml rule englishArticleAnCorrection.live def mayBeLetters
+export function mayBeLetters(word: string) {
+  return (
+    word.length === 1 ||
+    (!WORDS_NOT_INITIALISMS.has(word) &&
+      /^[fhlmnrsxu]/.test(word) &&
+      (word.length < 4 ||
+        !(word[0] === "u" ? /[aeiouy]/.test(word.slice(1)) : /^.[aeiouy]/.test(word))))
+  );
+}
+
+// common.yaml rule englishArticleAnCorrection.live def correctArticle
+export function correctArticle(
+  article: string,
+  word: string,
+  dictionary?: ReadonlySet<string>,
+): string | null {
+  const lower = word.toLowerCase();
+  if (
+    dictionary?.has(lower) ||
+    ARTICLE_MASS_NOUNS.has(lower) ||
+    (word === lower && mayBeLetters(lower))
+  )
+    return null;
+  const sound = englishInitialSound(word);
+  const fix = sound === "vowel" ? "an" : sound === "consonant" ? "a" : null;
+  if (!(!!fix && fix !== article.toLowerCase())) return null;
+  return article[0] === "A" ? `A${fix.slice(1)}` : fix;
+}
+
+// common.yaml rule englishOrdinalSuffix.live def ORDINAL_REGEX
+export const ORDINAL_REGEX = /(?<=^|[\s([])(\d+)(nd|th)$/;
+
+// common.yaml rule englishOrdinalSuffix.live def ordinalSuffix
+export function ordinalSuffix(digits: string) {
+  const lastTwo = Number(digits.slice(-2));
+  return lastTwo >= 11 && lastTwo <= 13 ? "th" : (["th", "st", "nd", "rd"][lastTwo % 10] ?? "th");
+}
+
+// common.yaml rule englishProperNounCapitalization.live def PROPER_PHRASES
+export const PROPER_PHRASES = [
+  "New Year's Day",
+  "New Year's Eve",
+  "Christmas Eve",
+  "Christmas Day",
+  "Valentine's Day",
+  "North America",
+  "South America",
+  "Latin America",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+  "Sunday",
+  "January",
+  "February",
+  "April",
+  "June",
+  "July",
+  "September",
+  "October",
+  "November",
+  "December",
+  "Christmas",
+  "Easter",
+  "Halloween",
+  "Hanukkah",
+  "Passover",
+  "Ramadan",
+  "Diwali",
+  "Africa",
+  "America",
+  "Antarctica",
+  "Asia",
+  "Australia",
+  "Europe",
+  "Oceania",
+];
+
+// common.yaml rule englishProperNounCapitalization.live def PROPER_NAME_START
+export const PROPER_NAME_START = "(?<![\\p{L}\\p{N}_@#/\\\\.'’=:&?])";
+
+// common.yaml rule englishProperNounCapitalization.live def properPhraseKey
+export function properPhraseKey(phrase: string) {
+  return phrase.toLowerCase().replace(/[^\p{L}]/gu, "");
+}
+
+// common.yaml rule englishProperNounCapitalization.live def PROPER_PHRASE_REGEX
+export const PROPER_PHRASE_REGEX = new RegExp(
+  `${PROPER_NAME_START}(${PROPER_PHRASES.map((phrase) => phrase.replace(/'/g, "['’]?").replace(/ /g, "[ \\t]+")).join("|")})(?:['’]?s)?$`,
+  "giu",
+);
+
+// common.yaml rule englishProperNounCapitalization.live def PROPER_CANONICAL
+export const PROPER_CANONICAL = new Map(
+  PROPER_PHRASES.map((phrase) => [properPhraseKey(phrase), phrase] as [string, string]),
+);
+
+// common.yaml rule englishProperNounCapitalization.live def PROPER_CONTEXT_MONTH
+export const PROPER_CONTEXT_MONTH = new RegExp(
+  `${PROPER_NAME_START}(may|march|august)(?:[ \\t]+([\\p{L}\\p{N}]+))?$`,
+  "giu",
+);
+
+// common.yaml rule englishProperNounCapitalization.live def DAY_NUMBER
+export const DAY_NUMBER = /^(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?$/i;
+
+// common.yaml rule englishProperNounCapitalization.live def DAY_OR_YEAR
+export const DAY_OR_YEAR = /^(?:(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?|(?:19|20)\d\d)$/i;
+
+// common.yaml rule englishProperNounCapitalization.live def PROPER_PREVIOUS_WORD
+export const PROPER_PREVIOUS_WORD = /(?:^|\s)[(["“]?([\p{L}\p{N}'’]+)[ \t]+$/gu;
+
+// common.yaml rule englishProperNounCapitalization.live def MID_PREFIX_REGEX
+export const MID_PREFIX_REGEX = /(?<!\p{L})mid-$/giu;
+
+// common.yaml rule englishProperNounCapitalization.live def properNameReplacement
+export function properNameReplacement(
+  typed: string,
+  canonical: string,
+  dictionary: ReadonlySet<string>,
+): string | null {
+  const replaced = recaseProperName(typed, canonical);
+  return replaced === typed ||
+    dictionary.has(typed.toLowerCase()) ||
+    dictionary.has(canonical.toLowerCase())
+    ? null
+    : replaced;
+}
+
+// common.yaml rule englishProperNounCapitalization.live def recaseProperName
+export function recaseProperName(typed: string, canonical: string) {
+  const letters = [...canonical.replace(/[^\p{L}]/gu, "")];
+  return typed.replace(/\S+/g, (word: string, offset: number) =>
+    word === word.toLowerCase()
+      ? word.replace(
+          /\p{L}/gu,
+          (ch: string, at: number) => letters[letterCount(typed.slice(0, offset + at))] ?? ch,
+        )
+      : word,
+  );
+}
+
+// common.yaml rule englishProperNounCapitalization.live def letterCount
+export function letterCount(text: string) {
+  return (text.match(/\p{L}/gu) ?? []).length;
+}
+
+// common.yaml rule englishProperNounCapitalization.live def findProperName
+export function findProperName(
+  core: string,
+): { start: number; end: number; canonical: string; contextual: boolean } | null {
+  const phrase = execFrom(PROPER_PHRASE_REGEX, core, core.length - 64);
+  return phrase
+    ? {
+        start: phrase.index,
+        end: core.length,
+        canonical: PROPER_CANONICAL.get(properPhraseKey(phrase[1]))!,
+        contextual: false,
+      }
+    : findContextMonth(core);
+}
+
+// common.yaml rule englishProperNounCapitalization.live def findContextMonth
+export function findContextMonth(
+  core: string,
+): { start: number; end: number; canonical: string; contextual: boolean } | null {
+  const month = execFrom(PROPER_CONTEXT_MONTH, core, core.length - 64);
+  if (!month) return null;
+  const word = month[1];
+  const next = month[2];
+  const before = core.slice(0, month.index);
+  const previous =
+    execFrom(PROPER_PREVIOUS_WORD, before, before.length - 64)?.[1].toLowerCase() ?? "";
+  const isMonth = next
+    ? DAY_OR_YEAR.test(next) &&
+      (word.toLowerCase() !== "march" ||
+        MARCH_DATE_WORDS.has(previous) ||
+        DAY_NUMBER.test(previous))
+    : execFrom(MID_PREFIX_REGEX, before, before.length - 64) !== null;
+  if (!isMonth) return null;
+  return {
+    start: month.index,
+    end: month.index + word.length,
+    canonical: word[0].toUpperCase() + word.slice(1).toLowerCase(),
+    contextual: true,
+  };
+}
+
+// common.yaml rule englishProperNounCapitalization.live def PROPER_LAST_WORDS
+export const PROPER_LAST_WORDS = new Set([
+  ...PROPER_PHRASES.map((phrase) => properPhraseKey(phrase.split(" ").at(-1)!)),
+  "may",
+  "march",
+  "august",
+]);
+
+// common.yaml rule englishProperNounCapitalization.live def MONTH_BEFORE_NUMBER
+export const MONTH_BEFORE_NUMBER = /(?:may|march|august)[ \t]+$/i;
+
+// common.yaml rule englishProperNounCapitalization.live def couldEndProperName
+export function couldEndProperName(word: string, before: string) {
+  const key = properPhraseKey(word);
+  return DAY_OR_YEAR.test(word)
+    ? MONTH_BEFORE_NUMBER.test(before)
+    : PROPER_LAST_WORDS.has(key) || PROPER_LAST_WORDS.has(key.replace(/s$/, ""));
+}
+
+// common.yaml rule englishProperNounCapitalization.live def PLAIN_MONTHS
+export const PLAIN_MONTHS = "january|february|april|june|july|september|october|november|december";
+
+// common.yaml rule englishProperNounCapitalization.live def MONTH_CLAUSE_END
+export const MONTH_CLAUSE_END = /^(?:[.,;:!?)\]]|[ \t]*(?:[\r\n]|$))/u;
+
+// common.yaml rule englishProperNounCapitalization.live def MONTH_YEAR_AFTER
+export const MONTH_YEAR_AFTER = /^[ \t]+(?:19|20)\d\d(?![\p{L}\p{N}])/u;
+
+// common.yaml rule englishProperNounCapitalization.live def MONTH_RANGE_AFTER
+export const MONTH_RANGE_AFTER = new RegExp(
+  `^[ \\t]*(?:to|through|until|till|and|or|[-–—])[ \\t]*(?:${PLAIN_MONTHS})(?![\\p{L}])`,
+  "iu",
+);
+
+// common.yaml rule englishProperNounCapitalization.live def MONTH_RANGE_BEFORE
+export const MONTH_RANGE_BEFORE = new RegExp(
+  `(?<![\\p{L}])(?:${PLAIN_MONTHS})[ \\t]*(?:,|to|through|until|till|and|or|[-–—])[ \\t]*$`,
+  "iu",
+);
+
+// common.yaml rule englishProperNounCapitalization.live def MONTH_LAST_TWO_WORDS
+export const MONTH_LAST_TWO_WORDS =
+  /(?:^|[^\p{L}\p{N}'’])([\p{L}\p{N}'’]+)[ \t]+([\p{L}\p{N}'’]+)[ \t]+$/u;
+
+// common.yaml rule englishProperNounCapitalization.live def isMonthInContext
+export function isMonthInContext(word: string, before: string, after: string): boolean {
+  if (!/^(?:may|march|august)$/.test(word)) return false;
+  const words = MONTH_LAST_TWO_WORDS.exec(before);
+  const previous = (
+    words?.[2] ??
+    execFrom(PROPER_PREVIOUS_WORD, before, before.length - 64)?.[1] ??
+    ""
+  ).toLowerCase();
+  const earlier = (words?.[1] ?? "").toLowerCase();
+  const ends = MONTH_CLAUSE_END.test(after) || MONTH_YEAR_AFTER.test(after);
+  return (
+    MONTH_RANGE_AFTER.test(after) ||
+    (word !== "may" &&
+      previous !== "every" &&
+      MONTH_MODIFIERS.has(previous) &&
+      !NOUN_DETERMINERS.has(earlier)) ||
+    (word === "august" &&
+      previous === "of" &&
+      /^[ \t]+(?:for|in|to|and|or|is|was)\b/.test(after)) ||
+    (ends &&
+      (MONTH_RANGE_BEFORE.test(before) ||
+        MONTH_PREPOSITIONS.has(previous) ||
+        (MONTH_MODIFIERS.has(previous)
+          ? !NOUN_DETERMINERS.has(earlier)
+          : previous === "of"
+            ? OF_MONTH_HEADS.has(earlier) || DAY_NUMBER.test(earlier)
+            : DAY_NUMBER.test(previous) &&
+              (MARCH_DATE_WORDS.has(earlier) || /\D$/.test(previous)))))
+  );
+}
+
+// common.yaml rule commaPeriodSpacing.live def COMMA_NUMERIC_PREFIX
+export const COMMA_NUMERIC_PREFIX = /(?:^|[\s([{\p{Sc}])[-+]?\p{Nd}+(?:[.,٫]\p{Nd}*)*$/u;
+
+// common.yaml rule commaPeriodSpacing.live def numericPrefixBefore
+export function numericPrefixBefore(text: string, index: number) {
+  return COMMA_NUMERIC_PREFIX.test(text.slice(Math.max(0, index - 34), index));
+}
+
+// common.yaml rule commaPeriodSpacing.live def straightQuoteStep
+export function straightQuoteStep(opener: number, previous: string, at: number): number {
+  const opens = /^[\s([{—–]?$/u.test(previous);
+  return opener === -2
+    ? -2
+    : /\p{Nd}/u.test(previous)
+      ? opener >= 0
+        ? -2
+        : opener
+      : opens === opener >= 0
+        ? -2
+        : opens
+          ? at
+          : -1;
+}
+
+// common.yaml rule commaPeriodSpacing.live def closedQuoteStart
+export function closedQuoteStart(text: string, index: number, ch: string): number {
+  const paragraphStart = text.lastIndexOf("\n", index - 1) + 1;
+  const before = text.slice(paragraphStart, index);
+  const straight = [...before.matchAll(/"/g)].reduce(
+    (opener, m) => straightQuoteStep(opener, before[m.index - 1] ?? "", m.index),
+    -1,
+  );
+  const curlyOpeners = before.match(/[“„]/g)?.length ?? 0;
+  const curlyClosers = before.match(/”/g)?.length ?? 0;
+  return ch === '"'
+    ? straight < 0
+      ? -1
+      : paragraphStart + straight
+    : ch === "”"
+      ? curlyOpeners <= curlyClosers
+        ? -1
+        : paragraphStart + Math.max(before.lastIndexOf("“"), before.lastIndexOf("„"))
+      : -1;
+}
+
+// common.yaml rule commaPeriodSpacing.live def isProseQuote
+export function isProseQuote(text: string, openerIndex: number, punctuationIndex: number) {
+  const quoted = text.slice(openerIndex + 1, punctuationIndex);
+  return /^[\p{L}\p{N}]/u.test(quoted) && /\p{L}/u.test(quoted);
+}
+
+// common.yaml rule commaPeriodSpacing.live def spaceAfterMark
+export function spaceAfterMark(context: GrammarContext, text: string, canDefer: boolean) {
+  const markIndex = text.length - 2;
+  const mark = text[markIndex] ?? "";
+  const lang = context.hints?.lang;
+  const closesSentence =
+    mark === "." ||
+    (["?", "!"].includes(PUNCTUATION_EQUIVALENTS[mark] ?? mark) &&
+      !usesFrenchPunctuationSpacing(lang)) ||
+    isGreekQuestionMark(mark, lang);
+  if (!(canDefer && closesSentence)) return null;
+  const wordEndIndex = lastNonSpaceBefore(text, markIndex);
+  const spacesBefore = markIndex - 1 - wordEndIndex;
+  if (!(spacesBefore !== 0 && /[\p{L}\p{N})\]}"”’»“‘›]/u.test(text[wordEndIndex] ?? "")))
+    return null;
+  return typingEdit(`${mark} `, spacesBefore + 2);
+}
+
+// common.yaml rule commaPeriodSpacing.live def tightClosingQuote
+export function tightClosingQuote(text: string, quote: string) {
+  const openerIndex = closedQuoteStart(text, text.length - 1, quote);
+  if (!(openerIndex >= 0)) return null;
+  const j = lastNonSpaceBefore(text, text.length - 1);
+  const spaceRun = text.length - 2 - j;
+  const punctuation = j >= 0 ? text[j] : "";
+  if (!(
+    spaceRun > 0 &&
+    (punctuation === "," || punctuation === ".") &&
+    isProseQuote(text, openerIndex, j)
+  ))
+    return null;
+  return typingEdit(quote, spaceRun + 1);
+}
+
+// common.yaml rule commaPeriodSpacing.live def numericCommaRepair
+export function numericCommaRepair(
+  context: GrammarContext,
+  options: LiveRuleOptions,
+  text: string,
+  last: string,
+  canDefer: boolean,
+) {
+  const deferredExponent = /[eE]/.test(text[text.length - 2] ?? "");
+  const continuation = deferredExponent ? text.slice(-2) : last;
+  const punctuationIndex = text.length - continuation.length - 1;
+  if (!(
+    canDefer &&
+    options.insertSpaceAfterAutocomplete &&
+    text[punctuationIndex] === "," &&
+    /^\p{L}$/u.test(last) &&
+    (deferredExponent || !/^[eE]$/u.test(last))
+  ))
+    return null;
+  if (!(
+    context.hints?.measurementContext === "prose" &&
+    !!resolveMeasurementLocale(context.hints.lang) &&
+    numericPrefixBefore(text, punctuationIndex)
+  ))
+    return null;
+  return typingEdit(`, ${continuation}`, 1 + continuation.length);
+}
+
+// common.yaml rule commaPeriodSpacing.live def commaSpacing
+export function commaSpacing(
+  context: GrammarContext,
+  options: LiveRuleOptions,
+  text: string,
+  last: string,
+  canDefer: boolean,
+) {
+  if (!((PUNCTUATION_EQUIVALENTS[last] ?? last) === ",")) return null;
+  const i = lastNonSpaceBefore(text, text.length - 1, SPACING_OR_FILLER_CHARS);
+  const previous = i >= 0 ? text[i] : "";
+  const spaceBeforeViolated = SPACE_CHARS.some((ch) => text.slice(i + 1, -1).includes(ch));
+  if (
+    !spaceBeforeViolated &&
+    last === "," &&
+    /^\p{Nd}$/u.test(previous) &&
+    numericPrefixBefore(text, text.length - 1) &&
+    canDefer &&
+    context.hints?.measurementContext === "prose" &&
+    resolveMeasurementLocale(context.hints.lang)
+  )
+    return null;
+  if (!(previous !== last)) return null;
+  const insertSpaceAfter = options.insertSpaceAfterAutocomplete;
+  if (!(spaceBeforeViolated || insertSpaceAfter)) return null;
+  return typingEdit(
+    `${last}${insertSpaceAfter ? " " : ""}`,
+    spaceBeforeViolated ? text.length - 1 - i : 1,
+  );
+}
+
+// common.yaml rule closingBracketSpacing.live def proseLikeClosing
+export function proseLikeClosing(text: string, closing: string, closingIndex: number) {
+  const openingIndex = matchingOpenIndex(
+    text,
+    closingIndex,
+    OPENING_BY_CLOSING_BRACKET[closing],
+    closing,
+  );
+  const previousChar = text[lastNonSpaceBefore(text, closingIndex)];
+  return openingIndex === null
+    ? !previousChar || !/[A-Za-z0-9_$]/.test(previousChar)
+    : openingIndex === 0 || SPACE_CHARS.includes(text[openingIndex - 1]);
+}
+
+// common.yaml rule slashContextSpacing.live def compactsProtocolSlash
+export function compactsProtocolSlash(text: string, slashIndex: number) {
+  if (!SPACE_CHARS.includes(text[slashIndex - 1])) return false;
+  const colonIndex = slashIndex - 2;
+  if (!(colonIndex >= 1 && text[colonIndex] === ":")) return false;
+  const schemeStart = runStart(text, colonIndex, /[A-Za-z0-9+.-]/);
+  if (!(schemeStart < colonIndex)) return false;
+  return SLASH_SCHEMES.has(text.slice(schemeStart, colonIndex).toLowerCase());
+}
+
+// common.yaml rule slashContextSpacing.live def isSlashOperator
+export function isSlashOperator(text: string, slashIndex: number) {
+  return (
+    SPACE_CHARS.includes(text[slashIndex - 1]) &&
+    /(?:^|\s)(?:[-+]?\p{N}+(?:[.,]\p{N}+)*|\p{L})[ \t ]+\/$|[)\]}][ \t ]+\/$/u.test(
+      text.slice(Math.max(0, slashIndex - 64), slashIndex + 1),
+    )
+  );
+}
+
+// common.yaml rule mathOperatorSpacing.live def readLeftOperand
+export function readLeftOperand(
+  text: string,
+  operatorIndex: number,
+): { start: number; text: string; kind: "identifier" | "number" | "closingBracket" } | null {
+  const leftIndex = lastNonSpaceBefore(text, operatorIndex);
+  if (!(leftIndex >= 0)) return null;
+  const leftChar = text[leftIndex];
+  const start = /[0-9]/.test(leftChar)
+    ? runStart(text, leftIndex, /[0-9.]/)
+    : runStart(text, leftIndex, /[A-Za-z0-9_$]/);
+  return /[)\]}]/.test(leftChar)
+    ? { start: leftIndex, text: leftChar, kind: "closingBracket" }
+    : /[0-9]/.test(leftChar)
+      ? { start, text: text.slice(start, leftIndex + 1), kind: "number" }
+      : /[A-Za-z0-9_$]/.test(leftChar)
+        ? { start, text: text.slice(start, leftIndex + 1), kind: "identifier" }
+        : null;
+}
+
+// common.yaml rule mathOperatorSpacing.live def equalsRightOperand
+export function equalsRightOperand(ch: string) {
+  return (
+    !!ch &&
+    (/[A-Za-z_$]/.test(ch) || /[0-9]/.test(ch) || MATH_QUOTE_CHARS.has(ch) || /[([{]/.test(ch))
+  );
+}
+
+// common.yaml rule mathOperatorSpacing.live def arithmeticContext
+export function arithmeticContext(left: { kind: string; text: string }, rightChar: string) {
+  return (
+    /[0-9]/.test(rightChar) ||
+    (left.kind === "number"
+      ? /[A-Za-z_$]/.test(rightChar) || /[([{]/.test(rightChar)
+      : left.kind === "identifier" && left.text.length === 1 && /[A-Za-z_$]/.test(rightChar))
+  );
+}
+
+// common.yaml rule measurementUnitFormatting.live def isProsePrefix
+export function isProsePrefix(prefix: string): boolean {
+  const line = prefix.slice(Math.max(prefix.lastIndexOf("\n"), prefix.lastIndexOf("\r")) + 1);
+  const unbracketed = /(?<=^|\s)[([]$/u.test(line) ? line.slice(0, -1) : line;
+  return (
+    !/\p{Bidi_Control}/u.test(prefix) &&
+    (line.trim().length === 0 ||
+      (/\p{L}/u.test(line) &&
+        !/(?:https?:\/\/|www\.|[\\/]|[[\]])/iu.test(line) &&
+        (unbracketed.trim().length === 0 ||
+          /(?:[:：]\s*|\p{L}[\p{L}\p{M}'’.-]*\s+)$/u.test(unbracketed))))
+  );
+}
+
+// common.yaml rule measurementUnitFormatting.live def separateUnit
+export function separateUnit(
+  context: GrammarContext,
+  units: ReadonlySet<string> | null,
+  skipUnit: RegExp | null,
+): GrammarEdit | null {
+  const hints = context.hints;
+  if (!(
+    hints?.measurementContext === "prose" &&
+    hints.inputAction === "insert" &&
+    !hints.isPaste &&
+    context.beforeCursor.length <= 512 &&
+    context.afterCursor.length === 0
+  ))
+    return null;
+  const locale = resolveMeasurementLocale(hints.lang);
+  const trailing = context.beforeCursor.at(-1);
+  if (!(!!locale && (trailing === " " || trailing === "\n"))) return null;
+  const text = context.beforeCursor.slice(0, -1);
+  const parsed = parseMeasurementExpression(
+    text,
+    locale,
+    units ? (value: string, start: number) => units.has(value.slice(start)) : undefined,
+  );
+  if (!(
+    !!parsed &&
+    !(skipUnit?.test(text.slice(parsed.numberEnd)) ?? false) &&
+    isProsePrefix(text.slice(0, parsed.start))
+  ))
+    return null;
+  return {
+    replacement: `${text.slice(parsed.start, parsed.numberEnd)}${locale.separator}${text.slice(parsed.numberEnd)}${trailing}`,
+    deleteBackwards: context.beforeCursor.length - parsed.start,
+    deleteForwards: 0,
+    strict: true,
+  };
+}
+
+// common.yaml rule smartQuoteNormalization.live def shouldOpenQuote
+export function shouldOpenQuote(before: string) {
+  return /(?:^|[\s([{<])$/.test(before);
+}
+
+// common.yaml rule smartQuoteNormalization.live def quoteBalanceStep
+export function quoteBalanceStep(
+  input: string,
+  i: number,
+  char: string,
+  balance: number,
+  straight: string,
+  open: string,
+  symmetric: boolean,
+): number | null {
+  return straight === "'" && isWordChar(input.charAt(i - 1)) && isWordChar(input.charAt(i + 1))
+    ? balance
+    : char === open && !symmetric
+      ? balance + 1
+      : (char === straight || symmetric) && shouldOpenQuote(input.slice(0, i))
+        ? balance + 1
+        : balance === 0
+          ? null
+          : balance - 1;
+}
+
+// common.yaml rule smartQuoteNormalization.live def quoteBalance
+export function quoteBalance(
+  input: string,
+  straight: string,
+  open: string,
+  close: string,
+): number | null {
+  return [...input.matchAll(new RegExp(`[${open}${close}${straight}]`, "g"))].reduce(
+    (balance: number | null, m) =>
+      balance === null
+        ? null
+        : quoteBalanceStep(input, m.index, m[0], balance, straight, open, open === close),
+    0,
+  );
+}
+
+// common.yaml rule smartQuoteNormalization.live def endsWithLikelyQuoteContent
+export function endsWithLikelyQuoteContent(
+  input: string,
+  doubleClose: string,
+  singleClose: string,
+) {
+  return (
+    /[\p{L}\p{N}\])}»’!?.,:;]$/u.test(input) ||
+    input.charAt(input.length - 1) === doubleClose ||
+    input.charAt(input.length - 1) === singleClose
+  );
+}
+
+// common.yaml rule smartQuoteNormalization.live def closeNestedQuote
+export function closeNestedQuote(input: string, open: string, close: string) {
+  if (!(close !== "’" && /[\p{L}\p{N}]’[^\p{L}\p{N}’]$/u.test(input))) return null;
+  if (!((quoteBalance(input.slice(0, -2), "'", open, close) ?? 0) !== 0)) return null;
+  return typingEdit(`${close}${input.slice(-1)}`, 2);
+}
+
+// common.yaml rule smartQuoteNormalization.live def doubleQuoteFix
+export function doubleQuoteFix(
+  before: string,
+  open: string,
+  close: string,
+  singleClose: string,
+  pad: string,
+): { replacement: string; deleteBackwards: number } | null {
+  if (!(quoteBalance(before, '"', open, close) !== null)) return null;
+  const split = splitTrailingSpaces(before);
+  const core = split.core;
+  const trailingSpaces = split.trailingSpaces;
+  const coreBalance = quoteBalance(core, '"', open, close) ?? 0;
+  const openedEmpty =
+    pad.length > 0 && trailingSpaces === pad && core.endsWith(open) && coreBalance > 0;
+  const forceClose =
+    !openedEmpty &&
+    trailingSpaces.length > 0 &&
+    coreBalance > 0 &&
+    endsWithLikelyQuoteContent(core, close, singleClose);
+  return openedEmpty
+    ? { replacement: `${pad}${close}`, deleteBackwards: 1 }
+    : forceClose
+      ? { replacement: `${pad}${close}`, deleteBackwards: 1 + trailingSpaces.length }
+      : {
+          replacement: shouldOpenQuote(before) ? `${open}${pad}` : `${pad}${close}`,
+          deleteBackwards: 1,
+        };
+}
+
+// common.yaml rule smartQuoteNormalization.live def singleQuoteFix
+export function singleQuoteFix(
+  before: string,
+  open: string,
+  close: string,
+): { replacement: string; deleteBackwards: number } | null {
+  if (!(quoteBalance(before, "'", open, close) !== null)) return null;
+  return {
+    replacement: isWordChar(before.at(-1) ?? "") ? "’" : shouldOpenQuote(before) ? open : close,
+    deleteBackwards: 1,
+  };
+}
+
+// common.yaml rule smartQuoteNormalization.live def typedQuoteEdit
+export function typedQuoteEdit(
+  input: string,
+  profile: {
+    double: readonly [string, string];
+    single: readonly [string, string];
+    quoteSpace: string;
+  },
+): GrammarEdit | null {
+  const typed = input.charAt(input.length - 1);
+  if (!(typed === '"' || typed === "'")) return null;
+  const before = input.slice(0, -1);
+  if (shouldSkipGenericReplacement(before)) return null;
+  const fix =
+    typed === '"'
+      ? doubleQuoteFix(
+          before,
+          profile.double[0],
+          profile.double[1],
+          profile.single[1],
+          profile.quoteSpace,
+        )
+      : singleQuoteFix(before, profile.single[0], profile.single[1]);
+  if (!(!!fix && fix.replacement !== typed)) return null;
+  return typingEdit(fix.replacement, fix.deleteBackwards);
+}
+
+// common.yaml rule frenchPunctuationSpacing.live def FRENCH_EAGER_SPACES
+export const FRENCH_EAGER_SPACES = new WeakMap<LiveRuleOptions, string>();
+
+// common.yaml rule frenchPunctuationSpacing.live def FRENCH_SPACED_AFTER
+export const FRENCH_SPACED_AFTER = /[\p{L}\p{N}»)\]’”]$/u;
+
+// common.yaml rule frenchPunctuationSpacing.live def FRENCH_URL_SCHEME
+export const FRENCH_URL_SCHEME = /(?:^|[^\p{L}\p{N}])(?:https?|ftps?|mailto|file|tel|data)$/iu;
+
+// common.yaml rule frenchPunctuationSpacing.live def FRENCH_CHARACTER_REFERENCE
+export const FRENCH_CHARACTER_REFERENCE = /&(?:[a-z][a-z\d]*|#\d+|#x[\da-f]+)$/i;
+
+// common.yaml rule frenchPunctuationSpacing.live def frenchMarkSpacing
+export function frenchMarkSpacing(input: string, options: LiveRuleOptions): GrammarEdit | null {
+  const last = input.charAt(input.length - 1);
+  const previous = input.charAt(input.length - 2);
+  const typed =
+    last === "!" || last === "?" ? last : last === " " && /[:;!?]/.test(previous) ? previous : "";
+  if (!(typed !== "")) return null;
+  const split = splitTrailingSpaces(last === " " ? input.slice(0, -2) : input.slice(0, -1), [
+    " ",
+    NBSP,
+    NNBSP,
+  ]);
+  const core = split.core;
+  const trailingSpaces = split.trailingSpaces;
+  const space = typed === ":" ? NBSP : NNBSP;
+  if (!(trailingSpaces !== space && FRENCH_SPACED_AFTER.test(core))) return null;
+  if (typed === ":" && !trailingSpaces && /\p{N}$/u.test(core)) return null;
+  if (
+    (typed === ":" && FRENCH_URL_SCHEME.test(core)) ||
+    (typed === ";" && FRENCH_CHARACTER_REFERENCE.test(core)) ||
+    shouldSkipGenericReplacement(core) ||
+    /[:;!?]/.test(getLastToken(core))
+  )
+    return null;
+  return storeMemo(
+    FRENCH_EAGER_SPACES,
+    options,
+    last !== " " && !trailingSpaces ? `${core}${space}${typed}` : undefined,
+    typingEdit(
+      last === " " ? `${space}${typed} ` : `${space}${typed}`,
+      trailingSpaces.length + (last === " " ? 2 : 1),
+    ),
+  );
+}
+
+// common.yaml rule duplicatePunctuationCollapse.live def leadingSpaceCount
+export function leadingSpaceCount(input: string, index: number) {
+  return splitTrailingSpaces(input.slice(0, index)).trailingSpaces.length;
+}
+
+// common.yaml rule duplicatePunctuationCollapse.live def collapseSpacing
+export function collapseSpacing(run: string) {
+  return run.includes(" ") ? " " : run.includes("\xA0") ? "\xA0" : run.charAt(0);
+}
+
+// common.yaml rule duplicatePunctuationCollapse.live def spacedDuplicate
+export function spacedDuplicate(input: string) {
+  const lastIndex = input.length - 1;
+  const last = input.charAt(lastIndex);
+  if (!COLLAPSIBLE_PUNCTUATION.has(last)) return null;
+  const spaceRunStart = lastNonSpaceBefore(input, lastIndex, SPACING_OR_FILLER_CHARS);
+  const spaceRunLength = lastIndex - 1 - spaceRunStart;
+  if (!(spaceRunLength > 0)) return null;
+  const duplicateRunLength = spaceRunStart - lastNonSpaceBefore(input, spaceRunStart + 1, [last]);
+  if (!(duplicateRunLength > 0)) return null;
+  const duplicateStart = spaceRunStart - duplicateRunLength + 1;
+  const leading = leadingSpaceCount(input, duplicateStart);
+  if (shouldSkipGenericReplacement(input.slice(0, duplicateStart - leading))) return null;
+  return typingEdit(
+    `${last}${collapseSpacing(input.slice(spaceRunStart + 1, lastIndex))}`,
+    leading + duplicateRunLength + spaceRunLength + 1,
+  );
+}
+
+// common.yaml rule duplicatePunctuationCollapse.live def trailingDuplicate
+export function trailingDuplicate(input: string) {
+  const split = splitTrailingSpaces(input, SPACING_OR_FILLER_CHARS);
+  const core = split.core;
+  const last = core.charAt(core.length - 1);
+  if (!COLLAPSIBLE_PUNCTUATION.has(last)) return null;
+  const runLength = splitTrailingSpaces(core, [last]).trailingSpaces.length;
+  if (!(runLength >= 2)) return null;
+  const duplicateStart = core.length - runLength;
+  const leading = leadingSpaceCount(core, duplicateStart);
+  if (shouldSkipGenericReplacement(core.slice(0, duplicateStart - leading))) return null;
+  return typingEdit(
+    `${last}${split.trailingSpaces}`,
+    leading + runLength + split.trailingSpaces.length,
+  );
+}
+
+// common.yaml rule duplicatePunctuationCollapse.live def trailingDoublePeriod
+export function trailingDoublePeriod(input: string) {
+  if (!input.endsWith(" ")) return null;
+  const core = input.slice(0, -1);
+  if (!(core.endsWith("..") && !core.endsWith("..."))) return null;
+  if (shouldSkipGenericReplacement(core.slice(0, -2))) return null;
+  return typingEdit(". ", 3);
+}
+
+// common.yaml rule autoBracketClose.live def closesOpenQuote
+export function closesOpenQuote(beforeQuote: string, quote: string) {
+  return (
+    (quote === '"' || quote === "`") &&
+    (
+      beforeQuote
+        .slice(beforeQuote.lastIndexOf("\n") + 1)
+        .match(quote === '"' ? /(?<!\p{Nd})"/gu : /`/g) ?? []
+    ).length %
+      2 ===
+      1
+  );
+}
+
+// common.yaml rule autoBracketClose.live def autoCloseEdit
+export function autoCloseEdit(
+  before: string,
+  after: string,
+  open: string,
+  close: string,
+): GrammarEdit | null {
+  const beforeOpener = before.slice(0, -1);
+  if ((SYMMETRIC_QUOTES.has(open) || open === "<") && isWordChar(beforeOpener.at(-1) ?? ""))
+    return null;
+  if (closesOpenQuote(beforeOpener, open)) return null;
+  if (!(after[0] !== close)) return null;
+  return { replacement: open + close, deleteBackwards: 1, deleteForwards: 0, cursorOffset: 1 };
+}
+
+// common.yaml rule autoBracketClose.live def overtypeEdit
+export function overtypeEdit(before: string, close: string): GrammarEdit | null {
+  const beforeTyped = before.slice(0, -1);
+  if (close === ">" && isWordChar(beforeTyped.at(-1) ?? "")) return null;
+  if (
+    SYMMETRIC_QUOTES.has(close) &&
+    !isWordChar(beforeTyped.at(-1) ?? "") &&
+    !closesOpenQuote(beforeTyped, close)
+  )
+    return null;
+  return typingEdit(close, 1, 1);
 }
 
 // common.yaml rule phraseTables def canonicalName
@@ -4675,6 +6293,128 @@ export const DETECTORS: Readonly<Record<string, Detector>> = {
 
 /** The typing rules with code, by rule ("@<rule id>"). */
 export const LIVE: Readonly<Record<string, LiveCode>> = {
+  // common.yaml rule capitalizeSentenceStart.live
+  "@capitalizeSentenceStart.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const text = context.beforeCursor;
+      const wordStart = completedWordStart(text);
+      if (!(wordStart >= 0)) return null;
+      const edit = capitalizedWord(text, wordStart);
+      if (!(edit !== null)) return null;
+      if (!startsSentence(text, wordStart, context.hints?.lang, { typing: true })) return null;
+      return edit;
+    },
+  },
+  // common.yaml rule capitalizeAfterLineBreak.live
+  "@capitalizeAfterLineBreak.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const text = context.beforeCursor;
+      const wordStart = completedWordStart(text);
+      if (!(wordStart >= 0)) return null;
+      const edit = capitalizedWord(text, wordStart);
+      if (!(edit !== null)) return null;
+      if (!(text[lastNonSpaceBefore(text, wordStart)] === "\n")) return null;
+      return edit;
+    },
+  },
+  // common.yaml rule englishPronounICapitalization.live
+  "@englishPronounICapitalization.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const boundary = resolveEnglishBoundaryContext(context);
+      if (!boundary) return null;
+      return apostrophePronounI(boundary) ?? deferredPronounI(boundary) ?? lonePronounI(boundary);
+    },
+  },
+  // common.yaml rule englishContractionNormalization.live
+  "@englishContractionNormalization.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const boundary = resolveEnglishBoundaryContext(context);
+      if (!boundary) return null;
+      const token = findTrailingLetterToken(boundary.input);
+      if (!token) return null;
+      if (isPartOfTechnicalToken(token.core, token.tokenStart, token.tokenEnd)) return null;
+      const normalized = normalizeContractionToken(
+        token.token,
+        token.core.slice(0, token.tokenStart),
+      );
+      if (!(normalized !== null)) return null;
+      return replaceFrom(boundary, token.tokenStart, normalized);
+    },
+  },
+  // common.yaml rule englishTypoWhitelistCorrection.live
+  "@englishTypoWhitelistCorrection.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const boundary = resolveEnglishBoundaryContext(context);
+      if (!boundary) return null;
+      const token = findTrailingLetterToken(boundary.input);
+      if (!token) return null;
+      if (isPartOfTechnicalToken(token.core, token.tokenStart, token.tokenEnd)) return null;
+      const replacement = correctWhitelistedTypo(
+        token.token,
+        normalizeWordSet(context.hints?.userDictionary ?? []),
+      );
+      if (!(replacement !== null)) return null;
+      return replaceFrom(boundary, token.tokenStart, replacement);
+    },
+  },
+  // common.yaml rule doubleSpaceToPeriod.live
+  "@doubleSpaceToPeriod.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const input = context.beforeCursor;
+      if (!/[ \xA0]{2}$/.test(input)) return null;
+      const core = splitTrailingSpaces(input).core;
+      if (!/\p{L}$/u.test(core)) return null;
+      if (shouldSkipGenericReplacement(core)) return null;
+      return typingEdit(". ", 2);
+    },
+  },
+  // common.yaml rule englishModalOfCorrection.live
+  "@englishModalOfCorrection.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const matched = matchTrailingEnglishPhrase(context, MODAL_OF_REGEX);
+      if (!matched) return null;
+      const modal = matched.match[1];
+      const following = matched.match[2];
+      if (!(
+        !OF_IDIOMS.has(following.toLowerCase()) &&
+        !isNounMight(modal, matched.boundary.core.slice(0, matched.phraseStart))
+      ))
+        return null;
+      return replaceFrom(
+        matched.boundary,
+        matched.phraseStart,
+        `${applyWordCase(modal, detectWordCase(modal))} ${modalHaveWord(modal, matched.match[0].slice(modal.length).trimStart().slice(0, 2))} ${following}`,
+      );
+    },
+  },
+  // common.yaml rule englishYourWelcomeCorrection.live
+  "@englishYourWelcomeCorrection.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const matched = matchTrailingEnglishPhrase(context, YOUR_WELCOME_REGEX);
+      if (!matched) return null;
+      if (!/^[.!?\n]/.test(matched.boundary.trailing)) return null;
+      const fixed = correctYourWelcome(matched.match[0].split(/\s+/)[0]);
+      return replaceFrom(matched.boundary, matched.phraseStart, `${fixed[0]} ${fixed[1]}`);
+    },
+  },
+  // common.yaml rule englishTheirThereBeVerb.live
+  "@englishTheirThereBeVerb.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const matched = matchTrailingEnglishPhrase(context, THEIR_THERE_BE_REGEX);
+      if (!matched) return null;
+      const fixed = correctTheirBeVerb(matched.match[0].split(/\s+/)[0], matched.match[1]);
+      return replaceFrom(matched.boundary, matched.phraseStart, `${fixed[0]} ${fixed[1]}`);
+    },
+  },
   // common.yaml rule englishAlotCorrection.live
   "@englishAlotCorrection.live": {
     triggers: ["wordBoundary"],
@@ -4683,6 +6423,335 @@ export const LIVE: Readonly<Record<string, LiveCode>> = {
       if (!matched) return null;
       if (normalizeWordSet(context.hints?.userDictionary ?? []).has("alot")) return null;
       return replaceFrom(matched.boundary, matched.phraseStart, correctAlot(matched.match[0]));
+    },
+  },
+  // common.yaml rule englishPronounVerbWhitelistAgreement.live
+  "@englishPronounVerbWhitelistAgreement.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const matched = matchTrailingEnglishPhrase(context, AGREEMENT_REGEX);
+      if (!matched) return null;
+      const phrase = matched.match[1];
+      if (phrase.split(/\s+/)[0] === "i" && isVariableI(matched.boundary.core, matched.phraseStart))
+        return null;
+      if (/^you/i.test(phrase) && isObjectYou(matched.boundary.core, matched.phraseStart))
+        return null;
+      const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "))!;
+      const fixed = correctPronounVerb(phrase, corrected);
+      return replaceFrom(
+        matched.boundary,
+        matched.phraseStart,
+        `${fixed[0]}${phrase.match(/\s+/)![0]}${fixed[1]}${matched.match[3]}`,
+      );
+    },
+  },
+  // common.yaml rule englishArticleAnCorrection.live
+  "@englishArticleAnCorrection.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const boundary = resolveEnglishBoundaryContext(context);
+      if (!boundary) return null;
+      const core = boundary.core;
+      const match = core.match(ARTICLE_REGEX);
+      if (!(!!match && match.index !== undefined && match[2] === match[2].toLowerCase()))
+        return null;
+      const article = match[1];
+      const word = match[2];
+      const articleStart = match.index;
+      const beforeArticle = core.slice(0, articleStart);
+      if (article[0] === "A" && !SENTENCE_START_REGEX.test(beforeArticle)) return null;
+      if (!(
+        isArticleContext(beforeArticle) && !isPartOfTechnicalToken(core, articleStart, core.length)
+      ))
+        return null;
+      const corrected = correctArticle(
+        article,
+        word,
+        normalizeWordSet(context.hints?.userDictionary ?? []),
+      );
+      if (!(corrected !== null)) return null;
+      return replaceFrom(
+        boundary,
+        articleStart,
+        `${corrected}${core.slice(articleStart + article.length, core.length - word.length)}${word}`,
+      );
+    },
+  },
+  // common.yaml rule englishOrdinalSuffix.live
+  "@englishOrdinalSuffix.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const boundary = resolveEnglishBoundaryContext(context);
+      if (!boundary) return null;
+      const core = boundary.core;
+      const match = core.match(ORDINAL_REGEX);
+      if (!(!!match && match.index !== undefined)) return null;
+      const digits = match[1];
+      const expected = ordinalSuffix(digits);
+      if (!(match[2] !== expected)) return null;
+      const tokenStart = match.index;
+      if (!(
+        !isInsideProtectedSpan(core.slice(0, tokenStart), { quotations: true }) &&
+        !isPartOfTechnicalToken(core, tokenStart, core.length)
+      ))
+        return null;
+      return replaceFrom(boundary, tokenStart, `${digits}${expected}`);
+    },
+  },
+  // common.yaml rule englishProperNounCapitalization.live
+  "@englishProperNounCapitalization.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const boundary = resolveEnglishBoundaryContext(context);
+      if (!boundary) return null;
+      if (!(boundary.trailing !== ".")) return null;
+      const name = findProperName(boundary.core);
+      if (!name) return null;
+      if (isTechnicalToken(boundary.core.slice(runStart(boundary.core, name.start, /\S/))))
+        return null;
+      const typed = boundary.core.slice(name.start, name.end);
+      const replaced = properNameReplacement(
+        typed,
+        name.canonical,
+        normalizeWordSet(context.hints?.userDictionary ?? []),
+      );
+      if (!(replaced !== null)) return null;
+      return replaceFrom(boundary, name.start, `${replaced}${boundary.core.slice(name.end)}`);
+    },
+  },
+  // common.yaml rule commaPeriodSpacing.live
+  "@commaPeriodSpacing.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext, options: LiveRuleOptions): GrammarEdit | null => {
+      const text = context.beforeCursor;
+      if (!(text.length >= 2)) return null;
+      const last = text[text.length - 1];
+      const canDefer =
+        !context.afterCursor && !context.hints?.isPaste && context.hints?.inputAction === "insert";
+      return last === " "
+        ? spaceAfterMark(context, text, canDefer)
+        : last === '"' || last === "”"
+          ? tightClosingQuote(text, last)
+          : (numericCommaRepair(context, options, text, last, canDefer) ??
+            commaSpacing(context, options, text, last, canDefer));
+    },
+  },
+  // common.yaml rule openingBracketSpacing.live
+  "@openingBracketSpacing.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      if (!context.beforeCursor.endsWith("){")) return null;
+      return typingEdit(" {", 1);
+    },
+  },
+  // common.yaml rule closingBracketSpacing.live
+  "@closingBracketSpacing.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext, options: LiveRuleOptions): GrammarEdit | null => {
+      const text = context.beforeCursor;
+      if (!(text.length >= 2)) return null;
+      const closingIndex = text.length - 1;
+      const closing = text[closingIndex];
+      if (!Object.hasOwn(OPENING_BY_CLOSING_BRACKET, closing)) return null;
+      const hasSpaceBefore = SPACE_CHARS.includes(text[closingIndex - 1]);
+      if (hasSpaceBefore && text[closingIndex - 2] === OPENING_BY_CLOSING_BRACKET[closing])
+        return null;
+      const insertSpaceAfter =
+        options.insertSpaceAfterAutocomplete &&
+        closing !== "]" &&
+        context.afterCursor[0] !== closing &&
+        proseLikeClosing(text, closing, closingIndex);
+      if (!(hasSpaceBefore || insertSpaceAfter)) return null;
+      return typingEdit(`${closing}${insertSpaceAfter ? " " : ""}`, hasSpaceBefore ? 2 : 1);
+    },
+  },
+  // common.yaml rule slashContextSpacing.live
+  "@slashContextSpacing.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext, options: LiveRuleOptions): GrammarEdit | null => {
+      const text = context.beforeCursor;
+      const slashIndex = text.length - 1;
+      if (!(text.length >= 2 && text[slashIndex] === "/")) return null;
+      return compactsProtocolSlash(text, slashIndex)
+        ? typingEdit("/", 2)
+        : options.insertSpaceAfterAutocomplete && isSlashOperator(text, slashIndex)
+          ? typingEdit("/ ", 1)
+          : null;
+    },
+  },
+  // common.yaml rule mathOperatorSpacing.live
+  "@mathOperatorSpacing.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const input = context.beforeCursor;
+      const rightIndex = input.length - 1;
+      if (!(rightIndex >= 2)) return null;
+      const rightChar = input[rightIndex];
+      const operatorIndex = rightIndex - 1;
+      const operator = input[operatorIndex];
+      if (!MATH_OPERATORS.has(operator)) return null;
+      if (
+        context.hints?.measurementContext === "prose" &&
+        /(?:^|[^\p{L}\p{N}_.])[-+]?[0-9]+(?:[.,][0-9]*)?[eE][+-][0-9]$/u.test(input.slice(-128))
+      )
+        return null;
+      if (/\s/.test(rightChar)) return null;
+      const left = readLeftOperand(input, operatorIndex);
+      if (!left) return null;
+      if (operator === "=" && /[-?&`<]/.test(input.slice(Math.max(0, left.start - 2), left.start)))
+        return null;
+      if (
+        operator === "=" &&
+        /<[A-Za-z][\w:-]*\s[^<>]*$/.test(input.slice(Math.max(0, left.start - 256), left.start))
+      )
+        return null;
+      const standaloneNumber =
+        left.kind === "number" && !/[A-Za-z0-9_$]/.test(input[left.start - 1] ?? "");
+      if (operator === "=" && !standaloneNumber && left.text === left.text.toUpperCase())
+        return null;
+      if (operator === "=" && /\p{Ll}\p{Lu}/u.test(left.text)) return null;
+      if (!(operator === "=" ? equalsRightOperand(rightChar) : arithmeticContext(left, rightChar)))
+        return null;
+      if (
+        operator === "+" &&
+        left.kind === "identifier" &&
+        /[0-9]/.test(rightChar) &&
+        /\s/.test(input[operatorIndex - 1] ?? "")
+      )
+        return null;
+      return typingEdit(`${left.text} ${operator} ${rightChar}`, input.length - left.start);
+    },
+  },
+  // common.yaml rule measurementUnitFormatting.live
+  "@measurementUnitFormatting.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      return separateUnit(context, null, /^([A-Z]|[dg])$/);
+    },
+  },
+  // common.yaml rule currencySpacing.live
+  "@currencySpacing.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      return separateUnit(context, CURRENCY_MARKERS, null);
+    },
+  },
+  // common.yaml rule technicalTokenCompaction.live
+  "@technicalTokenCompaction.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const text = context.beforeCursor;
+      if (!(text.length >= 4)) return null;
+      if (!SPACE_CHARS.includes(text[text.length - 2])) return null;
+      const last = text[text.length - 1];
+      if (!(
+        text[text.length - 3] === ":" &&
+        /[0-9]/.test(last) &&
+        /[0-9]/.test(text[text.length - 4])
+      ))
+        return null;
+      return typingEdit(`:${last}`, 3);
+    },
+  },
+  // common.yaml rule collapseRepeatedSpaces.live
+  "@collapseRepeatedSpaces.live": {
+    triggers: ["wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const text = context.beforeCursor;
+      const trailing = splitTrailingSpaces(text).trailingSpaces.length;
+      if (!(trailing >= 2)) return null;
+      const indexBefore = text.length - trailing - 1;
+      const lineStart = text.lastIndexOf("\n", text.length - trailing) + 1;
+      if (!(indexBefore >= lineStart)) return null;
+      return typingEdit(text[indexBefore + 1], trailing);
+    },
+  },
+  // common.yaml rule trimSpaceBeforeLineBreak.live
+  "@trimSpaceBeforeLineBreak.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const text = context.beforeCursor;
+      if (!text.endsWith("\n")) return null;
+      const spaces = text.length - 2 - lastNonSpaceBefore(text, text.length - 1);
+      if (!(spaces > 0)) return null;
+      return typingEdit("\n", spaces + 1);
+    },
+  },
+  // common.yaml rule ellipsisShortcut.live
+  "@ellipsisShortcut.live": {
+    triggers: ["insertChar"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const input = context.beforeCursor;
+      if (!input.endsWith("...")) return null;
+      const prefix = input.slice(0, -3);
+      if (shouldSkipGenericReplacement(prefix)) return null;
+      if (/[[({]$/.test(prefix)) return null;
+      return typingEdit("…", 3);
+    },
+  },
+  // common.yaml rule emdashShortcut.live
+  "@emdashShortcut.live": {
+    triggers: ["insertChar"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const input = context.beforeCursor;
+      if (!(input.endsWith("--") && !input.endsWith("---"))) return null;
+      const prefix = input.slice(0, -2);
+      if (!(!!prefix && !/\s$/.test(prefix))) return null;
+      if (shouldSkipGenericReplacement(prefix)) return null;
+      return typingEdit("—", 2);
+    },
+  },
+  // common.yaml rule smartQuoteNormalization.live
+  "@smartQuoteNormalization.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const input = context.beforeCursor;
+      const profile = resolveTypographyProfile(context.hints?.lang);
+      return (
+        closeNestedQuote(input, profile.single[0], profile.single[1]) ??
+        typedQuoteEdit(input, profile)
+      );
+    },
+  },
+  // common.yaml rule frenchPunctuationSpacing.live
+  "@frenchPunctuationSpacing.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext, options: LiveRuleOptions): GrammarEdit | null => {
+      const input = context.beforeCursor;
+      const eager = readMemo(FRENCH_EAGER_SPACES, options, input);
+      return !usesFrenchPunctuationSpacing(context.hints?.lang)
+        ? null
+        : eager !== undefined && input.slice(0, -1) === eager && isWordChar(input.at(-1)!)
+          ? typingEdit(input.slice(-2), 3)
+          : frenchMarkSpacing(input, options);
+    },
+  },
+  // common.yaml rule duplicatePunctuationCollapse.live
+  "@duplicatePunctuationCollapse.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      return (
+        spacedDuplicate(context.beforeCursor) ??
+        trailingDuplicate(context.beforeCursor) ??
+        trailingDoublePeriod(context.beforeCursor)
+      );
+    },
+  },
+  // common.yaml rule autoBracketClose.live
+  "@autoBracketClose.live": {
+    triggers: ["insertChar", "wordBoundary"],
+    apply: (context: GrammarContext): GrammarEdit | null => {
+      const before = context.beforeCursor;
+      const after = context.afterCursor;
+      const typed = before[before.length - 1];
+      const closeChar = Object.hasOwn(AUTO_PAIRS, typed) ? AUTO_PAIRS[typed] : undefined;
+      return before.endsWith("< ") && after[0] === ">"
+        ? typingEdit(" ", 1, 1)
+        : AUTO_CLOSERS.has(typed) && after[0] === typed
+          ? overtypeEdit(before, typed)
+          : closeChar && (context.charTyped ?? typed) === typed
+            ? autoCloseEdit(before, after, typed, closeChar)
+            : null;
     },
   },
 };

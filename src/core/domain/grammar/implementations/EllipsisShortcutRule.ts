@@ -1,29 +1,13 @@
-import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { shouldSkipGenericReplacement } from "./helpers/GenericRuleShared";
+// Facade: the rule's code is in grammar/rules/common.yaml (ellipsisShortcut.live).
+import { liveRule } from "../engine/liveRules";
+import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
 export class EllipsisShortcutRule implements GrammarRule {
   readonly id = "ellipsisShortcut" as const;
-  readonly triggers: GrammarEventType[] = ["insertChar"];
+  private readonly rule = liveRule(this.id);
+  readonly triggers = this.rule.triggers;
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const input = context.beforeCursor;
-    if (!input.endsWith("...")) {
-      return null;
-    }
-
-    const prefix = input.slice(0, -3);
-    if (shouldSkipGenericReplacement(prefix)) {
-      return null;
-    }
-    // "[...arr]", "f(...args)", "{...rest}": spread syntax, not an ellipsis.
-    if (/[[({]$/.test(prefix)) {
-      return null;
-    }
-
-    return {
-      replacement: "…",
-      deleteBackwards: 3,
-      deleteForwards: 0,
-    };
+    return this.rule.apply(context);
   }
 }
