@@ -184,11 +184,7 @@ defs:
     let:
       end: m.index + m.groups!.target.length
     return: >-
-      ({
-        ruleId: frame.ruleId,
-        messageKey: frame.messageKey,
-        range: { start, end },
-        alternatives: [alternative],
+      finding(frame.ruleId, frame.messageKey, start, end, [alternative], {
         context: { start, end: end + m.groups!.gap.length + m.groups!.next.length },
       })
 
@@ -287,11 +283,7 @@ rules:
           - start >= ctx.from && start < ctx.to && !EL_NOT_VERBS.has(bareGreek(target))
           - "!ctx.dictionary.has(target.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: start + target.length - 1, end: start + target.length },
-            alternatives: [target.endsWith("ώ") ? "εί" : "ει"],
+          finding(frame.ruleId, frame.messageKey, start + target.length - 1, start + target.length, [target.endsWith("ώ") ? "εί" : "ει"], {
             context: { start: m.index, end: start + target.length },
           })
   - id: el.questionAccent
@@ -315,11 +307,7 @@ rules:
           - EL_SENTENCE_START.test(before) || (from === 0 && EL_AT_START.test(before))
           - rest && ";;?".includes(rest[0])
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end },
-            alternatives: [word.replace(/υ$/u, "ύ").replace(/ω(?=ς$)/u, "ώ")],
+          finding(frame.ruleId, frame.messageKey, m.index, end, [word.replace(/υ$/u, "ύ").replace(/ω(?=ς$)/u, "ώ")], {
             context: { start: m.index, end: end + rest.index + 1 },
           })
   - id: el.formalKai
@@ -365,12 +353,7 @@ rules:
         # The first mark of "!!" or "…." is the one mark to keep.
         when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0][0]],
-          })
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [m[0][0]])
       - regex: "(?<target>\\u2026\\.(?!\\.))"
         scan: owned
         flags: gu
@@ -378,12 +361,7 @@ rules:
         # The first mark of "!!" or "…." is the one mark to keep.
         when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0][0]],
-          })
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [m[0][0]])
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

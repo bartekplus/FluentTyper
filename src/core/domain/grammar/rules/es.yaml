@@ -4472,11 +4472,7 @@ rules:
           - m.index >= ctx.from && m[1] === m[2] && !ctx.dictionary.has(m[0].toLowerCase())
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: "spanishConfusions",
-            messageKey: "review_msg_closed_compound",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [`${m[1]}${m[2]}`],
+          finding("spanishConfusions", "review_msg_closed_compound", m.index, m.index + m[0].length, [`${m[1]}${m[2]}`], {
             bulkBlock: "context-dependent",
           })
   - id: es.porque
@@ -5310,14 +5306,10 @@ rules:
           near: nearestDayOn(years[0], monthIndex, Number(day), typed)
         when: years.length && !weekdays.includes(typed)
         return: >-
-          ({
-            ruleId: "spanishTypography" as const,
-            messageKey: "review_msg_weekday_no_year" as const,
-            range: { start: m.index, end: dayStart + day.length },
-            alternatives: [
+          finding("spanishTypography", "review_msg_weekday_no_year", m.index, dayStart + day.length, [
               ...weekdays.map((w) => `${carryCase(weekday, ES_WEEKDAY_LIST[w])}${m[2]}${day}`),
               ...(near === null ? [] : [`${weekday}${m[2]}${near}`]),
-            ],
+            ], {
             requiresChoice: true as const,
             context: { start: m.index, end: m.index + m[0].length },
           })
@@ -5353,14 +5345,10 @@ rules:
             weekday && yearNumber && dayNumber >= 1 && dayNumber <= daysInMonth(monthIndex, yearNumber) &&
             ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))] !== weekday.toLowerCase() &&
             !namedExampleBefore(ctx.text, m.index)
-              ? {
-                  ruleId: "spanishTypography" as const,
-                  messageKey: "review_msg_spanish_date" as const,
-                  range: { start: m.index, end: m.index + weekday.length },
-                  alternatives: [carryCase(weekday, ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))])],
-                  context: { start: m.index, end: m.index + m[0].length },
-                  bulkBlock: "ambiguous" as const,
-                }
+              ? finding("spanishTypography", "review_msg_spanish_date", m.index, m.index + weekday.length, [carryCase(weekday, ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))])], {
+                context: { start: m.index, end: m.index + m[0].length },
+                bulkBlock: "ambiguous" as const,
+              })
               : null,
             weekday && !year && dayNumber >= 1 && dayNumber <= daysInMonth(monthIndex) && !namedExampleBefore(ctx.text, m.index)
               ? esWeekdayNoYear(ctx, m, dayStart, monthIndex)
@@ -6146,11 +6134,7 @@ rules:
           - '!/\.\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))'
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_space_after_mark",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [`${m[0].trim()} `],
+          finding("commaPeriodSpacing", "review_msg_space_after_mark", m.index, m.index + m[0].length, [`${m[0].trim()} `], {
             context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
             bulkBlock: "context-dependent",
           })
@@ -6165,11 +6149,7 @@ rules:
           word: /\S*$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))![0]
         when: "!(namedExampleBefore(ctx.text, m.index) || /[&#=/]/u.test(word))"
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: m[0].startsWith(";") ? "review_msg_space_after_mark" : "review_msg_space_before_mark",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0].startsWith(";") ? "; " : m[0].trim()],
+          finding("commaPeriodSpacing", m[0].startsWith(";") ? "review_msg_space_after_mark" : "review_msg_space_before_mark", m.index, m.index + m[0].length, [m[0].startsWith(";") ? "; " : m[0].trim()], {
             context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
             bulkBlock: "context-dependent",
           })
@@ -6195,24 +6175,16 @@ rules:
         return: >-
           [
             lead && open >= ctx.from && open < ctx.to
-              ? {
-                  ruleId: "commaPeriodSpacing" as const,
-                  messageKey: "review_msg_space_after_opening_mark" as const,
-                  range: { start: open, end: open + 1 + lead },
-                  alternatives: ['"'],
-                  context: { start: open, end: close + 1 },
-                  bulkBlock: "context-dependent" as const,
-                }
+              ? finding("commaPeriodSpacing", "review_msg_space_after_opening_mark", open, open + 1 + lead, ['"'], {
+                context: { start: open, end: close + 1 },
+                bulkBlock: "context-dependent" as const,
+              })
               : null,
             trail && close >= ctx.from && close < ctx.to
-              ? {
-                  ruleId: "commaPeriodSpacing" as const,
-                  messageKey: "review_msg_space_before_mark" as const,
-                  range: { start: close - trail, end: close + 1 },
-                  alternatives: ['"'],
-                  context: { start: open, end: close + 1 },
-                  bulkBlock: "context-dependent" as const,
-                }
+              ? finding("commaPeriodSpacing", "review_msg_space_before_mark", close - trail, close + 1, ['"'], {
+                context: { start: open, end: close + 1 },
+                bulkBlock: "context-dependent" as const,
+              })
               : null,
           ].filter((finding) => finding !== null)
         else: "[]"
@@ -6320,12 +6292,7 @@ rules:
         # "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma.
         when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
         return: >-
-          ({
-            ruleId: "spanishTypographyStyle",
-            messageKey: "review_msg_spanish_decimal",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
-          })
+          finding("spanishTypographyStyle", "review_msg_spanish_decimal", m.index, m.index + m[0].length, [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))])
       # "1.4 kg", "9349.5", "1 999 349.56": a decimal point before a unit, after four digits or
       # closing a group spaced by thousands. "a las 9.30", "versión 2.5" and "3.2.1" stay.
       - regex: "(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}{{UNIT_AFTER}}))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})"
@@ -6335,12 +6302,7 @@ rules:
         # "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma.
         when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
         return: >-
-          ({
-            ruleId: "spanishTypographyStyle",
-            messageKey: "review_msg_spanish_decimal",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
-          })
+          finding("spanishTypographyStyle", "review_msg_spanish_decimal", m.index, m.index + m[0].length, [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))])
       # "30 km2", "por m3": a unit's exponent is a superscript.
       - regex: "(?<=(?:\\d[ \\t\\u00a0]?|\\bpor[ \\t]|\\/))(?:km|cm|mm|dm|m)[23](?![\\p{L}\\p{N}])"
         flags: gu
@@ -6350,12 +6312,7 @@ rules:
           start: m.index + m[0].length - 1
         when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
         return: >-
-          ({
-            ruleId: "spanishTypographyStyle",
-            messageKey: "review_msg_typographic_symbol",
-            range: { start, end: start + 1 },
-            alternatives: [m[0].endsWith("2") ? "²" : "³"],
-          })
+          finding("spanishTypographyStyle", "review_msg_typographic_symbol", start, start + 1, [m[0].endsWith("2") ? "²" : "³"])
         message: review_msg_typographic_symbol
   - id: es.agreement
     checks: [spanishAgreement]
@@ -8826,11 +8783,7 @@ rules:
       esQuoteMark:
         args: "start: number, replacement: string, pairEnd: number"
         return: >-
-          ({
-            ruleId: "spanishQuotes" as const,
-            messageKey: "review_msg_spanish_quotes" as const,
-            range: { start, end: start + 1 },
-            alternatives: [replacement],
+          finding("spanishQuotes", "review_msg_spanish_quotes", start, start + 1, [replacement], {
             context: { start: Math.max(0, start - 1), end: pairEnd },
           })
       # The straight pair of match `m` gets the marks `open` and `close`.

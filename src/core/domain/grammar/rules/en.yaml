@@ -170,9 +170,10 @@ rules:
           cased: "alternatives.map((alt) => (recase ? caseLike(typed, alt) : alt))"
         when: "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({ ruleId: frame.ruleId, messageKey: frame.messageKey, range: { start, end }, alternatives: cased,
+          finding(frame.ruleId, frame.messageKey, start, end, cased, {
             ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
-            context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, m.index + m[0].length + 16) } })
+            context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, m.index + m[0].length + 16) },
+          })
       # The finding of the frame's target group.
       fixedTarget:
         args: "ctx: DetectContext, frame: FrameRef, m: RegExpExecArray, alternatives: readonly string[]"
@@ -218,8 +219,7 @@ rules:
           range: group(m, "target")
           result: fixedFound(ctx, frame, m, range[0], range[1], [word], true)
         return: >-
-          remember(FIXED_WORSE, result ?? remember(FIXED_HELD, { ruleId: frame.ruleId, messageKey: frame.messageKey,
-            range: { start: range[0], end: range[1] }, alternatives: [] }))
+          remember(FIXED_WORSE, result ?? remember(FIXED_HELD, finding(frame.ruleId, frame.messageKey, range[0], range[1], [])))
       # A person who is a "nerve wreck" is a "nervous wreck"; a situation ("It was a
       # nerve-wreck", "so much nerve wreck") is left alone.
       FIXED_SITUATION: '/(?:\bmuch|\b(?:it|this|that|which)(?:[''’]s|[ \t\u00a0]+(?:is|was|were|be|been|will[ \t\u00a0]+be))[ \t\u00a0]+(?:(?:a|such[ \t\u00a0]+a|quite[ \t\u00a0]+a|a[ \t\u00a0]+real|a[ \t\u00a0]+total|a[ \t\u00a0]+complete)[ \t\u00a0]+)?)[ \t\u00a0]*$/i'
@@ -4197,6 +4197,41 @@ rules:
       ranksMiddle:
         args: "mid: string"
         return: 'mid.toLowerCase().trim().replace(/[ \t ]+/g, " ")'
+      # "wanted go" -> "wanted to go": a governor with a bare verb after it.
+      missingTo:
+        args: "ctx: DetectContext, m: RegExpExecArray, target: string"
+        let:
+          known: englishWordInfo(target)
+          end: m.index + m[0].length
+          rest: ctx.text.slice(end)
+          after: ctx.text.slice(end, end + 32)
+          next: tokenAfter(ctx, end)
+        when:
+          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
+          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
+          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
+          # plan deploy" at the text end may still be typed.
+          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
+          # "If it is not what you wanted please let me know": please opens the next clause, and so does
+          # a subject + auxiliary ("if you need help you should ask").
+          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
+          # "anything you need let me know", "the things he needs depend on": a relative clause. The
+          # text before the governor is the match without its last two words.
+          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
+          # "need write access", "want read rights": the verb names a kind of permission.
+          - "!EN_PERMISSION_AFTER.test(after)"
+        # After a fronted subordinate clause, a noun object can end the clause before the main clause
+        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
+        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
+        return: >-
+          !known.noun && !known.adjective && !known.plural && !known.adverb
+            ? `to ${target}`
+            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
+              ? null
+              : /^about$/i.test(next) ||
+                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
+                ? `to ${target}`
+                : null
     frames:
       # ---- prepositions ----
       - regex: "(?:{{BE_FORM}}|very|really|so|not|also|more|most|less|still|always|particularly|especially){{S}}interested{{S}}(?<target>[a-z]+ing){{E}}"
@@ -4399,38 +4434,7 @@ rules:
             "intended",
             "expected",
           ]
-        let:
-          known: englishWordInfo(target)
-          end: m.index + m[0].length
-          rest: ctx.text.slice(end)
-          after: ctx.text.slice(end, end + 32)
-          next: tokenAfter(ctx, end)
-        when:
-          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
-          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
-          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
-          # plan deploy" at the text end may still be typed.
-          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
-          # "If it is not what you wanted please let me know": please opens the next clause, and so does
-          # a subject + auxiliary ("if you need help you should ask").
-          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
-          # "anything you need let me know", "the things he needs depend on": a relative clause. The
-          # text before the governor is the match without its last two words.
-          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
-          # "need write access", "want read rights": the verb names a kind of permission.
-          - "!EN_PERMISSION_AFTER.test(after)"
-        # After a fronted subordinate clause, a noun object can end the clause before the main clause
-        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
-        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
-        return: >-
-          !known.noun && !known.adjective && !known.plural && !known.adverb
-            ? `to ${target}`
-            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
-              ? null
-              : /^about$/i.test(next) ||
-                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
-                ? `to ${target}`
-                : null
+        return: missingTo(ctx, m, target)
       - regex: "(?<![\\p{L}'’])(?:{{BASE_LEAD}}){{S}}(?:{{GOVERNOR_BASE}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
@@ -4453,38 +4457,7 @@ rules:
             "intend",
             "expect",
           ]
-        let:
-          known: englishWordInfo(target)
-          end: m.index + m[0].length
-          rest: ctx.text.slice(end)
-          after: ctx.text.slice(end, end + 32)
-          next: tokenAfter(ctx, end)
-        when:
-          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
-          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
-          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
-          # plan deploy" at the text end may still be typed.
-          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
-          # "If it is not what you wanted please let me know": please opens the next clause, and so does
-          # a subject + auxiliary ("if you need help you should ask").
-          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
-          # "anything you need let me know", "the things he needs depend on": a relative clause. The
-          # text before the governor is the match without its last two words.
-          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
-          # "need write access", "want read rights": the verb names a kind of permission.
-          - "!EN_PERMISSION_AFTER.test(after)"
-        # After a fronted subordinate clause, a noun object can end the clause before the main clause
-        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
-        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
-        return: >-
-          !known.noun && !known.adjective && !known.plural && !known.adverb
-            ? `to ${target}`
-            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
-              ? null
-              : /^about$/i.test(next) ||
-                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
-                ? `to ${target}`
-                : null
+        return: missingTo(ctx, m, target)
       - regex: "(?:he|she|it|who|one|everyone|someone|somebody|everybody|nobody|anyone|anybody){{S}}(?:{{GOVERNOR_THIRD}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
@@ -4507,38 +4480,7 @@ rules:
             "intends",
             "expects",
           ]
-        let:
-          known: englishWordInfo(target)
-          end: m.index + m[0].length
-          rest: ctx.text.slice(end)
-          after: ctx.text.slice(end, end + 32)
-          next: tokenAfter(ctx, end)
-        when:
-          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
-          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
-          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
-          # plan deploy" at the text end may still be typed.
-          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
-          # "If it is not what you wanted please let me know": please opens the next clause, and so does
-          # a subject + auxiliary ("if you need help you should ask").
-          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
-          # "anything you need let me know", "the things he needs depend on": a relative clause. The
-          # text before the governor is the match without its last two words.
-          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
-          # "need write access", "want read rights": the verb names a kind of permission.
-          - "!EN_PERMISSION_AFTER.test(after)"
-        # After a fronted subordinate clause, a noun object can end the clause before the main clause
-        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
-        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
-        return: >-
-          !known.noun && !known.adjective && !known.plural && !known.adverb
-            ? `to ${target}`
-            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
-              ? null
-              : /^about$/i.test(next) ||
-                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
-                ? `to ${target}`
-                : null
+        return: missingTo(ctx, m, target)
       - regex: "(?:{{BE_FORM}}|feel|feels|felt|seem|seems|seemed|not|so|very|really|always|more|less|quite|too){{S}}(?:{{GOVERNOR_ADJECTIVES}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
@@ -4554,38 +4496,7 @@ rules:
             "keen",
             "determined",
           ]
-        let:
-          known: englishWordInfo(target)
-          end: m.index + m[0].length
-          rest: ctx.text.slice(end)
-          after: ctx.text.slice(end, end + 32)
-          next: tokenAfter(ctx, end)
-        when:
-          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
-          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
-          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
-          # plan deploy" at the text end may still be typed.
-          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
-          # "If it is not what you wanted please let me know": please opens the next clause, and so does
-          # a subject + auxiliary ("if you need help you should ask").
-          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
-          # "anything you need let me know", "the things he needs depend on": a relative clause. The
-          # text before the governor is the match without its last two words.
-          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
-          # "need write access", "want read rights": the verb names a kind of permission.
-          - "!EN_PERMISSION_AFTER.test(after)"
-        # After a fronted subordinate clause, a noun object can end the clause before the main clause
-        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
-        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
-        return: >-
-          !known.noun && !known.adjective && !known.plural && !known.adverb
-            ? `to ${target}`
-            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
-              ? null
-              : /^about$/i.test(next) ||
-                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
-                ? `to ${target}`
-                : null
+        return: missingTo(ctx, m, target)
       - regex: "(?:(?=you)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:and|but|or|so|then|if|when|that|because|where|once|before|after|until|unless|while|now|always|never|also|just|often|usually){{S}})you{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
@@ -5615,11 +5526,7 @@ rules:
           short: number.length === 2 && !age
         when: "!(start < ctx.from || start >= ctx.to)"
         return: >-
-          ({
-            ruleId: "englishNounNumber",
-            messageKey: "review_msg_decade_plural",
-            range: { start, end },
-            alternatives: short ? [`${mark}${number}s`, `${number}s`] : [`${number}s`],
+          finding("englishNounNumber", "review_msg_decade_plural", start, end, short ? [`${mark}${number}s`, `${number}s`] : [`${number}s`], {
             ...(short ? { requiresChoice: true as const } : {}),
             context: around(ctx, m),
           })
@@ -5815,11 +5722,7 @@ rules:
           word: STYLE1_UNIT_WORDS[unit ?? "B"]
         when: "!(m.index < ctx.from || m.index >= ctx.to)"
         return: >-
-          ({
-            ruleId: "stylePhrasing",
-            messageKey: "review_msg_style_phrasing",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [`${n}${hyphen ? "-" : " "}${word}${hyphen || n === "1" ? "" : "s"}`],
+          finding("stylePhrasing", "review_msg_style_phrasing", m.index, m.index + m[0].length, [`${n}${hyphen ? "-" : " "}${word}${hyphen || n === "1" ? "" : "s"}`], {
             context: around(ctx, m),
           })
       # "self harm myself": the reflexive already says "self".
@@ -5830,11 +5733,7 @@ rules:
           - "!(!englishWordInfo(verb)?.verbs.length && !/(?:ing|ed|s)$/i.test(verb))"
           - "!STYLE1_INTENSIFIED.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 16))"
         return: >-
-          ({
-            ruleId: "stylePhrasing",
-            messageKey: "review_msg_style_phrasing",
-            range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.verb[1] },
-            alternatives: [caseLike(self, verb)],
+          finding("stylePhrasing", "review_msg_style_phrasing", m.indices!.groups!.target[0], m.indices!.groups!.verb[1], [caseLike(self, verb)], {
             context: around(ctx, m),
           })
   - id: en.contractionStyle
@@ -5950,13 +5849,9 @@ rules:
             ? finding("styleNoOxfordComma", "review_msg_no_oxford_comma", m.indices!.groups!.oxford[0], conjStart, [" "], {
                 context: { start: m.index, end: m.index + m[0].length },
               })
-            : ({
-                ruleId: "styleOxfordComma",
-                messageKey: "review_msg_oxford_comma",
-                range: { start: itemEnd, end: conjStart },
-                alternatives: [`,${ctx.text.slice(itemEnd, conjStart)}`],
-                context: { start: m.index, end: m.index + m[0].length },
-              })
+            : finding("styleOxfordComma", "review_msg_oxford_comma", itemEnd, conjStart, [`,${ctx.text.slice(itemEnd, conjStart)}`], {
+              context: { start: m.index, end: m.index + m[0].length },
+            })
   - id: en.sentenceTemplates
     checks: [englishSentenceStructure]
     style: template
@@ -6220,10 +6115,9 @@ rules:
           - "!hasUserOrCasedWord(ctx, m[0])"
           - sound !== "either"
         return: >-
-          ({ ruleId: "englishSentenceStructure", messageKey: "review_msg_sentence_structure",
-            range: { start, end: start + first.length },
-            alternatives: [`${sound === "vowel" ? "an" : "a"} ${first}`],
-            context: { start: Math.max(0, m.index - 48), end: m.index + m[0].length } })
+          finding("englishSentenceStructure", "review_msg_sentence_structure", start, start + first.length, [`${sound === "vowel" ? "an" : "a"} ${first}`], {
+            context: { start: Math.max(0, m.index - 48), end: m.index + m[0].length },
+          })
   - id: en.phraseTemplates
     checks: [englishPhraseCorrections]
     style: template
@@ -6506,10 +6400,9 @@ rules:
           - '!(lead.startsWith(",") && c1 && c2)'
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [", including, but not limited to,"],
-            context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, m.index + m[0].length + 16) } })
+          finding("stylePhrasing", "review_msg_style_phrasing", m.index, m.index + m[0].length, [", including, but not limited to,"], {
+            context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, m.index + m[0].length + 16) },
+          })
   - id: en.iseForms
     checks: [englishAmericanSpelling, englishOxfordSpelling]
     style: match
@@ -6585,9 +6478,9 @@ rules:
           - englishWordInfo(noun)?.plural
           - '!/\p{N}/u.test(before + after)'
         return: >-
-          ({ ruleId: "styleSpelledNumbers", messageKey: "review_msg_spelled_numbers", range: { start, end },
-          alternatives: [m[0] === m[0].toUpperCase() ? word.toUpperCase() : word],
-          context: { start: start - before.length, end: end + after.length } })
+          finding("styleSpelledNumbers", "review_msg_spelled_numbers", start, end, [m[0] === m[0].toUpperCase() ? word.toUpperCase() : word], {
+            context: { start: start - before.length, end: end + after.length },
+          })
   - id: en.irregularWordForms
     checks: [englishIrregularForms, englishAlotCorrection]
     style: match
@@ -7303,11 +7196,10 @@ rules:
           - lexWordBefore(ctx, m.index) === "" && !hasUserOrCasedWord(ctx, noun)
           - lone
         return: >-
-          ({ ruleId: "englishYourYouAre", messageKey: "review_msg_your_possessive",
-            range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
-            alternatives: [caseLike(target, "your"), caseLike(target, "you're a")],
+          finding("englishYourYouAre", "review_msg_your_possessive", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [caseLike(target, "your"), caseLike(target, "you're a")], {
             requiresChoice: true,
-            context: lexContext(ctx, m.index, m.index + m[0].length) })
+            context: lexContext(ctx, m.index, m.index + m[0].length),
+          })
   - id: en.modalOfAtEnd
     checks: [englishModalOfCorrection]
     style: match
@@ -7559,10 +7451,10 @@ rules:
           key: RawFinding["messageKey"] | undefined
         type: RawFinding
         return: >-
-          ({ ruleId: "englishPossibleErrors", messageKey: key ?? "review_msg_possible_error",
-            range: { start: range[0], end: range[1] }, alternatives,
+          finding("englishPossibleErrors", key ?? "review_msg_possible_error", range[0], range[1], alternatives, {
             ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
-            context: { start: Math.max(0, at - 96), end: Math.min(ctx.text.length, range[1] + 32) } })
+            context: { start: Math.max(0, at - 96), end: Math.min(ctx.text.length, range[1] + 32) },
+          })
       # The alternatives of the target group as a possible mistake.
       remPossibleTarget:
         args: "ctx: DetectContext, m: RegExpExecArray, alternatives: string[] | null"
@@ -8691,10 +8583,9 @@ rules:
           - 'aged ? plural || compoundNounNext(next ?? "") : compoundCountUnit(ctx, m, n, unit, next, before)'
           - '!hasUserOrCasedWord(ctx, typed.replace(/[0-9,.]+/g, ""))'
         return: >-
-          ({ ruleId: "englishContextualCompounds", messageKey: "review_msg_compounds",
-            range: { start: range[0], end: range[1] },
-            alternatives: [aged ? `${n}-${unit}-old${plural ?? ""}` : `${n}-${unit}`],
-            context: { start: Math.max(0, range[0] - 24), end: Math.min(ctx.text.length, range[1] + 24) } })
+          finding("englishContextualCompounds", "review_msg_compounds", range[0], range[1], [aged ? `${n}-${unit}-old${plural ?? ""}` : `${n}-${unit}`], {
+            context: { start: Math.max(0, range[0] - 24), end: Math.min(ctx.text.length, range[1] + 24) },
+          })
       # "a two-year old reindeer": the hyphen stops one word short.
       # The lookahead shows the scan its fixed "-year" (and the other units): it runs only there.
       - regex: "(?=[\\p{L}\\p{N}]+-(?:year|month|week|day){{S}}old)(?<![\\p{N}.,/])(?<target>(?<n>[0-9]+|{{COMPOUNDFORMS_NUMBER_WORDS}})-(?<unit>year|month|week|day){{S}}(?<old>old)(?<olds>s)?){{E}}"
@@ -8715,10 +8606,9 @@ rules:
           - m.index >= ctx.from && m.index < ctx.to
           - "!hasUserOrCasedWord(ctx, typed)"
         return: >-
-          ({ ruleId: "englishContextualCompounds", messageKey: "review_msg_compounds",
-            range: { start: range[0], end: range[1] },
-            alternatives: [carryCase(typed, "maybe")],
-            context: { start: Math.max(0, range[0] - 24), end: Math.min(ctx.text.length, range[1] + 24) } })
+          finding("englishContextualCompounds", "review_msg_compounds", range[0], range[1], [carryCase(typed, "maybe")], {
+            context: { start: Math.max(0, range[0] - 24), end: Math.min(ctx.text.length, range[1] + 24) },
+          })
       # "sign into your account" is "sign in to"; "signed into law" is the verb with "into".
       - regex: "(?<target>(?<verb>sign|signs|signed|signing|log|logs|logged|logging){{S}}into)(?={{S}}(?:your|my|his|her|our|their|the|an?){{S}}(?:[\\p{L}-]+{{S}})?(?:accounts?|profiles?|apps?|sites?|website|portal|system|computer|e-?mail|server|dashboard|meeting|session|network|device){{E}})"
         check: englishContextualCompounds
@@ -8824,10 +8714,9 @@ rules:
           - COMPOUND_PREFIX_WORDS[lower]?.test(word)
           - '!hasUserOrCasedWord(ctx, `${lower} ${/^\p{Lu}/u.test(word) ? "" : word}`)'
         return: >-
-          ({ ruleId: "englishClosedCompounds", messageKey: "review_msg_closed_compound",
-            range: { start: range[0], end: range[1] },
-            alternatives: [`${target.slice(0, lower.length)}-${word}`],
-            context: { start: Math.max(0, m.index - 24), end: Math.min(ctx.text.length, range[1] + 24) } })
+          finding("englishClosedCompounds", "review_msg_closed_compound", range[0], range[1], [`${target.slice(0, lower.length)}-${word}`], {
+            context: { start: Math.max(0, m.index - 24), end: Math.min(ctx.text.length, range[1] + 24) },
+          })
       - regex: "(?<target>ex{{S}}(?:{{COMPOUNDFORMS_EX_PEOPLE}})){{E}}"
         check: englishClosedCompounds
         return: compoundClosed(ctx, m, compoundHyphenate(target))
@@ -9064,8 +8953,9 @@ rules:
           cased: 'alts.map((alt) => /^\p{Lu}/u.test(typed) ? alt[0].toUpperCase() + alt.slice(1) : alt)'
         when: "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing", range: { start, end },
-          alternatives: cased, ...(cased.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("stylePhrasing", "review_msg_style_phrasing", start, end, cased, {
+            ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+          })
     frames:
       # "in a hasty manner" -> "hastily"; "in a way that…" and "in a manner of speaking" stay.
       - regex: "(?<target>in{{S}}an?{{S}}(?<adjective>[a-z]+){{S}}(?:manner|way|fashion)){{E}}(?![ \\t\\u00a0]+(?:that|which|to|as|of|than|for|in|you|we|I|it){{E}})"
@@ -9108,9 +8998,9 @@ rules:
           - "!(!tailHasUpper || (head === head.toUpperCase() && tail === tail.toUpperCase()))"
           - "!ctx.dictionary.has(`${head}${mark}${tail}`.toLowerCase())"
         return: >-
-          ({ ruleId: "englishContractionNormalization", messageKey: "review_msg_contraction",
-          range: { start, end: start + tail.length }, alternatives: [tail.toLowerCase()],
-          context: { start: m.index, end: start + tail.length } })
+          finding("englishContractionNormalization", "review_msg_contraction", start, start + tail.length, [tail.toLowerCase()], {
+            context: { start: m.index, end: start + tail.length },
+          })
   - id: en.possessiveContractions
     checks: [englishItsContext, englishYourYouAre]
     style: match
@@ -10625,8 +10515,10 @@ rules:
           - "!NN_NOT_COUNTED.has(noun.lower)"
           - alternatives
         return: >-
-          ({ ruleId: "englishNounNumber", messageKey: "review_msg_demonstrative_number", range: { start, end: noun.end }, alternatives,
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}), context: enEvidence(ctx, m.index, noun.end) })
+          finding("englishNounNumber", "review_msg_demonstrative_number", start, noun.end, alternatives, {
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+            context: enEvidence(ctx, m.index, noun.end),
+          })
       # "These chair would break", "Those table was small": these/those + a singular subject.
       - regex: "(?<dem>these|those){{S}}(?=[a-z])"
         owner: dem
@@ -10660,8 +10552,10 @@ rules:
           - '!(forms?.number !== "singular" || forms.singular === forms.plural)'
           - "!(start < ctx.from || start >= ctx.to)"
         return: >-
-          ({ ruleId: "englishNounNumber", messageKey: "review_msg_demonstrative_number", range: { start, end: noun.end }, alternatives,
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}), context: enEvidence(ctx, m.index, verb.end) })
+          finding("englishNounNumber", "review_msg_demonstrative_number", start, noun.end, alternatives, {
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+            context: enEvidence(ctx, m.index, verb.end),
+          })
       # "each children are", "every things went": each/every take a singular noun.
       - regex: "(?<target>each|every){{S}}(?=[a-z])"
         owner: none
@@ -11120,60 +11014,41 @@ rules:
             (enNounOnly(after.lower) || englishWordInfo(after.lower)?.noun))
           - "!(nounSubject && !base.verbOnly && !slot)"
         return: enParticiple(base.lemma)
+      # A perfect with a bare verb: the finding of the two frames.
+      vgPerfectBase:
+        args: "ctx: DetectContext, m: RegExpExecArray, verb: string"
+        # The pattern is case-blind: an inverted subject must be a pronoun or a name with a capital.
+        # "Have Tom call me later.": with a name and no question mark, have is causative. "Have Tom and I
+        # done enough?": the question owns the participle. "have to", "have been", "had better" are
+        # other constructions. A noun subject before has/have needs a verb-only word ("The man has work
+        # at five"). A word with a capital that the lexicon does not know is a name, as good as a
+        # pronoun ("Tom has"). "The switches I have do not…": a relative clause ends at have.
+        let:
+          subject: '/^(?:have|has)(?:n[''’]t)?\s+(\S+)/i.exec(m[0])?.[1]'
+          lead: m[0].slice(0, m.indices!.groups!.adverbs[0] - m.index).toLowerCase()
+          name: /^[A-Z][a-z]+\s/.test(m[0]) && !englishWordInfo(lead.split(/\s+/)[0])
+          nounSubject: '/^[a-z]+\s+(?:has|have|had)$/.test(lead) && !/^(?:i|you|we|they|he|she|it|who)\s/.test(lead) && !name'
+          end: m.index + m[0].length
+          participle: vgPerfectParticiple(ctx, m, verb, subject, lead, nounSubject)
+          span: m.indices!.groups!.verb
+        when:
+          - "!(subject && /^(?:have|has)/i.test(m[0]) && !VG_SUBJECT_PRONOUN.test(subject) && !/^[A-Z][a-z]+$/.test(subject))"
+          - "!(subject && !enAfterBreak(ctx, m.index) && /^(?:have|has)/i.test(m[0]))"
+          - '!(subject && !VG_SUBJECT_PRONOUN.test(subject.toLowerCase()) && !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160)))'
+          - '!(!vgPlain(ctx, verb) || (/\bnot\b/.test(m[0]) && verb === "to"))'
+          - "!/^(?:to|been|better|got|gotten|had|done)$/.test(verb)"
+          - "!(nounSubject && /^(?:what|all|which|that|to|i|you|we|they|he|she|it|who|not)$/.test(lead.split(/\\s+/)[0]))"
+          - 'enTokensAfter(ctx, end, 1)[0]?.lower !== "not"'
+          - participle
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], [participle], m.index)'
     frames:
       # "I have finish", "could have change", "Have you use…": a perfect with a bare verb.
       - regex: "(?:(?:i|you|we|they|he|she|it|who){{S}}(?:have|has|had)(?:n['’]t)?|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:{{S}}(?:not|never))?{{S}}have|(?:could|would|should|must|might)['’]ve|[a-z]+{{S}}(?:has|have|had)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        # The pattern is case-blind: an inverted subject must be a pronoun or a name with a capital.
-        # "Have Tom call me later.": with a name and no question mark, have is causative. "Have Tom and I
-        # done enough?": the question owns the participle. "have to", "have been", "had better" are
-        # other constructions. A noun subject before has/have needs a verb-only word ("The man has work
-        # at five"). A word with a capital that the lexicon does not know is a name, as good as a
-        # pronoun ("Tom has"). "The switches I have do not…": a relative clause ends at have.
-        let:
-          subject: '/^(?:have|has)(?:n[''’]t)?\s+(\S+)/i.exec(m[0])?.[1]'
-          lead: m[0].slice(0, m.indices!.groups!.adverbs[0] - m.index).toLowerCase()
-          name: /^[A-Z][a-z]+\s/.test(m[0]) && !englishWordInfo(lead.split(/\s+/)[0])
-          nounSubject: '/^[a-z]+\s+(?:has|have|had)$/.test(lead) && !/^(?:i|you|we|they|he|she|it|who)\s/.test(lead) && !name'
-          end: m.index + m[0].length
-          participle: vgPerfectParticiple(ctx, m, verb, subject, lead, nounSubject)
-          span: m.indices!.groups!.verb
-        when:
-          - "!(subject && /^(?:have|has)/i.test(m[0]) && !VG_SUBJECT_PRONOUN.test(subject) && !/^[A-Z][a-z]+$/.test(subject))"
-          - "!(subject && !enAfterBreak(ctx, m.index) && /^(?:have|has)/i.test(m[0]))"
-          - '!(subject && !VG_SUBJECT_PRONOUN.test(subject.toLowerCase()) && !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160)))'
-          - '!(!vgPlain(ctx, verb) || (/\bnot\b/.test(m[0]) && verb === "to"))'
-          - "!/^(?:to|been|better|got|gotten|had|done)$/.test(verb)"
-          - "!(nounSubject && /^(?:what|all|which|that|to|i|you|we|they|he|she|it|who|not)$/.test(lead.split(/\\s+/)[0]))"
-          - 'enTokensAfter(ctx, end, 1)[0]?.lower !== "not"'
-          - participle
-        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], [participle], m.index)'
+        return: vgPerfectBase(ctx, m, verb)
       - regex: "(?:have|has)(?:n['’]t)?{{S}}(?:i|you|we|they|he|she|it|anyone|anybody|someone|somebody|everyone|[a-z]{2,}){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        # The pattern is case-blind: an inverted subject must be a pronoun or a name with a capital.
-        # "Have Tom call me later.": with a name and no question mark, have is causative. "Have Tom and I
-        # done enough?": the question owns the participle. "have to", "have been", "had better" are
-        # other constructions. A noun subject before has/have needs a verb-only word ("The man has work
-        # at five"). A word with a capital that the lexicon does not know is a name, as good as a
-        # pronoun ("Tom has"). "The switches I have do not…": a relative clause ends at have.
-        let:
-          subject: '/^(?:have|has)(?:n[''’]t)?\s+(\S+)/i.exec(m[0])?.[1]'
-          lead: m[0].slice(0, m.indices!.groups!.adverbs[0] - m.index).toLowerCase()
-          name: /^[A-Z][a-z]+\s/.test(m[0]) && !englishWordInfo(lead.split(/\s+/)[0])
-          nounSubject: '/^[a-z]+\s+(?:has|have|had)$/.test(lead) && !/^(?:i|you|we|they|he|she|it|who)\s/.test(lead) && !name'
-          end: m.index + m[0].length
-          participle: vgPerfectParticiple(ctx, m, verb, subject, lead, nounSubject)
-          span: m.indices!.groups!.verb
-        when:
-          - "!(subject && /^(?:have|has)/i.test(m[0]) && !VG_SUBJECT_PRONOUN.test(subject) && !/^[A-Z][a-z]+$/.test(subject))"
-          - "!(subject && !enAfterBreak(ctx, m.index) && /^(?:have|has)/i.test(m[0]))"
-          - '!(subject && !VG_SUBJECT_PRONOUN.test(subject.toLowerCase()) && !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160)))'
-          - '!(!vgPlain(ctx, verb) || (/\bnot\b/.test(m[0]) && verb === "to"))'
-          - "!/^(?:to|been|better|got|gotten|had|done)$/.test(verb)"
-          - "!(nounSubject && /^(?:what|all|which|that|to|i|you|we|they|he|she|it|who|not)$/.test(lead.split(/\\s+/)[0]))"
-          - 'enTokensAfter(ctx, end, 1)[0]?.lower !== "not"'
-          - participle
-        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], [participle], m.index)'
+        return: vgPerfectBase(ctx, m, verb)
   - id: en.verbGroupsBareVerbs
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
     style: match
@@ -12256,9 +12131,10 @@ rules:
           - '!(word === "lose" && /on[ \t]+the[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index + 4)))'
           - nouns.length
         return: >-
-          ({ ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word", range: { start: span[0], end: span[1] },
-          alternatives: nouns.map((n) => caseLike(word, n)), ...(nouns.length > 1 ? { requiresChoice: true as const } : {}),
-          context: enEvidence(ctx, m.index, span[1]) })
+          finding("englishConfusedWords", "review_msg_confused_word", span[0], span[1], nouns.map((n) => caseLike(word, n)), {
+            ...(nouns.length > 1 ? { requiresChoice: true as const } : {}),
+            context: enEvidence(ctx, m.index, span[1]),
+          })
       # "The cannot help you", "if the create the concept": "the" where "they" is meant. A
       # word right before the match means that no break stands there (see opensClause).
       - regex: "(?<target>the){{S}}(?=[a-z])"
@@ -12275,8 +12151,9 @@ rules:
           - 'first?.kind === "word" && first.text === first.lower'
           - detTheVerb(first, tokens[1], tokens[2], target)
         return: >-
-          ({ ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word", range: { start: span[0], end: span[1] },
-          alternatives: [caseLike(target, "they")], context: enEvidence(ctx, m.index, first.end) })
+          finding("englishConfusedWords", "review_msg_confused_word", span[0], span[1], [caseLike(target, "they")], {
+            context: enEvidence(ctx, m.index, first.end),
+          })
   - id: en.thirdPersonBase
     checks: [englishPronounVerbWhitelistAgreement]
     style: match
@@ -12342,9 +12219,11 @@ rules:
             "word" ? next.lower : "")))
           - fix && fix !== word
         return: >-
-          { ruleId: "englishPronounVerbWhitelistAgreement", messageKey: "review_msg_pronoun_verb",
-          range: { start: verb.start, end: verb.end }, alternatives: past ? [fix, past] : [fix], ...(past
-          ? { requiresChoice: true as const } : {}), context: enEvidence(ctx, m.index, verb.end) }
+          finding("englishPronounVerbWhitelistAgreement", "review_msg_pronoun_verb", verb.start, verb.end, past ? [fix, past] : [fix], {
+            ...(past
+          ? { requiresChoice: true as const } : {}),
+            context: enEvidence(ctx, m.index, verb.end),
+          })
   # Subject-verb number agreement with noun-phrase subjects the lexicon can number. Each part
   # keeps one finding per verb start (usSlotsOnePerStart), so each part is a rule of its own.
   - id: en.subjectAgreement
@@ -13118,63 +12997,44 @@ rules:
             englishInflect(t.lower, "third") : null
         when: fix && fix !== t.lower
         return: asPush(ctx, t, fix, m.index)
+      # A head noun and its relative clause: the main verb after the clause agrees with the noun.
+      asRelativeSubject:
+        args: "ctx: DetectContext, m: RegExpExecArray, head: string"
+        type: RawFinding | null
+        let:
+          words: head.split(/[ \t ]+/)
+          last: words.at(-1)!
+          headRead: englishWordInfo(last)
+          # "guys" is also a verb the noun pairs skip: the lexicon's plural reading.
+          number: >-
+            !m.groups!.det ? { singular: last, plural: last, number: "singular" as const } : (enNounNumber(last) ??
+            (headRead?.noun && headRead.plural && /s$/.test(last) ? { singular: last.slice(0, -1), plural:
+            last, number: "plural" as const } : null))
+          low: (m.groups!.det ?? "").toLowerCase()
+          plural: number.number === "plural"
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 10)
+        when:
+          - asOpens(ctx, m)
+          # "A new WHO report": the relative pronoun is lowercase.
+          - '/[ \t ](?:who|that)[ \t ]+$/.test(m[0])'
+          - "!words.some((w) => EN_FUNCTION_WORDS.has(w) || MV_AUX.test(w))"
+          # Modifiers before the head are adjectives or nouns, never verbs.
+          - '!words.slice(0, -1).some((w) => englishWordInfo(w)?.verbs.some((v) => v.form !== "base"))'
+          - number && !EN_COLLECTIVE.has(number.singular) && !AS_NUMBERS.test(last)
+          - >-
+            !(plural ? /^(?:a|an|this|that|every|each)$/.test(low) :
+            /^(?:these|those|many|all|most)$/.test(low))
+        # The clause's own verb; the main verb comes right after it or after adverbs.
+        return: asRelativeMain(ctx, m, tokens, plural, 0, -1)
     frames:
       # "The ladies who talk loudly annoys me", "The tall woman that I met yesterday manage the
       # team": the main verb after a relative clause agrees with the noun before who/that.
       - regex: "(?<det>the|these|those|my|our|their|his|her|your|all|many|some|most|this|that|a|an|every|each){{S}}(?<head>(?:[a-z]+{{S}}){0,2}?[a-z]+){{S}}(?:who|that){{S}}(?=[a-z])"
         owner: none
-        let:
-          words: head.split(/[ \t ]+/)
-          last: words.at(-1)!
-          headRead: englishWordInfo(last)
-          # "guys" is also a verb the noun pairs skip: the lexicon's plural reading.
-          number: >-
-            !m.groups!.det ? { singular: last, plural: last, number: "singular" as const } : (enNounNumber(last) ??
-            (headRead?.noun && headRead.plural && /s$/.test(last) ? { singular: last.slice(0, -1), plural:
-            last, number: "plural" as const } : null))
-          low: (m.groups!.det ?? "").toLowerCase()
-          plural: number.number === "plural"
-          tokens: enTokensAfter(ctx, m.index + m[0].length, 10)
-        when:
-          - asOpens(ctx, m)
-          # "A new WHO report": the relative pronoun is lowercase.
-          - '/[ \t ](?:who|that)[ \t ]+$/.test(m[0])'
-          - "!words.some((w) => EN_FUNCTION_WORDS.has(w) || MV_AUX.test(w))"
-          # Modifiers before the head are adjectives or nouns, never verbs.
-          - '!words.slice(0, -1).some((w) => englishWordInfo(w)?.verbs.some((v) => v.form !== "base"))'
-          - number && !EN_COLLECTIVE.has(number.singular) && !AS_NUMBERS.test(last)
-          - >-
-            !(plural ? /^(?:a|an|this|that|every|each)$/.test(low) :
-            /^(?:these|those|many|all|most)$/.test(low))
-        # The clause's own verb; the main verb comes right after it or after adverbs.
-        return: asRelativeMain(ctx, m, tokens, plural, 0, -1)
+        return: asRelativeSubject(ctx, m, head)
       - regex: "(?<head>anyone|anybody|someone|somebody|everyone|everybody|nobody){{S}}who{{S}}(?=[a-z])"
         owner: none
-        let:
-          words: head.split(/[ \t ]+/)
-          last: words.at(-1)!
-          headRead: englishWordInfo(last)
-          # "guys" is also a verb the noun pairs skip: the lexicon's plural reading.
-          number: >-
-            !m.groups!.det ? { singular: last, plural: last, number: "singular" as const } : (enNounNumber(last) ??
-            (headRead?.noun && headRead.plural && /s$/.test(last) ? { singular: last.slice(0, -1), plural:
-            last, number: "plural" as const } : null))
-          low: (m.groups!.det ?? "").toLowerCase()
-          plural: number.number === "plural"
-          tokens: enTokensAfter(ctx, m.index + m[0].length, 10)
-        when:
-          - asOpens(ctx, m)
-          # "A new WHO report": the relative pronoun is lowercase.
-          - '/[ \t ](?:who|that)[ \t ]+$/.test(m[0])'
-          - "!words.some((w) => EN_FUNCTION_WORDS.has(w) || MV_AUX.test(w))"
-          # Modifiers before the head are adjectives or nouns, never verbs.
-          - '!words.slice(0, -1).some((w) => englishWordInfo(w)?.verbs.some((v) => v.form !== "base"))'
-          - number && !EN_COLLECTIVE.has(number.singular) && !AS_NUMBERS.test(last)
-          - >-
-            !(plural ? /^(?:a|an|this|that|every|each)$/.test(low) :
-            /^(?:these|those|many|all|most)$/.test(low))
-        # The clause's own verb; the main verb comes right after it or after adverbs.
-        return: asRelativeMain(ctx, m, tokens, plural, 0, -1)
+        return: asRelativeSubject(ctx, m, head)
   - id: en.subjectAgreementName
     checks: [englishSubjectVerbAgreement]
     style: match
@@ -13975,9 +13835,9 @@ rules:
           # "don't want neither … nor …": either … or needs both words changed.
           - 'word === "no" || !next || !(word === "neither" && /\bnor\b/i.test(ctx.text.slice(end, end + 80)))'
         return: >-
-          ({ ruleId: "englishUsagePhrases", messageKey: "review_msg_double_negative",
-          range: { start, end }, alternatives: [caseLike(target, NEGATION_ANY[word])],
-          context: enEvidence(ctx, m.index, end) })
+          finding("englishUsagePhrases", "review_msg_double_negative", start, end, [caseLike(target, NEGATION_ANY[word])], {
+            context: enEvidence(ctx, m.index, end),
+          })
       # "She could not hardly hear", "I can't barely see": hardly is negative already. A
       # do-support negation ("didn't hardly sleep") needs the verb inflected and is left alone.
       - regex: "(?<target>(?<aux>can|could|will|would|should)(?:n['’]t|{{S}}not)|(?<can>can['’]t|cannot)|(?<will>won['’]t))(?={{S}}(?:hardly|scarcely|barely){{E}})"
@@ -13987,9 +13847,9 @@ rules:
           end: m.indices!.groups!.target[1]
         when: '!hasUserOrCasedWord(ctx, target.replace(/n[''’]t$/i, ""))'
         return: >-
-          ({ ruleId: "englishUsagePhrases", messageKey: "review_msg_negated_hardly",
-          range: { start, end }, alternatives: [caseLike(target, kept.toLowerCase())],
-          context: enEvidence(ctx, start, end + 12) })
+          finding("englishUsagePhrases", "review_msg_negated_hardly", start, end, [caseLike(target, kept.toLowerCase())], {
+            context: enEvidence(ctx, start, end + 12),
+          })
   - id: en.relativeAgreement
     checks: [englishSubjectVerbAgreement, englishPossibleErrors]
     style: match
@@ -14483,9 +14343,9 @@ rules:
             (!!after && !after.noun && !after.plural && !after.verbs.length)
           - base && base !== verb
         return: >-
-          ({ ruleId: "englishVerbComplements", messageKey: "review_msg_causative_base",
-          range: { start: m.indices!.groups!.verb[0], end: m.indices!.groups!.verb[1] },
-          alternatives: [caseLike(verb, base)], context: enEvidence(ctx, m.index, m.indices!.groups!.verb[1]) })
+          finding("englishVerbComplements", "review_msg_causative_base", m.indices!.groups!.verb[0], m.indices!.groups!.verb[1], [caseLike(verb, base)], {
+            context: enEvidence(ctx, m.index, m.indices!.groups!.verb[1]),
+          })
   - id: en.superlativeArticle
     checks: [englishPhraseCorrections]
     style: match
@@ -14538,9 +14398,9 @@ rules:
           # "a best in class service", "a latest cell phone": a classifier compound.
           - "!nextWord || !(!after || after.noun || after.plural || enNounOnly(next.lower))"
         return: >-
-          ({ ruleId: "englishPhraseCorrections", messageKey: "review_msg_superlative_the",
-          range: { start, end: articleEnd }, alternatives: [caseLike(article, "the")],
-          context: enEvidence(ctx, m.index, end) })
+          finding("englishPhraseCorrections", "review_msg_superlative_the", start, articleEnd, [caseLike(article, "the")], {
+            context: enEvidence(ctx, m.index, end),
+          })
   - id: en.lessComparative
     checks: [englishDoubledDegree]
     style: match
@@ -14574,8 +14434,9 @@ rules:
           start: m.indices!.groups!.target[0]
           end: m.indices!.groups!.target[1]
         return: >-
-          ({ ruleId: "englishThenThan", messageKey: "review_msg_then_than", range: { start, end },
-          alternatives: [caseLike(target, "than")], context: enEvidence(ctx, m.index, end) })
+          finding("englishThenThan", "review_msg_then_than", start, end, [caseLike(target, "than")], {
+            context: enEvidence(ctx, m.index, end),
+          })
   - id: en.collocations
     checks: [englishFixedPrepositions]
     style: match
@@ -14863,9 +14724,9 @@ rules:
           start: m.indices!.groups!.target[0]
           end: m.indices!.groups!.target[1]
         return: >-
-          ({ ruleId: "englishFixedPrepositions", messageKey: "review_msg_fixed_prepositions",
-          range: { start, end }, alternatives: [caseLike(m.groups!.target, fixed)],
-          context: enEvidence(ctx, m.index, end) })
+          finding("englishFixedPrepositions", "review_msg_fixed_prepositions", start, end, [caseLike(m.groups!.target, fixed)], {
+            context: enEvidence(ctx, m.index, end),
+          })
       # No noun follows: the phrase ends, or a clause or adverb word comes next.
       collocationPhraseEnd:
         args: "ctx: DetectContext, end: number"
@@ -15296,8 +15157,9 @@ rules:
         let:
           span: m.indices!.groups!.target
         return: >-
-          ({ ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word", range: { start: span[0], end: span[1] },
-          alternatives: [caseLike(m.groups!.target, fix)], context: enEvidence(ctx, m.index, span[1]) })
+          finding("englishConfusedWords", "review_msg_confused_word", span[0], span[1], [caseLike(m.groups!.target, fix)], {
+            context: enEvidence(ctx, m.index, span[1]),
+          })
       # "I no like eggs": "no" for a missing do-support. "like" is a preposition too; after a
       # subject and "no" it is the verb. "you no doubt know", "we no sooner…": a noun or
       # comparative reading keeps "no".
@@ -15904,8 +15766,10 @@ rules:
         let:
           range: m.indices!.groups!.target ?? m.indices!.groups!.target2
         return: >-
-          ({ ruleId: "englishSentenceFragment", messageKey: "review_msg_sentence_fragment", range: { start: range[0], end: m.index + m[0].length },
-          alternatives: [], warningOnly: true, context: enEvidence(ctx, m.index, m.index + m[0].length) })
+          finding("englishSentenceFragment", "review_msg_sentence_fragment", range[0], m.index + m[0].length, [], {
+            warningOnly: true,
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
   - id: en.forwardPreposition
     checks: [englishFixedPrepositions]
     style: match
@@ -15931,8 +15795,9 @@ rules:
           - "!(!wrong && !/^(?:your|our|their|his|her|my|the)$/.test(next) && !/ing$/.test(next))"
           - "!(!wrong && /^(?:the|his|her|my)$/.test(next)) || wcAwaitedAfter(ctx, m.index + m[0].length)"
         return: >-
-          ({ ruleId: "englishFixedPrepositions", messageKey: "review_msg_fixed_prepositions", range: { start: span[0], end: span[1] },
-          alternatives: ["forward to"], context: enEvidence(ctx, m.index, m.index + m[0].length) })
+          finding("englishFixedPrepositions", "review_msg_fixed_prepositions", span[0], span[1], ["forward to"], {
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
   - id: en.bareBitArticles
     checks: [englishSentenceStructure]
     style: match
@@ -16055,9 +15920,10 @@ rules:
           - '!(verb === "exist" || knownEnglishNounNumber(noun))'
           - '!(!next || !(next.kind === "end" || next.kind === "comma" || (next.kind === "word" && WC_BARE_TAIL.test(next.lower))))'
         return: >-
-          ({ ruleId: "englishExistentialAgreement", messageKey: "review_msg_existential_agreement",
-          range: { start: m.indices!.groups!.verb[0], end: headEnd }, alternatives: [`${singularVerb} ${a} ${noun}`, `${verb} ${plural}`],
-          requiresChoice: true, context: enEvidence(ctx, m.index, headEnd) })
+          finding("englishExistentialAgreement", "review_msg_existential_agreement", m.indices!.groups!.verb[0], headEnd, [`${singularVerb} ${a} ${noun}`, `${verb} ${plural}`], {
+            requiresChoice: true,
+            context: enEvidence(ctx, m.index, headEnd),
+          })
     frames:
       # "There are a theory…", "There exist a school…", "There are argument whether…":
       # existential there with a plural verb and one singular noun.
@@ -16089,8 +15955,9 @@ rules:
           - '!(next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower) && (enNounOnly(next.lower) || englishWordInfo(next.lower)?.noun))'
           - '!/,|&|\b(?:and|or)\b/i.test(clauseRest)'
         return: >-
-          article ? { ruleId: "englishExistentialAgreement", messageKey: "review_msg_existential_agreement", range: { start: span[0], end: span[1] },
-          alternatives: [singularVerb], context: enEvidence(ctx, m.index, head.end) }
+          article ? finding("englishExistentialAgreement", "review_msg_existential_agreement", span[0], span[1], [singularVerb], {
+            context: enEvidence(ctx, m.index, head.end),
+          })
           : wcBareExistential(ctx, m, noun, number.plural, next, head.end, singularVerb)
   - id: en.modalQuestionForms
     checks: [englishAuxiliaryBaseVerb]
@@ -16159,8 +16026,9 @@ rules:
           - read
           - '!(read.tense === "third" && !singular)'
         return: >-
-          ({ ruleId: "englishAuxiliaryBaseVerb", messageKey: "review_msg_question_do", range: { start: span[0], end: span[1] },
-          alternatives: [`${aux} ${subject} ${read.lemma}`], context: enEvidence(ctx, m.index, span[1]) })
+          finding("englishAuxiliaryBaseVerb", "review_msg_question_do", span[0], span[1], [`${aux} ${subject} ${read.lemma}`], {
+            context: enEvidence(ctx, m.index, span[1]),
+          })
   - id: en.sinceWithSimpleTense
     checks: [englishTenseConsistency]
     style: match
@@ -16239,8 +16107,9 @@ rules:
           - '!(quantity && !atStart && before === "of" && enNounOnly(noun) !== "plural")'
           - goesOn
         return: >-
-          ({ ruleId: "englishItsContext", messageKey: "review_msg_its_possessive", range: { start: span[0], end: span[1] },
-          alternatives: [target === "It" ? "Its" : "its"], context: enEvidence(ctx, m.index, m.index + m[0].length) })
+          finding("englishItsContext", "review_msg_its_possessive", span[0], span[1], [target === "It" ? "Its" : "its"], {
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
   - id: en.apostrophes
     checks: [englishApostrophes]
     style: match
@@ -16850,11 +16719,7 @@ rules:
           - '!(ql === "these" || ql === "those" || ql === "both") || /^(?:[a-z]+|[A-Z][A-Z&]*[A-Z])$/.test(w)'
           - next !== null
         return: >-
-          ({
-            ruleId: "englishApostrophes",
-            messageKey: "review_msg_plural_apostrophe",
-            range: { start, end },
-            alternatives: alternatives.map((alt) => (/’/.test(m[0]) ? alt.replaceAll("'", "’") : alt)),
+          finding("englishApostrophes", "review_msg_plural_apostrophe", start, end, alternatives.map((alt) => (/’/.test(m[0]) ? alt.replaceAll("'", "’") : alt)), {
             ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
             context: enEvidence(ctx, m.index, end),
           })
@@ -16900,11 +16765,7 @@ rules:
           - 'APOS_CLAUSE_VERB.has(v) || !!read?.verbs.some((x) => x.form === "past" || x.form === "third")'
           - "!!plural"
         return: >-
-          ({
-            ruleId: "englishApostrophes",
-            messageKey: "review_msg_plural_apostrophe",
-            range: { start, end: start + w.length + 2 },
-            alternatives: [plural],
+          finding("englishApostrophes", "review_msg_plural_apostrophe", start, start + w.length + 2, [plural], {
             context: enEvidence(ctx, m.index, m.index + m[0].length),
           })
       # "he see's", "it last's", "Michael really want's": a verb's -s ending takes no apostrophe.
@@ -16966,11 +16827,7 @@ rules:
           - "!(read ? !(read.noun || read.adjective) : n.length < 4)"
           - "!APOS_PHRASE_ENDS.has(n)"
         return: >-
-          ({
-            ruleId: "englishApostrophes",
-            messageKey: "review_msg_noun_possessive",
-            range: { start: m.index, end: m.index + "other's".length },
-            alternatives: [`${w}s${ctx.text[m.index + 5]}`],
+          finding("englishApostrophes", "review_msg_noun_possessive", m.index, m.index + "other's".length, [`${w}s${ctx.text[m.index + 5]}`], {
             context: enEvidence(ctx, m.index, m.index + m[0].length),
           })
       # "last weeks meeting", "this years budget": a time noun owning the next noun.
@@ -16994,11 +16851,7 @@ rules:
         owner: t
         when: /^[A-Za-z][a-z]*$/.test(t)
         return: >-
-          ({
-            ruleId: "englishApostrophes",
-            messageKey: "review_msg_noun_possessive",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [`${t}'s`],
+          finding("englishApostrophes", "review_msg_noun_possessive", m.index, m.index + m[0].length, [`${t}'s`], {
             context: enEvidence(ctx, m.index, m.index + m[0].length),
           })
       # "a boy who's birthday is", "by who's standards": "whose" owns the noun after it.
@@ -17170,9 +17023,9 @@ rules:
           # "Microsoft Word", "MS Excel": the names table matches the whole name.
           - '!/(?:microsoft|ms|google|apple)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
         return: >-
-          ({ ruleId: "englishCanonicalCasing", messageKey: "review_msg_canonical_casing",
-          range: { start: m.index, end: m.index + w.length }, alternatives: [NAMES_PRODUCT[w]],
-          context: lexContext(ctx, m.index, m.index + m[0].length) })
+          finding("englishCanonicalCasing", "review_msg_canonical_casing", m.index, m.index + w.length, [NAMES_PRODUCT[w]], {
+            context: lexContext(ctx, m.index, m.index + m[0].length),
+          })
       # "Super Bowl 55" is numbered in Roman numerals (Super Bowl LV); the 50th game was "Super
       # Bowl 50".
       - regex: "super{{S}}bowl{{S}}(?<n>[1-9][0-9]?){{E}}(?![.,][0-9])"
@@ -17380,9 +17233,9 @@ rules:
           - '!(before && w === "dutch" && NAMES_DUTCH_BEFORE.has(before))'
           - 'w !== "polish" || (after && NAMES_POLISH_NOUNS.has(after)) || (before && NAMES_POLISH_VERBS.has(before) && closes)'
         return: >-
-          ({ ruleId: "englishProperNounCapitalization", messageKey: "review_msg_nationality_capital",
-          range: { start: m.index, end }, alternatives: [w[0].toUpperCase() + w.slice(1)],
-          context: lexContext(ctx, m.index, end) })
+          finding("englishProperNounCapitalization", "review_msg_nationality_capital", m.index, end, [w[0].toUpperCase() + w.slice(1)], {
+            context: lexContext(ctx, m.index, end),
+          })
       # Places whose names are also ordinary words ("china", "turkey", "long island"): only where
       # a place goes, after "born in", "from", "a trip to"…, and before the clause ends.
       - regex: "(?:{{PROPERNAMES_PLACE_LEAD}}){{S}}(?<w>china|japan|turkey|shanghai|queens|long{{S}}island|long{{S}}beach){{PROPERNAMES_PLACE_FOLLOW}}"
@@ -17641,7 +17494,8 @@ rules:
     frames:
       # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
       # 30 digits near its start.
-      - regex: "{{TYPOGRAPHY_TIMES}}"
+      - &typographyTimes
+        regex: "{{TYPOGRAPHY_TIMES}}"
         scan: owned
         lookback: 64
         flags: gu
@@ -17657,7 +17511,8 @@ rules:
           typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
             op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
           ])
-      - regex: "{{TYPOGRAPHY_ARROW}}"
+      - &typographyArrow
+        regex: "{{TYPOGRAPHY_ARROW}}"
         scan: owned
         lookback: 64
         flags: gmu
@@ -17667,7 +17522,8 @@ rules:
         return: >-
           typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [TYPOGRAPHY_ARROWS[m[0]]])
       # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
-      - regex: "{{TYPOGRAPHY_SIGNS}}"
+      - &typographySigns
+        regex: "{{TYPOGRAPHY_SIGNS}}"
         scan: owned
         lookback: 64
         flags: gu
@@ -17692,7 +17548,8 @@ rules:
           typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
             upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
           ])
-      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
+      - &typographyPlusMinus
+        regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
         scan: owned
         lookback: 64
         flags: gu
@@ -17728,7 +17585,8 @@ rules:
               : null
       # "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. The
       # gate is the digit that opens the match: the spaces before the hyphen have no limit.
-      - regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
+      - &typographyNumberRange
+        regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
         scan: owned
         lookback: 64
         flags: gu
@@ -17766,67 +17624,10 @@ rules:
     message: review_msg_typographic_symbol
     # French: the shared symbols only; its quotes and dashes follow other rules.
     frames:
-      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
-      # 30 digits near its start.
-      - regex: "{{TYPOGRAPHY_TIMES}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
-        gateFlags: g
-        let:
-          start: m.index + a.length
-        when:
-          - typographyOwned(m, ctx)
-          # "0x1F" is hexadecimal.
-          - '!(a === "0" && op === "x")'
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
-            op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
-          ])
-      - regex: "{{TYPOGRAPHY_ARROW}}"
-        scan: owned
-        lookback: 64
-        flags: gmu
-        gate: "[<>]"
-        gateFlags: g
-        when: typographyOwned(m, ctx)
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [TYPOGRAPHY_ARROWS[m[0]]])
-      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
-      - regex: "{{TYPOGRAPHY_SIGNS}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "Copyright|\\([cCRTt]"
-        gateFlags: g
-        let:
-          start: m.index + (pre?.length ?? 0)
-          before: ctx.text[start - 1] ?? ""
-          upper: s.toUpperCase()
-        when:
-          - typographyOwned(m, ctx)
-          # "(c)" is a list item unless it follows "Copyright" or precedes a year.
-          - '!(upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))'
-          # "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
-          - '!(s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
-          # "Burr (D) and Hagan (R)": party letters after names.
-          - '!(s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
-          # "(R)" and "(TM)" mark a name right before them.
-          - '!(upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))'
-          - '!(upper === "(R)" && !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start)))'
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
-            upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
-          ])
-      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "\\+"
-        gateFlags: g
-        when: typographyOwned(m, ctx)
-        return: 'typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"])'
+      - *typographyTimes
+      - *typographyArrow
+      - *typographySigns
+      - *typographyPlusMinus
   - id: en.typographySpanish
     checks: [englishTypography]
     lang: es
@@ -17834,67 +17635,10 @@ rules:
     message: review_msg_typographic_symbol
     # Spanish: the shared symbols only; its quotes and dashes follow other rules.
     frames:
-      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
-      # 30 digits near its start.
-      - regex: "{{TYPOGRAPHY_TIMES}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
-        gateFlags: g
-        let:
-          start: m.index + a.length
-        when:
-          - typographyOwned(m, ctx)
-          # "0x1F" is hexadecimal.
-          - '!(a === "0" && op === "x")'
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
-            op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
-          ])
-      - regex: "{{TYPOGRAPHY_ARROW}}"
-        scan: owned
-        lookback: 64
-        flags: gmu
-        gate: "[<>]"
-        gateFlags: g
-        when: typographyOwned(m, ctx)
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [TYPOGRAPHY_ARROWS[m[0]]])
-      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
-      - regex: "{{TYPOGRAPHY_SIGNS}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "Copyright|\\([cCRTt]"
-        gateFlags: g
-        let:
-          start: m.index + (pre?.length ?? 0)
-          before: ctx.text[start - 1] ?? ""
-          upper: s.toUpperCase()
-        when:
-          - typographyOwned(m, ctx)
-          # "(c)" is a list item unless it follows "Copyright" or precedes a year.
-          - '!(upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))'
-          # "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
-          - '!(s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
-          # "Burr (D) and Hagan (R)": party letters after names.
-          - '!(s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
-          # "(R)" and "(TM)" mark a name right before them.
-          - '!(upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))'
-          - '!(upper === "(R)" && !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start)))'
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
-            upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
-          ])
-      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "\\+"
-        gateFlags: g
-        when: typographyOwned(m, ctx)
-        return: 'typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"])'
+      - *typographyTimes
+      - *typographyArrow
+      - *typographySigns
+      - *typographyPlusMinus
   - id: en.typographyPortuguese
     checks: [englishTypography]
     lang: pt
@@ -17902,82 +17646,11 @@ rules:
     message: review_msg_typographic_symbol
     # Portuguese: the shared symbols and number ranges.
     frames:
-      # "6.626 x 10⁻³⁴", "1920x1080", "5 * 2": numbers multiplied. A long number holds a run of
-      # 30 digits near its start.
-      - regex: "{{TYPOGRAPHY_TIMES}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
-        gateFlags: g
-        let:
-          start: m.index + a.length
-        when:
-          - typographyOwned(m, ctx)
-          # "0x1F" is hexadecimal.
-          - '!(a === "0" && op === "x")'
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
-            op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
-          ])
-      - regex: "{{TYPOGRAPHY_ARROW}}"
-        scan: owned
-        lookback: 64
-        flags: gmu
-        gate: "[<>]"
-        gateFlags: g
-        when: typographyOwned(m, ctx)
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [TYPOGRAPHY_ARROWS[m[0]]])
-      # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
-      - regex: "{{TYPOGRAPHY_SIGNS}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "Copyright|\\([cCRTt]"
-        gateFlags: g
-        let:
-          start: m.index + (pre?.length ?? 0)
-          before: ctx.text[start - 1] ?? ""
-          upper: s.toUpperCase()
-        when:
-          - typographyOwned(m, ctx)
-          # "(c)" is a list item unless it follows "Copyright" or precedes a year.
-          - '!(upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))'
-          # "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
-          - '!(s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
-          # "Burr (D) and Hagan (R)": party letters after names.
-          - '!(s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
-          # "(R)" and "(TM)" mark a name right before them.
-          - '!(upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))'
-          - '!(upper === "(R)" && !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start)))'
-        return: >-
-          typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
-            upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
-          ])
-      - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "\\+"
-        gateFlags: g
-        when: typographyOwned(m, ctx)
-        return: 'typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"])'
-      # "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. The
-      # gate is the digit that opens the match: the spaces before the hyphen have no limit.
-      - regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
-        scan: owned
-        lookback: 64
-        flags: gu
-        gate: "\\d"
-        gateFlags: g
-        let:
-          dash: spaced ?? joined
-          start: m.index + m[0].indexOf(dash)
-        when:
-          - typographyOwned(m, ctx)
-          - "!(joined && Number(y2) <= Number(y1))"
-        return: 'typographySymbol("review_msg_range_dash", start, start + dash.length, ["–"])'
+      - *typographyTimes
+      - *typographyArrow
+      - *typographySigns
+      - *typographyPlusMinus
+      - *typographyNumberRange
   - id: en.plainStyle
     checks: [stylePhrasing]
     style: match
@@ -18361,12 +18034,7 @@ rules:
         args: "start: number, gap: string"
         type: RawFinding
         return: >-
-          ({
-            ruleId: "styleIntroductoryComma",
-            messageKey: "review_msg_introductory_comma",
-            range: { start, end: start + gap.length },
-            alternatives: [`,${gap}`],
-          })
+          finding("styleIntroductoryComma", "review_msg_introductory_comma", start, start + gap.length, [`,${gap}`])
     frames:
       # The comma after an opening linking word ("However", "In addition"). Bounded gaps: an
       # unbounded run in the lookbehind is reread at every position of a long run of spaces
@@ -18413,12 +18081,7 @@ rules:
         scan: polish
         flags: gu
         return: >-
-          ({
-            ruleId: "styleIntroductoryComma",
-            messageKey: "review_msg_introductory_comma",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [`I, for one,`],
-          })
+          finding("styleIntroductoryComma", "review_msg_introductory_comma", m.index, m.index + m[0].length, [`I, for one,`])
       # The comma before a name addressed: "Thanks Tom".
       - regex: "(?<w>Thanks|Thank you|Hi|Hello|Hey there|Happy Birthday|Good morning|Good night)(?<gap>{{S}})(?<name>[A-Za-z]+){{E}}"
         owner: gap
@@ -20491,13 +20154,9 @@ rules:
         let:
           span: m.indices!.groups![group]
         return: >-
-          [{
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: span[0], end: span[1] },
-            alternatives: [caseLike(ctx.source.slice(span[0], span[1]), fix)],
+          [finding(frame.ruleId, frame.messageKey, span[0], span[1], [caseLike(ctx.source.slice(span[0], span[1]), fix)], {
             context: enEvidence(ctx, m.index, span[1]),
-          }]
+          })]
       # A base verb with no noun, adjective or other form: "see", "send", "explain".
       everydayBareVerb:
         args: "word: string"

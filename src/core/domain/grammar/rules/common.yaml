@@ -7332,12 +7332,8 @@ rules:
           style: detectWordCase(m.groups!.target.trim())
           end: m.index + m[0].length
         return: >-
-          ({
-            ruleId: "englishVerbComplements",
-            messageKey,
+          finding("englishVerbComplements", messageKey, span[0], span[1], alternatives.map((text) => applyWordCase(text, style)), {
             ...(choice ? { requiresChoice: true as const } : {}),
-            range: { start: span[0], end: span[1] },
-            alternatives: alternatives.map((text) => applyWordCase(text, style)),
             context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 48) },
           })
     frames:
@@ -7355,11 +7351,7 @@ rules:
           - "!!tail"
           - "!hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, phraseEnd))"
         return: >-
-          ({
-            ruleId: "englishVerbComplements",
-            messageKey: "review_msg_missing_to",
-            range: { start: span[0], end: span[1] },
-            alternatives: [`${target === target.toUpperCase() ? "TO" : "to"} ${target}`],
+          finding("englishVerbComplements", "review_msg_missing_to", span[0], span[1], [`${target === target.toUpperCase() ? "TO" : "to"} ${target}`], {
             context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
           })
       # "I'm looking forward to meet you": -ing after "look forward to". Nouns end this phrase
@@ -8289,11 +8281,7 @@ rules:
           # A quoted example under discussion ("She has cleaning the kitchen") is not prose.
           - "!namedExampleBefore(ctx.text, startSpan[0])"
         return: >-
-          ({
-            ruleId: "englishPerfectParticiples",
-            messageKey: "review_msg_progressive_be",
-            range: { start: startSpan[0], end: endSpan[1] },
-            alternatives,
+          finding("englishPerfectParticiples", "review_msg_progressive_be", startSpan[0], endSpan[1], alternatives, {
             requiresChoice: true as const,
             context: around(ctx, m),
           })
@@ -8338,14 +8326,10 @@ rules:
           - "!!ing && !!finite"
           - "!hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, verbSpan[1]))"
         return: >-
-          ({
-            ruleId: "englishPerfectParticiples",
-            messageKey: "review_msg_be_base",
-            range: { start: m.index, end: verbSpan[1] },
-            alternatives: [
+          finding("englishPerfectParticiples", "review_msg_be_base", m.index, verbSpan[1], [
               `${ctx.source.slice(m.index, verbSpan[0])}${applyWordCase(ing, kase)}`,
               `${present}${gap}${applyWordCase(finite, kase)}`,
-            ],
+            ], {
             requiresChoice: true as const,
             context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, verbSpan[1] + 32) },
           })
@@ -8444,14 +8428,10 @@ rules:
           digits: four ?? two ?? bare ?? tens
         when: start >= ctx.from && start < ctx.to
         return: >-
-          [{
-            ruleId: "englishNounNumber",
-            messageKey: "review_msg_decade_plural",
-            range: { start, end: m.index + m[0].length },
-            alternatives: two ? [`${mark}${digits}s`, `${digits}s`] : [`${digits}s`],
+          [finding("englishNounNumber", "review_msg_decade_plural", start, m.index + m[0].length, two ? [`${mark}${digits}s`, `${digits}s`] : [`${digits}s`], {
             requiresChoice: two ? (true as const) : undefined,
             context: around(ctx, m),
-          }]
+          })]
   - id: usagePhrases
     checks: [englishUsagePhrases]
     style: template
@@ -8571,11 +8551,7 @@ rules:
           - "!namedExampleBefore(ctx.text, m.index)"
           - "!ctx.dictionary.has(marker.toLowerCase()) && !ctx.dictionary.has(word.toLowerCase())"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end },
-            alternatives: [caseLike(marker, word)],
+          finding(frame.ruleId, frame.messageKey, m.index, end, [caseLike(marker, word)], {
             context: { start: Math.max(0, m.index - 64), end },
             bulkBlock: "context-dependent",
           })
@@ -8721,11 +8697,7 @@ rules:
           - "!hasUserOrCasedWord(ctx, m[0])"
           - corrected !== noun
         return: >-
-          ({
-            ruleId: "englishCountability",
-            messageKey: singular ? "review_msg_mass_noun" : "review_msg_countable_number",
-            range: { start: span[0], end: span[1] },
-            alternatives: [corrected],
+          finding("englishCountability", singular ? "review_msg_mass_noun" : "review_msg_countable_number", span[0], span[1], [corrected], {
             context,
           })
     frames:
@@ -8876,11 +8848,7 @@ rules:
           - "!(/^\\p{Ll}/u.test(m[1]) && /^\\p{Lu}/u.test(second))"
           - '!(word.length === 1 && /(?:^|\s)\p{L}[ \t\u00a0]+$/u.test(before))'
         return: >-
-          ({
-            ruleId: "englishRepeatedWords",
-            messageKey: "review_msg_repeated_words",
-            range: { start, end },
-            alternatives: [ctx.source.slice(start, start + m[1].length)],
+          finding("englishRepeatedWords", "review_msg_repeated_words", start, end, [ctx.source.slice(start, start + m[1].length)], {
             context,
           })
     frames:
@@ -9297,11 +9265,7 @@ rules:
           kase: detectWordCase(token)
           lead: ctx.source.slice(start, verbStart)
         return: >-
-          ({
-            ruleId: "englishAuxiliaryBaseVerb",
-            messageKey: repair.be ? "review_msg_modal_be" : "review_msg_auxiliary_base",
-            range: { start, end },
-            alternatives: repair.forms.map((form) => `${lead}${applyWordCase(form, kase)}`),
+          finding("englishAuxiliaryBaseVerb", repair.be ? "review_msg_modal_be" : "review_msg_auxiliary_base", start, end, repair.forms.map((form) => `${lead}${applyWordCase(form, kase)}`), {
             ...(repair.choice ? { requiresChoice: true as const } : {}),
             context: { start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 32) },
           })
@@ -9530,13 +9494,9 @@ rules:
           # The user-word test reads each word of the match: it runs after the cheap tests.
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishAuxiliaryBaseVerb",
-            messageKey: "review_msg_to_base",
-            range: { start: m.index, end },
-            alternatives: [
+          finding("englishAuxiliaryBaseVerb", "review_msg_to_base", m.index, end, [
               `${ctx.source.slice(m.index, end - verb.length)}${applyWordCase(lemma, detectWordCase(verb))}`,
-            ],
+            ], {
             context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 32) },
           })
       # "I need to information": "to" before a noun that is never a verb.
@@ -9588,13 +9548,9 @@ rules:
           # The user-word test reads each word of the match: it runs after the cheap tests.
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishAuxiliaryBaseVerb",
-            messageKey: "review_msg_to_noun",
-            range: { start: span[0], end: span[1] },
-            alternatives: objectAfter
+          finding("englishAuxiliaryBaseVerb", "review_msg_to_noun", span[0], span[1], objectAfter
               ? []
-              : [`${original === original.toUpperCase() ? "THE" : "the"} ${original}`, original],
+              : [`${original === original.toUpperCase() ? "THE" : "the"} ${original}`, original], {
             ...(objectAfter ? { warningOnly: true as const } : { requiresChoice: true as const }),
             context: { start: m.index, end: Math.min(ctx.text.length, span[1] + 32) },
           })
@@ -9682,11 +9638,7 @@ rules:
         type: RawFinding | null
         when: "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishPronounCase",
-            messageKey: subject ? "review_msg_pronoun_subject_case" : "review_msg_pronoun_object_case",
-            range: { start: range[0], end: range[1] },
-            alternatives: [fix],
+          finding("englishPronounCase", subject ? "review_msg_pronoun_subject_case" : "review_msg_pronoun_object_case", range[0], range[1], [fix], {
             context: {
               start: Math.max(0, range[0] - 32),
               end: Math.min(ctx.text.length, m.index + m[0].length + 16),
@@ -9714,6 +9666,64 @@ rules:
       # Prepositions that never open a clause ("for they are…", "like we do") or an inverted one
       # ("In they went"): the CASE_OBJECT_PREPOSITION fragment.
       CASE_OBJECT_PREPOSITION_WORD: /^{{CASE_OBJECT_PREPOSITION}}$/
+      # A pair of subjects with an object pronoun in it: "Me and Sam went" -> "Sam and I went".
+      coordinatedSubjectFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, a: string, b: string, verb: string"
+        let:
+          # After a comma, only a short opener ("However,", "On the other hand,") may stand
+          # before the pair; "We saw Ana, Tim and me…" continues a list of objects.
+          opener: >-
+            /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
+              ctx.text.slice(Math.max(0, m.index - 64), m.index))
+          aSpan: group(m, "a")
+          bSpan: group(m, "b")
+          verbSpan: group(m, "verb")
+          joint: ctx.source.slice(aSpan[1], bSpan[0])
+          pair: >-
+            isFirstPerson(a) || isFirstPerson(b)
+              ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
+              : `${subjectForm(a)}${joint}${subjectForm(b)}`
+          capped: "/^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair"
+          verbKey: verb.toLowerCase().replace(/n['’]t$/, "")
+          plural: Object.hasOwn(PLURAL_VERB, verbKey)
+          withVerb: >-
+            plural
+              ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
+              : capped
+          rangeEnd: "plural ? verbSpan[1] : bSpan[1]"
+          typed: ctx.source.slice(aSpan[0], rangeEnd)
+          phrase: "typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb"
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - "[a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))"
+          # "I suggested that the engineer and myself take…": a reflexive after "I" stays.
+          - >-
+            !([a, b].some((word) => /^myself$/i.test(word)) &&
+              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
+          # A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
+          - >-
+            finiteVerbForm(verb) ||
+            ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+              verb === verb.toLowerCase() &&
+              !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+          - >-
+            !(opener &&
+              (opener[1].trim().split(/\s+/).length > 4 ||
+                opener[1]
+                  .toLowerCase()
+                  .match(/[a-z]+/g)
+                  ?.some((w) =>
+                    finiteVerbForm(w) ||
+                    englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"))))
+          - "!(isFirstPerson(a) && isFirstPerson(b))"
+          # "Her and my parents met" shares one noun between two possessives.
+          - '!(/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b))'
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - phrase !== typed
+        return: >-
+          finding("englishPronounCase", "review_msg_pronoun_subject_case", aSpan[0], rangeEnd, [phrase], {
+            context: tightAround(ctx, m),
+          })
     frames:
       # "Me and Sam went", "My wife and me are": object pronouns in a clause-initial coordinated
       # subject.
@@ -9725,121 +9735,13 @@ rules:
         # chunk end could be missed; no real conjunct is that long.
         gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
         gateFlags: giu
-        let:
-          # After a comma, only a short opener ("However,", "On the other hand,") may stand
-          # before the pair; "We saw Ana, Tim and me…" continues a list of objects.
-          opener: >-
-            /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
-              ctx.text.slice(Math.max(0, m.index - 64), m.index))
-          aSpan: group(m, "a")
-          bSpan: group(m, "b")
-          verbSpan: group(m, "verb")
-          joint: ctx.source.slice(aSpan[1], bSpan[0])
-          pair: >-
-            isFirstPerson(a) || isFirstPerson(b)
-              ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
-              : `${subjectForm(a)}${joint}${subjectForm(b)}`
-          capped: "/^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair"
-          verbKey: verb.toLowerCase().replace(/n['’]t$/, "")
-          plural: Object.hasOwn(PLURAL_VERB, verbKey)
-          withVerb: >-
-            plural
-              ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
-              : capped
-          rangeEnd: "plural ? verbSpan[1] : bSpan[1]"
-          typed: ctx.source.slice(aSpan[0], rangeEnd)
-          phrase: "typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb"
-        when:
-          - m.index >= ctx.from && m.index < ctx.to
-          - "[a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))"
-          # "I suggested that the engineer and myself take…": a reflexive after "I" stays.
-          - >-
-            !([a, b].some((word) => /^myself$/i.test(word)) &&
-              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
-          # A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
-          - >-
-            finiteVerbForm(verb) ||
-            ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
-              verb === verb.toLowerCase() &&
-              !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
-          - >-
-            !(opener &&
-              (opener[1].trim().split(/\s+/).length > 4 ||
-                opener[1]
-                  .toLowerCase()
-                  .match(/[a-z]+/g)
-                  ?.some((w) =>
-                    finiteVerbForm(w) ||
-                    englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"))))
-          - "!(isFirstPerson(a) && isFirstPerson(b))"
-          # "Her and my parents met" shares one noun between two possessives.
-          - '!(/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b))'
-          - "!hasUserOrCasedWord(ctx, m[0])"
-          - phrase !== typed
-        return: >-
-          finding("englishPronounCase", "review_msg_pronoun_subject_case", aSpan[0], rangeEnd, [phrase], {
-            context: tightAround(ctx, m),
-          })
+        return: coordinatedSubjectFinding(ctx, m, a, b, verb)
       # A present base verb after a pair of single words: "Tim and me work", "Me and Sam live".
       - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_ONE_WORD}}){{S}}and{{S}}(?<b>{{CASE_ONE_WORD}})(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>[a-z]+){{E}}"
         owner: none
         gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
         gateFlags: giu
-        let:
-          # After a comma, only a short opener ("However,", "On the other hand,") may stand
-          # before the pair; "We saw Ana, Tim and me…" continues a list of objects.
-          opener: >-
-            /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
-              ctx.text.slice(Math.max(0, m.index - 64), m.index))
-          aSpan: group(m, "a")
-          bSpan: group(m, "b")
-          verbSpan: group(m, "verb")
-          joint: ctx.source.slice(aSpan[1], bSpan[0])
-          pair: >-
-            isFirstPerson(a) || isFirstPerson(b)
-              ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
-              : `${subjectForm(a)}${joint}${subjectForm(b)}`
-          capped: "/^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair"
-          verbKey: verb.toLowerCase().replace(/n['’]t$/, "")
-          plural: Object.hasOwn(PLURAL_VERB, verbKey)
-          withVerb: >-
-            plural
-              ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
-              : capped
-          rangeEnd: "plural ? verbSpan[1] : bSpan[1]"
-          typed: ctx.source.slice(aSpan[0], rangeEnd)
-          phrase: "typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb"
-        when:
-          - m.index >= ctx.from && m.index < ctx.to
-          - "[a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))"
-          # "I suggested that the engineer and myself take…": a reflexive after "I" stays.
-          - >-
-            !([a, b].some((word) => /^myself$/i.test(word)) &&
-              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
-          # A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
-          - >-
-            finiteVerbForm(verb) ||
-            ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
-              verb === verb.toLowerCase() &&
-              !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
-          - >-
-            !(opener &&
-              (opener[1].trim().split(/\s+/).length > 4 ||
-                opener[1]
-                  .toLowerCase()
-                  .match(/[a-z]+/g)
-                  ?.some((w) =>
-                    finiteVerbForm(w) ||
-                    englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"))))
-          - "!(isFirstPerson(a) && isFirstPerson(b))"
-          # "Her and my parents met" shares one noun between two possessives.
-          - '!(/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b))'
-          - "!hasUserOrCasedWord(ctx, m[0])"
-          - phrase !== typed
-        return: >-
-          finding("englishPronounCase", "review_msg_pronoun_subject_case", aSpan[0], rangeEnd, [phrase], {
-            context: tightAround(ctx, m),
-          })
+        return: coordinatedSubjectFinding(ctx, m, a, b, verb)
       # "Both Ana and me helped", "Either Ana or me will call", "Ana or myself can help".
       - regex: "(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0]){{CASE_COORDINATION_START}}(?:(?<lead>both|either|neither){{S}})?(?<a>{{CASE_CONJUNCT}}){{S}}(?<conj>and|or|nor){{S}}(?<b>me|myself|him|them)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
         owner: b
@@ -9861,11 +9763,7 @@ rules:
               /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
           - "!/^(?:me|myself)$/i.test(a) && !hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishPronounCase",
-            messageKey: "review_msg_pronoun_subject_case",
-            range: { start: span[0], end: span[1] },
-            alternatives: [isFirstPerson(b) ? "I" : applyWordCase(subjectForm(b), detectWordCase(b))],
+          finding("englishPronounCase", "review_msg_pronoun_subject_case", span[0], span[1], [isFirstPerson(b) ? "I" : applyWordCase(subjectForm(b), detectWordCase(b))], {
             context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, span[1] + 16) },
           })
       # "Whom is coming?", "to whomever wrote it": whom before its own finite verb is the subject.
@@ -9903,11 +9801,7 @@ rules:
                 )
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishPronounCase",
-            messageKey: "review_msg_who_subject",
-            range: { start: span[0], end: span[1] },
-            alternatives: [applyWordCase(whom.toLowerCase().replace("whom", "who"), detectWordCase(whom))],
+          finding("englishPronounCase", "review_msg_who_subject", span[0], span[1], [applyWordCase(whom.toLowerCase().replace("whom", "who"), detectWordCase(whom))], {
             context: { start: Math.max(0, span[0] - 32), end: Math.min(ctx.text.length, matchEnd + 9) },
           })
       # Subject pronouns after a preposition take the object form: "to he and his team", "to we
@@ -9989,11 +9883,7 @@ rules:
             !finiteVerbForm(following) &&
             !englishWordInfo(following)?.verbs.some((v) => v.form === "base")
         return: >-
-          ({
-            ruleId: "englishPronounCase",
-            messageKey: "review_msg_pronoun_object_case",
-            range: { start: span[0], end: span[1] },
-            alternatives: [applyWordCase("me", detectWordCase(target))],
+          finding("englishPronounCase", "review_msg_pronoun_object_case", span[0], span[1], [applyWordCase("me", detectWordCase(target))], {
             context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 16) },
           })
   # Bounded sentence-structure slips: closed-class frames, with lexicon evidence for open words.
@@ -10091,11 +9981,7 @@ rules:
           - m.index >= ctx.from && m.index < ctx.to
           - a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0])
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_double_subject",
-            range: { start, end },
-            alternatives: [a, second === "i" ? "I" : second],
+          finding("englishSentenceStructure", "review_msg_double_subject", start, end, [a, second === "i" ? "I" : second], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10107,11 +9993,7 @@ rules:
           - a === a.toLowerCase() || m[0] === m[0].toUpperCase()
           - '!wordEndsBefore(ctx, m.index, "(?:oh|ah|my),?") && !hasUserOrCasedWord(ctx, m[0])'
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_pronoun_sequence",
-            range: { start: group(m, "a")[0], end: group(m, "b")[1] },
-            alternatives: [],
+          finding("englishSentenceStructure", "review_msg_pronoun_sequence", group(m, "a")[0], group(m, "b")[1], [], {
             warningOnly: true as const,
             context: tightAround(ctx, m),
           })
@@ -10120,11 +10002,7 @@ rules:
         owner: a
         when: a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0])
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_pronoun_sequence",
-            range: { start: group(m, "a")[0], end: group(m, "b")[1] },
-            alternatives: [a, b],
+          finding("englishSentenceStructure", "review_msg_pronoun_sequence", group(m, "a")[0], group(m, "b")[1], [a, b], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10151,11 +10029,7 @@ rules:
           - sound !== "either"
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_determiner_clash",
-            range: { start: group(m, "article")[0], end: group(m, "possessive")[1] },
-            alternatives: [owner, bare],
+          finding("englishSentenceStructure", "review_msg_determiner_clash", group(m, "article")[0], group(m, "possessive")[1], [owner, bare], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10205,11 +10079,7 @@ rules:
           - sound !== "either"
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_determiner_clash",
-            range: { start, end: group(m, "second")[1] },
-            alternatives,
+          finding("englishSentenceStructure", "review_msg_determiner_clash", start, group(m, "second")[1], alternatives, {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10228,11 +10098,7 @@ rules:
             hasVerbForm(following, "base")
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_double_modal",
-            range: { start: group(m, "first")[0], end: group(m, "second")[1] },
-            alternatives: [first, applyWordCase(second, detectWordCase(first))],
+          finding("englishSentenceStructure", "review_msg_double_modal", group(m, "first")[0], group(m, "second")[1], [first, applyWordCase(second, detectWordCase(first))], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10271,11 +10137,7 @@ rules:
           - "!(/^(?:can|could)/i.test(modal) && /able$/i.test(adjective))"
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_missing_be",
-            range: { start: group(m, "adjective")[0], end: tail },
-            alternatives: [`${applyWordCase("be", detectWordCase(adjective))} ${adjective}`],
+          finding("englishSentenceStructure", "review_msg_missing_be", group(m, "adjective")[0], tail, [`${applyWordCase("be", detectWordCase(adjective))} ${adjective}`], {
             context: tightAround(ctx, m),
           })
       # "a couple days", "a lot people": a quantity noun takes "of" before a plural. An -s word that is
@@ -10301,13 +10163,9 @@ rules:
             /^[ \t ]*(?:[.!?,;:)]|$|[ \t ]+(?:here|there|in|on|at|for|with|who|that|to|from|of)\b)/i.test(tail)
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_couple_of",
-            range: { start: headSpan[0], end },
-            alternatives: [
+          finding("englishSentenceStructure", "review_msg_couple_of", headSpan[0], end, [
               `${quantity} ${quantity === quantity.toUpperCase() ? "OF" : "of"}${ctx.text.slice(headSpan[1], end)}`,
-            ],
+            ], {
             context: tightAround(ctx, m),
           })
       # "many of people": "of" before a bare plural needs a determiner ("many of the people").
@@ -10316,11 +10174,7 @@ rules:
         # "make the most of chances" is an idiom.
         when: '!!pluralNoun(noun) && !wordEndsBefore(ctx, m.index, "the") && !hasUserOrCasedWord(ctx, m[0])'
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_partitive_of",
-            range: { start: group(m, "of")[0], end: group(m, "noun")[1] },
-            alternatives: [noun, `${of} ${applyWordCase("the", detectWordCase(of))} ${noun}`],
+          finding("englishSentenceStructure", "review_msg_partitive_of", group(m, "of")[0], group(m, "noun")[1], [noun, `${of} ${applyWordCase("the", detectWordCase(of))} ${noun}`], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10354,11 +10208,7 @@ rules:
               : !same && !/^it$/i.test(subject) && INVERSION_SUBJECTS.test(nextSubject ?? ""))
           - replacement !== null
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_not_only_inversion",
-            range: { start, end },
-            alternatives: [replacement],
+          finding("englishSentenceStructure", "review_msg_not_only_inversion", start, end, [replacement], {
             context: tightAround(ctx, m),
           })
   # Independently selectable families (one check each), using explicit grammatical evidence.
@@ -11010,14 +10860,10 @@ rules:
         return: >-
           typo
             ? [
-                {
-                  ruleId: "englishTypoWhitelistCorrection",
-                  messageKey: "review_msg_typo",
-                  range: { start, end },
-                  alternatives: [typo],
+                finding("englishTypoWhitelistCorrection", "review_msg_typo", start, end, [typo], {
                   dictionaryWord: word,
                   bulkBlock: glued,
-                },
+                }),
               ]
             : contractionFindings(ctx, word, start, end, glued)
         else: "[]"
@@ -11052,14 +10898,10 @@ rules:
           !(pronounForm && DETERMINER_BEFORE.test(before)) &&
           !germanIm(word, before, ctx.text.slice(end, end + 40))
             ? [
-                {
-                  ruleId: "englishContractionNormalization",
-                  messageKey: "review_msg_contraction",
-                  range: { start, end },
-                  alternatives: [contraction],
+                finding("englishContractionNormalization", "review_msg_contraction", start, end, [contraction], {
                   context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
                   bulkBlock: pronounForm ? "ambiguous" : glued,
-                },
+                }),
               ]
             : contextFindings(ctx, word, start, end, before, glued)
       # Unlike typing, the next word is here: "i cant go" is "can't", "the cant" is not.
@@ -11075,28 +10917,20 @@ rules:
         return: >-
           inContext
             ? [
-                {
-                  ruleId: "englishContractionNormalization",
-                  messageKey: "review_msg_contraction",
-                  range: { start, end },
-                  alternatives: [inContext],
+                finding("englishContractionNormalization", "review_msg_contraction", start, end, [inContext], {
                   context: {
                     start: previousTokensStart(ctx.text, start, 1),
                     end: end + (/^[ \t]+\p{L}+(?:[ \t]+\p{L}+)?/u.exec(after)?.[0].length ?? 0),
                   },
                   bulkBlock: "context-dependent",
-                },
+                }),
               ]
             : ALOT_REGEX.test(word) && !ctx.dictionary.has("alot")
               ? [
-                  {
-                    ruleId: "englishAlotCorrection",
-                    messageKey: "review_msg_alot",
-                    range: { start, end },
-                    alternatives: [correctAlot(word)],
+                  finding("englishAlotCorrection", "review_msg_alot", start, end, [correctAlot(word)], {
                     dictionaryWord: word,
                     bulkBlock: glued,
-                  },
+                  }),
                 ]
               : []
     frames:
@@ -11291,11 +11125,7 @@ rules:
           lower: typed.toLowerCase()
         when: "!ctx.dictionary.has(lower) && !namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + typed.length },
-            alternatives: [caseLike(typed, table[lower])],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + typed.length, [caseLike(typed, table[lower])], {
             dictionaryWord: typed,
             bulkBlock: "context-dependent",
           })
@@ -11345,11 +11175,7 @@ rules:
           - 'mark !== ''"'' || quotedContraction(ctx.text, start)'
           - 'mark !== "`" || !backtickCode(ctx.text, start)'
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start, end: start + 1 },
-            alternatives: [withTextApostrophes(ctx.text, start, "'")],
+          finding(frame.ruleId, frame.messageKey, start, start + 1, [withTextApostrophes(ctx.text, start, "'")], {
             context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
             bulkBlock: certain ? undefined : "context-dependent",
           })
@@ -11426,11 +11252,7 @@ rules:
           # time ("À 20:40, cest terminé.") is still "c'est".
           - typed !== "CEST"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + typed.length },
-            alternatives: [caseLike(typed, withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS[lower]))],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + typed.length, [caseLike(typed, withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS[lower]))], {
             bulkBlock: "context-dependent",
           })
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_])(?<base>\\p{L}+)([\\u00B4`;\"])(?<end>t|s|m|d|ll|re|ve)(?![\\p{L}\\p{M}\\p{N}_])"
@@ -11496,13 +11318,9 @@ rules:
           - "!isNounMight(hit.match[1], ctx.text.slice(Math.max(0, hit.start - 24), hit.start))"
           - 'ctx.text.slice(ofStart, ofStart + 2).toLowerCase() === "of"'
         return: >-
-          ({
-            ruleId: "englishModalOfCorrection",
-            messageKey: "review_msg_modal_of",
-            range: { start: hit.start, end: ofStart + 2 },
-            alternatives: [
+          finding("englishModalOfCorrection", "review_msg_modal_of", hit.start, ofStart + 2, [
               `${ctx.source.slice(hit.start, ofStart)}${modalHaveWord(hit.match[1], ctx.text.slice(ofStart, ofStart + 2))}`,
-            ],
+            ], {
             context: { start: hit.start, end: hit.end },
           })
   - id: yourWelcome
@@ -11538,11 +11356,7 @@ rules:
           # "Thank you all for your welcome." is possessive too: the reply opens its clause.
           - opensClause(ctx.text, hit.start)
         return: >-
-          ({
-            ruleId: "englishYourWelcomeCorrection",
-            messageKey: "review_msg_your_welcome",
-            range: { start: hit.start, end: hit.end },
-            alternatives: [`${fixed[0]}${gap}${fixed[1]}`],
+          finding("englishYourWelcomeCorrection", "review_msg_your_welcome", hit.start, hit.end, [`${fixed[0]}${gap}${fixed[1]}`], {
             context: {
               start: Math.max(0, lastNonBlankBefore(ctx.text, hit.start)),
               end: Math.min(ctx.text.length, hit.end + 1),
@@ -11765,11 +11579,7 @@ rules:
           - "!(/^(?:we|you)$/.test(pronoun) && !negative && namesPronoun(word, next))"
           - "!!corrected && corrected !== verb.toLowerCase()"
         return: >-
-          ({
-            ruleId: "englishPronounVerbWhitelistAgreement",
-            messageKey: "review_msg_pronoun_verb",
-            range: { start: span[0], end: span[1] },
-            alternatives: [applyWordCase(corrected, detectWordCase(verb))],
+          finding("englishPronounVerbWhitelistAgreement", "review_msg_pronoun_verb", span[0], span[1], [applyWordCase(corrected, detectWordCase(verb))], {
             context: {
               start: Math.max(0, m.index - 96),
               end: Math.min(ctx.text.length, m.index + m[0].length + 2),
@@ -12125,11 +11935,7 @@ rules:
           - 'number === "singular" ? !/^(?:these|those)$/.test(d) : !/^(?:this|that|its|every|each)$/.test(d)'
           - "!!fix && fix !== verb"
         return: >-
-          ({
-            ruleId: "englishSubjectVerbAgreement",
-            messageKey: "review_msg_pronoun_verb",
-            range: { start: span[0], end: span[1] },
-            alternatives: [fix],
+          finding("englishSubjectVerbAgreement", "review_msg_pronoun_verb", span[0], span[1], [fix], {
             context: {
               start: Math.max(0, m.index - 96),
               end: Math.min(ctx.text.length, m.index + m[0].length + 2),
@@ -12182,11 +11988,7 @@ rules:
           - "!singularQuantity || /^(?:[.!?]|$)/.test(ctx.text.slice(m.index + m[0].length))"
           - verb.toLowerCase() !== expected
         return: >-
-          ({
-            ruleId: "englishExistentialAgreement",
-            messageKey: "review_msg_existential_agreement",
-            range: { start: span[0], end: span[1] },
-            alternatives: [applyWordCase(expected, detectWordCase(verb))],
+          finding("englishExistentialAgreement", "review_msg_existential_agreement", span[0], span[1], [applyWordCase(expected, detectWordCase(verb))], {
             context: {
               start: Math.max(0, m.index - 96),
               end: Math.min(ctx.text.length, m.index + m[0].length + 2),
@@ -12226,11 +12028,7 @@ rules:
           - '!qverb || /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:and|but|or|so)[ \t ]+)$/i.test(before)'
           - start >= ctx.from && start < ctx.to
         return: >-
-          ({
-            ruleId: "englishExistentialAgreement",
-            messageKey: "review_msg_existential_agreement",
-            range: { start, end },
-            alternatives,
+          finding("englishExistentialAgreement", "review_msg_existential_agreement", start, end, alternatives, {
             requiresChoice: plural ? undefined : (true as const),
             context: {
               start: Math.max(0, m.index - 96),
@@ -12278,11 +12076,7 @@ rules:
           - 'article[0] !== "A" || SENTENCE_START_REGEX.test(beforeArticle)'
           - isArticleContext(beforeArticle)
         return: >-
-          ({
-            ruleId: "englishArticleAnCorrection",
-            messageKey: "review_msg_article",
-            range: { start: articleRange.start, end: hit.end },
-            alternatives: [`${corrected}${ctx.source.slice(articleRange.end, hit.end)}`],
+          finding("englishArticleAnCorrection", "review_msg_article", articleRange.start, hit.end, [`${corrected}${ctx.source.slice(articleRange.end, hit.end)}`], {
             context: { start: Math.max(0, hit.start - 24), end: hit.end },
           })
   - id: ordinal
@@ -12318,14 +12112,10 @@ rules:
               isAllCapsContext(ctx.text, start, end) ||
               overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
               ? null
-              : {
-                  ruleId: "englishOrdinalSuffix",
-                  messageKey: "review_msg_ordinal_case",
-                  context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
-                  range: { start, end },
-                  alternatives: [`${digits}${expected}`],
-                  bulkBlock: "context-dependent",
-                }
+              : finding("englishOrdinalSuffix", "review_msg_ordinal_case", start, end, [`${digits}${expected}`], {
+                context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
+                bulkBlock: "context-dependent",
+              })
             : suffix === "rd" ||
                 (suffix === "st" &&
                   !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
@@ -12421,11 +12211,7 @@ rules:
             /(?:(?<![\p{L}])(?:im|anfang|ende|mitte|seit|bis|ab|vom|zum|nächsten|letzten|diesen|kommenden)|\d{1,2}\.)[ \t\u00a0]+$/iu.test(before)
           - "!ctx.dictionary.has(typed) && !namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + 1 },
-            alternatives: [typed[0].toUpperCase()],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + 1, [typed[0].toUpperCase()], {
             context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
             bulkBlock: "context-dependent",
           })
@@ -12450,11 +12236,7 @@ rules:
           moveSpace: ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3))
         # Newer language extensions stay individual-only.
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: mark === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
-            range: { start: m.index, end: end + 1 },
-            alternatives: [moveSpace ? `${mark} ` : mark],
+          finding("commaPeriodSpacing", mark === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma", m.index, end + 1, [moveSpace ? `${mark} ` : mark], {
             context: { start: m.index - 1, end: end + (moveSpace ? 2 : 1) },
             bulkBlock: mark === "؛" ? "context-dependent" : undefined,
           })
@@ -12481,11 +12263,7 @@ rules:
         scan: owned
         flags: gu
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_space_after_opening_mark",
-            range: { start: m.index - 1, end: m.index + m[0].length },
-            alternatives: [ctx.source[m.index - 1]],
+          finding("commaPeriodSpacing", "review_msg_space_after_opening_mark", m.index - 1, m.index + m[0].length, [ctx.source[m.index - 1]], {
             context: { start: m.index - 1, end: m.index + m[0].length + 1 },
             bulkBlock: "context-dependent",
           })
@@ -12498,11 +12276,7 @@ rules:
           end: m.index + m[0].length
           wordFollows: end < ctx.text.length && !/\s/.test(ctx.text[end])
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_wide_comma",
-            range: { start: m.index, end },
-            alternatives: [wordFollows ? ", " : ","],
+          finding("commaPeriodSpacing", "review_msg_wide_comma", m.index, end, [wordFollows ? ", " : ","], {
             context: { start: m.index - 1, end: end + 1 },
           })
       # "20%CPU" is "20% CPU". URL escapes ("%C3%A9", "%20Hello") have a letter or "%" before
@@ -12516,11 +12290,7 @@ rules:
           tokenEnd: ctx.text.slice(sign).search(/\s|$/) + sign
         when: '!/[\uFFFC@#/\\_=:;<>{}[\]$&+]/u.test(ctx.text.slice(tokenStart, tokenEnd))'
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_space_after_mark",
-            range: { start: sign, end: sign + 1 },
-            alternatives: ["% "],
+          finding("commaPeriodSpacing", "review_msg_space_after_mark", sign, sign + 1, ["% "], {
             context: { start: tokenStart, end: tokenEnd },
           })
       # Missing space after a comma between words: "one,two". Only between words
@@ -12536,11 +12306,7 @@ rules:
           - ctx.insertSpaceAfterAutocomplete
           - '!((token.match(/[,،]/g)?.length ?? 0) > 1 || /[\uFFFC@#/\\_=.:;]/u.test(token))'
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_space_after_comma",
-            range: { start: m.index, end: m.index + 1 },
-            alternatives: [`${ctx.source[m.index]} `],
+          finding("commaPeriodSpacing", "review_msg_space_after_comma", m.index, m.index + 1, [`${ctx.source[m.index]} `], {
             context: { start: tokenStart, end: tokenEnd },
           })
   - id: repeatedSpaces
@@ -12612,29 +12378,16 @@ rules:
         when: '!(isLang(ctx, "de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))'
         return: >-
           /^\s+\p{Ll}/u.test(ctx.text.slice(m.index + 2, m.index + 12))
-            ? {
-                ruleId: "duplicatePunctuationCollapse",
-                messageKey: "review_msg_ellipsis_length",
-                range: { start: m.index, end: m.index + 2 },
-                alternatives: ["..."],
-              }
-            : {
-                ruleId: "duplicatePunctuationCollapse",
-                messageKey: "review_msg_duplicate_punctuation",
-                range: { start: m.index, end: m.index + 2 },
-                alternatives: [".", "..."],
-                requiresChoice: true,
-              }
+            ? finding("duplicatePunctuationCollapse", "review_msg_ellipsis_length", m.index, m.index + 2, ["..."])
+            : finding("duplicatePunctuationCollapse", "review_msg_duplicate_punctuation", m.index, m.index + 2, [".", "..."], {
+              requiresChoice: true,
+            })
       # A line of two dots alone is a short ellipsis or a stray period.
       - regex: "(?<=^|\\n)(?<target>\\.\\.)(?=[ \\t]*(?:\\r?\\n|$))"
         scan: owned
         flags: gu
         return: >-
-          ({
-            ruleId: "duplicatePunctuationCollapse",
-            messageKey: "review_msg_ellipsis_length",
-            range: { start: m.index, end: m.index + 2 },
-            alternatives: ["...", "."],
+          finding("duplicatePunctuationCollapse", "review_msg_ellipsis_length", m.index, m.index + 2, ["...", "."], {
             requiresChoice: true,
           })
       # An ellipsis has three dots: "So..... anyway". Digits
@@ -12645,11 +12398,7 @@ rules:
         flags: gu
         # Four dots can be a sentence period plus an ellipsis: one at a time.
         return: >-
-          ({
-            ruleId: "duplicatePunctuationCollapse",
-            messageKey: "review_msg_ellipsis_length",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: ["..."],
+          finding("duplicatePunctuationCollapse", "review_msg_ellipsis_length", m.index, m.index + m[0].length, ["..."], {
             bulkBlock: m[0].length === 4 ? "context-dependent" : undefined,
           })
   # "..." typed for an ellipsis.
@@ -12724,11 +12473,7 @@ rules:
           end: m.index + m[0].length
         when: '!(m[1] === "′" && m[3] === "″")'
         return: >-
-          ({
-            ruleId: "primeSymbols",
-            messageKey: "review_msg_prime_symbols",
-            range: { start: m.index, end },
-            alternatives: [`′${ctx.source.slice(m.index + 1, end - 1)}″`],
+          finding("primeSymbols", "review_msg_prime_symbols", m.index, end, [`′${ctx.source.slice(m.index + 1, end - 1)}″`], {
             context: { start: Math.max(0, m.index - 8), end: Math.min(ctx.text.length, end + 1) },
           })
       # Degrees then minutes with no seconds after them ("48°51'N").
@@ -12893,11 +12638,7 @@ rules:
         let:
           separator: resolveMeasurementLocale(ctx.lang)?.separator ?? " "
         return: >-
-          ({
-            ruleId: "measurementUnitFormatting",
-            messageKey: "review_msg_kelvin_degree",
-            range: { start: m.index, end: m.index + 2 },
-            alternatives: [/\p{N}/u.test(ctx.text[m.index - 1]) ? `${separator}K` : "K"],
+          finding("measurementUnitFormatting", "review_msg_kelvin_degree", m.index, m.index + 2, [/\p{N}/u.test(ctx.text[m.index - 1]) ? `${separator}K` : "K"], {
             context: { start: Math.max(0, m.index - 1), end: m.index + 2 },
           })
   # German puts a space between a number and its byte unit: "5kB" → "5 kB". The shared check
@@ -12921,11 +12662,7 @@ rules:
           end: m.index + m[0].length
         when: m.index >= ctx.from && m.index < ctx.to && !namedExampleBefore(ctx.text, m.index)
         return: >-
-          ({
-            ruleId: key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
-            messageKey: key,
-            range: { start: m.index, end },
-            alternatives,
+          finding(key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting", key, m.index, end, alternatives, {
             requiresChoice: alternatives.length > 1 || undefined,
             context: { start: Math.max(0, m.index - 30), end: end + 30 },
           })
@@ -13008,11 +12745,7 @@ rules:
           - ctx.lang === "en_US"
           - '!(m[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd)))'
         return: >-
-          ({
-            ruleId: "currencySpacing",
-            messageKey: "review_msg_currency_placement",
-            range: { start: m.index, end },
-            alternatives: [m[4] ? `${m[4]}¢` : `${m[3]}${m[1]}${m[2] ?? ""}`],
+          finding("currencySpacing", "review_msg_currency_placement", m.index, end, [m[4] ? `${m[4]}¢` : `${m[3]}${m[1]}${m[2] ?? ""}`], {
             context: { start: lineStart, end: lineEnd },
             bulkBlock: "context-dependent",
           })
@@ -13619,16 +13352,25 @@ rules:
         let:
           span: m.indices!.groups!.date
         return: >-
-          ({
-            ruleId: "dateTenseConsistency",
-            messageKey: side === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future",
-            range: { start: span[0], end: span[1] },
-            alternatives: [],
+          finding("dateTenseConsistency", side === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future", span[0], span[1], [], {
             warningOnly: true as const,
           })
       # A date frame of one language: groups `date`, `day`, `year`, and `month` (digits) or
       # `name`. `side` is the side of the date; `clause` and `tense` are read only when it has
       # one. Plans, reports and conditions are other clauses.
+      # The finding of a date frame: `months` gives the number of a month name. Arabic dates
+      # may have Arabic-Indic digits.
+      dateTenseAt:
+        args: >-
+          m: RegExpExecArray, ctx: DetectContext, months: Readonly<Record<string, number>>,
+          conditional: ReadonlySet<string>, boundary: ReadonlySet<string>, lang: string
+        type: RawFinding | null
+        let:
+          g: m.groups!
+          side: >-
+            dateSideOf(digitValue(g.year), g.name ? (months[g.name.toLowerCase()] ?? 0) : digitValue(g.month),
+            digitValue(g.day), !g.name && g.sep === "/")
+        return: dateTenseFinding(m, ctx, side, conditional, boundary, lang)
       dateTenseFinding:
         args: >-
           m: RegExpExecArray, ctx: DetectContext, side: "future" | "past" | null,
@@ -13884,11 +13626,7 @@ rules:
     frames:
       - regex: "am{{DATE_SPACE}}(?:(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag),?{{DATE_SPACE}}(?:den{{DATE_SPACE}})?)?(?<date>(?<day>\\d{1,2})\\.(?:[ \\t\\u00a0]?(?<month>\\d{1,2})\\.[ \\t\\u00a0]?|[ \\t\\u00a0]*(?<name>januar|jänner|jan|jän|februar|feb|märz|mär|april|apr|mai|juni|jun|juli|jul|august|aug|september|sep|sept|oktober|okt|november|nov|dezember|dez)\\.?{{DATE_SPACE}})(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (DE_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, DE_CONDITIONAL, DE_BOUNDARY, "de")
+        return: dateTenseAt(m, ctx, DE_MONTHS, DE_CONDITIONAL, DE_BOUNDARY, "de")
   - id: dateTense.fr
     checks: [dateTenseConsistency]
     lang: fr
@@ -13898,18 +13636,10 @@ rules:
     frames:
       - regex: "le{{DATE_SPACE}}(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})(?:er)?{{DATE_SPACE}}(?<name>janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre){{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
+        return: dateTenseAt(m, ctx, FR_MONTHS, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
       - regex: "le{{DATE_SPACE}}(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche){{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
+        return: dateTenseAt(m, ctx, FR_MONTHS, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
   - id: dateTense.es
     checks: [dateTenseConsistency]
     lang: es
@@ -13919,18 +13649,10 @@ rules:
     frames:
       - regex: "el{{DATE_SPACE}}(?:día{{DATE_SPACE}})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<day>\\d{1,2}){{DATE_SPACE}}de{{DATE_SPACE}}(?<name>enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre){{DATE_SPACE}}(?:de|del){{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
+        return: dateTenseAt(m, ctx, ES_MONTHS, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
       - regex: "el{{DATE_SPACE}}(?:día{{DATE_SPACE}})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?{{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
+        return: dateTenseAt(m, ctx, ES_MONTHS, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
   - id: dateTense.pt
     checks: [dateTenseConsistency]
     lang: pt
@@ -13940,25 +13662,13 @@ rules:
     frames:
       - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})[º°]?{{DATE_SPACE}}(?:de{{DATE_SPACE}})?(?<name>janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\\.?(?:{{DATE_SPACE}}de|,)?{{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt")
+        return: dateTenseAt(m, ctx, PT_MONTHS, PT_CONDITIONAL, PT_BOUNDARY, "pt")
       - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<name>janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\\.?{{DATE_SPACE}}(?<day>\\d{1,2}),?{{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt")
+        return: dateTenseAt(m, ctx, PT_MONTHS, PT_CONDITIONAL, PT_BOUNDARY, "pt")
       - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt")
+        return: dateTenseAt(m, ctx, PT_MONTHS, PT_CONDITIONAL, PT_BOUNDARY, "pt")
   - id: dateTense.pl
     checks: [dateTenseConsistency]
     lang: pl
@@ -13968,18 +13678,10 @@ rules:
     frames:
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(?:dnia|w{{DATE_SPACE}}dniu){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2}){{DATE_SPACE}}(?<name>stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia){{DATE_SPACE}}(?<year>\\d{4}))(?:{{DATE_SPACE}}r\\.|{{DATE_SPACE}}roku)?{{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PL_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PL_CONDITIONAL, PL_BOUNDARY, "pl")
+        return: dateTenseAt(m, ctx, PL_MONTHS, PL_CONDITIONAL, PL_BOUNDARY, "pl")
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(?:dnia|w{{DATE_SPACE}}dniu){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})\\.(?<month>\\d{1,2})\\.(?<year>\\d{4}))(?:{{DATE_SPACE}}r\\.|{{DATE_SPACE}}roku)?{{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PL_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PL_CONDITIONAL, PL_BOUNDARY, "pl")
+        return: dateTenseAt(m, ctx, PL_MONTHS, PL_CONDITIONAL, PL_BOUNDARY, "pl")
   - id: dateTense.ar
     checks: [dateTenseConsistency]
     lang: ar
@@ -13989,8 +13691,4 @@ rules:
     frames:
       - regex: "(?:(?:في|يوم|بتاريخ){{DATE_SPACE}})?(?<date>(?<day>[0-9٠-٩۰-۹]{1,2}){{DATE_SPACE}}(?<name>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب){{DATE_SPACE}}(?<year>[0-9٠-٩۰-۹]{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(digitValue(g.year), g.name ? (AR_MONTHS[g.name] ?? 0) : digitValue(g.month), digitValue(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, AR_CONDITIONAL, AR_BOUNDARY, "ar")
+        return: dateTenseAt(m, ctx, AR_MONTHS, AR_CONDITIONAL, AR_BOUNDARY, "ar")

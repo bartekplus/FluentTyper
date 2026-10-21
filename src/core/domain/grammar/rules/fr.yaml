@@ -4939,11 +4939,7 @@ rules:
           - forms !== null
           - "!(!alternatives.length || alternatives.length > 2)"
         return: >-
-          ({
-            ruleId: "frenchSubjectVerbAgreement",
-            messageKey: "review_msg_fr_subject_verb",
-            range: { start: verb.start, end: verb.end },
-            alternatives: alternatives.map((alt) => carryCase(typed, alt)),
+          finding("frenchSubjectVerbAgreement", "review_msg_fr_subject_verb", verb.start, verb.end, alternatives.map((alt) => carryCase(typed, alt)), {
             context: { start: first.start, end: verb.end },
             ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
           })
@@ -5203,11 +5199,7 @@ rules:
           - "!(!match || match[2] === ending)"
           - 'verbReadings(word.w).some((r) => r.slot === "Q" && r.lemma === `${match[1]}er`)'
         return: >-
-          ({
-            ruleId: "frenchSubjectVerbAgreement",
-            messageKey: "review_msg_fr_participle_agreement",
-            range: { start: word.start, end: word.end },
-            alternatives: [match[1] + ending],
+          finding("frenchSubjectVerbAgreement", "review_msg_fr_participle_agreement", word.start, word.end, [match[1] + ending], {
             context: { start: m.index, end: word.end },
           })
       # "Ce soir nous allons", "Ces choses, nous les partageons": the pronoun is the subject.
@@ -6187,14 +6179,7 @@ rules:
         args: "m: RegExpExecArray"
         type: RawFinding
         return: >-
-          ({
-            ruleId: "frenchDates",
-            messageKey: "review_msg_fr_date",
-            range: {
-              start: Math.min(m.indices!.groups!.day[0], m.index + (m.groups!.weekday?.length ?? 0)),
-              end: m.index + m[0].length,
-            },
-            alternatives: [],
+          finding("frenchDates", "review_msg_fr_date", Math.min(m.indices!.groups!.day[0], m.index + (m.groups!.weekday?.length ?? 0)), m.index + m[0].length, [], {
             warningOnly: true,
           })
       # True when the match is a full date that needs no cue word: "aura lieu 32 janvier 2020",
@@ -7001,11 +6986,7 @@ rules:
           - '!(/^\p{Lu}/u.test(det) && /^\p{Lu}/u.test(after.trim()))'
         # "l'" joins its noun: the space goes too.
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: from, end: elided && !contracted ? start : m.index + det.length },
-            alternatives: [carryCase(ctx.text.slice(from, m.index + det.length), contracted ?? fixed)],
+          finding(frame.ruleId, frame.messageKey, from, elided && !contracted ? start : m.index + det.length, [carryCase(ctx.text.slice(from, m.index + det.length), contracted ?? fixed)], {
             context: { start: m.index, end: start + noun.length },
           })
   - id: fr.adjectives
@@ -10333,13 +10314,9 @@ rules:
         return: >-
           namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(m[0].toLowerCase())
             ? null
-            : {
-                ruleId: "frenchMissingNe",
-                messageKey: "review_msg_fr_missing_ne",
-                range: { start: head.start, end: verb.end },
-                alternatives: [`${elides ? `n${apostrophe}` : "ne "}${ctx.text.slice(head.start, verb.end)}`],
-                context: { start: m.index, end: verb.end },
-              }
+            : finding("frenchMissingNe", "review_msg_fr_missing_ne", head.start, verb.end, [`${elides ? `n${apostrophe}` : "ne "}${ctx.text.slice(head.start, verb.end)}`], {
+              context: { start: m.index, end: verb.end },
+            })
         else: undefined
       # The subject and the clitics before the verb, and the finding that puts "ne" before them.
       # "Vous inquiétez pas", "T'as pas": the chain's first pronoun is the subject. "finiras pas

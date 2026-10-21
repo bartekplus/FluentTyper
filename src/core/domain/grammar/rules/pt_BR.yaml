@@ -189,7 +189,7 @@ rules:
         let:
           verb: ptVerbTwin(typed.toLowerCase())
         when: verb !== undefined && !ctx.dictionary.has(typed.toLowerCase())
-        return: '({ ruleId: "portugueseAccentParonyms", messageKey: "review_msg_pt_accent_verb", range: { start, end }, alternatives: [applyWordCase(verb, detectWordCase(typed))], context })'
+        return: 'finding("portugueseAccentParonyms", "review_msg_pt_accent_verb", start, end, [applyWordCase(verb, detectWordCase(typed))], { context })'
       # The accented twin of the word after a lead that announces a noun or an adjective.
       afterLead:
         args: "m: RegExpExecArray, ctx: DetectContext"
@@ -202,7 +202,7 @@ rules:
           - alternatives !== undefined && !ctx.dictionary.has(typed)
           - "!gluedAfter(ctx.text, span[1])"
           - "!(/^um/i.test(m.groups!.lead) && RECIPROCAL.test(ctx.text.slice(span[1], span[1] + 96)))"
-        return: '({ ruleId: "portugueseAccentParonyms", messageKey: "review_msg_pt_accent_paronym", range: { start: span[0], end: span[1] }, alternatives, context: { start: m.index, end: span[1] }, ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })'
+        return: 'finding("portugueseAccentParonyms", "review_msg_pt_accent_paronym", span[0], span[1], alternatives, { context: { start: m.index, end: span[1] }, ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })'
     filter:
       let:
         starts: "new Set<number>()"
@@ -928,11 +928,7 @@ rules:
           typed: ctx.text.slice(span[0], span[1])
         when: "!ctx.dictionary.has(typed.toLowerCase())"
         return: >-
-          ({
-            ruleId: "portugueseConfusions",
-            messageKey: "review_msg_pt_crase",
-            range: { start: span[0], end: span[1] },
-            alternatives: alternatives.map((alt) => applyWordCase(alt, detectWordCase(typed))),
+          finding("portugueseConfusions", "review_msg_pt_crase", span[0], span[1], alternatives.map((alt) => applyWordCase(alt, detectWordCase(typed))), {
             context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
             ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
           })
@@ -1201,7 +1197,7 @@ rules:
           - "!infinitiveAhead(ctx.text.slice(end, end + 96))"
           - '!(first.toLowerCase() === "por" && PT_MODAL_BEFORE.test(before))'
           - "!ctx.dictionary.has(target.toLowerCase())"
-        return: '({ ruleId: "portugueseContractions", messageKey: "review_msg_pt_contraction", range: { start: m.index, end }, alternatives: [applyWordCase(fused, detectWordCase(first))], context: { start: m.index, end: Math.min(ctx.text.length, end + 24) } })'
+        return: 'finding("portugueseContractions", "review_msg_pt_contraction", m.index, end, [applyWordCase(fused, detectWordCase(first))], { context: { start: m.index, end: Math.min(ctx.text.length, end + 24) } })'
       # "em China" -> "na China": countries whose name always takes the article.
       - regex: "(?<target>(?<first>em|de|a|para|por){{S}}(?<country>Costa{{S}}do{{S}}Marfim|Estados{{S}}Unidos|Nova{{S}}Zelândia|África{{S}}do{{S}}Sul|Afeganistão|Reino{{S}}Unido|Nova{{S}}Guiné|Costa{{S}}Rica|Paquistão|Argentina|Venezuela|Austrália|Finlândia|Tailândia|Indonésia|Paraguai|Vietname|Vaticano|Colômbia|Uruguai|Equador|Bolívia|Noruega|Holanda|Bélgica|Turquia|Nigéria|Brasil|Canadá|México|Egipto|Iraque|Vietnã|Rússia|Suécia|Coreia|Japão|Chile|Egito|China|Índia|Suíça|Peru|Irão|Irã|EUA))(?![\\p{L}\\p{N}-])"
         message: review_msg_pt_country_article
@@ -1213,7 +1209,7 @@ rules:
           - "first === first.toLowerCase()"
           - '!(!article || (first === "a" && article === "a") || ctx.dictionary.has(name.toLowerCase()))'
           - '!/^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 3))'
-        return: '({ ruleId: "portugueseContractions", messageKey: "review_msg_pt_country_article", range: { start: span[0], end: span[1] }, alternatives: [`${WITH_ARTICLE[first][article]} ${country}`] })'
+        return: 'finding("portugueseContractions", "review_msg_pt_country_article", span[0], span[1], [`${WITH_ARTICLE[first][article]} ${country}`])'
   - id: pt_BR.numberFormat
     checks: [portugueseNumberFormat]
     style: cased
@@ -1364,7 +1360,7 @@ rules:
         when:
           - "!userWord(ctx, m.index, m.index + token.length)"
           - '/[A-Za-z]\d/.test(body) && !/\d{3}|[A-Za-z][10](?!\d)|[A-GI-Za-z]\d\d/.test(body) && /[CHO]/.test(body)'
-        return: '({ ruleId: "portugueseTypographyStyle", messageKey: "review_msg_pt_typography_style", range: { start: m.index, end: m.index + token.length }, alternatives: [lead + body.replace(/\d/g, (digit) => SUBSCRIPT_DIGITS[Number(digit)])] })'
+        return: 'finding("portugueseTypographyStyle", "review_msg_pt_typography_style", m.index, m.index + token.length, [lead + body.replace(/\d/g, (digit) => SUBSCRIPT_DIGITS[Number(digit)])])'
   - id: pt_BR.rangeDash
     checks: [emdashShortcut]
     style: match
@@ -1452,7 +1448,7 @@ rules:
           typed: m.groups!.target
           span: m.indices!.groups!.target
         when: "!ctx.dictionary.has(typed.toLowerCase())"
-        return: '({ ruleId: "portugueseCliticPlacement", messageKey, range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(replacement, detectWordCase(typed))], context: { start: m.index, end: span[1] } })'
+        return: 'finding("portugueseCliticPlacement", messageKey, span[0], span[1], [applyWordCase(replacement, detectWordCase(typed))], { context: { start: m.index, end: span[1] } })'
     filter:
       let:
         others: 'new Set(findings.filter((f) => f.messageKey !== "review_msg_pt_mesoclisis").map((f) => f.range.start))'
@@ -1596,6 +1592,16 @@ rules:
         args: "ctx: DetectContext, start: number, end: number, replacement: string"
         when: "!ctx.dictionary.has(ctx.text.slice(start, end).toLowerCase())"
         return: 'finding("portugueseAO90", "review_msg_pt_ao90", start, end, [replacement])'
+      # A month or weekday name with a capital: AO90 writes it in lowercase.
+      ao90LowerName:
+        args: "ctx: DetectContext, m: RegExpExecArray, target: string"
+        let:
+          span: "m.indices!.groups!.target"
+        when:
+          - '/^\p{Lu}\p{Ll}/u.test(target)'
+          - '!(/-F/.test(target) || /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
+          - "!NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))"
+        return: "ao90Finding(ctx, span[0], span[1], target.toLowerCase())"
     frames:
       # "auto-estima" -> "autoestima": a prefix joins its word except before h or the vowel it
       # ends in.
@@ -1627,29 +1633,11 @@ rules:
         return: "ao90Finding(ctx, m.index, m.index + target.length, `não ${word}`)"
       # A day number (not an ordinal holiday name such as "1.º de Maio") before the month.
       - regex: "(?<![º°ª.]\\s?)\\d{1,2}{{S}}de{{S}}(?<target>{{AO90_MONTH}}){{E}}"
-        let:
-          span: "m.indices!.groups!.target"
-        when:
-          - '/^\p{Lu}\p{Ll}/u.test(target)'
-          - '!(/-F/.test(target) || /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
-          - "!NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))"
-        return: "ao90Finding(ctx, span[0], span[1], target.toLowerCase())"
+        return: ao90LowerName(ctx, m, target)
       - regex: "(?:em|de|até|desde){{S}}(?<target>{{AO90_MONTH}}){{S}}de{{S}}\\d{4}"
-        let:
-          span: "m.indices!.groups!.target"
-        when:
-          - '/^\p{Lu}\p{Ll}/u.test(target)'
-          - '!(/-F/.test(target) || /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
-          - "!NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))"
-        return: "ao90Finding(ctx, span[0], span[1], target.toLowerCase())"
+        return: ao90LowerName(ctx, m, target)
       - regex: "(?:próximo|próxima|último|última|no|na|nos|nas|neste|nesta|nesse|nessa|todo|toda|todos|todas|aos|às|cada){{S}}(?<target>{{AO90_WEEKDAY}}){{E}}(?!{{S}}de{{S}}\\p{L})"
-        let:
-          span: "m.indices!.groups!.target"
-        when:
-          - '/^\p{Lu}\p{Ll}/u.test(target)'
-          - '!(/-F/.test(target) || /^[ \t\u00a0]+(?:de[ \t\u00a0]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8)))'
-          - "!NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))"
-        return: "ao90Finding(ctx, span[0], span[1], target.toLowerCase())"
+        return: ao90LowerName(ctx, m, target)
   - id: pt_BR.invalidDates
     checks: [portugueseDates]
     style: match
@@ -1671,7 +1659,7 @@ rules:
       invalidDate:
         args: "m: RegExpExecArray"
         type: RawFinding
-        return: '({ ruleId: "portugueseDates", messageKey: "review_msg_pt_invalid_date", range: { start: m.index, end: m.index + m[0].length }, alternatives: [], warningOnly: true })'
+        return: 'finding("portugueseDates", "review_msg_pt_invalid_date", m.index, m.index + m[0].length, [], { warningOnly: true })'
       # A weekday name in the case of the typed one.
       weekdayLike:
         args: "typed: string, full: string"
@@ -1697,14 +1685,9 @@ rules:
           - "dateExists(day, month, year === undefined ? undefined : Number(year))"
           - "!(!years.length || weekdays.includes(typed))"
         return: >-
-          ({
-            ruleId: "portugueseDates",
-            messageKey: year === undefined ? "review_msg_weekday_no_year" : "review_msg_pt_weekday_date",
-            range: { start: m.index, end: m.index + text.length },
-            alternatives:
-              shifted !== null
+          finding("portugueseDates", year === undefined ? "review_msg_weekday_no_year" : "review_msg_pt_weekday_date", m.index, m.index + text.length, shifted !== null
                 ? [...alternatives, `${text.slice(0, dayAt[0])}${shifted}${text.slice(dayAt[1])}`]
-                : alternatives,
+                : alternatives, {
             requiresChoice: true,
           })
     frames:
@@ -1871,7 +1854,7 @@ rules:
         when:
           - "!(before && after)"
           - "!(start < ctx.from || start >= ctx.to)"
-        return: '({ ruleId: "portugueseCommas", messageKey: "review_msg_pt_comma", range: { start, end }, alternatives: [`, ${typed.replace(/^,?[ \t\u00a0]+/, "").replace(/,$/, "")},`], context: { start: m.index, end } })'
+        return: 'finding("portugueseCommas", "review_msg_pt_comma", start, end, [`, ${typed.replace(/^,?[ \t\u00a0]+/, "").replace(/,$/, "")},`], { context: { start: m.index, end } })'
       # A whole line that signs off a letter ("Atenciosamente").
       - regex: "(?<=^|\\n)[ \\t\\u00a0]{0,8}(?=(?:{{CLOSINGS}})[.;]?{{LINE_END}})(?:\\p{L}{1,30}{{S}}){0,6}(?<target>\\p{L}{1,30}[.;]?){{LINE_END}}"
         return: 'commaAt(m, target.replace(/[.;]?$/, ","))'
@@ -1898,7 +1881,7 @@ rules:
       - regex: "(?<=^|[.!?;\\n][ \\t\\u00a0]{0,8})(?:{{OPENING_PHRASES}})(?<target>{{S}})(?=\\p{L}+{{E}})(?!(?:de|do|da|dos|das|que|tudo){{E}})"
         let:
           span: "m.indices!.groups!.target"
-        return: '({ ruleId: "styleIntroductoryComma", messageKey: "review_msg_introductory_comma", range: { start: span[0], end: span[1] }, alternatives: [`,${target}`], context: { start: m.index, end: span[1] } })'
+        return: 'finding("styleIntroductoryComma", "review_msg_introductory_comma", span[0], span[1], [`,${target}`], { context: { start: m.index, end: span[1] } })'
   - id: pt_BR.agreement
     checks: [portugueseAgreement]
     style: match
@@ -2049,7 +2032,7 @@ rules:
           typed: m.groups!.target
           span: m.indices!.groups!.target
         when: "!ctx.dictionary.has(typed.toLowerCase())"
-        return: '({ ruleId: "portugueseAgreement", messageKey, range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(replacement, detectWordCase(typed))], context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) } })'
+        return: 'finding("portugueseAgreement", messageKey, span[0], span[1], [applyWordCase(replacement, detectWordCase(typed))], { context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) } })'
       # A verb before its plural subject takes its plural form from `table`.
       postposed:
         args: "ctx: DetectContext, m: RegExpExecArray, table: Readonly<Record<string, string>>"
@@ -2273,7 +2256,7 @@ rules:
         type: RawFinding
         let:
           style: nounCase(typed)
-        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_noun_agreement", range: { start, end }, alternatives: alternatives.map((alternative) => applyWordCase(alternative, style)), context, ...(alternatives.length > 1 ? { requiresChoice: true } : {}) })'
+        return: 'finding("portugueseAgreement", "review_msg_pt_noun_agreement", start, end, alternatives.map((alternative) => applyWordCase(alternative, style)), { context, ...(alternatives.length > 1 ? { requiresChoice: true } : {}) })'
       # The noun right after `end`: its analysis, or only its number.
       nextNoun:
         args: "ctx: DetectContext, end: number"
@@ -2408,13 +2391,9 @@ rules:
           - '!/^[ \t\u00a0]+\p{Ll}+(?:r|rem|res|rmos)(?![\p{L}])/u.test(ctx.text.slice(nounEnd, nounEnd + 30))'
           - "!(wantedVerb === verb && wantedAdjective === adjective.toLowerCase())"
         return: >-
-          ({
-            ruleId: "portugueseAgreement",
-            messageKey: "review_msg_pt_noun_agreement",
-            range: { start, end },
-            alternatives: [wantedVerb === verb ? wantedAdjective : `${wantedVerb}${gap}${wantedAdjective}`].map((alternative) =>
+          finding("portugueseAgreement", "review_msg_pt_noun_agreement", start, end, [wantedVerb === verb ? wantedAdjective : `${wantedVerb}${gap}${wantedAdjective}`].map((alternative) =>
               applyWordCase(alternative, nounCase(typed.split(/\s/)[0])),
-            ),
+            ), {
             context: { start, end: nounEnd },
           })
       # Determiner and noun agree: an adjective of kind after them must too, and a predicate before.
@@ -2627,11 +2606,7 @@ rules:
           style: detectWordCase(typed)
         when: "!ctx.dictionary.has(typed.toLowerCase())"
         return: >-
-          ({
-            ruleId: "portugueseAgreement",
-            messageKey,
-            range: { start: span[0], end: span[1] },
-            alternatives: alternatives.map((alternative) => applyWordCase(alternative, style)),
+          finding("portugueseAgreement", messageKey, span[0], span[1], alternatives.map((alternative) => applyWordCase(alternative, style)), {
             context: { start: Math.min(m.index, span[0]), end: Math.max(span[1], m.index + m[0].length) },
             ...(alternatives.length > 1 ? { requiresChoice: true } : {}),
           })
@@ -2728,7 +2703,7 @@ rules:
           - "!/^(?:é|são|foi|foram|era|eram|será|serão|seja|sejam)$/.test(verb.w)"
           - '!(/^[ \t\u00a0]+que(?![\p{L}])/u.test(after) || IMPERSONAL_AFTER.test(after))'
           - "wanted !== undefined && wanted !== verb.w"
-        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_agreement", range: { start: verb.start, end: verb.end }, alternatives: [wanted], context: { start: m.index, end: verb.end } })'
+        return: 'finding("portugueseAgreement", "review_msg_pt_agreement", verb.start, verb.end, [wanted], { context: { start: m.index, end: verb.end } })'
       # Hours take the plural: "Já deu dez horas" -> "deram", "Está dando 10h" -> "Estão". Two
       # o'clock or later ({{HOUR}}): "uma hora" and "meio-dia" stay singular.
       - regex: "(?<target>deu|bateu|soou|dava|batia|soava|dará|baterá|soará|daria|bateria)(?={{S}}{{HOUR}})"
@@ -2843,7 +2818,7 @@ rules:
           - "!ctx.dictionary.has(clause.word)"
           - read !== null && personFits(clause.word, read, clause.person)
           - wanted !== null && wanted !== "" && wanted !== clause.word
-        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_subjunctive", range: { start: clause.start, end: clause.end }, alternatives: [applyWordCase(wanted, detectWordCase(clause.word))], context: { start: m.index, end: clause.end } })'
+        return: 'finding("portugueseAgreement", "review_msg_pt_subjunctive", clause.start, clause.end, [applyWordCase(wanted, detectWordCase(clause.word))], { context: { start: m.index, end: clause.end } })'
     frames:
       # A wish, request, fear or doubt and "que": "Espero que você está bem" -> "esteja".
       - regex: "(?<lead>{{PRESENT_GOVERNORS}}){{S}}que(?=[ \\t\\u00a0])"
@@ -3057,7 +3032,7 @@ rules:
           - '!(stem === "car" && /^[ \t\u00a0]+de(?![\p{L}])/u.test(ctx.text.slice(targetEnd)))'
           - "wanted !== target"
           - "/(?:ão|am|em)$/.test(copula) === plural"
-        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_noun_agreement", range: { start: m.indices!.groups!.target[0], end: targetEnd }, alternatives: [applyWordCase(wanted, detectWordCase(target))], context: { start: m.index, end: targetEnd } })'
+        return: 'finding("portugueseAgreement", "review_msg_pt_noun_agreement", m.indices!.groups!.target[0], targetEnd, [applyWordCase(wanted, detectWordCase(target))], { context: { start: m.index, end: targetEnd } })'
   - id: pt_BR.relativeAgreement
     checks: [portugueseAgreement]
     style: match
@@ -3127,7 +3102,7 @@ rules:
           - "!TIME_WORD.test(noun)"
           - "!GOVERNS_A_SE.has(lower)"
           - 'lower.endsWith("a") ? stems.ar.has(stem) : stems.er.has(stem) || stems.ir.has(stem)'
-        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_agreement", range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(`${verb}m`, detectWordCase(verb))], context: { start: m.index, end: m.index + m[0].length } })'
+        return: 'finding("portugueseAgreement", "review_msg_pt_agreement", span[0], span[1], [applyWordCase(`${verb}m`, detectWordCase(verb))], { context: { start: m.index, end: m.index + m[0].length } })'
   - id: pt_BR.quantifiedAdjectives
     checks: [portugueseAgreement]
     style: match
@@ -3206,7 +3181,7 @@ rules:
           span: m.indices!.groups![group]
           typed: ctx.text.slice(span[0], span[1])
         when: "!(wanted === typed.toLowerCase() || ctx.dictionary.has(typed.toLowerCase()))"
-        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_noun_agreement", range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(wanted, detectWordCase(typed))], context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) } })'
+        return: 'finding("portugueseAgreement", "review_msg_pt_noun_agreement", span[0], span[1], [applyWordCase(wanted, detectWordCase(typed))], { context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) } })'
     frames:
       # "duas milhões" -> "dois", "as milhares de" -> "os": milhão, bilhão and milhar are
       # masculine nouns, so the words before them are too ("duas mil" agrees with the noun after
@@ -3340,7 +3315,7 @@ rules:
           - "!found.some((a) => a.conjugation !== first.conjugation)"
           - '!(/o$/.test(typed) && first.tense === "present" && subject !== "1p" && subject !== "2s")'
           - wanted !== typed
-        return: '({ ruleId: "portugueseAgreement", messageKey: "review_msg_pt_agreement", range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(wanted, detectWordCase(typed))], context: { start: m.index, end: span[1] } })'
+        return: 'finding("portugueseAgreement", "review_msg_pt_agreement", span[0], span[1], [applyWordCase(wanted, detectWordCase(typed))], { context: { start: m.index, end: span[1] } })'
     frames:
       # A pronoun subject and its verb: "Eu passeiam" -> "passeio", "Tu não falam" -> "falas".
       - regex: "(?<pronoun>eu|tu|ele|ela|você|nós|eles|elas|vocês){{S}}{{PERSON_ADVERBS}}{{PERSON_CLITIC}}(?<target>\\p{L}{2,}){{E}}(?!-)"
@@ -3407,6 +3382,17 @@ rules:
           vale,
           sede,
         ]
+    defs:
+      # A finite form after an auxiliary: the infinitive of the -a, -e or -i form.
+      auxiliaryInfinitive:
+        args: "ctx: DetectContext, m: RegExpExecArray, target: string"
+        let:
+          fixed: "ptInfinitive(target)"
+          span: "m.indices!.groups!.target"
+        when:
+          - "!(target.length < 4 || AUXILIARY_NOT_VERBS.has(target) || ctx.dictionary.has(target))"
+          - "fixed !== null"
+        return: 'finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", span[0], span[1], [fixed], { context: { start: m.index, end: span[1] } })'
     frames:
       # "começou a escrevendo" -> "escrever": "começar a", "passar a", "voltar a" and "tornar a"
       # take the infinitive. "continuar a seguindo" stays out: there "a" may be the object
@@ -3430,34 +3416,16 @@ rules:
         return: 'finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", span[0], span[1] + 2, [target], { context: { start: m.index, end: span[1] + 2 } })'
       # The verb right after, maybe with a hyphenated pronoun: "vão lembra-se" -> "lembrar-se".
       - regex: "(?:{{AUXILIARY}}){{S}}(?:(?:não|já|também|ainda|logo|sempre){{S}})?(?<target>\\p{L}{2,}[aei])(?=-(?:me|te|se|nos|vos|lhes?){{E}}|{{E}})"
-        let:
-          fixed: "ptInfinitive(target)"
-          span: "m.indices!.groups!.target"
-        when:
-          - "!(target.length < 4 || AUXILIARY_NOT_VERBS.has(target) || ctx.dictionary.has(target))"
-          - "fixed !== null"
-        return: 'finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", span[0], span[1], [fixed], { context: { start: m.index, end: span[1] } })'
+        return: auxiliaryInfinitive(ctx, m, target)
       # "quero come" -> "comer", "deve existe" -> "existir", "tentou abri" -> "abrir": modals
       # that take a noun too ("quero ajuda", "deve dinheiro") only count before an -e or -i
       # form, which is a verb of the second or third conjugation and seldom a noun.
       - regex: "(?:{{MODAL}}){{S}}(?:(?:não|já|também|ainda|logo|sempre){{S}})?(?<target>\\p{L}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?){{E}}|{{E}})"
-        let:
-          fixed: "ptInfinitive(target)"
-          span: "m.indices!.groups!.target"
-        when:
-          - "!(target.length < 4 || AUXILIARY_NOT_VERBS.has(target) || ctx.dictionary.has(target))"
-          - "fixed !== null"
-        return: 'finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", span[0], span[1], [fixed], { context: { start: m.index, end: span[1] } })'
+        return: auxiliaryInfinitive(ctx, m, target)
       # "comecei a escreve" -> "escrever": only -e and -i forms, as after the modals; "passa a
       # bola" has an article and a noun.
       - regex: "{{BEGINS}}{{S}}a{{S}}(?<target>\\p{L}{2,}[ei])(?=-(?:me|te|se|nos|vos|lhes?){{E}}|{{E}})"
-        let:
-          fixed: "ptInfinitive(target)"
-          span: "m.indices!.groups!.target"
-        when:
-          - "!(target.length < 4 || AUXILIARY_NOT_VERBS.has(target) || ctx.dictionary.has(target))"
-          - "fixed !== null"
-        return: 'finding("portugueseAgreement", "review_msg_pt_auxiliary_infinitive", span[0], span[1], [fixed], { context: { start: m.index, end: span[1] } })'
+        return: auxiliaryInfinitive(ctx, m, target)
   - id: pt_BR.verbFrames
     checks: [stylePhrasing]
     style: match
