@@ -73,3 +73,21 @@ export { participleOf as enParticipleOf, readWord as enReadWord } from "./englis
 export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";
 // A long word the lexicon lists as a plain noun only ("information").
 export { englishListedNoun as enListedNoun } from "../implementations/helpers/EnglishLexicon";
+// Group 6 (collocation, noun, clause, tense and date slots): lexicon data and inflection.
+export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/EnglishVerbForms";
+export {
+  englishCountNoun as enCountNoun,
+  englishLexiconInflect as enLexiconInflect,
+  englishListedNoun as enListedNoun,
+  englishNounPair as enNounPair,
+} from "../implementations/helpers/EnglishLexicon";
+// Group 6: the calendar of the date checks, and the named phrase tables of en.yaml.
+export {
+  contextYear as enContextYear,
+  daysInMonth as enDaysInMonth,
+  nearestDayOn as enNearestDayOn,
+  weekdayOf as enWeekdayOf,
+  weekdaysFor as enWeekdaysFor,
+  yearsFor as enYearsFor,
+} from "../review/reviewClock";
+export { enTable, useEnglishTables } from "./english/tables";

@@ -2227,6 +2227,17 @@ rules:
     style: match
     message: review_msg_american_spelling
     filter: outsideExamples
+    maps:
+      # Optional number style: the number words of the single-digit counts.
+      DIALECT_NUMBER_WORDS:
+        { 2: two, 3: three, 4: four, 5: five, 6: six, 7: seven, 8: eight, 9: nine }
+    defs:
+      DIALECT_SETS: new Map<string, ReadonlySet<string>>()
+      # The British forms of the -ise table: the phrase rows report them.
+      dialectIseWords:
+        return: >-
+          DIALECT_SETS.get("ise") ??
+          DIALECT_SETS.set("ise", new Set(enTable("dialects.ise").map(([british]) => british as string))).get("ise")!
     frames:
       # "energise", "magnetisable": -ise forms the table lacks whose -ize form the lexicon
       # knows. An -ise word, also after a hyphenated prefix ("de-energise"). One match gives
@@ -2234,7 +2245,19 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}'’])(?<target>\\p{L}+is(?:e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability))(?![\\p{L}\\p{N}'’])"
         flags: dgiu
         anyCheck: true
-        fixer: iseForm
+        let:
+          lower: target.toLowerCase()
+          ize: 'lower.replace(/is(e|es|ed|ing|ation|ations|ational|ationally|er|ers|able|ability)$/, "iz$1")'
+          fixed: applyWordCase(ize, detectWordCase(target))
+        when:
+          # The words of the table, except after a hyphen that it does not match across.
+          - '!(dialectIseWords().has(lower) && ctx.text[m.index - 1] !== "-")'
+          # "prise" (to lever open) and "seise" are words of their own.
+          - "!/^(?:prise|seise)/.test(lower)"
+          - "!(englishWordInfo(lower) || !englishWordInfo(ize) || hasUserOrCasedWord(ctx, target))"
+        return: >-
+          [found(ctx, m, "englishAmericanSpelling", "review_msg_american_spelling", [fixed]),
+          found(ctx, m, "englishOxfordSpelling", "review_msg_oxford_spelling", [fixed])]
   - id: en.cardSpellings
     checks: [englishAmericanSpelling, englishBritishSpelling]
     style: match
@@ -2246,7 +2269,13 @@ rules:
       # stays. The preposition picks the check.
       - regex: "{{DIALECTS_BE}}(?:{{S}}(?:that|this|it|they|he|she|we|you))?(?:{{S}}{{DIALECTS_CARD_ADVERBS}}){0,3}{{S}}(?<target>(?<prep>on|in){{S}}the{{S}}cards){{E}}(?=[ \\t\\u00a0]{0,8}(?:[^\\p{L} \\t\\u00a0]|$)|{{S}}{{DIALECTS_CARD_FOLLOWERS}}{{E}})"
         anyCheck: true
-        fixer: cardSpelling
+        let:
+          british: prep.toLowerCase() === "on"
+          fixed: 'applyWordCase(british ? "in" : "on", detectWordCase(prep))'
+        when: "!hasUserOrCasedWord(ctx, target)"
+        return: >-
+          british ? found(ctx, m, "englishAmericanSpelling", "review_msg_american_spelling", [fixed], "prep")
+          : found(ctx, m, "englishBritishSpelling", "review_msg_british_spelling", [fixed], "prep")
   - id: en.spelledNumbers
     checks: [styleSpelledNumbers]
     style: match
@@ -2256,7 +2285,20 @@ rules:
       # pigs"). Only after a function word, so labels ("Python 3 users", "step 2 results")
       # stay, and only when the sentence has no other figure to keep consistent with.
       - regex: "(?=[2-9]{{S}})(?<=(?:^|[^\\p{L}])(?:the|these|those|my|your|his|her|its|our|their|are|were|is|was|be|been|have|has|had|with|for|of|in|on|at|by|from|to|into|about|around|over|under|nearly|almost|only|just|all|and|or|than|after|within|there|here|another|last|first|next){{S}})(?<target>[2-9]){{S}}(?<noun>\\p{L}{3,}){{E}}"
-        fixer: spelledNumber
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          before: 'ctx.text.slice(Math.max(0, start - 200), start).split(/[.!?\n]/).pop()!'
+          after: 'ctx.text.slice(end, end + 200).split(/[.!?\n]/)[0]'
+          # In all-caps text, the `i` flag lets `\p{Ll}` match the noun. Keep the capitals.
+          word: DIALECT_NUMBER_WORDS[target]
+        when:
+          - englishWordInfo(noun)?.plural
+          - '!/\p{N}/u.test(before + after)'
+        return: >-
+          ({ ruleId: "styleSpelledNumbers", messageKey: "review_msg_spelled_numbers", range: { start, end },
+          alternatives: [m[0] === m[0].toUpperCase() ? word.toUpperCase() : word],
+          context: { start: start - before.length, end: end + after.length } })
   - id: en.irregularWordForms
     checks: [englishIrregularForms, englishAlotCorrection]
     style: match
@@ -2765,6 +2807,128 @@ rules:
     # Calendar checks: a weekday that does not fall on the date written next to it, and a day
     # the month does not have ("June 31", "2/30/2024"). A date with no year uses the Review
     # clock.
+    defs:
+      DATES_WEEKDAYS: '["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]'
+      # Abbreviations, longest first; two-letter ones only with the comma after them ("Mo, 7").
+      DATES_WEEKDAY_FORMS: >-
+        [["Sunday", 0], ["Monday", 1], ["Tuesday", 2], ["Wednesday", 3], ["Thursday", 4],
+        ["Friday", 5], ["Saturday", 6], ["Sun", 0], ["Mon", 1], ["Tues", 2], ["Tue", 2], ["Wed", 3],
+        ["Thurs", 4], ["Thur", 4], ["Thu", 4], ["Fri", 5], ["Sat", 6]] as const
+      DATES_MONTHS: >-
+        ["january", "february", "march", "april", "may", "june", "july", "august", "september",
+        "october", "november", "december"]
+      # A preposition that a date takes: "on April 0", "by the 0th of April".
+      DATES_CUE: '/(?:^|[^\p{L}])(?:on|by|until|till|from|since|before|after|dated|due)[ \t ]{1,8}(?:the[ \t ]{1,8})?$/iu'
+      datesMonthIndex:
+        args: "name: string"
+        return: 'DATES_MONTHS.findIndex((month) => month.startsWith(name.replace(".", "").toLowerCase().slice(0, 3)))'
+      datesValid:
+        args: "month: number, day: number, year?: number"
+        return: month >= 0 && month < 12 && day >= 1 && day <= enDaysInMonth(month + 1, year)
+      # The weekday of a date, Sunday = 0. Month is 0 to 11.
+      datesWeekdayOf:
+        args: "year: number, month: number, day: number"
+        return: enWeekdayOf(year, month + 1, day)
+      datesOrdinal:
+        args: "day: number"
+        return: 'day % 100 >= 11 && day % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][day % 10] ?? "th")'
+      # "Mo" -> 1: a two-letter weekday.
+      datesTwo:
+        args: "form: string"
+        return: DATES_WEEKDAYS.findIndex((name) => name.startsWith(form))
+      # The nearest date to `day` in the same month that falls on `weekday`, or null.
+      datesNearestOn:
+        args: "year: number, month: number, day: number, weekday: number"
+        type: number | null
+        let:
+          actual: datesWeekdayOf(year, month, day)
+          back: (actual - weekday + 7) % 7
+          ahead: (weekday - actual + 7) % 7
+        return: >-
+          (back <= ahead ? [day - back, day + ahead] : [day + ahead, day - back])
+          .find((candidate) => datesValid(month, candidate, year)) ?? null
+      # The date with the text from `from` to `to` replaced.
+      datesEdit:
+        args: "ctx: DetectContext, start: number, end: number, from: number, to: number, value: string"
+        return: ctx.text.slice(start, from) + value + ctx.text.slice(to, end)
+      # A numeric date: only a field above 12 says which one is the day; "03/04/2014" stays
+      # ambiguous.
+      datesNumericFields:
+        args: "a: number, b: number, aAt: string, bAt: string, year: number"
+        type: "{ year: number; month: number; day: number; dayAt: string; yearAt: string } | null"
+        return: >-
+          a > 12 && b <= 12 ? { year, month: b - 1, day: a, dayAt: aAt, yearAt: "year3" }
+          : b > 12 && a <= 12 ? { year, month: a - 1, day: b, dayAt: bAt, yearAt: "year3" }
+          : null
+      # The year, month (0 to 11) and day of the date, and the groups a fix rewrites.
+      datesFields:
+        args: "g: Record<string, string>"
+        type: "{ year: number; month: number; day: number; dayAt: string; yearAt: string } | null"
+        return: >-
+          g.iso ? { year: +g.isoYear, month: +g.isoMonth - 1, day: +g.isoDay, dayAt: "isoDay", yearAt: "isoYear" }
+          : g.a || g.na ? datesNumericFields(g.a ? +g.a : +g.na, g.a ? +g.b : +g.nb, g.a ? "a" : "na", g.a ? "b" : "nb", +(g.year3 ?? NaN))
+          : { year: +(g.year1 ?? g.year2 ?? NaN), month: datesMonthIndex(g.month1 ?? g.month2),
+          day: +(g.day1 ?? g.day2), dayAt: g.day1 ? "day1" : "day2", yearAt: g.year1 ? "year1" : "year2" }
+      # The fixes: the weekday, the nearest day on the typed weekday, or the nearest year it fell
+      # on.
+      datesWeekdayYear:
+        args: "ctx: DetectContext, m: RegExpExecArray, named: number, f: { year: number; month: number; day: number; dayAt: string; yearAt: string }"
+        type: RawFinding | null
+        let:
+          year: f.year
+          month: f.month
+          day: f.day
+          actual: datesWeekdayOf(year, month, day)
+          start: group(m, "weekday")[0]
+          weekdayEnd: group(m, "weekday")[1]
+          dayStart: group(m, f.dayAt)[0]
+          dayEnd: group(m, f.dayAt)[1]
+          suffix: '/^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? ""'
+          yearStart: group(m, f.yearAt)[0]
+          yearEnd: group(m, f.yearAt)[1]
+          end: Math.max(dayEnd + suffix.length, yearEnd)
+          near: datesNearestOn(year, month, day, named)
+          other: >-
+            [1, -1, 2, -2, 3, -3, 4, -4, 5, -5, 6, -6].map((step) => year + step)
+            .find((y) => datesValid(month, day, y) && datesWeekdayOf(y, month, day) === named)
+        when:
+          - datesValid(month, day, year)
+          - actual !== named
+        return: >-
+          finding("englishDateConsistency", "review_msg_weekday_mismatch", start, end, [
+          datesEdit(ctx, start, end, start, weekdayEnd, DATES_WEEKDAYS[actual]),
+          ...(near !== null ? [datesEdit(ctx, start, end, dayStart, dayEnd + suffix.length,
+          String(near).padStart(dayEnd - dayStart, "0") + (suffix ? datesOrdinal(near) : ""))] : []),
+          ...(other !== undefined ? [datesEdit(ctx, start, end, yearStart, yearEnd, String(other))] : [])],
+          { requiresChoice: true, context: { start, end: m.index + m[0].length } })
+      # "Monday, 7 October" with no year: wrong only when no year the date can mean has that
+      # weekday. The fixes are the weekday of each such year, then the nearest day on the typed
+      # weekday.
+      datesWeekdayNoYear:
+        args: "ctx: DetectContext, m: RegExpExecArray, named: number, month: number, day: number, dayAt: string"
+        type: RawFinding | null
+        let:
+          start: group(m, "weekday")[0]
+          weekdayEnd: group(m, "weekday")[1]
+          yearContext: enContextYear(ctx.text, start, ctx.lang)
+          years: enYearsFor(month, day, yearContext)
+          weekdays: enWeekdaysFor(month, day, yearContext)
+          dayStart: group(m, dayAt)[0]
+          dayEnd: group(m, dayAt)[1]
+          suffix: '/^(?:st|nd|rd|th)/.exec(ctx.text.slice(dayEnd, dayEnd + 2))?.[0] ?? ""'
+          end: dayEnd + suffix.length
+          near: enNearestDayOn(years[0], month, day, named)
+        when: years.length && !weekdays.includes(named)
+        return: >-
+          finding("englishDateConsistency", "review_msg_weekday_no_year", start, end, [
+          ...weekdays.map((weekday) => datesEdit(ctx, start, end, start, weekdayEnd, DATES_WEEKDAYS[weekday])),
+          ...(near !== null ? [datesEdit(ctx, start, end, dayStart, end,
+          String(near).padStart(dayEnd - dayStart, "0") + (suffix ? datesOrdinal(near) : ""))] : [])],
+          { requiresChoice: true, context: { start, end: m.index + m[0].length } })
+      # A date that cannot exist: a warning, with no fix.
+      datesImpossible:
+        args: "start: number, end: number"
+        return: 'finding("englishDateConsistency", "review_msg_impossible_date", start, end, [], { warningOnly: true })'
     frames:
       # "Monday, 7th of October 2014", "Monday, October 7, 2014", "Monday, 31/10/2014",
       # "Monday, 2014-10-31". "Monday, 31/10": no year, a slash only ("Monday, 3.5" is a
@@ -2772,10 +2936,40 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}]){{DATES_WEEKDAY}}(?:,?{{S}}|,)(?:(?<day1>[0-9]{1,2})(?:st|nd|rd|th)?(?:{{S}}of)?{{S}}(?<month1>{{DATES_MONTH}})(?:,?{{S}}(?<year1>[0-9]{4}))?|(?<month2>{{DATES_MONTH}}){{S}}(?<day2>[0-9]{1,2})(?:st|nd|rd|th)?(?:,?{{S}}(?<year2>[0-9]{4}))?|(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year3>[0-9]{4})|(?<na>[0-9]{1,2})\\/(?<nb>[0-9]{1,2})(?![/.,]?[0-9])|(?<iso>(?<isoYear>[0-9]{4})-(?<isoMonth>[0-9]{2})-(?<isoDay>[0-9]{2})))(?![\\p{L}\\p{N}])"
         flags: dgu
         owner: weekday
-        fixer: weekdayMismatch
+        let:
+          g: m.groups!
+          typedWeekday: g.weekday.replace(".", "")
+          named: "DATES_WEEKDAY_FORMS.find(([form]) => form === typedWeekday)?.[1] ?? datesTwo(typedWeekday)"
+          f: datesFields(g)
+        when:
+          - f
+          - named >= 0
+        # No year: the weekday is checked against the years that the date can mean.
+        return: >-
+          Number.isNaN(f.year) ? datesWeekdayNoYear(ctx, m, named, f.month + 1, f.day, f.dayAt)
+          : datesWeekdayYear(ctx, m, named, f)
       # Days a month cannot have: "June 31", "the 31st of June", "Feb 30th, 2023".
       - regex: "(?<target>(?<month1>{{DATES_MONTH}}){{S}}(?<day1>[0-9]{1,2})(?:st|nd|rd|th)?|(?<![\\p{N}:.,/])(?<day2>[0-9]{1,2})(?:st|nd|rd|th)?(?:{{S}}of)?{{S}}(?<month2>{{DATES_MONTH}}))(?:,?{{S}}(?<year>[0-9]{4}))?(?![\\p{L}\\p{N}]|[.,:][0-9])"
-        fixer: impossibleMonthDay
+        let:
+          monthName: month1 ?? month2
+          cued: DATES_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+          day: +(day1 ?? day2)
+          end: m.index + m[0].length
+        when:
+          # A lowercase name is a word ("march 40 miles"), but a four-digit year or a date cue
+          # makes it a date ("march 32, 2020", "on april 31"): the casing rule reports the name.
+          # "May 32" may still be the verb. With a four-digit year, "May 32, 2020" is a date.
+          - /^\p{Lu}/u.test(monthName) || year || cued
+          - "!(month1 && /^may$/i.test(monthName) && !year)"
+          # "In March 37," and "38 Jan" (a size in a listing) are a year and a count, not a
+          # day; "September 31 BC" counts years too. A four-digit year makes it a full date:
+          # "June 32, 2020".
+          - "!(day > 31 && !year && !/[0-9](?:st|nd|rd|th)/.test(m[0]))"
+          - '!/^[ \t ]*(?:AD|BC|BCE|CE|A\.D\.|B\.C\.)/.test(ctx.text.slice(end, end + 8))'
+          # Day 0 is a wrong day in a full date ("June 0, 2020", "0 June 2020") or after a date
+          # cue ("on April 0", "by 0 April").
+          - "!((day < 1 && !year && !cued) || datesValid(datesMonthIndex(monthName), day, year ? +year : undefined))"
+        return: datesImpossible(m.index, end)
       # Any four-digit year: an impossible day or month needs no calendar ("31/04/1500").
       # Markdown emphasis before the date is not a word: "**31/04/2020**", "_31/04/2020_".
       # Thus the frame has its own start, not WORD_START (an underscore continues a word
@@ -2783,7 +2977,15 @@ rules:
       - regex: "(?<![.\\p{M}'’@#\\\\])(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{N}.,/-])(?<a>[0-9]{1,2})(?<sep>[/.])(?<b>[0-9]{1,2})\\k<sep>(?<year>[0-9]{4})(?![\\p{N}]|[.,][0-9])"
         flags: dgu
         owner: none
-        fixer: impossibleNumericDate
+        let:
+          first: +a
+          second: +b
+          yearNumber: +year
+        when:
+          # The match start owns it.
+          - m.index >= ctx.from && m.index < ctx.to
+          - "!(datesValid(first - 1, second, yearNumber) || datesValid(second - 1, first, yearNumber))"
+        return: datesImpossible(m.index, m.index + m[0].length)
   - id: en.isoDates
     checks: [englishDateConsistency]
     style: match
@@ -2803,16 +3005,61 @@ rules:
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
+    maps:
+      USAGE_MAIL_FORMS: { send: "", sends: s, sent: ed, sending: ing }
+    defs:
+      usageInfo:
+        args: "word: string"
+        return: englishWordInfo(word.toLowerCase())
+      # The -ly adverb of an adjective, when the dictionary lists it: hasty -> hastily.
+      usageAdverbOf:
+        args: "adjective: string"
+        let:
+          a: adjective.toLowerCase()
+          form: >-
+            a.endsWith("ic") ? `${a}ally` : /[^aeiou]y$/.test(a) ? `${a.slice(0, -1)}ily`
+            : /[^aeiou]le$/.test(a) ? `${a.slice(0, -1)}y` : `${a}ly`
+        return: "usageInfo(a)?.adjective && usageInfo(form)?.adverb ? form : null"
+      usageAdjectiveOnly:
+        args: "word: string"
+        let:
+          entry: usageInfo(word)
+        return: "!!entry?.adjective && !entry.verbs.length"
+      # A style finding on the `target` group; the alternatives take the typed initial capital.
+      usageStyled:
+        args: "m: RegExpExecArray, ctx: DetectContext, alts: string[]"
+        type: RawFinding | null
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          typed: ctx.text.slice(start, end)
+          cased: 'alts.map((alt) => /^\p{Lu}/u.test(typed) ? alt[0].toUpperCase() + alt.slice(1) : alt)'
+        when: "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing", range: { start, end },
+          alternatives: cased, ...(cased.length > 1 ? { requiresChoice: true as const } : {}) })
     frames:
       # "in a hasty manner" -> "hastily"; "in a way that…" and "in a manner of speaking" stay.
       - regex: "(?<target>in{{S}}an?{{S}}(?<adjective>[a-z]+){{S}}(?:manner|way|fashion)){{E}}(?![ \\t\\u00a0]+(?:that|which|to|as|of|than|for|in|you|we|I|it){{E}})"
-        fixer: mannerAdverb
+        let:
+          adverb: usageAdverbOf(adjective)
+        when: adverb
+        return: usageStyled(m, ctx, [adverb])
       # "sent me an email" -> "emailed me".
       - regex: "(?<target>(?<verb>send|sends|sent|sending){{S}}(?<object>me|you|him|her|us|them){{S}}an{{S}}(?<mail>email|e-mail)){{E}}"
-        fixer: sendEmail
+        let:
+          form: USAGE_MAIL_FORMS[verb.toLowerCase()]
+        when: form !== undefined
+        return: "usageStyled(m, ctx, [`${mail.toLowerCase()}${form} ${object}`])"
       # "is not complete" -> "is incomplete": the adjective's negative prefix form, when listed.
       - regex: "(?:is|are|was|were|be|been|being|seems?|seemed|looks?|looked){{S}}(?<target>not{{S}}(?<adjective>[a-z]{4,})){{E}}(?![ \\t\\u00a0]+(?:enough|only|just|as|so|but){{E}})"
-        fixer: notAdjective
+        let:
+          plain: adjective.toLowerCase()
+          negative: '["un", "in", "im", "ir", "il"].map((prefix) => prefix + plain).find((word) => usageAdjectiveOnly(word))'
+        when:
+          - usageInfo(plain)?.adjective
+          - negative
+        return: usageStyled(m, ctx, [negative])
   - id: en.contractionCase
     checks: [englishContractionNormalization]
     style: match
@@ -2824,7 +3071,18 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}_'’])(?<head>\\p{L}+)(?<mark>['’])(?<tail>s|t|re|ve|ll|d|m)(?![\\p{L}\\p{N}_])"
         flags: dgiu
         owner: none
-        fixer: contractionCase
+        let:
+          tailHasUpper: tail !== tail.toLowerCase()
+          start: m.index + head.length + mark.length
+        when:
+          # The match start owns it.
+          - m.index >= ctx.from && m.index < ctx.to
+          - "!(!tailHasUpper || (head === head.toUpperCase() && tail === tail.toUpperCase()))"
+          - "!ctx.dictionary.has(`${head}${mark}${tail}`.toLowerCase())"
+        return: >-
+          ({ ruleId: "englishContractionNormalization", messageKey: "review_msg_contraction",
+          range: { start, end: start + tail.length }, alternatives: [tail.toLowerCase()],
+          context: { start: m.index, end: start + tail.length } })
   - id: en.possessiveContractions
     checks: [englishItsContext, englishYourYouAre]
     style: match
@@ -3682,38 +3940,140 @@ rules:
     style: match
     message: review_msg_to_too
     filter: slotFindingsOncePerStart
+    sets:
+      # Degree words that only "too" can take before a clause end.
+      DEGREE_WORDS: [much, many, little, few, late, soon, early, far, long]
+      # What may follow the degree phrase: the end, an infinitive, a for-phrase or a reason.
+      DEGREE_AFTER: [to, for, because, now, and, with, in, at, about, from, off, away, ago]
+      # Predicate adjectives the lexicon gives no class.
+      DEGREE_PREDICATIVE: [afraid, alone, awake, asleep]
+    defs:
+      # "was to trying…": an -ing form is a verb after "to".
+      degreeLexiconTarget:
+        args: "word: string"
+        type: boolean
+        let:
+          read: enInfo(word)
+        when: '!!read && !read.verbs.some((v) => v.form === "base" || v.form === "third" || v.form === "ing")'
+        return: 'read.adjective || read.verbs.some((v) => v.form === "participle")'
+        else: "false"
+      # An adjective (or participle) that cannot be a verb after an infinitive "to".
+      degreeTarget:
+        args: "word: string"
+        type: boolean
+        return: >-
+          DEGREE_WORDS.has(word) || DEGREE_PREDICATIVE.has(word) ||
+          (!/^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/.test(word) && degreeLexiconTarget(word))
+      degreeClosesAt:
+        args: "tokens: EnToken[], k: number"
+        let:
+          t: tokens[k]
+        return: '!t || t.kind === "end" || t.kind === "comma" || (t.kind === "word" && DEGREE_AFTER.has(t.lower))'
+      # The word after "to" is a degree target and the phrase closes there.
+      degreeClosed:
+        args: "ctx: DetectContext, end: number, strict: boolean"
+        type: boolean
+        let:
+          tokens: enTokensAfter(ctx, end, 4)
+          word: tokens[0]
+        when:
+          - word?.kind === "word" && word.text === word.lower && degreeTarget(word.lower)
+          # A glued token ("lift.js") or an infinitive that is not a known verb ("to frobnicate",
+          # "to.").
+          - '!tokens.some((t) => t.kind === "other")'
+          - >-
+            !(tokens[1]?.lower === "to" && !(tokens[2]?.kind === "word" &&
+            englishWordInfo(tokens[2].lower)?.verbs.some((v) => v.form === "base")))
+        # "much of a stretch"; "much more" is a comparison ("led to much more").
+        return: >-
+          /^(?:much|many)$/.test(word.lower) && tokens[1]?.lower === "of" ? !strict
+          : degreeClosesAt(tokens, 1) && (!strict || tokens[1]?.kind !== "word")
+        else: "false"
+      # "too" for the typed `target`; a user word stays.
+      degreeTooFix:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          target: m.groups!.target
+        when: "!ctx.dictionary.has(target.toLowerCase())"
+        return: >-
+          finding("englishToToo", "review_msg_to_too", start, end, [caseLike(target, "too")],
+          { context: enEvidence(ctx, m.index, m.index + m[0].length) })
     frames:
       # A linking verb: "It's to late.", "The box is not to heavy to carry." Words may stand
       # between the linking verb and "to": "it's way to late", "not to big".
       - regex: "(?:[a-z]+(?=['’]))?{{DEGREESLOTS_LINKING}}(?:{{S}}{{DEGREESLOTS_BETWEEN}}){0,2}{{S}}(?<target>to)(?={{S}}[a-z])"
-        fixer: degreeLinking
+        let:
+          # "He seemed to noticed": after "seem", a past form that is no adjective wants the base.
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]?.lower ?? ""
+          read: enInfo(next)
+        when:
+          - >-
+            !(/^seem/i.test(m[0]) && !read?.adjective && read?.verbs.some((v) => v.form === "past") &&
+            !DEGREE_WORDS.has(next))
+          - degreeClosed(ctx, m.index + m[0].length, false)
+        return: degreeTooFix(ctx, m)
       # A degree adverb: "came much to soon", "way to early".
       - regex: "(?:much|far|way){{S}}(?<target>to)(?={{S}}[a-z])"
-        fixer: degreeAdverb
+        let:
+          before: enWordBefore(ctx, m.index)
+        when:
+          # "the way to go", "a long way to …", "how far to drive": "to" is part of an infinitive.
+          - "!/^(?:the|a|this|that|one|no|best|which|how|so|as|too)$/.test(before)"
+          - degreeClosed(ctx, m.index + m[0].length, true)
+        return: degreeTooFix(ctx, m)
       # A clause-final degree word after a lexical verb: "They cost to much.", "It fails to often."
       - regex: "(?<verb>[a-z]+){{S}}(?<target>to){{S}}(?<degree>much|often|soon|late)(?=[ \\t\\u00a0]{0,8}(?:[.!?;)]|$))"
-        fixer: degreeClauseEnd
+        let:
+          read: enInfo(verb)
+        when:
+          # "amount to much", "come to much", "up to much", "set it to late": "to" is a preposition.
+          - "!/^(?:amounts?|amounted|comes?|came|coming|up|set|sets|switch|changed?|moved?|default|defaults|postponed?|delayed?|back|down)$/.test(verb)"
+          - read?.verbs.length
+        return: degreeTooFix(ctx, m)
       # Trying hard: "I was trying to hard."
       - regex: "(?:try|tries|tried|trying|push|pushing|pushed|work|working|worked){{S}}(?<target>to){{S}}hard(?=[ \\t\\u00a0]{0,8}(?:[.!?;,)]|$))"
-        fixer: degreeTryHard
+        return: degreeTooFix(ctx, m)
       # A measured excess: "10 percent to high", "5% to much", "two days to late".
       - regex: "(?:[0-9]+(?:[ \\t\\u00a0]?%|{{S}}(?:percent|per[ \\t\\u00a0]?cent))|(?:[0-9]+|a|one|two|three|few|several){{S}}(?:years?|months?|weeks?|days?|hours?|minutes?|seconds?)){{S}}(?<target>to)(?={{S}}[a-z])"
-        fixer: degreeMeasured
+        when: degreeClosed(ctx, m.index + m[0].length, true)
+        return: degreeTooFix(ctx, m)
       # An excessive amount as an object: "She has to much work", "We spent to much money".
       - regex: "(?<verb>has|have|had|having|spent|spend|spends|spending|ate|eat|eats|drank|drink|drinks|avoid|avoided|gave|give|gives){{S}}(?<target>to){{S}}(?<amount>much|many){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: degreeObjectAmount
+        when:
+          # "gave to many charities": a recipient.
+          - '!(amount === "many" && /^g[ai]ve/.test(verb))'
+          - enNounOnly(noun) || enInfo(noun)?.noun
+        return: degreeTooFix(ctx, m)
       # A clause-opening quantity subject: "because to much snow fell", "To many people came."
       - regex: "(?<target>to){{S}}(?:much|many){{S}}(?<noun>[a-z]+){{S}}(?<verb>is|was|are|were|will|would|has|have|had|can|could|[a-z]+ed){{E}}"
-        fixer: degreeSubjectAmount
+        let:
+          before: enWordBefore(ctx, m.index)
+        when:
+          - enAfterBreak(ctx, m.index) || /^(?:because|since|as|when|if|and|but|so|that)$/.test(before)
+          - enNounOnly(noun) || enInfo(noun)?.noun
+        return: degreeTooFix(ctx, m)
       # "two much", "two many" (not "two much bigger rooms").
       - regex: "(?<target>two){{S}}(?:much|many){{E}}"
-        fixer: degreeTwoMuch
+        let:
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when: '!(next?.kind === "word" && /(?:er|more|less)$/.test(next.lower))'
+        return: degreeTooFix(ctx, m)
       # "one to many beers".
       - regex: "one{{S}}(?<target>to){{S}}many{{S}}(?<noun>[a-z]+){{E}}"
-        fixer: degreeOneToMany
+        when: enNounOnly(noun) === "plural" || enInfo(noun)?.plural
+        return: degreeTooFix(ctx, m)
       # A sentence opening "To late." or "To bad that…", also after an interjection ("Ah to late").
       - regex: "(?<target>to){{S}}(?<word>[a-z]+){{E}}"
-        fixer: degreeOpening
+        let:
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - enAfterBreak(ctx, m.index) || /^(?:ah|oh|aw)$/.test(enWordBefore(ctx, m.index))
+          - word === word.toLowerCase() && degreeTarget(word)
+          - '!(DEGREE_WORDS.has(word) && word !== "late" && word !== "much")'
+          - '!(next && next.kind === "word" && next.lower !== "that")'
+        return: degreeTooFix(ctx, m)
   - id: en.existentialCount
     checks: [englishExistentialAgreement, englishNounNumber]
     style: match
@@ -6915,15 +7275,155 @@ rules:
     style: match
     message: review_msg_adverb_form
     filter: usSlotsOnePerStart
+    sets:
+      # Colour and shade words combine with each other ("dark blue"), and these adjectives are
+      # adverbs too ("fast", "hard", "late", "well").
+      ADVERB_NOT_BASE:
+        [
+          dark,
+          light,
+          bright,
+          pale,
+          deep,
+          red,
+          blue,
+          green,
+          yellow,
+          black,
+          white,
+          brown,
+          grey,
+          gray,
+          pink,
+          orange,
+          purple,
+          fast,
+          hard,
+          late,
+          early,
+          well,
+          long,
+          low,
+          high,
+          straight,
+          free,
+          sure,
+          dead,
+        ]
+      ADVERB_COMPOUND_VERBS:
+        [
+          cold call,
+          private message,
+          direct message,
+          double check,
+          double click,
+          fast track,
+          spot check,
+          dry clean,
+          deep fry,
+          free ride,
+          blind copy,
+          soft launch,
+          hard code,
+          cross check,
+        ]
+    defs:
+      # Some -ly words are listed with no class ("understandably").
+      adverbListedLy:
+        args: "word: string"
+        let:
+          ly: englishWordInfo(word)
+        return: "!!ly && (ly.adverb || (!ly.noun && !ly.adjective && !ly.verbs.length))"
+      # The -ly adverb of an adjective, when the lexicon knows it as an adverb.
+      adverbOf:
+        args: "adjective: string"
+        type: string | null
+        let:
+          read: englishWordInfo(adjective)
+        when:
+          - "!(adjective.length < 4 || ADVERB_NOT_BASE.has(adjective) || EN_FUNCTION_WORDS.has(adjective))"
+          - read?.adjective && !read.verbs.length && !read.adverb
+        return: >-
+          [adjective.replace(/le$/, "ly"), adjective.replace(/ic$/, "ically"),
+          adjective.replace(/y$/, "ily"), `${adjective}ly`].find((c) => c !== adjective &&
+          /ly$/.test(c) && adverbListedLy(c)) ?? null
+      # A verb form that the auxiliary or subject before the adjective takes.
+      adverbVerbAfter:
+        args: 'word: string, kind: "base" | "participle" | "finite", after: EnToken | undefined, derived: boolean'
+        type: boolean
+        let:
+          read: englishWordInfo(word)
+          # "Would soft wire work", "could private message me": a noun after the adjective,
+          # unless the phrase ends there ("could possible work.").
+          nounEnds: '!after || after.kind === "end" || after.kind === "comma"'
+          # "we temporary stay the course": a noun-or-verb with its own object after it. Only for
+          # a long derived adverb: "could private message me", "cold transfer" are compound
+          # verbs. After a subject pronoun the word is a finite verb anyway: "You simple need the
+          # cable".
+          objectNext: >-
+            (derived || kind === "finite") && after?.kind === "word" &&
+            /^(?:the|a|an|my|your|his|her|our|their|this|these|those|it|them|him|us|me|you|all|some|any|out|up|down|off|away|back)$/.test(after.lower)
+        return: >-
+          !read || EN_FUNCTION_WORDS.has(word)
+          ? (kind === "finite" ? /^(?:has|does|had|did|should|would|could|can|will|must|might|may)$/.test(word)
+          : /^(?:be|have|do|not)$/.test(word))
+          : kind === "base"
+          ? (!read.noun || nounEnds || objectNext) && read.verbs.some((v) => v.form === "base" && v.lemma === word)
+          : kind === "participle"
+          ? read.verbs.some((v) => v.form === "participle")
+          : (!read.noun || objectNext) && read.verbs.some((v) => v.form === "past" || v.form === "third" || v.form === "base")
+      # The rule keeps one finding per start: its filter is usSlotsOnePerStart.
+      adverbFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, adverb: string"
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+        return: >-
+          finding("englishConfusedWords", "review_msg_adverb_form", start, end, [adverb],
+          { context: enEvidence(ctx, m.index, end + 24) })
     frames:
       # "could possible go", "to easy achieve": an adjective between an auxiliary, "to" or a
       # subject and a verb. The lead sits in a lookbehind so that "It could possible work" is
       # not consumed by "It".
       - regex: "(?<=(?<![\\p{L}'’])(?:could|would|should|can|will|might|must|may|won['’]t|can['’]t|couldn['’]t|didn['’]t|doesn['’]t|don['’]t|does|did|to|have|has|had|I|we|you|they|it|he|she){{S}})(?<target>[a-z]+)(?={{S}}(?<verb>[a-z]+){{E}})"
-        fixer: adverbAdjectiveForAdverb1
+        let:
+          adverb: adverbOf(target)
+          # The frame's lookbehind puts the lead word and its spaces in these 16 characters.
+          lead: '/([A-Za-z''’]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 16), m.index))![1]'
+          l: lead.toLowerCase()
+          kind: '/^(?:have|has|had)$/.test(l) ? "participle" : /^(?:i|we|you|they|it|he|she)$/.test(l) ? "finite" : "base"'
+          verbRead: englishWordInfo(verb)
+          verbOnly: "!!verbRead?.verbs.length && !verbRead.noun && !verbRead.adjective"
+          after: enTokensAfter(ctx, m.indices!.groups!.verb[1], 1)[0]
+        when:
+          - "!ctx.dictionary.has(target) && target === target.toLowerCase()"
+          - adverb
+          # "to" must be an infinitive marker: "how to quick fix" yes, "close to perfect" no. A
+          # verb that is no noun after it shows the infinitive too: "wise to temporary disable".
+          - >-
+            l !== "to" || verbOnly ||
+            /\b(?:how|tried|try|trying|want|wants|need|needs|like|order|able|is|was|are|were)[ \t ]+to[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+          # "Should intent be part of…": an inverted modal makes the next word its subject.
+          - '!(kind === "base" && enAfterBreak(ctx, m.index - lead.length - 1))'
+          # "We cold call them": an adjective-noun compound verb.
+          - "!ADVERB_COMPOUND_VERBS.has(`${target} ${verb}`)"
+          - adverbVerbAfter(verb, kind, after, /(?:ily|ally|bly)$/.test(adverb))
+        return: adverbFinding(ctx, m, adverb)
       # "Your site is terrible slow": be + adjective + adjective.
       - regex: "(?<=(?:(?<![\\p{L}'’])(?:is|are|was|were|be|been|seems?|seemed|looks?)|[\\p{L}](?:['’]s|['’]m|['’]re)){{S}})(?<target>[a-z]+)(?={{S}}(?<next>[a-z]+){{E}})"
-        fixer: adverbAdjectiveForAdverb2
+        let:
+          adverb: adverbOf(target)
+          read: englishWordInfo(next)
+        when:
+          - target === target.toLowerCase() && !ctx.dictionary.has(target)
+          - /(?:ble|al|ary|ic|ent|ous|ive|ful|ple|real|easy)$/.test(target)
+          - adverb
+          # The second word must be a predicate adjective or participle, never a noun.
+          - '!(!read || read.noun || read.plural || !(read.adjective || read.verbs.some((v) => v.form === "participle")))'
+          - "!ADVERB_NOT_BASE.has(next) && !EN_FUNCTION_WORDS.has(next)"
+          # "be reasonable based on", "necessary soon": a preposition-like participle or an adverb.
+          - "!/^(?:soon|early|late|later|earlier|sooner|longer|enough|then|based|compared|given|considering|including|regarding)$/.test(next)"
+        return: adverbFinding(ctx, m, adverb)
   - id: en.confusionPairs
     checks: [englishConfusedWords]
     style: match
@@ -7125,14 +7625,66 @@ rules:
     style: match
     message: review_msg_double_negative
     filter: slotFindings
+    maps:
+      NEGATION_ANY:
+        { nothing: anything, nobody: anybody, nowhere: anywhere, neither: either, no: any }
+    defs:
+      # Words that end the negated clause before a second negative could belong to it.
+      NEGATION_CLAUSE_BREAK: /^(?:that|which|who|whom|whose|what|where|when|why|how|because|if|unless|but|and|or|so|than|as|while|until|whether|though|although|since|yet|nor|said|says|think|thought|know|knew|believe|believed|realize|realized|mean|meant)$/
+      # "no longer", "no matter", "no doubt": "no" there starts its own phrase.
+      NEGATION_NO_PHRASES: /^(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks|end|wonder|problem|question|idea|less|other|sense|use)$/
     frames:
       # "I didn't see nothing", "Don't give me no excuses", "There wasn't nobody home".
       - regex: "{{NEGATIONSLOTS_NEGATED}}(?<between>(?:{{S}}[a-z]+){0,3}?){{S}}(?<target>nothing|nobody|nowhere|neither|no){{E}}"
-        fixer: negationDouble
+        let:
+          word: target.toLowerCase()
+          words: between.trim().toLowerCase().split(/\s+/).filter(Boolean)
+          last: words.at(-1) ?? ""
+          auxWord: aux.toLowerCase()
+          end: m.indices!.groups!.target[1]
+          # "nobody else was there": look past "else".
+          after: '/^[ \t ]+([A-Za-z]+)(?:[ \t ]+([A-Za-z]+))?/.exec(ctx.text.slice(end, end + 32))'
+          next: '(after?.[1] === "else" ? after[2] : after?.[1])?.toLowerCase()'
+          noRead: 'word === "no" ? englishWordInfo(next!) : null'
+          start: m.indices!.groups!.target[0]
+        when:
+          - "!words.some((w) => NEGATION_CLAUSE_BREAK.test(w))"
+          - "!hasUserOrCasedWord(ctx, m[0].slice(aux.length))"
+          # "not for nothing" (in vain), "say no", "not nothing" (litotes).
+          - "!/^(?:for|say|said|says|saying|answer|answered|vote|voted|take|took)$/.test(last)"
+          - '!(!words.length && word !== "no" && /\bnot$/i.test(aux))'
+          # "It isn't nothing", "that's not nothing": litotes after be; "there wasn't nobody" is not.
+          - >-
+            !(/^(?:is|are|was|were|am)/.test(auxWord) && !words.length) ||
+            /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1].toLowerCase() === "there"
+          # "We can't just do nothing": a modal over idle doing is standard; "didn't do nothing" is not.
+          - '!(word === "nothing" && /^(?:do|say|sit)$/.test(last) && !/^(?:do|does|did)/.test(auxWord))'
+          - 'word !== "no" || (!!next && !NEGATION_NO_PHRASES.test(next))'
+          # "Don't tell me no fan ever cried": what is told is a clause of its own.
+          - 'word !== "no" || !/^(?:tell|told|say|said|mean|think|guess)$/.test(words[0] ?? "")'
+          # "No" before a noun only: "don't give me no excuses".
+          - 'word !== "no" || !(noRead && !noRead.noun && !noRead.plural && !noRead.adjective)'
+          # "I didn't know nobody was home": the negative pronoun is the subject of its own clause.
+          - 'word === "no" || !next || !/^(?:is|was|were|are|has|had|have|can|could|will|would|should|did|does)$/.test(next)'
+          - 'word === "no" || !next || !englishWordInfo(next)?.verbs.some((v) => v.form === "third" || v.form === "past")'
+          # "don't want neither … nor …": either … or needs both words changed.
+          - 'word === "no" || !next || !(word === "neither" && /\bnor\b/i.test(ctx.text.slice(end, end + 80)))'
+        return: >-
+          ({ ruleId: "englishUsagePhrases", messageKey: "review_msg_double_negative",
+          range: { start, end }, alternatives: [caseLike(target, NEGATION_ANY[word])],
+          context: enEvidence(ctx, m.index, end) })
       # "She could not hardly hear", "I can't barely see": hardly is negative already. A
       # do-support negation ("didn't hardly sleep") needs the verb inflected and is left alone.
       - regex: "(?<target>(?<aux>can|could|will|would|should)(?:n['’]t|{{S}}not)|(?<can>can['’]t|cannot)|(?<will>won['’]t))(?={{S}}(?:hardly|scarcely|barely){{E}})"
-        fixer: negationHardly
+        let:
+          kept: 'aux ?? (can ? "can" : will ? "will" : "")'
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+        when: '!hasUserOrCasedWord(ctx, target.replace(/n[''’]t$/i, ""))'
+        return: >-
+          ({ ruleId: "englishUsagePhrases", messageKey: "review_msg_negated_hardly",
+          range: { start, end }, alternatives: [caseLike(target, kept.toLowerCase())],
+          context: enEvidence(ctx, start, end + 12) })
   - id: en.relativeAgreement
     checks: [englishSubjectVerbAgreement, englishPossibleErrors]
     style: match
@@ -7471,11 +8023,50 @@ rules:
     style: match
     message: review_msg_auxiliary_base
     filter: slotFindingsNoOverlap
+    defs:
+      # A past form whose base is not the same word and that no other form shares.
+      questionPastBare:
+        args: "word: string"
+        let:
+          forms: englishVerbForms(word)
+        when: "!(forms && (forms.ambiguous.includes(word) || forms.lemma === word))"
+        return: englishLemma(word, "past")
+      # The base of a past, -s or -ing verb form ("smiled", "says", "writing"), or null. Right
+      # after do + a pronoun subject only a verb fits, so "works" and "used" read as verbs.
+      questionBareOf:
+        args: "word: string"
+        type: string | null
+        let:
+          read: englishWordInfo(word)
+        when: read?.verbs.length
+        return: >-
+          word.endsWith("ing") ? englishLemma(word, "ing")
+          : word.endsWith("s") ? englishLemma(word, "third")
+          : !read.verbs.some((v) => v.form === "past") ? null
+          : questionPastBare(word)
+      questionFinding:
+        args: 'ctx: DetectContext, messageKey: RawFinding["messageKey"], start: number, end: number, alternatives: string[]'
+        return: >-
+          finding("englishAuxiliaryBaseVerb", messageKey, start, end, alternatives, {
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          context: enEvidence(ctx, start, end) })
     frames:
       # "Tell me how did he smiled", "what does it means", "How do I typically writing…".
       - regex: "(?:(?:what|how|why|where|when)(?:{{S}}[a-z]+)?{{S}}(?:do|does|did){{S}}{{QUESTIONSLOTS_PRONOUN}}|(?:who|which){{S}}(?:do|does|did){{S}}(?:i|we|they|he|she)){{QUESTIONSLOTS_ADVERB}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: questionDoBase
+        let:
+          lead: m[0].slice(0, -verb.length)
+          base: questionBareOf(verb)
+        when:
+          - verb === verb.toLowerCase() && !ctx.dictionary.has(verb)
+          # "what did he used to do" still wants "use". After who/which, "it" and "you" may be
+          # the object of do: "the shop who does it tells me". "What do you guys think?": a
+          # plural noun in apposition to you/we/they.
+          - '!(/s$/.test(verb) && englishWordInfo(verb)?.noun && /\b(?:you|we|they)\s+$/i.test(lead))'
+          - base && base !== verb && base !== "be"
+        return: >-
+          questionFinding(ctx, "review_msg_auxiliary_base", m.indices!.groups!.verb[0],
+          m.indices!.groups!.verb[1], [caseLike(verb, base)])
   - id: en.questionAuxiliaries.doModal
     checks: [englishAuxiliaryBaseVerb]
     style: match
@@ -7484,7 +8075,18 @@ rules:
     frames:
       # "Does anyone can help?", "How does the client would like…": the modal leads the question.
       - regex: "(?<target>(?<aux>do|does|did)(?<subject>{{S}}{{QUESTIONSLOTS_SUBJECT}}){{S}}(?<modal>{{QUESTIONSLOTS_MODAL}})){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: questionDoModal
+        let:
+          # A clause start or a question word right before the auxiliary.
+          before: ctx.text.slice(Math.max(0, m.index - 12), m.index)
+          read: englishWordInfo(verb)
+        when:
+          - 'enAfterBreak(ctx, m.index) || /\b(?:what|how|why|where|when|which)[ \t ]+$/i.test(before)'
+          - "!hasUserOrCasedWord(ctx, `${subject} ${modal} ${verb}`)"
+          # The modal must be the auxiliary: a base verb after it ("can provide", "would like").
+          - read?.verbs.some((v) => v.form === "base" && v.lemma === verb)
+        return: >-
+          questionFinding(ctx, "review_msg_question_auxiliary", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [`${caseLike(aux, modal.toLowerCase())}${subject}`])
   - id: en.questionAuxiliaries.didPerfect
     checks: [englishAuxiliaryBaseVerb]
     style: match
@@ -7493,7 +8095,17 @@ rules:
     frames:
       # "Did you have entered your PIN?", "Did the dog has been fed?": a perfect question.
       - regex: "(?<target>(?<aux>did)(?<subject>{{S}}{{QUESTIONSLOTS_SUBJECT}}){{S}}(?:has|have)){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: questionDidPerfect
+        let:
+          read: englishWordInfo(verb)
+          plural: '/^\s*(?:i|you|we|they)$/i.test(subject.trim())'
+        when:
+          - "enAfterBreak(ctx, m.index) && !hasUserOrCasedWord(ctx, `${subject} ${verb}`)"
+          # "Did you have fun", "Did they have lunch": have is the main verb there.
+          - verb === "been" || read?.verbs.some((v) => v.form === "participle")
+          - '!read?.verbs.some((v) => v.form === "base" && v.lemma === verb)'
+        return: >-
+          questionFinding(ctx, "review_msg_question_auxiliary", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [`${caseLike(aux, plural ? "have" : "has")}${subject}`])
   - id: en.questionAuxiliaries.repeated
     checks: [englishAuxiliaryBaseVerb]
     style: match
@@ -7503,33 +8115,124 @@ rules:
       # "Can I can count on you?": the auxiliary written twice.
       - regex: "(?<first>{{QUESTIONSLOTS_MODAL}})(?<subject>{{S}}{{QUESTIONSLOTS_PRONOUN}}){{S}}(?<second>{{QUESTIONSLOTS_MODAL}}){{E}}"
         owner: second
-        fixer: questionRepeatedModal
+        let:
+          question: '/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160))'
+          asked: "`${first}${subject}`"
+          told: "`${caseLike(first, subject.trim())} ${second.toLowerCase()}`"
+        when: first.toLowerCase() === second.toLowerCase() && enAfterBreak(ctx, m.index)
+        return: >-
+          questionFinding(ctx, "review_msg_repeated_auxiliary", m.indices!.groups!.first[0],
+          m.indices!.groups!.second[1], question ? [asked] : [asked, told])
       # "I have already have one". "have already had" is fine; only the same form twice.
       - regex: "(?<first>have|has){{S}}(?<adverb>already|ever|really|eventually|never|also|just|still|always|actually|definitely|probably|recently|finally){{S}}(?<second>have|has){{E}}"
         owner: second
-        fixer: questionRepeatedHave
+        # "have already had" is fine; only the same form twice.
+        when: first.toLowerCase() === second.toLowerCase()
+        return: >-
+          questionFinding(ctx, "review_msg_repeated_auxiliary", m.indices!.groups!.first[0],
+          m.indices!.groups!.second[1], [caseLike(first, `${adverb} ${second}`), `${first} ${adverb}`])
   - id: en.causativeThird
     checks: [englishVerbComplements]
     style: match
     message: review_msg_causative_base
     filter: slotFindings
+    defs:
+      # Verbs that the object of a causative does rather than becomes: "make it works", "makes me
+      # wonders".
+      QUESTION_CAUSED: /^(?:works|happens|runs|seems|sounds|looks|fails|moves|stops|loads|starts|compiles|crashes|fits|appears|disappears|lasts|stays|loops|wonders|laughs|smiles|cries|thinks|feels|realizes|believes|wants|wishes|forgets|remembers|knows|understands)$/
     frames:
       # "make it works", "let me knows": a causative's verb stays bare. Not help ("the help it
       # needs", "help them includes"), whose object may end a clause.
       - regex: "(?<head>make|makes|made|making|let|lets|letting|have|had){{S}}(?<object>me|him|her|it|us|them|you){{S}}(?<verb>[a-z]+s){{E}}"
         owner: verb
-        fixer: questionCausative
+        let:
+          have: /^ha/i.test(head)
+          reaction: QUESTION_CAUSED.test(verb)
+          read: englishWordInfo(verb)
+          tail: ctx.text.slice(m.index + m[0].length)
+          # "make it works.", "makes me wonders,": a verb that no one makes into a plural object,
+          # at the clause end.
+          closed: 'reaction && /^[ \t ]*(?:[.!?,;:)\n]|$)/.test(tail)'
+          next: '/^[ \t ]{1,8}([a-z]+)/.exec(tail)?.[1]'
+          after: >-
+            (read.noun || read.plural) && next && !/^(?:up|out|down|like|well|better|fine|again|now)$/.test(next)
+            ? englishWordInfo(next) : null
+          base: englishLemma(verb, "third")
+        when:
+          # "have them ready", "had it fixed": have only with a verb that cannot be a noun object.
+          - "!(have && !reaction)"
+          - "!ctx.dictionary.has(verb)"
+          # "the board you made me has been…": an auxiliary there is the verb of the outer clause.
+          - "!(/^(?:has|is|was|does)$/.test(verb) && !/^let/i.test(head))"
+          # "The person who made it seems happy": a relative clause ends at the object.
+          - '!/\b(?:who|that|which|whom)[ \t ]{1,8}$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
+          - read?.verbs.some((v) => v.form === "third")
+          - '!/^[ \t ]{1,8}of\b/i.test(tail)'
+          # "made us friends", "makes them objects of lust", "makes me nuts": a plural noun
+          # complement; only an adverb, adjective or particle after it shows the verb.
+          - "!(read.noun || read.plural) || next || closed"
+          - >-
+            !(read.noun || read.plural) || !next || /^(?:up|out|down|like|well|better|fine|again|now)$/.test(next) ||
+            (!!after && !after.noun && !after.plural && !after.verbs.length)
+          - base && base !== verb
+        return: >-
+          ({ ruleId: "englishVerbComplements", messageKey: "review_msg_causative_base",
+          range: { start: m.indices!.groups!.verb[0], end: m.indices!.groups!.verb[1] },
+          alternatives: [caseLike(verb, base)], context: enEvidence(ctx, m.index, m.indices!.groups!.verb[1]) })
   - id: en.superlativeArticle
     checks: [englishPhraseCorrections]
     style: match
     message: review_msg_superlative_the
     filter: usSlots
+    defs:
+      # The plain adjective behind a regular -er or -est form ("hotter", "happiest"), or null.
+      comparisonPlain:
+        args: "word: string, suffix: string"
+        type: string | null
+        let:
+          read: englishWordInfo(word)
+          stem: word.slice(0, -suffix.length)
+        when:
+          - word.endsWith(suffix)
+          # "number" is a noun, not numb + -er.
+          - read?.adjective && !read.noun
+        # hard-er, nic-er, happi-er, bigg-er.
+        return: >-
+          [stem, `${stem}e`, /i$/.test(stem) ? `${stem.slice(0, -1)}y` : "",
+          /([b-df-hj-np-tv-z])\1$/.test(stem) ? stem.slice(0, -1) : ""].find((c) => c.length > 2 &&
+          englishWordInfo(c)?.adjective) ?? null
+      comparisonSuperlative:
+        args: "word: string"
+        return: 'word === "best" || word === "worst" || !!comparisonPlain(word, "est")'
+      # Superlatives that name a thing or a role without "the": "best friends", "best man", "best
+      # practice", "worst case", "best value", "highest priority".
+      COMPARISON_SET_PHRASES: /^(?:friends?|man|men|practices?|case|value|priority|quality|effort|seller|sellers|interests?|regards|wishes)$/
     frames:
       # "Kyoto is an oldest city": a/an before a superlative and its noun is "the". A bare one
       # after be ("is hottest city") is articles.ts's superlativeThe.
       - regex: "(?<article>an?){{S}}(?<adjective>best|worst|[a-z]+est){{S}}(?<noun>[a-z]+){{E}}"
         owner: article
-        fixer: comparisonSuperlativeArticle
+        let:
+          read: englishWordInfo(noun)
+          end: m.index + m[0].length
+          closes: '/^[ \t ]{0,8}(?:[.!?,;:]|$)/.test(ctx.text.slice(end, end + 10))'
+          isNoun: "read ? read.noun && !read.adverb && (!read.adjective || closes) : !!enNounOnly(noun)"
+          next: enTokensAfter(ctx, end, 1)[0]
+          nextWord: next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower)
+          after: "nextWord ? englishWordInfo(next.lower) : null"
+          start: m.indices!.groups!.article[0]
+          articleEnd: m.indices!.groups!.article[1]
+        when:
+          - comparisonSuperlative(adjective) && !COMPARISON_SET_PHRASES.test(noun) && !ctx.dictionary.has(noun)
+          - "!EN_FUNCTION_WORDS.has(noun) && !hasUserOrCasedWord(ctx, m[0])"
+          # "a best choice": a noun that is also an adjective must close the phrase.
+          - isNoun && !read?.verbs.some((v) => v.form === "participle" || v.form === "past")
+          # "a best in class service", "a latest cell phone": a classifier compound.
+          - "!nextWord || !(!after || after.noun || after.plural || enNounOnly(next.lower))"
+        return: >-
+          ({ ruleId: "englishPhraseCorrections", messageKey: "review_msg_superlative_the",
+          range: { start, end: articleEnd }, alternatives: [caseLike(article, "the")],
+          context: enEvidence(ctx, m.index, end) })
   - id: en.lessComparative
     checks: [englishDoubledDegree]
     style: match
@@ -7539,7 +8242,16 @@ rules:
       # "This is less harder", "the least hardest task": less/least take the plain adjective.
       - regex: "(?<!\\bat{{S}})(?<degree>less|least){{S}}(?<adjective>[a-z]+(?:er|est)){{E}}"
         owner: adjective
-        fixer: comparisonLessComparative
+        let:
+          plain: >-
+            comparisonPlain(adjective, "er") ??
+            (degree.toLowerCase() === "least" ? comparisonPlain(adjective, "est") : null)
+          start: m.indices!.groups!.adjective[0]
+          end: m.indices!.groups!.adjective[1]
+        when: plain && !hasUserOrCasedWord(ctx, adjective)
+        return: >-
+          finding("englishDoubledDegree", "review_msg_doubled_degree", start, end, [plain],
+          { context: enEvidence(ctx, m.index, end) })
   - id: en.comparisonThen
     checks: [englishThenThan]
     style: match
@@ -7548,17 +8260,358 @@ rules:
     frames:
       # "return more then one tag", "less then ten", "more then happy": then after a comparison.
       - regex: "(?:more|less|fewer|rather){{S}}(?<target>then){{S}}(?:\\d|(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|hundred|half|once|twice|enough|happy|willing|glad|ever|usual|expected|necessary){{E}})"
-        fixer: comparisonComparisonThen
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+        return: >-
+          ({ ruleId: "englishThenThan", messageKey: "review_msg_then_than", range: { start, end },
+          alternatives: [caseLike(target, "than")], context: enEvidence(ctx, m.index, end) })
   - id: en.collocations
     checks: [englishFixedPrepositions]
     style: match
     message: review_msg_fixed_prepositions
     filter: usSlots
+    sets:
+      COLLOCATION_BE: [is, are, was, were, am, be, been, being, feel, felt, feels, seem, seems]
+      COLLOCATION_POSSESSIVES: [my, your, his, her, its, our, their]
+    defs:
+      # A plain word the lexicon knows: not a name, a typo or a token glued to code.
+      collocationKnown:
+        args: "token: EnToken | undefined"
+        return: >-
+          token?.kind === "word" && (EN_FUNCTION_WORDS.has(token.lower) ||
+          !!englishWordInfo(token.lower) || !!enListedNoun(token.lower))
+      # "believe to be": a base verb makes it an infinitive.
+      collocationNoInfinitive:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        return: '!read?.verbs.some((v) => v.form === "base" && v.lemma === word) || !!read?.noun'
+      # The guards of the head table get the context, the head word and the 4 tokens after it
+      # (the preposition first).
+      # The word after the preposition opens a noun phrase: no verb, adverb or clause word.
+      # "afraid of the dark", but not a determiner left hanging ("discussed about the").
+      collocationObject:
+        args: "_ctx: DetectContext, _head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        let:
+          next: after[1]
+        return: >-
+          !next ? false
+          : next.kind === "number" ? true
+          : next.kind !== "word" ? false
+          : EN_OBJECT_PRONOUNS.has(next.lower) ? true
+          : EN_DETERMINERS.has(next.lower) || COLLOCATION_POSSESSIVES.has(next.lower) ? collocationKnown(after[2])
+          : EN_FUNCTION_WORDS.has(next.lower) || !collocationKnown(next) ? false
+          : collocationNoInfinitive(next.lower)
+      # A person after the preposition: an object pronoun or a determiner and noun.
+      collocationPerson:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          !!after[1] && after[1].kind === "word" &&
+          (/^(?:me|him|her|us|them|you|everyone|everybody|people)$/.test(after[1].lower) ||
+          (COLLOCATION_POSSESSIVES.has(after[1].lower) && collocationObject(ctx, head, after)))
+      # Only a pronoun person: "kind with him", not "kind with your words".
+      collocationPronoun:
+        args: "_ctx: DetectContext, _head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: "!!after[1] && /^(?:me|him|her|us|them|you|everyone|everybody|people|others)$/.test(after[1].lower)"
+      # A linking verb right before the adjective: "is guilty for", not "felt guilty for leaving".
+      collocationAfterBe:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          EN_BE_FINITE.has(enWordBefore(ctx, head.start)) && collocationObject(ctx, head, after) &&
+          !/ing$/.test(after[1].lower)
+      # "similar with": not "with respect to".
+      collocationSimilarWith:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && (!after[1] || !/^(?:respect|regard)$/.test(after[1].lower))
+      # "similar as": not "as similar as", "so similar as".
+      collocationSimilarAs:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && !/^(?:as|so|how|too)$/.test(enWordBefore(ctx, head.start))
+      # "far of": not "far of a", "so far of".
+      collocationFarOf:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && (!after[1] || !/^(?:a|an)$/.test(after[1].lower)) &&
+          !/^(?:so|thus|as|how|too)$/.test(enWordBefore(ctx, head.start))
+      # "married with" a spouse after a form of "be" or "get".
+      collocationMarriedWith:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationSpouse(ctx, head, after) &&
+          /^(?:get|gets|got|getting|be|been|being|is|are|was|were|am)$/.test(enWordBefore(ctx, head.start))
+      # "marry with" a spouse, not "got married with", "happily married with".
+      collocationMarryWith:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationSpouse(ctx, head, after) &&
+          !/^(?:get|gets|got|getting|be|been|being|is|are|was|were|am|happily|newly|recently|once|still|just|now|not)$/.test(enWordBefore(ctx, head.start))
+      # "invest on": not "on behalf of".
+      collocationInvestOn:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && (!after[1] || !/^behalf$/.test(after[1].lower))
+      # "suffering of" after a form of "be".
+      collocationSufferingOf:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && COLLOCATION_BE.has(enWordBefore(ctx, head.start))
+      # "lack of", "mention about" as a verb in a clause.
+      collocationVerbObject:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) && collocationVerbSlot(ctx, head)
+      # A line break before the verb may end a heading or list item: "We\ndiscussed about".
+      collocationDiscuss:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          collocationObject(ctx, head, after) &&
+          !/\n[ \t]*$/.test(ctx.text.slice(Math.max(0, head.start - 8), head.start))
+      # A verb in a clause: after a subject, modal, "to" or do-form ("they lack of", not "the
+      # lack of").
+      collocationVerbSlot:
+        args: "ctx: DetectContext, head: EnToken"
+        let:
+          before: enWordBefore(ctx, head.start)
+        return: >-
+          EN_SUBJECT_PRONOUNS.has(before) ||
+          /^(?:to|will|would|can|could|should|may|might|must|do|does|did|don['’]t|doesn['’]t|didn['’]t|please|also|still|really|often|never|always|just|people|many|most|some|kids|children|users)$/.test(before)
+      # Adverbial phrases that open with the typed preposition: "satisfied of course", "proud on
+      # that day", "interested at first", "scared from the start". "discussed about five
+      # issues": "about" as "roughly".
+      COLLOCATION_IDIOM: >-
+        ({
+        of: /^course$/,
+        at: /^(?:first|last|least|all|once|times|present|home|work|night|the (?:time|moment|start|end|same)|this (?:point|stage|time)|that (?:point|stage|time))$/,
+        on: /^(?:average|and|top|time|purpose|occasion|behalf|board|paper|balance|the (?:day|whole|other|one|spot|way|weekend)|that (?:day|night|occasion)|this (?:day|occasion)|monday|tuesday|wednesday|thursday|friday|saturday|sunday)$/,
+        from: /^(?:the (?:start|beginning|outset|get|first)|time|then|now|scratch|birth|childhood|day)$/,
+        with: /^(?:no|respect|regard|time|age)$/,
+        to: /^(?:date|this (?:day|point))$/,
+        about: /^(?:time|it|half|[0-9][0-9.,]*|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|a (?:dozen|hundred|thousand|million|few|couple|third|quarter|week|month|year)|an hour)$/,
+        for: /^(?:now|sure|example|instance|good|once|ages|years|hours|days|weeks|months|a (?:while|moment|minute|second|bit|time|long)|the (?:first|second|third|last|next|moment|most|time))$/
+        }) as Record<string, RegExp>
+      collocationIdiom:
+        args: "prep: EnToken, after: readonly EnToken[]"
+        let:
+          pattern: COLLOCATION_IDIOM[prep.lower]
+          one: after[1]?.lower ?? ""
+        return: '!!pattern && (pattern.test(one) || pattern.test(`${one} ${after[2]?.lower ?? ""}`))'
+      # "married with a doctor", not "married with two kids". "married with a three-year-old
+      # daughter": a household, not a spouse.
+      collocationSpouse:
+        args: "ctx: DetectContext, head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        return: >-
+          !!after[1] && after[1].kind === "word" &&
+          (collocationPerson(ctx, head, after) || /^(?:a|an|the)$/.test(after[1].lower)) &&
+          !/^(?:children|kids|no|two|three|four|five|several|many)$/.test(after[1].lower) &&
+          !/^[^.!?;\n]{0,40}?(?:child|children|kids?|bab(?:y|ies)|family|daughters?|sons?|twins|year-old|years? old|dog|cat)\b/i.test(ctx.text.slice(after[1].start, after[1].start + 48))
+      # "believe to ghosts": a bare noun or name, not "believe to be".
+      collocationBareNoun:
+        args: "_ctx: DetectContext, _head: EnToken, after: readonly EnToken[]"
+        type: boolean
+        let:
+          next: after[1]
+        return: >-
+          next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower) &&
+          !!englishWordInfo(next.lower)?.noun && !englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base")
+      # [heads, typed prepositions, the fixed one, guard]. "" as the fixed one deletes the typed
+      # word. A verb head that ends in "+" stands for all its inflections from the lexicon. The
+      # head frame of en.collocations lists every typed preposition (a test checks it).
+      COLLOCATION_ROWS: >-
+        [
+        ["afraid scared frightened terrified", "from", "of", collocationObject],
+        ["interested", "for at", "in", collocationObject],
+        ["full", "with", "of", collocationObject],
+        ["guilty", "for", "of", collocationAfterBe],
+        ["satisfied", "of", "with", collocationObject],
+        ["jealous envious", "on at", "of", collocationObject],
+        ["famous", "of", "for", collocationObject],
+        ["dependent reliant", "of from", "on", collocationObject],
+        ["proud", "on", "of", collocationObject],
+        ["keen", "of", "on", collocationObject],
+        ["tired", "about", "of", collocationObject],
+        ["addicted", "with on", "to", collocationObject],
+        ["allergic", "of from with", "to", collocationObject],
+        ["similar", "with", "to", collocationSimilarWith],
+        ["similar", "as", "to", collocationSimilarAs],
+        ["different", "of", "from", collocationObject],
+        ["angry", "on against", ["with", "at"], collocationPerson],
+        ["crowded filled", "of", "with", collocationObject],
+        ["excited", "of", "about", collocationObject],
+        ["surprised", "of", ["by", "at"], collocationObject],
+        ["disappointed", "from of", ["with", "by", "in"], collocationObject],
+        ["kind", "with", "to", collocationPronoun],
+        ["far", "of", "from", collocationFarOf],
+        ["based", "of", "on", collocationObject],
+        ["regardless", "from", "of", collocationObject],
+        ["married", "with", "to", collocationMarriedWith],
+        ["marry marries married marrying", "with", "", collocationMarryWith],
+        ["participate+", "to", "in", collocationObject],
+        ["consist+", "to from on", "of", collocationObject],
+        ["depend+", "of from", "on", collocationObject],
+        ["rely+", "of", "on", collocationObject],
+        ["believe+", "to", "in", collocationBareNoun],
+        ["recover+", "of", "from", collocationObject],
+        ["invest+", "on", "in", collocationInvestOn],
+        ["specialize+ specialise+", "on", "in", collocationObject],
+        ["resemble+", "to with", "", collocationObject],
+        ["suffer suffers suffered", "of", "from", collocationObject],
+        ["suffering", "of", "from", collocationSufferingOf],
+        ["lack lacks lacked", "of", "", collocationVerbObject],
+        ["discuss+", "about", "", collocationDiscuss],
+        ["mentioned", "about", "", collocationObject],
+        ["mention", "about", "", collocationVerbObject],
+        ["yell+ shout+ scream+", "on", "at", collocationPerson],
+        ["abstain+ refrain+", "of", "from", collocationObject],
+        ["benefited benefitted benefiting benefitting", "of", "from", collocationObject],
+        ["charged", "of", "with", collocationObject],
+        ["comply+", "to", "with", collocationObject],
+        ["persist+", "on", "in", collocationObject],
+        ["retire+", "of", "from", collocationObject],
+        ["differ+", "of", "from", collocationObject],
+        ["participation", "to", "in", collocationObject],
+        ["interest", "about", "in", collocationObject],
+        ["acquainted", "to", "with", collocationObject],
+        ["accused", "for", "of", collocationAfterBe],
+        ["absorbed", "at", "in", collocationObject]
+        ] as const
+      # The base, -s, past, participle and -ing forms of a verb head, as the lexicon spells them.
+      collocationInflections:
+        args: "lemma: string"
+        let:
+          irregular: EN_VERB_FORMS.find((row) => row.lemma === lemma)
+        return: >-
+          [lemma, irregular?.participle, enLexiconInflect(lemma, "third") ?? undefined,
+          enLexiconInflect(lemma, "past") ?? undefined, enLexiconInflect(lemma, "ing") ?? undefined]
+          .filter(Boolean) as string[]
+      # The head table: each form of a head word and its rows.
+      collocationBuild:
+        type: "Map<string, { wrong: ReadonlySet<string>; right: readonly string[]; guard: typeof collocationObject }[]>"
+        return: >-
+          COLLOCATION_ROWS.flatMap(([words, wrong, right, guard]) => words.split(" ")
+          .flatMap((word) => word.endsWith("+") ? collocationInflections(word.slice(0, -1)) : [word])
+          .map((form) => ({ form, entry: { wrong: new Set(wrong.split(" ")), right: typeof right === "string" ? [right] : right, guard } })))
+          .reduce((map, { form, entry }) => map.set(form, [...(map.get(form) ?? []), entry]),
+          new Map<string, { wrong: ReadonlySet<string>; right: readonly string[]; guard: typeof collocationObject }[]>())
+      # The head table is built at the first use.
+      COLLOCATION_TABLE: new Map<string, ReturnType<typeof collocationBuild>>()
+      collocationTable:
+        return: 'COLLOCATION_TABLE.get("heads") ?? COLLOCATION_TABLE.set("heads", collocationBuild()).get("heads")!'
+      # A word of the head table and the wrong preposition after it. A deletion takes the space
+      # after the word, as the phrase templates do ("discuss about ").
+      collocationHead:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          lower: m[0].toLowerCase()
+          entries: collocationTable().get(lower)
+          head: '({ text: m[0], lower, start: m.index, end: m.index + m[0].length, kind: "word" as const })'
+          after: enTokensAfter(ctx, head.end, 4)
+          prep: after[0]
+          entry: "entries.find((e) => e.wrong.has(prep.lower) && (!e.guard || e.guard(ctx, head, after)))"
+          deletion: entry.right.length === 1 && entry.right[0] === ""
+        when:
+          - entries && !ctx.dictionary.has(lower)
+          # Lowercase, or capitalized at a sentence start.
+          - m[0] === lower || m[0] === lower[0].toUpperCase() + lower.slice(1)
+          - prep?.kind === "word" && prep.text === prep.lower && !ctx.dictionary.has(prep.lower)
+          - entry && !collocationIdiom(prep, after) && !namedExampleBefore(ctx.text, head.start)
+        return: >-
+          ({ ruleId: "englishFixedPrepositions", messageKey: "review_msg_fixed_prepositions",
+          range: deletion ? { start: prep.start, end: after[1].start } : { start: prep.start, end: prep.end },
+          alternatives: [...entry.right], ...(entry.right.length > 1 ? { requiresChoice: true as const } : {}),
+          context: enEvidence(ctx, head.start, prep.end) })
+      # The target of a frame is lowercase, or capitalized at a sentence start ("In Monday");
+      # never a user word.
+      collocationOpen:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        let:
+          target: m.groups!.target.trim()
+        return: target.slice(1) === target.slice(1).toLowerCase() && !hasUserOrCasedWord(ctx, m[0])
+      # The finding of a frame: `fixed` for the `target` group.
+      collocationFinding:
+        args: "m: RegExpExecArray, ctx: DetectContext, fixed: string"
+        type: RawFinding
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+        return: >-
+          ({ ruleId: "englishFixedPrepositions", messageKey: "review_msg_fixed_prepositions",
+          range: { start, end }, alternatives: [caseLike(m.groups!.target, fixed)],
+          context: enEvidence(ctx, m.index, end) })
+      # No noun follows: the phrase ends, or a clause or adverb word comes next.
+      collocationPhraseEnd:
+        args: "ctx: DetectContext, end: number"
+        let:
+          next: enTokensAfter(ctx, end, 1)[0]
+        return: >-
+          !next || next.kind === "end" || next.kind === "comma" || (next.kind === "word" &&
+          (EN_FUNCTION_WORDS.has(next.lower) ||
+          /^(?:early|late|safely|tonight|today|yesterday|tomorrow|alone|together|afterwards|before|after)$/.test(next.lower)))
+      # The -ing form of a base verb, or null.
+      collocationIngOf:
+        args: "verb: string"
+        type: string | null
+        let:
+          lower: verb.toLowerCase()
+        when: englishWordInfo(lower)?.verbs.some((v) => v.form === "base" && v.lemma === lower)
+        return: enLexiconInflect(lower, "ing") ?? null
+      collocationDayFix:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: string | null
+        let:
+          before: enWordBefore(ctx, m.index)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when: '!(next?.kind === "word" && /[''’]/.test(next.text))'
+        return: >-
+          /^(?:you|meet|meeting|meetings|class|classes|appointment|party|exam|test|game|match|starts|start|begins|ends|closed|opens|open|due|deadline|leave|leaves|leaving|arrive|arrives|arriving|arrived|born|held|scheduled|planned)$/.test(before) ||
+          (m.groups!.target.toLowerCase() === "at" && enAfterBreak(ctx, m.index)) ? "on" : null
+      collocationLotFix:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: string | null
+        let:
+          noun: m.groups!.noun.toLowerCase()
+        when: "!EN_OBJECT_PRONOUNS.has(enWordBefore(ctx, m.index))"
+        return: >-
+          noun === "people" || (enNounOnly(noun) === "plural" &&
+          !/^(?:times|ways|days|years|months|weeks|hours|minutes|seconds)$/.test(noun)) ? "lot of" : null
+      collocationGerundFix:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: string | null
+        let:
+          head: m.groups!.head
+          verb: m.groups!.verb
+          ing: collocationIngOf(verb)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          object: 'next?.kind === "word" && (EN_DETERMINERS.has(next.lower) || EN_OBJECT_PRONOUNS.has(next.lower))'
+        when:
+          - ing
+          # "succeeded to power in 1990": a noun reading needs an object after it.
+          - "!(englishWordInfo(verb.toLowerCase())?.noun && !object)"
+        return: '`${/^ins/i.test(head) ? "on" : /^suc/i.test(head) ? "in" : "of"} ${ing}`'
     frames:
       # A word that governs a fixed preposition, typed with another one: "afraid from the dark"
       # (of), "participated to the event" (in). Every word from 40 characters before the chunk
-      # is looked up in the head table of collocationSlots, when one of the typed prepositions of
-      # that table comes next (a test keeps the two lists the same).
+      # is looked up in the head table (COLLOCATION_ROWS), when one of the typed prepositions of
+      # that table comes next (a test keeps the two lists the same). The fixer keeps its name:
+      # the test finds the frame by it. review/english/collocationSlots.ts gives the def
+      # collocationHead under that name.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])(?=[ \\t\\u00a0]+(?:about|against|from|with|for|of|on|at|as|to)(?![\\p{L}\\p{M}\\p{N}_@/#\\\\-]|\\.[\\p{L}\\p{N}]))"
         scan: text
         lookback: 40
@@ -7568,88 +8621,292 @@ rules:
       # Wednesday", "slept in Tuesday": particles stay. Only after an event or a meeting, and
       # not before a possessive ("in Friday night's briefing").
       - regex: "(?<target>in|at){{S}}(?:mon|tues|wednes|thurs|fri|satur|sun)days?{{E}}"
-        fixer: collocationDayOn
+        let:
+          fixed: collocationDayFix(m, ctx)
+        when:
+          - collocationOpen(m, ctx)
+          - fixed !== null
+        return: collocationFinding(m, ctx, fixed)
       # "born on 1990", "founded at 2015": a bare year takes "in".
       - regex: "(?:born|died|married|founded|built|established|launched|released|published|started|began|opened|retired|graduated|moved|formed|created){{S}}(?<target>on|at){{S}}(?:1[5-9]|20)[0-9]{2}{{E}}(?![/.:-][0-9])"
-        fixer: collocationYearIn
+        let:
+          fixed: 'collocationPhraseEnd(ctx, m.index + m[0].length) ? "in" : null'
+        when:
+          - collocationOpen(m, ctx)
+          - fixed !== null
+        return: collocationFinding(m, ctx, fixed)
       # "starts in 5 pm": a clock time takes "at".
       - regex: "(?<target>in|on){{S}}(?:[0-9]|1[0-2])(?::[0-5][0-9])?[ \\t\\u00a0]{0,8}(?:am|pm|a\\.m\\.|p\\.m\\.|o['’]clock)(?![\\p{L}\\p{N}])"
-        fixer: collocationClockAt
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "at")
       # "at the morning" → "in"; "on the evening" without "of" → "in".
       - regex: "(?<target>at|on){{S}}the{{S}}(?:morning|afternoon|evening){{E}}"
-        fixer: collocationPartOfDayIn
+        let:
+          # "on the evening of May 5", "on the morning before": a particular day keeps "on".
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - collocationOpen(m, ctx)
+          - >-
+            !next || next.kind === "end" || next.kind === "comma" ||
+            /^(?:and|but|so|because|too|again|together|alone|anyway)$/.test(next.lower)
+        return: collocationFinding(m, ctx, "in")
       # "A lot people came": "a lot of"; not "liked it a lot people say".
       - regex: "(?<![\\p{L}'’])a{{S}}(?<target>lot){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: collocationLotOf
+        let:
+          fixed: collocationLotFix(m, ctx)
+        when:
+          - collocationOpen(m, ctx)
+          - fixed !== null
+        return: collocationFinding(m, ctx, fixed)
       # "between three to five": "between ... and".
       - regex: "between{{S}}{{COLLOCATION_NUMBER}}(?:[ \\t\\u00a0]{0,8}(?:%|am|pm|percent|years|hours|days|weeks|months|minutes))?{{S}}(?<target>to){{S}}{{COLLOCATION_NUMBER}}{{E}}"
-        fixer: collocationBetweenAnd
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "and")
       # "went to home": "home" is the direction itself.
       - regex: "(?:go|goes|going|gone|went|come|comes|coming|came|get|gets|getting|got|return|returns|returned|returning|head|heads|headed|heading|walk|walks|walked|walking|drive|drives|drove|driving|run|runs|ran|running|hurry|hurried|rush|rushed|take|takes|took|taking|bring|brings|brought|send|sends|sent)(?:{{S}}(?:back|straight|directly|me|him|her|us|them|you))?(?<target>{{S}}to){{S}}home{{E}}"
-        fixer: collocationHome
+        when:
+          - collocationOpen(m, ctx)
+          - /home$/.test(m[0]) && collocationPhraseEnd(ctx, m.index + m[0].length)
+        return: collocationFinding(m, ctx, "")
       - regex: "(?:return|returns|returned|returning)(?<target>{{S}}at){{S}}home{{E}}"
-        fixer: collocationHome
+        when:
+          - collocationOpen(m, ctx)
+          - /home$/.test(m[0]) && collocationPhraseEnd(ctx, m.index + m[0].length)
+        return: collocationFinding(m, ctx, "")
       # "stopped him of leaving": hindering verbs take "from".
       - regex: "(?:stop|stops|stopped|stopping|prevent|prevents|prevented|preventing|prohibit|prohibits|prohibited|prohibiting|discourage|discourages|discouraged|discouraging|dissuade|dissuaded|ban|bans|banned|banning){{S}}(?:me|you|him|her|us|them|it|people|others|users|(?:the|my|your|his|her|our|their){{S}}[a-z]+){{S}}(?<target>of){{S}}(?<ing>[a-z]+ing){{E}}"
-        fixer: collocationFrom
+        when:
+          - collocationOpen(m, ctx)
+          - englishWordInfo(ing.toLowerCase())?.verbs.some((v) => v.form === "ing")
+        return: collocationFinding(m, ctx, "from")
       # "insisted to pay" → "insisted on paying"; "succeeded to open", "capable to finish".
       - regex: "(?<head>insist|insists|insisted|insisting|succeed|succeeds|succeeded|succeeding|capable|incapable){{S}}(?<target>to{{S}}(?<verb>[a-z]+)){{E}}"
-        fixer: collocationGerund
+        let:
+          fixed: collocationGerundFix(m, ctx)
+        when:
+          - collocationOpen(m, ctx)
+          - fixed !== null
+        return: collocationFinding(m, ctx, fixed)
       # "listen music", "listened the song": "listen to".
       - regex: "(?<target>listen|listens|listened|listening){{S}}(?:the|a|an|my|your|his|our|their|him|them|us|music|songs?|podcasts?|radio|audiobooks?){{E}}"
-        fixer: collocationListenTo
+        when: collocationOpen(m, ctx)
+        return: "collocationFinding(m, ctx, `${target} to`)"
       # "travel with a bus": "by bus".
       - regex: "(?:travel|travels|traveled|travelled|traveling|travelling|commute|commutes|commuted|commuting){{S}}(?<target>with{{S}}(?:a|the){{S}}(?<vehicle>bus|train|plane|taxi|boat|ship|ferry|subway|metro|tram|coach)){{E}}"
-        fixer: collocationByVehicle
+        when:
+          - collocationOpen(m, ctx)
+          - collocationPhraseEnd(ctx, m.index + m[0].length)
+        return: "collocationFinding(m, ctx, `by ${vehicle}`)"
       - regex: "(?:take|takes|took|taken|taking){{S}}into{{S}}(?:consideration|account)(?<target>{{S}}of){{E}}"
-        fixer: collocationDrop
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "")
       - regex: "in{{S}}front{{S}}(?<target>to){{S}}(?=(?:the|a|an|my|your|his|her|our|their|this|that|these|those|me|him|us|them|everyone){{E}})"
-        fixer: collocationInFrontOf
+        when:
+          - collocationOpen(m, ctx)
+          # "from the sternum in front to the spine behind": a span, not "in front of".
+          - '!/\bfrom\b[^.!?;]*$/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index))'
+        return: collocationFinding(m, ctx, "of")
       # "in my birthday" → "on"; "in page 21" → "on"; "in the left hand side" → "on".
       - regex: "(?<target>in){{S}}(?:my|your|his|her|our|their|the){{S}}birthday{{E}}"
-        fixer: collocationBirthdayOn
+        when:
+          - collocationOpen(m, ctx)
+          - collocationPhraseEnd(ctx, m.index + m[0].length)
+        return: collocationFinding(m, ctx, "on")
       - regex: "(?<target>in){{S}}page{{S}}[0-9]+{{E}}"
-        fixer: collocationOn
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "on")
       - regex: "(?<target>in){{S}}the{{S}}(?:left|right)(?:(?:{{S}}|-)hand)?{{S}}side{{E}}"
-        fixer: collocationOn
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "on")
       - regex: "in{{S}}exchange{{S}}(?<target>of){{E}}"
-        fixer: collocationFor
+        when: collocationOpen(m, ctx)
+        return: collocationFinding(m, ctx, "for")
   - id: en.tenseTimeWords
     checks: [englishTenseConsistency]
     style: match
     message: review_msg_tense_time_word
     filter: usSlots
+    defs:
+      # Reporting, planning and wishing verbs move the time word into another clause: "I thought
+      # we left tomorrow", "we agreed last week that we will meet".
+      TENSE_OTHER_CLAUSE: /\b(?:if|unless|wish|wished|as though|as if|would|could|might|should|said|says|told|tell|thought|think|hoped|hope|planned|plan|decided|agreed|promised|expected|knew|know|realized|realised|guessed|assumed|supposed|announced|confirmed|scheduled|booked|arranged|that|when|whether|because|until|rather|time)\b/i
+      TENSE_NO_WORDS_BETWEEN: /\b(?:to|that|if|when|until|before|after|because|and|but|or|so|than|while|since|which|who|for|about|of|by|from|on|in|at)\b/i
+      TENSE_MODAL_OR_BE: /^(?:was|were|had|did|could|would|should|might|must|used|got|went|left|came|thought|said|told|knew)$/
+      # Arranging verbs name the date of what was arranged: "we booked a room on 5 May".
+      TENSE_ARRANGING: /^(?:book|reserve|order|schedule|plan|arrange|set|register|enrol|enroll|apply|request|invite|postpone|move|reschedule|delay|push|fix|agree|promise|confirm|announce|cancel)$/
+      # A word the lexicon reads only as a past form: "visited", "wrote"; not "put" or "read".
+      tensePastOnly:
+        args: "word: string"
+        type: string | null
+        let:
+          lower: word.toLowerCase()
+          read: englishWordInfo(lower)
+          past: read.verbs.find((v) => v.form === "past")
+        when:
+          - "!EN_FUNCTION_WORDS.has(lower) && !TENSE_MODAL_OR_BE.test(lower)"
+          - read && !read.noun
+          - past && !read.verbs.some((v) => v.form === "base" || v.form === "third")
+          - "!TENSE_ARRANGING.test(past.lemma)"
+        return: past.lemma
+      # The simple past of a base verb: "call" -> "called", "go" -> "went".
+      tensePastOf:
+        args: "lemma: string"
+        type: string | null
+        let:
+          read: englishWordInfo(lemma)
+        when:
+          - read?.verbs.some((v) => v.form === "base" && v.lemma === lemma)
+          - "!/^(?:be|have|do)$/.test(lemma)"
+        return: 'EN_VERB_FORMS.find((row) => row.lemma === lemma)?.past ?? enLexiconInflect(lemma, "past") ?? null'
+      # The text of the sentence before `index`.
+      tenseSentenceBefore:
+        args: "ctx: DetectContext, index: number"
+        return: '/[^.!?\n]*$/.exec(ctx.text.slice(Math.max(0, index - 200), index))![0]'
+      # The word before a closing time word is no preposition or verb: "call him yesterday".
+      # "painted the fence": a noun that is also a verb, after its determiner.
+      tenseObjectBefore:
+        args: "ctx: DetectContext, index: number"
+        type: boolean
+        let:
+          before: enWordBefore(ctx, index)
+        return: >-
+          EN_OBJECT_PRONOUNS.has(before) || (!!before && !EN_FUNCTION_WORDS.has(before) &&
+          (!!enNounOnly(before) || (!!englishWordInfo(before)?.noun &&
+          EN_DETERMINERS.has(enWordBefore(ctx, ctx.text.lastIndexOf(before, index) || index)))))
+      # The time word may be the slip instead: nothing is preselected.
+      tenseFinding:
+        args: 'ctx: DetectContext, start: number, end: number, alternatives: string[], messageKey: "review_msg_tense_time_word" | "review_msg_future_date_past" | "review_msg_past_date_future", from: number'
+        return: >-
+          finding("englishTenseConsistency", messageKey, start, end, alternatives, {
+          ...(alternatives.length ? { requiresChoice: true as const } : { warningOnly: true as const }),
+          context: enEvidence(ctx, from, end) })
+      TENSE_MONTHS: '["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]'
+      tenseAt:
+        args: "year: number, month: number, day: number"
+        type: "[year: number, month: number, day: number][]"
+        return: "dayCount(year, month, day) === null ? [] : [[year, month, day]]"
+      tenseMonth:
+        args: "name: string"
+        return: TENSE_MONTHS.indexOf(name.slice(0, 3).toLowerCase()) + 1
+      # Every reading of a typed date (month 1 to 12); an all-numeric day and month can swap.
+      tenseDateReadings:
+        args: "g: Record<string, string | undefined>"
+        type: "[year: number, month: number, day: number][]"
+        return: >-
+          g.a ? [...tenseAt(+g.y1!, +g.b!, +g.a), ...tenseAt(+g.y1!, +g.a, +g.b!)]
+          : g.d2 ? tenseAt(+g.y2!, tenseMonth(g.m2!), +g.d2)
+          : tenseAt(+g.y3!, tenseMonth(g.m3!), +g.d3!)
+      # "Tomorrow we visited", "We visited them tomorrow": the future asks for "will".
+      tenseFutureWordPastVerb:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          target: m.groups!.target
+          lemma: tensePastOnly(target)
+          between: m.groups!.between
+        when:
+          - lemma && !hasUserOrCasedWord(ctx, target)
+          - >-
+            between === undefined || (!TENSE_NO_WORDS_BETWEEN.test(between) &&
+            tenseObjectBefore(ctx, m.indices!.groups!.when[0]))
+          - "!TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))"
+        return: >-
+          tenseFinding(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1],
+          [`will ${lemma}`], "review_msg_tense_time_word", m.index)
+      # "Yesterday I will call him", "We will call him two days ago": the past asks for the past.
+      tensePastWordFutureVerb:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          between: m.groups!.between
+          past: tensePastOf(m.groups!.verb.toLowerCase())
+          typed: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          # "we'll call": the apostrophe of the contraction goes too.
+          contracted: /['’]$/.test(ctx.text.slice(typed - 1, typed))
+        when:
+          - past && !hasUserOrCasedWord(ctx, m.groups!.target)
+          - >-
+            between === undefined || (!TENSE_NO_WORDS_BETWEEN.test(between) &&
+            tenseObjectBefore(ctx, m.indices!.groups!.when[0]))
+          - "!TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))"
+        return: >-
+          tenseFinding(ctx, contracted ? typed - 1 : typed, end, [contracted ? ` ${past}` : past],
+          "review_msg_tense_time_word", m.index)
+      # "We visited the client on 27/10/2090": a past verb on a date that is still to come.
+      # Every reading is more than a day after today on the Review clock.
+      tenseFutureDatePastVerb:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          g: m.groups!
+          readings: tenseDateReadings(g)
+          word: (g.part ?? g.simple).toLowerCase()
+          read: englishWordInfo(word)
+          verbStart: m.indices!.groups!.verb[0]
+          # "have visited", but "will have visited" stays future.
+          past: >-
+            g.part ? read?.verbs.some((v) => v.form === "participle" && !TENSE_ARRANGING.test(v.lemma)) &&
+            !/\b(?:will|shall|would|'ll)\s*$/i.test(ctx.text.slice(Math.max(0, verbStart - 12), verbStart))
+            : !!tensePastOnly(word)
+        when:
+          - readings.length && !readings.some((r) => dateSide(...r) !== "future")
+          - g.between === undefined || !TENSE_NO_WORDS_BETWEEN.test(g.between)
+          - "!TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))"
+          - past
+        return: >-
+          tenseFinding(ctx, m.indices!.groups!.date[0], m.indices!.groups!.date[1], [],
+          "review_msg_future_date_past", m.index)
+      # "We will visit the client on 27/10/2025" when that date has passed: a future verb on a
+      # past date. Only a date of the last three years: older dates are history, which can use
+      # "will" for the future in the past.
+      tensePastDateFutureVerb:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          g: m.groups!
+          readings: tenseDateReadings(g)
+          inf: g.inf.toLowerCase()
+        when:
+          - readings.length && readings.every((r) => recentPast(...r))
+          - g.between === undefined || !TENSE_NO_WORDS_BETWEEN.test(g.between)
+          - "!TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))"
+          # "will have visited" is a future perfect; the verb must be a base form.
+          - inf !== "have" && englishWordInfo(inf)?.verbs.some((v) => v.form === "base")
+        return: >-
+          tenseFinding(ctx, m.indices!.groups!.date[0], m.indices!.groups!.date[1], [],
+          "review_msg_past_date_future", m.index)
     frames:
       # "Tomorrow we visited", "We visited them tomorrow": the future asks for "will".
       - regex: "{{TENSE_START}}{{TENSE_FUTURE_WORD}},?{{S}}{{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+){{E}}(?!['’])"
-        fixer: tenseFutureWordPastVerb
+        return: tenseFutureWordPastVerb(m, ctx)
       - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+)(?<between>(?:{{S}}[a-z]+){0,4}){{S}}(?<when>{{TENSE_FUTURE_WORD}}){{E}}(?![ \\t\\u00a0]*['’])(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)"
-        fixer: tenseFutureWordPastVerb
+        return: tenseFutureWordPastVerb(m, ctx)
       # "Yesterday I will call him", "We will call him two days ago": the past asks for the past.
       - regex: "{{TENSE_START}}(?:{{TENSE_PAST_WORD}}|{{TENSE_AGO}}),?{{S}}{{TENSE_SUBJECT}}(?:{{S}}|['’])(?<target>(?:will|shall|ll){{S}}(?<verb>[a-z]+)){{E}}"
-        fixer: tensePastWordFutureVerb
+        return: tensePastWordFutureVerb(m, ctx)
       - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}(?:{{S}}|['’])(?<target>(?:will|shall|ll){{S}}(?<verb>[a-z]+))(?<between>(?:{{S}}[a-z]+){1,4}){{S}}(?<when>{{TENSE_PAST_WORD}}|{{TENSE_AGO}}){{E}}(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)"
-        fixer: tensePastWordFutureVerb
+        return: tensePastWordFutureVerb(m, ctx)
       # "We visited the client on 27/10/2090": a past verb on a date that is still to come.
       - regex: "{{TENSE_START}}On{{S}}{{TENSE_DATE}},?{{S}}{{TENSE_SUBJECT}}{{S}}{{TENSE_PERFECT_ADVERB}}{{TENSE_VERB_PHRASE}}{{E}}"
         owner: date
         message: review_msg_future_date_past
-        fixer: tenseFutureDatePastVerb
+        return: tenseFutureDatePastVerb(m, ctx)
       - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}{{S}}{{TENSE_PERFECT_ADVERB}}{{TENSE_VERB_PHRASE}}(?<between>(?:{{S}}[a-z]+){0,4}){{S}}on{{S}}{{TENSE_DATE}}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)"
         owner: date
         message: review_msg_future_date_past
-        fixer: tenseFutureDatePastVerb
+        return: tenseFutureDatePastVerb(m, ctx)
       # "We will visit the client on 27/10/2025" when that date has passed: a future verb on a
       # past date. Only a date of the last three years: older dates are history, which can use
       # "will" for the future in the past.
       - regex: "{{TENSE_START}}On{{S}}{{TENSE_DATE}},?{{S}}{{TENSE_SUBJECT}}(?:{{S}}|['’])(?:will|shall|ll){{S}}(?<inf>[a-z]+){{E}}"
         owner: date
         message: review_msg_past_date_future
-        fixer: tensePastDateFutureVerb
+        return: tensePastDateFutureVerb(m, ctx)
       - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}(?:{{S}}|['’])(?:will|shall|ll){{S}}(?<inf>[a-z]+)(?<between>(?:{{S}}[a-z]+){0,4}){{S}}on{{S}}{{TENSE_DATE}}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)"
         owner: date
         message: review_msg_past_date_future
-        fixer: tensePastDateFutureVerb
+        return: tensePastDateFutureVerb(m, ctx)
   - id: en.noForNot
     checks: [englishConfusedWords]
     style: match
@@ -8760,42 +10017,375 @@ rules:
     style: match
     message: review_msg_canonical_casing
     filter: usOutsideExamples
+    sets:
+      # Product names that are also verbs: "to excel", "to react".
+      NAMES_VERBS: [excel, google, kindle, react]
+      # The nouns that only the product has.
+      NAMES_EXCEL_NOUNS:
+        [
+          file,
+          files,
+          sheet,
+          sheets,
+          spreadsheet,
+          spreadsheets,
+          workbook,
+          workbooks,
+          document,
+          documents,
+          formula,
+          formulas,
+          table,
+          tables,
+          macro,
+          macros,
+          chart,
+          charts,
+          skills,
+        ]
+      NAMES_WORD_NOUNS: [document, documents, doc, docs, docx, file, files, template, templates]
+      NAMES_OUTLOOK_NOUNS:
+        [mail, mails, email, emails, inbox, calendar, invite, invites, account, app, client]
+      NAMES_CHROME_NOUNS: [browser, devtools, tab, tabs]
+      NAMES_OPERA_NOUNS: [browser]
+      NAMES_GOOGLE_NOUNS:
+        [
+          doc,
+          account,
+          accounts,
+          assistant,
+          scholar,
+          earth,
+          workspace,
+          trends,
+          traffic,
+          results,
+          ranking,
+          rankings,
+        ]
+      NAMES_TWITTER_NOUNS:
+        [account, accounts, feed, handle, post, posts, followers, thread, threads]
+      NAMES_SLACK_NOUNS: [channel, channels, workspace, workspaces, app, bot]
+      NAMES_KINDLE_NOUNS: [app, device, tablet, edition, store, paperwhite, unlimited, reader]
+      NAMES_REACT_NOUNS:
+        [app, apps, component, components, hook, hooks, native, router, developer, plugin]
+      NAMES_MAC_NOUNS:
+        [app, apps, user, users, computer, computers, laptop, laptops, version, keyboard]
+      NAMES_WINDOWS_NOUNS:
+        [
+          "10",
+          "11",
+          "7",
+          "8",
+          xp,
+          vista,
+          server,
+          update,
+          updates,
+          pc,
+          pcs,
+          laptop,
+          laptops,
+          machine,
+          machines,
+          user,
+          users,
+          computer,
+          computers,
+          version,
+          defender,
+          explorer,
+          store,
+        ]
+      NAMES_APPLE_NOUNS:
+        [
+          inc,
+          employee,
+          employees,
+          stock,
+          shares,
+          products,
+          device,
+          devices,
+          account,
+          store,
+          stores,
+          silicon,
+          pencil,
+        ]
+    maps:
+      NAMES_PRODUCT:
+        {
+          excel: Excel,
+          word: Word,
+          outlook: Outlook,
+          chrome: Chrome,
+          opera: Opera,
+          google: Google,
+          twitter: Twitter,
+          slack: Slack,
+          kindle: Kindle,
+          react: React,
+          mac: Mac,
+          windows: Windows,
+          apple: Apple,
+        }
+    defs:
+      # Brand names that are also ordinary words ("excel", "word", "chrome"): only before a noun
+      # that only the product has. Products named in the names table ("Google Docs") are matched
+      # there.
+      NAMES_PRODUCT_NOUNS: >-
+        ({ excel: NAMES_EXCEL_NOUNS, word: NAMES_WORD_NOUNS, outlook: NAMES_OUTLOOK_NOUNS, chrome: NAMES_CHROME_NOUNS, opera: NAMES_OPERA_NOUNS, google: NAMES_GOOGLE_NOUNS, twitter: NAMES_TWITTER_NOUNS, slack: NAMES_SLACK_NOUNS, kindle: NAMES_KINDLE_NOUNS, react: NAMES_REACT_NOUNS, mac: NAMES_MAC_NOUNS, windows: NAMES_WINDOWS_NOUNS, apple: NAMES_APPLE_NOUNS }) as Record<string, ReadonlySet<string> | undefined>
+      namesContext:
+        args: "ctx: DetectContext, start: number, end: number"
+        return: "({ start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 40) })"
+      NAMES_TENS: '["", "X", "XX", "XXX", "XL", "L", "LX", "LXX", "LXXX", "XC"]'
+      NAMES_ONES: '["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"]'
+      namesRoman:
+        args: "n: number"
+        return: NAMES_TENS[Math.floor(n / 10)] + NAMES_ONES[n % 10]
     frames:
       # Brand names that are also ordinary words ("excel", "word", "chrome"): only before a noun
       # that only the product has.
       - regex: "(?<w>excel|word|outlook|chrome|opera|google|twitter|slack|kindle|react|mac|windows|apple){{S}}(?<n>[a-z0-9]+){{E}}"
         owner: w
-        fixer: namesProduct
+        let:
+          nouns: NAMES_PRODUCT_NOUNS[w]
+        when:
+          # Lowercase only: "WORD DOCUMENT" is emphasis, "Word document" is already right.
+          - "!(!nouns || w !== w.toLowerCase() || !nouns.has(n.toLowerCase()) || ctx.dictionary.has(w))"
+          # "to excel", "to react": the verb.
+          - '!(NAMES_VERBS.has(w) && /(?:^|[^\p{L}])to[ \t ]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))'
+          # "Microsoft Word", "MS Excel": the names table matches the whole name.
+          - '!/(?:microsoft|ms|google|apple)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
+        return: >-
+          ({ ruleId: "englishCanonicalCasing", messageKey: "review_msg_canonical_casing",
+          range: { start: m.index, end: m.index + w.length }, alternatives: [NAMES_PRODUCT[w]],
+          context: namesContext(ctx, m.index, m.index + m[0].length) })
       # "Super Bowl 55" is numbered in Roman numerals (Super Bowl LV); the 50th game was "Super
       # Bowl 50".
       - regex: "super{{S}}bowl{{S}}(?<n>[1-9][0-9]?){{E}}(?![.,][0-9])"
         owner: n
-        fixer: namesSuperBowl
+        let:
+          num: Number(n)
+          end: m.indices!.groups!.n[1]
+        when: num !== 50
+        return: >-
+          finding("englishCanonicalCasing", "review_msg_roman_numeral_name", m.indices!.groups!.n[0], end,
+          [namesRoman(num)], { context: namesContext(ctx, m.index, end) })
   - id: en.properNouns
     checks: [englishProperNounCapitalization]
     style: match
     message: review_msg_nationality_capital
     filter: usOutsideExamples
+    sets:
+      # Nationalities, languages and religions are proper adjectives in English.
+      NAMES_PEOPLES:
+        [
+          english,
+          french,
+          german,
+          spanish,
+          italian,
+          portuguese,
+          russian,
+          chinese,
+          japanese,
+          korean,
+          arabic,
+          hindi,
+          hebrew,
+          greek,
+          swedish,
+          norwegian,
+          finnish,
+          icelandic,
+          irish,
+          scottish,
+          welsh,
+          british,
+          american,
+          canadian,
+          mexican,
+          brazilian,
+          argentinian,
+          australian,
+          european,
+          african,
+          asian,
+          indian,
+          pakistani,
+          egyptian,
+          israeli,
+          iranian,
+          iraqi,
+          turkish,
+          ukrainian,
+          hungarian,
+          romanian,
+          bulgarian,
+          serbian,
+          croatian,
+          czech,
+          slovak,
+          vietnamese,
+          indonesian,
+          filipino,
+          nigerian,
+          kenyan,
+          belgian,
+          austrian,
+          latin,
+          christian,
+          muslim,
+          jewish,
+          buddhist,
+          hindu,
+          islamic,
+          protestant,
+          dutch,
+          polish,
+        ]
+      # Lowercase in set phrases: "french fries", "go dutch", "nail polish".
+      NAMES_FRENCH_AFTER:
+        [
+          fries,
+          fry,
+          toast,
+          door,
+          doors,
+          window,
+          windows,
+          horn,
+          press,
+          braid,
+          braids,
+          kiss,
+          manicure,
+        ]
+      NAMES_DUTCH_BEFORE: [go, goes, going, went, double]
+      # "polish" is mostly the verb and the noun: only as a language or a people.
+      NAMES_POLISH_NOUNS:
+        [
+          people,
+          language,
+          government,
+          citizen,
+          citizens,
+          nationality,
+          president,
+          army,
+          border,
+          history,
+          culture,
+          cuisine,
+          food,
+          city,
+          cities,
+          town,
+          national,
+          translation,
+          version,
+          lessons,
+          lesson,
+          class,
+          teacher,
+          speaker,
+          speakers,
+          word,
+          words,
+          name,
+          names,
+          origin,
+          descent,
+          family,
+          friend,
+          friends,
+        ]
+      NAMES_POLISH_VERBS:
+        [
+          speak,
+          speaks,
+          speaking,
+          spoke,
+          learn,
+          learns,
+          learning,
+          learned,
+          learnt,
+          study,
+          studies,
+          studying,
+          translate,
+          translated,
+          into,
+          from,
+          am,
+          is,
+          are,
+          was,
+          were,
+        ]
+    maps:
+      # Places whose names are also ordinary words ("china", "turkey", "long island").
+      NAMES_PLACE_WORDS:
+        {
+          china: China,
+          japan: Japan,
+          turkey: Turkey,
+          shanghai: Shanghai,
+          queens: Queens,
+          long island: Long Island,
+          long beach: Long Beach,
+        }
+    defs:
+      # The capitalized name for the `w` group. Lowercase only; a capitalized first word is
+      # already a name or the choice of the writer.
+      namesPlaceFinding:
+        args: 'ctx: DetectContext, m: RegExpExecArray, name: string, messageKey: RawFinding["messageKey"]'
+        let:
+          start: m.indices!.groups!.w[0]
+          end: m.indices!.groups!.w[1]
+          typed: m.groups!.w
+        when: typed === typed.toLowerCase() && !ctx.dictionary.has(typed)
+        return: >-
+          finding("englishProperNounCapitalization", messageKey, start, end, [name],
+          { context: namesContext(ctx, m.index, end) })
     frames:
       # Nationalities, languages and religions are proper adjectives in English. One
       # case-sensitive alternation of the lowercase forms, not a scan of every word.
       - regex: "(?<!{{EDGE}})(?<w>english|french|german|spanish|italian|portuguese|russian|chinese|japanese|korean|arabic|hindi|hebrew|greek|swedish|norwegian|finnish|icelandic|irish|scottish|welsh|british|american|canadian|mexican|brazilian|argentinian|australian|european|african|asian|indian|pakistani|egyptian|israeli|iranian|iraqi|turkish|ukrainian|hungarian|romanian|bulgarian|serbian|croatian|czech|slovak|vietnamese|indonesian|filipino|nigerian|kenyan|belgian|austrian|latin|christian|muslim|jewish|buddhist|hindu|islamic|protestant|dutch|polish){{E}}"
         flags: dgu
         owner: w
-        fixer: namesNationality
+        let:
+          end: m.index + w.length
+          after: '/^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1].toLowerCase()'
+          before: '/([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1].toLowerCase()'
+          closes: 'w === "polish" && /^[ \t ]*(?:[.!?,;:)]|$|and\b|or\b)/.test(ctx.text.slice(end, end + 8))'
+        when:
+          - NAMES_PEOPLES.has(w) && !ctx.dictionary.has(w)
+          - '!(after && w === "french" && NAMES_FRENCH_AFTER.has(after))'
+          - '!(before && w === "dutch" && NAMES_DUTCH_BEFORE.has(before))'
+          - 'w !== "polish" || (after && NAMES_POLISH_NOUNS.has(after)) || (before && NAMES_POLISH_VERBS.has(before) && closes)'
+        return: >-
+          ({ ruleId: "englishProperNounCapitalization", messageKey: "review_msg_nationality_capital",
+          range: { start: m.index, end }, alternatives: [w[0].toUpperCase() + w.slice(1)],
+          context: namesContext(ctx, m.index, end) })
       # Places whose names are also ordinary words ("china", "turkey", "long island"): only where
       # a place goes, after "born in", "from", "a trip to"…, and before the clause ends.
       - regex: "(?:{{PROPERNAMES_PLACE_LEAD}}){{S}}(?<w>china|japan|turkey|shanghai|queens|long{{S}}island|long{{S}}beach){{PROPERNAMES_PLACE_FOLLOW}}"
         owner: w
-        fixer: namesPlace
+        return: >-
+          namesPlaceFinding(ctx, m, NAMES_PLACE_WORDS[w.toLowerCase().replace(/\s+/g, " ")],
+          "review_msg_name_casing")
       # Named seas after "the": "the black sea" (a black sea is any dark one).
       - regex: "the{{S}}(?<w>(?:black|red|dead|north){{S}}sea)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|{{S}}(?:and|or|in|to|from|is|was|at|by|near|with|for|daily|every|each|today|again|too|coast|region|area|fleet){{E}})"
         owner: w
-        fixer: namesSea
+        return: 'namesPlaceFinding(ctx, m, w.replace(/\b\w/g, (c) => c.toUpperCase()), "review_msg_name_casing")'
       # The holiday, not giving thanks: "Happy thanksgiving", "over thanksgiving".
       - regex: "(?:happy|this|last|next|on|over|at|until|since|before|after|during){{S}}(?<w>thanksgiving){{E}}"
         owner: w
-        fixer: namesThanksgiving
+        return: namesPlaceFinding(ctx, m, "Thanksgiving", "review_msg_proper_noun")
   - id: en.notation
     checks: [englishNotation]
     style: match
@@ -9151,12 +10741,127 @@ rules:
     style: match
     message: review_msg_passive_voice
     filter: usOutsideExamples
+    sets:
+      # Participles that usually tell a state ("is closed", "was tired"): passive only with "by".
+      PASSIVE_STATIVE:
+        [
+          closed,
+          located,
+          used,
+          interested,
+          married,
+          based,
+          required,
+          concerned,
+          involved,
+          supposed,
+          tired,
+          excited,
+          bored,
+          worried,
+          pleased,
+          surprised,
+          satisfied,
+          disappointed,
+          scared,
+          finished,
+          done,
+          gone,
+          dressed,
+          prepared,
+          divorced,
+          engaged,
+          retired,
+          qualified,
+          related,
+          situated,
+          equipped,
+          entitled,
+          allowed,
+          accustomed,
+          aimed,
+          amazed,
+          annoyed,
+          ashamed,
+          confused,
+          convinced,
+          determined,
+          delighted,
+          embarrassed,
+          exhausted,
+          frightened,
+          impressed,
+          known,
+          lost,
+          obliged,
+          opened,
+          puzzled,
+          relieved,
+          shocked,
+          stuck,
+          tied,
+          trained,
+          united,
+          crowded,
+          experienced,
+          advanced,
+          complicated,
+          detailed,
+          limited,
+          mixed,
+          named,
+          needed,
+          noted,
+          organized,
+          organised,
+          paid,
+          parked,
+          registered,
+          reserved,
+          fixed,
+          set,
+          covered,
+          filled,
+          packed,
+          broken,
+        ]
+      # Verbs that take a clause: "it is thought that", "he is said to".
+      PASSIVE_REPORTING:
+        [
+          said,
+          thought,
+          believed,
+          known,
+          considered,
+          expected,
+          reported,
+          claimed,
+          assumed,
+          estimated,
+          alleged,
+          shown,
+          found,
+          announced,
+          understood,
+        ]
     frames:
       # A form of "be" with a past participle ("was caused by", "is said to", "have been
       # finalized"). A note, not a fix: turning it active needs the doer.
       - regex: "(?<be>am|is|are|was|were|be|been|being|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:{{S}}(?:{{PASSIVEVOICE_ADVERB}})){0,3}{{S}}(?<p>[a-z]{3,})(?:{{S}}(?:up|out|down|off|over|away|back))?{{E}}(?<after>{{S}}(?:by|to|that){{E}})?"
         owner: be
-        fixer: stylePassive
+        let:
+          read: englishWordInfo(p)
+          link: after?.trim().toLowerCase() ?? ""
+          agent: link === "by"
+          reported: (link === "to" || link === "that") && PASSIVE_REPORTING.has(p)
+        when:
+          - read?.verbs.some((v) => v.form === "participle") && !ctx.dictionary.has(p)
+          - agent || reported || !(PASSIVE_STATIVE.has(p) || read.adjective)
+          # "is used to it", "are supposed to": set phrases, not passives.
+          - '!(link === "to" && !reported)'
+        return: >-
+          finding("stylePassiveVoice", "review_msg_passive_voice", m.index,
+          m.index + m[0].length - (after?.length ?? 0), [], { warningOnly: true })
   - id: en.punctuation
     checks: [englishPunctuation]
     style: match
@@ -10318,32 +12023,81 @@ rules:
     checks: [englishBritishSpelling]
     style: slot
     message: review_msg_british_spelling
+    maps:
+      BRITISH_UNITS: { meter: metre, meters: metres, liter: litre, liters: litres }
+    defs:
+      # A boot named nearby makes the trunk the luggage in it.
+      britishBoot:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        when: '!/\bboots?\b/i.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120))'
+        return: 'm.groups!.target.toLowerCase() === "trunks" ? "boots" : "boot"'
     frames:
       # "a 10-meter rope", "5 kilometers away", "2 liters of milk": a number before the unit.
       - regex: "(?<![\\p{L}\\p{N}.,])[0-9]+(?:[.,][0-9]+)?(?:-|{{S}})(?<target>{{PREFIX}}(?:meters?|liters?)){{E}}"
         cue: ["meter", "meters", "liter", "liters"]
-        fixer: britishUsageKilo
+        let:
+          typed: target.toLowerCase()
+          unit: Object.keys(BRITISH_UNITS).find((key) => typed.endsWith(key))!
+        return: typed.slice(0, typed.length - unit.length) + BRITISH_UNITS[unit]
       # "the car has a small trunk", "trunks on some cars": a car's boot, not a travel chest.
       - regex: "(?:{{CAR}}(?:['’]s?)?|{{CAR}}{{S}}(?:(?:usually|often|all|also){{S}})?(?:has|have|had|with)(?:{{S}}an?)?(?:{{S}}(?:small|large|big|huge|tiny|spacious|roomy|deep|full))?){{S}}(?<target>trunks?){{E}}"
         cue: ["trunk", "trunks"]
-        fixer: britishUsageTrunks
+        return: britishBoot(m, ctx)
       - regex: "(?<target>trunks?)(?={{S}}(?:on|of|in){{S}}(?:(?:the|a|some|most|many|this|that|these|those|my|your|our|their){{S}})?(?:\\p{L}+{{S}})?{{CAR}}{{E}})"
         cue: ["trunk", "trunks"]
-        fixer: britishUsageTrunks2
+        return: britishBoot(m, ctx)
   - id: en.clauseConfusions
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
     filter: usSlots
+    maps:
+      CLAUSE_BE: { i: am, you: are, we: are, they: are, he: is, she: is, it: is }
+    defs:
+      # A finding on the `target` group; the alternatives take the typed casing.
+      clauseFinding:
+        args: 'ctx: DetectContext, m: RegExpExecArray, ruleId: RawFinding["ruleId"], messageKey: RawFinding["messageKey"], alternatives: string[]'
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          typed: ctx.source.slice(start, end)
+        return: >-
+          ({ ruleId, messageKey, range: { start, end }, alternatives: alternatives.map((a) => caseLike(typed, a)),
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          context: enEvidence(ctx, m.index, end) })
+      # "I wanted to priorities the task": a plural noun whose -ize verb the dictionary lists.
+      CLAUSE_INFINITIVE_HEADS: /^(?:want|wants|wanted|need|needs|needed|like|would|try|tries|tried|trying|have|has|had|going|able|decided|decide|plan|plans|planned|hope|hoped|forgot|remember|wish|wished|must|should|will|can|could)$/
+      CLAUSE_NOT_OWNED: /^(?:is|are|was|were|be|been|being|will|would|can|could|should|may|might|must|has|have|had|and|or|but|so|yet|too|again|now|then|today|tomorrow|yesterday|tonight|somewhere|anywhere|everywhere|nowhere|instead|either|though|first|already|once|ever|soon|also|alone|together|until|later|before|after|right|over)$/
+      # Predicate adjectives that the dictionary also lists as nouns ("a great", "goods").
+      CLAUSE_EVALUATIVE: /^(?:great|good|fine|right|wrong|cool|fun|perfect|better|worse|ok|okay)$/
+      clausePredicateAdjective:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        return: >-
+          CLAUSE_EVALUATIVE.test(word) ||
+          (!!read?.adjective && !read.noun && !read.verbs.length && !EN_FUNCTION_WORDS.has(word))
     frames:
       # "hear form you", "come form the": verbs and adverbs of source or motion take "from".
       # idioms3 owns "apart form".
       - regex: "(?:hear|heard|hearing|come|comes|came|coming|away|aside|far|derived|received|receive|got|get|gets|bought|borrowed|took|taken|returned|return|arrived|arrive|moved|graduated|downloaded|copied|sent|fled|escaped|removed|deleted|resigned|retired|suffer|suffers|suffered|benefit|benefits|benefited|benefitted)(?:{{S}}(?:it|them|one|this|that))?{{S}}(?<target>form)(?:{{S}}(?:me|you|him|her|us|them|it|the|a|an|my|your|his|our|their|its|this|that|these|those|all|both){{E}}|(?=[ \\t\\u00a0]*[?!.,;:)]))"
-        fixer: clauseFormFrom
+        when: '!ctx.dictionary.has("form") && target === "form"'
+        return: clauseFinding(ctx, m, "englishConfusedWords", "review_msg_confused_word", ["from"])
       # "Peter though he could win": a name, then though, then a clause's subject: "thought"
       # (englishUsagePhrases owns "I/we/he though").
       - regex: "(?<subject>[a-z]{2,}){{S}}(?<target>though){{S}}(?:I|you|he|she|it|we|they|that){{E}}"
-        fixer: clauseThoughThought
+        let:
+          end: m.index + m[0].length
+        when:
+          - enAfterBreak(ctx, m.index) && /^[A-Z][a-z]+$/.test(subject)
+          # A capitalized word at the start of the sentence must be a name, not "Even", "Concerned".
+          - >-
+            !(/^(?:Even|As|And|But|So|Or|Yet|Although|Though|If|When|While|Because|Since|Then|This|That|It|There|Here|He|She|We|They|You)$/.test(subject) ||
+            /(?:ed|ing|ly)$/.test(subject))
+          # "Egotist though he was, …": a concessive clause closes on be before a comma.
+          - >-
+            !/^[ \t ]+(?:was|is|were|are|may[ \t ]+be|might[ \t ]+be)[ \t ]*[,;:—–-]/.test(ctx.text.slice(end, end + 24))
+        return: clauseFinding(ctx, m, "englishConfusedWords", "review_msg_confused_word", ["thought"])
   - id: en.clauseAuxiliaries
     checks: [englishAuxiliaryBaseVerb]
     style: match
@@ -10352,11 +12106,40 @@ rules:
     frames:
       # "I wanted to priorities the task": a plural noun whose -ize verb the dictionary lists.
       - regex: "to{{S}}(?<target>(?<stem>[a-z]{3,})ies){{E}}"
-        fixer: clauseToIesVerb
+        let:
+          verb: "`${stem}ize`"
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - "!ctx.dictionary.has(target) && CLAUSE_INFINITIVE_HEADS.test(enWordBefore(ctx, m.index))"
+          - englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb)
+          - '!(next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower))'
+        return: clauseFinding(ctx, m, "englishAuxiliaryBaseVerb", "review_msg_to_base", [verb])
       # "Please sent the file": please opens an imperative, which takes the base verb.
       - regex: "(?<lead>please){{S}}(?<target>[a-z]+){{S}}(?<object>[a-z]+){{E}}"
         message: review_msg_please_base
-        fixer: clausePleasePast
+        let:
+          read: englishWordInfo(target)
+          forms: englishVerbForms(target)
+          # An irregular past that is no base ("sent", "gave"), or a regular -ed past. "attached"
+          # reads as attach and attache: the shorter lemma is the verb.
+          base: >-
+            forms && forms.past === target && forms.lemma !== target && !forms.ambiguous.includes(target) ? forms.lemma
+            : !forms && /ed$/.test(target)
+            ? read.verbs.filter((v) => v.form === "past").map((v) => v.lemma).sort((a, b) => a.length - b.length)[0] ?? null
+            : null
+        when:
+          - lead === lead.toLowerCase() || enAfterBreak(ctx, m.index)
+          # Mid-sentence: only after a comma or "so/and" ("…, please sent it").
+          - >-
+            lead !== lead.toLowerCase() || enAfterBreak(ctx, m.index) ||
+            /(?:,|\b(?:so|and|but|then))[ \t ]*$/i.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
+          - "!ctx.dictionary.has(target)"
+          - EN_DETERMINERS.has(object) || EN_OBJECT_PRONOUNS.has(object)
+          # "please did this help?": an auxiliary opens a question.
+          - "!/^(?:did|was|were|had|could|would|should|might)$/.test(target)"
+          - '!(!read || read.noun || (read.adjective && !read.verbs.some((v) => v.form === "past")))'
+          - base && base !== target
+        return: clauseFinding(ctx, m, "englishAuxiliaryBaseVerb", "review_msg_please_base", [base])
   - id: en.accordingTo
     checks: [englishFixedPrepositions]
     style: match
@@ -10366,7 +12149,16 @@ rules:
       # "According Anna, …": according takes "to" (archaic "according as" aside). A wrong
       # preposition after it is replaced: "According about a survey".
       - regex: "(?<target>according(?:{{S}}(?<wrong>about|on|with|for|from|by|of|at))?){{S}}(?!(?:to|as|ly){{E}})(?=[A-Za-z])"
-        fixer: clauseAccordingTo
+        let:
+          end: m.index + m[0].length
+        when:
+          # A clause opener: "According Anna" is at the start of its sentence or after a comma.
+          - 'enAfterBreak(ctx, m.index) || /,[ \t ]*$/.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))'
+          # "According however to…": an adverb before the "to".
+          - '!/^[ \t ]*[A-Za-z]+[ \t ]+to\b/i.test(ctx.text.slice(end, end + 24))'
+        return: >-
+          clauseFinding(ctx, m, "englishFixedPrepositions", "review_msg_fixed_prepositions",
+          [`${target.slice(0, "according".length)} to`])
   - id: en.thereTheir
     checks: [englishTheirThereTheyAre]
     style: match
@@ -10375,7 +12167,23 @@ rules:
     frames:
       # "They yelled at there son": after a preposition, "there" before a plain noun is "their".
       - regex: "(?:at|to|for|with|of|from|about|by|into|onto|toward|towards|without|against|like){{S}}(?<target>there){{S}}(?<first>[a-z]+)(?:{{S}}(?<second>[a-z]+))?{{E}}"
-        fixer: clauseThereTheir
+        let:
+          read: englishWordInfo(first)
+          # An adjective may stand before the noun ("to there old parents").
+          adjective: "!!read?.adjective && !read.verbs.length && !!second"
+          noun: "adjective ? second : first"
+          nounRead: englishWordInfo(noun)
+          nounEnd: "m.index + m[0].length - (adjective || !second ? 0 : second.length + 1)"
+          after: "enTokensAfter(ctx, adjective ? m.index + m[0].length : nounEnd, 1)[0]"
+        when:
+          - "!CLAUSE_NOT_OWNED.test(first)"
+          - "!CLAUSE_NOT_OWNED.test(noun) && !EN_FUNCTION_WORDS.has(noun)"
+          - enNounOnly(noun) || (nounRead?.noun && !nounRead.adjective && !nounRead.adverb)
+          # A noun-or-verb right after "there" may be a clause ("for there seem to be…").
+          - "!(!adjective && nounRead?.verbs.length && !enNounOnly(noun))"
+          # The noun phrase ends there: punctuation, a closed word or a verb, not another noun.
+          - '!(after?.kind === "word" && !EN_FUNCTION_WORDS.has(after.lower) && englishWordInfo(after.lower)?.noun)'
+        return: clauseFinding(ctx, m, "englishTheirThereTheyAre", "review_msg_their_possessive", ["their"])
   - id: en.linkingSingular
     checks: [englishSubjectVerbAgreement]
     style: match
@@ -10384,7 +12192,19 @@ rules:
     frames:
       # "That sound great", "it look nice": a linking verb after a singular pronoun takes -s.
       - regex: "(?<subject>that|this|it){{S}}(?<target>sound|look|seem|feel|smell|taste){{S}}(?<adjective>[a-z]+){{E}}"
-        fixer: clauseLinkingSingular
+        let:
+          before: enWordBefore(ctx, m.index)
+          after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - subject === subject.toLowerCase() || enAfterBreak(ctx, m.index)
+          # "Does that sound good?", "Make it look nice": do-support or a causative before.
+          - >-
+            !(/^(?:do|does|did|don['’]t|doesn['’]t|didn['’]t|will|would|can|could|should|may|might|must|make|makes|made|let|lets|help|helps|to|not)$/.test(before) ||
+            /n['’]t$/.test(before))
+          - enAfterBreak(ctx, m.index) || /^(?:and|but|so|because|think|guess|hope|said|says|agree)$/.test(before)
+          - clausePredicateAdjective(adjective)
+          - '!(after?.kind === "word" && !/^(?:to|for|and|but|or|now|today|enough|too|again)$/.test(after.lower))'
+        return: 'clauseFinding(ctx, m, "englishSubjectVerbAgreement", "review_msg_subject_verb", [`${target}s`])'
   - id: en.allSingular
     checks: [englishNounNumber]
     style: match
@@ -10393,7 +12213,18 @@ rules:
     frames:
       # "All car are moving": "all" before a singular count noun and a plural verb.
       - regex: "(?<lead>all){{S}}(?<target>[a-z]+){{S}}(?:are|were|have|do|seem|look|need){{E}}"
-        fixer: clauseAllSingular
+        let:
+          read: englishWordInfo(target)
+          plural: enNounPair(target)?.plural
+        when:
+          - "!EN_FUNCTION_WORDS.has(target) && !ctx.dictionary.has(target)"
+          # "All three were wounded": a number stands for its noun.
+          - "!/^(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred|thousand|million|dozen)$/.test(target)"
+          # A plain singular noun with a regular plural ("car", "file"); mass nouns stay. After
+          # "all" and before "are", a noun-or-verb ("window", "file") can only be the noun.
+          - '!(!read?.noun || read.plural || read.adjective || read.adverb || read.verbs.some((v) => v.form !== "base"))'
+          - plural
+        return: clauseFinding(ctx, m, "englishNounNumber", "review_msg_noun_count", [plural])
   - id: en.noAdjective
     checks: [englishSentenceStructure]
     style: match
@@ -10402,7 +12233,12 @@ rules:
     frames:
       # "I no good at math": a subject, "no" and a predicate adjective lack "am not".
       - regex: "(?<subject>I|you|we|they|he|she|it){{S}}(?<target>no){{S}}(?<adjective>[a-z]+){{E}}"
-        fixer: clauseNoAdjective
+        when:
+          - enAfterBreak(ctx, m.index) || /^(?:and|but|so|because|if|when|that)$/.test(enWordBefore(ctx, m.index))
+          - clausePredicateAdjective(adjective)
+        return: >-
+          clauseFinding(ctx, m, "englishSentenceStructure", "review_msg_clause_be",
+          [`${CLAUSE_BE[subject.toLowerCase()]} not`])
   - id: en.verbFrames
     checks: [englishVerbComplements]
     style: match
@@ -11078,6 +12914,11 @@ rules:
     checks: [englishFixedPrepositions, englishContextualCompounds]
     style: slot
     message: review_msg_fixed_prepositions
+    defs:
+      PREPOSITION_MONTHS: /^(?:January|February|March|April|May|June|July|August|September|October|November|December|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/
+      prepositionIng:
+        args: "word: string"
+        return: '!!englishWordInfo(word.toLowerCase())?.verbs.some((v) => v.form === "ing")'
     frames:
       - regex: "(?:is|are|was|were|people|patients|someone|who|those|still|be|been){{S}}(?:suffering|suffer|suffered){{S}}(?<target>of){{E}}"
         cue: ["suffering", "suffer", "suffers", "suffered"]
@@ -11087,7 +12928,8 @@ rules:
         fix: ["about", "for"]
       - regex: "(?:accuse|accused|accuses|accusing){{S}}(?:{{PRONOUN}}|the{{S}}[a-z]+|[a-z]{2,}){{S}}(?<target>for){{S}}(?<verb>[a-z]+){{E}}"
         cue: ["accused", "accuse", "accuses", "accusing"]
-        fixer: prepositionSlotsFor
+        when: prepositionIng(verb)
+        return: '"of"'
       - regex: "addiction{{S}}(?<target>of){{S}}(?<noun>drugs|alcohol|gambling|nicotine|cocaine|heroin|opioids|sugar|caffeine|social{{S}}media|video{{S}}games|smoking|food){{E}}"
         cue: ["addiction"]
         fix: "to"
@@ -11122,11 +12964,12 @@ rules:
       # "By example, …", "On fact, …" at a clause start.
       - regex: "(?<target>by{{S}}example|on{{S}}fact)(?=[ \\t\\u00a0]*,)"
         cue: ["example", "fact"]
-        fixer: prepositionSlotsBy
+        when: enAfterBreak(ctx, m.index)
+        return: '/example/i.test(target) ? "for example" : "in fact"'
       # "their departure of New York": from a place.
       - regex: "departure{{S}}(?<target>of){{S}}(?<place>[a-z]{2,})"
         cue: ["departure"]
-        fixer: prepositionSlotsOf
+        return: 'PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place) ? null : "from"'
       # "entering in the room": enter takes the room directly.
       - regex: "(?:enter|enters|entered|entering){{S}}(?<target>in{{S}})(?=(?:the|a|my|his|her|our|their){{S}}(?:room|house|building|office|class|classroom|kitchen|car|shop|store|church|hall|hospital|bank|restaurant){{E}})"
         cue: ["enter", "enters", "entered", "entering"]
@@ -11164,7 +13007,7 @@ rules:
       # "Anne is waiting her patient": waiting for.
       - regex: "(?:am|is|are|was|were|be|been){{S}}(?<target>waiting){{S}}(?:her|his|my|your|their|our){{S}}(?<noun>[a-z]+){{E}}"
         cue: ["waiting"]
-        fixer: prepositionSlotsWaiting
+        return: 'enNounOnly(noun) || englishWordInfo(noun)?.noun ? "waiting for" : null'
       - regex: "contributions?{{S}}(?<target>on){{S}}(?!behalf{{E}})"
         cue: ["contribution", "contributions"]
         fix: "to"
@@ -11174,11 +13017,12 @@ rules:
       # "Prior leaving, he…": prior to.
       - regex: "(?<target>prior){{S}}(?<verb>[a-z]+ing){{E}}"
         cue: ["prior"]
-        fixer: prepositionSlotsPrior
+        when: prepositionIng(verb)
+        return: '"prior to"'
       # "knocked the door": on.
       - regex: "(?<target>knock|knocks|knocked|knocking){{S}}(?:the|his|her|their|my|our|your){{S}}(?:door|window|wall|gate){{E}}(?!{{S}}(?:down|open|off|over|in|out){{E}})"
         cue: ["knock", "knocks", "knocked", "knocking"]
-        fixer: prepositionSlotsKnock
+        return: "`${target} on`"
       # "Land reclamation is in the internet": on.
       - regex: "(?<target>in){{S}}(?:the{{S}})?(?:internet|Wikipedia|web){{E}}(?!{{S}}(?:age|era|world|of|industry|access|connection|cafe){{E}})"
         cue: ["internet", "wikipedia", "web", "website"]
@@ -11186,7 +13030,7 @@ rules:
       # "located on 11056 Main Street": at an address.
       - regex: "located{{S}}(?<target>on|in){{S}}[0-9]+{{S}}(?<street>[A-Za-z]+)"
         cue: ["located"]
-        fixer: prepositionSlotsOn
+        return: '/^[A-Z]/.test(street) ? "at" : null'
       # "She comes in car", "I came to plane": by.
       - regex: "(?:come|comes|came|go|goes|went|travel|travels|traveled|travelled|arrive|arrives|arrived|work|get|got)(?:{{S}}to{{S}}work)?{{S}}(?<target>in|to|with){{S}}(?:car|plane|train|bus|taxi|bike|boat|ship|subway)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:to|every|each|today|tomorrow|yesterday|and){{E}})"
         cue: ["car", "plane", "train", "bus", "taxi", "bike", "boat", "ship"]
@@ -11213,10 +13057,12 @@ rules:
             "volleyball",
             "chess",
           ]
-        fixer: prepositionSlotsDo
+        return: 'target ? "play" : "playing"'
       - regex: "(?:to{{S}}(?<target>do|make)|(?:like|love|enjoy|hate|about|for|by){{S}}(?<target2>doing|making)){{S}}a{{S}}(?<what>meeting|party){{E}}(?!{{S}}(?:list|lists|planner|hat|hats|favou?rs?|room|game|games|bus|line|leader|members?|notes|minutes|agenda|invite|invites|invitation){{E}})"
         cue: ["meeting", "party"]
-        fixer: prepositionSlotsDo2
+        let:
+          party: what.toLowerCase() === "party"
+        return: 'target ? (party ? "throw" : "have") : party ? "throwing" : "having"'
       # "Bring Suzanne at the party": to.
       - regex: "(?:bring|brought|brings|took|take|drove|drive|driven){{S}}(?:{{PRONOUN}}|[a-z]{2,}){{S}}(?<target>at|in){{S}}the{{S}}(?:party|meeting|office|house|wedding|airport|station|hospital|hotel|school){{E}}"
         cue: ["bring", "brought", "brings", "take", "took", "drove", "drive"]
@@ -11224,7 +13070,7 @@ rules:
       # "That accounts a rise in price": accounts for.
       - regex: "(?:that|this|it|which){{S}}(?<target>accounts|accounted){{S}}(?:a|an|the|most|much|half|about|nearly|almost){{E}}"
         cue: ["accounts", "account", "accounted"]
-        fixer: prepositionSlotsAccounts
+        return: "`${target} for`"
       # "The plant is at the kitchen": in a room.
       - regex: "(?:is|are|was|were|be|it['’]s|sits|stays){{S}}(?<target>at){{S}}the{{S}}(?:kitchen|bathroom|bedroom|garden|living{{S}}room)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:now|today|again|and){{E}})"
         cue: ["kitchen", "bathroom", "bedroom", "garden"]
@@ -11267,11 +13113,11 @@ rules:
       # "returning in the office", "returning in Montreal": to.
       - regex: "(?:return|returns|returned|returning){{S}}(?<target>in){{S}}(?:the{{S}}(?:office|city|country|house|hotel|room|school|station){{E}}|(?<place>[a-z]{2,}))"
         cue: ["return", "returned", "returning", "returns"]
-        fixer: prepositionSlotsIn
+        return: 'place && (PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place)) ? null : "to"'
       # "a trip in New York": to.
       - regex: "(?:a|the|our|my|his|her|their|on{{S}}a){{S}}trip{{S}}(?<target>in){{S}}(?<place>[a-z]{2,})"
         cue: ["trip"]
-        fixer: prepositionSlotsIn2
+        return: 'PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place) ? null : "to"'
       # "an exception of the rule": to.
       - regex: "(?:is|was|are|be|been|an){{S}}exception{{S}}(?<target>of){{S}}(?:the|this|that|our|these){{S}}(?:rule|rules|guideline|guidelines|policy|law){{E}}"
         cue: ["exception"]
@@ -11279,13 +13125,18 @@ rules:
       # "I have 25 years old": be.
       - regex: "(?<subject>I|he|she|we|they|you){{S}}(?<target>have|has){{S}}[0-9]{1,3}{{S}}years?{{S}}old{{E}}"
         cue: ["years", "old"]
-        fixer: prepositionSlotsHave
+        return: '/^I$/.test(subject) ? "am" : /^(?:he|she)$/i.test(subject) ? "is" : "are"'
       # "non standard", "anti communist": prefixed adjectives are hyphenated.
       - regex: "(?<!qua{{S}})(?<target>(?<prefix>non|anti){{S}}(?!(?:new|old|compos|sequitur|grata|stop|existent){{E}})(?<word>[a-z]+)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
         cue: ["non", "anti"]
-        fixer: prepositionSlotsPrefix
+        let:
+          read: englishWordInfo(word)
+          nonNoun: prefix.toLowerCase() === "non" && (read?.noun || !!enNounOnly(word))
+        return: >-
+          (read?.adjective || nonNoun) && !read?.verbs.some((v) => v.form !== "base")
+          ? `${prefix}-${word}` : null
   - id: en.clauseFrames
     checks:
       [
@@ -12260,35 +14111,124 @@ rules:
     checks: [englishSentenceStructure, englishConfusedWords, englishThenThan]
     style: slot
     message: review_msg_confused_word
+    defs:
+      clauseGapsRead:
+        args: "word: string | undefined"
+        return: "word ? englishWordInfo(word.toLowerCase()) : null"
+      # The pronouns that a subject gap takes, by the verb after it.
+      CLAUSEGAPS_THIRD: '["it", "he", "she"]'
+      CLAUSEGAPS_PAST_BE: '["it", "I", "he", "she"]'
+      CLAUSEGAPS_ANY: '["you", "I", "it", "we"]'
+      # "order that 10 units": an -er noun or verb is no comparative.
+      clauseGapsAdjective:
+        args: "word: string"
+        let:
+          r: clauseGapsRead(word)
+        return: "!!r?.adjective && !r.noun && !r.verbs.length"
+      # "We got there after lunch": after opens a phrase of its own.
+      clauseGapsBaseVerb:
+        args: "word: string"
+        return: '!!clauseGapsRead(word)?.verbs.some((v) => v.form === "base") && !EN_FUNCTION_WORDS.has(word)'
     frames:
       # "Delete the sentence if is too long", "since was happening", "if should have questions":
       # a subordinator directly before a finite verb has lost its subject.
       - regex: "(?<![\\p{L}'’])(?:if|since|because|unless|although|whether){{S}}(?<target>{{GAP_VERB}}|need){{S}}(?<next>[a-z]+){{E}}"
         message: review_msg_sentence_structure
         cue: ["if", "since", "because", "unless", "although", "whether"]
-        fixer: clauseGapsIs
+        let:
+          verb: target.toLowerCase()
+          nextWord: next.toLowerCase()
+          r: clauseGapsRead(nextWord)
+          pronouns: >-
+            /^(?:is|isn['’]t|has|hasn['’]t|does|doesn['’]t)$/.test(verb) ? CLAUSEGAPS_THIRD
+            : /^was/.test(verb) ? CLAUSEGAPS_PAST_BE
+            : verb === "need" ? ["you", "I", "we"] : CLAUSEGAPS_ANY
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          typed: ctx.text.slice(start, end)
+        when:
+          # "if need be", "since will power…", "if won't we'll": an idiom, a noun or a subject.
+          - >-
+            !(/^(?:be|i|you|he|she|it|we|they|there|this|that)$/.test(nextWord) || /['’]/.test(nextWord))
+          # "if need anything else": an object after need.
+          - >-
+            verb !== "need" || /^(?:anything|something|any|more|help|a|an|the|to|me|it|them|us|some)$/.test(nextWord)
+          - >-
+            verb !== "need" || /^(?:if|unless)$/i.test(enWordBefore(ctx, m.index + m[0].indexOf(target)))
+          - >-
+            verb === "need" || !(r && (r.noun || r.plural) && !r.verbs.length && !r.adjective && !r.adverb)
+          # "because will power…", "since can openers…": a modal that is also a noun needs a
+          # plain verb or adverb after it.
+          - >-
+            !(/^(?:will|can|must|might|may)$/.test(verb) &&
+            !/^(?:not|be|have|also|never|always|probably|definitely|just|really|still|only)$/.test(nextWord) &&
+            (!r?.verbs.some((v) => v.form === "base") || r.noun || r.plural))
+        return: "({ alternatives: pronouns.map((p) => `${p} ${typed}`), range: [start, end], raw: true })"
       # "either the client nor the server": either pairs with or.
       - regex: "(?<![\\p{L}'’])either{{S}}(?:[^.!?;:\\n,]{1,60}?){{S}}(?<target>nor){{E}}"
         check: englishConfusedWords
         cue: ["either"]
-        fixer: clauseGapsNor
+        let:
+          before: enWordBefore(ctx, m.index)
+          r: "EN_FUNCTION_WORDS.has(before) ? null : clauseGapsRead(before)"
+        # "either Iran or Iraq, nor…", "not the case either that…": an "or" of its own, or the
+        # adverb either after a noun.
+        when: '!(/\bor\b/i.test(m[0]) || /\bneither\b/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index)))'
+        return: 'r && (r.noun || r.plural) ? null : "or"'
       # "I want wanted to thank you", "To made make it better": two forms of one verb.
       # The fixer rejects a function word: the frame skips the frequent ones.
       - regex: "(?<![\\p{L}'’-])(?!(?:{{CLAUSE_GAPS_FUNCTION}}){{S}})(?<target>[a-z]{2,})(?={{S}}(?!(?:{{CLAUSE_GAPS_FUNCTION}})(?![a-z]))(?<two>[a-z]{2,}){{E}})"
         check: englishConfusedWords
         message: review_msg_repeated_words
-        fixer: clauseGapsA
+        let:
+          one: target.toLowerCase()
+          twoWord: two.toLowerCase()
+          a: clauseGapsRead(one)
+          b: clauseGapsRead(twoWord)
+          lemma: a.verbs.find((v) => b.verbs.some((w) => w.lemma === v.lemma))?.lemma
+          # Both forms must differ in kind: "set sets" is a noun and its verb.
+          kindsA: a.verbs.filter((v) => v.lemma === lemma).map((v) => v.form)
+          kindsB: b.verbs.filter((v) => v.lemma === lemma).map((v) => v.form)
+          before: enWordBefore(ctx, m.index)
+          # Only a slip pairs "made make", "going go" or "I want wanted"; "I know knows" (a
+          # relative clause), "to marry married", "locking locks" and "connect connected devices"
+          # are two words with jobs of their own.
+          secondBase: kindsB.includes("base") && !b.plural
+          slip: >-
+            (secondBase && kindsA.some((k) => k === "past" || k === "ing")) ||
+            (/^(?:i|we|you|they)$/.test(before) && kindsA.includes("base") && kindsB.includes("past"))
+          nounFirst: a.noun && !a.verbs.some((v) => v.form === "ing" || v.form === "past")
+        when:
+          - target === target.toLowerCase()
+          - one !== twoWord && !EN_FUNCTION_WORDS.has(one) && !EN_FUNCTION_WORDS.has(twoWord)
+          - a?.verbs.length && b?.verbs.length
+          # have/be/do/get build verb groups with their own forms ("had had", "got gotten").
+          - lemma && (!/^(?:have|be|do|get|let|go)$/.test(lemma) || one === "going")
+          - "!kindsA.some((k) => kindsB.includes(k))"
+          - slip
+          # "the test tested", "a run runs": a determiner makes the first word a noun.
+          - >-
+            !(EN_DETERMINERS.has(before) || (nounFirst && !/^(?:to|i|we|you|they|he|she)$/.test(before)))
+        return: "({ alternatives: [one, twoWord], range: [m.index, m.indices!.groups!.two[1]] })"
       # "greater that 10", "more than that expected": than after a comparative.
       - regex: "(?<![\\p{L}'’])(?<cmp>[a-z]+er|more{{S}}[a-z]+|less{{S}}[a-z]+|more|less|fewer){{S}}(?<target>that){{S}}(?=\\d|(?:ever|usual|expected|before|anticipated|planned|needed|necessary|required){{E}})"
         check: englishThenThan
         message: review_msg_then_than
         cue: ["that"]
-        fixer: clauseGapsThat
+        let:
+          cmpWord: cmp.toLowerCase()
+        return: '/^(?:more|less|fewer)/.test(cmpWord) || clauseGapsAdjective(cmpWord) ? "than" : null'
       # "it decreases gradually there after.", "might there after happen": thereafter.
       - regex: "(?<![\\p{L}'’])(?<target>there{{S}}after)(?=[ \\t\\u00a0]*[.!?;]|{{S}}(?<verb>[a-z]+){{E}})"
         check: englishConfusedWords
         cue: ["after"]
-        fixer: clauseGapsThere
+        let:
+          verbWord: verb?.toLowerCase()
+          before: enWordBefore(ctx, m.index)
+        return: >-
+          verbWord
+          ? clauseGapsBaseVerb(verbWord) && /^(?:might|may|will|would|could|should|shall|must)$/.test(before) ? "thereafter" : null
+          : /^(?:gradually|shortly|soon|immediately|and|decreases|increases|declines|rises)$/.test(before) ? "thereafter" : null
   - id: en.misheardWords
     checks: [englishConfusedWords, englishPhraseCorrections, englishAuxiliaryBaseVerb, englishToToo]
     style: slot
@@ -12845,17 +14785,100 @@ rules:
       ]
     style: slot
     message: review_msg_confused_word
+    maps:
+      NOUN_ORDINALS: { 1: st, 2: nd, 3: rd }
+      NOUN_OBJECT_CASE: { he: him, she: her, i: me, we: us, they: them }
+      NOUN_PLURAL_VERB: { is: are, was: were, has: have, needs: need, seems: seem }
+    defs:
+      nounRead:
+        args: "word: string | undefined"
+        return: "word ? englishWordInfo(word.toLowerCase()) : null"
+      nounLower:
+        args: "word: string | undefined"
+        return: (word ?? "").toLowerCase()
+      # Plural-looking nouns that name one thing or one amount.
+      NOUN_ONE_THING: /^(?:news|means|series|species|headquarters|thanks|pants|scissors|glasses|jeans|trousers|shorts|clothes|goods|data|media|criteria|physics|mathematics|economics|politics|ethics|athletics|gymnastics|electronics|graphics|analytics|statistics|logistics|diabetes|measles|lens|bus|gas|plus|minus|status|campus|virus|bonus|focus|chaos|canvas|alias|atlas|apparatus|corps|crossroads|barracks|whereabouts)$/
+      # A lowercase plural noun with no verb, adjective or one-thing reading: its singular.
+      nounPlural:
+        args: "word: string"
+        type: string | null
+        let:
+          r: nounRead(word)
+        when:
+          - "!(word !== nounLower(word) || NOUN_ONE_THING.test(word) || /(?:ss|ics|us)$/.test(word))"
+          - "!(!r?.plural || r.verbs.length || r.adjective || r.adverb || EN_FUNCTION_WORDS.has(word))"
+        return: enNounPair(word)?.singular ?? null
+      # A lowercase plural noun that may also be an -s verb ("chances", "parents").
+      nounPluralWord:
+        args: "word: string"
+        return: >-
+          word === nounLower(word) && !NOUN_ONE_THING.test(word) && !!nounRead(word)?.plural &&
+          !nounRead(word)?.adjective
+      # A lowercase singular noun with no verb or adjective reading: its plural.
+      nounSingular:
+        args: "word: string"
+        type: string | null
+        let:
+          r: nounRead(word)
+        when:
+          - "!(word !== nounLower(word) || EN_FUNCTION_WORDS.has(word))"
+          - "!(!r?.noun || r.plural || r.verbs.length || r.adjective || r.adverb)"
+        return: enNounPair(word)?.plural ?? word
+      nounNextToken:
+        args: "ctx: DetectContext, end: number"
+        return: enTokensAfter(ctx, end, 1)[0]
+      nounOrdinal:
+        args: "n: number"
+        return: 'n % 100 >= 11 && n % 100 <= 13 ? "th" : (NOUN_ORDINALS[n % 10] ?? "th")'
+      # A word of the clause after "Here …" that is a verb.
+      nounClauseVerb:
+        args: "w: string"
+        let:
+          r: nounRead(w)
+        return: >-
+          /^(?:is|are|was|were|has|have|had|can|could|will|would|should|must|may|might|won['’]t|isn['’]t)$/i.test(w) ||
+          (!!r?.verbs.some((v) => v.form === "third" || v.form === "past" || v.form === "base") &&
+          !r.noun && !r.plural && !r.adjective)
+      # "has no signed contract": a participle adjective before its noun. "had no built in
+      # support": a participle and its particle before a noun.
+      nounNoFix:
+        args: "ctx: DetectContext, m: RegExpExecArray, word: string"
+        type: string | null
+        let:
+          r: nounRead(word)
+          next: nounNextToken(ctx, m.index + m[0].length)
+          particle: 'next?.kind === "word" && /^(?:in|up|out|on)$/.test(next.lower)'
+          noun: "particle ? nounNextToken(ctx, next.end) : undefined"
+          nounWord: 'noun?.kind === "word" && !EN_FUNCTION_WORDS.has(noun.lower) && nounRead(noun.lower)'
+        when:
+          - '!(!r?.verbs.some((v) => v.form === "participle") || r.noun || r.plural)'
+          - "!(nounWord && (nounWord.noun || nounWord.plural))"
+        return: >-
+          next?.kind === "word" &&
+          !/^(?:by|the|a|an|my|your|his|her|our|their|it|them|up|out|in|on|yet|for|with|to)$/.test(next.lower)
+          ? null : "not"
     frames:
       # "I have 1 days left", "I drew one hexagons": one takes the singular.
       - regex: "(?<![\\p{L}\\p{N}.,'’])(?<one>one|1){{S}}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?,;]|{{S}}(?:left|later|on|in|at|for|from|to|with){{E}})"
         message: review_msg_noun_count
-        fixer: nounSlotsA
+        let:
+          before: enWordBefore(ctx, m.index)
+        # "No one cares", "twenty one years", "season one specials": a pronoun, a compound
+        # number or a label. Only a lowercase verb or preposition before the count.
+        when: >-
+          !(!before || EN_DETERMINERS.has(before) ||
+          /^(?:no|every|any|some|each|which|this|that|the|other|another|last|first|next|only|and|season|chapter|part|level|phase|room|page|step|day|week|year|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand)$/.test(before) ||
+          !/^[a-z]/.test(ctx.text.slice(m.index - before.length - 1, m.index).trim()) ||
+          one === "One" || target === "innings")
+        return: nounPlural(target)
       # "We added a lot functionality", "a lot spikes": a lot of.
       - regex: "(?<![\\p{L}'’])(?<target>a{{S}}lot){{S}}(?<noun>[a-z]+){{E}}"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
         cue: ["lot"]
-        fixer: nounSlotsA2
+        let:
+          mass: ENGLISH_MASS_NOUNS.has(noun) && !nounRead(noun)?.verbs.length && !nounRead(noun)?.adjective
+        return: 'nounPlural(noun) || mass ? "a lot of" : null'
       # "the worlds best car", "the world biggest city": the world's.
       - regex: "(?<![\\p{L}'’])the{{S}}(?<target>worlds?){{S}}(?:best|worst|largest|biggest|smallest|first|most|leading|fastest|tallest|oldest|richest|greatest|highest|longest|top|only|favorite|favourite){{E}}"
         check: englishPossessiveNouns
@@ -12866,7 +14889,23 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:a|an){{S}}(?<target>[a-z]+ly){{S}}(?<noun>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["a", "an"]
-        fixer: nounSlotsA3
+        let:
+          r: nounRead(target)
+          next: nounNextToken(ctx, m.index + m[0].length)
+          stem: target.slice(0, -2)
+        when:
+          # "holding down A shortly after": a capital A mid-sentence names a key or a grade.
+          - "!(/^A/.test(m[0]) && !enAfterBreak(ctx, m.index))"
+          - "!(!r?.adverb || r.adjective || r.noun || r.verbs.length)"
+          - nounSingular(noun)
+          # "a hugely dominant market position": the noun phrase goes on.
+          - >-
+            !(next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower) &&
+            (nounRead(next.lower)?.noun || nounRead(next.lower)?.plural))
+        return: >-
+          [target.replace(/ically$/, "ical"), target.replace(/ily$/, "y"), target.replace(/bly$/, "ble"),
+          target.replace(/ply$/, "ple"), target.replace(/lly$/, "l"), stem].find((c) => c !== target &&
+          c.length > 2 && !!nounRead(c)?.adjective && !EN_FUNCTION_WORDS.has(c)) ?? null
       # "Google's headquarter", "the corporate headquarter": headquarters.
       - regex: "(?:the|its|their|our|his|her|my|your|corporate|new|global|company|['’]s){{S}}(?<target>headquarter){{E}}"
         message: review_msg_noun_count
@@ -12877,52 +14916,79 @@ rules:
         check: englishExistentialAgreement
         message: review_msg_existential_agreement
         cue: ["there"]
-        fixer: nounSlotsIs
+        return: 'nounPluralWord(noun) ? (nounLower(target) === "is" ? "are" : "were") : null'
       - regex: "(?<![\\p{L}'’])(?<!(?:over|out|in|up|down|back|from){{S}})there{{S}}(?<target>was|is){{S}}(?:no{{S}})?(?<noun>[a-z]+){{S}}(?<next>[a-z]+|\\d)"
         check: englishExistentialAgreement
         message: review_msg_existential_agreement
         cue: ["there"]
-        fixer: nounSlotsWas
+        let:
+          r: nounRead(noun)
+        when:
+          # "updates" is a verb too; a time word or adverb after it shows the noun.
+          - "!(!r?.plural || r.adjective || NOUN_ONE_THING.test(noun) || /(?:ss|us)$/.test(noun))"
+          - '/^(?:daily|every|each|weekly|monthly|yearly|to|for|in|on|at|from|with|about|since|that|which|all|available|here|there|left|\d)$/.test(nounLower(next))'
+        return: 'nounLower(target) === "is" ? "are" : "were"'
       # "Here the specs of the device.", "Here some files from our plugin": Here is/are.
       - regex: "(?<target>Here){{S}}(?:the|a|an|some|my|our|your|two|three|several|few){{S}}(?<words>[a-z]+(?:{{S}}[a-z]+){0,2}?)(?=[ \\t\\u00a0]*(?:[.:!]|$)|{{S}}(?:of|from|for|that|which|I|we|you){{E}})"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
         cue: ["here"]
-        fixer: nounSlotsHere
+        let:
+          end: m.index + m[0].length
+          clause: '/^[^.!?;:\n]*/.exec(ctx.text.slice(end, end + 200))![0]'
+          parts: 'words.split(/[ \t ]+/)'
+          head: parts.at(-1)!
+          r: nounRead(head)
+        when:
+          - target === "Here" && enAfterBreak(ctx, m.index)
+          # "Here the group of children is studied": a verb later in the sentence.
+          - "!(clause.match(/[A-Za-z]+(?:['’][a-z]+)?/g) ?? []).some((w) => nounClauseVerb(w))"
+          - "!parts.some((w) => /^(?:is|are|was|were|has|have|had|can|will|would|could|should|must|may|might)$/i.test(w))"
+          # "Here the water is deep", "Here the road ends": a verb in the phrase ends the check.
+          - >-
+            !parts.some((w) => (parts.length > 1 && !!nounRead(w)?.verbs.some((v) => v.form === "third" || v.form === "past")) ||
+            (!!nounRead(w)?.verbs.some((v) => v.form === "third" || v.form === "past") && !nounRead(w)?.noun))
+          - r?.noun || r?.plural
+        return: 'r.plural && !NOUN_ONE_THING.test(head) ? "Here are" : "Here is"'
       # "a must read book", "It is an absolute must have": the compound noun or adjective.
       - regex: "(?<![\\p{L}'’])(?<lead>a|an|the|absolute|real|our|my|your|their|\\d+){{S}}(?<target>must{{S}}(?<verb>read|have|see|watch|try|buy|visit|do|love|reads|haves|sees)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
         cue: ["must"]
-        fixer: nounSlotsMust
+        return: "`must-${nounLower(verb)}`"
       - regex: "(?<target>Must{{S}}(?:haves|reads|sees)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
         cue: ["must"]
-        fixer: nounSlotsMust2
+        when: enAfterBreak(ctx, m.index)
+        return: 'target.replace(/[ \t ]+/, "-")'
       # "He emphasized the important of this task": the -ance/-ence noun.
       - regex: "(?<![\\p{L}'’])the{{S}}(?<target>[a-z]+(?:ant|ent)){{S}}of{{E}}"
         check: englishConfusedWords
         cue: ["of"]
-        fixer: nounSlotsA4
+        let:
+          r: nounRead(target)
+          noun: target.replace(/t$/, "ce")
+        when: "!(!r?.adjective || r.noun || r.verbs.length)"
+        return: "nounRead(noun)?.noun ? noun : null"
       # "in the 19 century": an ordinal.
       - regex: "(?<![\\p{L}'’])(?:the|in|of|early|late|mid){{S}}(?<target>\\d{1,2}){{S}}(?:century|centuries){{E}}"
         check: englishOrdinalSuffix
         message: review_msg_ordinal
         cue: ["century", "centuries"]
-        fixer: nounSlotsD
+        return: "`${target}${nounOrdinal(Number(target))}`"
       # "tension between he and his roommate": the object case after a preposition.
       - regex: "(?<![\\p{L}'’])between{{S}}(?<target>he|she|I|we|they){{S}}and{{E}}"
         check: englishPronounCase
         message: review_msg_pronoun_object_case
         cue: ["between"]
-        fixer: nounSlotsHe
+        return: NOUN_OBJECT_CASE[nounLower(target)]
       # "not even for we relics", "not we lawyers": us before a plural noun after a preposition.
       - regex: "(?<![\\p{L}'’])(?:for|to|with|from|by|of|about|against|among){{S}}(?<target>we){{S}}(?<noun>[a-z]+){{E}}"
         check: englishPronounCase
         message: review_msg_pronoun_object_case
         cue: ["we"]
-        fixer: nounSlotsWe
+        return: 'nounPluralWord(noun) ? "us" : null'
       # "if there any more ideas", "if there anyone": the verb after there.
       - regex: "(?<![\\p{L}'’])if{{S}}(?<target>there){{S}}(?<next>anyone|anything|anybody|someone|something|somebody|nobody|nothing){{E}}"
         check: englishSentenceStructure
@@ -12934,24 +15000,48 @@ rules:
         check: englishTheirThereTheyAre
         message: review_msg_their_there
         cue: ["there"]
-        fixer: nounSlotsThere
+        return: 'nounPlural(noun) ? "their" : null'
       # "Customer reports of strange behavior is valuable": the plural head agrees.
       - regex: "(?<![\\p{L}'’])(?<lead>the|these|those|my|our|their|his|her|your|many|some|\\d+){{S}}(?<head>[a-z]+){{S}}of{{S}}(?<rest>(?:[a-z]+{{S}}){1,3}?)(?<target>is|was|has|needs|seems){{E}}"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
         cue: ["of"]
-        fixer: nounSlotsIs2
+        let:
+          restWords: 'nounLower(rest).trim().split(/[ \t ]+/)'
+          leadText: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+        when:
+          # "Billions of dollars is…", "the number of…": an amount or a count noun as the head.
+          - >-
+            !(!nounPlural(head) ||
+            /^(?:bytes|kilobytes|megabytes|gigabytes|terabytes|grams|kilograms|ounces|dollars|euros|pounds|cents|years|months|weeks|days|hours|minutes|seconds|miles|kilometers|kilometres|meters|metres|feet|pounds|tons|tonnes|gallons|liters|litres|percent|points|kinds|types|sorts|lots|tons|dozens|hundreds|thousands|millions|billions|pairs|pieces|bits|parts|units)$/.test(head))
+          # The phrase after "of" is nouns and adjectives only: no verb, no clause.
+          - >-
+            !restWords.some((w) => /^(?:who|which|that|and|or|but|if|when|where|is|are|was|were)$/.test(w) ||
+            (!!nounRead(w)?.verbs.length && !nounRead(w)?.noun && !nounRead(w)?.plural))
+          # The head opens its clause: "the areas of Pakistan is found" may sit in a phrase.
+          - 'enAfterBreak(ctx, m.index) || /,[ \t ]*$/.test(leadText)'
+          # "one of the…", "each of": the head is not the first noun.
+          - '!/\b(?:one|each|every|none|any|either|neither)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))'
+        return: NOUN_PLURAL_VERB[nounLower(target)]
       # "How is your new friends?", "How are your new school?": the be agrees with the noun.
       - regex: "(?<![\\p{L}'’])how{{S}}(?<target>is|are|was|were){{S}}(?:your|the|my|his|her|our|their)(?<adjectives>(?:{{S}}[a-z]+){0,2}?){{S}}(?<noun>[a-z]+)[ \\t\\u00a0]*\\?"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
         cue: ["how"]
-        fixer: nounSlotsIs3
+        let:
+          be: nounLower(target)
+          adjectiveList: 'adjectives.trim().split(/[ \t ]+/).filter(Boolean)'
+        when: "!adjectiveList.some((w) => !nounRead(w)?.adjective)"
+        return: >-
+          nounPlural(noun) ? (be === "is" ? "are" : be === "was" ? "were" : null)
+          : nounSingular(noun) && !ENGLISH_MASS_NOUNS.has(noun) ? (be === "are" ? "is" : be === "were" ? "was" : null)
+          : null
       # "Some time I like to read": sometimes.
       - regex: "(?<target>Some{{S}}time){{S}}(?:I|we|you|they|he|she|it){{S}}(?<verb>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["some"]
-        fixer: nounSlotsSome
+        when: enAfterBreak(ctx, m.index) && /^Some/.test(m[0])
+        return: 'nounRead(verb)?.verbs.some((v) => v.form === "base" || v.form === "third") ? "Sometimes" : null'
       # "there isn't anyway to do that", "heard of anyway to": any way.
       - regex: "(?<![\\p{L}'’])(?:there{{S}}(?:is|isn['’]t|was|wasn['’]t)|is{{S}}there|of|no|find|found){{S}}(?<target>anyway){{S}}to{{S}}[a-z]+{{E}}"
         check: englishConfusedWords
@@ -12961,7 +15051,9 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:have|has|had|is|am|are|was|were|['’]m){{S}}(?<target>no){{S}}(?<word>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["no"]
-        fixer: nounSlotsNo
+        let:
+          w: nounLower(word)
+        return: '/^(?:been|sure)$/.test(w) ? "not" : nounNoFix(ctx, m, w)'
       # "Do you one to win?": want.
       - regex: "(?<![\\p{L}'’])(?:do|did|don['’]t|didn['’]t|does|doesn['’]t){{S}}(?:you|I|we|they|he|she)(?:{{S}}(?:ever|really|not))?{{S}}(?<target>one){{S}}to{{S}}[a-z]+{{E}}"
         check: englishConfusedWords
@@ -12971,7 +15063,11 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>harry){{S}}up(?=[ \\t\\u00a0]*[.!,]|{{S}}(?:and|please){{E}})"
         check: englishConfusedWords
         cue: ["harry"]
-        fixer: nounSlotsHarry
+        let:
+          before: enWordBefore(ctx, m.index)
+        return: >-
+          (target === "harry" || (!before && enAfterBreak(ctx, m.index))) &&
+          (!before || /^(?:please|so|push|just|must|to|can|should|you|we)$/.test(before)) ? "hurry" : null
       # "Please open the attach file": attached.
       - regex: "(?<![\\p{L}'’])(?:the|an|this|these|my|your){{S}}(?<target>attach){{S}}(?:file|files|document|documents|form|invoice|report|image|photo|picture|spreadsheet|pdf|list|letter){{E}}"
         check: englishConfusedWords
@@ -12988,18 +15084,30 @@ rules:
         check: englishVerbComplements
         message: review_msg_forward_gerund
         cue: ["forward"]
-        fixer: nounSlotsForward
+        return: >-
+          prep ? { alternatives: ["forward to"], range: [m.indices!.groups!.target[0], m.indices!.groups!.prep[1]] }
+          : "forward to"
       # "Would it possible to track it?", "Would it great?": be after the subject.
       - regex: "(?<target>(?:would|will|could|should|might){{S}}it){{S}}(?<adjective>[a-z]+)(?=[ \\t\\u00a0]*\\?|{{S}}(?:for|to|that|if){{E}})"
         check: englishSentenceStructure
         message: review_msg_missing_be
         cue: ["it"]
-        fixer: nounSlotsWould
+        let:
+          r: nounRead(adjective)
+        when: enAfterBreak(ctx, m.index)
+        return: "r?.adjective && !r.verbs.length ? `${target} be` : null"
       # "And the are beautiful!": they are or there are.
       - regex: "(?<![\\p{L}'’])(?<target>the{{S}}are){{S}}(?<next>[a-z]+){{E}}"
         check: englishConfusedWords
         cue: ["the"]
-        fixer: nounSlotsThe
+        let:
+          # "the ARE" names something; "the are has fallen out of use" is the unit of area.
+          nextWord: nounLower(next)
+          r: nounRead(nextWord)
+          predicate: >-
+            /^(?:not|so|very|really|all|also|always|still|again|going|coming)$/.test(nextWord) ||
+            (!!r?.adjective && !r.noun && !r.verbs.length) || (!!r?.verbs.some((v) => v.form === "ing") && !r.noun)
+        return: '/ARE/.test(m[0]) || !predicate ? null : ["they are", "there are"]'
       # "That guy is one of the kind.": one of a kind.
       - regex: "(?<![\\p{L}'’])(?:one|two|three|four|five){{S}}of{{S}}(?<target>the){{S}}kind(?=[ \\t\\u00a0]*[.!?,]|$)"
         check: englishPhraseCorrections
@@ -13010,13 +15118,20 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:this|that|it){{S}}(?:is|was)(?:{{S}}just)?{{S}}the{{S}}(?:most|least){{S}}(?<adjective>[a-z]+){{S}}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?]|{{S}}(?:on|in|of|for|with|I|we|you){{E}})"
         message: review_msg_noun_count
         cue: ["most", "least"]
-        fixer: nounSlotsA5
+        return: "nounRead(adjective)?.adjective ? nounPlural(target) : null"
       # "This is most popular game", "Be best writer you can be": the superlative takes the.
       - regex: "(?<![\\p{L}'’])(?:is|was|are|were|be)(?:{{S}}(?:by{{S}}far|clearly|probably))?{{S}}(?<target>most){{S}}(?<adjective>[a-z]+){{S}}(?<noun>[a-z]+){{E}}"
         check: englishSentenceStructure
         message: review_msg_superlative_the
         cue: ["most"]
-        fixer: nounSlotsMost
+        let:
+          r: nounRead(adjective)
+          next: nounNextToken(ctx, m.index + m[0].length)
+        when:
+          - "!(!r?.adjective || r.noun || r.verbs.length)"
+          - "!(!nounRead(noun)?.noun || nounRead(noun)?.plural || !enCountNoun(noun) || ENGLISH_MASS_NOUNS.has(noun))"
+          - '!(next?.kind === "word" && nounRead(next.lower)?.noun && !EN_FUNCTION_WORDS.has(next.lower))'
+        return: '"the most"'
   - id: en.agreementFrames
     checks:
       [
@@ -13719,6 +15834,47 @@ rules:
       ]
     style: slot
     message: review_msg_sentence_structure
+    maps:
+      # The negative be that agrees with "I", with "we"/"they", and with the other pronouns.
+      CLASH_BE_I: { is: am not, are: am not, were: wasn't }
+      CLASH_BE_PLURAL: { is: aren't, was: weren't }
+      CLASH_BE_SINGULAR: { are: isn't, were: wasn't }
+    defs:
+      # Words before a bare "bit" + degree word that leave "a" out: "I'm bit lazy", "and bit of".
+      CLASH_BIT_LEAD: /^(?:['’](?:m|re|s)|am|is|are|was|were|be|been|being|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|gets|got|getting|have|has|had|having|and|or|with|for|just|only|also|still)$/
+      # Determiners that already own "little bit": "a little bit", "every little bit helps".
+      CLASH_NOT_BEFORE_LITTLE: /^(?:a|the|this|that|my|your|his|her|our|their|its|every|each|one|no|any|some|which|what|whose)$/
+      # Subjects that take "needs fixed" only as the verb: a pronoun, or a determiner + one noun.
+      CLASH_NEED_SUBJECT: /^(?:it|this|that|he|she|they|these|those|everything|something|nothing)$/
+      # Participles that also read as a past after a plural noun "needs": "Our needs changed".
+      CLASH_NEEDS_CHANGED: /^(?:changed|evolved|increased|decreased|shifted|differed|varied|expanded|emerged|developed|existed|remained|appeared|happened|occurred|arrived|continued|ended|started|peaked|grew|exceeded|included|listed|stated|mentioned|outlined|described|identified|addressed)$/
+      # Words that make a following "were" a subjunctive.
+      CLASH_SUBJUNCTIVE: /\b(?:if|wish|wished|wishes|though|unless|suppose|supposing|imagine|only)\b/i
+      # The text from the last sentence end before `index`, at most 80 characters.
+      clashSentenceBefore:
+        args: "ctx: DetectContext, index: number"
+        return: 'ctx.text.slice(Math.max(0, index - 80), index).split(/[.!?\n]/).at(-1) ?? ""'
+      # "more likely", "more often": set phrases that stay.
+      CLASH_KEEP_MORE: /^(?:likely|often|real|right|wrong|fun|apt|just|true|ill|well)$/
+      # "easier", "clearer", "safer": the -er comparative that the dictionary lists as an
+      # adjective. One syllable, or two that end in -y or -le: "more robust" and "more common"
+      # stay. "opener", "cleaner" also name things: only a pure adjective form is offered.
+      clashComparative:
+        args: "adjective: string"
+        type: string | null
+        let:
+          own: englishWordInfo(adjective)
+          syllables: adjective.replace(/e$/, "").match(/[aeiouy]+/g)?.length ?? 0
+          doubled: /[^aeiou][aeiou]([bdgmnpt])$/.exec(adjective)
+          form: >-
+            /[^aeiou]y$/.test(adjective) ? `${adjective.slice(0, -1)}ier`
+            : adjective.endsWith("e") ? `${adjective}r`
+            : doubled ? `${adjective}${doubled[1]}er` : `${adjective}er`
+          read: englishWordInfo(form)
+        when:
+          - own?.adjective && !/ly$/.test(adjective)
+          - "!(syllables > 1 && !/(?:[^aeiou]y|le)$/.test(adjective))"
+        return: "read?.adjective && !read.noun ? form : null"
     frames:
       # "I'm haven't been", "It's just doesn't seem right": a contracted be before a negative
       # auxiliary. A contraction never ends a clause, so the be is always extra.
@@ -13759,54 +15915,117 @@ rules:
             "wouldn",
             "shouldn",
           ]
-        fixer: clashFramesT
+        when: enAfterBreak(ctx, m.index)
+        return: '""'
       # "It's the site that's we are using", "what's I'm doing": "'s" before a whole clause.
       # "you're" and "they're" count only before -ing or "not" ("what's you're name" is "your").
       - regex: "{{START}}(?<target>(?<word>that|what)['’]s){{S}}(?:(?:I|you|we|they|he|she|it){{S}}(?:am|are|is|was|were)|I['’]m|(?:he|she|it)['’]s|we['’]re|(?:you|they)['’]re(?={{S}}(?:[a-z]+ing|not){{E}})){{E}}"
         cue: ["that", "what"]
-        fixer: clashFramesWord
+        return: word
       # "I isn't", "I really aren't", "we isn't", "she weren't": a negative be that does not
       # agree with its pronoun. "it" and "you" can be objects ("the ones that made it aren't").
       - regex: "{{START}}(?<subject>I|we|they|he|she)(?:{{S}}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?{{S}}(?<target>(?<be>is|are|was|were)n['’]t){{E}}"
         check: englishPronounVerbWhitelistAgreement
         message: review_msg_pronoun_verb
         cue: ["isn", "aren", "wasn", "weren"]
-        fixer: clashFramesBe
+        let:
+          s: subject.toLowerCase()
+          b: be.toLowerCase()
+          fix: 's === "i" ? CLASH_BE_I[b] : s === "we" || s === "they" ? CLASH_BE_PLURAL[b] : CLASH_BE_SINGULAR[b]'
+        when:
+          # A lowercase "i" is a variable; "you and I", "than they" are no whole subject.
+          - '!(subject === "i" || /^(?:and|or|nor|than|as)$/.test(enWordBefore(ctx, m.index)))'
+          # "I wish I weren't", "if she weren't so young": a subjunctive were.
+          - '!(b === "were" && CLASH_SUBJUNCTIVE.test(clashSentenceBefore(ctx, m.index)))'
+        return: fix ?? null
       # "He turned 25 year old.", "She is six month old now": a plural count before "old".
       # "a 25 year old" is a noun and wants hyphens.
       - regex: "(?:{{START}}(?:is|was|turned|turns|turn|turning|be|am|are|were|being)|['’](?:s|m|re)){{S}}(?<count>{{COUNT}}){{S}}(?<target>year|month|week|day){{S}}old(?=[ \\t\\u00a0]*(?:[.,;:!?)]|$)|{{S}}(?:and|but|now|today|this|last|when|in){{E}})"
         check: englishNounNumber
         message: review_msg_noun_count
         cue: ["old"]
-        fixer: clashFramesYear
+        return: 'count === "1" ? null : `${target}s`'
       # "My car needs fixed", "The walls need painted": the dialect "need" + participle.
       - regex: "{{START}}(?<subject>[a-z]+){{S}}(?<target>(?<need>needs|need|needed){{S}}(?<verb>[a-z]+ed))(?=[ \\t\\u00a0]*(?:[.!?,;]|$)|{{S}}(?:before|soon|again|now|badly|if|when|or|and){{E}})"
         check: englishVerbComplements
         message: review_msg_verb_complements
         cue: ["need", "needs", "needed"]
-        fixer: clashFramesNeed
+        let:
+          s: subject.toLowerCase()
+          v: verb.toLowerCase()
+          read: englishWordInfo(s)
+          nounSubject: "!!read?.noun && EN_DETERMINERS.has(enWordBefore(ctx, m.index))"
+        when:
+          - "!CLASH_NEEDS_CHANGED.test(v)"
+          - englishWordInfo(v)?.verbs.some((x) => x.form === "participle")
+          - CLASH_NEED_SUBJECT.test(s) || nounSubject
+        return: >-
+          [`${need} to be ${verb}`, `${need} ${v.replace(/e?d$/, "")}ing`].filter((alt, i) =>
+          i === 0 || englishWordInfo(alt.split(" ")[1]))
       # "She wasn't ever be able", "I'm never be able": be, an adverb, then a second be.
       - regex: "(?<target>(?<be>{{START}}(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|am|is|are|was|were)|['’](?:m|re|s))(?<adverb>{{S}}(?:ever|never|always|still|just|not)){{S}}be)(?={{S}}(?:able|unable|possible|allowed){{E}})"
         cue: ["able", "unable", "possible", "allowed"]
-        fixer: clashFramesBe2
+        let:
+          will: >-
+            /n['’]t$/i.test(be) ? "won't" : /^['’]/.test(be) ? `${be[0]}ll` : "will"
+        return: "[`${be}${adverb}`, `${will}${adverb} be`]"
       # "I'm bit lazy", "having bit of a problem", "think little bit different": "a" is missing.
       - regex: "(?:(?<lead>{{START}}[a-z]+|['’](?:m|re|s)){{S}})?(?<target>(?<little>little{{S}})?bit)(?={{S}}(?:of{{S}}an?|too|more|less|late|early|better|worse|different|differently|longer|slow|slower|faster|tired|lazy|busy|confused|stupid|strange|weird|odd|nervous|worried|bored|cold|hot|warm){{E}})"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
         cue: ["bit"]
-        fixer: clashFramesLittle
+        let:
+          word: lead?.toLowerCase()
+          before: 'word === "little" ? enWordBefore(ctx, m.index) : ""'
+        when:
+          # "Little bit stupid": the lead is "little" itself, at the clause start or after a word.
+          - >-
+            !(word === "little" && (before ? CLASH_NOT_BEFORE_LITTLE.test(before) : !enAfterBreak(ctx, m.index)))
+          - >-
+            word === "little" || (word === undefined ? !!little && enAfterBreak(ctx, m.index)
+            : little ? !CLASH_NOT_BEFORE_LITTLE.test(word) : CLASH_BIT_LEAD.test(word))
+        return: >-
+          word === "little" ? { alternatives: ["a little bit"], range: [m.index, m.index + m[0].length] }
+          : little ? "a little bit" : "a bit"
       # "Are we have to go?", "Am I finally go home?": be inverted before a base verb.
       - regex: "(?<target>(?<be>{{START}}(?:are|is|am|was|were))(?<rest>{{S}}(?<subject>I|you|we|they|he|she|it)(?:{{S}}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?{{S}})(?<verb>[a-z]+)){{E}}"
         check: englishAuxiliaryBaseVerb
         message: review_msg_question_do
         cue: ["are", "is", "am", "was", "were"]
-        fixer: clashFramesBe3
+        let:
+          read: englishWordInfo(verb)
+          # A noun reading counts only for the irregular verbs ("Are we have", "Am I go"): "Is it
+          # love?" and "Are we friends?" are nouns after be.
+          irregular: englishVerbForms(verb)
+          end: m.index + m[0].length
+          following: '/^[ \t ]+([a-z]+)/i.exec(ctx.text.slice(end, end + 24))'
+          b: be.toLowerCase()
+          aux: '/^(?:was|were)$/.test(b) ? "did" : /^(?:he|she|it)$/i.test(subject) ? "does" : "do"'
+          ing: englishInflect(verb, "ing")
+        when:
+          # A lowercase "i" is a variable.
+          - enAfterBreak(ctx, m.index) && subject !== "i"
+          - read?.verbs.length && !read.adjective && !read.adverb
+          # "Is it work or play?": a noun before a conjunction or the clause end.
+          - >-
+            !(read.noun && (irregular?.lemma !== verb || !following || /^(?:or|and|nor|but)$/i.test(following[1])))
+          - 'read.verbs.every((v) => v.form === "base" && v.lemma === verb)'
+          # "Is he suppose to" wants "supposed"; "Are you please going" has the adverb please.
+          - "!(irregular?.participle === verb || /^(?:be|suppose|use|please)$/.test(verb))"
+        return: "[`${aux}${rest}${verb}`, ...(ing ? [`${be}${rest}${ing}`] : [])]"
       # Opt-in: "more easy to read" -> "easier", "more clear" -> "clearer".
       - regex: "{{START}}(?<target>more{{S}}(?<adjective>[a-z]{3,8}))(?={{S}}(?:to|for|if|when|with){{E}}|{{S}}than{{S}}(?<other>[a-z]+)|[ \\t\\u00a0]*(?:[.,;:!?)]|$))"
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["more"]
-        fixer: clashFramesMore
+        let:
+          otherRead: other && englishWordInfo(other.toLowerCase())
+        when:
+          - adjective === adjective.toLowerCase() && !CLASH_KEEP_MORE.test(adjective)
+          # "all the more sad", "the more sad I got": the correlative keeps "more".
+          - "!/^(?:no|once|never|and|the)$/.test(enWordBefore(ctx, m.index))"
+          - "!(otherRead && otherRead.adjective && !otherRead.noun)"
+        return: clashComparative(adjective)
       # Opt-in: "The reason we left is because…" -> "is that".
       - regex: "{{START}}reason(?:{{S}}[a-z'’]+){0,8}?{{S}}(?:is|was){{S}}(?<target>because){{E}}(?!{{S}}of{{E}})"
         check: stylePhrasing
@@ -13818,14 +16037,17 @@ rules:
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["please"]
-        fixer: clashFramesT2
+        when: enAfterBreak(ctx, m.index)
+        return: '""'
       # Opt-in: "very very cool" -> "very, very cool" or one "very". A word must follow ("so so"
       # alone is "so-so").
       - regex: "{{START}}(?<target>(?<word>very|so|far|long|really){{S}}\\k<word>){{S}}(?=[a-z])"
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["very", "so", "far", "long", "really"]
-        fixer: clashFramesWord2
+        # Typed casing differs ("So so"): the backreference matched case-blind.
+        when: target.slice(-word.length) === word.toLowerCase()
+        return: "({ alternatives: [`${word}, ${word.toLowerCase()}`, word], raw: true })"
 
 # Phrase tables by name, in index order: "typed = fix", "a | b = fix" for typed variants,
 # "fix1; fix2" for choices. The "<module>.phrases", ".compounds" and ".style" tables
