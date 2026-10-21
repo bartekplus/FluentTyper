@@ -18323,7 +18323,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}\\p{M}])(?:qu|lorsqu|puisqu|quoiqu)['’])(?:il|on|ils)(?![\\p{L}\\p{M}\\p{N}_-])|(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\\p{L}\\p{M}\\p{N}_-])|personne(?=[ \\t]{1,8}n(?:e\\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\\p{L}\\p{M}\\p{N}_-])|j['’](?=\\p{L}))",
     literals: [],
-    fixer: "fr:pronounSubject",
+    fixer: "fr:@fr.subjectVerbAgreement/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18332,7 +18332,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:l['’](?=\\p{L})|(?:le|la|un|une|ce|cet|cette|mon|ton|son|ma|ta|sa|notre|votre|chaque|les|des|ces|mes|tes|ses|nos|vos|leurs|plusieurs|moi|toi|lui|nous|vous|eux|ceux|celles|celui|celle|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent|mille|plusieurs|quelques)(?![\\p{L}\\p{M}\\p{N}_'’-])|(?<![\\p{N},.][ \\u00a0]?)\\d+(?=[ \\u00a0]+\\p{L}))",
     literals: [],
-    fixer: "fr:nounSubjectOrRelative",
+    fixer: "fr:@fr.subjectVerbAgreement/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18340,7 +18340,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])qui(?=[ \\t])",
     literals: ["qui"],
-    fixer: "fr:nounAfterQui",
+    fixer: "fr:@fr.subjectVerbAgreement/3",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18349,7 +18349,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:beaucoup|peu|trop|tant|assez|énormément|combien|la plupart|bon nombre|de plus en plus|de moins en moins)[ \\t]{1,8}(?:des?(?![\\p{L}\\p{M}\\p{N}_'’-])|d['’])|de(?=[ \\t]))",
     literals: [],
-    fixer: "fr:quantitySubject",
+    fixer: "fr:@fr.subjectVerbAgreement/4",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18357,7 +18357,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])la[ \\t]+plupart(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["plupart"],
-    fixer: "fr:pluralPlupart",
+    fixer: "fr:@fr.subjectVerbAgreement/5",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18366,7 +18366,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])\\p{Lu}\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+)?(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:nameSubject",
+    fixer: "fr:@fr.subjectVerbAgreement/6",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18375,7 +18375,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:où|lorsque|quand|que)(?=[ \\t])|(?:lorsqu|qu)['’](?=\\p{L}))",
     literals: [],
-    fixer: "fr:invertedSubject",
+    fixer: "fr:@fr.subjectVerbAgreement/7",
     flags: "giu",
     scan: "owned",
     lookback: 1,

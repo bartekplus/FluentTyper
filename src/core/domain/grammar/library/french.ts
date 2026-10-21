@@ -5,10 +5,16 @@ import type { RawFinding } from "../review/reviewDetectors";
 
 export { finding } from "../review/finding";
 export { invalidIsoDate } from "../review/isoDates";
+export {
+  skipComplements,
+  skipCoordinated,
+  skipNounPhrase,
+  skipPostnominal,
+  verbAfterRelative,
+} from "../review/clauseReader";
+export type { ClauseProfile, ClauseToken } from "../review/clauseReader";
 export { accentedNoun, hAspire } from "./french/words";
 export { firstNameGender } from "../review/french/firstNames";
-// TRANSITIONAL: these move to fr.yaml when their modules are ported.
-export { subjectEndsAt } from "../review/french/agreement";
 export { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../review/reviewClock";
 export {
   applyWordCase,

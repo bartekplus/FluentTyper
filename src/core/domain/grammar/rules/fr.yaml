@@ -1775,14 +1775,14 @@ rules:
             next.w === "là" ||
             next.w === "ici" ||
             next.w === "en"
-          nounLike: 'nounGender(next.w) || (!predicate && nounGender(next.w.replace(/[sx]$/, "")))'
+          nounAhead: 'nounGender(next.w) || (!predicate && nounGender(next.w.replace(/[sx]$/, "")))'
         when:
           - >-
             pronoun || relative ||
             (!!det && (HOMO_PLURAL_DETERMINERS.has(det.w) || HOMO_NUMBERS.test(det.w)) && pluralToken(before[h]) &&
               !(before[h + 2] && !HOMO_CONJUNCTIONS.has(before[h + 2].w)))
           - "!(!next || next.hyphen || /^\\p{Lu}/u.test(text[next.start]))"
-          - "!(nounLike || (!predicate && !/[sx]$/.test(next.w)))"
+          - "!(nounAhead || (!predicate && !/[sx]$/.test(next.w)))"
         return: "{ start: (det ?? before[0]).start, end: next.end }"
       # "il ma dit", "je la vu", "tu ta trompé", "il la bien fait", "il sa trompé": the "ma",
       # "ta", "la" or "sa" at `index` is an object pronoun and the auxiliary run together. Gives
@@ -4049,51 +4049,1911 @@ rules:
     checks: [frenchSubjectVerbAgreement]
     style: match
     message: review_msg_fr_subject_verb
+    # A personal pronoun subject and its verb agree in person and number: "je peux", "tu manges",
+    # "ils mangent". The verb's possible persons come from the dictionary's conjugations.
+    maps:
+      # Demonstratives and "personne ne", subjects at a clause start: "ça fonctionne", "ceux-ci
+      # partent", "personne ne peut".
+      AGR_PERSON:
+        {
+          je: 1,
+          "j'": 1,
+          tu: 2,
+          il: 4,
+          elle: 4,
+          on: 4,
+          nous: 8,
+          vous: 16,
+          ils: 32,
+          elles: 32,
+          ça: 4,
+          cela: 4,
+          ceci: 4,
+          personne: 4,
+          celui-ci: 4,
+          celui-là: 4,
+          celle-ci: 4,
+          celle-là: 4,
+          ceux-ci: 32,
+          ceux-là: 32,
+          celles-ci: 32,
+          celles-là: 32,
+        }
+      # The personal pronouns, as against the demonstratives and "personne".
+      PARTICIPLE_PERSONS:
+        {
+          je: true,
+          "j'": true,
+          tu: true,
+          il: true,
+          elle: true,
+          on: true,
+          nous: true,
+          vous: true,
+          ils: true,
+          elles: true,
+        }
+      # The present subjunctive of avoir and être in the third persons.
+      SUBJUNCTIVE_AUXILIARIES: { avoir: { 4: ait, 32: aient }, être: { 4: soit, 32: soient } }
+      # Endings a verb may take for each person, the silent letters a misspelling may carry.
+      PERSON_ENDINGS:
+        { 1: [e, s, x, is], 2: [es, s, x, is], 4: [e, t, d, it], 8: [ons], 16: [ez], 32: [ent] }
+      AVOIR_PRESENT: { 1: ai, 2: as, 4: a, 8: avons, 16: avez, 32: ont }
+      # A reflexive verb ("elle s'y plu") takes être.
+      ETRE_PRESENT: { 1: suis, 2: es, 4: est, 8: sommes, 16: êtes, 32: sont }
+      PARTICIPLE_ENDING: { il: é, elle: ée, ils: és, elles: ées }
+      # Stressed pronouns before "qui", with the person they give its verb.
+      AGR_STRESSED:
+        {
+          moi: 1,
+          toi: 2,
+          lui: 4,
+          nous: 8,
+          vous: 16,
+          eux: 32,
+          ceux: 32,
+          celles: 32,
+          celui: 4,
+          celle: 4,
+        }
+      # The stressed pronoun that takes up a subject: "mon enfant, lui, ne m'en veut pas".
+      TAKEN_UP: { 4: [lui, elle], 32: [eux, elles] }
+    sets:
+      # Pronouns that are always subjects; the others may be objects or stressed ("pour elle").
+      ALWAYS_SUBJECT: [je, "j'", tu, il, on, ils]
+      AGR_OPENERS:
+        [
+          et,
+          mais,
+          ou,
+          donc,
+          car,
+          que,
+          qu',
+          quand,
+          si,
+          lorsque,
+          lorsqu',
+          puisque,
+          puisqu',
+          comme,
+          où,
+          alors,
+          puis,
+        ]
+      AGR_NEGATION: [ne, "n'"]
+      RELATIVE_PRONOUNS:
+        [
+          lequel,
+          laquelle,
+          lesquels,
+          lesquelles,
+          auquel,
+          auxquels,
+          auxquelles,
+          duquel,
+          desquels,
+          desquelles,
+          dont,
+        ]
+      SUBJECT_PRONOUNS_ALL: [je, "j'", tu, il, elle, on, nous, vous, ils, elles]
+      # Words that name the pronoun after them rather than let it be a subject.
+      NAMING: [pronom, personnel, mot, terme, le, un, du, au, aux, les, des]
+      COORDINATING_OR_RELATIVE: [et, ou, que, "qu'", où]
+      # Nouns avoir takes bare in a locution: "elle a besoin de", "il a peur".
+      BARE_AVOIR_NOUNS: [besoin, envie, peur, honte, faim, soif, hâte, sommeil, tort, raison]
+      # Adverbs between an auxiliary and its participle: "il a aussi eu", "nous n'avons pas eu".
+      BEFORE_PARTICIPLE:
+        [aussi, déjà, toujours, jamais, pas, plus, encore, bien, souvent, vraiment, enfin, même]
+      AFTER_BARE_NOUN: [de, "d'", du, des, que, "qu'"]
+      DETERMINERS_AFTER_Y:
+        [
+          un,
+          une,
+          des,
+          du,
+          le,
+          la,
+          les,
+          l',
+          ce,
+          cet,
+          cette,
+          ces,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          son,
+          sa,
+          ses,
+          notre,
+          nos,
+          votre,
+          vos,
+          leur,
+          leurs,
+          plusieurs,
+          quelques,
+          beaucoup,
+        ]
+      AGR_QUANTITY_WORDS: [beaucoup, plusieurs, trop, peu, assez, quelques, certains]
+      # Conjunctions after which "nous" or "vous" opens its clause as the subject: "si vous
+      # penser" -> "pensez", "est-ce que vous aimer" -> "aimez". A bare "que" may restrict or
+      # compare ("je ne veux que vous aider", "plutôt que vous déranger"): only "est-ce que"
+      # counts.
+      AGR_SUBORDINATORS: [si, quand, lorsque, lorsqu', puisque, puisqu']
+      # Adverbs after which "nous" or "vous" opens its clause: "puis vous manger" -> "mangez".
+      CLAUSE_ADVERBS: [puis, alors, ensuite, donc, car, comme, plus]
+      # "nous deux", "vous autres", "elle seule", "je soussigné": words a pronoun may take.
+      AGR_AFTER_PRONOUN:
+        [
+          soussigné,
+          soussignée,
+          soussignés,
+          soussignées,
+          autres,
+          tous,
+          toutes,
+          tout,
+          même,
+          mêmes,
+          seul,
+          seule,
+          seuls,
+          seules,
+          aussi,
+          non,
+          pendant,
+          point,
+          pas,
+          plus,
+          rien,
+          personne,
+        ]
+      # Function words the noun filter also lets through ("des" as "dés", "on", "leurs").
+      AGR_NOT_NOUNS:
+        [
+          et,
+          ou,
+          où,
+          "on",
+          en,
+          "y",
+          des,
+          les,
+          leurs,
+          ses,
+          ces,
+          mes,
+          tes,
+          nos,
+          vos,
+          le,
+          la,
+          un,
+          une,
+          du,
+          au,
+          aux,
+          de,
+          que,
+          qui,
+          si,
+          car,
+          mais,
+          donc,
+          or,
+          ni,
+        ]
+      PREPOSITION_WORDS: [dans, sans, sous, vers, chez, par, pour, avec, entre, contre]
+      PLACE_PREPOSITIONS: [dans, sous, chez]
+      AGR_NUMBER_WORDS: [deux, trois, quatre, cinq, six, sept, huit, neuf, dix, cent, mille]
+      ETRE_FORMS:
+        [est, sont, était, étaient, sera, seront, serait, seraient, fut, furent, soit, soient]
+      AGR_ADVERBS:
+        [
+          pas,
+          plus,
+          jamais,
+          bien,
+          très,
+          trop,
+          si,
+          déjà,
+          toujours,
+          encore,
+          vraiment,
+          souvent,
+          vite,
+          enfin,
+          aussi,
+        ]
+      AGR_SINGULAR_DETERMINERS:
+        [le, la, l', un, une, ce, cet, cette, mon, ton, son, ma, ta, sa, notre, votre, chaque]
+      AGR_PLURAL_DETERMINERS: [les, des, ces, mes, tes, ses, nos, vos, leurs, plusieurs]
+      # Nouns of quantity whose verb follows their complement ("la plupart des gens pensent").
+      COLLECTIVES:
+        [
+          plupart,
+          peu,
+          nombre,
+          majorité,
+          minorité,
+          reste,
+          foule,
+          totalité,
+          ensemble,
+          moitié,
+          tiers,
+          quart,
+          dizaine,
+          douzaine,
+          vingtaine,
+          trentaine,
+          centaine,
+          millier,
+          million,
+          milliard,
+          partie,
+          infinité,
+          quantité,
+          multitude,
+          série,
+          masse,
+          tas,
+          genre,
+          sorte,
+          espèce,
+          type,
+          essaim,
+          groupe,
+          bande,
+          troupe,
+          troupeau,
+          nuée,
+          poignée,
+          flopée,
+          kyrielle,
+          horde,
+          meute,
+          myriade,
+          ribambelle,
+          foule,
+          tonne,
+        ]
+      # "Chaque jour des fonctions sont ajoutées", "neuf heures lui conviendrait": a time or a
+      # measure, not the subject the verb agrees with.
+      TIME_OR_MEASURE:
+        [
+          jour,
+          matin,
+          soir,
+          nuit,
+          semaine,
+          mois,
+          an,
+          année,
+          siècle,
+          heure,
+          minute,
+          seconde,
+          instant,
+          moment,
+          fois,
+          hiver,
+          été,
+          automne,
+          printemps,
+          lendemain,
+          veille,
+          midi,
+          lundi,
+          mardi,
+          mercredi,
+          jeudi,
+          vendredi,
+          samedi,
+          dimanche,
+          euro,
+          dollar,
+          franc,
+          centime,
+          kilo,
+          gramme,
+          kilogramme,
+          mètre,
+          kilomètre,
+          litre,
+          degré,
+          pour,
+        ]
+      AGR_CLAUSE_OPENERS:
+        [
+          mais,
+          car,
+          donc,
+          que,
+          qu',
+          quand,
+          si,
+          lorsque,
+          lorsqu',
+          puisque,
+          puisqu',
+          alors,
+          pourquoi,
+          cependant,
+          pourtant,
+        ]
+      # "aussi bien que", "plus vite que", "ne connaissent que": "que" compares or restricts there.
+      COMPARING:
+        [
+          plus,
+          moins,
+          aussi,
+          autant,
+          si,
+          tant,
+          bien,
+          mieux,
+          pire,
+          même,
+          autre,
+          autres,
+          ainsi,
+          ne,
+          n',
+          rien,
+          tel,
+          tels,
+          telle,
+          telles,
+        ]
+      AGR_NOT_HEADS:
+        [
+          plus,
+          moins,
+          mieux,
+          tant,
+          trop,
+          peu,
+          que,
+          qu',
+          dont,
+          qui,
+          quoi,
+          ne,
+          n',
+          des,
+          du,
+          de,
+          d',
+          un,
+          une,
+          lequel,
+          laquelle,
+          lesquels,
+          lesquelles,
+        ]
+      AUXILIARY_HOMOGRAPHS: [est, a]
+      # Determiners that open a verb's object and never follow a participle: "fait du bruit".
+      AGR_OBJECT_DETERMINERS:
+        [
+          du,
+          des,
+          un,
+          une,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          son,
+          sa,
+          ses,
+          notre,
+          nos,
+          votre,
+          vos,
+          leurs,
+          cette,
+          ces,
+        ]
+      # Number words that stand for a plural determiner or follow one: "les dix maisons".
+      AGR_NUMBERS:
+        [
+          deux,
+          trois,
+          quatre,
+          cinq,
+          six,
+          sept,
+          huit,
+          neuf,
+          dix,
+          onze,
+          douze,
+          treize,
+          quatorze,
+          quinze,
+          seize,
+          vingt,
+          trente,
+          quarante,
+          cinquante,
+          soixante,
+          cent,
+          mille,
+          plusieurs,
+          quelques,
+        ]
+      # "Le prix des maisons", "les enfants dans le jardin": a complement between the head and its
+      # verb.
+      COMPLEMENT_PREPOSITIONS:
+        [
+          de,
+          d',
+          du,
+          des,
+          dans,
+          sur,
+          sous,
+          entre,
+          avec,
+          chez,
+          à,
+          au,
+          aux,
+          par,
+          pour,
+          vers,
+          contre,
+          sans,
+        ]
+      # Words before a noun phrase that make it a complement, not the start of a list.
+      AGR_PREPOSITIONS:
+        [
+          de,
+          d',
+          du,
+          des,
+          à,
+          au,
+          aux,
+          en,
+          dans,
+          sur,
+          sous,
+          pour,
+          par,
+          avec,
+          sans,
+          chez,
+          après,
+          avant,
+          depuis,
+          pendant,
+          entre,
+          vers,
+          selon,
+          malgré,
+          contre,
+          durant,
+          dès,
+        ]
+      PREDETERMINERS: [tous, toutes, seuls, seules]
+      AGR_QUANTIFIERS: [certains, certaines, quelques]
+      AGR_DEGREE: [très, si, trop, plus, bien, assez]
+      FRENCH_ADVERBS:
+        [ici, hier, demain, toujours, souvent, parfois, rarement, déjà, encore, aussi, également]
+      # Words that end a subordinate clause's reach: another clause or a coordination starts.
+      CLAUSE_STOPS:
+        [
+          que,
+          qu',
+          qui,
+          dont,
+          où,
+          et,
+          ou,
+          mais,
+          si,
+          comme,
+          car,
+          donc,
+          lorsque,
+          lorsqu',
+          quand,
+          puisque,
+          puisqu',
+          je,
+          j',
+          tu,
+          il,
+          elle,
+          "on",
+          ils,
+          elles,
+          ni,
+        ]
+      MARKING_CLITICS: [ne, n', me, m', te, t', se, s', lui, "y"]
+      # Object pronouns that only a verb follows: "la foule se déplace", "le garçon lui cache".
+      VERB_CLITICS: [me, m', te, t', se, s', lui, leur, nous, vous]
+      # Words before a noun phrase that make it an object whose relative clause agrees with it:
+      # "voici les enfants qui jouent". After a preposition the phrase may complement a noun
+      # before it ("la façon dont ils jouent leurs rôles qui ..."), and "qui" may relate to that
+      # noun.
+      OBJECT_OPENERS: [voici, voilà]
+      # Verbs a question may follow ("demande aux enfants qui veut venir"): "qui" may ask, not
+      # relate.
+      AGR_ASKING:
+        [
+          demander,
+          dire,
+          savoir,
+          expliquer,
+          indiquer,
+          montrer,
+          raconter,
+          décider,
+          ignorer,
+          choisir,
+          deviner,
+        ]
+      # Capitalized function words that open sentences or titles, which the verb and noun lists
+      # leave out: never names.
+      NOT_NAMES:
+        [
+          ce,
+          cet,
+          cette,
+          ces,
+          ne,
+          me,
+          te,
+          se,
+          le,
+          la,
+          les,
+          lui,
+          leur,
+          qui,
+          que,
+          quoi,
+          quel,
+          quels,
+          quelle,
+          quelles,
+          tel,
+          tels,
+          telle,
+          telles,
+          pour,
+          par,
+          sur,
+          sous,
+          sans,
+          si,
+          ni,
+          mais,
+          car,
+          donc,
+          de,
+          du,
+          des,
+          dans,
+          chez,
+          vers,
+          voici,
+          voilà,
+          ça,
+          cela,
+          ceci,
+          celui,
+          celle,
+          ceux,
+          celles,
+          moi,
+          toi,
+          soi,
+          eux,
+          rien,
+          tout,
+          tous,
+          toute,
+          toutes,
+          chaque,
+          chacun,
+          chacune,
+          certains,
+          certaines,
+          plusieurs,
+          plus,
+          moins,
+          très,
+          trop,
+          peu,
+          beaucoup,
+          bien,
+          mal,
+          non,
+          puis,
+          quand,
+          comme,
+          comment,
+          pourquoi,
+          combien,
+          depuis,
+          pendant,
+          selon,
+          malgré,
+          parmi,
+          seul,
+          seule,
+          seuls,
+          seules,
+          nul,
+          nulle,
+          sauf,
+          mon,
+          ton,
+          son,
+          ma,
+          ta,
+          sa,
+          mes,
+          tes,
+          ses,
+          notre,
+          votre,
+          nos,
+          vos,
+        ]
+      # Pronouns between the opener and the verb; "le", "la", "les" may open the subject instead.
+      INVERTED_CLITICS: [ne, n', se, s', "y", en, me, m', te, t', lui, leur]
+      STRESSED_PRONOUNS: [moi, toi, lui, elle, nous, vous, eux, elles]
+    defs:
+      ALL_DETERMINERS: new Set([...AGR_SINGULAR_DETERMINERS, ...AGR_PLURAL_DETERMINERS])
+      # A comma, "et" or "ou", then one more letter ("à" and "y" are words): "a, b", "a et b".
+      LETTER_LIST: '/^\s*(?:,|\s(?:et|ou)\s)\s*[^\P{L}àyY](?![\p{L}''’])/u'
+      # Words that open an aside between commas, which adds nothing to the subject: "les
+      # exercices, quoique longs, sont". "comme", "ainsi que" and "avec" may add to it and stay
+      # out.
+      ASIDE: "/^(?:quoique|bien que|même si|en plus d[e']|à la fois|selon|malgré|pourtant|cependant|toutefois|néanmoins|d'ailleurs|par exemple|notamment|en effet|de plus|en outre|par ailleurs|semble-t-il|paraît-il|dit-on|à mon avis|en général|sans doute|peut-être|heureusement|malheureusement|souvent|parfois|toujours|enfin|également)(?![\\p{L}\\p{M}])/u"
+      # A noun as far as the lists know: an entry, its plural, or a capitalized name or acronym.
+      nounLike:
+        args: "text: string, token: ClauseToken"
+        let:
+          typed: text.slice(token.start, token.end)
+          singular: 'token.w.replace(/aux$/, "al").replace(/[sx]$/, "")'
+        return: >-
+          typed !== token.w
+            ? /^(?:\p{Lu}\p{Ll}+|\p{Lu}{2,6})$/u.test(typed)
+            : verbReadings(token.w).length && !isVerbHomograph(token.w)
+              ? false
+              : Boolean(nounGender(token.w) || nounGender(singular) || isInflectedNoun(token.w))
+      # "ses amies", "des communes": an adjective after a determiner with no noun after it is the
+      # head, a noun the lists leave out.
+      nominalAdjective:
+        args: "text: string, tokens: readonly ClauseToken[], k: number"
+        let:
+          t: tokens[k]
+        return: >-
+          text.slice(t.start, t.end) === t.w &&
+          !verbReadings(t.w).length &&
+          adjectiveReadings(t.w).length > 0 &&
+          !(tokens[k + 1] && nounLike(text, tokens[k + 1]))
+      # An adjective or a past participle after a noun: "financiers", "données", "inscrits". "sur"
+      # (sour) is the preposition here. "ioniques", "rouges": a plural the lists know with no
+      # gender, an adjective of both genders.
+      postnominal:
+        args: "t: ClauseToken | undefined"
+        let:
+          readings: verbReadings(t.w)
+        when: >-
+          !(!t ||
+            t.hyphen ||
+            t.w.length < 3 ||
+            SUBJECT_PRONOUNS_ALL.has(t.w) ||
+            CLITICS.has(t.w) ||
+            COMPLEMENT_PREPOSITIONS.has(t.w) ||
+            AGR_QUANTIFIERS.has(t.w))
+        return: >-
+          !readings.length
+            ? adjectiveReadings(t.w).length > 0 || (/[sx]$/.test(t.w) && isInflectedNoun(t.w) && !nounGender(t.w))
+            : readings.every((r) => r.slot === "Q")
+        else: "false"
+      # Index past an adjective that comes before its noun: "la vieille chèvre", "le très petit
+      # chat"; `i` when no noun follows it. "Une seule pluie et l'herbe reverdit": "seul" makes an
+      # elliptic clause, not a subject.
+      pastPrenominal:
+        args: "text: string, tokens: readonly ClauseToken[], i: number"
+        let:
+          k: 'AGR_DEGREE.has(tokens[i]?.w ?? "") ? i + 1 : i'
+          noun: tokens[k + 1]
+          word: 'tokens[k]?.w ?? ""'
+        return: "!PRENOMINAL.has(word) || /^(?:seul|même|autre)/.test(word) ? i : noun && nounLike(text, noun) ? k + 1 : i"
+      # The French words and lexicon of the shared clause reader.
+      FRENCH_CLAUSE: >-
+        ({
+          determiners: ALL_DETERMINERS,
+          prepositions: new Set([...COMPLEMENT_PREPOSITIONS, "depuis", "selon", "pendant", "après", "avant", "parmi", "malgré", "durant"]),
+          quantifiers: AGR_QUANTIFIERS,
+          numbers: AGR_NUMBERS,
+          notHeads: AGR_NOT_HEADS,
+          coordinators: new Set(["et", "ou"]),
+          joins: new Set(["et"]),
+          pronouns: STRESSED_PRONOUNS,
+          relatives: new Set(["qui"]),
+          clitics: new Set([...AGR_NEGATION, ...CLITICS]),
+          isAdverb: (t: ClauseToken) => FRENCH_ADVERBS.has(t.w),
+          isNoun: (text: string, t: ClauseToken) => nounLike(text, t),
+          nominal: (text: string, tokens: readonly ClauseToken[], k: number) => nominalAdjective(text, tokens, k),
+          postnominal: (t: ClauseToken | undefined) => postnominal(t),
+          prenominal: (text: string, tokens: readonly ClauseToken[], i: number) => pastPrenominal(text, tokens, i),
+          isFiniteVerb: (t: ClauseToken) => verbReadings(t.w).some((r) => typeof r.slot === "number"),
+        })
+      skipAdjective:
+        args: "tokens: readonly ClauseToken[], i: number"
+        return: skipPostnominal(FRENCH_CLAUSE, tokens, i)
+      complementsEnd:
+        args: "text: string, tokens: readonly ClauseToken[], i: number"
+        return: skipComplements(FRENCH_CLAUSE, text, tokens, i)
+      # The index of the main verb after a relative clause's own verb at `k - 1` ("les enfants
+      # que j'accompagne à l'école arrive"), past its complements; -1 when unsure. "j'ai la
+      # garde": a determiner makes the next word a noun. "a la bibliothèque" may be the
+      # preposition "à": only "a" before a participle.
+      mainVerbAfter:
+        args: "tokens: FrenchToken[], k: number, n: number"
+        type: number
+        let:
+          t: tokens[k]
+          previous: tokens[k - 1]
+        when: n < 8 && !!t
+        return: >-
+          CLAUSE_STOPS.has(t.w) || t.hyphen
+            ? -1
+            : MARKING_CLITICS.has(t.w)
+              ? k
+              : !verbReadings(t.w).some((r) => typeof r.slot === "number")
+                ? mainVerbAfter(tokens, k + 1, n + 1)
+                : previous && (ALL_DETERMINERS.has(previous.w) || AGR_NOT_HEADS.has(previous.w) || /^aux?$/.test(previous.w))
+                  ? mainVerbAfter(tokens, k + 1, n + 1)
+                  : t.w === "a"
+                    ? tokens[k + 1] && verbReadings(tokens[k + 1].w).some((r) => r.slot === "Q")
+                      ? k
+                      : -1
+                    : isVerbHomograph(t.w) && t.w !== "est"
+                      ? -1
+                      : k
+        else: "-1"
+      # "les enfants que j'accompagne", "les péniches que les industriels exploitent": a relative
+      # clause with a pronoun or a noun phrase subject; the index of the main verb after it, or
+      # -1. A noun phrase subject: its verb is no homograph ("le voile sombre") and agrees with
+      # it. "a" and "est" are the auxiliaries before a participle: "que la poste a perdues".
+      skipRelative:
+        args: "text: string, tokens: FrenchToken[], i: number"
+        type: number
+        let:
+          phraseEnd: skipNounPhrase(FRENCH_CLAUSE, text, tokens, i + 1)
+          person: "phraseEnd === i + 1 ? 0 : AGR_PLURAL_DETERMINERS.has(tokens[i + 1].w) ? ILS : IL"
+          k: "skipWhile(tokens, person ? phraseEnd : phraseEnd + 1, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))"
+          auxiliary: 'AUXILIARY_HOMOGRAPHS.has(tokens[k].w) && verbReadings(tokens[k + 1]?.w ?? "").some((r) => r.slot === "Q")'
+          homograph: isVerbHomograph(tokens[k].w) && !auxiliary
+        when:
+          - '["que", "qu''", "dont"].includes(tokens[i]?.w ?? "")'
+          - "!!person || (!!tokens[phraseEnd] && SUBJECT_PRONOUNS_ALL.has(tokens[phraseEnd].w))"
+          - '!(!tokens[k] || !verbReadings(tokens[k].w).some((r) => typeof r.slot === "number"))'
+          - "!(person && (homograph || !hasPerson(finitePersons(tokens[k].w), person)))"
+        return: mainVerbAfter(tokens, k + 1, 0)
+        else: "-1"
+      # Whether a noun phrase that no preposition governs ends right before the comma before
+      # `index`: "une activité, un écrit" lists subjects, "après son régime, Marie" does not.
+      listBefore:
+        args: "text: string, index: number"
+        let:
+          words: tokensBefore(text, text.lastIndexOf(",", index), 4)
+          k: 'words.findIndex((t) => ALL_DETERMINERS.has(t.w) || t.w === "des" || t.w === "du")'
+        when: "!(k < 0 || k > 2)"
+        return: "!words[k + 1] || !AGR_PREPOSITIONS.has(words[k + 1].w)"
+        else: "false"
+      # True when a noun phrase that opens its clause ends right before `index`: "la maison aux
+      # volets bleus | est vendue", "que le prix des fruits | est". The verb at `index` may be its
+      # verb.
+      subjectEndsAt:
+        args: "text: string, index: number"
+        let:
+          tokens: tokensBefore(text, index, 12).reverse()
+        return: >-
+          tokens.some(
+            (t, j) =>
+              j < tokens.length - 1 &&
+              ALL_DETERMINERS.has(t.w) &&
+              !(j > 0 && !AGR_CLAUSE_OPENERS.has(tokens[j - 1].w) && tokens[j - 1].w !== "et") &&
+              phraseEndsSubject(text, tokens.slice(j)),
+          )
+      phraseEndsSubject:
+        args: "text: string, phrase: FrenchToken[]"
+        let:
+          n: pastPrenominal(text, phrase, 1)
+        when: "!(!phrase[n] || phrase[n].hyphen || !nounLike(text, phrase[n]))"
+        return: complementsEnd(text, phrase, skipAdjective(phrase, n + 1)) === phrase.length
+        else: "false"
+      # Whether "et" before a noun phrase joins two clauses: the clause before it has its own
+      # verb and no noun phrase after that verb ("les cours sont durs et les élèves", not "le pain
+      # et le vin").
+      verbBeforeEt:
+        args: "previous: FrenchToken[]"
+        let:
+          hit: >-
+            previous
+              .slice(1)
+              .find(
+                (t) =>
+                  ALL_DETERMINERS.has(t.w) ||
+                  ["du", "de", "d'", "des", "et", "ou"].includes(t.w) ||
+                  AUXILIARY_HOMOGRAPHS.has(t.w) ||
+                  (!isVerbHomograph(t.w) && verbReadings(t.w).some((r) => typeof r.slot === "number")),
+              )
+        return: '!!hit && !(ALL_DETERMINERS.has(hit.w) || ["du", "de", "d''", "des", "et", "ou"].includes(hit.w))'
+      # "nous"/"vous" right after a subordinating conjunction, with nothing between it and the
+      # verb; or after a clause adverb ("puis vous manger", "de plus vous oublier"), with object
+      # pronouns between ("alors vous y voyer"). At a sentence start the infinitive may be the
+      # subject ("Vous blesser n'était pas mon but"), and after an earlier infinitive "puis vous
+      # donner" goes on with it: both are left alone. "je ne puis vous aider", "il ne peut plus
+      # vous voir": the verb "puis", the negation "plus". "ce que vous aller voir".
+      subordinateSubject:
+        args: "text: string, index: number, gap: number"
+        let:
+          pair: tokensBefore(text, index, 2)
+          conjunction: pair[0]
+          before: pair[1]
+        when: "!!conjunction"
+        return: >-
+          CLAUSE_ADVERBS.has(conjunction.w)
+            ? (conjunction.w === "plus" ? !before || before.w === "de" || before.w === "en" : !before || !["je", "ne", "n'"].includes(before.w)) &&
+              !(
+                text
+                  .slice(Math.max(0, conjunction.start - 200), conjunction.start)
+                  .slice(text.slice(Math.max(0, conjunction.start - 200), conjunction.start).search(/[^.!?…\n]*$/u))
+                  .match(/\p{L}+/gu) ?? []
+              ).some((w) => verbReadings(w.toLowerCase()).some((r) => r.slot === "I"))
+            : ["que", "qu'"].includes(conjunction.w) && before?.w === "ce"
+              ? true
+              : gap
+                ? false
+                : AGR_SUBORDINATORS.has(conjunction.w)
+                  ? true
+                  : (conjunction.w === "que" || conjunction.w === "qu'") && before?.w === "ce" && text[before.start - 1] === "-"
+        else: "false"
+      # "Que vas donc tu faire ?": a verb a word or two before the pronoun, in the same clause.
+      invertedAfar:
+        args: "text: string, index: number"
+        let:
+          hit: >-
+            tokensBefore(text, index, 3).find(
+              (t) =>
+                (AGR_OPENERS.has(t.w) && t.w !== "donc" && t.w !== "alors") ||
+                (!isVerbHomograph(t.w) && verbReadings(t.w).some((r) => typeof r.slot === "number")),
+            )
+        return: '!!hit && !(AGR_OPENERS.has(hit.w) && hit.w !== "donc" && hit.w !== "alors")'
+      # The forms a person ending gives a stem ("sort" + "s"), and failing that the present of a
+      # verb a stem spells: "nous sorts" -> "sortons", "nous ne dix" -> "disons": a form for
+      # another person ("sors", "dis") spells the verb, conjugated for this one in the present;
+      # "tu me test" -> "testes", "il travail" -> "travaille": the noun is the verb's stem. "je ne
+      # mangé pas": a participle inside a negation is the finite verb misspelt.
+      nonVerbForms:
+        args: "word: string, person: number, participle: boolean, reflexive: boolean, negated: boolean"
+        let:
+          stem: word.replace(/(?:ées|és|ée|é|ts|ds|es|e|s|t|x|d)$/, "")
+          doubled: "/[nlt]$/.test(stem) ? stem + stem.slice(-1) : null"
+          firstForms: >-
+            [
+              ...new Set([
+                ...(participle && !negated ? [`${(reflexive ? ETRE_PRESENT : AVOIR_PRESENT)[person]} ${word}`] : []),
+                ...[stem, doubled].flatMap((base) =>
+                  !base || base.length < 2
+                    ? []
+                    : PERSON_ENDINGS[person].map((ending) => base + ending).filter((form) => form !== word && hasPerson(finitePersons(form), person)),
+                ),
+              ]),
+            ]
+          whole: "/[nlt]$/.test(word) ? word + word.slice(-1) : null"
+          more: >-
+            firstForms.length === (participle && !negated ? 1 : 0)
+              ? [stem, doubled, word, whole].flatMap((base) =>
+                  !base || base.length < 2
+                    ? []
+                    : ["s", "t", "e", "x", "d"].flatMap((ending) =>
+                        base + ending === word
+                          ? []
+                          : verbReadings(base + ending).flatMap((r) =>
+                              r.tense === 1 && typeof r.slot === "number" ? conjugate(r, person).slice(0, 1) : [],
+                            ),
+                      ),
+                )
+              : []
+        return: "[...new Set([...firstForms, ...more])].slice(0, 3)"
+      # The verb forms that sound like a noun or a participle written after a subject pronoun ("je
+      # sorts" -> "sors", "il dix" -> "dit", "il abandonné" -> "a abandonné"); [] when the word is
+      # no verb and nothing sounds like it, null when the word may stand there. "nous deux",
+      # "elles trois"; "nous ne dix rien" is "disons". "Elle partie, la maison se tut": a stressed
+      # pronoun with a participle or a noun after it may open an absolute clause. "je dans la
+      # maison": a preposition where the verb goes; no verb sounds like it, but before a place
+      # être is the verb left out ("il est dans"). Only a word the lists know as French: a foreign
+      # word ("on line") or a gap in the lists is left alone; an adjective may be an apposition
+      # ("elles, heureuses").
+      nonVerbAlternatives:
+        args: "word: string, person: number, participle: boolean, cautious: boolean, reflexive: boolean, negated: boolean"
+        type: string[] | null
+        when:
+          - "!(AGR_AFTER_PRONOUN.has(word) || word.length < 2)"
+          - "!(AGR_NUMBER_WORDS.has(word) && hasPerson(person, NOUS + VOUS + ILS) && !negated)"
+        return: >-
+          PREPOSITION_WORDS.has(word)
+            ? cautious
+              ? null
+              : PLACE_PREPOSITIONS.has(word) && !negated
+                ? [`${ETRE_PRESENT[person]} ${word}`]
+                : []
+            : !participle && (!isInflectedNoun(word) || AGR_NOT_NOUNS.has(word) || adjectiveReadings(word).length)
+              ? null
+              : cautious
+                ? null
+                : nonVerbForms(word, person, participle, reflexive, negated)
+      # "ils hélaient et bousculait": the second verb is finite. "et vous pourrez": "nous"/"vous"
+      # before a verb it agrees with is a new subject. The tense the first verb is in, else the
+      # second's own.
+      finiteCoordinated:
+        args: "word: string, rest: FrenchToken[], i: number, readings: VerbReading[], firstReadings: VerbReading[], person: number"
+        type: string[] | null
+        let:
+          persons: finitePersons(word)
+          tenses: new Set(firstReadings.map((r) => r.tense))
+          same: readings.filter((r) => tenses.has(r.tense))
+        when:
+          - "!hasPerson(persons, person)"
+          - '!rest.slice(1, i).some((t) => (t.w === "nous" || t.w === "vous") && hasPerson(persons, AGR_PERSON[t.w]))'
+        return: "(same.length ? same : readings).flatMap((r) => conjugate(r, person).slice(0, 1))"
+      # "il rentra et senti": the participle for the first verb's tense. "vous rentrez et mangé",
+      # "elle se reposait et se dorer": an -é or -er form sounds like the -ez of the present or the
+      # -ait of the imperfect. An infinitive or a participle before "et" may be the one it joins
+      # ("il aime chanter et danser"). The participle's own flag spells no tense: the infinitive's
+      # carries the conjugation.
+      participleCoordinated:
+        args: "word: string, between: FrenchToken[], readings: VerbReading[], firstReadings: VerbReading[], person: number"
+        type: string[] | null
+        let:
+          past: 'readings.every((r) => r.slot === "Q")'
+          tense: >-
+            (past ? firstReadings.find((r) => r.tense > 2)?.tense : undefined) ??
+            (/(?:er|é)$/.test(word) ? firstReadings.find((r) => r.tense === 2 || (r.tense === 1 && person === VOUS))?.tense : undefined)
+        when:
+          - '!between.some((t) => verbReadings(t.w).some((r) => r.slot === "I" || r.slot === "Q"))'
+          - tense !== undefined
+        return: >-
+          readings.flatMap((r) =>
+            verbReadings(r.lemma)
+              .filter((x) => x.slot === "I" && x.lemma === r.lemma)
+              .flatMap((x) => conjugate({ ...x, tense }, person).slice(0, 1)),
+          )
+      # "ils hélaient et bousculait", "il rentra et senti": a second verb joined by "et" shares
+      # the subject; it takes its person, and the first verb's tense when it was written as a
+      # participle. "il rentra dans la chambre et senti": its complement may come before "et", as
+      # long as no other verb, pronoun or relative does. "il fut condamné et assassiné":
+      # participles joined after an auxiliary.
+      coordinatedVerb:
+        args: "ctx: DetectContext, first: FrenchToken, person: number, firstReadings: VerbReading[]"
+        type: RawFinding | null
+        let:
+          all: tokensAfter(ctx.text, first.end, 14)
+          k: 'all.findIndex((t) => t.w === "et")'
+          between: all.slice(0, k)
+          rest: all.slice(k)
+          i: skipWhile(rest, 1, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          verb: rest[i]
+          typed: ctx.text.slice(verb.start, verb.end)
+          readings: verbReadings(verb.w)
+          forms: >-
+            readings.every((r) => typeof r.slot === "number")
+              ? finiteCoordinated(verb.w, rest, i, readings, firstReadings, person)
+              : readings.every((r) => r.slot === "Q" || r.slot === "I")
+                ? participleCoordinated(verb.w, between, readings, firstReadings, person)
+                : null
+          alternatives: "forms ? [...new Set(forms)].filter((f) => f && f !== verb.w) : []"
+        when:
+          - "!(k < 0 || k > 10)"
+          - >-
+            !between.some(
+              (t) =>
+                SUBJECT_PRONOUNS_ALL.has(t.w) ||
+                ["que", "qu'", "qui", "dont", "où", "ou"].includes(t.w) ||
+                (!isVerbHomograph(t.w) && verbReadings(t.w).some((r) => typeof r.slot === "number")),
+            )
+          - '!firstReadings.some((r) => r.lemma === "être" || r.lemma === "avoir")'
+          - "!(!verb || verb.hyphen || ctx.dictionary.has(verb.w) || isVerbHomograph(verb.w))"
+          - "!(typed !== verb.w || SUBJECT_PRONOUNS_ALL.has(verb.w))"
+          - "!(!readings.length || adjectiveReadings(verb.w).length)"
+          - forms !== null
+          - "!(!alternatives.length || alternatives.length > 2)"
+        return: >-
+          ({
+            ruleId: "frenchSubjectVerbAgreement",
+            messageKey: "review_msg_fr_subject_verb",
+            range: { start: verb.start, end: verb.end },
+            alternatives: alternatives.map((alt) => carryCase(typed, alt)),
+            context: { start: first.start, end: verb.end },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
+      # The finding on a verb after its pronoun subject. "j'" elides only before a vowel: "j'est"
+      # becomes "je suis". An elided word before the verb follows the new form: "j'est" -> "je
+      # suis", "se sont" -> "s'est" ("je", "ne", "me", "te", "se", "le", "la" elide before a
+      # vowel).
+      pronounVerbFix:
+        args: "ctx: DetectContext, m: RegExpExecArray, pronoun: string, after: FrenchToken[], i: number, verb: FrenchToken, typed: string, alternatives: string[], warningOnly: boolean"
+        type: RawFinding | null
+        let:
+          before: "i > 0 ? after[i - 1] : { w: pronoun, start: m.index, end: m.index + m[0].length }"
+          elidable: /^(?:j|n|m|t|s|l)(?:e|')$|^la$/.test(before.w) && before.end <= verb.start
+          original: ctx.text.slice(before.start, before.end)
+          apostrophe: '/[''’]/.exec(original)?.[0] ?? "''"'
+          base: 'original.replace(/[''’]$/, "").replace(/[ea]$/i, "")'
+          full: 'before.w === "la" ? `${base}a` : `${base}e`'
+          fixed: >-
+            alternatives.map((alt) =>
+              !elidable
+                ? carryCase(typed, alt)
+                : /^[aeiouyéèêàâîôûh]/i.test(alt)
+                  ? `${base}${apostrophe}${carryCase(typed, alt)}`
+                  : `${full} ${carryCase(typed, alt)}`,
+            )
+        when: "!((!alternatives.length && !warningOnly) || alternatives.length > 3)"
+        return: >-
+          finding("frenchSubjectVerbAgreement", "review_msg_fr_subject_verb", elidable ? before.start : verb.start, verb.end, fixed, {
+            context: { start: m.index, end: verb.end },
+            ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
+            ...(warningOnly ? { warningOnly: true as const } : {}),
+          })
+      # "je sorts", "il dix", "on désir", "il abandonné": a noun or a bare participle where the
+      # verb goes. "ces travaux on porté", "que s'est-il passé", "a-t-il": "ont", an inversion.
+      # "dans laquelle tu vie": a relative pronoun opens the clause too. "Cela dit, ...", "Ceci
+      # posé,": a demonstrative and a participle that end their phrase open an absolute clause;
+      # "ça créé une brasserie" goes on with its object.
+      nonVerbBranch:
+        args: "ctx: DetectContext, m: RegExpExecArray, pronoun: string, person: number, previous: FrenchToken | undefined, after: FrenchToken[], i: number, verb: FrenchToken, typed: string, readings: VerbReading[], demonstrative: boolean, stressed: boolean, negated: boolean"
+        type: RawFinding | null
+        let:
+          reflexive: 'after.slice(0, i).some((t) => t.w === "se" || t.w === "s''")'
+          absolute: "!demonstrative || !after[i + 1] || readings.length === 0"
+          found: nonVerbAlternatives(verb.w, person, readings.length > 0, stressed && i === 0 && absolute, reflexive, negated)
+        when:
+          - "!(previous && !AGR_OPENERS.has(previous.w) && !RELATIVE_PRONOUNS.has(previous.w))"
+          - '!/[-–‑]\s*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))'
+          - "!!found"
+        return: pronounVerbFix(ctx, m, pronoun, after, i, verb, typed, found, !found.length)
+      # "Ça, vous devez le demander": a pronoun after the demonstrative is the subject. "Nous sont
+      # parvenus des parchemins", "(je) vous raconterai": with a third person or a "je" verb,
+      # "nous"/"vous" is an object. At the very start of a clause no other subject can come
+      # before: only "Nous sont parvenus", an inverted subject, keeps "nous" an object there. "je
+      # lui ait demandé": outside a "que" clause, "ait" is the present's "ai" misspelt. "qu'il
+      # ai": after "que" the auxiliary may be the subjunctive too.
+      finiteBranch:
+        args: "ctx: DetectContext, m: RegExpExecArray, pronoun: string, person: number, previous: FrenchToken | undefined, after: FrenchToken[], i: number, verb: FrenchToken, typed: string, readings: VerbReading[], demonstrative: boolean"
+        type: RawFinding | null
+        let:
+          persons: finitePersons(verb.w)
+          opens: '!previous && /(?:^|[.!?…\n])\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))'
+          present: 'verb.w === "ait" && !["que", "qu''"].includes(previous?.w ?? "")'
+          conjugated: "[...new Set(readings.flatMap((r) => conjugate(present ? { ...r, tense: 1 } : r, person).slice(0, 1)))]"
+          subjunctiveForm: readings[0].tense === 1 && SUBJUNCTIVE_AUXILIARIES[readings[0].lemma]?.[person]
+        when:
+          - "!(demonstrative && after.slice(0, i).some((t) => AGR_PERSON[t.w] && hasPerson(persons, AGR_PERSON[t.w])))"
+          - "!((person === NOUS || person === VOUS) && hasPerson(persons, opens ? ILS : JE + IL + ILS))"
+        return: >-
+          pronounVerbFix(ctx, m, pronoun, after, i, verb, typed,
+            ["que", "qu'"].includes(previous?.w ?? "") && subjunctiveForm && subjunctiveForm !== verb.w ? [...conjugated, subjunctiveForm] : conjugated,
+            false)
+      # "je peut" -> "peux", "ils mange" -> "mangent", "tu rêver" -> "rêves". "le pronom tu n'est
+      # pas omis", "le je": the pronoun named, not a subject. "elle", "nous", "vous" open a clause
+      # only at its start or after a conjunction; "que vous offrent ces cours", "Pierre et elle
+      # étaient" make them objects or a coordinated subject. "que vous ne le pensez": "ne" right
+      # after makes the pronoun the subject. "que vous arriver tard": an -er infinitive right
+      # after shows the pronoun is the subject. "Et ça marche": a demonstrative after a
+      # conjunction that opens the sentence. "comme celui-ci", "comme cela": a comparison, not a
+      # subject. "Peux tu aller", "que veut tu": an unhyphenated inversion ("puis", "plus" open a
+      # clause).
+      pronounAgreement:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          pronoun: m[0].toLowerCase().replaceAll("’", "'")
+          person: AGR_PERSON[pronoun]
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          stressed: "!ALWAYS_SUBJECT.has(pronoun)"
+          first: tokensAfter(ctx.text, m.index + m[0].length, 1)[0]
+          negatedSubject: >-
+            pronoun in PARTICIPLE_PERSONS &&
+            previous &&
+            (previous.w === "que" || previous.w === "qu'") &&
+            ["ne", "n'"].includes(first?.w ?? "")
+          infinitiveSubject: >-
+            !!first &&
+            first.w.endsWith("er") &&
+            verbReadings(first.w).length > 0 &&
+            verbReadings(first.w).every((r) => r.slot === "I") &&
+            subordinateSubject(ctx.text, m.index, 0)
+          demonstrative: "!(pronoun in PARTICIPLE_PERSONS)"
+          opensWithConjunction: >-
+            demonstrative &&
+            !!previous &&
+            (previous.w === "et" || previous.w === "mais") &&
+            tokensBefore(ctx.text, m.index, 2).length === 1
+        when:
+          - '!(ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index))'
+          - "!(previous && NAMING.has(previous.w))"
+          - >-
+            !(stressed &&
+              previous &&
+              !negatedSubject &&
+              !infinitiveSubject &&
+              !opensWithConjunction &&
+              (!AGR_OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w)))
+          - '!(demonstrative && previous?.w === "comme")'
+          - '!(previous && !CLAUSE_ADVERBS.has(previous.w) && !isVerbHomograph(previous.w) && verbReadings(previous.w).some((r) => typeof r.slot === "number"))'
+        return: pronounVerb(ctx, m, pronoun, person, previous, stressed, demonstrative)
+      # The verb after the pronoun. "il la bien fait", "ils ton fait mal": "l'a", "t'ont", which
+      # the homophone check writes. "Je est un autre": "je" as a noun, a third person; an elided
+      # "j'est" is a slip. "ils son contents": the homophone check writes "sont". A name or an
+      # acronym is no verb form. "Ensuite vous manger le dessert": after a clause adverb,
+      # "nous"/"vous" is the subject even before an -er infinitive that is also a noun. At a
+      # sentence start or after a comma an infinitive may give an instruction ("Nous contacter
+      # par courriel."): left alone. A form that is also a noun ("est", "porte") is the verb only
+      # after an always-subject pronoun. "je rêver souvent", "tu me le dire": an infinitive after
+      # its subject is the present.
+      pronounVerb:
+        args: "ctx: DetectContext, m: RegExpExecArray, pronoun: string, person: number, previous: FrenchToken | undefined, stressed: boolean, demonstrative: boolean"
+        type: RawFinding | null
+        let:
+          after: tokensAfter(ctx.text, m.index + m[0].length, 5)
+          i: skipWhile(after, 0, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          verb: after[i]
+          typed: ctx.text.slice(verb.start, verb.end)
+          readings: verbReadings(verb.w)
+          opening: >-
+            (person === NOUS || person === VOUS) &&
+            verb.w.endsWith("er") &&
+            readings.length > 0 &&
+            readings.every((r) => r.slot === "I") &&
+            !!previous &&
+            CLAUSE_ADVERBS.has(previous.w) &&
+            subordinateSubject(ctx.text, m.index, i)
+          negated: after.slice(0, i).some((t) => AGR_NEGATION.has(t.w))
+        when:
+          - "!(!verb || verb.hyphen || ctx.dictionary.has(verb.w))"
+          - "!after.slice(0, i + 1).some((t) => elidedAuxiliaryAt(ctx.text, t.start))"
+          - '!(pronoun === "je" && i === 0 && verb.w === "est")'
+          - '!(verb.w === "son" && sontForSon(ctx.text, verb.start))'
+          - '!/\p{Lu}/u.test(typed)'
+          - '!(isVerbHomograph(verb.w) && (stressed || pronoun === "on") && !opening)'
+        return: >-
+          !readings.length || readings.every((r) => r.slot === "Q")
+            ? nonVerbBranch(ctx, m, pronoun, person, previous, after, i, verb, typed, readings, demonstrative, stressed, negated)
+            : readings.every((r) => typeof r.slot === "number")
+              ? hasPerson(finitePersons(verb.w), person)
+                ? isVerbHomograph(verb.w)
+                  ? null
+                  : coordinatedVerb(ctx, verb, person, readings)
+                : finiteBranch(ctx, m, pronoun, person, previous, after, i, verb, typed, readings, demonstrative)
+              : readings.every((r) => r.slot === "I") &&
+                  (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
+                  !invertedAfar(ctx.text, m.index) &&
+                  ((person !== NOUS && person !== VOUS) || negated || opening || subordinateSubject(ctx.text, m.index, i))
+                ? pronounVerbFix(ctx, m, pronoun, after, i, verb, typed,
+                    [...new Set(readings.flatMap((r) => conjugate({ ...r, tense: 1 }, person).slice(0, 1)))], false)
+                : null
+      avoirFinding:
+        args: "m: RegExpExecArray, start: number, word: FrenchToken, text: string"
+        return: 'finding("frenchSubjectVerbAgreement", "review_msg_fr_subject_verb", start, word.end, [text], { context: { start: m.index, end: word.end } })'
+      # "il y cette robe", "il y en cinq": "il y" before a noun phrase lacks its "a". "il y la un
+      # risque": "là" misspelt before a noun phrase, not an article.
+      ilYWithoutA:
+        args: "ctx: DetectContext, m: RegExpExecArray, after: FrenchToken[]"
+        type: RawFinding | null
+        let:
+          en: 'after[1]?.w === "en" ? 1 : 0'
+          next: after[1 + en]
+          nounPhrase: >-
+            next && (DETERMINERS_AFTER_Y.has(next.w) || (en === 1 && (AGR_NUMBER_WORDS.has(next.w) || AGR_QUANTITY_WORDS.has(next.w))))
+          digits: '!next && en === 1 && /^[ \t]+\d/.test(ctx.text.slice(after[1].end))'
+          last: after[en]
+        when:
+          - "!(!nounPhrase && !digits)"
+          - '!(next && DETERMINERS_AFTER_Y.has(after[2 + en]?.w ?? ""))'
+        return: "avoirFinding(m, after[0].start, last, `${ctx.text.slice(after[0].start, last.end)} a`)"
+      # "nous eu la chance" -> "nous avons eu", "il ne jamais eu" -> "il n'a jamais eu", "elle
+      # besoin de" -> "elle a besoin de". "eu égard à": a locution, not a participle. "je eu" ->
+      # "j'ai eu": the pronoun elides before the auxiliary.
+      avoirLeftOut:
+        args: "ctx: DetectContext, m: RegExpExecArray, pronoun: string, person: number, after: FrenchToken[]"
+        type: RawFinding | null
+        let:
+          negated: after[0]?.w === "ne" || after[0]?.w === "n'"
+          i: "skipWords(after, negated ? 1 : 0, BEFORE_PARTICIPLE)"
+          word: after[i]
+          auxiliary: AVOIR_PRESENT[person]
+        when:
+          - "!(!word || word.hyphen || ctx.dictionary.has(word.w))"
+          - ctx.text.slice(word.start, word.end) === word.w
+          - >-
+            word.w === "eu" || word.w === "été"
+              ? after[i + 1]?.w !== "égard"
+              : BARE_AVOIR_NOUNS.has(word.w) &&
+                i === 0 &&
+                (AFTER_BARE_NOUN.has(after[1]?.w ?? "") || /^[ \t]*(?:[.!?,;…]|$)/u.test(ctx.text.slice(word.end, word.end + 12)))
+        return: >-
+          negated
+            ? avoirFinding(m, after[0].start, word,
+                `${carryCase(after[0].w, /^[aeiouyéèê]/.test(auxiliary) ? `n'${auxiliary}` : `ne ${auxiliary}`)} ${ctx.text.slice(after[1].start, word.end)}`)
+            : pronoun === "je"
+              ? avoirFinding(m, m.index, word, `${carryCase(m[0], "j'")}${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`)
+              : avoirFinding(m, after[0].start, word, `${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`)
+      # "nous eu la chance" -> "nous avons eu", "elle besoin de" -> "elle a besoin de", "il y
+      # cette robe" -> "il y a cette robe": avoir left out. "elle", "nous", "vous" are the subject
+      # only at a clause start or after a conjunction.
+      missingAvoir:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          pronoun: m[0].toLowerCase().replaceAll("’", "'")
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          after: tokensAfter(ctx.text, m.index + m[0].length, 6)
+        when:
+          - pronoun in PARTICIPLE_PERSONS && pronoun !== "j'"
+          - '!(ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index))'
+          - '!(!ALWAYS_SUBJECT.has(pronoun) && previous && (!AGR_OPENERS.has(previous.w) || previous.w === "et" || previous.w === "ou"))'
+        return: >-
+          pronoun === "il" && after[0]?.w === "y" && after[0].start <= m.index + m[0].length + 1
+            ? ilYWithoutA(ctx, m, after)
+            : avoirLeftOut(ctx, m, pronoun, AGR_PERSON[pronoun], after)
+      # "elle est arrivé" -> "arrivée", "ils sont parti" -> "partis": a first-group participle
+      # after être agrees with a third-person pronoun subject. A reflexive verb agrees with its
+      # object, not always its subject: left out. "Pierre et elle étaient fiancés": a coordinated
+      # subject agrees as a plural.
+      participleAgreement:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          pronoun: m[0].toLowerCase()
+          ending: PARTICIPLE_ENDING[pronoun]
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          after: tokensAfter(ctx.text, m.index + m[0].length, 6)
+          i: skipWords(after, 0, AGR_NEGATION)
+          word: after[skipWords(after, i + 1, AGR_ADVERBS)]
+          match: /^(.+)(é|ée|és|ées)$/.exec(word.w)
+        when:
+          - '!(!ending || ctx.text[m.index - 1] === "-")'
+          - '!((pronoun === "elle" || pronoun === "elles") && previous && !AGR_OPENERS.has(previous.w))'
+          - '!(previous && !isVerbHomograph(previous.w) && verbReadings(previous.w).some((r) => typeof r.slot === "number"))'
+          - "!(!after[i] || !ETRE_FORMS.has(after[i].w) || after[i].hyphen)"
+          - hasPerson(finitePersons(after[i].w), AGR_PERSON[pronoun])
+          - "!(!word || word.hyphen || ctx.dictionary.has(word.w))"
+          - ctx.text.slice(word.start, word.end) === word.w
+          - "!(!match || match[2] === ending)"
+          - 'verbReadings(word.w).some((r) => r.slot === "Q" && r.lemma === `${match[1]}er`)'
+        return: >-
+          ({
+            ruleId: "frenchSubjectVerbAgreement",
+            messageKey: "review_msg_fr_participle_agreement",
+            range: { start: word.start, end: word.end },
+            alternatives: [match[1] + ending],
+            context: { start: m.index, end: word.end },
+          })
+      # "Ce soir nous allons", "Ces choses, nous les partageons": the pronoun is the subject.
+      # "Les voisins nous salue": "nous" or "vous" before a verb that cannot agree with it is the
+      # object.
+      pronounIsObject:
+        args: "tokens: FrenchToken[], i: number, direct: boolean"
+        let:
+          pronoun: tokens[i].w
+          next: tokens[i + 1]
+        return: >-
+          direct &&
+          (pronoun === "nous" || pronoun === "vous") &&
+          next !== undefined &&
+          !next.hyphen &&
+          !isVerbHomograph(next.w) &&
+          verbReadings(next.w).length > 0 &&
+          !hasPerson(finitePersons(next.w), AGR_PERSON[pronoun])
+      # After a plural subject and its complement or adjective, a singular homograph is no noun
+      # ("les enfants dans le jardin joue en bas"); right after a plural head noun it may be one
+      # ("les hommes politique", "les dates limite"), and after "en" or a preposition it is ("en
+      # voie"). "les amis de Paul montre en main attendaient": the plural verb comes later.
+      bareHomograph:
+        args: "tokens: FrenchToken[], i: number, j: number, person: number"
+        let:
+          verb: tokens[j]
+          previous: tokens[j - 1]
+          second: tokens[j - 2]
+          next: tokens[j + 1]
+        return: >-
+          j === i &&
+          person === ILS &&
+          !/[sxz]$/.test(verb.w) &&
+          hasPerson(finitePersons(verb.w), IL) &&
+          !!previous &&
+          !ALL_DETERMINERS.has(previous.w) &&
+          !AGR_PREPOSITIONS.has(previous.w) &&
+          !(/[sx]$/.test(previous.w) && second && (ALL_DETERMINERS.has(second.w) || AGR_NUMBERS.has(second.w))) &&
+          !(next && (postnominal(next) || isVerbHomograph(next.w))) &&
+          !tokens.slice(j + 1, j + 5).some((t) => !isVerbHomograph(t.w) && hasPerson(finitePersons(t.w), ILS))
+      # A finite verb that does not agree with its subject. "Notre Père qui êtes aux cieux",
+      # "rappelons-le": an address or an imperative. A future in -rons after a plural noun is its
+      # -ront misspelt ("nos voisins pourrons"). "votre site précèdent peut": a finite verb right
+      # after shows the word was no verb. "Des boutons, en veux tu ?": a pronoun after the verb
+      # that it agrees with is its subject, unless a verb of its own follows ("avant que Marc
+      # arrive je n'étais pas là"). "un exemple pertinent sont les projets": an inverted
+      # attribute.
+      mismatchFinding:
+        args: "tokens: FrenchToken[], j: number, verb: FrenchToken, typed: string, verbal: VerbReading[], persons: number, person: number, from: number, coordinated: boolean"
+        type: RawFinding | null
+        let:
+          future: 'person === ILS && verb.w.endsWith("rons") && tokens[j - 1]?.w !== "qui"'
+          after: tokens[j + 1]
+          k: skipWhile(tokens, j + 2, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          own: 'after && tokens[k] && verbReadings(tokens[k].w).some((r) => typeof r.slot === "number" && hasPerson(r.slot, AGR_PERSON[after.w]))'
+          attribute: 'after && ["les", "des", "ces"].includes(after.w)'
+          alternatives: "[...new Set(verbal.flatMap((r) => conjugate(r, person).slice(0, 1)))]"
+        when:
+          - "!((person === IL || person === ILS) && !hasPerson(persons, JE + TU + IL + ILS) && !future)"
+          - "!(after && SUBJECT_PRONOUNS_ALL.has(after.w) && hasPerson(persons, AGR_PERSON[after.w]) && !own)"
+          - '!(after && !isVerbHomograph(after.w) && verbReadings(after.w).some((r) => typeof r.slot === "number"))'
+          - '!(!coordinated && ["est", "sont"].includes(verb.w) && attribute)'
+          - "!(!alternatives.length || alternatives.length > 2)"
+        return: >-
+          finding("frenchSubjectVerbAgreement", "review_msg_fr_subject_verb", verb.start, verb.end, alternatives.map((alt) => carryCase(typed, alt)), {
+            context: { start: from, end: verb.end },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
+      # "La foule se déplacer", "le garçon lui caché ses mains": after a noun subject and an
+      # object pronoun, an infinitive in -er or a participle in -é stands for the present or the
+      # imperfect.
+      infinitiveForVerb:
+        args: "ctx: DetectContext, clitics: FrenchToken[], verb: FrenchToken, person: number, from: number"
+        type: RawFinding | null
+        let:
+          lemma: 'verbReadings(verb.w).find((r) => r.slot === "I" || r.slot === "Q")?.lemma'
+          base: 'lemma && verbReadings(lemma).find((r) => r.slot === "I")'
+          forms: "base ? [1, 2].map((tense) => conjugate({ ...base, tense }, person)[0]) : []"
+        when:
+          - "!(!clitics.some((t) => VERB_CLITICS.has(t.w)) || !/(?:er|é)$/.test(verb.w))"
+          - "!isVerbHomograph(verb.w)"
+          - '!(!base || !base.lemma.endsWith("er"))'
+          - "!forms.some((form) => !form)"
+        return: >-
+          finding("frenchSubjectVerbAgreement", "review_msg_fr_subject_verb", verb.start, verb.end,
+            forms.map((form) => carryCase(ctx.text.slice(verb.start, verb.end), form)),
+            { context: { start: from, end: verb.end }, requiresChoice: true })
+      # The verb at `i` (past ne and object pronouns) with another person than `person`. `direct`:
+      # the subject is a noun phrase right before, in a clause of its own. "une intoxication en
+      # cours": "en" is as often the preposition. "les valeurs a, b et c", "les points a et b": a
+      # letter in a list of letters is a variable. "les enfants joue" may be a noun phrase ("la
+      # joue"): only a pronoun or ne marks the verb; "est" and "a" after a subject are the verbs
+      # ("les côtes est" is too rare to weigh). "les enfants fait du bruit": a form in -it before
+      # its object is the verb, not the participle. "que nos invités soit à l'heure": "soit"
+      # before no determiner is the verb, not "either". "les guerriers reculaient et perdait du
+      # terrain": a second verb shares the subject of a clause the noun phrase opens ("l'espoir
+      # que les choses se tassaient et constate" goes back to the main clause).
+      verbFinding:
+        args: "ctx: DetectContext, tokens: FrenchToken[], i: number, person: number, from: number, coordinated: boolean, direct: boolean"
+        type: RawFinding | null
+        let:
+          quiBefore: tokens[i - 1]?.w === "qui"
+          j: skipWhile(tokens, i, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          marked: 'quiBefore || tokens.slice(i, j).some((t) => t.w !== "en")'
+          verb: tokens[j]
+          typed: ctx.text.slice(verb.start, verb.end)
+          readings: verbReadings(verb.w)
+          object: "!!tokens[j + 1] && AGR_OBJECT_DETERMINERS.has(tokens[j + 1].w)"
+          bareObject: object && person === ILS && /it$/.test(verb.w) && j === i
+          soit: 'verb.w === "soit" && !!tokens[j + 1] && !ALL_DETERMINERS.has(tokens[j + 1].w)'
+          verbal: 'object && person === ILS && readings.some((r) => r.slot === IL) ? readings.filter((r) => typeof r.slot === "number") : readings'
+        when:
+          - "!(tokens[i] && SUBJECT_PRONOUNS_ALL.has(tokens[i].w) && !quiBefore) || pronounIsObject(tokens, i, direct)"
+          - "!(!verb || verb.hyphen || ctx.dictionary.has(verb.w) || AGR_NOT_HEADS.has(verb.w))"
+          - typed === verb.w
+          - "!(verb.w.length === 1 && LETTER_LIST.test(ctx.text.slice(verb.end, verb.end + 8)))"
+          - >-
+            !(isVerbHomograph(verb.w) && !marked && !AUXILIARY_HOMOGRAPHS.has(verb.w) && !bareObject && !soit) ||
+            bareHomograph(tokens, i, j, person)
+        return: >-
+          !verbal.some((r) => typeof r.slot === "number")
+            ? direct
+              ? infinitiveForVerb(ctx, tokens.slice(i, j), verb, person, from)
+              : null
+            : !verbal.every((r) => typeof r.slot === "number")
+              ? null
+              : hasPerson(finitePersons(verb.w), person)
+                ? isVerbHomograph(verb.w) || tokensBefore(ctx.text, from, 1).length
+                  ? null
+                  : coordinatedVerb(ctx, verb, person, verbal)
+                : mismatchFinding(tokens, j, verb, typed, verbal, finitePersons(verb.w), person, from, coordinated)
+      # The words from a subject's first word on; a number in digits reads as "deux".
+      numberedTokens:
+        args: "text: string, m: RegExpExecArray"
+        type: FrenchToken[]
+        let:
+          word: m[0].toLowerCase().replaceAll("’", "'")
+          end: m.index + m[0].length
+          digits: /^\d/.test(word)
+          number: 'digits ? null : /^[ \t ]{1,8}\d{1,9}(?=[ \t ]{1,8}\p{L})/u.exec(text.slice(end, end + 30))'
+          lead: >-
+            [
+              { w: word, start: m.index, end, hyphen: false },
+              ...(number ? [{ w: "deux", start: end, end: end + number[0].length, hyphen: false }] : []),
+            ]
+        return: "!digits && !number ? tokensAfter(text, m.index, 16) : [...lead, ...tokensAfter(text, lead.at(-1)!.end, 16 - lead.length)]"
+      # "Les vieux murs (pierre et chaux) retient": the verb after a parenthesis.
+      parenAside:
+        args: "ctx: DetectContext, last: FrenchToken, person: number, from: number"
+        type: RawFinding | null
+        let:
+          paren: '/^[ \t ]*\([^()\n]{1,80}\)[ \t ]*/u.exec(ctx.text.slice(last.end, last.end + 100))'
+        when: "!!paren"
+        return: verbFinding(ctx, tokensAfter(ctx.text, last.end + paren[0].length, 8), 0, person, from, false, false)
+      # The verb of ", qui ..." right after a subject, which agrees with it. "Mes amis, qui veut du
+      # café ?": a call, then a question.
+      commaRelative:
+        args: "ctx: DetectContext, last: FrenchToken, person: number, from: number"
+        type: RawFinding | null
+        let:
+          comma: '/^[ \t ]*,[ \t ]*(?=qui(?![\p{L}\p{M}]))/u.exec(ctx.text.slice(last.end))'
+          end: ctx.text.slice(last.end).search(/[.!?…\n]/u)
+        when:
+          - "!!comma"
+          - '!(end >= 0 && ctx.text[last.end + end] !== ".")'
+        return: verbFinding(ctx, tokensAfter(ctx.text, last.end + comma[0].length, 8), 1, person, from, false, false)
+      # The verb after an aside set off by commas ("les exercices, quoique longs, était") or a
+      # stressed pronoun that takes up the subject ("mon enfant, lui, ne m'en veux pas").
+      commaAside:
+        args: "ctx: DetectContext, last: FrenchToken, person: number, from: number"
+        type: RawFinding | null
+        let:
+          comma: '/^[ \t ]*,[ \t ]*/u.exec(ctx.text.slice(last.end, last.end + 12))'
+          at: last.end + comma[0].length
+          words: tokensAfter(ctx.text, at, 2)
+          takenUp: "!!words[0] && !words[0].hyphen && TAKEN_UP[person]?.includes(words[0].w)"
+          aside: ctx.text.slice(at, at + 120).toLowerCase().replaceAll("’", "'")
+          close: aside.search(/[,.;:!?…\n()]/u)
+          verbAt: 'takenUp ? words[0].end + /^[ \t ]*,?[ \t ]*/u.exec(ctx.text.slice(words[0].end))![0].length : at + close + 1'
+        when:
+          - "!!comma"
+          - takenUp || (ASIDE.test(aside) && close >= 0 && aside[close] === ",")
+        return: verbFinding(ctx, tokensAfter(ctx.text, verbAt, 8), 0, person, from, false, false)
+      # "la chaîne de télévision qui émet depuis Lyon sont": whichever noun "qui" goes with, the
+      # main verb after its clause agrees with the head. A third person verb that is no noun shows
+      # where the clause starts.
+      quiAfterComplement:
+        args: "ctx: DetectContext, tokens: FrenchToken[], i: number, person: number, from: number"
+        type: RawFinding | null
+        let:
+          main: >-
+            verbAfterRelative(FRENCH_CLAUSE, ctx.text, tokens, i, (verb: ClauseToken) =>
+              !isVerbHomograph(verb.w) && hasPerson(finitePersons(verb.w), IL + ILS))
+        when: main >= 0
+        return: verbFinding(ctx, tokens, main, person, from, false, false)
+      # Past "qui" and a verb that agrees, the main verb.
+      quiVerb:
+        args: "ctx: DetectContext, tokens: FrenchToken[], i: number, person: number, from: number, coordinated: boolean"
+        type: RawFinding | null
+        let:
+          own: verbFinding(ctx, tokens, i + 1, person, from, coordinated, false)
+          j: skipWhile(tokens, i + 1, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          verb: tokens[j]
+          main: "own || !verb || !hasPerson(finitePersons(verb.w), person) || isVerbHomograph(verb.w) ? -1 : mainVerbAfter(tokens, j + 1, 0)"
+        return: "own ? own : main < 0 ? null : verbFinding(ctx, tokens, main, person, from, coordinated, false)"
+      # The verb at `i` for a subject that ends there, past "qui" and its verb or a relative
+      # clause ("les enfants que j'accompagne arrive", "la chaîne qui émet d'ici sont"). "le nom
+      # des étudiants qui avaient": after a complement, "qui" goes with its noun; after two
+      # coordinated ones, maybe with the second.
+      clauseVerbFinding:
+        args: "ctx: DetectContext, tokens: FrenchToken[], i: number, person: number, from: number, coordinated: boolean, adjacent: boolean, direct: boolean"
+        type: RawFinding | null
+        let:
+          relative: skipRelative(ctx.text, tokens, i)
+        return: >-
+          relative >= 0
+            ? verbFinding(ctx, tokens, relative, person, from, coordinated, false)
+            : tokens[i]?.w !== "qui"
+              ? verbFinding(ctx, tokens, i, person, from, coordinated, direct && adjacent)
+              : coordinated
+                ? null
+                : !adjacent
+                  ? quiAfterComplement(ctx, tokens, i, person, from)
+                  : quiVerb(ctx, tokens, i, person, from, coordinated)
+      capitalizedAt:
+        args: "text: string, t: FrenchToken | undefined"
+        return: Boolean(t && /^\p{Lu}\p{Ll}/u.test(text.slice(t.start, t.end)))
+      # "les gens comme Tom mentent": a comparison inside a plural subject.
+      comparisonSubject:
+        args: "ctx: DetectContext, tokens: FrenchToken[], i: number, person: number, anchor: number"
+        type: RawFinding | null
+        let:
+          start: "tokens[i + 1] && ALL_DETERMINERS.has(tokens[i + 1].w) ? i + 2 : i + 1"
+          past: skipAdjective(tokens, start + 1)
+          k: "tokens[past] && /^\\p{Lu}/u.test(ctx.text[tokens[past].start]) ? past + 1 : past"
+        when: "!(!tokens[start] || !nounLike(ctx.text, tokens[start]))"
+        return: verbFinding(ctx, tokens, k, person, anchor, false, false)
+      # The verb after a noun phrase subject that ends at `i`. "Les enfants, qui lui a dit cela,
+      # sont là": a relative set off by commas; "les exercices, quoique longs, sont utiles": an
+      # aside. "l'autre vous condamner" after "et" may leave out a modal: an object pronoun
+      # before the verb is read only for a noun phrase that opens its own clause right before it.
+      finishSubject:
+        args: "ctx: DetectContext, tokens: FrenchToken[], i: number, person: number, before: FrenchToken | undefined, anchor: number, head: number, coordinated: boolean"
+        type: RawFinding | null
+        return: >-
+          person === ILS && !coordinated && tokens[i]?.w === "comme"
+            ? comparisonSubject(ctx, tokens, i, person, anchor)
+            : !tokens[i]
+              ? ((i === head ? commaRelative(ctx, tokens[i - 1], person, anchor) : null) ??
+                commaAside(ctx, tokens[i - 1], person, anchor) ??
+                parenAside(ctx, tokens[i - 1], person, anchor))
+              : clauseVerbFinding(ctx, tokens, i, person, anchor, coordinated, i === head, before?.w !== "et")
+      # "Le vélo et la voiture est": two noun phrases joined by "et" take a plural verb.
+      coordinatedSubject:
+        args: "ctx: DetectContext, tokens: FrenchToken[], i: number, before: FrenchToken | undefined, anchor: number, head: number"
+        type: RawFinding | null
+        let:
+          k: pastPrenominal(ctx.text, tokens, i + 2)
+          second: tokens[k]
+        when: "!(!second || second.hyphen || !nounLike(ctx.text, second))"
+        return: finishSubject(ctx, tokens, skipAdjective(tokens, k + 1), ILS, before, anchor, head, true)
+      # Adjectives and complements may follow the noun: "les flux financiers actuels crée", "le
+      # prix des maisons baissent". "les frères Warner", "la société Dupont": a name in apposition
+      # to the head noun. A capitalized head ("le Notre Père") is itself a name or a title: left
+      # alone. "mon enfant lui qui peut": a stressed pronoun in apposition.
+      nounPhraseVerb:
+        args: "ctx: DetectContext, tokens: FrenchToken[], n: number, noun: FrenchToken, nounTyped: string, plural: boolean, before: FrenchToken | undefined, anchor: number"
+        type: RawFinding | null
+        let:
+          adjectivesEnd: skipAdjective(tokens, n + 1)
+          name: tokens[adjectivesEnd] && /^\p{Lu}\p{Ll}+$/u.test(ctx.text.slice(tokens[adjectivesEnd].start, tokens[adjectivesEnd].end))
+          apposition: name && adjectivesEnd === n + 1 && nounTyped === noun.w && !tokens[adjectivesEnd].hyphen
+          named: "apposition ? adjectivesEnd + 1 : adjectivesEnd"
+          head: '["lui", "eux"].includes(tokens[named]?.w ?? "") && tokens[named + 1]?.w === "qui" ? named + 1 : named'
+          i: complementsEnd(ctx.text, tokens, head)
+          coordinated: 'i === head && tokens[i]?.w === "et" && Boolean(tokens[i + 1] && ALL_DETERMINERS.has(tokens[i + 1].w))'
+        when: "!(apposition && tokens[adjectivesEnd].w in AGR_PERSON)"
+        return: >-
+          coordinated
+            ? coordinatedSubject(ctx, tokens, i, before, anchor, head)
+            : finishSubject(ctx, tokens, i, plural ? ILS : IL, before, anchor, head, false)
+      # "toutes ses amies affirment", "seules les boissons sont": a predeterminer opens the
+      # subject. A clause start: the text's start, a sentence end, a line or a comma, not a quote.
+      # "les dix maisons", "les 10 maisons": a number after the determiner. "trois quarts de la
+      # surface est": a fraction agrees with its complement. "Les Misérables est un roman": a
+      # title; "le PBA": an acronym. "Le faire est simple": an infinitive or a verb, not a noun.
+      # ", des bois et des pâtures": after a comma, a noun phrase may continue a list.
+      nounPhraseSubject:
+        args: "ctx: DetectContext, m: RegExpExecArray, word: string, tokens: FrenchToken[]"
+        type: RawFinding | null
+        let:
+          leading: tokensBefore(ctx.text, m.index, 8)
+          predeterminer: 'AGR_PLURAL_DETERMINERS.has(word) && PREDETERMINERS.has(leading[0]?.w ?? "")'
+          anchor: "predeterminer ? leading[0].start : m.index"
+          previous: "predeterminer ? leading.slice(1) : leading"
+          before: previous[0]
+          digits: /^\d/.test(m[0])
+          counted: "!digits && !!tokens[1] && AGR_NUMBERS.has(tokens[1].w) && !AGR_NUMBERS.has(word)"
+          n: "pastPrenominal(ctx.text, tokens, counted ? 2 : 1)"
+          noun: tokens[n]
+          plural: digits || counted || AGR_NUMBERS.has(word) || AGR_PLURAL_DETERMINERS.has(word)
+          nounTyped: ctx.text.slice(noun.start, noun.end)
+        when:
+          - '!(before && !AGR_CLAUSE_OPENERS.has(before.w) && !(before.w === "et" && verbBeforeEt(previous)))'
+          - '!(before && (before.w === "que" || before.w === "qu''") && previous.slice(1, 4).some((t) => COMPARING.has(t.w)))'
+          - '!(!before && !/(?:^|[.!?…:,\n])[\s ]*$/u.test(ctx.text.slice(Math.max(0, anchor - 4), anchor)))'
+          - "!(digits && Number(m[0]) < 2)"
+          - "!(!noun || noun.hyphen || AGR_NOT_HEADS.has(noun.w))"
+          - '!(COLLECTIVES.has(noun.w) || noun.w === "quarts" || noun.w === "tiers")'
+          - >-
+            !(nounTyped !== noun.w &&
+              (plural || !AGR_SINGULAR_DETERMINERS.has(word) || !/^(?:\p{Lu}\p{Ll}+|\p{Lu}{2,6})$/u.test(nounTyped)))
+          - "!(plural && !/[sx]$/.test(noun.w))"
+          - nounLike(ctx.text, noun) || (plural && nominalAdjective(ctx.text, tokens, n))
+          - '!(TIME_OR_MEASURE.has(noun.w) || TIME_OR_MEASURE.has(noun.w.replace(/[sx]$/, "")))'
+          - >-
+            !(!before &&
+              /,[\s ]{0,8}$/u.test(ctx.text.slice(Math.max(0, anchor - 9), anchor)) &&
+              (word === "des" || word === "du" || listBefore(ctx.text, anchor)))
+        return: nounPhraseVerb(ctx, tokens, n, noun, nounTyped, plural, before, anchor)
+      # "c'est moi qui", "ce sont eux qui": a focused subject; "plus vieux que moi qui" is not.
+      stressedSubject:
+        args: "ctx: DetectContext, m: RegExpExecArray, word: string, tokens: FrenchToken[]"
+        type: RawFinding | null
+        let:
+          pair: 'tokensBefore(ctx.text, m.index, 3).filter((t) => t.w !== "pas")'
+          verb: pair[0]
+          ce: pair[1]
+          focus: >-
+            word === "ceux" ||
+            word === "celles" ||
+            word === "celui" ||
+            word === "celle" ||
+            (verb && ["est", "sont", "était", "étaient", "fut"].includes(verb.w) && ce && ["c'", "ce"].includes(ce.w))
+        when:
+          - '!(tokens[1]?.w !== "qui" || ctx.text[m.index - 1] === "-")'
+          - focus
+        return: verbFinding(ctx, tokens, 2, AGR_STRESSED[word], m.index, false, false)
+      # "les rues était calmes", "mon enfant qui ne peux pas": a noun subject opening its clause,
+      # or "moi qui", "ceux qui", and its verb.
+      nounSubject:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          word: m[0].toLowerCase().replaceAll("’", "'")
+          tokens: numberedTokens(ctx.text, m)
+        when:
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - tokens[0]?.w === word
+        return: "word in AGR_STRESSED ? stressedSubject(ctx, m, word, tokens) : nounPhraseSubject(ctx, m, word, tokens)"
+      # "j'ai vu les enfants qui joue", "je connais une femme qui travaillent": a relative clause's
+      # verb agrees with the object noun before "qui". A verb or a participle whose object it is:
+      # "je vois", "j'ai vu", "il y a". "c'est la façon dont ils jouent leurs rôles qui compte":
+      # "qui" may close a cleft.
+      objectRelative:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          word: m[0].toLowerCase().replaceAll("’", "'")
+          plural: AGR_PLURAL_DETERMINERS.has(word)
+          previous: tokensBefore(ctx.text, m.index, 5)
+          before: previous[0]
+          verb: >-
+            (!isVerbHomograph(before.w) &&
+              verbReadings(before.w).some((r) => (typeof r.slot === "number" || r.slot === "Q") && r.lemma !== "être")) ||
+            (before.w === "a" && previous[1]?.w === "y") ||
+            (verbReadings(before.w).some((r) => r.slot === "Q") &&
+              verbReadings(previous[1]?.w ?? "").some((r) => typeof r.slot === "number" && r.lemma === "avoir"))
+          tokens: tokensAfter(ctx.text, m.index, 12)
+          noun: tokens[1]
+          i: skipAdjective(tokens, 2)
+        when:
+          - '!((!plural && !AGR_SINGULAR_DETERMINERS.has(word)) || word === "chaque")'
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - '!(!before || ctx.text[m.index - 1] === "-")'
+          - verb || OBJECT_OPENERS.has(before.w)
+          - "!previous.some((t) => verbReadings(t.w).some((r) => AGR_ASKING.has(r.lemma)))"
+          - '!tokensBefore(ctx.text, m.index, 16).some((t) => t.w === "c''" || t.w === "ce")'
+          - "!(tokens[0]?.w !== word || !noun || noun.hyphen || AGR_NOT_HEADS.has(noun.w))"
+          - "!(ctx.text.slice(noun.start, noun.end) !== noun.w || !nounLike(ctx.text, noun))"
+          - "!(plural !== /[sx]$/.test(noun.w) && plural)"
+          - '!COLLECTIVES.has(noun.w.replace(/[sx]$/, ""))'
+          - tokens[i]?.w === "qui"
+        return: "verbFinding(ctx, tokens, i + 1, plural ? ILS : IL, m.index, false, false)"
+      # A noun phrase subject after a verb: "où vit les loups" -> "vivent". "où vivent un lion et
+      # une lionne": an inverted verb may also agree with the nearer noun phrase only, so a second
+      # one adds no check. The subject closes the clause ("où vivent les loups.") or the main verb
+      # follows it ("le livre que lisent les enfants est vieux"). Another word may make the noun
+      # phrase an object ("que mange le chat chaque soir" is left alone too).
+      invertedNounPhrase:
+        args: "ctx: DetectContext, m: RegExpExecArray, tokens: FrenchToken[], k: number, verb: FrenchToken, typed: string, readings: VerbReading[]"
+        type: RawFinding | null
+        let:
+          nouns: "[] as number[]"
+          phrase: skipNounPhrase(FRENCH_CLAUSE, ctx.text, tokens, k, nouns)
+          noun: tokens[nouns[0]]
+          plural: 'AGR_PLURAL_DETERMINERS.has(tokens[k].w) || AGR_NUMBERS.has(tokens[k + 1]?.w ?? "")'
+          first: skipComplements(FRENCH_CLAUSE, ctx.text, tokens, phrase)
+          end: skipCoordinated(FRENCH_CLAUSE, ctx.text, tokens, first)
+          person: "plural ? ILS : IL"
+          main: tokens[end]
+          persons: finitePersons(verb.w)
+          alternatives: "[...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))]"
+        when:
+          - phrase !== k
+          - '!(ctx.text.slice(noun.start, noun.end) !== noun.w || COLLECTIVES.has(noun.w.replace(/[sx]$/, "")))'
+          - "!(plural && !/[sx]$/.test(noun.w))"
+          - >-
+            main
+              ? !(main.hyphen || (isVerbHomograph(main.w) && !AUXILIARY_HOMOGRAPHS.has(main.w)) || !verbReadings(main.w).some((r) => typeof r.slot === "number"))
+              : !(tokens.length === 16 || !/^[ \t ]*(?:[.!?;:…,)»"”]|$)/u.test(ctx.text.slice(tokens[end - 1].end)))
+          - "!(hasPerson(persons, person) || (end > first && hasPerson(persons, ILS)))"
+          - "!(!alternatives.length || alternatives.length > 2)"
+        return: >-
+          finding("frenchSubjectVerbAgreement", "review_msg_fr_subject_verb", verb.start, verb.end, alternatives.map((alt) => carryCase(typed, alt)), {
+            context: { start: m.index, end: tokens[end - 1].end },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
     frames:
       # "qu'il", "lorsqu'on": an elided conjunction before a pronoun that is always a subject.
+      # A subject pronoun: a missing avoir, its verb's agreement or its participle's agreement.
       - regex: "(?<=(?<![\\p{L}\\p{M}])(?:qu|lorsqu|puisqu|quoiqu)['’])(?:il|on|ils)(?![\\p{L}\\p{M}\\p{N}_-])|{{WORD_START}}(?:(?:je|tu|il|elle|on|nous|vous|ils|elles|ça|cela|ceci)(?![\\p{L}\\p{M}\\p{N}_-])|personne(?=[ \\t]{1,8}n(?:e\\b|['’]))|ce(?:lui|lle|ux|lles)-(?:ci|là)(?![\\p{L}\\p{M}\\p{N}_-])|j['’](?=\\p{L}))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: pronounSubject
+        when: m.index >= ctx.from
+        return: missingAvoir(ctx, m) ?? pronounAgreement(ctx, m) ?? participleAgreement(ctx, m)
       # A subject noun: its verb's agreement, or the verb of an object relative clause.
       - regex: "{{WORD_START}}(?:l['’](?=\\p{L})|(?:le|la|un|une|ce|cet|cette|mon|ton|son|ma|ta|sa|notre|votre|chaque|les|des|ces|mes|tes|ses|nos|vos|leurs|plusieurs|moi|toi|lui|nous|vous|eux|ceux|celles|celui|celle|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|cent|mille|plusieurs|quelques){{WORD_END}}|(?<![\\p{N},.][ \\u00a0]?)\\d+(?=[ \\u00a0]+\\p{L}))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: nounSubjectOrRelative
+        when: m.index >= ctx.from
+        return: nounSubject(ctx, m) ?? objectRelative(ctx, m)
       # "cet homme qui travail", "l'ordinateur qui crash": a noun where the relative's verb goes.
+      # "à qui", "pour qui": "qui" is an object there. "des personnes qui son là": the homophone
+      # check's "sont". The antecedent gives the person: "moi qui", "les gens qui", else the
+      # third singular.
       - regex: "{{WORD_START}}qui(?=[ \\t])"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: nounAfterQui
+        let:
+          before: tokensBefore(ctx.text, m.index, 2)
+          after: tokensAfter(ctx.text, m.index + 3, 4)
+          i: skipWhile(after, 0, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w))
+          word: after[i]
+          antecedent: before[0]?.w ?? ""
+          plural: /[sx]$/.test(antecedent) && AGR_PLURAL_DETERMINERS.has(before[1]?.w ?? "")
+          person: "AGR_STRESSED[antecedent] ?? (plural ? ILS : IL)"
+          negated: after.slice(0, i).some((t) => AGR_NEGATION.has(t.w))
+          found: nonVerbAlternatives(word.w, person, false, false, false, negated)
+        when:
+          - m.index >= ctx.from
+          - "!(before[0] && AGR_PREPOSITIONS.has(before[0].w))"
+          - "!(!word || word.hyphen || ctx.dictionary.has(word.w) || verbReadings(word.w).length)"
+          - word.w !== "son"
+          - "!(ctx.text.slice(word.start, word.end) !== word.w || namedExampleBefore(ctx.text, m.index))"
+          - "!(!found?.length || found.length > 2)"
+        return: >-
+          finding("frenchSubjectVerbAgreement", "review_msg_fr_subject_verb", word.start, word.end, found, {
+            context: { start: m.index, end: word.end },
+            ...(found.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # Quantities whose verb agrees with their plural complement: "beaucoup de gens pensent", "la
-      # plupart des élèves travaillent", "de nombreux élèves pensent".
+      # plupart des élèves travaillent", "de nombreux élèves pensent". "Combien de fois ai je", "De
+      # quels sites parles-tu": questions invert their subject. "de nombreux élèves", "beaucoup de
+      # jeunes gens": an adjective before the noun. "beaucoup de temps": a noun in -s that is its
+      # own singular.
       - regex: "{{WORD_START}}(?:(?:beaucoup|peu|trop|tant|assez|énormément|combien|la plupart|bon nombre|de plus en plus|de moins en moins)[ \\t]{1,8}(?:des?{{WORD_END}}|d['’])|de(?=[ \\t]))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: quantitySubject
-      # "La plupart pense" -> "pensent": "la plupart" alone stands for a plural subject.
+        let:
+          lead: m[0].toLowerCase().replaceAll("’", "'").trim()
+          bare: lead === "de"
+          previous: tokensBefore(ctx.text, m.index, 8)
+          before: previous[0]
+          tokens: tokensAfter(ctx.text, m.index + m[0].length, 14)
+          adjective: >-
+            adjectiveReadings(tokens[0]?.w ?? "").some((r) => r.slot[1] === "p") &&
+            !!tokens[1] &&
+            /[sx]$/.test(tokens[1].w) &&
+            nounLike(ctx.text, tokens[1])
+          n: "adjective ? 1 : 0"
+          noun: tokens[n]
+          singular: noun.w.replace(/s$/, "")
+          head: skipAdjective(tokens, n + 1)
+          i: complementsEnd(ctx.text, tokens, head)
+        when:
+          - m.index >= ctx.from
+          - '!lead.startsWith("combien")'
+          - "!(!bare && !/(?:de|des|d')$/.test(lead))"
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - '!(before && !AGR_CLAUSE_OPENERS.has(before.w) && !(before.w === "et" && verbBeforeEt(previous)))'
+          - "!(!before && !/(?:^|[.!?…:\\n])[\\s\\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))"
+          - "!(!adjective && bare)"
+          - "!(!noun || noun.hyphen || AGR_NOT_HEADS.has(noun.w) || !/[sx]$/.test(noun.w))"
+          - "!(ctx.text.slice(noun.start, noun.end) !== noun.w || !nounLike(ctx.text, noun))"
+          - 'isInflectedNoun(noun.w.replace(/aux$/, "al").replace(/[sx]$/, ""))'
+          - "!(COLLECTIVES.has(singular) || TIME_OR_MEASURE.has(singular) || TIME_OR_MEASURE.has(noun.w))"
+          - "!/^quel/.test(tokens[0].w)"
+        return: clauseVerbFinding(ctx, tokens, i, ILS, m.index, false, i === head, false)
+      # "La plupart pense" -> "pensent": "la plupart" alone stands for a plural subject. "la
+      # plupart des gens", "la plupart du temps": the complement's own checks.
       - regex: "{{WORD_START}}la[ \\t]+plupart{{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: pluralPlupart
-      # "Dominique peux venir", "Sam et Marie comprit": a name opening its clause and its verb.
+        let:
+          tokens: tokensAfter(ctx.text, m.index + m[0].length, 10)
+          before: tokensBefore(ctx.text, m.index, 2)[0]
+        when:
+          - m.index >= ctx.from
+          - '!(!tokens[0] || ["de", "d''", "des", "du"].includes(tokens[0].w))'
+          - "!(before && !AGR_CLAUSE_OPENERS.has(before.w))"
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: clauseVerbFinding(ctx, tokens, 0, ILS, m.index, false, true, false)
+      # "Dominique peux venir", "Sam et Marie comprit": a name opening its clause and its verb. At a
+      # sentence start only a word the lists do not know is surely a name; "Mrs. Smith". "aussi
+      # bien Tom que Marie", "ainsi que Rudy": a comparison or an addition. "Los Angeles, Londres
+      # et Singapour": a list of names. "Jean Dupont": a surname. "Paul viens ici !": a call, with
+      # the imperative.
       - regex: "{{WORD_START}}\\p{Lu}\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+)?{{WORD_END}}"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: nameSubject
+        let:
+          lower: m[0].toLowerCase()
+          previous: tokensBefore(ctx.text, m.index, 3)
+          before: previous[0]
+          tokens: tokensAfter(ctx.text, m.index + m[0].length, 12)
+          surname: "capitalizedAt(ctx.text, tokens[0]) ? 1 : 0"
+          pair: 'tokens[surname]?.w === "et" && capitalizedAt(ctx.text, tokens[surname + 1])'
+          i: "pair ? (capitalizedAt(ctx.text, tokens[surname + 2]) ? surname + 3 : surname + 2) : surname"
+          person: "pair ? ILS : IL"
+          end: ctx.text.slice(m.index).search(/[.!?…\n]/u)
+        when:
+          - m.index >= ctx.from
+          - "!(namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(lower))"
+          - "!(lower in AGR_PERSON || NOT_NAMES.has(lower) || AGR_NUMBERS.has(lower) || lower.length < 3)"
+          - >-
+            capitalizedName(ctx.text, m.index, m[0]) ||
+            !(isFrenchWord(lower) ||
+              lower.length < 4 ||
+              /\p{Lu}\p{Ll}{0,3}\.[\s ]*$/u.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))
+          - "!(before && !AGR_CLAUSE_OPENERS.has(before.w))"
+          - '!(before && (before.w === "que" || before.w === "qu''") && previous.slice(1).some((t) => COMPARING.has(t.w)))'
+          - "!(!before && !/(?:^|[.!?…:,\\n])[\\s\\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))"
+          - "!(!before && /\\p{Lu}\\p{Ll}*,[\\s\\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 30), m.index)))"
+          - "!capitalizedAt(ctx.text, tokens[i])"
+          - '!(end >= 0 && ctx.text[m.index + end] === "!")'
+        return: clauseVerbFinding(ctx, tokens, i, person, m.index, person === ILS, true, false)
       # Words after which the subject may follow its verb: "là où vivent les loups", "lorsque
-      # s'annonce un orage", "le livre que lisent les enfants".
+      # s'annonce un orage", "le livre que lisent les enfants". "où vit les loups" -> "vivent",
+      # "lorsque s'annonce des orages" -> "s'annoncent". A form that is also a noun is the verb
+      # after a pronoun ("lorsque s'annonce") or after "où", "lorsque" and "quand"; "que justice
+      # soit faite" may open with a bare noun. "Qu'importe les détails": a fixed phrase that may
+      # stay singular. "où était installés les tuteurs", "qu'a été dévoilés les films": a
+      # participle after être or avoir.
       - regex: "{{WORD_START}}(?:(?:où|lorsque|quand|que)(?=[ \\t])|(?:lorsqu|qu)['’](?=\\p{L}))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: invertedSubject
+        let:
+          tokens: tokensAfter(ctx.text, m.index + m[0].length, 16)
+          j: skipWords(tokens, 0, INVERTED_CLITICS)
+          verb: tokens[j]
+          typed: ctx.text.slice(verb.start, verb.end)
+          opener: m[0].toLowerCase().replace("’", "'")
+          marked: j > 0 || (opener !== "que" && opener !== "qu'")
+          readings: verbReadings(verb.w)
+          auxiliary: readings.some((r) => r.lemma === "être" || r.lemma === "avoir")
+          afterEte: 'auxiliary && tokens[j + 1]?.w === "été" ? j + 2 : j + 1'
+          afterParticiple: 'auxiliary && verbReadings(tokens[afterEte]?.w ?? "").every((r) => r.slot === "Q") ? afterEte + 1 : afterEte'
+          k: skipWords(tokens, afterParticiple, AGR_ADVERBS)
+        when:
+          - m.index >= ctx.from
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - "!(!verb || verb.hyphen || ctx.dictionary.has(verb.w))"
+          - typed === verb.w
+          - "!(isVerbHomograph(verb.w) && !AUXILIARY_HOMOGRAPHS.has(verb.w) && !marked)"
+          - '!(!readings.length || !readings.every((r) => typeof r.slot === "number") || verb.w === "importe")'
+        return: invertedNounPhrase(ctx, m, tokens, k, verb, typed, readings)
   - id: fr.elision
     checks: [frenchElision]
     style: match

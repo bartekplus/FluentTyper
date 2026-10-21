@@ -4,6 +4,7 @@ import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type {
   AlternativesFix,
+  ClauseToken,
   DetectContext,
   EndFix,
   FrameRef,
@@ -62,11 +63,15 @@ import {
   pastParticiple,
   pluralSingulars,
   sentenceBounds,
+  skipComplements,
+  skipCoordinated,
+  skipNounPhrase,
+  skipPostnominal,
   skipWhile,
   skipWords,
-  subjectEndsAt,
   tokensAfter,
   tokensBefore,
+  verbAfterRelative,
   verbReadings,
   weekdayOf,
   wordFinding,
@@ -1773,6 +1778,826 @@ export const ARTICLE_CONTEXT: ReadonlySet<string> = new Set([
   "que",
   "qu'",
   "car",
+]);
+
+export const ALWAYS_SUBJECT: ReadonlySet<string> = new Set(["je", "j'", "tu", "il", "on", "ils"]);
+
+export const AGR_OPENERS: ReadonlySet<string> = new Set([
+  "et",
+  "mais",
+  "ou",
+  "donc",
+  "car",
+  "que",
+  "qu'",
+  "quand",
+  "si",
+  "lorsque",
+  "lorsqu'",
+  "puisque",
+  "puisqu'",
+  "comme",
+  "où",
+  "alors",
+  "puis",
+]);
+
+export const AGR_NEGATION: ReadonlySet<string> = new Set(["ne", "n'"]);
+
+export const RELATIVE_PRONOUNS: ReadonlySet<string> = new Set([
+  "lequel",
+  "laquelle",
+  "lesquels",
+  "lesquelles",
+  "auquel",
+  "auxquels",
+  "auxquelles",
+  "duquel",
+  "desquels",
+  "desquelles",
+  "dont",
+]);
+
+export const SUBJECT_PRONOUNS_ALL: ReadonlySet<string> = new Set([
+  "je",
+  "j'",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "nous",
+  "vous",
+  "ils",
+  "elles",
+]);
+
+export const NAMING: ReadonlySet<string> = new Set([
+  "pronom",
+  "personnel",
+  "mot",
+  "terme",
+  "le",
+  "un",
+  "du",
+  "au",
+  "aux",
+  "les",
+  "des",
+]);
+
+export const COORDINATING_OR_RELATIVE: ReadonlySet<string> = new Set([
+  "et",
+  "ou",
+  "que",
+  "qu'",
+  "où",
+]);
+
+export const BARE_AVOIR_NOUNS: ReadonlySet<string> = new Set([
+  "besoin",
+  "envie",
+  "peur",
+  "honte",
+  "faim",
+  "soif",
+  "hâte",
+  "sommeil",
+  "tort",
+  "raison",
+]);
+
+export const BEFORE_PARTICIPLE: ReadonlySet<string> = new Set([
+  "aussi",
+  "déjà",
+  "toujours",
+  "jamais",
+  "pas",
+  "plus",
+  "encore",
+  "bien",
+  "souvent",
+  "vraiment",
+  "enfin",
+  "même",
+]);
+
+export const AFTER_BARE_NOUN: ReadonlySet<string> = new Set([
+  "de",
+  "d'",
+  "du",
+  "des",
+  "que",
+  "qu'",
+]);
+
+export const DETERMINERS_AFTER_Y: ReadonlySet<string> = new Set([
+  "un",
+  "une",
+  "des",
+  "du",
+  "le",
+  "la",
+  "les",
+  "l'",
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+  "mon",
+  "ma",
+  "mes",
+  "ton",
+  "ta",
+  "tes",
+  "son",
+  "sa",
+  "ses",
+  "notre",
+  "nos",
+  "votre",
+  "vos",
+  "leur",
+  "leurs",
+  "plusieurs",
+  "quelques",
+  "beaucoup",
+]);
+
+export const AGR_QUANTITY_WORDS: ReadonlySet<string> = new Set([
+  "beaucoup",
+  "plusieurs",
+  "trop",
+  "peu",
+  "assez",
+  "quelques",
+  "certains",
+]);
+
+export const AGR_SUBORDINATORS: ReadonlySet<string> = new Set([
+  "si",
+  "quand",
+  "lorsque",
+  "lorsqu'",
+  "puisque",
+  "puisqu'",
+]);
+
+export const CLAUSE_ADVERBS: ReadonlySet<string> = new Set([
+  "puis",
+  "alors",
+  "ensuite",
+  "donc",
+  "car",
+  "comme",
+  "plus",
+]);
+
+export const AGR_AFTER_PRONOUN: ReadonlySet<string> = new Set([
+  "soussigné",
+  "soussignée",
+  "soussignés",
+  "soussignées",
+  "autres",
+  "tous",
+  "toutes",
+  "tout",
+  "même",
+  "mêmes",
+  "seul",
+  "seule",
+  "seuls",
+  "seules",
+  "aussi",
+  "non",
+  "pendant",
+  "point",
+  "pas",
+  "plus",
+  "rien",
+  "personne",
+]);
+
+export const AGR_NOT_NOUNS: ReadonlySet<string> = new Set([
+  "et",
+  "ou",
+  "où",
+  "on",
+  "en",
+  "y",
+  "des",
+  "les",
+  "leurs",
+  "ses",
+  "ces",
+  "mes",
+  "tes",
+  "nos",
+  "vos",
+  "le",
+  "la",
+  "un",
+  "une",
+  "du",
+  "au",
+  "aux",
+  "de",
+  "que",
+  "qui",
+  "si",
+  "car",
+  "mais",
+  "donc",
+  "or",
+  "ni",
+]);
+
+export const PREPOSITION_WORDS: ReadonlySet<string> = new Set([
+  "dans",
+  "sans",
+  "sous",
+  "vers",
+  "chez",
+  "par",
+  "pour",
+  "avec",
+  "entre",
+  "contre",
+]);
+
+export const PLACE_PREPOSITIONS: ReadonlySet<string> = new Set(["dans", "sous", "chez"]);
+
+export const AGR_NUMBER_WORDS: ReadonlySet<string> = new Set([
+  "deux",
+  "trois",
+  "quatre",
+  "cinq",
+  "six",
+  "sept",
+  "huit",
+  "neuf",
+  "dix",
+  "cent",
+  "mille",
+]);
+
+export const ETRE_FORMS: ReadonlySet<string> = new Set([
+  "est",
+  "sont",
+  "était",
+  "étaient",
+  "sera",
+  "seront",
+  "serait",
+  "seraient",
+  "fut",
+  "furent",
+  "soit",
+  "soient",
+]);
+
+export const AGR_ADVERBS: ReadonlySet<string> = new Set([
+  "pas",
+  "plus",
+  "jamais",
+  "bien",
+  "très",
+  "trop",
+  "si",
+  "déjà",
+  "toujours",
+  "encore",
+  "vraiment",
+  "souvent",
+  "vite",
+  "enfin",
+  "aussi",
+]);
+
+export const AGR_SINGULAR_DETERMINERS: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "l'",
+  "un",
+  "une",
+  "ce",
+  "cet",
+  "cette",
+  "mon",
+  "ton",
+  "son",
+  "ma",
+  "ta",
+  "sa",
+  "notre",
+  "votre",
+  "chaque",
+]);
+
+export const AGR_PLURAL_DETERMINERS: ReadonlySet<string> = new Set([
+  "les",
+  "des",
+  "ces",
+  "mes",
+  "tes",
+  "ses",
+  "nos",
+  "vos",
+  "leurs",
+  "plusieurs",
+]);
+
+export const COLLECTIVES: ReadonlySet<string> = new Set([
+  "plupart",
+  "peu",
+  "nombre",
+  "majorité",
+  "minorité",
+  "reste",
+  "foule",
+  "totalité",
+  "ensemble",
+  "moitié",
+  "tiers",
+  "quart",
+  "dizaine",
+  "douzaine",
+  "vingtaine",
+  "trentaine",
+  "centaine",
+  "millier",
+  "million",
+  "milliard",
+  "partie",
+  "infinité",
+  "quantité",
+  "multitude",
+  "série",
+  "masse",
+  "tas",
+  "genre",
+  "sorte",
+  "espèce",
+  "type",
+  "essaim",
+  "groupe",
+  "bande",
+  "troupe",
+  "troupeau",
+  "nuée",
+  "poignée",
+  "flopée",
+  "kyrielle",
+  "horde",
+  "meute",
+  "myriade",
+  "ribambelle",
+  "foule",
+  "tonne",
+]);
+
+export const TIME_OR_MEASURE: ReadonlySet<string> = new Set([
+  "jour",
+  "matin",
+  "soir",
+  "nuit",
+  "semaine",
+  "mois",
+  "an",
+  "année",
+  "siècle",
+  "heure",
+  "minute",
+  "seconde",
+  "instant",
+  "moment",
+  "fois",
+  "hiver",
+  "été",
+  "automne",
+  "printemps",
+  "lendemain",
+  "veille",
+  "midi",
+  "lundi",
+  "mardi",
+  "mercredi",
+  "jeudi",
+  "vendredi",
+  "samedi",
+  "dimanche",
+  "euro",
+  "dollar",
+  "franc",
+  "centime",
+  "kilo",
+  "gramme",
+  "kilogramme",
+  "mètre",
+  "kilomètre",
+  "litre",
+  "degré",
+  "pour",
+]);
+
+export const AGR_CLAUSE_OPENERS: ReadonlySet<string> = new Set([
+  "mais",
+  "car",
+  "donc",
+  "que",
+  "qu'",
+  "quand",
+  "si",
+  "lorsque",
+  "lorsqu'",
+  "puisque",
+  "puisqu'",
+  "alors",
+  "pourquoi",
+  "cependant",
+  "pourtant",
+]);
+
+export const COMPARING: ReadonlySet<string> = new Set([
+  "plus",
+  "moins",
+  "aussi",
+  "autant",
+  "si",
+  "tant",
+  "bien",
+  "mieux",
+  "pire",
+  "même",
+  "autre",
+  "autres",
+  "ainsi",
+  "ne",
+  "n'",
+  "rien",
+  "tel",
+  "tels",
+  "telle",
+  "telles",
+]);
+
+export const AGR_NOT_HEADS: ReadonlySet<string> = new Set([
+  "plus",
+  "moins",
+  "mieux",
+  "tant",
+  "trop",
+  "peu",
+  "que",
+  "qu'",
+  "dont",
+  "qui",
+  "quoi",
+  "ne",
+  "n'",
+  "des",
+  "du",
+  "de",
+  "d'",
+  "un",
+  "une",
+  "lequel",
+  "laquelle",
+  "lesquels",
+  "lesquelles",
+]);
+
+export const AUXILIARY_HOMOGRAPHS: ReadonlySet<string> = new Set(["est", "a"]);
+
+export const AGR_OBJECT_DETERMINERS: ReadonlySet<string> = new Set([
+  "du",
+  "des",
+  "un",
+  "une",
+  "mon",
+  "ma",
+  "mes",
+  "ton",
+  "ta",
+  "tes",
+  "son",
+  "sa",
+  "ses",
+  "notre",
+  "nos",
+  "votre",
+  "vos",
+  "leurs",
+  "cette",
+  "ces",
+]);
+
+export const AGR_NUMBERS: ReadonlySet<string> = new Set([
+  "deux",
+  "trois",
+  "quatre",
+  "cinq",
+  "six",
+  "sept",
+  "huit",
+  "neuf",
+  "dix",
+  "onze",
+  "douze",
+  "treize",
+  "quatorze",
+  "quinze",
+  "seize",
+  "vingt",
+  "trente",
+  "quarante",
+  "cinquante",
+  "soixante",
+  "cent",
+  "mille",
+  "plusieurs",
+  "quelques",
+]);
+
+export const COMPLEMENT_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "de",
+  "d'",
+  "du",
+  "des",
+  "dans",
+  "sur",
+  "sous",
+  "entre",
+  "avec",
+  "chez",
+  "à",
+  "au",
+  "aux",
+  "par",
+  "pour",
+  "vers",
+  "contre",
+  "sans",
+]);
+
+export const AGR_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "de",
+  "d'",
+  "du",
+  "des",
+  "à",
+  "au",
+  "aux",
+  "en",
+  "dans",
+  "sur",
+  "sous",
+  "pour",
+  "par",
+  "avec",
+  "sans",
+  "chez",
+  "après",
+  "avant",
+  "depuis",
+  "pendant",
+  "entre",
+  "vers",
+  "selon",
+  "malgré",
+  "contre",
+  "durant",
+  "dès",
+]);
+
+export const PREDETERMINERS: ReadonlySet<string> = new Set(["tous", "toutes", "seuls", "seules"]);
+
+export const AGR_QUANTIFIERS: ReadonlySet<string> = new Set(["certains", "certaines", "quelques"]);
+
+export const AGR_DEGREE: ReadonlySet<string> = new Set([
+  "très",
+  "si",
+  "trop",
+  "plus",
+  "bien",
+  "assez",
+]);
+
+export const FRENCH_ADVERBS: ReadonlySet<string> = new Set([
+  "ici",
+  "hier",
+  "demain",
+  "toujours",
+  "souvent",
+  "parfois",
+  "rarement",
+  "déjà",
+  "encore",
+  "aussi",
+  "également",
+]);
+
+export const CLAUSE_STOPS: ReadonlySet<string> = new Set([
+  "que",
+  "qu'",
+  "qui",
+  "dont",
+  "où",
+  "et",
+  "ou",
+  "mais",
+  "si",
+  "comme",
+  "car",
+  "donc",
+  "lorsque",
+  "lorsqu'",
+  "quand",
+  "puisque",
+  "puisqu'",
+  "je",
+  "j'",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "ils",
+  "elles",
+  "ni",
+]);
+
+export const MARKING_CLITICS: ReadonlySet<string> = new Set([
+  "ne",
+  "n'",
+  "me",
+  "m'",
+  "te",
+  "t'",
+  "se",
+  "s'",
+  "lui",
+  "y",
+]);
+
+export const VERB_CLITICS: ReadonlySet<string> = new Set([
+  "me",
+  "m'",
+  "te",
+  "t'",
+  "se",
+  "s'",
+  "lui",
+  "leur",
+  "nous",
+  "vous",
+]);
+
+export const OBJECT_OPENERS: ReadonlySet<string> = new Set(["voici", "voilà"]);
+
+export const AGR_ASKING: ReadonlySet<string> = new Set([
+  "demander",
+  "dire",
+  "savoir",
+  "expliquer",
+  "indiquer",
+  "montrer",
+  "raconter",
+  "décider",
+  "ignorer",
+  "choisir",
+  "deviner",
+]);
+
+export const NOT_NAMES: ReadonlySet<string> = new Set([
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+  "ne",
+  "me",
+  "te",
+  "se",
+  "le",
+  "la",
+  "les",
+  "lui",
+  "leur",
+  "qui",
+  "que",
+  "quoi",
+  "quel",
+  "quels",
+  "quelle",
+  "quelles",
+  "tel",
+  "tels",
+  "telle",
+  "telles",
+  "pour",
+  "par",
+  "sur",
+  "sous",
+  "sans",
+  "si",
+  "ni",
+  "mais",
+  "car",
+  "donc",
+  "de",
+  "du",
+  "des",
+  "dans",
+  "chez",
+  "vers",
+  "voici",
+  "voilà",
+  "ça",
+  "cela",
+  "ceci",
+  "celui",
+  "celle",
+  "ceux",
+  "celles",
+  "moi",
+  "toi",
+  "soi",
+  "eux",
+  "rien",
+  "tout",
+  "tous",
+  "toute",
+  "toutes",
+  "chaque",
+  "chacun",
+  "chacune",
+  "certains",
+  "certaines",
+  "plusieurs",
+  "plus",
+  "moins",
+  "très",
+  "trop",
+  "peu",
+  "beaucoup",
+  "bien",
+  "mal",
+  "non",
+  "puis",
+  "quand",
+  "comme",
+  "comment",
+  "pourquoi",
+  "combien",
+  "depuis",
+  "pendant",
+  "selon",
+  "malgré",
+  "parmi",
+  "seul",
+  "seule",
+  "seuls",
+  "seules",
+  "nul",
+  "nulle",
+  "sauf",
+  "mon",
+  "ton",
+  "son",
+  "ma",
+  "ta",
+  "sa",
+  "mes",
+  "tes",
+  "ses",
+  "notre",
+  "votre",
+  "nos",
+  "vos",
+]);
+
+export const INVERTED_CLITICS: ReadonlySet<string> = new Set([
+  "ne",
+  "n'",
+  "se",
+  "s'",
+  "y",
+  "en",
+  "me",
+  "m'",
+  "te",
+  "t'",
+  "lui",
+  "leur",
+]);
+
+export const STRESSED_PRONOUNS: ReadonlySet<string> = new Set([
+  "moi",
+  "toi",
+  "lui",
+  "elle",
+  "nous",
+  "vous",
+  "eux",
+  "elles",
 ]);
 
 export const NO_ELISION: ReadonlySet<string> = new Set([
@@ -4674,6 +5499,101 @@ export const PRONOUN_PERSON: Readonly<Record<string, number>> = {
   elles: 32,
 };
 
+export const AGR_PERSON: Readonly<Record<string, number>> = {
+  je: 1,
+  "j'": 1,
+  tu: 2,
+  il: 4,
+  elle: 4,
+  on: 4,
+  nous: 8,
+  vous: 16,
+  ils: 32,
+  elles: 32,
+  ça: 4,
+  cela: 4,
+  ceci: 4,
+  personne: 4,
+  "celui-ci": 4,
+  "celui-là": 4,
+  "celle-ci": 4,
+  "celle-là": 4,
+  "ceux-ci": 32,
+  "ceux-là": 32,
+  "celles-ci": 32,
+  "celles-là": 32,
+};
+
+export const PARTICIPLE_PERSONS: Readonly<Record<string, boolean>> = {
+  je: true,
+  "j'": true,
+  tu: true,
+  il: true,
+  elle: true,
+  on: true,
+  nous: true,
+  vous: true,
+  ils: true,
+  elles: true,
+};
+
+export const SUBJUNCTIVE_AUXILIARIES: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  avoir: { "4": "ait", "32": "aient" },
+  être: { "4": "soit", "32": "soient" },
+};
+
+export const PERSON_ENDINGS: Readonly<Record<string, readonly string[]>> = {
+  "1": ["e", "s", "x", "is"],
+  "2": ["es", "s", "x", "is"],
+  "4": ["e", "t", "d", "it"],
+  "8": ["ons"],
+  "16": ["ez"],
+  "32": ["ent"],
+};
+
+export const AVOIR_PRESENT: Readonly<Record<string, string>> = {
+  "1": "ai",
+  "2": "as",
+  "4": "a",
+  "8": "avons",
+  "16": "avez",
+  "32": "ont",
+};
+
+export const ETRE_PRESENT: Readonly<Record<string, string>> = {
+  "1": "suis",
+  "2": "es",
+  "4": "est",
+  "8": "sommes",
+  "16": "êtes",
+  "32": "sont",
+};
+
+export const PARTICIPLE_ENDING: Readonly<Record<string, string>> = {
+  il: "é",
+  elle: "ée",
+  ils: "és",
+  elles: "ées",
+};
+
+export const AGR_STRESSED: Readonly<Record<string, number>> = {
+  moi: 1,
+  toi: 2,
+  lui: 4,
+  nous: 8,
+  vous: 16,
+  eux: 32,
+  ceux: 32,
+  celles: 32,
+  celui: 4,
+  celle: 4,
+};
+
+export const TAKEN_UP: Readonly<Record<string, readonly string[]>> = {
+  "4": ["lui", "elle"],
+  "32": ["eux", "elles"],
+};
+
 export const ELIDED: Readonly<Record<string, string>> = {
   je: "j",
   me: "m",
@@ -6118,8 +7038,8 @@ export function sonAfterPlural(
     next.w === "là" ||
     next.w === "ici" ||
     next.w === "en";
-  const nounLike = nounGender(next.w) || (!predicate && nounGender(next.w.replace(/[sx]$/, "")));
-  if (nounLike || (!predicate && !/[sx]$/.test(next.w))) return null;
+  const nounAhead = nounGender(next.w) || (!predicate && nounGender(next.w.replace(/[sx]$/, "")));
+  if (nounAhead || (!predicate && !/[sx]$/.test(next.w))) return null;
   return { start: (det ?? before[0]).start, end: next.end };
 }
 
@@ -7655,6 +8575,1380 @@ export function spacedArticle(ctx: DetectContext, previous: FrenchToken, first: 
     !before ||
     ARTICLE_CONTEXT.has(before.w) ||
     !(verbReadings(first).some((r) => typeof r.slot === "number") || verbReadings(before.w).length)
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def ALL_DETERMINERS
+export const ALL_DETERMINERS = new Set([...AGR_SINGULAR_DETERMINERS, ...AGR_PLURAL_DETERMINERS]);
+
+// fr.yaml rule fr.subjectVerbAgreement def LETTER_LIST
+export const LETTER_LIST = /^\s*(?:,|\s(?:et|ou)\s)\s*[^\P{L}àyY](?![\p{L}'’])/u;
+
+// fr.yaml rule fr.subjectVerbAgreement def ASIDE
+export const ASIDE =
+  /^(?:quoique|bien que|même si|en plus d[e']|à la fois|selon|malgré|pourtant|cependant|toutefois|néanmoins|d'ailleurs|par exemple|notamment|en effet|de plus|en outre|par ailleurs|semble-t-il|paraît-il|dit-on|à mon avis|en général|sans doute|peut-être|heureusement|malheureusement|souvent|parfois|toujours|enfin|également)(?![\p{L}\p{M}])/u;
+
+// fr.yaml rule fr.subjectVerbAgreement def nounLike
+export function nounLike(text: string, token: ClauseToken) {
+  const typed = text.slice(token.start, token.end);
+  const singular = token.w.replace(/aux$/, "al").replace(/[sx]$/, "");
+  return typed !== token.w
+    ? /^(?:\p{Lu}\p{Ll}+|\p{Lu}{2,6})$/u.test(typed)
+    : verbReadings(token.w).length && !isVerbHomograph(token.w)
+      ? false
+      : Boolean(nounGender(token.w) || nounGender(singular) || isInflectedNoun(token.w));
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def nominalAdjective
+export function nominalAdjective(text: string, tokens: readonly ClauseToken[], k: number) {
+  const t = tokens[k];
+  return (
+    text.slice(t.start, t.end) === t.w &&
+    !verbReadings(t.w).length &&
+    adjectiveReadings(t.w).length > 0 &&
+    !(tokens[k + 1] && nounLike(text, tokens[k + 1]))
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def postnominal
+export function postnominal(t: ClauseToken | undefined) {
+  if (
+    !t ||
+    t.hyphen ||
+    t.w.length < 3 ||
+    SUBJECT_PRONOUNS_ALL.has(t.w) ||
+    CLITICS.has(t.w) ||
+    COMPLEMENT_PREPOSITIONS.has(t.w) ||
+    AGR_QUANTIFIERS.has(t.w)
+  )
+    return false;
+  const readings = verbReadings(t.w);
+  return !readings.length
+    ? adjectiveReadings(t.w).length > 0 ||
+        (/[sx]$/.test(t.w) && isInflectedNoun(t.w) && !nounGender(t.w))
+    : readings.every((r) => r.slot === "Q");
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def pastPrenominal
+export function pastPrenominal(text: string, tokens: readonly ClauseToken[], i: number) {
+  const k = AGR_DEGREE.has(tokens[i]?.w ?? "") ? i + 1 : i;
+  const noun = tokens[k + 1];
+  const word = tokens[k]?.w ?? "";
+  return !PRENOMINAL.has(word) || /^(?:seul|même|autre)/.test(word)
+    ? i
+    : noun && nounLike(text, noun)
+      ? k + 1
+      : i;
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def FRENCH_CLAUSE
+export const FRENCH_CLAUSE = {
+  determiners: ALL_DETERMINERS,
+  prepositions: new Set([
+    ...COMPLEMENT_PREPOSITIONS,
+    "depuis",
+    "selon",
+    "pendant",
+    "après",
+    "avant",
+    "parmi",
+    "malgré",
+    "durant",
+  ]),
+  quantifiers: AGR_QUANTIFIERS,
+  numbers: AGR_NUMBERS,
+  notHeads: AGR_NOT_HEADS,
+  coordinators: new Set(["et", "ou"]),
+  joins: new Set(["et"]),
+  pronouns: STRESSED_PRONOUNS,
+  relatives: new Set(["qui"]),
+  clitics: new Set([...AGR_NEGATION, ...CLITICS]),
+  isAdverb: (t: ClauseToken) => FRENCH_ADVERBS.has(t.w),
+  isNoun: (text: string, t: ClauseToken) => nounLike(text, t),
+  nominal: (text: string, tokens: readonly ClauseToken[], k: number) =>
+    nominalAdjective(text, tokens, k),
+  postnominal: (t: ClauseToken | undefined) => postnominal(t),
+  prenominal: (text: string, tokens: readonly ClauseToken[], i: number) =>
+    pastPrenominal(text, tokens, i),
+  isFiniteVerb: (t: ClauseToken) => verbReadings(t.w).some((r) => typeof r.slot === "number"),
+};
+
+// fr.yaml rule fr.subjectVerbAgreement def skipAdjective
+export function skipAdjective(tokens: readonly ClauseToken[], i: number) {
+  return skipPostnominal(FRENCH_CLAUSE, tokens, i);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def complementsEnd
+export function complementsEnd(text: string, tokens: readonly ClauseToken[], i: number) {
+  return skipComplements(FRENCH_CLAUSE, text, tokens, i);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def mainVerbAfter
+export function mainVerbAfter(tokens: FrenchToken[], k: number, n: number): number {
+  const t = tokens[k];
+  if (!(n < 8 && !!t)) return -1;
+  const previous = tokens[k - 1];
+  return CLAUSE_STOPS.has(t.w) || t.hyphen
+    ? -1
+    : MARKING_CLITICS.has(t.w)
+      ? k
+      : !verbReadings(t.w).some((r) => typeof r.slot === "number")
+        ? mainVerbAfter(tokens, k + 1, n + 1)
+        : previous &&
+            (ALL_DETERMINERS.has(previous.w) ||
+              AGR_NOT_HEADS.has(previous.w) ||
+              /^aux?$/.test(previous.w))
+          ? mainVerbAfter(tokens, k + 1, n + 1)
+          : t.w === "a"
+            ? tokens[k + 1] && verbReadings(tokens[k + 1].w).some((r) => r.slot === "Q")
+              ? k
+              : -1
+            : isVerbHomograph(t.w) && t.w !== "est"
+              ? -1
+              : k;
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def skipRelative
+export function skipRelative(text: string, tokens: FrenchToken[], i: number): number {
+  if (!["que", "qu'", "dont"].includes(tokens[i]?.w ?? "")) return -1;
+  const phraseEnd = skipNounPhrase(FRENCH_CLAUSE, text, tokens, i + 1);
+  const person = phraseEnd === i + 1 ? 0 : AGR_PLURAL_DETERMINERS.has(tokens[i + 1].w) ? ILS : IL;
+  if (!(!!person || (!!tokens[phraseEnd] && SUBJECT_PRONOUNS_ALL.has(tokens[phraseEnd].w))))
+    return -1;
+  const k = skipWhile(
+    tokens,
+    person ? phraseEnd : phraseEnd + 1,
+    (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w),
+  );
+  if (!tokens[k] || !verbReadings(tokens[k].w).some((r) => typeof r.slot === "number")) return -1;
+  const auxiliary =
+    AUXILIARY_HOMOGRAPHS.has(tokens[k].w) &&
+    verbReadings(tokens[k + 1]?.w ?? "").some((r) => r.slot === "Q");
+  const homograph = isVerbHomograph(tokens[k].w) && !auxiliary;
+  if (person && (homograph || !hasPerson(finitePersons(tokens[k].w), person))) return -1;
+  return mainVerbAfter(tokens, k + 1, 0);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def listBefore
+export function listBefore(text: string, index: number) {
+  const words = tokensBefore(text, text.lastIndexOf(",", index), 4);
+  const k = words.findIndex((t) => ALL_DETERMINERS.has(t.w) || t.w === "des" || t.w === "du");
+  if (k < 0 || k > 2) return false;
+  return !words[k + 1] || !AGR_PREPOSITIONS.has(words[k + 1].w);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def subjectEndsAt
+export function subjectEndsAt(text: string, index: number) {
+  const tokens = tokensBefore(text, index, 12).reverse();
+  return tokens.some(
+    (t, j) =>
+      j < tokens.length - 1 &&
+      ALL_DETERMINERS.has(t.w) &&
+      !(j > 0 && !AGR_CLAUSE_OPENERS.has(tokens[j - 1].w) && tokens[j - 1].w !== "et") &&
+      phraseEndsSubject(text, tokens.slice(j)),
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def phraseEndsSubject
+export function phraseEndsSubject(text: string, phrase: FrenchToken[]) {
+  const n = pastPrenominal(text, phrase, 1);
+  if (!phrase[n] || phrase[n].hyphen || !nounLike(text, phrase[n])) return false;
+  return complementsEnd(text, phrase, skipAdjective(phrase, n + 1)) === phrase.length;
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def verbBeforeEt
+export function verbBeforeEt(previous: FrenchToken[]) {
+  const hit = previous
+    .slice(1)
+    .find(
+      (t) =>
+        ALL_DETERMINERS.has(t.w) ||
+        ["du", "de", "d'", "des", "et", "ou"].includes(t.w) ||
+        AUXILIARY_HOMOGRAPHS.has(t.w) ||
+        (!isVerbHomograph(t.w) && verbReadings(t.w).some((r) => typeof r.slot === "number")),
+    );
+  return (
+    !!hit && !(ALL_DETERMINERS.has(hit.w) || ["du", "de", "d'", "des", "et", "ou"].includes(hit.w))
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def subordinateSubject
+export function subordinateSubject(text: string, index: number, gap: number) {
+  const pair = tokensBefore(text, index, 2);
+  const conjunction = pair[0];
+  if (!conjunction) return false;
+  const before = pair[1];
+  return CLAUSE_ADVERBS.has(conjunction.w)
+    ? (conjunction.w === "plus"
+        ? !before || before.w === "de" || before.w === "en"
+        : !before || !["je", "ne", "n'"].includes(before.w)) &&
+        !(
+          text
+            .slice(Math.max(0, conjunction.start - 200), conjunction.start)
+            .slice(
+              text
+                .slice(Math.max(0, conjunction.start - 200), conjunction.start)
+                .search(/[^.!?…\n]*$/u),
+            )
+            .match(/\p{L}+/gu) ?? []
+        ).some((w) => verbReadings(w.toLowerCase()).some((r) => r.slot === "I"))
+    : ["que", "qu'"].includes(conjunction.w) && before?.w === "ce"
+      ? true
+      : gap
+        ? false
+        : AGR_SUBORDINATORS.has(conjunction.w)
+          ? true
+          : (conjunction.w === "que" || conjunction.w === "qu'") &&
+            before?.w === "ce" &&
+            text[before.start - 1] === "-";
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def invertedAfar
+export function invertedAfar(text: string, index: number) {
+  const hit = tokensBefore(text, index, 3).find(
+    (t) =>
+      (AGR_OPENERS.has(t.w) && t.w !== "donc" && t.w !== "alors") ||
+      (!isVerbHomograph(t.w) && verbReadings(t.w).some((r) => typeof r.slot === "number")),
+  );
+  return !!hit && !(AGR_OPENERS.has(hit.w) && hit.w !== "donc" && hit.w !== "alors");
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def nonVerbForms
+export function nonVerbForms(
+  word: string,
+  person: number,
+  participle: boolean,
+  reflexive: boolean,
+  negated: boolean,
+) {
+  const stem = word.replace(/(?:ées|és|ée|é|ts|ds|es|e|s|t|x|d)$/, "");
+  const doubled = /[nlt]$/.test(stem) ? stem + stem.slice(-1) : null;
+  const firstForms = [
+    ...new Set([
+      ...(participle && !negated
+        ? [`${(reflexive ? ETRE_PRESENT : AVOIR_PRESENT)[person]} ${word}`]
+        : []),
+      ...[stem, doubled].flatMap((base) =>
+        !base || base.length < 2
+          ? []
+          : PERSON_ENDINGS[person]
+              .map((ending) => base + ending)
+              .filter((form) => form !== word && hasPerson(finitePersons(form), person)),
+      ),
+    ]),
+  ];
+  const whole = /[nlt]$/.test(word) ? word + word.slice(-1) : null;
+  const more =
+    firstForms.length === (participle && !negated ? 1 : 0)
+      ? [stem, doubled, word, whole].flatMap((base) =>
+          !base || base.length < 2
+            ? []
+            : ["s", "t", "e", "x", "d"].flatMap((ending) =>
+                base + ending === word
+                  ? []
+                  : verbReadings(base + ending).flatMap((r) =>
+                      r.tense === 1 && typeof r.slot === "number"
+                        ? conjugate(r, person).slice(0, 1)
+                        : [],
+                    ),
+              ),
+        )
+      : [];
+  return [...new Set([...firstForms, ...more])].slice(0, 3);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def nonVerbAlternatives
+export function nonVerbAlternatives(
+  word: string,
+  person: number,
+  participle: boolean,
+  cautious: boolean,
+  reflexive: boolean,
+  negated: boolean,
+): string[] | null {
+  if (AGR_AFTER_PRONOUN.has(word) || word.length < 2) return null;
+  if (AGR_NUMBER_WORDS.has(word) && hasPerson(person, NOUS + VOUS + ILS) && !negated) return null;
+  return PREPOSITION_WORDS.has(word)
+    ? cautious
+      ? null
+      : PLACE_PREPOSITIONS.has(word) && !negated
+        ? [`${ETRE_PRESENT[person]} ${word}`]
+        : []
+    : !participle &&
+        (!isInflectedNoun(word) || AGR_NOT_NOUNS.has(word) || adjectiveReadings(word).length)
+      ? null
+      : cautious
+        ? null
+        : nonVerbForms(word, person, participle, reflexive, negated);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def finiteCoordinated
+export function finiteCoordinated(
+  word: string,
+  rest: FrenchToken[],
+  i: number,
+  readings: VerbReading[],
+  firstReadings: VerbReading[],
+  person: number,
+): string[] | null {
+  const persons = finitePersons(word);
+  if (hasPerson(persons, person)) return null;
+  if (
+    rest
+      .slice(1, i)
+      .some((t) => (t.w === "nous" || t.w === "vous") && hasPerson(persons, AGR_PERSON[t.w]))
+  )
+    return null;
+  const tenses = new Set(firstReadings.map((r) => r.tense));
+  const same = readings.filter((r) => tenses.has(r.tense));
+  return (same.length ? same : readings).flatMap((r) => conjugate(r, person).slice(0, 1));
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def participleCoordinated
+export function participleCoordinated(
+  word: string,
+  between: FrenchToken[],
+  readings: VerbReading[],
+  firstReadings: VerbReading[],
+  person: number,
+): string[] | null {
+  if (between.some((t) => verbReadings(t.w).some((r) => r.slot === "I" || r.slot === "Q")))
+    return null;
+  const past = readings.every((r) => r.slot === "Q");
+  const tense =
+    (past ? firstReadings.find((r) => r.tense > 2)?.tense : undefined) ??
+    (/(?:er|é)$/.test(word)
+      ? firstReadings.find((r) => r.tense === 2 || (r.tense === 1 && person === VOUS))?.tense
+      : undefined);
+  if (!(tense !== undefined)) return null;
+  return readings.flatMap((r) =>
+    verbReadings(r.lemma)
+      .filter((x) => x.slot === "I" && x.lemma === r.lemma)
+      .flatMap((x) => conjugate({ ...x, tense }, person).slice(0, 1)),
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def coordinatedVerb
+export function coordinatedVerb(
+  ctx: DetectContext,
+  first: FrenchToken,
+  person: number,
+  firstReadings: VerbReading[],
+): RawFinding | null {
+  const all = tokensAfter(ctx.text, first.end, 14);
+  const k = all.findIndex((t) => t.w === "et");
+  if (k < 0 || k > 10) return null;
+  const between = all.slice(0, k);
+  if (
+    between.some(
+      (t) =>
+        SUBJECT_PRONOUNS_ALL.has(t.w) ||
+        ["que", "qu'", "qui", "dont", "où", "ou"].includes(t.w) ||
+        (!isVerbHomograph(t.w) && verbReadings(t.w).some((r) => typeof r.slot === "number")),
+    )
+  )
+    return null;
+  if (firstReadings.some((r) => r.lemma === "être" || r.lemma === "avoir")) return null;
+  const rest = all.slice(k);
+  const i = skipWhile(rest, 1, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w));
+  const verb = rest[i];
+  if (!verb || verb.hyphen || ctx.dictionary.has(verb.w) || isVerbHomograph(verb.w)) return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  if (typed !== verb.w || SUBJECT_PRONOUNS_ALL.has(verb.w)) return null;
+  const readings = verbReadings(verb.w);
+  if (!readings.length || adjectiveReadings(verb.w).length) return null;
+  const forms = readings.every((r) => typeof r.slot === "number")
+    ? finiteCoordinated(verb.w, rest, i, readings, firstReadings, person)
+    : readings.every((r) => r.slot === "Q" || r.slot === "I")
+      ? participleCoordinated(verb.w, between, readings, firstReadings, person)
+      : null;
+  if (!(forms !== null)) return null;
+  const alternatives = forms ? [...new Set(forms)].filter((f) => f && f !== verb.w) : [];
+  if (!alternatives.length || alternatives.length > 2) return null;
+  return {
+    ruleId: "frenchSubjectVerbAgreement",
+    messageKey: "review_msg_fr_subject_verb",
+    range: { start: verb.start, end: verb.end },
+    alternatives: alternatives.map((alt) => carryCase(typed, alt)),
+    context: { start: first.start, end: verb.end },
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def pronounVerbFix
+export function pronounVerbFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  pronoun: string,
+  after: FrenchToken[],
+  i: number,
+  verb: FrenchToken,
+  typed: string,
+  alternatives: string[],
+  warningOnly: boolean,
+): RawFinding | null {
+  if ((!alternatives.length && !warningOnly) || alternatives.length > 3) return null;
+  const before = i > 0 ? after[i - 1] : { w: pronoun, start: m.index, end: m.index + m[0].length };
+  const elidable = /^(?:j|n|m|t|s|l)(?:e|')$|^la$/.test(before.w) && before.end <= verb.start;
+  const original = ctx.text.slice(before.start, before.end);
+  const apostrophe = /['’]/.exec(original)?.[0] ?? "'";
+  const base = original.replace(/['’]$/, "").replace(/[ea]$/i, "");
+  const full = before.w === "la" ? `${base}a` : `${base}e`;
+  const fixed = alternatives.map((alt) =>
+    !elidable
+      ? carryCase(typed, alt)
+      : /^[aeiouyéèêàâîôûh]/i.test(alt)
+        ? `${base}${apostrophe}${carryCase(typed, alt)}`
+        : `${full} ${carryCase(typed, alt)}`,
+  );
+  return finding(
+    "frenchSubjectVerbAgreement",
+    "review_msg_fr_subject_verb",
+    elidable ? before.start : verb.start,
+    verb.end,
+    fixed,
+    {
+      context: { start: m.index, end: verb.end },
+      ...(fixed.length > 1 ? { requiresChoice: true as const } : {}),
+      ...(warningOnly ? { warningOnly: true as const } : {}),
+    },
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def nonVerbBranch
+export function nonVerbBranch(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  pronoun: string,
+  person: number,
+  previous: FrenchToken | undefined,
+  after: FrenchToken[],
+  i: number,
+  verb: FrenchToken,
+  typed: string,
+  readings: VerbReading[],
+  demonstrative: boolean,
+  stressed: boolean,
+  negated: boolean,
+): RawFinding | null {
+  if (previous && !AGR_OPENERS.has(previous.w) && !RELATIVE_PRONOUNS.has(previous.w)) return null;
+  if (/[-–‑]\s*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))) return null;
+  const reflexive = after.slice(0, i).some((t) => t.w === "se" || t.w === "s'");
+  const absolute = !demonstrative || !after[i + 1] || readings.length === 0;
+  const found = nonVerbAlternatives(
+    verb.w,
+    person,
+    readings.length > 0,
+    stressed && i === 0 && absolute,
+    reflexive,
+    negated,
+  );
+  if (!found) return null;
+  return pronounVerbFix(ctx, m, pronoun, after, i, verb, typed, found, !found.length);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def finiteBranch
+export function finiteBranch(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  pronoun: string,
+  person: number,
+  previous: FrenchToken | undefined,
+  after: FrenchToken[],
+  i: number,
+  verb: FrenchToken,
+  typed: string,
+  readings: VerbReading[],
+  demonstrative: boolean,
+): RawFinding | null {
+  const persons = finitePersons(verb.w);
+  if (
+    demonstrative &&
+    after.slice(0, i).some((t) => AGR_PERSON[t.w] && hasPerson(persons, AGR_PERSON[t.w]))
+  )
+    return null;
+  const opens =
+    !previous && /(?:^|[.!?…\n])\s{0,8}$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index));
+  if ((person === NOUS || person === VOUS) && hasPerson(persons, opens ? ILS : JE + IL + ILS))
+    return null;
+  const present = verb.w === "ait" && !["que", "qu'"].includes(previous?.w ?? "");
+  const conjugated = [
+    ...new Set(
+      readings.flatMap((r) => conjugate(present ? { ...r, tense: 1 } : r, person).slice(0, 1)),
+    ),
+  ];
+  const subjunctiveForm =
+    readings[0].tense === 1 && SUBJUNCTIVE_AUXILIARIES[readings[0].lemma]?.[person];
+  return pronounVerbFix(
+    ctx,
+    m,
+    pronoun,
+    after,
+    i,
+    verb,
+    typed,
+    ["que", "qu'"].includes(previous?.w ?? "") && subjunctiveForm && subjunctiveForm !== verb.w
+      ? [...conjugated, subjunctiveForm]
+      : conjugated,
+    false,
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def pronounAgreement
+export function pronounAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index)) return null;
+  const pronoun = m[0].toLowerCase().replaceAll("’", "'");
+  const person = AGR_PERSON[pronoun];
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (previous && NAMING.has(previous.w)) return null;
+  const stressed = !ALWAYS_SUBJECT.has(pronoun);
+  const first = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  const negatedSubject =
+    pronoun in PARTICIPLE_PERSONS &&
+    previous &&
+    (previous.w === "que" || previous.w === "qu'") &&
+    ["ne", "n'"].includes(first?.w ?? "");
+  const infinitiveSubject =
+    !!first &&
+    first.w.endsWith("er") &&
+    verbReadings(first.w).length > 0 &&
+    verbReadings(first.w).every((r) => r.slot === "I") &&
+    subordinateSubject(ctx.text, m.index, 0);
+  const demonstrative = !(pronoun in PARTICIPLE_PERSONS);
+  const opensWithConjunction =
+    demonstrative &&
+    !!previous &&
+    (previous.w === "et" || previous.w === "mais") &&
+    tokensBefore(ctx.text, m.index, 2).length === 1;
+  if (
+    stressed &&
+    previous &&
+    !negatedSubject &&
+    !infinitiveSubject &&
+    !opensWithConjunction &&
+    (!AGR_OPENERS.has(previous.w) || COORDINATING_OR_RELATIVE.has(previous.w))
+  )
+    return null;
+  if (demonstrative && previous?.w === "comme") return null;
+  if (
+    previous &&
+    !CLAUSE_ADVERBS.has(previous.w) &&
+    !isVerbHomograph(previous.w) &&
+    verbReadings(previous.w).some((r) => typeof r.slot === "number")
+  )
+    return null;
+  return pronounVerb(ctx, m, pronoun, person, previous, stressed, demonstrative);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def pronounVerb
+export function pronounVerb(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  pronoun: string,
+  person: number,
+  previous: FrenchToken | undefined,
+  stressed: boolean,
+  demonstrative: boolean,
+): RawFinding | null {
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 5);
+  const i = skipWhile(after, 0, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w));
+  const verb = after[i];
+  if (!verb || verb.hyphen || ctx.dictionary.has(verb.w)) return null;
+  if (after.slice(0, i + 1).some((t) => elidedAuxiliaryAt(ctx.text, t.start))) return null;
+  if (pronoun === "je" && i === 0 && verb.w === "est") return null;
+  if (verb.w === "son" && sontForSon(ctx.text, verb.start)) return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  if (/\p{Lu}/u.test(typed)) return null;
+  const readings = verbReadings(verb.w);
+  const opening =
+    (person === NOUS || person === VOUS) &&
+    verb.w.endsWith("er") &&
+    readings.length > 0 &&
+    readings.every((r) => r.slot === "I") &&
+    !!previous &&
+    CLAUSE_ADVERBS.has(previous.w) &&
+    subordinateSubject(ctx.text, m.index, i);
+  if (isVerbHomograph(verb.w) && (stressed || pronoun === "on") && !opening) return null;
+  const negated = after.slice(0, i).some((t) => AGR_NEGATION.has(t.w));
+  return !readings.length || readings.every((r) => r.slot === "Q")
+    ? nonVerbBranch(
+        ctx,
+        m,
+        pronoun,
+        person,
+        previous,
+        after,
+        i,
+        verb,
+        typed,
+        readings,
+        demonstrative,
+        stressed,
+        negated,
+      )
+    : readings.every((r) => typeof r.slot === "number")
+      ? hasPerson(finitePersons(verb.w), person)
+        ? isVerbHomograph(verb.w)
+          ? null
+          : coordinatedVerb(ctx, verb, person, readings)
+        : finiteBranch(
+            ctx,
+            m,
+            pronoun,
+            person,
+            previous,
+            after,
+            i,
+            verb,
+            typed,
+            readings,
+            demonstrative,
+          )
+      : readings.every((r) => r.slot === "I") &&
+          (verb.w.endsWith("er") || (ALWAYS_SUBJECT.has(pronoun) && /(?:ir|re)$/.test(verb.w))) &&
+          !invertedAfar(ctx.text, m.index) &&
+          ((person !== NOUS && person !== VOUS) ||
+            negated ||
+            opening ||
+            subordinateSubject(ctx.text, m.index, i))
+        ? pronounVerbFix(
+            ctx,
+            m,
+            pronoun,
+            after,
+            i,
+            verb,
+            typed,
+            [
+              ...new Set(
+                readings.flatMap((r) => conjugate({ ...r, tense: 1 }, person).slice(0, 1)),
+              ),
+            ],
+            false,
+          )
+        : null;
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def avoirFinding
+export function avoirFinding(m: RegExpExecArray, start: number, word: FrenchToken, text: string) {
+  return finding(
+    "frenchSubjectVerbAgreement",
+    "review_msg_fr_subject_verb",
+    start,
+    word.end,
+    [text],
+    { context: { start: m.index, end: word.end } },
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def ilYWithoutA
+export function ilYWithoutA(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  after: FrenchToken[],
+): RawFinding | null {
+  const en = after[1]?.w === "en" ? 1 : 0;
+  const next = after[1 + en];
+  const nounPhrase =
+    next &&
+    (DETERMINERS_AFTER_Y.has(next.w) ||
+      (en === 1 && (AGR_NUMBER_WORDS.has(next.w) || AGR_QUANTITY_WORDS.has(next.w))));
+  const digits = !next && en === 1 && /^[ \t]+\d/.test(ctx.text.slice(after[1].end));
+  if (!nounPhrase && !digits) return null;
+  if (next && DETERMINERS_AFTER_Y.has(after[2 + en]?.w ?? "")) return null;
+  const last = after[en];
+  return avoirFinding(m, after[0].start, last, `${ctx.text.slice(after[0].start, last.end)} a`);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def avoirLeftOut
+export function avoirLeftOut(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  pronoun: string,
+  person: number,
+  after: FrenchToken[],
+): RawFinding | null {
+  const negated = after[0]?.w === "ne" || after[0]?.w === "n'";
+  const i = skipWords(after, negated ? 1 : 0, BEFORE_PARTICIPLE);
+  const word = after[i];
+  if (!word || word.hyphen || ctx.dictionary.has(word.w)) return null;
+  if (!(ctx.text.slice(word.start, word.end) === word.w)) return null;
+  if (
+    !(word.w === "eu" || word.w === "été"
+      ? after[i + 1]?.w !== "égard"
+      : BARE_AVOIR_NOUNS.has(word.w) &&
+        i === 0 &&
+        (AFTER_BARE_NOUN.has(after[1]?.w ?? "") ||
+          /^[ \t]*(?:[.!?,;…]|$)/u.test(ctx.text.slice(word.end, word.end + 12))))
+  )
+    return null;
+  const auxiliary = AVOIR_PRESENT[person];
+  return negated
+    ? avoirFinding(
+        m,
+        after[0].start,
+        word,
+        `${carryCase(after[0].w, /^[aeiouyéèê]/.test(auxiliary) ? `n'${auxiliary}` : `ne ${auxiliary}`)} ${ctx.text.slice(after[1].start, word.end)}`,
+      )
+    : pronoun === "je"
+      ? avoirFinding(
+          m,
+          m.index,
+          word,
+          `${carryCase(m[0], "j'")}${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`,
+        )
+      : avoirFinding(
+          m,
+          after[0].start,
+          word,
+          `${auxiliary} ${ctx.text.slice(after[0].start, word.end)}`,
+        );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def missingAvoir
+export function missingAvoir(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const pronoun = m[0].toLowerCase().replaceAll("’", "'");
+  if (!(pronoun in PARTICIPLE_PERSONS && pronoun !== "j'")) return null;
+  if (ctx.text[m.index - 1] === "-" || namedExampleBefore(ctx.text, m.index)) return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if (
+    !ALWAYS_SUBJECT.has(pronoun) &&
+    previous &&
+    (!AGR_OPENERS.has(previous.w) || previous.w === "et" || previous.w === "ou")
+  )
+    return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  return pronoun === "il" && after[0]?.w === "y" && after[0].start <= m.index + m[0].length + 1
+    ? ilYWithoutA(ctx, m, after)
+    : avoirLeftOut(ctx, m, pronoun, AGR_PERSON[pronoun], after);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def participleAgreement
+export function participleAgreement(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const pronoun = m[0].toLowerCase();
+  const ending = PARTICIPLE_ENDING[pronoun];
+  if (!ending || ctx.text[m.index - 1] === "-") return null;
+  const previous = tokensBefore(ctx.text, m.index, 1)[0];
+  if ((pronoun === "elle" || pronoun === "elles") && previous && !AGR_OPENERS.has(previous.w))
+    return null;
+  if (
+    previous &&
+    !isVerbHomograph(previous.w) &&
+    verbReadings(previous.w).some((r) => typeof r.slot === "number")
+  )
+    return null;
+  const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+  const i = skipWords(after, 0, AGR_NEGATION);
+  if (!after[i] || !ETRE_FORMS.has(after[i].w) || after[i].hyphen) return null;
+  if (!hasPerson(finitePersons(after[i].w), AGR_PERSON[pronoun])) return null;
+  const word = after[skipWords(after, i + 1, AGR_ADVERBS)];
+  if (!word || word.hyphen || ctx.dictionary.has(word.w)) return null;
+  if (!(ctx.text.slice(word.start, word.end) === word.w)) return null;
+  const match = /^(.+)(é|ée|és|ées)$/.exec(word.w);
+  if (!match || match[2] === ending) return null;
+  if (!verbReadings(word.w).some((r) => r.slot === "Q" && r.lemma === `${match[1]}er`)) return null;
+  return {
+    ruleId: "frenchSubjectVerbAgreement",
+    messageKey: "review_msg_fr_participle_agreement",
+    range: { start: word.start, end: word.end },
+    alternatives: [match[1] + ending],
+    context: { start: m.index, end: word.end },
+  };
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def pronounIsObject
+export function pronounIsObject(tokens: FrenchToken[], i: number, direct: boolean) {
+  const pronoun = tokens[i].w;
+  const next = tokens[i + 1];
+  return (
+    direct &&
+    (pronoun === "nous" || pronoun === "vous") &&
+    next !== undefined &&
+    !next.hyphen &&
+    !isVerbHomograph(next.w) &&
+    verbReadings(next.w).length > 0 &&
+    !hasPerson(finitePersons(next.w), AGR_PERSON[pronoun])
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def bareHomograph
+export function bareHomograph(tokens: FrenchToken[], i: number, j: number, person: number) {
+  const verb = tokens[j];
+  const previous = tokens[j - 1];
+  const second = tokens[j - 2];
+  const next = tokens[j + 1];
+  return (
+    j === i &&
+    person === ILS &&
+    !/[sxz]$/.test(verb.w) &&
+    hasPerson(finitePersons(verb.w), IL) &&
+    !!previous &&
+    !ALL_DETERMINERS.has(previous.w) &&
+    !AGR_PREPOSITIONS.has(previous.w) &&
+    !(
+      /[sx]$/.test(previous.w) &&
+      second &&
+      (ALL_DETERMINERS.has(second.w) || AGR_NUMBERS.has(second.w))
+    ) &&
+    !(next && (postnominal(next) || isVerbHomograph(next.w))) &&
+    !tokens
+      .slice(j + 1, j + 5)
+      .some((t) => !isVerbHomograph(t.w) && hasPerson(finitePersons(t.w), ILS))
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def mismatchFinding
+export function mismatchFinding(
+  tokens: FrenchToken[],
+  j: number,
+  verb: FrenchToken,
+  typed: string,
+  verbal: VerbReading[],
+  persons: number,
+  person: number,
+  from: number,
+  coordinated: boolean,
+): RawFinding | null {
+  const future = person === ILS && verb.w.endsWith("rons") && tokens[j - 1]?.w !== "qui";
+  if ((person === IL || person === ILS) && !hasPerson(persons, JE + TU + IL + ILS) && !future)
+    return null;
+  const after = tokens[j + 1];
+  const k = skipWhile(tokens, j + 2, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w));
+  const own =
+    after &&
+    tokens[k] &&
+    verbReadings(tokens[k].w).some(
+      (r) => typeof r.slot === "number" && hasPerson(r.slot, AGR_PERSON[after.w]),
+    );
+  if (after && SUBJECT_PRONOUNS_ALL.has(after.w) && hasPerson(persons, AGR_PERSON[after.w]) && !own)
+    return null;
+  if (
+    after &&
+    !isVerbHomograph(after.w) &&
+    verbReadings(after.w).some((r) => typeof r.slot === "number")
+  )
+    return null;
+  const attribute = after && ["les", "des", "ces"].includes(after.w);
+  if (!coordinated && ["est", "sont"].includes(verb.w) && attribute) return null;
+  const alternatives = [...new Set(verbal.flatMap((r) => conjugate(r, person).slice(0, 1)))];
+  if (!alternatives.length || alternatives.length > 2) return null;
+  return finding(
+    "frenchSubjectVerbAgreement",
+    "review_msg_fr_subject_verb",
+    verb.start,
+    verb.end,
+    alternatives.map((alt) => carryCase(typed, alt)),
+    {
+      context: { start: from, end: verb.end },
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    },
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def infinitiveForVerb
+export function infinitiveForVerb(
+  ctx: DetectContext,
+  clitics: FrenchToken[],
+  verb: FrenchToken,
+  person: number,
+  from: number,
+): RawFinding | null {
+  if (!clitics.some((t) => VERB_CLITICS.has(t.w)) || !/(?:er|é)$/.test(verb.w)) return null;
+  if (isVerbHomograph(verb.w)) return null;
+  const lemma = verbReadings(verb.w).find((r) => r.slot === "I" || r.slot === "Q")?.lemma;
+  const base = lemma && verbReadings(lemma).find((r) => r.slot === "I");
+  if (!base || !base.lemma.endsWith("er")) return null;
+  const forms = base ? [1, 2].map((tense) => conjugate({ ...base, tense }, person)[0]) : [];
+  if (forms.some((form) => !form)) return null;
+  return finding(
+    "frenchSubjectVerbAgreement",
+    "review_msg_fr_subject_verb",
+    verb.start,
+    verb.end,
+    forms.map((form) => carryCase(ctx.text.slice(verb.start, verb.end), form)),
+    { context: { start: from, end: verb.end }, requiresChoice: true },
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def verbFinding
+export function verbFinding(
+  ctx: DetectContext,
+  tokens: FrenchToken[],
+  i: number,
+  person: number,
+  from: number,
+  coordinated: boolean,
+  direct: boolean,
+): RawFinding | null {
+  const quiBefore = tokens[i - 1]?.w === "qui";
+  if (!(
+    !(tokens[i] && SUBJECT_PRONOUNS_ALL.has(tokens[i].w) && !quiBefore) ||
+    pronounIsObject(tokens, i, direct)
+  ))
+    return null;
+  const j = skipWhile(tokens, i, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w));
+  const marked = quiBefore || tokens.slice(i, j).some((t) => t.w !== "en");
+  const verb = tokens[j];
+  if (!verb || verb.hyphen || ctx.dictionary.has(verb.w) || AGR_NOT_HEADS.has(verb.w)) return null;
+  const typed = ctx.text.slice(verb.start, verb.end);
+  if (!(typed === verb.w)) return null;
+  if (verb.w.length === 1 && LETTER_LIST.test(ctx.text.slice(verb.end, verb.end + 8))) return null;
+  const readings = verbReadings(verb.w);
+  const object = !!tokens[j + 1] && AGR_OBJECT_DETERMINERS.has(tokens[j + 1].w);
+  const bareObject = object && person === ILS && /it$/.test(verb.w) && j === i;
+  const soit = verb.w === "soit" && !!tokens[j + 1] && !ALL_DETERMINERS.has(tokens[j + 1].w);
+  if (!(
+    !(
+      isVerbHomograph(verb.w) &&
+      !marked &&
+      !AUXILIARY_HOMOGRAPHS.has(verb.w) &&
+      !bareObject &&
+      !soit
+    ) || bareHomograph(tokens, i, j, person)
+  ))
+    return null;
+  const verbal =
+    object && person === ILS && readings.some((r) => r.slot === IL)
+      ? readings.filter((r) => typeof r.slot === "number")
+      : readings;
+  return !verbal.some((r) => typeof r.slot === "number")
+    ? direct
+      ? infinitiveForVerb(ctx, tokens.slice(i, j), verb, person, from)
+      : null
+    : !verbal.every((r) => typeof r.slot === "number")
+      ? null
+      : hasPerson(finitePersons(verb.w), person)
+        ? isVerbHomograph(verb.w) || tokensBefore(ctx.text, from, 1).length
+          ? null
+          : coordinatedVerb(ctx, verb, person, verbal)
+        : mismatchFinding(
+            tokens,
+            j,
+            verb,
+            typed,
+            verbal,
+            finitePersons(verb.w),
+            person,
+            from,
+            coordinated,
+          );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def numberedTokens
+export function numberedTokens(text: string, m: RegExpExecArray): FrenchToken[] {
+  const word = m[0].toLowerCase().replaceAll("’", "'");
+  const end = m.index + m[0].length;
+  const digits = /^\d/.test(word);
+  const number = digits
+    ? null
+    : /^[ \t ]{1,8}\d{1,9}(?=[ \t ]{1,8}\p{L})/u.exec(text.slice(end, end + 30));
+  const lead = [
+    { w: word, start: m.index, end, hyphen: false },
+    ...(number ? [{ w: "deux", start: end, end: end + number[0].length, hyphen: false }] : []),
+  ];
+  return !digits && !number
+    ? tokensAfter(text, m.index, 16)
+    : [...lead, ...tokensAfter(text, lead.at(-1)!.end, 16 - lead.length)];
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def parenAside
+export function parenAside(
+  ctx: DetectContext,
+  last: FrenchToken,
+  person: number,
+  from: number,
+): RawFinding | null {
+  const paren = /^[ \t ]*\([^()\n]{1,80}\)[ \t ]*/u.exec(ctx.text.slice(last.end, last.end + 100));
+  if (!paren) return null;
+  return verbFinding(
+    ctx,
+    tokensAfter(ctx.text, last.end + paren[0].length, 8),
+    0,
+    person,
+    from,
+    false,
+    false,
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def commaRelative
+export function commaRelative(
+  ctx: DetectContext,
+  last: FrenchToken,
+  person: number,
+  from: number,
+): RawFinding | null {
+  const comma = /^[ \t ]*,[ \t ]*(?=qui(?![\p{L}\p{M}]))/u.exec(ctx.text.slice(last.end));
+  if (!comma) return null;
+  const end = ctx.text.slice(last.end).search(/[.!?…\n]/u);
+  if (end >= 0 && ctx.text[last.end + end] !== ".") return null;
+  return verbFinding(
+    ctx,
+    tokensAfter(ctx.text, last.end + comma[0].length, 8),
+    1,
+    person,
+    from,
+    false,
+    false,
+  );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def commaAside
+export function commaAside(
+  ctx: DetectContext,
+  last: FrenchToken,
+  person: number,
+  from: number,
+): RawFinding | null {
+  const comma = /^[ \t ]*,[ \t ]*/u.exec(ctx.text.slice(last.end, last.end + 12));
+  if (!comma) return null;
+  const at = last.end + comma[0].length;
+  const words = tokensAfter(ctx.text, at, 2);
+  const takenUp = !!words[0] && !words[0].hyphen && TAKEN_UP[person]?.includes(words[0].w);
+  const aside = ctx.text
+    .slice(at, at + 120)
+    .toLowerCase()
+    .replaceAll("’", "'");
+  const close = aside.search(/[,.;:!?…\n()]/u);
+  if (!(takenUp || (ASIDE.test(aside) && close >= 0 && aside[close] === ","))) return null;
+  const verbAt = takenUp
+    ? words[0].end + /^[ \t ]*,?[ \t ]*/u.exec(ctx.text.slice(words[0].end))![0].length
+    : at + close + 1;
+  return verbFinding(ctx, tokensAfter(ctx.text, verbAt, 8), 0, person, from, false, false);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def quiAfterComplement
+export function quiAfterComplement(
+  ctx: DetectContext,
+  tokens: FrenchToken[],
+  i: number,
+  person: number,
+  from: number,
+): RawFinding | null {
+  const main = verbAfterRelative(
+    FRENCH_CLAUSE,
+    ctx.text,
+    tokens,
+    i,
+    (verb: ClauseToken) => !isVerbHomograph(verb.w) && hasPerson(finitePersons(verb.w), IL + ILS),
+  );
+  if (!(main >= 0)) return null;
+  return verbFinding(ctx, tokens, main, person, from, false, false);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def quiVerb
+export function quiVerb(
+  ctx: DetectContext,
+  tokens: FrenchToken[],
+  i: number,
+  person: number,
+  from: number,
+  coordinated: boolean,
+): RawFinding | null {
+  const own = verbFinding(ctx, tokens, i + 1, person, from, coordinated, false);
+  const j = skipWhile(tokens, i + 1, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w));
+  const verb = tokens[j];
+  const main =
+    own || !verb || !hasPerson(finitePersons(verb.w), person) || isVerbHomograph(verb.w)
+      ? -1
+      : mainVerbAfter(tokens, j + 1, 0);
+  return own
+    ? own
+    : main < 0
+      ? null
+      : verbFinding(ctx, tokens, main, person, from, coordinated, false);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def clauseVerbFinding
+export function clauseVerbFinding(
+  ctx: DetectContext,
+  tokens: FrenchToken[],
+  i: number,
+  person: number,
+  from: number,
+  coordinated: boolean,
+  adjacent: boolean,
+  direct: boolean,
+): RawFinding | null {
+  const relative = skipRelative(ctx.text, tokens, i);
+  return relative >= 0
+    ? verbFinding(ctx, tokens, relative, person, from, coordinated, false)
+    : tokens[i]?.w !== "qui"
+      ? verbFinding(ctx, tokens, i, person, from, coordinated, direct && adjacent)
+      : coordinated
+        ? null
+        : !adjacent
+          ? quiAfterComplement(ctx, tokens, i, person, from)
+          : quiVerb(ctx, tokens, i, person, from, coordinated);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def capitalizedAt
+export function capitalizedAt(text: string, t: FrenchToken | undefined) {
+  return Boolean(t && /^\p{Lu}\p{Ll}/u.test(text.slice(t.start, t.end)));
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def comparisonSubject
+export function comparisonSubject(
+  ctx: DetectContext,
+  tokens: FrenchToken[],
+  i: number,
+  person: number,
+  anchor: number,
+): RawFinding | null {
+  const start = tokens[i + 1] && ALL_DETERMINERS.has(tokens[i + 1].w) ? i + 2 : i + 1;
+  if (!tokens[start] || !nounLike(ctx.text, tokens[start])) return null;
+  const past = skipAdjective(tokens, start + 1);
+  const k = tokens[past] && /^\p{Lu}/u.test(ctx.text[tokens[past].start]) ? past + 1 : past;
+  return verbFinding(ctx, tokens, k, person, anchor, false, false);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def finishSubject
+export function finishSubject(
+  ctx: DetectContext,
+  tokens: FrenchToken[],
+  i: number,
+  person: number,
+  before: FrenchToken | undefined,
+  anchor: number,
+  head: number,
+  coordinated: boolean,
+): RawFinding | null {
+  return person === ILS && !coordinated && tokens[i]?.w === "comme"
+    ? comparisonSubject(ctx, tokens, i, person, anchor)
+    : !tokens[i]
+      ? ((i === head ? commaRelative(ctx, tokens[i - 1], person, anchor) : null) ??
+        commaAside(ctx, tokens[i - 1], person, anchor) ??
+        parenAside(ctx, tokens[i - 1], person, anchor))
+      : clauseVerbFinding(
+          ctx,
+          tokens,
+          i,
+          person,
+          anchor,
+          coordinated,
+          i === head,
+          before?.w !== "et",
+        );
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def coordinatedSubject
+export function coordinatedSubject(
+  ctx: DetectContext,
+  tokens: FrenchToken[],
+  i: number,
+  before: FrenchToken | undefined,
+  anchor: number,
+  head: number,
+): RawFinding | null {
+  const k = pastPrenominal(ctx.text, tokens, i + 2);
+  const second = tokens[k];
+  if (!second || second.hyphen || !nounLike(ctx.text, second)) return null;
+  return finishSubject(ctx, tokens, skipAdjective(tokens, k + 1), ILS, before, anchor, head, true);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def nounPhraseVerb
+export function nounPhraseVerb(
+  ctx: DetectContext,
+  tokens: FrenchToken[],
+  n: number,
+  noun: FrenchToken,
+  nounTyped: string,
+  plural: boolean,
+  before: FrenchToken | undefined,
+  anchor: number,
+): RawFinding | null {
+  const adjectivesEnd = skipAdjective(tokens, n + 1);
+  const name =
+    tokens[adjectivesEnd] &&
+    /^\p{Lu}\p{Ll}+$/u.test(ctx.text.slice(tokens[adjectivesEnd].start, tokens[adjectivesEnd].end));
+  const apposition =
+    name && adjectivesEnd === n + 1 && nounTyped === noun.w && !tokens[adjectivesEnd].hyphen;
+  if (apposition && tokens[adjectivesEnd].w in AGR_PERSON) return null;
+  const named = apposition ? adjectivesEnd + 1 : adjectivesEnd;
+  const head =
+    ["lui", "eux"].includes(tokens[named]?.w ?? "") && tokens[named + 1]?.w === "qui"
+      ? named + 1
+      : named;
+  const i = complementsEnd(ctx.text, tokens, head);
+  const coordinated =
+    i === head &&
+    tokens[i]?.w === "et" &&
+    Boolean(tokens[i + 1] && ALL_DETERMINERS.has(tokens[i + 1].w));
+  return coordinated
+    ? coordinatedSubject(ctx, tokens, i, before, anchor, head)
+    : finishSubject(ctx, tokens, i, plural ? ILS : IL, before, anchor, head, false);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def nounPhraseSubject
+export function nounPhraseSubject(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  word: string,
+  tokens: FrenchToken[],
+): RawFinding | null {
+  const leading = tokensBefore(ctx.text, m.index, 8);
+  const predeterminer = AGR_PLURAL_DETERMINERS.has(word) && PREDETERMINERS.has(leading[0]?.w ?? "");
+  const anchor = predeterminer ? leading[0].start : m.index;
+  const previous = predeterminer ? leading.slice(1) : leading;
+  const before = previous[0];
+  if (before && !AGR_CLAUSE_OPENERS.has(before.w) && !(before.w === "et" && verbBeforeEt(previous)))
+    return null;
+  if (
+    before &&
+    (before.w === "que" || before.w === "qu'") &&
+    previous.slice(1, 4).some((t) => COMPARING.has(t.w))
+  )
+    return null;
+  if (!before && !/(?:^|[.!?…:,\n])[\s ]*$/u.test(ctx.text.slice(Math.max(0, anchor - 4), anchor)))
+    return null;
+  const digits = /^\d/.test(m[0]);
+  if (digits && Number(m[0]) < 2) return null;
+  const counted = !digits && !!tokens[1] && AGR_NUMBERS.has(tokens[1].w) && !AGR_NUMBERS.has(word);
+  const n = pastPrenominal(ctx.text, tokens, counted ? 2 : 1);
+  const noun = tokens[n];
+  if (!noun || noun.hyphen || AGR_NOT_HEADS.has(noun.w)) return null;
+  if (COLLECTIVES.has(noun.w) || noun.w === "quarts" || noun.w === "tiers") return null;
+  const plural = digits || counted || AGR_NUMBERS.has(word) || AGR_PLURAL_DETERMINERS.has(word);
+  const nounTyped = ctx.text.slice(noun.start, noun.end);
+  if (
+    nounTyped !== noun.w &&
+    (plural ||
+      !AGR_SINGULAR_DETERMINERS.has(word) ||
+      !/^(?:\p{Lu}\p{Ll}+|\p{Lu}{2,6})$/u.test(nounTyped))
+  )
+    return null;
+  if (plural && !/[sx]$/.test(noun.w)) return null;
+  if (!(nounLike(ctx.text, noun) || (plural && nominalAdjective(ctx.text, tokens, n)))) return null;
+  if (TIME_OR_MEASURE.has(noun.w) || TIME_OR_MEASURE.has(noun.w.replace(/[sx]$/, ""))) return null;
+  if (
+    !before &&
+    /,[\s ]{0,8}$/u.test(ctx.text.slice(Math.max(0, anchor - 9), anchor)) &&
+    (word === "des" || word === "du" || listBefore(ctx.text, anchor))
+  )
+    return null;
+  return nounPhraseVerb(ctx, tokens, n, noun, nounTyped, plural, before, anchor);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def stressedSubject
+export function stressedSubject(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  word: string,
+  tokens: FrenchToken[],
+): RawFinding | null {
+  if (tokens[1]?.w !== "qui" || ctx.text[m.index - 1] === "-") return null;
+  const pair = tokensBefore(ctx.text, m.index, 3).filter((t) => t.w !== "pas");
+  const verb = pair[0];
+  const ce = pair[1];
+  const focus =
+    word === "ceux" ||
+    word === "celles" ||
+    word === "celui" ||
+    word === "celle" ||
+    (verb &&
+      ["est", "sont", "était", "étaient", "fut"].includes(verb.w) &&
+      ce &&
+      ["c'", "ce"].includes(ce.w));
+  if (!focus) return null;
+  return verbFinding(ctx, tokens, 2, AGR_STRESSED[word], m.index, false, false);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def nounSubject
+export function nounSubject(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const word = m[0].toLowerCase().replaceAll("’", "'");
+  const tokens = numberedTokens(ctx.text, m);
+  if (!(tokens[0]?.w === word)) return null;
+  return word in AGR_STRESSED
+    ? stressedSubject(ctx, m, word, tokens)
+    : nounPhraseSubject(ctx, m, word, tokens);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def objectRelative
+export function objectRelative(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  const word = m[0].toLowerCase().replaceAll("’", "'");
+  const plural = AGR_PLURAL_DETERMINERS.has(word);
+  if ((!plural && !AGR_SINGULAR_DETERMINERS.has(word)) || word === "chaque") return null;
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const previous = tokensBefore(ctx.text, m.index, 5);
+  const before = previous[0];
+  if (!before || ctx.text[m.index - 1] === "-") return null;
+  const verb =
+    (!isVerbHomograph(before.w) &&
+      verbReadings(before.w).some(
+        (r) => (typeof r.slot === "number" || r.slot === "Q") && r.lemma !== "être",
+      )) ||
+    (before.w === "a" && previous[1]?.w === "y") ||
+    (verbReadings(before.w).some((r) => r.slot === "Q") &&
+      verbReadings(previous[1]?.w ?? "").some(
+        (r) => typeof r.slot === "number" && r.lemma === "avoir",
+      ));
+  if (!(verb || OBJECT_OPENERS.has(before.w))) return null;
+  if (previous.some((t) => verbReadings(t.w).some((r) => AGR_ASKING.has(r.lemma)))) return null;
+  if (tokensBefore(ctx.text, m.index, 16).some((t) => t.w === "c'" || t.w === "ce")) return null;
+  const tokens = tokensAfter(ctx.text, m.index, 12);
+  const noun = tokens[1];
+  if (tokens[0]?.w !== word || !noun || noun.hyphen || AGR_NOT_HEADS.has(noun.w)) return null;
+  if (ctx.text.slice(noun.start, noun.end) !== noun.w || !nounLike(ctx.text, noun)) return null;
+  if (plural !== /[sx]$/.test(noun.w) && plural) return null;
+  if (COLLECTIVES.has(noun.w.replace(/[sx]$/, ""))) return null;
+  const i = skipAdjective(tokens, 2);
+  if (!(tokens[i]?.w === "qui")) return null;
+  return verbFinding(ctx, tokens, i + 1, plural ? ILS : IL, m.index, false, false);
+}
+
+// fr.yaml rule fr.subjectVerbAgreement def invertedNounPhrase
+export function invertedNounPhrase(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  tokens: FrenchToken[],
+  k: number,
+  verb: FrenchToken,
+  typed: string,
+  readings: VerbReading[],
+): RawFinding | null {
+  const nouns = [] as number[];
+  const phrase = skipNounPhrase(FRENCH_CLAUSE, ctx.text, tokens, k, nouns);
+  if (!(phrase !== k)) return null;
+  const noun = tokens[nouns[0]];
+  if (
+    ctx.text.slice(noun.start, noun.end) !== noun.w ||
+    COLLECTIVES.has(noun.w.replace(/[sx]$/, ""))
+  )
+    return null;
+  const plural = AGR_PLURAL_DETERMINERS.has(tokens[k].w) || AGR_NUMBERS.has(tokens[k + 1]?.w ?? "");
+  if (plural && !/[sx]$/.test(noun.w)) return null;
+  const first = skipComplements(FRENCH_CLAUSE, ctx.text, tokens, phrase);
+  const end = skipCoordinated(FRENCH_CLAUSE, ctx.text, tokens, first);
+  const person = plural ? ILS : IL;
+  const main = tokens[end];
+  if (
+    !(main
+      ? !(
+          main.hyphen ||
+          (isVerbHomograph(main.w) && !AUXILIARY_HOMOGRAPHS.has(main.w)) ||
+          !verbReadings(main.w).some((r) => typeof r.slot === "number")
+        )
+      : !(
+          tokens.length === 16 ||
+          !/^[ \t ]*(?:[.!?;:…,)»"”]|$)/u.test(ctx.text.slice(tokens[end - 1].end))
+        ))
+  )
+    return null;
+  const persons = finitePersons(verb.w);
+  if (hasPerson(persons, person) || (end > first && hasPerson(persons, ILS))) return null;
+  const alternatives = [...new Set(readings.flatMap((r) => conjugate(r, person).slice(0, 1)))];
+  if (!alternatives.length || alternatives.length > 2) return null;
+  return finding(
+    "frenchSubjectVerbAgreement",
+    "review_msg_fr_subject_verb",
+    verb.start,
+    verb.end,
+    alternatives.map((alt) => carryCase(typed, alt)),
+    {
+      context: { start: m.index, end: tokens[end - 1].end },
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    },
   );
 }
 
@@ -10788,6 +13082,176 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     return finding(frame.ruleId, frame.messageKey, m.index, m.index + hit[0].length, [
       compound.replaceAll("'", /’/.test(hit[0]) ? "’" : "'"),
     ]);
+  },
+  // fr.yaml rule fr.subjectVerbAgreement frame 1
+  "@fr.subjectVerbAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    return missingAvoir(ctx, m) ?? pronounAgreement(ctx, m) ?? participleAgreement(ctx, m);
+  },
+  // fr.yaml rule fr.subjectVerbAgreement frame 2
+  "@fr.subjectVerbAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    return nounSubject(ctx, m) ?? objectRelative(ctx, m);
+  },
+  // fr.yaml rule fr.subjectVerbAgreement frame 3
+  "@fr.subjectVerbAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const before = tokensBefore(ctx.text, m.index, 2);
+    if (before[0] && AGR_PREPOSITIONS.has(before[0].w)) return null;
+    const after = tokensAfter(ctx.text, m.index + 3, 4);
+    const i = skipWhile(after, 0, (t) => AGR_NEGATION.has(t.w) || CLITICS.has(t.w));
+    const word = after[i];
+    if (!word || word.hyphen || ctx.dictionary.has(word.w) || verbReadings(word.w).length)
+      return null;
+    if (!(word.w !== "son")) return null;
+    if (ctx.text.slice(word.start, word.end) !== word.w || namedExampleBefore(ctx.text, m.index))
+      return null;
+    const antecedent = before[0]?.w ?? "";
+    const plural = /[sx]$/.test(antecedent) && AGR_PLURAL_DETERMINERS.has(before[1]?.w ?? "");
+    const person = AGR_STRESSED[antecedent] ?? (plural ? ILS : IL);
+    const negated = after.slice(0, i).some((t) => AGR_NEGATION.has(t.w));
+    const found = nonVerbAlternatives(word.w, person, false, false, false, negated);
+    if (!found?.length || found.length > 2) return null;
+    return finding(
+      "frenchSubjectVerbAgreement",
+      "review_msg_fr_subject_verb",
+      word.start,
+      word.end,
+      found,
+      {
+        context: { start: m.index, end: word.end },
+        ...(found.length > 1 ? { requiresChoice: true as const } : {}),
+      },
+    );
+  },
+  // fr.yaml rule fr.subjectVerbAgreement frame 4
+  "@fr.subjectVerbAgreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const lead = m[0].toLowerCase().replaceAll("’", "'").trim();
+    if (lead.startsWith("combien")) return null;
+    const bare = lead === "de";
+    if (!bare && !/(?:de|des|d')$/.test(lead)) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const previous = tokensBefore(ctx.text, m.index, 8);
+    const before = previous[0];
+    if (
+      before &&
+      !AGR_CLAUSE_OPENERS.has(before.w) &&
+      !(before.w === "et" && verbBeforeEt(previous))
+    )
+      return null;
+    if (
+      !before &&
+      !/(?:^|[.!?…:\n])[\s\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    const tokens = tokensAfter(ctx.text, m.index + m[0].length, 14);
+    const adjective =
+      adjectiveReadings(tokens[0]?.w ?? "").some((r) => r.slot[1] === "p") &&
+      !!tokens[1] &&
+      /[sx]$/.test(tokens[1].w) &&
+      nounLike(ctx.text, tokens[1]);
+    if (!adjective && bare) return null;
+    const n = adjective ? 1 : 0;
+    const noun = tokens[n];
+    if (!noun || noun.hyphen || AGR_NOT_HEADS.has(noun.w) || !/[sx]$/.test(noun.w)) return null;
+    if (ctx.text.slice(noun.start, noun.end) !== noun.w || !nounLike(ctx.text, noun)) return null;
+    if (!isInflectedNoun(noun.w.replace(/aux$/, "al").replace(/[sx]$/, ""))) return null;
+    const singular = noun.w.replace(/s$/, "");
+    if (COLLECTIVES.has(singular) || TIME_OR_MEASURE.has(singular) || TIME_OR_MEASURE.has(noun.w))
+      return null;
+    if (/^quel/.test(tokens[0].w)) return null;
+    const head = skipAdjective(tokens, n + 1);
+    const i = complementsEnd(ctx.text, tokens, head);
+    return clauseVerbFinding(ctx, tokens, i, ILS, m.index, false, i === head, false);
+  },
+  // fr.yaml rule fr.subjectVerbAgreement frame 5
+  "@fr.subjectVerbAgreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const tokens = tokensAfter(ctx.text, m.index + m[0].length, 10);
+    if (!tokens[0] || ["de", "d'", "des", "du"].includes(tokens[0].w)) return null;
+    const before = tokensBefore(ctx.text, m.index, 2)[0];
+    if (before && !AGR_CLAUSE_OPENERS.has(before.w)) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return clauseVerbFinding(ctx, tokens, 0, ILS, m.index, false, true, false);
+  },
+  // fr.yaml rule fr.subjectVerbAgreement frame 6
+  "@fr.subjectVerbAgreement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const lower = m[0].toLowerCase();
+    if (namedExampleBefore(ctx.text, m.index) || ctx.dictionary.has(lower)) return null;
+    if (lower in AGR_PERSON || NOT_NAMES.has(lower) || AGR_NUMBERS.has(lower) || lower.length < 3)
+      return null;
+    if (!(
+      capitalizedName(ctx.text, m.index, m[0]) ||
+      !(
+        isFrenchWord(lower) ||
+        lower.length < 4 ||
+        /\p{Lu}\p{Ll}{0,3}\.[\s ]*$/u.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+      )
+    ))
+      return null;
+    const previous = tokensBefore(ctx.text, m.index, 3);
+    const before = previous[0];
+    if (before && !AGR_CLAUSE_OPENERS.has(before.w)) return null;
+    if (
+      before &&
+      (before.w === "que" || before.w === "qu'") &&
+      previous.slice(1).some((t) => COMPARING.has(t.w))
+    )
+      return null;
+    if (
+      !before &&
+      !/(?:^|[.!?…:,\n])[\s\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    if (
+      !before &&
+      /\p{Lu}\p{Ll}*,[\s\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 30), m.index))
+    )
+      return null;
+    const tokens = tokensAfter(ctx.text, m.index + m[0].length, 12);
+    const surname = capitalizedAt(ctx.text, tokens[0]) ? 1 : 0;
+    const pair = tokens[surname]?.w === "et" && capitalizedAt(ctx.text, tokens[surname + 1]);
+    const i = pair
+      ? capitalizedAt(ctx.text, tokens[surname + 2])
+        ? surname + 3
+        : surname + 2
+      : surname;
+    if (capitalizedAt(ctx.text, tokens[i])) return null;
+    const person = pair ? ILS : IL;
+    const end = ctx.text.slice(m.index).search(/[.!?…\n]/u);
+    if (end >= 0 && ctx.text[m.index + end] === "!") return null;
+    return clauseVerbFinding(ctx, tokens, i, person, m.index, person === ILS, true, false);
+  },
+  // fr.yaml rule fr.subjectVerbAgreement frame 7
+  "@fr.subjectVerbAgreement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const tokens = tokensAfter(ctx.text, m.index + m[0].length, 16);
+    const j = skipWords(tokens, 0, INVERTED_CLITICS);
+    const verb = tokens[j];
+    if (!verb || verb.hyphen || ctx.dictionary.has(verb.w)) return null;
+    const typed = ctx.text.slice(verb.start, verb.end);
+    if (!(typed === verb.w)) return null;
+    const opener = m[0].toLowerCase().replace("’", "'");
+    const marked = j > 0 || (opener !== "que" && opener !== "qu'");
+    if (isVerbHomograph(verb.w) && !AUXILIARY_HOMOGRAPHS.has(verb.w) && !marked) return null;
+    const readings = verbReadings(verb.w);
+    if (
+      !readings.length ||
+      !readings.every((r) => typeof r.slot === "number") ||
+      verb.w === "importe"
+    )
+      return null;
+    const auxiliary = readings.some((r) => r.lemma === "être" || r.lemma === "avoir");
+    const afterEte = auxiliary && tokens[j + 1]?.w === "été" ? j + 2 : j + 1;
+    const afterParticiple =
+      auxiliary && verbReadings(tokens[afterEte]?.w ?? "").every((r) => r.slot === "Q")
+        ? afterEte + 1
+        : afterEte;
+    const k = skipWords(tokens, afterParticiple, AGR_ADVERBS);
+    return invertedNounPhrase(ctx, m, tokens, k, verb, typed, readings);
   },
   // fr.yaml rule fr.elision frame 1
   "@fr.elision/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
