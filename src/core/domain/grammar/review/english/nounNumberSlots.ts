@@ -70,8 +70,20 @@ const COUNT_LABELS =
 
 type Number_ = { singular: string; plural: string; number: "singular" | "plural" };
 
+// The lexicon is static: many frames ask about the same words, so each word is read once.
+const NOUN_NUMBERS = new Map<string, Number_ | null>();
+
 /** Singular/plural forms of a lowercase noun and which one it is, or null. */
 export function nounNumber(word: string): Number_ | null {
+  let found = NOUN_NUMBERS.get(word);
+  if (found === undefined) {
+    if (NOUN_NUMBERS.size >= 50_000) NOUN_NUMBERS.clear();
+    NOUN_NUMBERS.set(word, (found = readNounNumber(word)));
+  }
+  return found;
+}
+
+function readNounNumber(word: string): Number_ | null {
   if (
     INVARIANT.has(word) ||
     /(?:ics|wards|doors|stairs|works)$/.test(word) ||
