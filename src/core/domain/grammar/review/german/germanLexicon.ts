@@ -29,6 +29,22 @@ let extra: Set<string> | undefined;
 let supplement: WordGraph | undefined;
 const SUPPLEMENT_READINGS = { n: "noun", f: "finite", i: "infinitive" } as const;
 
+// The checks ask about the same words again and again. Each lookup below reads only the loaded
+// data, which does not change after it is read, so its answers are kept for each word.
+const MEMO_LIMIT = 20000;
+function memo<T>(lookup: (word: string) => T): (word: string) => T {
+  const known = new Map<string, T>();
+  return (word) => {
+    let value = known.get(word);
+    if (value === undefined) {
+      value = lookup(word);
+      if (known.size >= MEMO_LIMIT) known.clear();
+      known.set(word, value);
+    }
+    return value;
+  };
+}
+
 /** A Golomb-coded set "g<r>.<n>.<count>.<bits>" (see scripts/generate-german-lexicon.ts). */
 function golomb(text: string): Level {
   const [header, payload] = [
@@ -135,16 +151,16 @@ export function germanPastInfinitives(form: string): string[] {
 }
 
 /** An infinitive in the dictionary ("laufen", "sammeln"); loose like germanVerbLike. */
-export function germanInfinitive(word: string): boolean {
+export const germanInfinitive = memo(function germanInfinitive(word: string): boolean {
   verbBloom ??= decodeBits(data().VERB_BLOOM);
   return /(?:en|ln|rn)$/.test(word) && bloomHas(verbBloom, word.normalize("NFC"));
-}
+});
 
 /**
  * Whether a lowercase word may be a verb: an infinitive (or 1st/3rd plural), a 1st singular
  * ("gebe") or a past form ("machte", "machten"). Loose: a false yes only loses a finding.
  */
-export function germanVerbLike(word: string): boolean {
+export const germanVerbLike = memo(function germanVerbLike(word: string): boolean {
   verbBloom ??= decodeBits(data().VERB_BLOOM);
   const filter = verbBloom;
   const infinitive = (stem: string) => bloomHas(filter, stem);
@@ -159,9 +175,11 @@ export function germanVerbLike(word: string): boolean {
     // "leistete", "wartete": a stem in -t or -d.
     (w.endsWith("ete") && infinitive(`${w.slice(0, -3)}en`))
   );
-}
+});
 
-export function germanNounReading(word: string): GermanNounReading | null {
+export const germanNounReading = memo(function germanNounReading(
+  word: string,
+): GermanNounReading | null {
   const w = word.normalize("NFC");
   const listed = germanListedNoun(w);
   if (listed) return listed;
@@ -169,10 +187,12 @@ export function germanNounReading(word: string): GermanNounReading | null {
   supplement ??= new WordGraph(data().SUPPLEMENT_NOUNS);
   const code = supplement.completions(`${w}|`)[0] as keyof typeof SUPPLEMENT_READINGS | undefined;
   return code ? SUPPLEMENT_READINGS[code] : null;
-}
+});
 
 /** germanNounReading for the nouns the dictionary itself lists (and the authored extras). */
-export function germanListedNoun(word: string): GermanNounReading | null {
+export const germanListedNoun = memo(function germanListedNoun(
+  word: string,
+): GermanNounReading | null {
   const w = word.normalize("NFC");
   finite ??= frontDecoded(data().FINITE_NOUNS);
   extra ??= new Set(EXTRA_NOUNS.split(" "));
@@ -182,7 +202,7 @@ export function germanListedNoun(word: string): GermanNounReading | null {
   if (!inCascade(nounCascade, w)) return null;
   infinitiveCascade ??= decodeCascade(data().INFINITIVE_CASCADE);
   return inCascade(infinitiveCascade, w) ? "infinitive" : "noun";
-}
+});
 
 let nounsOverAdjectives: Set<string> | undefined;
 let dativeVerbs: Set<string> | undefined;
@@ -234,10 +254,10 @@ export function germanVerbObjectCase(word: string): "dative" | "accusative" | nu
 }
 
 /** An adjective lemma that inflects ("klein", "original"); loose, about 0.3% false yeses. */
-export function germanAdjective(word: string): boolean {
+export const germanAdjective = memo(function germanAdjective(word: string): boolean {
   adjectiveBloom ??= decodeBits(data().ADJECTIVE_BLOOM);
   return bloomHas(adjectiveBloom, word.normalize("NFC"));
-}
+});
 
 /** A noun form's gender ("x": masculine or neuter) and whether it may also be a plural. */
 export type GermanGender = "f" | "m" | "n" | "x";
@@ -332,7 +352,7 @@ function compoundStart(first: string): boolean {
  * feminine -in of a masculine noun, or a suffix that fixes it ("-ung" is left out: "der
  * Sprung"). Null when unknown or of two genders.
  */
-export function germanGender(word: string): GermanGenderReading | null {
+export const germanGender = memo(function germanGender(word: string): GermanGenderReading | null {
   const w = word.toLowerCase().normalize("NFC");
   if (TWO_GENDERS.has(w)) return null;
   const table = genderTable();
@@ -345,7 +365,7 @@ export function germanGender(word: string): GermanGenderReading | null {
     return precise ? { gender: fromParts.gender, plural: known.plural } : known;
   }
   return fromParts;
-}
+});
 
 /** The gender from a compound head, a person noun, a diminutive or a suffix. */
 function genderFromParts(
