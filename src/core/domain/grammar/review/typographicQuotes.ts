@@ -1,6 +1,7 @@
 import { resolveTypographyProfile } from "../typographyProfiles";
 import { ELIDED_QUOTE_START } from "./quotationWarnings";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "./reviewDetectors";
+import type { MatchFixer } from "../engine/reviewRules";
+import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
 
 // Straight quotes and apostrophes become the typographic marks of the text language, from the
@@ -41,17 +42,25 @@ function cut(text: string, k: number): number {
   return space < 0 ? at : at + space;
 }
 
-/** The segments of lines that overlap the chunk, as [start, end) offsets. */
-function* lines(ctx: DetectContext): Generator<[number, number]> {
+/**
+ * The segments of the line of a line frame match that overlap the chunk, as [start, end)
+ * offsets. The frame matches each line that touches the chunk from the chunk start.
+ */
+function* segments(ctx: DetectContext, m: RegExpExecArray): Generator<[number, number]> {
   const text = ctx.text;
-  // The segment start at or before `from`: within 2 * SEGMENT there is a line end or a cut.
-  const back = Math.max(0, ctx.from - 2 * SEGMENT);
-  let start = back + text.slice(back, ctx.from).lastIndexOf("\n") + 1;
-  for (let k = Math.floor(ctx.from / SEGMENT); k * SEGMENT + 256 > start && k > 0; k--) {
-    const at = cut(text, k);
-    if (at >= start && at <= ctx.from) {
-      start = at;
-      break;
+  const lineEnd = m.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0);
+  let start = m.index;
+  if (start > 0 && text[start - 1] !== "\n") {
+    // The first match starts inside its line. Find the segment start at or before the match:
+    // within 2 * SEGMENT there is a line end or a cut.
+    const back = Math.max(0, m.index - 2 * SEGMENT);
+    start = back + text.slice(back, m.index).lastIndexOf("\n") + 1;
+    for (let k = Math.floor(m.index / SEGMENT); k * SEGMENT + 256 > start && k > 0; k--) {
+      const at = cut(text, k);
+      if (at >= start && at <= m.index) {
+        start = at;
+        break;
+      }
     }
   }
   while (start < ctx.to) {
@@ -66,11 +75,14 @@ function* lines(ctx: DetectContext): Generator<[number, number]> {
       }
     }
     yield [start, end];
-    start = text[end] === "\n" ? end + 1 : end;
+    // The next line is the next match.
+    if (end >= lineEnd) return;
+    start = end;
   }
 }
 
-function quotes(ctx: DetectContext): RawFinding[] {
+/** The quote fixes of the segments of one line (the line frame of common.yaml). */
+const quoteLine: MatchFixer = (m, ctx) => {
   const lang = ctx.lang.slice(0, 2);
   const profile = resolveTypographyProfile(ctx.lang);
   const [open, close] = profile.double;
@@ -86,7 +98,7 @@ function quotes(ctx: DetectContext): RawFinding[] {
     if (at >= ctx.from && at < ctx.to) findings.push(quoteFinding(at, replacement, context));
   };
 
-  for (const [start, end] of lines(ctx)) {
+  for (const [start, end] of segments(ctx, m)) {
     const stack: Open[] = [];
     const edits: Array<[number, string, [number, number]]> = [];
     let clean = pairs;
@@ -179,6 +191,7 @@ function quotes(ctx: DetectContext): RawFinding[] {
         keep(at, replacement, context);
   }
   return findings;
-}
+};
 
-export const TYPOGRAPHIC_QUOTES: ReviewDetectorEntry = { rules: [RULE], detect: quotes };
+/** The named frame fixes of the typographicQuotes rule of grammar/rules/common.yaml. */
+export const FIXERS = { quoteLine } satisfies Record<string, MatchFixer>;

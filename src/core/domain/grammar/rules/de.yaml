@@ -1534,10 +1534,21 @@ rules:
         fixer: largeNumber
   - id: de.quotes
     checks: [germanQuotes]
-    # Each mark changes the count of open „ for the next marks, and a skipped English quotation
-    # moves the scan; nested quotes use a stack of the marks of each line.
-    # predicate: a stateful scan; the count of open quotes from the paragraph start decides each mark.
-    predicate: quotes
+    style: match
+    message: review_msg_german_quotes
+    frames:
+      # Each paragraph (line) that touches the chunk, from the chunk start (a regex cannot start
+      # before it). Each mark changes the count of open „ for the next marks, from the paragraph
+      # start, and a skipped English quotation moves the scan.
+      - regex: "[^\\n]+\\n?|\\n"
+        flags: g
+        scan: text
+        fixer: quoteMarks
+      # Each line that touches the chunk: nested quotes use a stack of the marks of the line.
+      - regex: "[^\\n]+\\n?|\\n"
+        flags: g
+        scan: text
+        fixer: nestedQuotes
   - id: de.quoteFrames
     checks: [germanQuotes]
     style: match
@@ -1561,9 +1572,15 @@ rules:
         fixer: innerSpacing
   - id: de.straightQuotes
     checks: [germanStraightQuotes]
-    # An odd count of straight marks leaves the line alone.
-    # predicate: pairs the straight marks of each line by an indexOf walk, not by a regex scan.
-    predicate: straightQuotes
+    style: match
+    message: review_msg_german_quotes
+    frames:
+      # Each line that touches the chunk, from the chunk start: the fixer pairs the straight
+      # marks of the whole line. An odd count of straight marks leaves the line alone.
+      - regex: "[^\\n]+\\n?|\\n"
+        flags: g
+        scan: text
+        fixer: straightQuotes
   - id: de.commas
     checks: [germanCommas]
     style: match

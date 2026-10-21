@@ -465,8 +465,15 @@ rules:
   - id: es.quoteSpaces
     checks: [commaPeriodSpacing]
     group: commaPeriodSpacing
-    # predicate: pairs the straight quotes of each line by position; no regex scan.
-    predicate: quoteSpaces
+    style: match
+    message: review_msg_space_after_opening_mark
+    frames:
+      # Each line that touches the chunk, from the chunk start (a regex cannot start before
+      # it): the fixer pairs the straight quotes of the whole line by position.
+      - regex: "[^\\n]+\\n?|\\n"
+        flags: g
+        scan: text
+        fixer: quoteSpaces
   - id: es.dashes
     checks: [emdashShortcut]
     group: emdashShortcut

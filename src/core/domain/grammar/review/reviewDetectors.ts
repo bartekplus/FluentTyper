@@ -84,7 +84,7 @@ import {
 } from "../implementations/helpers/GenericRuleShared";
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
-import { TYPOGRAPHIC_QUOTES } from "./typographicQuotes";
+import { FIXERS as QUOTE_FIXERS } from "./typographicQuotes";
 import {
   FILTERS as ENGLISH_FILTERS,
   FIXERS as ENGLISH_FIXERS,
@@ -1650,7 +1650,6 @@ const repeatedWord: MatchFixer = (match, ctx) => {
 export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   // The phrase rows of the rule files (engine/phraseRows.ts), after the casing frame.
   phraseRows: phraseCorrections,
-  typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
 };
 
 /** The frame fixes of the shared detectors of this module. */
@@ -1726,6 +1725,7 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   DEGREE_FIXERS,
   LEXICON_FIXERS,
   CASING_FIXERS,
+  QUOTE_FIXERS,
 );
 
 /** The named findings filters of grammar/rules/common.yaml (`filter:`). */

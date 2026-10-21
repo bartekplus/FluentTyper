@@ -16,7 +16,7 @@ import * as verbAccents from "./verbAccents";
 import * as verbAgreement from "./verbAgreement";
 import * as verbForms from "./verbForms";
 
-export const PREDICATES = typography.PREDICATES;
+export const PREDICATES = mergePredicates();
 
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(

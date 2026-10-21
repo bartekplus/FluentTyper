@@ -34,7 +34,7 @@ import * as redundancy from "./redundancy";
 import * as suspendedHyphen from "./suspendedHyphen";
 import * as verbAgreement from "./verbAgreement";
 
-export const PREDICATES = mergePredicates<Detector>(quotes.PREDICATES);
+export const PREDICATES = mergePredicates<Detector>();
 
 /** The named frame fixes of grammar/rules/de.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(

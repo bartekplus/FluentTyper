@@ -1,6 +1,6 @@
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { englishWords, isGerman } from "./shared";
+import type { MatchFixer } from "../../engine/reviewRules";
+import type { RawFinding } from "../reviewDetectors";
+import { englishWords } from "./shared";
 import { finding } from "../finding";
 
 // German quotes open low and close high: „so“. English marks typed in German text get the
@@ -20,26 +20,40 @@ function quoteFinding(start: number, end: number, replacement: string): RawFindi
   });
 }
 
-function quotes(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
-  const findings: RawFinding[] = [];
-  const marks = /“|”|,,|''|"/g;
-  marks.lastIndex = ctx.from;
-  // Whether a German „ is open in this paragraph, read from its start.
-  const paragraphStart = ctx.text.lastIndexOf("\n", ctx.from - 1) + 1;
-  let open = 0;
-  for (const c of ctx.text.slice(paragraphStart, ctx.from)) {
+// Each mark changes the count of open „ for the next marks of its paragraph.
+const MARKS = /“|”|,,|''|"/g;
+
+/** The count of open „ after `chars`; a line break closes them all. */
+function track(open: number, chars: string): number {
+  for (const c of chars) {
     if (c === OPEN) open++;
     else if (c === CLOSE && open > 0) open--;
     else if (c === "\n") open = 0;
   }
-  let scanned = ctx.from;
-  for (let m = marks.exec(ctx.scanText); m && m.index < ctx.to; m = marks.exec(ctx.scanText)) {
-    for (const c of ctx.text.slice(scanned, m.index)) {
-      if (c === OPEN) open++;
-      else if (c === CLOSE && open > 0) open--;
-      else if (c === "\n") open = 0;
-    }
+  return open;
+}
+
+/**
+ * The line (paragraph) of a line frame match, as [start, end) offsets. The frame matches each
+ * line that touches the chunk from the chunk start, so the first match may start inside its line.
+ */
+function lineOf(m: RegExpExecArray, text: string): [number, number] {
+  const end = m.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0);
+  return [text.lastIndexOf("\n", m.index - 1) + 1, end];
+}
+
+/** The marks of one paragraph from the chunk start: English marks become German ones. */
+const quoteMarks: MatchFixer = (line, ctx) => {
+  const findings: RawFinding[] = [];
+  const [paragraphStart, paragraphEnd] = lineOf(line, ctx.text);
+  const stop = Math.min(ctx.to, paragraphEnd);
+  const marks = MARKS;
+  marks.lastIndex = line.index;
+  // Whether a German „ is open in this paragraph, read from its start.
+  let open = track(0, ctx.text.slice(paragraphStart, line.index));
+  let scanned = line.index;
+  for (let m = marks.exec(ctx.scanText); m && m.index < stop; m = marks.exec(ctx.scanText)) {
+    open = track(open, ctx.text.slice(scanned, m.index));
     scanned = m.index + m[0].length;
     const [mark] = m;
     const at = m.index;
@@ -94,18 +108,7 @@ function quotes(ctx: DetectContext): RawFinding[] {
     }
   }
   return findings;
-}
-
-/** The lines (paragraphs) that overlap the chunk, as [start, end) offsets. */
-function* lines(ctx: DetectContext): Generator<[number, number]> {
-  let start = ctx.text.lastIndexOf("\n", ctx.from - 1) + 1;
-  while (start < ctx.to) {
-    const newline = ctx.text.indexOf("\n", start);
-    const end = newline < 0 ? ctx.text.length : newline;
-    yield [start, end];
-    start = end + 1;
-  }
-}
+};
 
 // A quotation inside a quotation takes the single marks: „Er sagte ‚Hallo‘.“, »… ›…‹ …«.
 const NESTING = [
@@ -115,61 +118,59 @@ const NESTING = [
 // The outer marks of each row: the scan jumps from mark to mark, not from character to character.
 const OUTER_MARKS = NESTING.map(([open, close]) => new RegExp(`[${open}${close}]`, "g"));
 
-function nested(ctx: DetectContext): RawFinding[] {
+/** The quotations inside quotations of one line. */
+const nestedQuotes: MatchFixer = (m, ctx) => {
   const findings: RawFinding[] = [];
-  for (const [start, end] of lines(ctx)) {
-    const line = ctx.text.slice(start, end);
-    for (const [row, [open, , innerOpen, innerClose]] of NESTING.entries()) {
-      const stack: number[] = [];
-      let inner: Array<[number, number]> = [];
-      for (const m of line.matchAll(OUTER_MARKS[row])) {
-        const i = start + m.index;
-        if (m[0] === open) stack.push(i);
-        else if (stack.length > 0) {
-          const from = stack.pop()!;
-          if (stack.length > 0) inner.push([from, i]);
-          else {
-            // Only once the outer quotation closes too: an unclosed one may be the slip.
-            for (const [a, b] of inner) {
-              if (a >= ctx.from && a < ctx.to) findings.push(quoteFinding(a, a + 1, innerOpen));
-              if (b >= ctx.from && b < ctx.to) findings.push(quoteFinding(b, b + 1, innerClose));
-            }
-            inner = [];
+  const [start, end] = lineOf(m, ctx.text);
+  const line = ctx.text.slice(start, end);
+  for (const [row, [open, , innerOpen, innerClose]] of NESTING.entries()) {
+    const stack: number[] = [];
+    let inner: Array<[number, number]> = [];
+    for (const mark of line.matchAll(OUTER_MARKS[row])) {
+      const i = start + mark.index;
+      if (mark[0] === open) stack.push(i);
+      else if (stack.length > 0) {
+        const from = stack.pop()!;
+        if (stack.length > 0) inner.push([from, i]);
+        else {
+          // Only once the outer quotation closes too: an unclosed one may be the slip.
+          for (const [a, b] of inner) {
+            if (a >= ctx.from && a < ctx.to) findings.push(quoteFinding(a, a + 1, innerOpen));
+            if (b >= ctx.from && b < ctx.to) findings.push(quoteFinding(b, b + 1, innerClose));
           }
+          inner = [];
         }
       }
     }
   }
   return findings;
-}
+};
 
 /** Straight quotes in pairs on one line: "so" → „so“ (opt-in). */
-function straight(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
+const straightQuotes: MatchFixer = (m, ctx) => {
   const findings: RawFinding[] = [];
-  for (const [start, end] of lines(ctx)) {
-    const marks: number[] = [];
-    const line = ctx.text.slice(start, end);
-    for (let i = line.indexOf('"'); i >= 0; i = line.indexOf('"', i + 1)) {
-      // "ein 16"-Monitor": inches.
-      if (!/\p{N}/u.test(ctx.text[start + i - 1] ?? "")) marks.push(start + i);
-    }
-    if (marks.length % 2 === 1) continue;
-    for (let k = 0; k < marks.length; k += 2) {
-      const [a, b] = [marks[k], marks[k + 1]];
-      if (!OPENING_AT(ctx.text, a, 1) || /\s/.test(ctx.text[b - 1])) continue;
-      if (englishWords(ctx.text.slice(a + 1, b))) continue;
-      for (const [at, mark] of [
-        [a, OPEN],
-        [b, CLOSE],
-      ] as const) {
-        if (at >= ctx.from && at < ctx.to)
-          findings.push({ ...quoteFinding(at, at + 1, mark), ruleId: "germanStraightQuotes" });
-      }
+  const [start, end] = lineOf(m, ctx.text);
+  const marks: number[] = [];
+  const line = ctx.text.slice(start, end);
+  for (let i = line.indexOf('"'); i >= 0; i = line.indexOf('"', i + 1)) {
+    // "ein 16"-Monitor": inches.
+    if (!/\p{N}/u.test(ctx.text[start + i - 1] ?? "")) marks.push(start + i);
+  }
+  if (marks.length % 2 === 1) return null;
+  for (let k = 0; k < marks.length; k += 2) {
+    const [a, b] = [marks[k], marks[k + 1]];
+    if (!OPENING_AT(ctx.text, a, 1) || /\s/.test(ctx.text[b - 1])) continue;
+    if (englishWords(ctx.text.slice(a + 1, b))) continue;
+    for (const [at, mark] of [
+      [a, OPEN],
+      [b, CLOSE],
+    ] as const) {
+      if (at >= ctx.from && at < ctx.to)
+        findings.push({ ...quoteFinding(at, at + 1, mark), ruleId: "germanStraightQuotes" });
     }
   }
   return findings;
-}
+};
 
 // The partner of each mark, and the mark of the same kind that may not stand between them.
 const PARTNERS: Record<string, [string, string]> = {
@@ -181,8 +182,11 @@ const PARTNERS: Record<string, [string, string]> = {
   ")": ["(", ")"],
 };
 
-/** The named frame fixes of the de.quoteFrames rule (grammar/rules/de.yaml). */
+/** The named frame fixes of the quote rules of grammar/rules/de.yaml. */
 export const FIXERS = {
+  quoteMarks,
+  nestedQuotes,
+  straightQuotes,
   speech: (m, ctx) => {
     // The quotation must open with „ on the same line.
     const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
@@ -221,8 +225,3 @@ export const FIXERS = {
     });
   },
 } satisfies Record<string, MatchFixer>;
-
-export const PREDICATES = {
-  quotes: (ctx) => [...quotes(ctx), ...nested(ctx)],
-  straightQuotes: straight,
-} satisfies Record<string, Detector>;

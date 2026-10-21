@@ -1,6 +1,6 @@
 import { namedExampleBefore } from "../exampleCues";
 import { EMPHASIS_MARKS } from "../markdownEmphasis";
-import type { Detector, FindingsFilter, MatchFixer } from "../../engine/reviewRules";
+import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { atToken, Around, attributeOf, carryCase, replaceToken, words, type Token } from "./common";
 import { isGenderedEntry, isNoun } from "./lexicon";
@@ -464,49 +464,44 @@ export const SPANISH_PROSE_DOTTED_TOKEN = new RegExp(
  * in order, so a line with an odd count, or with a mark after a digit (6" for inches), is
  * left alone.
  */
-function quoteSpaces(ctx: DetectContext): RawFinding[] {
+const quoteSpaces: MatchFixer = (m, ctx) => {
   const findings: RawFinding[] = [];
   const text = ctx.text;
-  let lineStart = text.lastIndexOf("\n", ctx.from - 1) + 1;
-  while (lineStart < ctx.to) {
-    const next = text.indexOf("\n", lineStart);
-    const lineEnd = next < 0 ? text.length : next;
-    const marks: number[] = [];
-    for (let k = text.indexOf('"', lineStart); k >= 0 && k < lineEnd; k = text.indexOf('"', k + 1))
-      marks.push(k);
-    const usable =
-      marks.length >= 2 &&
-      marks.length % 2 === 0 &&
-      !marks.some((k) => /\d/.test(text[k - 1] ?? ""));
-    for (let p = 0; usable && p < marks.length; p += 2) {
-      const [open, close] = [marks[p], marks[p + 1]];
-      const inner = text.slice(open + 1, close);
-      if (!inner.trim() || inner.length > 200 || namedExampleBefore(text, open)) continue;
-      const lead = /^[ \t ]+(?=[\p{L}\p{N}¿¡])/u.exec(inner)?.[0].length ?? 0;
-      const trail = /(?<=[\p{L}\p{N}.!?…])[ \t ]+$/u.exec(inner)?.[0].length ?? 0;
-      if (lead && open >= ctx.from && open < ctx.to)
-        findings.push({
-          ruleId: "commaPeriodSpacing",
-          messageKey: "review_msg_space_after_opening_mark",
-          range: { start: open, end: open + 1 + lead },
-          alternatives: ['"'],
-          context: { start: open, end: close + 1 },
-          bulkBlock: "context-dependent",
-        });
-      if (trail && close >= ctx.from && close < ctx.to)
-        findings.push({
-          ruleId: "commaPeriodSpacing",
-          messageKey: "review_msg_space_before_mark",
-          range: { start: close - trail, end: close + 1 },
-          alternatives: ['"'],
-          context: { start: open, end: close + 1 },
-          bulkBlock: "context-dependent",
-        });
-    }
-    lineStart = lineEnd + 1;
+  // The frame matches each line from the chunk start: the first match may start inside its line.
+  const lineStart = text.lastIndexOf("\n", m.index - 1) + 1;
+  const lineEnd = m.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0);
+  const marks: number[] = [];
+  for (let k = text.indexOf('"', lineStart); k >= 0 && k < lineEnd; k = text.indexOf('"', k + 1))
+    marks.push(k);
+  const usable =
+    marks.length >= 2 && marks.length % 2 === 0 && !marks.some((k) => /\d/.test(text[k - 1] ?? ""));
+  for (let p = 0; usable && p < marks.length; p += 2) {
+    const [open, close] = [marks[p], marks[p + 1]];
+    const inner = text.slice(open + 1, close);
+    if (!inner.trim() || inner.length > 200 || namedExampleBefore(text, open)) continue;
+    const lead = /^[ \t ]+(?=[\p{L}\p{N}¿¡])/u.exec(inner)?.[0].length ?? 0;
+    const trail = /(?<=[\p{L}\p{N}.!?…])[ \t ]+$/u.exec(inner)?.[0].length ?? 0;
+    if (lead && open >= ctx.from && open < ctx.to)
+      findings.push({
+        ruleId: "commaPeriodSpacing",
+        messageKey: "review_msg_space_after_opening_mark",
+        range: { start: open, end: open + 1 + lead },
+        alternatives: ['"'],
+        context: { start: open, end: close + 1 },
+        bulkBlock: "context-dependent",
+      });
+    if (trail && close >= ctx.from && close < ctx.to)
+      findings.push({
+        ruleId: "commaPeriodSpacing",
+        messageKey: "review_msg_space_before_mark",
+        range: { start: close - trail, end: close + 1 },
+        alternatives: ['"'],
+        context: { start: open, end: close + 1 },
+        bulkBlock: "context-dependent",
+      });
   }
   return findings;
-}
+};
 
 /** A sentence mark glued to the next sentence: "frase.Y otra" -> "frase. Y otra". */
 const missingSpace: MatchFixer = (m, ctx) => {
@@ -600,11 +595,10 @@ const decade: MatchFixer = (m, ctx) => {
   );
 };
 
-export const PREDICATES = { quoteSpaces } satisfies Record<string, Detector>;
-
 /** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
 export const FIXERS = {
   typography,
+  quoteSpaces,
   rangeDash: rangeDashFixer({ code: CODE_BEFORE, score: SCORE_BEFORE }),
   namedDate,
   noSuchDay,
