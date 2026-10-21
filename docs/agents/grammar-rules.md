@@ -268,6 +268,7 @@ phrases:
 
 - `a | b = fix`: two typed forms with one fix.
 - `typed = fix1; fix2`: the user chooses a fix.
+- `~fazer uso de = ~usar; ~recorrer a` (Portuguese only): the compiler writes one row for each verb form of `ptConjugate`, in its slot order: `fazer uso de = usar; recorrer a`, `faço uso de = uso; recorro a`, and so on. The first word of the typed form and of each fix is the verb. A typed form that two slots share gives one row. The runtime gets the expanded rows.
 - The kinds are `words`, `phrases`, `compounds` and `style`. The kinds of a language set the languages of the phrase checks.
 - A language with Review data (`ar`, `de`, `es`, `fr`, `pl`, `pt`, `sv`) ships its tables in that data: the compiler writes them to `review/<language>/phrases.generated.ts`, and the build writes them to `review-data/<lang>.json`. The background loads the file before the first check of text in that language. The tables of the other languages are in `engine/review.generated.ts`.
 - English tables are named tables: `tables: { <name>: <rows> }`. The compiler gives them as `TABLES["en.<name>"]`.

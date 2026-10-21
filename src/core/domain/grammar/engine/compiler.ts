@@ -1,4 +1,5 @@
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../lang";
+import { ptConjugate } from "../library/portuguese/verbs";
 import { scanStarts } from "./prefixes";
 import { parseRows, type PhraseRow } from "./rows";
 import {
@@ -227,6 +228,43 @@ export interface CompiledRuleSet {
 /** The two-letter code of a rule file language ("pt_BR" -> "pt"); undefined for "*". */
 const code = (lang: string) => (lang === "*" ? undefined : lang.slice(0, 2));
 
+/**
+ * Portuguese phrase rows: "~fazer uso de = ~usar; ~recorrer a" gives one row for each form of
+ * ptConjugate, in its slot order ("faço uso de = uso; recorro a", ...); a typed form comes once.
+ */
+function conjugatedRows(text: string, lang: string, where: string, errors: string[]): string {
+  return text
+    .split("\n")
+    .flatMap((line) => {
+      if (!line.startsWith("~")) return [line];
+      const at = line.indexOf(" = ");
+      const [verb, ...rest] = line.slice(1, at).split(" ");
+      const fixes = line.slice(at + 3).split("; ");
+      if (lang !== "pt" || at < 0 || line.includes(" | ") || fixes.some((f) => f[0] !== "~")) {
+        errors.push(`${where}: row "${line}": "~" needs Portuguese, one typed form and "~" fixes`);
+        return [];
+      }
+      try {
+        const forms = ptConjugate(verb);
+        const fixForms = fixes.map((fix) => {
+          const [fixVerb, ...fixRest] = fix.slice(1).split(" ");
+          return ptConjugate(fixVerb).map((form) => [form, ...fixRest].join(" "));
+        });
+        const seen = new Set<string>();
+        return forms.flatMap((form, slot) => {
+          const typed = [form, ...rest].join(" ");
+          if (seen.has(typed)) return [];
+          seen.add(typed);
+          return [`${typed} = ${fixForms.map((fix) => fix[slot]).join("; ")}`];
+        });
+      } catch (error) {
+        errors.push(`${where}: row "${line}": ${(error as Error).message}`);
+        return [];
+      }
+    })
+    .join("\n");
+}
+
 function checkLanguages(
   check: CheckSpec,
   phraseTableKinds: Record<string, string[]>,
@@ -317,7 +355,9 @@ export function compileRuleFiles(
             continue;
           }
           const k = kind as (typeof PHRASE_KINDS)[number];
-          phrases[lang][k] = parseRows(file.phrases[k]!, `${name}.yaml phrases.${k}`, errors);
+          const where = `${name}.yaml phrases.${k}`;
+          const rows = conjugatedRows(file.phrases[k]!, lang, where, errors);
+          phrases[lang][k] = parseRows(rows, where, errors);
         }
         phraseTableKinds[lang] = PHRASE_KINDS.filter((kind) => phrases[lang][kind]);
       }
