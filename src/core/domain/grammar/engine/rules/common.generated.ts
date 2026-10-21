@@ -18,19 +18,128 @@ import {
   caseLike,
   detectWordCase,
   englishNounForms,
+  englishWordInfo,
   finding,
   found,
   group,
   hasCountPrefix,
   hasUserOrCasedWord,
   invalidIsoDate,
+  isLang,
   matchTrailingEnglishPhrase,
   namedExampleBefore,
   normalizeWordSet,
+  ownedMatches,
   phraseRows,
+  quotedSpan,
   replaceFrom,
   withTextApostrophes,
 } from "../../library";
+
+export const CANONICAL_NAMES: ReadonlySet<string> = new Set([
+  "GitHub",
+  "JavaScript",
+  "TypeScript",
+  "WebRTC",
+  "FluentTyper",
+  "iPhone",
+  "macOS",
+  "eBay",
+  "LinkedIn",
+  "WordPress",
+  "iPad",
+  "iPod",
+  "iMac",
+  "iTunes",
+  "YouTube",
+  "YouTuber",
+  "PayPal",
+  "WeChat",
+  "WhatsApp",
+  "TikTok",
+  "FaceTime",
+  "Skype",
+  "FedEx",
+  "PowerPoint",
+  "ChatGPT",
+  "Netflix",
+  "Spotify",
+  "Wikipedia",
+  "Reddit",
+  "Linux",
+  "Ubuntu",
+  "Instagram",
+  "Facebook",
+  "Snapchat",
+  "Airbnb",
+  "Chromebook",
+  "SharePoint",
+  "OneDrive",
+  "PowerShell",
+  "PlayStation",
+  "Xbox",
+  "Walmart",
+  "Starbucks",
+]);
+
+export const ACRONYMS: ReadonlySet<string> = new Set([
+  "NASA",
+  "NATO",
+  "FBI",
+  "CIA",
+  "HIV",
+  "DNA",
+  "RNA",
+  "CPU",
+  "GPU",
+  "HTML",
+  "URL",
+  "FAQ",
+  "PDF",
+  "CEO",
+  "CFO",
+  "HR",
+  "UFO",
+]);
+
+export const VERB_BRANDS: ReadonlySet<string> = new Set([
+  "skype",
+  "facetime",
+  "whatsapp",
+  "snapchat",
+  "paypal",
+]);
+
+export const BRAND_MODIFIERS: ReadonlySet<string> = new Set([
+  "latest",
+  "new",
+  "old",
+  "free",
+  "desktop",
+  "mobile",
+  "web",
+  "official",
+  "updated",
+  "beta",
+  "classic",
+  "business",
+  "personal",
+]);
+
+export const BRAND_PRONOUNS: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "me",
+  "him",
+  "us",
+  "them",
+  "one",
+]);
 
 export const MASS_SINGULAR: Readonly<Record<string, string>> = {
   informations: "information",
@@ -235,6 +344,97 @@ export const ALOT_REGEX = /\balot$/i;
 export function correctAlot(phrase: string) {
   const style = detectWordCase(phrase);
   return style === "upper" ? "A LOT" : style === "title" ? "A lot" : "a lot";
+}
+
+// common.yaml rule phraseTables def CANONICAL
+export const CANONICAL = new Map([...CANONICAL_NAMES].map((term) => [term.toLowerCase(), term]));
+
+// common.yaml rule phraseTables def BRAND_NOUN_CUE
+export const BRAND_NOUN_CUE = new RegExp(
+  "(?<![\\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with" +
+    "|by|in|into|from|of|for|about|" +
+    "(?:re|un)?install(?:s|ed|ing)?|open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|download(?:s|ed|ing)?" +
+    "|launch(?:es|ed|ing)?|updat(?:e|es|ed|ing)|upgrad(?:e|es|ed|ing)|us(?:e|es|ed|ing)" +
+    "|tr(?:y|ies|ied|ying)|(?:re)?start(?:s|ed|ing)?|run(?:s|ning)?|ran|delet(?:e|es|ed|ing)" +
+    "|remov(?:e|es|ed|ing)|prefer(?:s|red|ring)?" +
+    "|(?:switch(?:es|ed|ing)?|move|moved|moving|migrate|migrated|migrating|went|back|welcome" +
+    "|access|log|logged|sign|signed|in|on|up)[ \\t]{1,8}to)[ \\t]{1,8}$",
+  "iu",
+);
+
+// common.yaml rule phraseTables def BRAND_WORD_BEFORE
+export const BRAND_WORD_BEFORE = /(?<![\p{L}\p{M}\p{N}_'’-])([A-Za-z]{1,24})[ \t]{1,8}$/u;
+
+// common.yaml rule phraseTables def BRAND_NOUN_AFTER
+export const BRAND_NOUN_AFTER =
+  /^[ \t]{1,8}(?:account|call|chat|meeting|app|link|number|contact|group|message|video)s?(?![\p{L}\p{M}\p{N}_'’-])/iu;
+
+// common.yaml rule phraseTables def brandModifier
+export function brandModifier(word: string) {
+  const w = word.toLowerCase();
+  const info = englishWordInfo(w);
+  return (
+    BRAND_MODIFIERS.has(w) ||
+    (w !== "to" && !BRAND_PRONOUNS.has(w) && !!info?.adjective && !info.verbs.length)
+  );
+}
+
+// common.yaml rule phraseTables def brandNounCue
+export function brandNounCue(before: string, skipped: number): boolean {
+  if (BRAND_NOUN_CUE.test(before)) return true;
+  const word = BRAND_WORD_BEFORE.exec(before);
+  return (
+    skipped < 2 &&
+    !!word &&
+    brandModifier(word[1]) &&
+    brandNounCue(before.slice(0, word.index), skipped + 1)
+  );
+}
+
+// common.yaml rule phraseTables def hasCanonicalCasing
+export function hasCanonicalCasing(word: string) {
+  return CANONICAL.has(word.toLowerCase()) || ACRONYMS.has(word.toUpperCase());
+}
+
+// common.yaml rule phraseTables def CASING_WORDS
+export const CASING_WORDS =
+  /(?<![.\p{L}\p{M}\p{N}_'’@/#=$\\-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#=$\\-])/gu;
+
+// common.yaml rule phraseTables def canonicalCasingAt
+export function canonicalCasingAt(match: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const typed = match[0];
+  const acronym = typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : "";
+  const canonical =
+    CANONICAL.get(typed.toLowerCase()) ??
+    (ACRONYMS.has(acronym) &&
+    /^[A-Z][a-z]+$/.test(typed) &&
+    !/^[ \t ]+[A-Z]/.test(ctx.text.slice(match.index + typed.length))
+      ? acronym
+      : undefined);
+  if (!(!!canonical && canonical !== typed && !ctx.dictionary.has(typed.toLowerCase())))
+    return null;
+  if (!/^[A-Z]?[a-z]+$/.test(typed)) return null;
+  const start = match.index;
+  const end = start + typed.length;
+  if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))) return null;
+  if (!(!quotedSpan(ctx.text, start, end) && !namedExampleBefore(ctx.text, start))) return null;
+  if (!(
+    !VERB_BRANDS.has(typed) ||
+    (isLang(ctx, "en") &&
+      (brandNounCue(ctx.text.slice(Math.max(0, start - 96), start), 0) ||
+        BRAND_NOUN_AFTER.test(ctx.text.slice(end, end + 24))))
+  ))
+    return null;
+  return finding("englishCanonicalCasing", "review_msg_canonical_casing", start, end, [canonical], {
+    context: { start: Math.max(0, start - 128), end: Math.min(ctx.text.length, end + 2) },
+  });
+}
+
+// common.yaml rule phraseTables def canonicalCasing
+export function canonicalCasing(ctx: DetectContext): RawFinding[] {
+  return [...ownedMatches(ctx, new RegExp(CASING_WORDS))].flatMap(
+    (m) => canonicalCasingAt(m, ctx) ?? [],
+  );
 }
 
 // common.yaml rule possessives def possessiveFix
@@ -538,6 +738,10 @@ export function markedApostrophe(
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // common.yaml rule phraseTables frame 1
+  "@phraseTables/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return canonicalCasingAt(m, ctx);
+  },
   // common.yaml rule possessives frame 1
   "@possessives/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return possessiveFix(m, ctx, frame, { replacement: "its" });

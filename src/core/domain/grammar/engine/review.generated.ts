@@ -4131,7 +4131,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])",
     literals: [],
-    fixer: "common:canonicalCasing",
+    fixer: "common:@phraseTables/1",
     flags: "gu",
     scan: "owned",
   }),

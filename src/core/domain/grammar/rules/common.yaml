@@ -4692,12 +4692,176 @@ rules:
       ]
     style: match
     message: review_msg_canonical_casing
+    sets:
+      # Names in their own casing ("javascript" -> "JavaScript"), with brands that are no
+      # ordinary word in any language.
+      CANONICAL_NAMES:
+        [
+          GitHub,
+          JavaScript,
+          TypeScript,
+          WebRTC,
+          FluentTyper,
+          iPhone,
+          macOS,
+          eBay,
+          LinkedIn,
+          WordPress,
+          iPad,
+          iPod,
+          iMac,
+          iTunes,
+          YouTube,
+          YouTuber,
+          PayPal,
+          WeChat,
+          WhatsApp,
+          TikTok,
+          FaceTime,
+          Skype,
+          FedEx,
+          PowerPoint,
+          ChatGPT,
+          Netflix,
+          Spotify,
+          Wikipedia,
+          Reddit,
+          Linux,
+          Ubuntu,
+          Instagram,
+          Facebook,
+          Snapchat,
+          Airbnb,
+          Chromebook,
+          SharePoint,
+          OneDrive,
+          PowerShell,
+          PlayStation,
+          Xbox,
+          Walmart,
+          Starbucks,
+        ]
+      # Acronyms written as a capitalized word ("Nasa", "Cpu"); lowercase "pdf" or "url" is
+      # often a file extension or a field name and stays. English only: Portuguese and German
+      # write "a Nasa", "die Nato", and "Hr." (Herr), "Cia." (Companhia) or the name "Ai" are
+      # words elsewhere. Not IKEA or LEGO (house styles often write "Ikea", "Lego") nor AI ("Ai"
+      # is a place and a name).
+      ACRONYMS:
+        [NASA, NATO, FBI, CIA, HIV, DNA, RNA, CPU, GPU, HTML, URL, FAQ, PDF, CEO, CFO, HR, UFO]
+      # Brands people use as lowercase verbs ("we skype", "je skype", "call or facetime"). A
+      # lowercase form of these brands gets the brand casing only in a clear English noun
+      # context. Not "fedex": the NAMES table in english/properNames.ts recases "fedexed" too.
+      VERB_BRANDS: [skype, facetime, whatsapp, snapchat, paypal]
+      # Words that can be between the noun cue and the brand ("install the latest skype").
+      BRAND_MODIFIERS:
+        [
+          latest,
+          new,
+          old,
+          free,
+          desktop,
+          mobile,
+          web,
+          official,
+          updated,
+          beta,
+          classic,
+          business,
+          personal,
+        ]
+      BRAND_PRONOUNS: [i, you, he, she, it, we, they, me, him, us, them, one]
+    defs:
+      CANONICAL: new Map([...CANONICAL_NAMES].map((term) => [term.toLowerCase(), term]))
+      # Directly before the brand: a determiner or a possessive ("my skype"), a preposition ("on
+      # skype"), a verb that takes an application as the object, in all its forms ("install
+      # skype", "she launched facetime"), or "to" after a verb of motion or change ("switch to
+      # skype"). "into" also covers "log into skype". The infinitive "to" ("want to skype") is no
+      # noun cue.
+      BRAND_NOUN_CUE: >-
+        new RegExp(
+          "(?<![\\p{L}'’])(?:a|an|the|my|your|his|her|our|their|its|this|that|on|via|over|through|with" +
+            "|by|in|into|from|of|for|about|" +
+            "(?:re|un)?install(?:s|ed|ing)?|open(?:s|ed|ing)?|clos(?:e|es|ed|ing)|download(?:s|ed|ing)?" +
+            "|launch(?:es|ed|ing)?|updat(?:e|es|ed|ing)|upgrad(?:e|es|ed|ing)|us(?:e|es|ed|ing)" +
+            "|tr(?:y|ies|ied|ying)|(?:re)?start(?:s|ed|ing)?|run(?:s|ning)?|ran|delet(?:e|es|ed|ing)" +
+            "|remov(?:e|es|ed|ing)|prefer(?:s|red|ring)?" +
+            "|(?:switch(?:es|ed|ing)?|move|moved|moving|migrate|migrated|migrating|went|back|welcome" +
+            "|access|log|logged|sign|signed|in|on|up)[ \\t]{1,8}to)[ \\t]{1,8}$",
+          "iu",
+        )
+      # The last word before the brand, with the spaces after it.
+      BRAND_WORD_BEFORE: '/(?<![\p{L}\p{M}\p{N}_''’-])([A-Za-z]{1,24})[ \t]{1,8}$/u'
+      # Directly after the brand: a noun that shows noun use ("skype account", "whatsapp groups").
+      BRAND_NOUN_AFTER: >-
+        /^[ \t]{1,8}(?:account|call|chat|meeting|app|link|number|contact|group|message|video)s?(?![\p{L}\p{M}\p{N}_'’-])/iu
+      # A word between the noun cue and the brand: a listed modifier, or an adjective of the
+      # lexicon that is no verb ("the shiny whatsapp app").
+      brandModifier:
+        args: "word: string"
+        let:
+          w: word.toLowerCase()
+          info: englishWordInfo(w)
+        return: 'BRAND_MODIFIERS.has(w) || (w !== "to" && !BRAND_PRONOUNS.has(w) && !!info?.adjective && !info.verbs.length)'
+      # A noun cue at the end of `before`, with a maximum of two modifiers between the cue and
+      # the brand (`skipped` of them read).
+      brandNounCue:
+        args: "before: string, skipped: number"
+        type: boolean
+        let:
+          word: BRAND_WORD_BEFORE.exec(before)
+        when: "!BRAND_NOUN_CUE.test(before)"
+        return: "skipped < 2 && !!word && brandModifier(word[1]) && brandNounCue(before.slice(0, word.index), skipped + 1)"
+        else: "true"
+      # A word this check spells its own way ("javascript" -> "JavaScript").
+      hasCanonicalCasing:
+        args: "word: string"
+        return: CANONICAL.has(word.toLowerCase()) || ACRONYMS.has(word.toUpperCase())
+      # Each ASCII word: the frame of this rule (tests/grammar/ReviewSpellingFrames.test.ts).
+      CASING_WORDS: >-
+        /(?<![.\p{L}\p{M}\p{N}_'’@/#=$\\-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#=$\\-])/gu
+      # Explicit names only; uppercase emphasis and identifier-like mixed casing stay untouched.
+      canonicalCasingAt:
+        args: "match: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          typed: match[0]
+          acronym: 'typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : ""'
+          # "Ai Weiwei" is a name.
+          canonical: >-
+            CANONICAL.get(typed.toLowerCase()) ??
+            (ACRONYMS.has(acronym) &&
+            /^[A-Z][a-z]+$/.test(typed) &&
+            !/^[ \t ]+[A-Z]/.test(ctx.text.slice(match.index + typed.length))
+              ? acronym
+              : undefined)
+          start: match.index
+          end: start + typed.length
+        when:
+          - "!!canonical && canonical !== typed && !ctx.dictionary.has(typed.toLowerCase())"
+          - /^[A-Z]?[a-z]+$/.test(typed)
+          - '!/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))'
+          - "!quotedSpan(ctx.text, start, end) && !namedExampleBefore(ctx.text, start)"
+          # A verb brand needs an English noun context: a noun cue before it or a noun after it.
+          - >-
+            !VERB_BRANDS.has(typed) ||
+            (isLang(ctx, "en") &&
+              (brandNounCue(ctx.text.slice(Math.max(0, start - 96), start), 0) ||
+                BRAND_NOUN_AFTER.test(ctx.text.slice(end, end + 24))))
+        return: >-
+          finding("englishCanonicalCasing", "review_msg_canonical_casing", start, end, [canonical], {
+            context: { start: Math.max(0, start - 128), end: Math.min(ctx.text.length, end + 2) },
+          })
+      # The canonical names of a view of the text (en.quotedPhrases reads quotations so).
+      canonicalCasing:
+        args: "ctx: DetectContext"
+        type: RawFinding[]
+        return: "[...ownedMatches(ctx, new RegExp(CASING_WORDS))].flatMap((m) => canonicalCasingAt(m, ctx) ?? [])"
     frames:
       # Each ASCII word: an explicit name in its canonical casing (review/canonicalCasing.ts).
       - regex: "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])"
         scan: owned
         flags: gu
-        fixer: canonicalCasing
+        return: canonicalCasingAt(m, ctx)
     # After the frame, the phrase rows of the rule files (engine/phraseRows.ts) read each word
     # of the engine's word walk; their data is the `phrases:` tables of the rule files.
     return: phraseRows(ctx)

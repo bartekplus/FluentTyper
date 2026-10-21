@@ -9,6 +9,7 @@ export {
   group,
   hasUserOrCasedWord,
   isLang,
+  ownedMatches,
   PSEUDO_CLEFT_BEFORE,
   TOKEN_END,
   WORD_START,
@@ -32,3 +33,4 @@ export {
   englishNounForms,
   hasCountPrefix,
 } from "../implementations/helpers/EnglishNounNumber";
+export { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
