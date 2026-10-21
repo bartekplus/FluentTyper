@@ -5753,7 +5753,7 @@ rules:
         # "los años 20s y 30s": both decades of a pair.
         let:
           second: "m[2] ? m.index + m[0].lastIndexOf(m[2]) : -1"
-          first: /^\d+['’]?s/u.exec(m[0])![0]
+          first: /^\d+['’]?s/iu.exec(m[0])![0]
         when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
         return: >-
           [

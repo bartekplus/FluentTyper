@@ -2978,7 +2978,7 @@ rules:
         flags: dgu
         owner: target|t2|t3|t4|t5
         let:
-          prior: '/(\p{L}+)[ \t]+$/u.exec(m.input.slice(Math.max(0, m.index - 30), m.index))![1]'
+          prior: '/(\p{L}+)[ \t\u00a0]+$/u.exec(m.input.slice(Math.max(0, m.index - 30), m.index))![1]'
           stem: 'prior.replace(/(?:e|en|em|es)$/, "")'
         when:
           - "idiomOpen(m, ctx)"
@@ -4056,7 +4056,7 @@ rules:
       # a noun, with no subject of its own before its verb.
       - regex: "{{NOT_BLANK}}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Dd]ass)(?={{S}}(?:ist|sind|war|wäre|sei|hat|hast|hatte|hätte|kann|kannst|muss|musst|soll|sollte|wird|würde|scheint|scheinst|bleibt|klingt|stimmt|geht){{E}})|(?<=\\p{Lu}\\p{Ll}+,{{S}})(?<t2>dass)(?={{S}}(?:(?:nicht|dort|hier|gerade|schon|noch|nie|immer|sehr|zu|auch|kaum|oft){{S}}){0,3}(?:\\p{Ll}+{{S}}){0,2}\\p{Ll}+(?:t|te)[ \\t]*[.!?,;]))"
         let:
-          noun: 'target ? "" : /(\p{Lu}\p{Ll}+),[ \t]+$/u.exec(m.input.slice(Math.max(0, m.index - 40), m.index))![1]'
+          noun: 'target ? "" : /(\p{Lu}\p{Ll}+),[ \t\u00a0]+$/u.exec(m.input.slice(Math.max(0, m.index - 40), m.index))![1]'
           reading: "target ? null : germanGender(noun)"
           clause: 'target ? "" : /^[^.!?,;]*/.exec(m.input.slice(m.index + 4))![0]'
         return: >-
