@@ -2,14 +2,164 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import type { DetectContext, FixResult, FrameRef, MatchResult } from "../../library";
+import { englishWordInfo, finding } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const PASSIVE_STATIVE: ReadonlySet<string> = new Set([
+  "closed",
+  "located",
+  "used",
+  "interested",
+  "married",
+  "based",
+  "required",
+  "concerned",
+  "involved",
+  "supposed",
+  "tired",
+  "excited",
+  "bored",
+  "worried",
+  "pleased",
+  "surprised",
+  "satisfied",
+  "disappointed",
+  "scared",
+  "finished",
+  "done",
+  "gone",
+  "dressed",
+  "prepared",
+  "divorced",
+  "engaged",
+  "retired",
+  "qualified",
+  "related",
+  "situated",
+  "equipped",
+  "entitled",
+  "allowed",
+  "accustomed",
+  "aimed",
+  "amazed",
+  "annoyed",
+  "ashamed",
+  "confused",
+  "convinced",
+  "determined",
+  "delighted",
+  "embarrassed",
+  "exhausted",
+  "frightened",
+  "impressed",
+  "known",
+  "lost",
+  "obliged",
+  "opened",
+  "puzzled",
+  "relieved",
+  "shocked",
+  "stuck",
+  "tied",
+  "trained",
+  "united",
+  "crowded",
+  "experienced",
+  "advanced",
+  "complicated",
+  "detailed",
+  "limited",
+  "mixed",
+  "named",
+  "needed",
+  "noted",
+  "organized",
+  "organised",
+  "paid",
+  "parked",
+  "registered",
+  "reserved",
+  "fixed",
+  "set",
+  "covered",
+  "filled",
+  "packed",
+  "broken",
+]);
+
+export const PASSIVE_REPORTING: ReadonlySet<string> = new Set([
+  "said",
+  "thought",
+  "believed",
+  "known",
+  "considered",
+  "expected",
+  "reported",
+  "claimed",
+  "assumed",
+  "estimated",
+  "alleged",
+  "shown",
+  "found",
+  "announced",
+  "understood",
+]);
+
+export const BRITISH_UNITS: Readonly<Record<string, string>> = {
+  meter: "metre",
+  meters: "metres",
+  liter: "litre",
+  liters: "litres",
+};
+
+// en.yaml rule en.britishUsage def britishBoot
+export function britishBoot(m: RegExpExecArray, ctx: DetectContext) {
+  if (/\bboots?\b/i.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120)))
+    return null;
+  return m.groups!.target.toLowerCase() === "trunks" ? "boots" : "boot";
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.passiveVoice frame 1
+  "@en.passiveVoice/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const p = m.groups!.p;
+    const after = m.groups!.after;
+    const read = englishWordInfo(p);
+    if (!(read?.verbs.some((v) => v.form === "participle") && !ctx.dictionary.has(p))) return null;
+    const link = after?.trim().toLowerCase() ?? "";
+    const agent = link === "by";
+    const reported = (link === "to" || link === "that") && PASSIVE_REPORTING.has(p);
+    if (!(agent || reported || !(PASSIVE_STATIVE.has(p) || read.adjective))) return null;
+    if (link === "to" && !reported) return null;
+    return finding(
+      "stylePassiveVoice",
+      "review_msg_passive_voice",
+      m.index,
+      m.index + m[0].length - (after?.length ?? 0),
+      [],
+      { warningOnly: true },
+    );
+  },
+  // en.yaml rule en.britishUsage frame 1
+  "@en.britishUsage/1": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const typed = target.toLowerCase();
+    const unit = Object.keys(BRITISH_UNITS).find((key) => typed.endsWith(key))!;
+    return typed.slice(0, typed.length - unit.length) + BRITISH_UNITS[unit];
+  },
+  // en.yaml rule en.britishUsage frame 2
+  "@en.britishUsage/2": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return britishBoot(m, ctx);
+  },
+  // en.yaml rule en.britishUsage frame 3
+  "@en.britishUsage/3": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return britishBoot(m, ctx);
   },
 };
 

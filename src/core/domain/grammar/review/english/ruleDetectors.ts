@@ -5,11 +5,9 @@ import * as apostrophes from "./apostrophes";
 import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
 import * as plainStyle from "./plainStyle";
-import * as passiveVoice from "./passiveVoice";
 import * as punctuation from "./punctuation";
 import * as articles from "./articles";
 import * as slotConfusions from "./slotConfusions";
-import * as britishUsage from "./britishUsage";
 import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
@@ -80,7 +78,6 @@ export const FIXERS = mergePredicates<Fixer>(
   idioms4.FIXERS,
   agreementFrames.FIXERS,
   clauseFrames.FIXERS,
-  britishUsage.FIXERS,
   misheardWords.FIXERS,
   neighbourSlots.FIXERS,
   nounSlots.FIXERS,
@@ -127,7 +124,6 @@ export const FIXERS = mergePredicates<Fixer>(
   negationSlots.FIXERS,
   noNotSlots.FIXERS,
   determinerSlots.FIXERS,
-  passiveVoice.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */

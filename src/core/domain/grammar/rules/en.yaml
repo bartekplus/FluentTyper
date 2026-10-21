@@ -3618,12 +3618,127 @@ rules:
     style: match
     message: review_msg_passive_voice
     filter: usOutsideExamples
+    sets:
+      # Participles that usually tell a state ("is closed", "was tired"): passive only with "by".
+      PASSIVE_STATIVE:
+        [
+          closed,
+          located,
+          used,
+          interested,
+          married,
+          based,
+          required,
+          concerned,
+          involved,
+          supposed,
+          tired,
+          excited,
+          bored,
+          worried,
+          pleased,
+          surprised,
+          satisfied,
+          disappointed,
+          scared,
+          finished,
+          done,
+          gone,
+          dressed,
+          prepared,
+          divorced,
+          engaged,
+          retired,
+          qualified,
+          related,
+          situated,
+          equipped,
+          entitled,
+          allowed,
+          accustomed,
+          aimed,
+          amazed,
+          annoyed,
+          ashamed,
+          confused,
+          convinced,
+          determined,
+          delighted,
+          embarrassed,
+          exhausted,
+          frightened,
+          impressed,
+          known,
+          lost,
+          obliged,
+          opened,
+          puzzled,
+          relieved,
+          shocked,
+          stuck,
+          tied,
+          trained,
+          united,
+          crowded,
+          experienced,
+          advanced,
+          complicated,
+          detailed,
+          limited,
+          mixed,
+          named,
+          needed,
+          noted,
+          organized,
+          organised,
+          paid,
+          parked,
+          registered,
+          reserved,
+          fixed,
+          set,
+          covered,
+          filled,
+          packed,
+          broken,
+        ]
+      # Verbs that take a clause: "it is thought that", "he is said to".
+      PASSIVE_REPORTING:
+        [
+          said,
+          thought,
+          believed,
+          known,
+          considered,
+          expected,
+          reported,
+          claimed,
+          assumed,
+          estimated,
+          alleged,
+          shown,
+          found,
+          announced,
+          understood,
+        ]
     frames:
       # A form of "be" with a past participle ("was caused by", "is said to", "have been
       # finalized"). A note, not a fix: turning it active needs the doer.
       - regex: "(?<be>am|is|are|was|were|be|been|being|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:{{S}}(?:{{PASSIVEVOICE_ADVERB}})){0,3}{{S}}(?<p>[a-z]{3,})(?:{{S}}(?:up|out|down|off|over|away|back))?{{E}}(?<after>{{S}}(?:by|to|that){{E}})?"
         owner: be
-        fixer: stylePassive
+        let:
+          read: englishWordInfo(p)
+          link: after?.trim().toLowerCase() ?? ""
+          agent: link === "by"
+          reported: (link === "to" || link === "that") && PASSIVE_REPORTING.has(p)
+        when:
+          - read?.verbs.some((v) => v.form === "participle") && !ctx.dictionary.has(p)
+          - agent || reported || !(PASSIVE_STATIVE.has(p) || read.adjective)
+          # "is used to it", "are supposed to": set phrases, not passives.
+          - '!(link === "to" && !reported)'
+        return: >-
+          finding("stylePassiveVoice", "review_msg_passive_voice", m.index,
+          m.index + m[0].length - (after?.length ?? 0), [], { warningOnly: true })
   - id: en.punctuation
     checks: [englishPunctuation]
     style: match
@@ -4372,18 +4487,29 @@ rules:
     checks: [englishBritishSpelling]
     style: slot
     message: review_msg_british_spelling
+    maps:
+      BRITISH_UNITS: { meter: metre, meters: metres, liter: litre, liters: litres }
+    defs:
+      # A boot named nearby makes the trunk the luggage in it.
+      britishBoot:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        when: '!/\bboots?\b/i.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120))'
+        return: 'm.groups!.target.toLowerCase() === "trunks" ? "boots" : "boot"'
     frames:
       # "a 10-meter rope", "5 kilometers away", "2 liters of milk": a number before the unit.
       - regex: "(?<![\\p{L}\\p{N}.,])[0-9]+(?:[.,][0-9]+)?(?:-|{{S}})(?<target>{{PREFIX}}(?:meters?|liters?)){{E}}"
         cue: ["meter", "meters", "liter", "liters"]
-        fixer: britishUsageKilo
+        let:
+          typed: target.toLowerCase()
+          unit: Object.keys(BRITISH_UNITS).find((key) => typed.endsWith(key))!
+        return: typed.slice(0, typed.length - unit.length) + BRITISH_UNITS[unit]
       # "the car has a small trunk", "trunks on some cars": a car's boot, not a travel chest.
       - regex: "(?:{{CAR}}(?:['’]s?)?|{{CAR}}{{S}}(?:(?:usually|often|all|also){{S}})?(?:has|have|had|with)(?:{{S}}an?)?(?:{{S}}(?:small|large|big|huge|tiny|spacious|roomy|deep|full))?){{S}}(?<target>trunks?){{E}}"
         cue: ["trunk", "trunks"]
-        fixer: britishUsageTrunks
+        return: britishBoot(m, ctx)
       - regex: "(?<target>trunks?)(?={{S}}(?:on|of|in){{S}}(?:(?:the|a|some|most|many|this|that|these|those|my|your|our|their){{S}})?(?:\\p{L}+{{S}})?{{CAR}}{{E}})"
         cue: ["trunk", "trunks"]
-        fixer: britishUsageTrunks2
+        return: britishBoot(m, ctx)
   - id: en.clauseConfusions
     checks: [englishConfusedWords]
     style: match

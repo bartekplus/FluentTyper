@@ -12116,7 +12116,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<be>am|is|are|was|were|be|been|being|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:[ \\t\\u00a0]{1,8}(?:not|never|also|already|still|yet|often|always|usually|generally|commonly|widely|long|previously|now|just|recently|partly|largely|mostly|entirely|being|[a-z]{3,}ly)){0,3}[ \\t\\u00a0]{1,8}(?<p>[a-z]{3,})(?:[ \\t\\u00a0]{1,8}(?:up|out|down|off|over|away|back))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<after>[ \\t\\u00a0]{1,8}(?:by|to|that)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?",
     literals: [],
-    fixer: "en:stylePassive",
+    fixer: "en:@en.passiveVoice/1",
     owner: "be",
   }),
   frame({
@@ -13589,21 +13589,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])[0-9]+(?:[.,][0-9]+)?(?:-|[ \\t\\u00a0]{1,8})(?<target>(?:kilo|centi|milli|micro|nano|deci)?(?:meters?|liters?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["meter", "liter"],
-    fixer: "en:britishUsageKilo",
+    fixer: "en:@en.britishUsage/1",
     cue: ["meter", "meters", "liter", "liters"],
   }),
   frame({
     pattern:
       "(?:(?:car|cars|automobiles?|vehicles?|sedans?|hatchbacks?|SUVs?|Volkswagens?|Chryslers?|Fords?|Toyotas?|Hondas?|taxis?)(?:['’]s?)?|(?:car|cars|automobiles?|vehicles?|sedans?|hatchbacks?|SUVs?|Volkswagens?|Chryslers?|Fords?|Toyotas?|Hondas?|taxis?)[ \\t\\u00a0]{1,8}(?:(?:usually|often|all|also)[ \\t\\u00a0]{1,8})?(?:has|have|had|with)(?:[ \\t\\u00a0]{1,8}an?)?(?:[ \\t\\u00a0]{1,8}(?:small|large|big|huge|tiny|spacious|roomy|deep|full))?)[ \\t\\u00a0]{1,8}(?<target>trunks?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["trunk"],
-    fixer: "en:britishUsageTrunks",
+    fixer: "en:@en.britishUsage/2",
     cue: ["trunk", "trunks"],
   }),
   frame({
     pattern:
       "(?<target>trunks?)(?=[ \\t\\u00a0]{1,8}(?:on|of|in)[ \\t\\u00a0]{1,8}(?:(?:the|a|some|most|many|this|that|these|those|my|your|our|their)[ \\t\\u00a0]{1,8})?(?:\\p{L}+[ \\t\\u00a0]{1,8})?(?:car|cars|automobiles?|vehicles?|sedans?|hatchbacks?|SUVs?|Volkswagens?|Chryslers?|Fords?|Toyotas?|Hondas?|taxis?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["trunk"],
-    fixer: "en:britishUsageTrunks2",
+    fixer: "en:@en.britishUsage/3",
     cue: ["trunk", "trunks"],
   }),
   frame({
