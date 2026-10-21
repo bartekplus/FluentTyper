@@ -41,4 +41,4 @@ export {
 export { englishWordInfo, hasVerbForm } from "../implementations/helpers/EnglishLexicon";
 export { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 export { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
-export { englishInflect } from "../implementations/helpers/EnglishInflection";
+export { englishInflect, englishLemma } from "../implementations/helpers/EnglishInflection";

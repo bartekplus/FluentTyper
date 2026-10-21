@@ -4334,43 +4334,43 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:decided|decide|decides)[ \\t\\u00a0]{1,8}(?<target>testing)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:feature|application)(?:[ \\t\\u00a0]{1,8}again)?(?:[ \\t\\u00a0]{1,8}tomorrow)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?]|$))",
     literals: ["testing"],
-    fixer: "common:decidedToTest",
+    fixer: "common:@verbComplements/1",
   }),
   frame({
     pattern:
       "(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:(?:(?:do|does|did)[ \\t\\u00a0]{1,8}not|(?:don't|doesn't|didn't|don’t|doesn’t|didn’t))[ \\t\\u00a0]{1,8})?(?:need|needs|needed|want|wants|wanted|plan|plans|planned)[ \\t\\u00a0]{1,8}(?<target>fix|deploy|meet|make|take|write|run|come|see|learn|visit|read|send|go)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["need", "needs", "needed", "want", "wants", "wanted", "plan", "plans", "planned"],
-    fixer: "common:missingTo",
+    fixer: "common:@verbComplements/2",
   }),
   frame({
     pattern:
       "(?:(?:(?:I|you|we|they|he|she|it)(?:['’](?:ll|d))?|(?:can|could|will|would|should|may|might|must)|(?:not|really|so|truly|all|also|still|very|definitely|eagerly|certainly|genuinely)|always|greatly)[ \\t\\u00a0]{1,8}(?:(?:(?:do|does|did)[ \\t\\u00a0]{1,8}not|(?:don't|doesn't|didn't|don’t|doesn’t|didn’t))[ \\t\\u00a0]{1,8})?(?:look|looks|looked)|(?:(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:am|is|are|was|were|(?:have|has|had)[ \\t\\u00a0]{1,8}been|will[ \\t\\u00a0]{1,8}be)|I['’]m|(?:we|you|they)['’]re|(?:he|she)['’]s|(?:I|we|you|they)['’](?:ve|d)[ \\t\\u00a0]{1,8}been)[ \\t\\u00a0]{1,8}(?:(?:not|really|so|truly|all|also|still|very|definitely|eagerly|certainly|genuinely)[ \\t\\u00a0]{1,8}){0,2}looking|(?<=(?:^|[.!?,\\n]|\\band)[ \\t\\u00a0\"“]{0,8})(?<bare>looking))[ \\t\\u00a0]{1,8}forward[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?<target>(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["forward"],
-    fixer: "common:lookForward",
+    fixer: "common:@verbComplements/3",
   }),
   frame({
     pattern:
       "worth[ \\t\\u00a0]{1,8}(?<target>to[ \\t\\u00a0]{1,8}(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["worth"],
-    fixer: "common:worthTo",
+    fixer: "common:@verbComplements/4",
   }),
   frame({
     pattern:
       "worth[ \\t\\u00a0]{1,8}(?<target>of[ \\t\\u00a0]{1,8})(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["worth"],
-    fixer: "common:worthOf",
+    fixer: "common:@verbComplements/5",
   }),
   frame({
     pattern:
       "(?<gov>let|lets|let['’]s|letting|make|makes|made|making)[ \\t\\u00a0]{1,8}(?<object>me|you|him|her|us|them|it|(?:any|every|some|no)(?:body|one|[ \\t\\u00a0]{1,8}one)|(?:the|an?|my|your|our|their|his|its|these|those)(?:[ \\t\\u00a0]{1,8}(?!to\\b)[a-z]+){1,3}|[a-z]+s)[ \\t\\u00a0]{1,8}(?<target>to[ \\t\\u00a0]{1,8})(?<word>[A-Za-z]+)(?:/(?<alt>[A-Za-z]+))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["let", "lets", "let", "letting", "make", "makes", "made", "making"],
-    fixer: "common:causativeTo",
+    fixer: "common:@verbComplements/6",
   }),
   frame({
     pattern:
       "(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t)[ \\t\\u00a0]{1,8})(?:(?<subject>(?:I|you|we|they|he|she|it))[ \\t\\u00a0]{1,8}(?:(?:can|could|will|would|should|may|might|must)[ \\t\\u00a0]{1,8}(?:not[ \\t\\u00a0]{1,8})?|(?:(?:(?:do|does|did)[ \\t\\u00a0]{1,8}not|(?:don't|doesn't|didn't|don’t|doesn’t|didn’t))[ \\t\\u00a0]{1,8})?)(?:allow|allowed|enable|enabled)|(?<head>allows|enables)|(?<bare>allow|allowing))[ \\t\\u00a0]{1,8}(?<target>to[ \\t\\u00a0]{1,8}(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["allow", "allowed", "enable", "enabled", "allows", "enables", "allow", "allowing"],
-    fixer: "common:allowTo",
+    fixer: "common:@verbComplements/7",
   }),
   frame({
     pattern:
@@ -4389,7 +4389,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "encourages",
       "requires",
     ],
-    fixer: "common:adviseTo",
+    fixer: "common:@verbComplements/8",
     gate: "(?:advise[ds]?|encourage[ds]?|permit(?:ted)?|requires)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]",
     gateFlags: "giu",
   }),
@@ -4397,7 +4397,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<subject>(?!(?:it|this|that|there|what|which|who)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[A-Za-z]+)[ \\t\\u00a0]{1,8}(?:can|could|will|would|should|may|might|must)(?:[ \\t\\u00a0]{1,8}not)?[ \\t\\u00a0]{1,8}(?<target>require)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["require"],
-    fixer: "common:requireTo",
+    fixer: "common:@verbComplements/9",
     gate: "require[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]",
     gateFlags: "giu",
   }),
@@ -4405,19 +4405,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<gov>went|gone|goes|go)[ \\t\\u00a0]{1,8}ahead[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?<target>(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["ahead"],
-    fixer: "common:aheadAnd",
+    fixer: "common:@verbComplements/10",
   }),
   frame({
     pattern:
       "(?<help>help|helps|helped|helping)[ \\t\\u00a0]{1,8}(?:(?<object>me|you|him|her|us|them|it|(?:any|every|some|no)(?:body|one|[ \\t\\u00a0]{1,8}one))[ \\t\\u00a0]{1,8})?(?:(?<to>to)[ \\t\\u00a0]{1,8})?(?<target>(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["help", "helps", "helped", "helping"],
-    fixer: "common:helpBase",
+    fixer: "common:@verbComplements/11",
   }),
   frame({
     pattern:
       "(?<head>(?:suggest|recommend|avoid|enjoy|consider)(?:s|ed|ing)?|finish(?:es|ed|ing)?|mind)[ \\t\\u00a0]{1,8}(?<target>to[ \\t\\u00a0]{1,8}(?<word>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["suggest", "recommend", "avoid", "enjoy", "consider", "finish", "mind"],
-    fixer: "common:gerundTo",
+    fixer: "common:@verbComplements/12",
   }),
   frame({
     pattern:

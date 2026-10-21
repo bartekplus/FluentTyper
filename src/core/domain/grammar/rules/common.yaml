@@ -5049,62 +5049,933 @@ rules:
     checks: [englishVerbComplements]
     style: match
     message: review_msg_contextual_grammar
+    maps:
+      # Complete arguments distinguish verbs from noun uses: "need work" is deliberately absent.
+      COMPLEMENTS:
+        fix: "(?:this|the) bug"
+        deploy: "(?:tomorrow|today)"
+        meet: "(?:you|them|her|him)"
+        make: the change
+        take: a break
+        write: the report
+        run: the tests
+        come: home
+        see: the results
+        learn: "(?:Rust|English|Python)"
+        visit: the office
+        read: the file
+        send: the message
+        go: home
+    sets:
+      # Closed-class words that spelling alone would take for a base verb ("to all the", "and
+      # others").
+      COMPLEMENT_FUNCTION_WORDS:
+        [
+          me,
+          you,
+          him,
+          her,
+          us,
+          them,
+          it,
+          the,
+          a,
+          an,
+          my,
+          your,
+          our,
+          their,
+          his,
+          its,
+          these,
+          those,
+          i,
+          we,
+          they,
+          he,
+          she,
+          this,
+          that,
+          some,
+          any,
+          all,
+          both,
+          each,
+          every,
+          either,
+          neither,
+          no,
+          none,
+          more,
+          most,
+          much,
+          many,
+          few,
+          less,
+          least,
+          other,
+          others,
+          another,
+          such,
+          own,
+          same,
+          lot,
+          anyone,
+          someone,
+          everyone,
+          nobody,
+          somebody,
+          everybody,
+          anybody,
+          and,
+          or,
+          but,
+          nor,
+          so,
+          yet,
+          if,
+          as,
+          than,
+          then,
+          because,
+          while,
+          when,
+          where,
+          why,
+          how,
+          what,
+          who,
+          whom,
+          whose,
+          which,
+          whether,
+          to,
+          of,
+          in,
+          on,
+          at,
+          by,
+          for,
+          from,
+          with,
+          about,
+          into,
+          onto,
+          over,
+          under,
+          up,
+          down,
+          out,
+          off,
+          through,
+          after,
+          before,
+          since,
+          until,
+          via,
+          per,
+          not,
+          never,
+          also,
+          just,
+          only,
+          still,
+          even,
+          very,
+          too,
+          really,
+          already,
+          always,
+          often,
+          again,
+          here,
+          there,
+          now,
+          today,
+          tomorrow,
+          tonight,
+          further,
+          better,
+          best,
+          first,
+          once,
+          well,
+          fast,
+          rather,
+          together,
+          is,
+          am,
+          are,
+          was,
+          were,
+          can,
+          could,
+          will,
+          would,
+          shall,
+          should,
+          may,
+          might,
+          must,
+        ]
+      # Closed classes for reading the words before a frame (lowercase, ’ folded to ').
+      COMPLEMENT_BE:
+        [am, is, are, was, were, be, been, being, "'m", "'re", "'s", isn, wasn, aren, weren]
+      COMPLEMENT_GET: [get, gets, got, getting, gotten]
+      COMPLEMENT_HAVE: [has, have, had, "'ve"]
+      COMPLEMENT_MODAL_DO:
+        [
+          will,
+          would,
+          shall,
+          should,
+          can,
+          could,
+          may,
+          might,
+          must,
+          "'ll",
+          "'d",
+          do,
+          does,
+          did,
+          don,
+          doesn,
+          didn,
+          won,
+          wouldn,
+          couldn,
+          shouldn,
+          cannot,
+        ]
+      COMPLEMENT_AUXILIARIES:
+        [
+          am,
+          is,
+          are,
+          was,
+          were,
+          be,
+          been,
+          being,
+          "'m",
+          "'re",
+          "'s",
+          isn,
+          wasn,
+          aren,
+          weren,
+          has,
+          have,
+          had,
+          "'ve",
+          will,
+          would,
+          shall,
+          should,
+          can,
+          could,
+          may,
+          might,
+          must,
+          "'ll",
+          "'d",
+          do,
+          does,
+          did,
+          don,
+          doesn,
+          didn,
+          won,
+          wouldn,
+          couldn,
+          shouldn,
+          cannot,
+          "'t",
+          not,
+          never,
+          also,
+          just,
+          really,
+          actually,
+          always,
+          even,
+          still,
+          ever,
+          already,
+          maybe,
+          probably,
+        ]
+      COMPLEMENT_SUBJECTS: [i, we, you, they, he, she, it]
+      COMPLEMENT_RELATIVES: [who, which, that, whom]
+      FREE_RELATIVES: [what, whatever, whoever, whichever]
+      COMPLEMENT_CONJUNCTIONS: [and, or, but, then]
+      COMPLEMENT_SUBORDINATORS:
+        [
+          because,
+          if,
+          when,
+          while,
+          although,
+          though,
+          since,
+          as,
+          so,
+          once,
+          until,
+          unless,
+          whereas,
+          how,
+          why,
+          whether,
+        ]
+      COMPLEMENT_PREPOSITIONS:
+        [
+          of,
+          in,
+          on,
+          at,
+          by,
+          for,
+          from,
+          with,
+          about,
+          into,
+          onto,
+          over,
+          under,
+          through,
+          after,
+          before,
+          since,
+          until,
+          via,
+          per,
+          to,
+          toward,
+          towards,
+          among,
+          between,
+          within,
+          without,
+          upon,
+          across,
+          behind,
+          beyond,
+          like,
+          near,
+          during,
+          against,
+          around,
+          thru,
+        ]
+      NP_DETERMINERS:
+        [
+          the,
+          a,
+          an,
+          my,
+          your,
+          our,
+          their,
+          his,
+          her,
+          its,
+          this,
+          that,
+          these,
+          those,
+          some,
+          any,
+          no,
+          every,
+          each,
+          many,
+          much,
+          several,
+          most,
+          all,
+          both,
+          few,
+          more,
+        ]
+      NP_INDEFINITES:
+        [
+          anyone,
+          anybody,
+          everyone,
+          everybody,
+          someone,
+          somebody,
+          nobody,
+          one,
+          none,
+          everything,
+          something,
+        ]
+    defs:
+      # What follows the verb: an object, a pointer or particle, "hear from you", or the clause
+      # end. A bare noun is rarely followed by the first two; degree and time phrases ("summer a
+      # lot", "lunch the most", "dinner the next day") are no objects. Evidence glued to a token
+      # ("you.name") is no prose.
+      OBJECT_NEXT: >-
+        /^[ \t ]{1,8}(?:me|you|him|her|us|them|it|the|an?|my|your|our|their|his|its|these|those)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)(?![ \t ]{1,8}(?:lot|bit|little|most|least|whole|rest|same|next|other|following|day|week|month|year|time|night|morning|evening|weekend|while)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))/iu
+      POINTER_NEXT: >-
+        /^[ \t ]{1,8}(?:this|that|up|down|out|off|back|over|away)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu
+      FROM_NEXT: >-
+        /^[ \t ]{1,8}from[ \t ]{1,8}(?:me|you|him|her|us|them|it|the|an?|my|your|our|their|his|its|these|those)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu
+      END_NEXT: >-
+        /^(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?=[ \t ]{0,8}(?:[.!?,;:]|$))/u
+      PERSON_NEXT: >-
+        /^[ \t ]{1,8}(?:you|him|her|us|them)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu
+      PLURAL_NEXT: >-
+        /^[ \t ]{1,8}[a-z]+s(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/u
+      QUANTIFIER_NEXT: >-
+        /^[ \t ]{1,8}(?:some|many|much|several|most|all|any|each|every|both|few|more|no|multiple|various|numerous)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu
+      NUMBER_NEXT: >-
+        /^[ \t ]{1,8}\d/u
+      PREPOSITION_NEXT: >-
+        /^[ \t ]{1,8}(?:of|in|on|at|by|for|from|with|about|into|onto|over|under|through|after|before|since|until|via|per|to|toward|towards|among|between|within|without|upon|across|behind|beyond|like|near|during|against|around|thru)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/iu
+      COMPLEMENT_NEXT_WORD: >-
+        /^[ \t ]{1,8}([A-Za-z]+)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/u
+      COORDINATED_NEXT: >-
+        /^[ \t ]{1,8}(?:and|or)[ \t ]{1,8}([A-Za-z]+)(?![\p{L}\p{M}\p{N}_'’@/#\\-])(?!\.[\p{L}\p{N}_]|￼)/u
+      # A frame's verb and its complete argument (COMPLEMENTS) after it.
+      complementTail:
+        args: "lemma: string"
+        return: >-
+          new RegExp(
+            `^[ \\t\\u00a0]{1,8}${COMPLEMENTS[lemma].replaceAll(" ", "[ \\t\\u00a0]{1,8}")}${COMPLETE}(?!\\.[\\p{L}\\p{N}_]|\\uFFFC)`,
+            "iu",
+          )
+      # An adverb and nothing else: "strangely", "quickly".
+      pureAdverb:
+        args: "word: string"
+        let:
+          i: englishWordInfo(word)
+        return: "!!i?.adverb && !i.noun && !i.adjective && !i.verbs.length"
+      objectNext:
+        args: "tail: string"
+        return: OBJECT_NEXT.test(tail) || POINTER_NEXT.test(tail)
+      complementNextWord:
+        args: "tail: string"
+        return: COMPLEMENT_NEXT_WORD.exec(tail)?.[1].toLowerCase()
+      # "improved and scale": a coordinated base verb follows.
+      coordinatedVerbNext:
+        args: "tail: string"
+        let:
+          m: COORDINATED_NEXT.exec(tail)
+        return: "!!m && !!complementBaseVerb(m[1])"
+      # Nouns the dictionary lists that work as adverbs after a verb: "Allow to cool overnight".
+      TIME_ADVERBS: >-
+        /^(?:today|tonight|tomorrow|yesterday|overnight|upstairs|downstairs|overseas|indoors|outdoors|abroad)$/
+      # A noun phrase starts after the verb: "change approval policy", "have multiple views".
+      nounPhraseNext:
+        args: "tail: string"
+        let:
+          next: complementNextWord(tail)
+          i: >-
+            next && !COMPLEMENT_FUNCTION_WORDS.has(next) && !TIME_ADVERBS.test(next)
+              ? englishWordInfo(next)
+              : null
+        return: >-
+          objectNext(tail) || QUANTIFIER_NEXT.test(tail) || (!!i?.noun && !i.adjective && !i.adverb)
+      # A base verb by the lexicon: listed with a base reading and no other verb's form (found,
+      # saw, deleted). `ambiguous` when it is also a noun or adjective (work, try, open). "be" has
+      # no row.
+      complementBaseVerb:
+        args: "word: string"
+        type: "{ lemma: string; irregular: boolean; ambiguous: boolean } | null"
+        let:
+          w: word.toLowerCase()
+          known: englishVerbForms(w)
+          i: englishWordInfo(w)
+        return: >-
+          w === "be"
+            ? { lemma: w, irregular: true, ambiguous: false }
+            : COMPLEMENT_FUNCTION_WORDS.has(w) ||
+                (known && known.lemma !== w) ||
+                !i?.verbs.some((v) => v.form === "base") ||
+                i.verbs.some((v) => v.lemma !== w)
+              ? null
+              : { lemma: w, irregular: !!known, ambiguous: i.noun || i.adjective }
+      # The verb after "to", past one focus or -ly adverb: "to only load", "to easily edit".
+      verbAfterAdverb:
+        args: "word: string, tail: string"
+        let:
+          w: word.toLowerCase()
+          m: COMPLEMENT_NEXT_WORD.exec(tail)
+        return: >-
+          (/^(?:only|just|also|even|really|still|always|never|ever|simply)$/.test(w) || pureAdverb(w)) && m
+            ? { word: m[1], tail: tail.slice(m[0].length) }
+            : { word, tail }
+      # Lowercase words before `at`, nearest first, back to the clause start, which is "".
+      # Commas, dashes and brackets end a clause too. null when no start lies within 160
+      # characters.
+      wordsBefore:
+        args: "text: string, at: number"
+        type: string[] | null
+        let:
+          parts: >-
+            text.slice(Math.max(0, at - 160), at).split(/[!?;:\n,()[\]–—]|\.(?![\p{L}\p{N}_])|\s-+\s/u)
+        when: "!(parts.length === 1 && at > 160)"
+        return: >-
+          [
+            ...(
+              parts
+                .at(-1)!
+                .match(/[a-z]+|['’][a-z]+|\d[\d,.]*/giu)
+                ?.map((w) => w.toLowerCase().replaceAll("’", "'")) ?? []
+            ).reverse(),
+            "",
+          ]
+      # Skips auxiliaries and adverbs before a verb: the index of the first other word.
+      skipAuxiliaries:
+        args: "words: readonly string[], from: number"
+        type: number
+        return: >-
+          from < words.length && (COMPLEMENT_AUXILIARIES.has(words[from]) || pureAdverb(words[from]))
+            ? skipAuxiliaries(words, from + 1)
+            : from
+      # A word that can sit inside a noun phrase: determiner, number, noun, adjective or unknown.
+      nounPhraseWord:
+        args: "word: string | undefined"
+        let:
+          i: englishWordInfo(word)
+        when: "!!word"
+        return: >-
+          NP_DETERMINERS.has(word) || NP_INDEFINITES.has(word) || /^\d/.test(word)
+            ? true
+            : !COMPLEMENT_FUNCTION_WORDS.has(word) && !/^'/.test(word) && (!i || i.noun || i.adjective)
+        else: "false"
+      # Walks a noun phrase leftward from `from` (at `j`); a determiner or pronoun begins it, and
+      # "a a video game" repeats the determiner. The end of the phrase.
+      walkNounPhrase:
+        args: "words: readonly string[], from: number, j: number"
+        type: number
+        return: >-
+          j < words.length && j - from < 8 && nounPhraseWord(words[j])
+            ? (NP_DETERMINERS.has(words[j]) || NP_INDEFINITES.has(words[j])) && !NP_DETERMINERS.has(words[j + 1])
+              ? j + 1
+              : walkNounPhrase(words, from, j + 1)
+            : j
+      # The noun phrase ending at `from` heads a relative clause; true when that phrase is an
+      # object (after "have", a preposition, or "is" + "a"), so no main verb can follow the
+      # clause. Past verbs and "is the" can open a that-less clause ("I heard the people we
+      # helped moved").
+      objectAntecedent:
+        args: "words: readonly string[], from: number"
+        let:
+          j: walkNounPhrase(words, from, from)
+          p: words[j]
+        when: "j !== from && !!p"
+        return: >-
+          COMPLEMENT_BE.has(p)
+            ? words.slice(from, j).some((w) => w === "a" || w === "an")
+            : COMPLEMENT_HAVE.has(p) || COMPLEMENT_PREPOSITIONS.has(p)
+        else: "false"
+      # "help" heads its clause, so the next verb belongs to it: "React helped created a page".
+      # After a relative clause that could be a subject ("Everyone who helped got thanks", "The
+      # people we helped moved") the next verb may be the main verb, so those abstain.
+      helpHeadsClause:
+        args: "words: readonly string[], help: string"
+        let:
+          i: skipAuxiliaries(words, 0)
+          skipped: words.slice(0, i)
+          w1: words[i]
+        when:
+          - '!(help === "helped" && skipped.some((w) => COMPLEMENT_BE.has(w) || COMPLEMENT_GET.has(w)))'
+          - '!(help === "helping" && !skipped.some((w) => COMPLEMENT_BE.has(w)))'
+          - >-
+            !(help === "help" &&
+              !skipped.some((w) => COMPLEMENT_MODAL_DO.has(w)) &&
+              !/^(?:i|we|you|they)$/.test(w1))
+          - w1 !== undefined && !FREE_RELATIVES.has(w1)
+        return: >-
+          w1 === "" || COMPLEMENT_PREPOSITIONS.has(w1)
+            ? true
+            : COMPLEMENT_CONJUNCTIONS.has(w1)
+              ? !words.slice(i + 1).some((w) => COMPLEMENT_RELATIVES.has(w) || FREE_RELATIVES.has(w))
+              : COMPLEMENT_RELATIVES.has(w1)
+                ? objectAntecedent(words, i + 1)
+                : COMPLEMENT_SUBJECTS.has(w1)
+                  ? helpSubjectClause(words, i)
+                  : helpNounClause(words, i)
+        else: "false"
+      # After a subject pronoun. "…, that I have helped implemented": a clause-initial "that"
+      # leaves no subject to finish; "a video game I helped made": a reduced relative clause.
+      helpSubjectClause:
+        args: "words: readonly string[], i: number"
+        let:
+          w2: words[i + 1]
+        return: >-
+          w2 === "" || COMPLEMENT_CONJUNCTIONS.has(w2) || COMPLEMENT_SUBORDINATORS.has(w2)
+            ? true
+            : COMPLEMENT_RELATIVES.has(w2)
+              ? words[i + 2] === "" || objectAntecedent(words, i + 2)
+              : nounPhraseWord(w2)
+                ? objectAntecedent(words, i + 1)
+                : true
+      # After a noun phrase. "the people the charity helped": another noun phrase before the
+      # subject.
+      helpNounClause:
+        args: "words: readonly string[], i: number"
+        let:
+          j: walkNounPhrase(words, i, i)
+        return: "j === i ? false : nounPhraseWord(words[j]) ? objectAntecedent(words, j) : true"
+      # "it", "this" or "that" is the subject of "worth", or a question or modal starts the
+      # clause. "It doesn't seem worth".
+      dummyWorth:
+        args: "words: readonly string[]"
+        let:
+          first: skipAuxiliaries(words, 0)
+          i: >-
+            /^(?:seem|seems|seemed|appear|appears|appeared)$/.test(words[first])
+              ? skipAuxiliaries(words, first + 1)
+              : first
+          w: words[i]
+        return: 'w === "it" || w === "its" || w === "this" || w === "that" || (w === "" && i > 0)'
+      # "worth" is a predicate, not a noun after a determiner or adjective ("its worth", "true
+      # worth").
+      worthPredicate:
+        args: "words: readonly string[]"
+        let:
+          w: words[0]
+          i: "w ? englishWordInfo(w) : null"
+        return: >-
+          NP_DETERMINERS.has(w) || /^(?:of|net|self|own|'s)$/.test(w)
+            ? w === "'s"
+            : !(i?.adjective && !i.adverb && !i.verbs.length)
+      # A let object: a determiner and nouns ("the user"), or a bare plural noun ("users").
+      objectPhrase:
+        args: "words: readonly string[]"
+        let:
+          head: words.at(-1)!
+          i: englishWordInfo(head)
+        return: >-
+          words.length === 1
+            ? !!i?.plural && !COMPLEMENT_FUNCTION_WORDS.has(head)
+            : words.slice(1).every((w) => !COMPLEMENT_FUNCTION_WORDS.has(w) && nounPhraseWord(w)) &&
+              (!i || i.noun)
+      # "the app you recommended", "Which book would you recommend", "the code that you
+      # recommended": `before` (the text before a verb) puts the verb's object first.
+      frontedObjectBefore:
+        args: "before: string"
+        return: >-
+          frontedObjectGap(before) ||
+          /(?:\b(?:which|what)\b[^.!?;:\n]{0,40}\b(?:would|will|do|does|did|can|could|should)|\b[a-z]+[ \t ]+(?:that|which))[ \t ]+(?:I|you|we|they|he|she)[ \t ]+$/i.test(before)
+      # A capitalized verb names something ("to Meet the Team"); shouting keeps its case. No user
+      # or cased word in the match.
+      complementOpen:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        let:
+          word: m.groups!.word
+        return: >-
+          (word === word.toLowerCase() || m[0] === m[0].toUpperCase()) && !hasUserOrCasedWord(ctx, m[0])
+      # The finding of an inflected frame: <target> is the replaced range, in its own casing.
+      complementFinding:
+        args: >-
+          ctx: DetectContext, m: RegExpExecArray, messageKey: RawFinding["messageKey"],
+          alternatives: string[], choice: boolean
+        type: RawFinding
+        let:
+          span: group(m, "target")
+          style: detectWordCase(m.groups!.target.trim())
+          end: m.index + m[0].length
+        return: >-
+          ({
+            ruleId: "englishVerbComplements",
+            messageKey,
+            ...(choice ? { requiresChoice: true as const } : {}),
+            range: { start: span[0], end: span[1] },
+            alternatives: alternatives.map((text) => applyWordCase(text, style)),
+            context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 48) },
+          })
     frames:
       - regex: "{{SUBJECT}}{{S}}(?:decided|decide|decides){{S}}(?<target>testing){{S}}the{{S}}(?:feature|application)(?:{{S}}again)?(?:{{S}}tomorrow)?{{E}}(?=[ \\t\\u00a0]{0,8}(?:[.!?]|$))"
-        fixer: decidedToTest
+        # A template frame: the casing of the target, no user or cased word in the match.
+        when: "!hasUserOrCasedWord(ctx, m[0])"
+        return: applyWordCase("to test", detectWordCase(target))
       # "We need fix this bug": the verb and its complete argument come from COMPLEMENTS
       # (englishComplements.ts).
       - regex: "{{SUBJECT}}{{S}}{{COMPLEMENT_NEGATIVE}}(?:need|needs|needed|want|wants|wanted|plan|plans|planned){{S}}(?<target>fix|deploy|meet|make|take|write|run|come|see|learn|visit|read|send|go){{E}}"
-        fixer: missingTo
+        let:
+          span: group(m, "target")
+          tail: complementTail(target.toLowerCase()).exec(ctx.scanText.slice(span[1], span[1] + 128))
+          phraseEnd: span[1] + tail[0].length
+        when:
+          - "!!tail"
+          - "!hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, phraseEnd))"
+        return: >-
+          ({
+            ruleId: "englishVerbComplements",
+            messageKey: "review_msg_missing_to",
+            range: { start: span[0], end: span[1] },
+            alternatives: [`${target === target.toUpperCase() ? "TO" : "to"} ${target}`],
+            context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
+          })
       # "I'm looking forward to meet you": -ing after "look forward to". Nouns end this phrase
       # ("to dinner.", "to spring"), so an ambiguous verb needs an object after it. A bare
       # imperative "Look forward to see the road" looks ahead.
       - regex: "(?:(?:{{SUBJECT}}(?:['’](?:ll|d))?|{{COMPLEMENT_MODALS}}|{{COMPLEMENT_STRESS}}|always|greatly){{S}}{{COMPLEMENT_NEGATIVE}}(?:look|looks|looked)|{{COMPLEMENT_BE_SUBJECT}}{{S}}(?:{{COMPLEMENT_STRESS}}{{S}}){0,2}looking|(?<=(?:^|[.!?,\\n]|\\band)[ \\t\\u00a0\"“]{0,8})(?<bare>looking)){{S}}forward{{S}}to{{S}}(?<target>{{COMPLEMENT_WORD}})"
-        fixer: lookForward
+        let:
+          tail: ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128)
+          verb: complementBaseVerb(word)
+          ing: >-
+            verb &&
+            (!verb.ambiguous ||
+              OBJECT_NEXT.test(tail) ||
+              (verb.irregular && FROM_NEXT.test(tail)) ||
+              (Object.hasOwn(COMPLEMENTS, verb.lemma) && complementTail(verb.lemma).test(tail)))
+              ? englishInflect(verb.lemma, "ing")
+              : null
+        when:
+          - complementOpen(ctx, m)
+          # A subjectless "Looking forward to see the road" can look ahead; a person cannot be
+          # seen that way: "Looking forward to meet you", "to hear from you".
+          - "!bare || PERSON_NEXT.test(tail) || FROM_NEXT.test(tail)"
+          - "!!ing"
+        return: complementFinding(ctx, m, "review_msg_forward_gerund", [ing], false)
       # "It is worth to try": -ing after "worth". A noun "worth" ("its worth to society", "the
       # worth to investors") takes a recipient, so the verb must not read as one.
       - regex: "worth{{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
-        fixer: worthTo
+        let:
+          tail: ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128)
+          verb: complementBaseVerb(word)
+          words: "verb ? wordsBefore(ctx.text, m.index) : null"
+          ing: englishInflect(verb.lemma, "ing")
+        when:
+          - complementOpen(ctx, m)
+          - "!!verb && !!words && worthPredicate(words)"
+          - >-
+            !verb.ambiguous ||
+            (dummyWorth(words) && !/^\s+(?:who|whom|whose|like)\b/i.test(tail)) ||
+            objectNext(tail) ||
+            QUANTIFIER_NEXT.test(tail) ||
+            END_NEXT.test(tail) ||
+            PREPOSITION_NEXT.test(tail)
+          - "!!ing"
+        return: complementFinding(ctx, m, "review_msg_worth_gerund", [ing], false)
       # "It is worth of reading": "worth" takes the -ing form directly.
       - regex: "worth{{S}}(?<target>of{{S}}){{COMPLEMENT_WORD}}"
-        fixer: worthOf
+        let:
+          words: wordsBefore(ctx.text, m.index)
+          i: skipAuxiliaries(words, 0)
+        when:
+          - complementOpen(ctx, m)
+          - "!!words && worthPredicate(words)"
+          - "!(i === 0 && !dummyWorth(words))"
+          - '!!englishLemma(word, "ing")'
+        return: complementFinding(ctx, m, "review_msg_worth_gerund", [""], false)
       # "Let me to do it": no "to" after causative let/make and an object. "Made it to" means
       # reached; "let it/them to" can mean rent out, so those need a verb-only reading. A noun
       # phrase object is read for let only: "made a trip to see her" is a purpose.
       - regex: "(?<gov>let|lets|let['’]s|letting|make|makes|made|making){{S}}(?<object>{{COMPLEMENT_OBJECTS}}|{{COMPLEMENT_INDEFINITE}}|(?:{{COMPLEMENT_DETERMINERS}})(?:{{S}}(?!to\\b)[a-z]+){1,3}|[a-z]+s){{S}}(?<target>to{{S}})(?<word>[A-Za-z]+)(?:/(?<alt>[A-Za-z]+))?{{E}}"
-        fixer: causativeTo
+        let:
+          tail: ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128)
+          objectWords: object.toLowerCase().split(/\s+/)
+          make: /^ma/.test(gov.toLowerCase())
+          pronoun: objectWords.length === 1 && /^(?:me|you|him|her|us|them|it)$/.test(objectWords[0])
+          indefinite: '/^(?:any|every|some|no)(?:body|one|[ \t ]{1,8}one)$/.test(objectWords.join(" "))'
+          moved: verbAfterAdverb(word, tail)
+          verb: complementBaseVerb(moved.word)
+          # "let it/them to" can mean rent out.
+          rentable: "!indefinite && !(pronoun && !/^(?:it|them)$/.test(objectWords[0]))"
+        when:
+          - complementOpen(ctx, m)
+          - '!(make && (!(pronoun || indefinite) || objectWords[0] === "it"))'
+          - pronoun || indefinite || objectPhrase(objectWords)
+          # "let the chance to win slip away": the noun takes its own infinitive.
+          - >-
+            !/^(?:chance|opportunity|time|way|right|ability|decision|need|attempt|plan|effort|desire|permission|reason|try|urge|temptation|power|freedom)$/.test(
+              objectWords[objectWords.length - 1])
+          - "!!verb && (!alt || !!complementBaseVerb(alt))"
+          - "!(rentable && verb.ambiguous && !verb.irregular && !objectNext(moved.tail))"
+        return: complementFinding(ctx, m, "review_msg_causative_base", [""], false)
       # "It allows to edit files": allow and enable take an object or -ing. Passive "are allowed
       # to" and questions ("Are you allowed to") abstain. A bare "allow"/"allowing" can be recipe
       # ellipsis ("Allow to cool"), so it needs a noun phrase after the verb.
       - regex: "(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t){{S}})(?:(?<subject>{{SUBJECT}}){{S}}(?:{{COMPLEMENT_MODALS}}{{S}}(?:not{{S}})?|{{COMPLEMENT_NEGATIVE}})(?:allow|allowed|enable|enabled)|(?<head>allows|enables)|(?<bare>allow|allowing)){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
-        fixer: allowTo
+        let:
+          tail: ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128)
+          verb: complementBaseVerb(word)
+          ing: 'verb ? englishInflect(verb.lemma, "ing") : null'
+          # "You should allow you to" repeats the subject.
+          objectWord: 'subject?.toLowerCase() === "you" ? "them" : "you"'
+        when:
+          - complementOpen(ctx, m)
+          # "allows to easily edit": an -ly word is an adverb unless an object or the end follows.
+          - "!(/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail))"
+          - "!!verb && !(bare && !nounPhraseNext(tail))"
+          - "!!ing"
+        return: >-
+          complementFinding(ctx, m, "review_msg_allow_object", [ing, `${objectWord} to ${word.toLowerCase()}`], true)
       # "She advised to wait", "The method requires to sort the list": with no object, these
       # verbs take the -ing form. A passive ("are advised to") has its subject as the object.
       - regex: "(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t){{S}})(?:(?:(?<subject>{{SUBJECT}})|(?<plural>[a-z]{3,}s)){{S}}(?:{{COMPLEMENT_MODALS}}{{S}}(?:not{{S}})?|{{COMPLEMENT_NEGATIVE}})(?:advise|advised|encourage|encouraged|permit|permitted)|to{{S}}(?:advise|encourage|permit)|(?<head>advises|encourages|requires)){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
         # Skips the frame when no advise/encourage/permit/requires + "to" stands in the text.
         gate: "(?:advise[ds]?|encourage[ds]?|permit(?:ted)?|requires)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]"
         gateFlags: giu
-        fixer: adviseTo
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 64), m.index)
+          tail: ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128)
+          verb: complementBaseVerb(word)
+          ing: 'verb ? englishInflect(verb.lemma, "ing") : null'
+        when:
+          - complementOpen(ctx, m)
+          # "the hours that a backup requires to finish", "what the form requires to submit": the
+          # object comes first, and "to" means "in order to".
+          - >-
+            !(head &&
+              (/\b(?:what|whatever|that|which)\b[^.!?;:,\n]{0,40}$/i.test(before) ||
+                /\b[a-z]+[ \t ]+(?:it|he|she|they|we|you|I)[ \t ]*$/.test(before)))
+          - "!(plural && (!englishWordInfo(plural)?.plural || COMPLEMENT_FUNCTION_WORDS.has(plural)))"
+          - "!(/ly$/i.test(word) && !objectNext(tail) && !END_NEXT.test(tail))"
+          - '!!verb && verb.lemma !== "be"'
+          - "!!ing"
+        return: complementFinding(ctx, m, "review_msg_gerund_complement", [ing], false)
       # "We may require to sign": a person after a modal is required to do something.
       - regex: "(?<subject>(?!(?:it|this|that|there|what|which|who){{E}})[A-Za-z]+){{S}}{{COMPLEMENT_MODALS}}(?:{{S}}not)?{{S}}(?<target>require){{S}}to{{S}}{{COMPLEMENT_WORD}}"
         gate: "require[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]"
         gateFlags: giu
-        fixer: requireTo
+        when:
+          - complementOpen(ctx, m)
+          # A name is capitalized ("GAIL will"); "the capacity that you may require to meet" is a
+          # relative clause with a purpose to.
+          - /^(?:i|we|you|they|he|she)$/i.test(subject) || /^\p{Lu}/u.test(subject)
+          - >-
+            !/\b(?:that|which|what|whatever)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 48), m.index))
+          - "!!complementBaseVerb(word)"
+        return: complementFinding(ctx, m, "review_msg_modal_be", ["be required"], false)
       # "We went ahead and fix it": the second verb shares the tense of went, gone or goes; "go
       # ahead and fixed it" shares the base form. A noun can start a new clause ("went ahead and
       # rain fell"), so an ambiguous word must not be followed by a verb.
       - regex: "(?<gov>went|gone|goes|go){{S}}ahead{{S}}and{{S}}(?<target>{{COMPLEMENT_WORD}})"
-        fixer: aheadAnd
+        let:
+          tail: ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128)
+          go: gov.toLowerCase()
+          verb: 'go === "go" ? null : complementBaseVerb(word)'
+          following: complementNextWord(tail)
+          form: >-
+            go === "go"
+              ? englishLemma(word, "past")
+              : go === "went"
+                ? englishInflect(verb!.lemma, "past")
+                : go === "goes"
+                  ? englishInflect(verb!.lemma, "third")
+                  : (englishVerbForms(verb!.lemma)?.participle ?? englishInflect(verb!.lemma, "past"))
+        when:
+          - complementOpen(ctx, m)
+          - 'go !== "go" || objectNext(tail) || END_NEXT.test(tail)'
+          - 'go === "go" || !!verb'
+          - >-
+            go === "go" ||
+            !verb?.ambiguous ||
+            objectNext(tail) ||
+            END_NEXT.test(tail) ||
+            (!!following &&
+              !COMPLEMENT_AUXILIARIES.has(following) &&
+              !englishWordInfo(following)?.verbs.length)
+          - "!!form && form !== word.toLowerCase()"
+        return: complementFinding(ctx, m, "review_msg_ahead_and_tense", [form], false)
       # "I helped built it", "She helped me fixed it", "He helps us to understood": base verb
       # after help. Without an object, a past form that is also a participle can be an adjective
       # ("helped injured people"), so it needs a verb's continuation; serving food ("helped them
       # to drinks", "to baked potatoes") needs one after "to".
       - regex: "(?<help>help|helps|helped|helping){{S}}(?:(?<object>{{COMPLEMENT_OBJECTS}}|{{COMPLEMENT_INDEFINITE}}){{S}})?(?:(?<to>to){{S}})?(?<target>{{COMPLEMENT_WORD}})"
-        fixer: helpBase
+        let:
+          tail: ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128)
+          w: word.toLowerCase()
+          i: englishWordInfo(w)
+          hasPast: i.verbs.some((v) => v.form === "past")
+          hasThird: i.verbs.some((v) => v.form === "third")
+          hasIng: i.verbs.some((v) => v.form === "ing")
+          hasParticiple: i.verbs.some((v) => v.form === "participle")
+          objectAfter: objectNext(tail)
+          end: END_NEXT.test(tail)
+          lemma: >-
+            to
+              ? hasPast && (objectAfter || end)
+                ? englishLemma(w, "past")
+                : hasThird && !i.plural && objectAfter
+                  ? englishLemma(w, "third")
+                  : hasIng && (objectAfter || PLURAL_NEXT.test(tail))
+                    ? englishLemma(w, "ing")
+                    : null
+              : object
+                ? objectAfter || end
+                  ? hasPast
+                    ? englishLemma(w, "past")
+                    : hasThird
+                      ? englishLemma(w, "third")
+                      : null
+                  : null
+                : hasPast
+                  ? englishLemma(w, "past")
+                  : hasThird && !i.plural
+                    ? englishLemma(w, "third")
+                    : null
+          words: wordsBefore(ctx.text, m.index)
+        when:
+          - complementOpen(ctx, m)
+          # found, saw, read: also base verbs
+          - '!!i && !i.verbs.some((v) => v.form === "base")'
+          - >-
+            !!to ||
+            !!object ||
+            (hasPast && !hasParticiple) ||
+            objectAfter ||
+            end ||
+            QUANTIFIER_NEXT.test(tail) ||
+            NUMBER_NEXT.test(tail) ||
+            PREPOSITION_NEXT.test(tail) ||
+            coordinatedVerbNext(tail)
+          - "!!lemma && lemma !== w"
+          - "!!words && helpHeadsClause(words, help.toLowerCase())"
+        return: complementFinding(ctx, m, "review_msg_causative_base", [lemma], false)
       # "I suggest to use it", "We avoid to call it": these verbs take -ing. Passive "it is
       # recommended to" and "is considered to be" abstain; "suggest to the team" names a recipient.
       - regex: "(?<head>(?:suggest|recommend|avoid|enjoy|consider)(?:s|ed|ing)?|finish(?:es|ed|ing)?|mind){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
-        fixer: gerundTo
+        let:
+          tail: ctx.scanText.slice(m.index + m[0].length, m.index + m[0].length + 128)
+          lower: head.toLowerCase()
+          lemma: /^(?:suggest|recommend|avoid|enjoy|consider|finish|mind)/.exec(lower)![0]
+          verb: complementBaseVerb(word)
+          suggest: /^(?:suggest|recommend)$/.test(lemma)
+          words: wordsBefore(ctx.text, m.index)
+          i: skipAuxiliaries(words, 0)
+          rest: words.slice(i + 1)
+          shared: rest.findIndex((w) => COMPLEMENT_SUBJECTS.has(w))
+          # "We tested it and suggested to add tests": a shared pronoun subject with no relative
+          # clause or be in between ("It is unsafe and not recommended to").
+          subject: >-
+            COMPLEMENT_SUBJECTS.has(words[i]) ||
+            (COMPLEMENT_CONJUNCTIONS.has(words[i]) &&
+              shared >= 0 &&
+              !rest
+                .slice(0, shared)
+                .some((w) => COMPLEMENT_RELATIVES.has(w) || COMPLEMENT_BE.has(w) || COMPLEMENT_GET.has(w)))
+          ing: englishInflect(verb.lemma, "ing")
+        when:
+          - complementOpen(ctx, m)
+          - '!!verb && !(lemma === "consider" && verb.lemma === "be")'
+          - "!(suggest && verb.ambiguous && !objectNext(tail))"
+          # "Which book would you recommend to learn it?": the object comes first; "to" means "in
+          # order to".
+          - "!(suggest && frontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index)))"
+          - "!!words"
+          # "It's strongly recommended to use".
+          - >-
+            lower.endsWith("ing")
+              ? words.slice(0, i).some((w) => COMPLEMENT_BE.has(w))
+              : !words.slice(0, i + 1).some((w) => COMPLEMENT_BE.has(w) || COMPLEMENT_GET.has(w)) &&
+                !((/ed$/.test(lower) || /^(?:consider|finish|mind)$/.test(lemma)) && !subject) &&
+                !(lemma === "mind" &&
+                  !words
+                    .slice(0, i + 2)
+                    .some((w) => /^(?:would|do|does|did|don|didn|doesn|wouldn|never|'t|not)$/.test(w)))
+          - "!!ing"
+        return: complementFinding(ctx, m, "review_msg_gerund_complement", [ing], false)
   # Perfect and passive participles, the "I've looking" and "am/is/are + bare verb" frames.
   # PARTICIPLE_TAIL: a chained auxiliary is not the verb, so "has been took" is still scanned
   # from "been".
@@ -6709,7 +7580,7 @@ rules:
           )
       # Words after which "X and I" cannot be a subject: they need no verb from the pair. The
       # gate of the andIBefore frame repeats this list: change both.
-      OBJECT_NEXT: >-
+      CASE_OBJECT_NEXT: >-
         /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)$/
       # Prepositions that never open a clause ("for they are…", "like we do") or an inverted one
       # ("In they went"): the CASE_OBJECT_PREPOSITION fragment.
@@ -6953,7 +7824,7 @@ rules:
           # "Then came Tom and I.": an intransitive verb before an inverted subject.
           read: englishWordInfo(lead)
         when:
-          - '!/^(?:I|me)$/i.test(a) && lead !== "between" && (!next || OBJECT_NEXT.test(next))'
+          - '!/^(?:I|me)$/i.test(a) && lead !== "between" && (!next || CASE_OBJECT_NEXT.test(next))'
           - >-
             CASE_OBJECT_PREPOSITION_WORD.test(lead) ||
             lead === "for" ||
