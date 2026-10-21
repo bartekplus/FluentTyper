@@ -7,8 +7,8 @@ import {
   RULE_DETECTORS,
   RULE_FILTERS,
   RULE_FIXERS,
-} from "../../src/core/domain/grammar/engine/rules/index.generated";
-import { RULE_LIVE } from "../../src/core/domain/grammar/engine/rules/live-index.generated";
+} from "../../src/core/domain/grammar/review/rules/index.generated";
+import { RULE_LIVE } from "../../src/core/domain/grammar/review/rules/live-index.generated";
 
 const GRAMMAR = path.resolve(import.meta.dir, "../../src/core/domain/grammar");
 

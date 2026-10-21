@@ -2,7 +2,7 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export { correctTheirBeVerb, THEIR_THERE_BE_REGEX } from "../engine/rules/common.generated";
+export { correctTheirBeVerb, THEIR_THERE_BE_REGEX } from "../review/rules/common.generated";
 
 export class EnglishTheirThereBeVerbRule implements GrammarRule {
   readonly id = "englishTheirThereBeVerb" as const;

@@ -7,7 +7,7 @@ export {
   MODAL_OF_REGEX,
   modalHaveWord,
   OF_IDIOMS,
-} from "../engine/rules/common.generated";
+} from "../review/rules/common.generated";
 
 export class EnglishModalOfCorrectionRule implements GrammarRule {
   readonly id = "englishModalOfCorrection" as const;

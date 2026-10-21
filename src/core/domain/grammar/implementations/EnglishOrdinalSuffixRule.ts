@@ -2,7 +2,7 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export { ordinalSuffix } from "../engine/rules/common.generated";
+export { ordinalSuffix } from "../review/rules/common.generated";
 
 export class EnglishOrdinalSuffixRule implements GrammarRule {
   readonly id = "englishOrdinalSuffix" as const;

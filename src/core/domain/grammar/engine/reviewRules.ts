@@ -6,7 +6,7 @@ import type { ReviewMessageKey } from "../review/types";
 import { detectFrames, prepareFrames } from "./frameStyles";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
-import { RULE_DETECTORS, RULE_FILTERS, RULE_FIXERS } from "./rules/index.generated";
+import { RULE_DETECTORS, RULE_FILTERS, RULE_FIXERS } from "../review/rules/index.generated";
 import { primeFrameLiterals, WORD_START } from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
 import { tokenKey } from "./tokenizer";

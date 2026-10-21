@@ -5,7 +5,7 @@ import {
   pronounVerbLastWord,
   theirThereLastWord,
   yourWelcomeLastWord,
-} from "../engine/rules/common.generated";
+} from "./rules/common.generated";
 import { phraseCorrections } from "./englishPhraseCorrections";
 import { usePhraseRows } from "../library/common/engine";
 import { useEnFrameRules } from "../library/english/rules";

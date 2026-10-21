@@ -7,7 +7,7 @@ export {
   correctArticle,
   isArticleContext,
   SENTENCE_START_REGEX,
-} from "../engine/rules/common.generated";
+} from "../review/rules/common.generated";
 
 export class EnglishArticleAnCorrectionRule implements GrammarRule {
   readonly id = "englishArticleAnCorrection" as const;

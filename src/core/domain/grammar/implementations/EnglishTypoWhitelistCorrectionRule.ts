@@ -2,7 +2,7 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export { correctWhitelistedTypo } from "../engine/rules/common.generated";
+export { correctWhitelistedTypo } from "../review/rules/common.generated";
 
 export class EnglishTypoWhitelistCorrectionRule implements GrammarRule {
   readonly id = "englishTypoWhitelistCorrection" as const;

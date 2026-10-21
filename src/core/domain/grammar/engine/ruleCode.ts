@@ -1,7 +1,7 @@
 // The code of a rule file: its `sets`, `maps` and `defs` (of the file or of a rule), and the
 // `let`, `when` and `return` of its frames and rules. The compiler checks each expression and the
 // names it reads; the generator writes the code of each file into a typed module
-// (engine/rules/<file>.generated.ts).
+// (review/rules/<file>.generated.ts).
 import { checkExpression, defSignature, EXPRESSION_GLOBALS } from "./expressions";
 import type { FrameStyle } from "./types";
 

@@ -31,7 +31,7 @@ Then run `bun run compile:grammar`. The build runs the same step. No engine or d
 | `src/core/domain/grammar/rules/<lang>.yaml`           | The rules and phrase tables of one language (`en`, `de`, `pt_BR`, ...)                 |
 | `src/core/domain/grammar/engine/compiler.ts`          | Validates the files and compiles them (pure, also used by tests)                       |
 | `src/core/domain/grammar/engine/*.generated.ts`       | The compiled output. Do not edit                                                       |
-| `src/core/domain/grammar/engine/rules/*.generated.ts` | The code of each rule file (`<file>.live.generated.ts`: its typing rules). Do not edit |
+| `src/core/domain/grammar/review/rules/*.generated.ts` | The code of each rule file (`<file>.live.generated.ts`: its typing rules). Do not edit |
 | `src/core/domain/grammar/engine/expressions.ts`       | Checks the expressions of the rule files                                               |
 | `src/core/domain/grammar/engine/ruleCode.ts`          | The code of a rule file: names, bindings, conditions, kinds of function                |
 | `src/core/domain/grammar/library.ts`, `library/*.ts`  | The rule library: the only TypeScript that rule code calls                             |
@@ -279,7 +279,7 @@ A function def can also have `let`, `when`, `else` (what it gives when a `when` 
 
 An expression is a TypeScript expression: literals, regex and template literals, arrays and objects, member access, `?.`, `!`, `??`, `&&`, `||`, conditionals, comparisons, arithmetic, `in`, `typeof`, calls (also of methods that change a collection, such as `.add` or `.set`), arrow functions with an expression body, `as`, `satisfies`, and `new` for `Set`, `Map`, `WeakSet`, `WeakMap` and `RegExp`. Assignment, statements, `this`, classes and the properties `constructor`, `prototype`, `__proto__`, `call`, `apply` and `bind` are errors. A loop is a method such as `some`, `find` or `reduce`, or a recursive def. State kept between calls is a `Map`, `WeakMap` or `WeakSet` def.
 
-The compiler checks each expression and each name it reads. The generator writes the code of each rule file into a typed module (`engine/rules/<file>.generated.ts`), so `bun run typecheck` and `bun run lint` read every expression against the types of the library. An error in a generated module is an error in its rule file: the comment above each function names its rule and frame.
+The compiler checks each expression and each name it reads. The generator writes the code of each rule file into a typed module (`review/rules/<file>.generated.ts`), so `bun run typecheck` and `bun run lint` read every expression against the types of the library. An error in a generated module is an error in its rule file: the comment above each function names its rule and frame.
 
 In YAML, quote a value that starts with `!`, `[`, `{`, `*`, `&`, `|`, `>`, `'`, `"`, `%` or `@`, or that holds `: ` or ` #`. Single quotes keep backslashes as typed (`'/\p{L}+/u.test(word)'`).
 

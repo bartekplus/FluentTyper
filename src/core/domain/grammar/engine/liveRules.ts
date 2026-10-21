@@ -6,7 +6,7 @@ import type {
   GrammarRuleId,
 } from "../types";
 import { LIVE_PATTERNS, LIVE_RULES } from "./live.generated";
-import { RULE_LIVE } from "./rules/live-index.generated";
+import { RULE_LIVE } from "../review/rules/live-index.generated";
 import { findMatches, type PatternSet } from "./matcher";
 import { tokenize } from "./tokenizer";
 

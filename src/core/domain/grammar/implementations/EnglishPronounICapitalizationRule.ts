@@ -2,7 +2,7 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export { NON_PRONOUN_FOLLOWERS } from "../engine/rules/common.generated";
+export { NON_PRONOUN_FOLLOWERS } from "../review/rules/common.generated";
 
 export class EnglishPronounICapitalizationRule implements GrammarRule {
   readonly id = "englishPronounICapitalization" as const;

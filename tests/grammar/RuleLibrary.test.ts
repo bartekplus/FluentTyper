@@ -48,7 +48,7 @@ test("the rule library never loads the engine or the generated rule modules (no 
   // The generated rule modules read library values when they load: a library module that
   // loads them (through any chain of value imports) makes an import cycle.
   const engine =
-    /engine\/(?:reviewRules|liveRules|rules\/[^/]+\.generated)\.ts$|review\/reviewDetectors\.ts$/;
+    /engine\/(?:reviewRules|liveRules)\.ts$|review\/rules\/[^/]+\.generated\.ts$|review\/reviewDetectors\.ts$/;
   const transpiler = new Bun.Transpiler({ loader: "ts" });
   const offenders: string[] = [];
   const chainTo = (file: string, seen: Set<string>): string[] | null => {
@@ -72,9 +72,9 @@ test("the rule library never loads the engine or the generated rule modules (no 
 
 test("the typing rules load no Review code: the content scripts stay small", () => {
   // engine/liveRules.ts runs in the content scripts. It loads the typing rules of the rule files
-  // (rules/<file>.live.generated.ts), never their Review code or a language's library file.
+  // (review/rules/<file>.live.generated.ts), never their Review code or a language's library file.
   const review =
-    /engine\/rules\/(?!live-index)[^/]+(?<!\.live)\.generated\.ts$|library\/(?:english|german|french|spanish|polish|portuguese|arabic|greek|swedish)(?:\.ts|\/)/;
+    /review\/rules\/(?!live-index)[^/]+(?<!\.live)\.generated\.ts$|library\/(?:english|german|french|spanish|polish|portuguese|arabic|greek|swedish)(?:\.ts|\/)/;
   const transpiler = new Bun.Transpiler({ loader: "ts" });
   const seen = new Set<string>();
   const loads: string[] = [];

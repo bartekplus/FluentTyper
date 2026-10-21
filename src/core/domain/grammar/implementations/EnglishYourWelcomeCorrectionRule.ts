@@ -2,7 +2,7 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export { correctYourWelcome, YOUR_WELCOME_REGEX } from "../engine/rules/common.generated";
+export { correctYourWelcome, YOUR_WELCOME_REGEX } from "../review/rules/common.generated";
 
 export class EnglishYourWelcomeCorrectionRule implements GrammarRule {
   readonly id = "englishYourWelcomeCorrection" as const;

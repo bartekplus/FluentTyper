@@ -5,7 +5,7 @@ import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 export {
   normalizeContractionInContext,
   normalizeContractionToken,
-} from "../engine/rules/common.generated";
+} from "../review/rules/common.generated";
 
 export class EnglishContractionNormalizationRule implements GrammarRule {
   readonly id = "englishContractionNormalization" as const;

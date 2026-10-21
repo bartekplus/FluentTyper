@@ -28,7 +28,7 @@ const REVIEW_DIR = path.join(ROOT, "src/core/domain/grammar/review");
 /** The rule library, the only code that rule expressions call. */
 const LIBRARY = path.join(ROOT, "src/core/domain/grammar/library.ts");
 /** The generated rule modules: the code of each rule file. */
-const RULES_OUT = path.join(ENGINE_DIR, "rules");
+const RULES_OUT = path.join(REVIEW_DIR, "rules");
 /** The folder of each language with Review data: its phrase tables ship in that data. */
 const DATA_FOLDERS: Record<(typeof REVIEW_DATA_LANGUAGES)[number], string> = {
   ar: "arabic",
@@ -46,9 +46,9 @@ const HEADER =
 
 /** The rule library's names, each with the library file that exports it. */
 export interface Library {
-  /** Value name -> module path from engine/rules/ ("../../library/typing"). */
+  /** Value name -> module path from review/rules/ ("../../library/typing"). */
   readonly values: ReadonlyMap<string, string>;
-  /** Type name -> module path from engine/rules/. */
+  /** Type name -> module path from review/rules/. */
   readonly types: ReadonlyMap<string, string>;
 }
 
@@ -441,8 +441,10 @@ function codeModule(
   const records_ = kinds.filter((kind) => kind !== "live" || records.has("live"));
   const engineTypes = records_.filter((kind) => kind !== "live").map((kind) => RECORDS[kind][1]);
   const imports = [
-    engineTypes.length ? `import type { ${engineTypes.join(", ")} } from "../reviewRules";` : "",
-    records_.includes("live") ? `import type { LiveCode } from "../liveRules";` : "",
+    engineTypes.length
+      ? `import type { ${engineTypes.join(", ")} } from "../../engine/reviewRules";`
+      : "",
+    records_.includes("live") ? `import type { LiveCode } from "../../engine/liveRules";` : "",
     ...[...byFile]
       .sort(([a], [b]) => a.localeCompare(b))
       .flatMap(([from, { values, types }]) => [
@@ -507,7 +509,7 @@ function ruleModules(
 /** The index of the generated Review modules: their functions by rule file. */
 function ruleIndexModule(names: readonly string[]): string {
   const records = (["fixer", "filter", "detector"] as const).map((kind) => RECORDS[kind]);
-  return `${HEADER}import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
+  return `${HEADER}import type { AnyFixer, Detector, FindingsFilter } from "../../engine/reviewRules";
 ${names.map((name) => `import * as ${name} from "./${name}.generated";`).join("\n")}
 
 ${records
@@ -521,7 +523,7 @@ ${records
 
 /** The index of the typing rules with code: the content scripts load it, not the Review code. */
 function liveIndexModule(names: readonly string[]): string {
-  return `${HEADER}import type { LiveCode } from "../liveRules";
+  return `${HEADER}import type { LiveCode } from "../../engine/liveRules";
 ${names.map((name) => `import { LIVE as ${name} } from "./${name}.live.generated";`).join("\n")}
 
 /** The typing rules with code, by rule file and name ("@<rule id>"). */

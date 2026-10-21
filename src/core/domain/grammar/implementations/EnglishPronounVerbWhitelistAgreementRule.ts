@@ -9,7 +9,7 @@ export {
   isObjectYou,
   isVariableI,
   PREVIOUS_WORD,
-} from "../engine/rules/common.generated";
+} from "../review/rules/common.generated";
 
 export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
   readonly id = "englishPronounVerbWhitelistAgreement" as const;

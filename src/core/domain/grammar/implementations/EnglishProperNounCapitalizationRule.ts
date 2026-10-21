@@ -7,7 +7,7 @@ export {
   findProperName,
   isMonthInContext,
   properNameReplacement,
-} from "../engine/rules/common.generated";
+} from "../review/rules/common.generated";
 
 export class EnglishProperNounCapitalizationRule implements GrammarRule {
   readonly id = "englishProperNounCapitalization" as const;
