@@ -205,6 +205,11 @@ export interface RuleSpec {
   style?: FrameStyle;
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
+  /**
+   * Consecutive Review rules of one group run as one detector: their findings join in order,
+   * and a rule that throws stops the group and drops its findings (as one composite check).
+   */
+  group?: string;
 }
 
 /** A phrase table: "typed = fix" rows; "a | b = fix" for typed variants, "fix1; fix2" for choices. */
@@ -280,6 +285,7 @@ export interface CompiledRule {
   /** "<file>:<name>" of a named findings filter. */
   filter?: string;
   cacheable?: true;
+  group?: string;
   /** The rule file it came from ("common", "en", "de", ...). */
   source: string;
 }

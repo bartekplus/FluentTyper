@@ -188,7 +188,7 @@ export function buildReviewDetectors(
   fixers: ReviewFixers = {},
   filters: ReviewFilters = {},
 ): ReviewDetectorEntry[] {
-  return REVIEW_RULES.map((rule) => {
+  const entries = REVIEW_RULES.map((rule) => {
     let detect: Detector;
     if (rule.pattern !== undefined) detect = patternDetector(rule.pattern);
     else if (rule.frames !== undefined) detect = frameRuleDetector(rule.id, fixers, filters);
@@ -206,4 +206,37 @@ export function buildReviewDetectors(
     };
     return rule.cacheable ? cacheable(entry) : entry;
   });
+  return grouped(entries);
+}
+
+/**
+ * Consecutive entries of one rule group (same file, same `group`) as one entry: the parts run
+ * in order and their findings join; a part that throws stops the group, as one composite check.
+ */
+function grouped(entries: ReviewDetectorEntry[]): ReviewDetectorEntry[] {
+  const out: ReviewDetectorEntry[] = [];
+  for (let i = 0; i < entries.length;) {
+    const group = REVIEW_RULES[i].group;
+    let end = i + 1;
+    while (
+      group !== undefined &&
+      end < entries.length &&
+      REVIEW_RULES[end].group === group &&
+      REVIEW_RULES[end].source === REVIEW_RULES[i].source
+    )
+      end++;
+    if (end === i + 1) out.push(entries[i]);
+    else {
+      const parts = entries.slice(i, end);
+      const rules = [...new Set(parts.flatMap((part) => part.rules))];
+      out.push({
+        rules,
+        detect: (ctx) => parts.flatMap((part) => part.detect(ctx)),
+        lang: parts[0].lang,
+        source: parts[0].source,
+      });
+    }
+    i = end;
+  }
+  return out;
 }

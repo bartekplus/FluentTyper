@@ -33,9 +33,23 @@ test("the Review detectors are the compiled rules, in order", () => {
   const compiled = REVIEW_DETECTORS.filter((entry) => entry.source !== undefined);
   const shape = (checks: readonly string[], lang?: string, source?: string) =>
     `${checks.join(",")} ${lang ?? "*"} ${source}`;
-  expect(compiled.map((entry) => shape(entry.rules, entry.lang, entry.source))).toEqual(
-    REVIEW_RULES.map((rule) => shape(rule.checks, rule.lang, rule.source)),
-  );
+  // Consecutive rules of one group (same file) are one detector, with the checks of its rules.
+  const expected: string[] = [];
+  for (let i = 0; i < REVIEW_RULES.length;) {
+    const rule = REVIEW_RULES[i];
+    let end = i + 1;
+    while (
+      rule.group !== undefined &&
+      end < REVIEW_RULES.length &&
+      REVIEW_RULES[end].group === rule.group &&
+      REVIEW_RULES[end].source === rule.source
+    )
+      end++;
+    const checks = [...new Set(REVIEW_RULES.slice(i, end).flatMap((part) => part.checks))];
+    expected.push(shape(checks, rule.lang, rule.source));
+    i = end;
+  }
+  expect(compiled.map((entry) => shape(entry.rules, entry.lang, entry.source))).toEqual(expected);
   // A language file's rule runs only for its language, unless it names another one.
   for (const entry of compiled)
     if (entry.source !== "common" && entry.source !== "en")

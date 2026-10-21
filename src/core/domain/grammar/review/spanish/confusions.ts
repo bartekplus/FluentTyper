@@ -546,8 +546,7 @@ const confusions = atToken((ctx, tokens, i) => {
   }
   // Existential "haber" has no plural: "han habido quejas" is "ha habido"; "han habido de
   // irse" (haber de + infinitive, had to) agrees with its subject.
-  // An own key only: "constructor" is no form of "haber".
-  const singular = Object.hasOwn(PLURAL_HABER, token.lower) ? PLURAL_HABER[token.lower] : null;
+  const singular = PLURAL_HABER[token.lower];
   if (singular && at.next() === "habido" && at.next(2) !== "de") {
     const span = {
       ...token,
@@ -577,7 +576,7 @@ const confusions = atToken((ctx, tokens, i) => {
       tokens[i + 2],
     );
   }
-  const check = Object.hasOwn(CHECKS, token.lower) ? CHECKS[token.lower] : undefined;
+  const check = CHECKS[token.lower];
   const fixes = check?.(at);
   if (!fixes) return null;
   return replaceToken(ctx, token, fixes, RULE, "review_msg_spanish_confusion", tokens[i + 1]);

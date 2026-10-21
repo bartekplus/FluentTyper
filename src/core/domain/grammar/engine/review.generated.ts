@@ -2412,6 +2412,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1402],
     message: "review_msg_spanish_accent",
     style: "match",
+    group: "spanishAccents",
     source: "es",
   },
   {
@@ -2421,6 +2422,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1403],
     message: "review_msg_spanish_accent",
     style: "match",
+    group: "spanishAccents",
     source: "es",
   },
   {
@@ -2430,6 +2432,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1404],
     message: "review_msg_spanish_accent",
     style: "match",
+    group: "spanishAccents",
     source: "es",
   },
   {
@@ -2439,6 +2442,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1405],
     message: "review_msg_spanish_interrogative",
     style: "match",
+    group: "spanishAccents",
     source: "es",
   },
   {
@@ -2448,6 +2452,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1406],
     message: "review_msg_spanish_accent",
     style: "match",
+    group: "spanishAccents",
     source: "es",
   },
   {
@@ -2457,6 +2462,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1407, 1408, 1409, 1410],
     message: "review_msg_spanish_confusion",
     style: "match",
+    group: "spanishConfusions",
     source: "es",
   },
   {
@@ -2466,6 +2472,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1411],
     message: "review_msg_spanish_verb_form",
     style: "match",
+    group: "spanishConfusions",
     source: "es",
   },
   {
@@ -2475,6 +2482,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1412],
     message: "review_msg_closed_compound",
     style: "match",
+    group: "spanishConfusions",
     source: "es",
   },
   {
@@ -2484,6 +2492,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1413],
     message: "review_msg_closed_compound",
     style: "match",
+    group: "spanishConfusions",
     source: "es",
   },
   {
@@ -2493,6 +2502,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1414],
     message: "review_msg_closed_compound",
     style: "match",
+    group: "spanishConfusions",
     source: "es",
   },
   {
@@ -2502,6 +2512,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1415],
     message: "review_msg_spanish_confusion",
     style: "match",
+    group: "spanishConfusions",
     source: "es",
   },
   {
@@ -2511,6 +2522,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1416],
     message: "review_msg_spanish_confusion",
     style: "match",
+    group: "spanishConfusions",
     source: "es",
   },
   {
@@ -2520,6 +2532,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1417],
     message: "review_msg_spanish_confusion",
     style: "match",
+    group: "spanishConfusions",
     source: "es",
   },
   {
@@ -2529,6 +2542,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1418],
     message: "review_msg_spanish_conjunction",
     style: "match",
+    group: "spanishTypography",
     source: "es",
   },
   {
@@ -2538,6 +2552,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1419, 1420, 1421],
     message: "review_msg_spanish_date",
     style: "match",
+    group: "spanishTypography",
     source: "es",
   },
   {
@@ -2547,6 +2562,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1422],
     message: "review_msg_spanish_date",
     style: "match",
+    group: "spanishTypography",
     source: "es",
   },
   {
@@ -2559,6 +2575,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     message: "review_msg_spanish_abbreviation_period",
     style: "match",
+    group: "spanishTypography",
     source: "es",
   },
   {
@@ -2568,6 +2585,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1446],
     message: "review_msg_spanish_comma",
     style: "match",
+    group: "spanishTypography",
     source: "es",
   },
   {
@@ -2577,6 +2595,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1447, 1448],
     message: "review_msg_space_after_mark",
     style: "match",
+    group: "commaPeriodSpacing",
     source: "es",
   },
   {
@@ -2584,6 +2603,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     checks: ["commaPeriodSpacing"],
     lang: "es",
     predicate: "es:quoteSpaces",
+    group: "commaPeriodSpacing",
     source: "es",
   },
   {
@@ -2594,6 +2614,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     message: "review_msg_spanish_dialogue_dash",
     style: "match",
     filter: "es:firstAtStart",
+    group: "emdashShortcut",
     source: "es",
   },
   {
@@ -2603,6 +2624,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1451],
     message: "review_msg_range_dash",
     style: "match",
+    group: "emdashShortcut",
     source: "es",
   },
   {
@@ -2621,6 +2643,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1455],
     message: "review_msg_spanish_agreement",
     style: "match",
+    group: "spanishAgreement",
     source: "es",
   },
   {
@@ -2631,6 +2654,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     message: "review_msg_spanish_verb_agreement",
     style: "match",
     filter: "es:attributeFirst",
+    group: "spanishAgreement",
     source: "es",
   },
   {
@@ -2640,6 +2664,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1458],
     message: "review_msg_spanish_impersonal_haber",
     style: "match",
+    group: "spanishAgreement",
     source: "es",
   },
   {
@@ -2649,6 +2674,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1459],
     message: "review_msg_spanish_agreement",
     style: "match",
+    group: "spanishAgreement",
     source: "es",
   },
   {
@@ -17131,7 +17157,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas)(?![\\p{L}\\p{M}])",
+      "(?:constructor|qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas)(?![\\p{L}\\p{M}])",
     literals: [],
     fixer: "es:diacritics",
     flags: "giu",
@@ -17161,7 +17187,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy)(?![\\p{L}\\p{M}])",
+      "(?:constructor|a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy)(?![\\p{L}\\p{M}])",
     literals: [],
     fixer: "es:confusions",
     flags: "giu",

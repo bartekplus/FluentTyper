@@ -93,6 +93,7 @@ const RULE_KEYS = new Set<keyof RuleSpec>([
   "frames",
   "style",
   "filter",
+  "group",
 ]);
 const FRAME_KEYS = new Set([
   "regex",
@@ -474,6 +475,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         ...(lang ? { lang } : {}),
         predicate: spec.predicate.includes(":") ? spec.predicate : `${name}:${spec.predicate}`,
         ...(spec.cacheable ? { cacheable: true as const } : {}),
+        ...(spec.group === undefined ? {} : { group: spec.group }),
         source: name,
       });
       continue;
@@ -614,6 +616,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ? {}
           : { filter: spec.filter.includes(":") ? spec.filter : `${name}:${spec.filter}` }),
         ...(spec.cacheable ? { cacheable: true as const } : {}),
+        ...(spec.group === undefined ? {} : { group: spec.group }),
         source: name,
       });
       continue;
