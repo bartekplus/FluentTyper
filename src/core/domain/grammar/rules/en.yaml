@@ -2256,7 +2256,7 @@ rules:
       - regex: "one{{S}}(?<target>to){{S}}many{{S}}(?<noun>[a-z]+){{E}}"
         fixer: degreeOneToMany
       # A sentence opening "To late." or "To bad that…", also after an interjection ("Ah to late").
-      - regex: "(?<target>[Tt]o){{S}}(?<word>[a-z]+){{E}}"
+      - regex: "(?<target>to){{S}}(?<word>[a-z]+){{E}}"
         fixer: degreeOpening
   - id: en.existentialCount
     checks: [englishExistentialAgreement, englishNounNumber]

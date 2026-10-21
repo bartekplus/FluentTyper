@@ -9658,7 +9658,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     fixer: "en:degreeOneToMany",
   }),
   frame({
-    pattern: "(?<target>[Tt]o)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    pattern: "(?<target>to)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "en:degreeOpening",
   }),
