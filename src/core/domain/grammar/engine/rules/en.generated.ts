@@ -31,6 +31,7 @@ import {
   enWordBefore,
   enWordsAfter,
   englishInflect,
+  englishInitialSound,
   englishLemma,
   englishLexiconInflect,
   englishVerbForms,
@@ -38,6 +39,7 @@ import {
   englishWordInfo,
   finding,
   hasUserOrCasedWord,
+  knownEnglishNounNumber,
 } from "../../library";
 import { NOUN_LIKE_ING, isoDateWarning } from "./common.generated";
 
@@ -756,6 +758,204 @@ export function noNotDoSupport(
       );
 }
 
+// en.yaml rule en.sentenceFragments def WC_SUBORDINATOR
+export const WC_SUBORDINATOR =
+  /^(?:because|although|though|when|whenever|after|before|since|unless|while|whereas|until|if|(?:so|even)[ \t ,]+(?:if|though)|so[ \t ,]+even[ \t ]+if|so[ \t ]+that|in[ \t ]+order[ \t ]+that|provided[ \t ]+that|even[ \t ]+if|even[ \t ]+though)$/i;
+
+// en.yaml rule en.sentenceFragments def WC_FINITE_AUX
+export const WC_FINITE_AUX =
+  /^(?:is|are|was|were|am|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must|isn't|aren't|wasn't|weren't|hasn't|haven't|hadn't|don't|doesn't|didn't|won't|can't|couldn't|wouldn't|shouldn't|cannot)$/;
+
+// en.yaml rule en.sentenceFragments def wcFiniteAt
+export function wcFiniteAt(tokens: EnToken[], i: number) {
+  const t = tokens[i];
+  const w = t.lower.replaceAll("’", "'");
+  const prev = tokens[i - 1]?.lower ?? "";
+  return t.kind !== "word"
+    ? 0
+    : WC_FINITE_AUX.test(w)
+      ? 1
+      : EN_FUNCTION_WORDS.has(w) ||
+          /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|to|some|any|no)$/.test(
+            prev,
+          )
+        ? 0
+        : wcFiniteRead(w, prev);
+}
+
+// en.yaml rule en.sentenceFragments def wcFiniteRead
+export function wcFiniteRead(word: string, prev: string) {
+  const read = englishWordInfo(word);
+  return !read
+    ? 0
+    : read.verbs.some((v) => v.form === "third" || v.form === "past")
+      ? 1
+      : /^(?:i|you|we|they)$/.test(prev) && read.verbs.some((v) => v.form === "base")
+        ? 1
+        : 0;
+}
+
+// en.yaml rule en.forwardPreposition def wcAwaitedAfter
+export function wcAwaitedAfter(ctx: DetectContext, end: number) {
+  const after = enTokensAfter(ctx, end, 1)[0];
+  return (
+    after?.kind === "word" &&
+    /^(?:reply|response|answer|meeting|visit|call|news|results|weekend|holidays?|trip|event|release|launch|concert|party|game)$/.test(
+      after.lower,
+    )
+  );
+}
+
+// en.yaml rule en.itForIs def WC_INDEFINITE
+export const WC_INDEFINITE =
+  /^(?:nothing|everything|something|anything|everyone|someone|anyone|nobody)$/;
+
+// en.yaml rule en.itForIs def wcNounSubject
+export function wcNounSubject(ctx: DetectContext, m: RegExpExecArray, before: string) {
+  const run = /([A-Za-z]+)[ \t ]+([A-Za-z]+)[ \t ]+$/.exec(
+    ctx.text.slice(Math.max(0, m.index - 40), m.index),
+  );
+  const det = run?.[1].toLowerCase() ?? "";
+  return (
+    WC_INDEFINITE.test(before) ||
+    (before === "else" && WC_INDEFINITE.test(det)) ||
+    (/^(?:the|an|a|my|your|our|their|this)$/.test(det) &&
+      (enNounOnly(before) === "singular" ||
+        (!!englishWordInfo(before)?.noun && !englishWordInfo(before)?.plural)))
+  );
+}
+
+// en.yaml rule en.existentialSingular def WC_THERE_CUE
+export const WC_THERE_CUE =
+  /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:if|when|whether|that|because|since|so|and|but|then|where|as|while|now|also|still|think|hope|said)[ \t ]+)$/i;
+
+// en.yaml rule en.existentialSingular def WC_QUANTITY_NOUNS
+export const WC_QUANTITY_NOUNS =
+  /^(?:lot|lots|few|couple|number|bunch|variety|range|host|dozen|handful|pair|series|total|majority|minority|plethora|myriad|set|group|ton|tons|load|loads|deal|million|thousand|hundred|billion|half|third|quarter|percent|kind|type|sort|mix|collection|list|wealth|multitude|crowd|team|family|pack|flock|herd|batch|selection|combination)$/;
+
+// en.yaml rule en.existentialSingular def WC_NUMBER_WORD
+export const WC_NUMBER_WORD =
+  /^(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred|none|plenty)$/;
+
+// en.yaml rule en.existentialSingular def WC_BARE_TAIL
+export const WC_BARE_TAIL =
+  /^(?:in|on|at|with|for|about|that|which|when|where|from|to|outside|inside|whether|under|around)$/;
+
+// en.yaml rule en.existentialSingular def wcAdjectiveSkip
+export function wcAdjectiveSkip(tokens: EnToken[], k: number): number {
+  return k < 3 &&
+    tokens[k + 1]?.kind === "word" &&
+    englishWordInfo(tokens[k].lower)?.adjective &&
+    !englishWordInfo(tokens[k].lower)?.noun
+    ? wcAdjectiveSkip(tokens, k + 1)
+    : k;
+}
+
+// en.yaml rule en.existentialSingular def wcBareExistential
+export function wcBareExistential(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  noun: string,
+  plural: string,
+  next: EnToken | undefined,
+  headEnd: number,
+  singularVerb: string,
+): RawFinding | null {
+  const verb = m.groups!.verb;
+  if (verb === "exist" || knownEnglishNounNumber(noun)) return null;
+  if (
+    !next ||
+    !(
+      next.kind === "end" ||
+      next.kind === "comma" ||
+      (next.kind === "word" && WC_BARE_TAIL.test(next.lower))
+    )
+  )
+    return null;
+  const a = englishInitialSound(noun) === "vowel" ? "an" : "a";
+  return {
+    ruleId: "englishExistentialAgreement",
+    messageKey: "review_msg_existential_agreement",
+    range: { start: m.indices!.groups!.verb[0], end: headEnd },
+    alternatives: [`${singularVerb} ${a} ${noun}`, `${verb} ${plural}`],
+    requiresChoice: true,
+    context: enEvidence(ctx, m.index, headEnd),
+  };
+}
+
+// en.yaml rule en.modalQuestionForms def WC_ADVERBIAL_NOUNS
+export const WC_ADVERBIAL_NOUNS =
+  /^(?:today|tomorrow|tonight|yesterday|everyday|anytime|sometime|someday|meantime|sir|madam|maam|guys|folks|everyone|everybody|someone|somebody|anyone|anybody|something|anything|everything|nothing|nobody|home|tho|lol|btw|pls|plz|thanks|mom|mum|dad|mother|father|honey|dear|darling|babe|baby|bro|dude|man|buddy|mate|son|kid|nowhere|anywhere|everywhere|somewhere|auto)$/;
+
+// en.yaml rule en.modalQuestionForms def WC_FIXED_INVERSION
+export const WC_FIXED_INVERSION = /^(?:come|dare|say|be|need|ought|used)$/;
+
+// en.yaml rule en.modalQuestionForms def wcClosesAfter
+export function wcClosesAfter(t: EnToken | undefined) {
+  return (
+    !t ||
+    t.kind === "end" ||
+    (t.kind === "word" &&
+      (t.text !== t.lower ||
+        /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|to|for|as|with|at|by|from|me|him|us|them|it)$/.test(
+          t.lower,
+        )))
+  );
+}
+
+// en.yaml rule en.modalQuestionForms def wcFinite
+export function wcFinite(word: string): { lemma: string; tense: "base" | "third" | "past" } | null {
+  const forms = englishVerbForms(word);
+  return forms
+    ? forms.past === word && forms.past !== forms.lemma
+      ? { lemma: forms.lemma, tense: "past" }
+      : forms.third === word
+        ? { lemma: forms.lemma, tense: "third" }
+        : forms.lemma === word
+          ? { lemma: word, tense: "base" }
+          : null
+    : wcReadTense(word);
+}
+
+// en.yaml rule en.modalQuestionForms def wcReadTense
+export function wcReadTense(
+  word: string,
+): { lemma: string; tense: "base" | "third" | "past" } | null {
+  const verb = englishWordInfo(word)?.verbs.find(
+    (v) => v.form === "past" || v.form === "third" || v.form === "base",
+  );
+  if (!verb) return null;
+  if (verb.form === "base" && verb.lemma !== word) return null;
+  return { lemma: verb.lemma, tense: verb.form as "base" | "third" | "past" };
+}
+
+// en.yaml rule en.sinceWithSimpleTense def wcParticipleOf
+export function wcParticipleOf(lemma: string) {
+  const forms = englishVerbForms(lemma);
+  return forms?.lemma === lemma ? forms.participle : englishInflect(lemma, "past");
+}
+
+// en.yaml rule en.sinceWithSimpleTense def wcSincePerfect
+export function wcSincePerfect(word: string, subject: string, singular: boolean, have: string) {
+  return /^(?:am|is|are|was|were)$/.test(word)
+    ? (word === "am" && subject !== "i") || (word === "is" && !singular)
+      ? null
+      : `${have} been`
+    : EN_FUNCTION_WORDS.has(word)
+      ? null
+      : wcFinitePerfect(word, singular, have);
+}
+
+// en.yaml rule en.sinceWithSimpleTense def wcFinitePerfect
+export function wcFinitePerfect(word: string, singular: boolean, have: string) {
+  const read = wcFinite(word);
+  if (!read || (read.tense === "third" && !singular) || (read.tense === "base" && singular))
+    return null;
+  const participle = wcParticipleOf(read.lemma);
+  if (!participle) return null;
+  return `${have} ${participle}`;
+}
+
 // en.yaml rule en.clauseFrames def CLAUSE_VERB_LIKE
 export const CLAUSE_VERB_LIKE = /\b(?!(?:he|she|it|they|we|you|i)\b)[a-z]+[ \t ]{1,8}like\b/i;
 
@@ -1410,6 +1610,322 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
           { context: enEvidence(ctx, m.index, verbEnd) },
         )
       : noNotDoSupport(ctx, m, verb, why, next);
+  },
+  // en.yaml rule en.sentenceFragments frame 1
+  "@en.sentenceFragments/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(/^[A-Z]/.test(target) && enAfterBreak(ctx, m.index) && WC_SUBORDINATOR.test(target)))
+      return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 30);
+    const end = tokens.findIndex((t) => t.kind !== "word" && t.kind !== "number");
+    const stop = tokens[end];
+    if (end < 2 || stop?.kind !== "end" || stop.text !== ".") return null;
+    if (/^\.\./.test(ctx.text.slice(stop.start, stop.start + 2))) return null;
+    const clause = tokens.slice(0, end);
+    const first = clause[0].lower;
+    const subjectStart =
+      /^(?:i|you|he|she|it|we|they|there|someone|everyone|nobody|nothing|everything|something)$/.test(
+        first,
+      ) ||
+      (/^(?:the|my|your|his|her|our|their|this|these|those|a|an|every|each|some)$/.test(first) &&
+        clause.length > 2) ||
+      (clause[0].text !== first && !englishWordInfo(first));
+    if (!subjectStart || first === "only") return null;
+    if (
+      !/^(?:i|you|he|she|it|we|they)$/.test(first) &&
+      clause.slice(1).some((t) => /^(?:i|you|he|she|we|they)$/.test(t.lower))
+    )
+      return null;
+    if (!(clause.reduce((count, t, i) => count + wcFiniteAt(clause, i), 0) === 1)) return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "englishSentenceFragment",
+      "review_msg_sentence_fragment",
+      span[0],
+      span[1],
+      [],
+      { warningOnly: true, context: enEvidence(ctx, m.index, stop.end) },
+    );
+  },
+  // en.yaml rule en.sentenceFragments frame 2
+  "@en.sentenceFragments/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const range = m.indices!.groups!.target ?? m.indices!.groups!.target2;
+    return {
+      ruleId: "englishSentenceFragment",
+      messageKey: "review_msg_sentence_fragment",
+      range: { start: range[0], end: m.index + m[0].length },
+      alternatives: [],
+      warningOnly: true,
+      context: enEvidence(ctx, m.index, m.index + m[0].length),
+    };
+  },
+  // en.yaml rule en.forwardPreposition frame 1
+  "@en.forwardPreposition/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const wrong = m.groups!.wrong;
+    const next = m.groups!.next;
+    const owned =
+      /^(?:your|our|their|his|her|my|the|seeing|hearing|meeting|working|receiving|reading|talking|speaking|getting|having)$/.test(
+        next,
+      );
+    if (!owned || (wrong && !/ing$/.test(next) && wrong !== "of")) return null;
+    if (!wrong && !/^(?:your|our|their|his|her|my|the)$/.test(next) && !/ing$/.test(next))
+      return null;
+    if (!(
+      !(!wrong && /^(?:the|his|her|my)$/.test(next)) || wcAwaitedAfter(ctx, m.index + m[0].length)
+    ))
+      return null;
+    const span = m.indices!.groups!.target;
+    return {
+      ruleId: "englishFixedPrepositions",
+      messageKey: "review_msg_fixed_prepositions",
+      range: { start: span[0], end: span[1] },
+      alternatives: ["forward to"],
+      context: enEvidence(ctx, m.index, m.index + m[0].length),
+    };
+  },
+  // en.yaml rule en.bareBitArticles frame 1
+  "@en.bareBitArticles/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const next = m.groups!.next;
+    if (/^(?:by|hard|badly|again|twice|once|while|when)$/.test(next)) return null;
+    const read = englishWordInfo(next);
+    const degree = /^(?:too|more|less|late|early|much|of)$/.test(next);
+    const adjective =
+      !!read &&
+      (read.adjective || read.verbs.some((v) => v.form === "participle")) &&
+      !read.noun &&
+      !read.verbs.some((v) => v.form === "base" || v.form === "third") &&
+      !/ly$/.test(next);
+    if (!(degree || adjective)) return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "englishSentenceStructure",
+      "review_msg_sentence_structure",
+      span[0],
+      span[1],
+      ["a bit"],
+      { context: enEvidence(ctx, m.index, m.index + m[0].length) },
+    );
+  },
+  // en.yaml rule en.bareBitArticles frame 2
+  "@en.bareBitArticles/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const noun = m.groups!.noun;
+    if (!(first.toLowerCase() !== second.toLowerCase())) return null;
+    if (
+      second !== second.toLowerCase() ||
+      /^(?:priori|posteriori|fortiori|la|capella|cappella)$/.test(noun)
+    )
+      return null;
+    if (
+      /^an?$/.test(second) &&
+      /^(?:key|button|letter|variable|vowel|grade|side|string|column|field|sound|note|chord|word|team|list|level|version|type|class|series|plus|minus|major|minor|flat|sharp|grader|student|rating|score)$/.test(
+        noun,
+      )
+    )
+      return null;
+    if (first !== first.toLowerCase() && !enAfterBreak(ctx, m.index)) return null;
+    const read = englishWordInfo(noun);
+    if (!read || !(read.noun || read.adjective) || EN_FUNCTION_WORDS.has(noun)) return null;
+    const article = englishInitialSound(noun) === "vowel" ? "an" : "a";
+    const alternatives = [
+      ...new Set(
+        [first, second]
+          .map((d) => (/^an?$/i.test(d) ? article : d.toLowerCase()))
+          .map((word) => (/^[A-Z]/.test(first) ? word[0].toUpperCase() + word.slice(1) : word)),
+      ),
+    ];
+    return finding(
+      "englishSentenceStructure",
+      "review_msg_determiner_clash",
+      m.indices!.groups!.first[0],
+      m.indices!.groups!.second[1],
+      alternatives,
+      {
+        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+        context: enEvidence(ctx, m.index, m.index + m[0].length),
+      },
+    );
+  },
+  // en.yaml rule en.itForIs frame 1
+  "@en.itForIs/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const next = m.groups!.next;
+    const before = enWordBefore(ctx, m.index);
+    if (!before) return null;
+    const subject = /^(?:this|that)$/.test(before)
+      ? /^(?:the|a|an|not)$/.test(next) && enAfterBreak(ctx, m.index - before.length - 1)
+      : wcNounSubject(ctx, m, before);
+    if (!subject) return null;
+    if (
+      /^(?:way|time|place|day|reason|moment|amount|speed|rate|extent|year|night|morning)$/.test(
+        before,
+      )
+    )
+      return null;
+    const read = englishWordInfo(next);
+    const predicate =
+      next === "not" ||
+      /^(?:the|a|an)$/.test(next) ||
+      (!!read?.verbs.some((v) => v.form === "ing") && !read.noun) ||
+      (!!read?.adjective && !read.noun && !read.verbs.length && !/ly$/.test(next));
+    if (!predicate) return null;
+    const span = m.indices!.groups!.target;
+    return finding("englishConfusedWords", "review_msg_confused_word", span[0], span[1], ["is"], {
+      context: enEvidence(ctx, m.index, m.index + m[0].length),
+    });
+  },
+  // en.yaml rule en.existentialSingular frame 1
+  "@en.existentialSingular/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (!WC_THERE_CUE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 14);
+    const article = /^an?$/.test(tokens[0]?.lower ?? "");
+    const k = article ? wcAdjectiveSkip(tokens, 1) : 0;
+    const head = tokens[k];
+    if (!(head?.kind === "word" && head.text === head.lower && !ctx.dictionary.has(head.lower)))
+      return null;
+    const noun = head.lower;
+    if (EN_FUNCTION_WORDS.has(noun) || WC_QUANTITY_NOUNS.test(noun) || WC_NUMBER_WORD.test(noun))
+      return null;
+    const number = enNounNumber(noun);
+    if (number?.number !== "singular" || number.singular === number.plural) return null;
+    const read = englishWordInfo(noun);
+    if (read?.adjective || read?.verbs.some((v) => v.form !== "base")) return null;
+    const next = tokens[k + 1];
+    if (next?.kind === "word" && /^(?:of|and|or|nor|that|which|who)$/.test(next.lower)) return null;
+    if (
+      next?.kind === "word" &&
+      !EN_FUNCTION_WORDS.has(next.lower) &&
+      (enNounOnly(next.lower) || englishWordInfo(next.lower)?.noun)
+    )
+      return null;
+    const clauseRest = /^[^.!?;]*/.exec(ctx.text.slice(head.end, head.end + 200))![0];
+    if (/,|&|\b(?:and|or)\b/i.test(clauseRest)) return null;
+    const singularVerb = verb === "exist" ? "exists" : verb === "were" ? "was" : "is";
+    const span = m.indices!.groups!.verb;
+    return article
+      ? {
+          ruleId: "englishExistentialAgreement",
+          messageKey: "review_msg_existential_agreement",
+          range: { start: span[0], end: span[1] },
+          alternatives: [singularVerb],
+          context: enEvidence(ctx, m.index, head.end),
+        }
+      : wcBareExistential(ctx, m, noun, number.plural, next, head.end, singularVerb);
+  },
+  // en.yaml rule en.modalQuestionForms frame 1
+  "@en.modalQuestionForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const target = m.groups!.target;
+    if (subject !== subject.toLowerCase() && subject !== "I" && !enAfterBreak(ctx, m.index))
+      return null;
+    if (
+      EN_FUNCTION_WORDS.has(target) ||
+      WC_ADVERBIAL_NOUNS.test(target) ||
+      ctx.dictionary.has(target)
+    )
+      return null;
+    if (!(enNounOnly(target) === "singular")) return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (!wcClosesAfter(next)) return null;
+    const span = m.indices!.groups!.target;
+    return finding("englishAuxiliaryBaseVerb", "review_msg_auxiliary_base", span[0], span[1], [], {
+      warningOnly: true,
+      context: enEvidence(ctx, m.index, span[1]),
+    });
+  },
+  // en.yaml rule en.modalQuestionForms frame 2
+  "@en.modalQuestionForms/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const subject = m.groups!.subject;
+    if (!enAfterBreak(ctx, m.index)) return null;
+    if (EN_FUNCTION_WORDS.has(verb) || WC_FIXED_INVERSION.test(verb) || ctx.dictionary.has(verb))
+      return null;
+    if (!/^[^.!\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160)))
+      return null;
+    const read = wcFinite(verb);
+    if (!read) return null;
+    const singular = /^(?:he|she)$/i.test(subject);
+    if (read.tense === "third" && !singular) return null;
+    const aux = read.tense === "past" ? "did" : read.tense === "third" || singular ? "does" : "do";
+    const span = m.indices!.groups!.target;
+    return {
+      ruleId: "englishAuxiliaryBaseVerb",
+      messageKey: "review_msg_question_do",
+      range: { start: span[0], end: span[1] },
+      alternatives: [`${aux} ${subject} ${read.lemma}`],
+      context: enEvidence(ctx, m.index, span[1]),
+    };
+  },
+  // en.yaml rule en.sinceWithSimpleTense frame 1
+  "@en.sinceWithSimpleTense/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const target = m.groups!.target;
+    const point = m.groups!.point;
+    if (!(
+      enAfterBreak(ctx, m.index) || /^(?:and|but|so|that|because)$/.test(enWordBefore(ctx, m.index))
+    ))
+      return null;
+    if (ctx.dictionary.has(target)) return null;
+    const subj = subject.toLowerCase();
+    const after = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (/^[0-9]/.test(point) && after?.kind === "word" && !/^(?:am|pm|and|or|o)$/.test(after.lower))
+      return null;
+    const number = /\s/.test(subj) ? enNounNumber(subj.split(/\s+/).pop()!) : null;
+    if (!(!/\s/.test(subj) || !!number)) return null;
+    const singular = /\s/.test(subj) ? number!.number === "singular" : /^(?:he|she|it)$/.test(subj);
+    const perfect = wcSincePerfect(target, subj, singular, singular ? "has" : "have");
+    if (!perfect) return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "englishTenseConsistency",
+      "review_msg_since_perfect",
+      span[0],
+      span[1],
+      [perfect],
+      { context: enEvidence(ctx, m.index, m.index + m[0].length) },
+    );
+  },
+  // en.yaml rule en.itBeforeNoun frame 1
+  "@en.itBeforeNoun/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const atStart = enAfterBreak(ctx, m.index);
+    if (target !== "it" && (target !== "It" || !atStart)) return null;
+    const before = enWordBefore(ctx, m.index);
+    const quantity =
+      before === "of" &&
+      /\b(?:much|most|all|some|none|part|each|any|many|both)[ \t ]+of[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 16), m.index),
+      );
+    if (!atStart && !quantity && !/^(?:and|or|times)$/.test(before)) return null;
+    if (ctx.dictionary.has(noun) || WC_ADVERBIAL_NOUNS.test(noun) || !enNounOnly(noun)) return null;
+    if (quantity && !atStart && before === "of" && enNounOnly(noun) !== "plural") return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 2);
+    const next = tokens[0];
+    const read = next?.kind === "word" ? englishWordInfo(next.lower) : null;
+    const goesOn =
+      !next ||
+      next.kind === "end" ||
+      (next.kind === "comma" && !atStart) ||
+      (next.kind === "word" &&
+        (/^(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must)$/.test(
+          next.lower,
+        ) ||
+          !!read?.verbs.some((v) => v.form === "third" || v.form === "past") ||
+          (!!read?.verbs.length &&
+            !EN_FUNCTION_WORDS.has(next.lower) &&
+            !/^(?:out|off|up|down|over|back|away)$/.test(next.lower) &&
+            enNounOnly(noun) === "plural")));
+    if (!goesOn) return null;
+    const span = m.indices!.groups!.target;
+    return {
+      ruleId: "englishItsContext",
+      messageKey: "review_msg_its_possessive",
+      range: { start: span[0], end: span[1] },
+      alternatives: [target === "It" ? "Its" : "its"],
+      context: enEvidence(ctx, m.index, m.index + m[0].length),
+    };
   },
   // en.yaml rule en.clauseFrames frame 1
   "@en.clauseFrames/1": (m: RegExpExecArray, ctx: DetectContext): FixResult => {

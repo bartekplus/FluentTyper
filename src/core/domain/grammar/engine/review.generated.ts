@@ -11372,69 +11372,69 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>because|although|though|when|whenever|after|before|since|unless|while|whereas|until|if|(?:so|even)(?:[ \\t\\u00a0]*,)?[ \\t\\u00a0]{1,8}(?:if|though)|so(?:[ \\t\\u00a0]*,)?[ \\t\\u00a0]{1,8}even[ \\t\\u00a0]{1,8}if|so[ \\t\\u00a0]{1,8}that|in[ \\t\\u00a0]{1,8}order[ \\t\\u00a0]{1,8}that|provided[ \\t\\u00a0]{1,8}that)[ \\t\\u00a0]{1,8}(?=[A-Za-z])",
     literals: [],
-    fixer: "en:wordClassSubordinateFragment",
+    fixer: "en:@en.sentenceFragments/1",
   }),
   frame({
     pattern:
       "(?:(?:I|we)[ \\t\\u00a0]{1,8}(?<target>look)|(?:am|are|[a-z]+['’](?:m|re)|be)[ \\t\\u00a0]{1,8}(?:(?:really|so|all|most|very|truly)[ \\t\\u00a0]{1,8})?(?<target2>looking))[ \\t\\u00a0]{1,8}forward(?=[ \\t\\u00a0]*[.!])",
     literals: ["forward"],
-    fixer: "en:wordClassForwardWithoutObject",
+    fixer: "en:@en.sentenceFragments/2",
     owner: "target|target2",
   }),
   frame({
     pattern:
       "(?:look|looks|looked|looking)[ \\t\\u00a0]{1,8}(?<target>forward(?:[ \\t\\u00a0]{1,8}(?<wrong>in|of|at|for))?)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["forward"],
-    fixer: "en:wordClassForwardPreposition",
+    fixer: "en:@en.forwardPreposition/1",
   }),
   frame({
     pattern:
       "(?:am|is|are|was|were|[a-z]+['’](?:m|re|s)|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|got|getting)[ \\t\\u00a0]{1,8}(?<target>bit)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["bit"],
-    fixer: "en:wordClassBareBit",
+    fixer: "en:@en.bareBitArticles/1",
   }),
   frame({
     pattern:
       "(?<first>the|an|a)[ \\t\\u00a0]{1,8}(?<second>a|an|this|these|those)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:wordClassStackedArticles",
+    fixer: "en:@en.bareBitArticles/2",
     message: "review_msg_determiner_clash",
     owner: "first",
   }),
   frame({
     pattern: "(?<target>it)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:wordClassItForIs",
+    fixer: "en:@en.itForIs/1",
   }),
   frame({
     pattern: "(?<there>there)[ \\t\\u00a0]{1,8}(?<verb>are|were|exist)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["there"],
-    fixer: "en:wordClassExistentialSingular",
+    fixer: "en:@en.existentialSingular/1",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<subject>I|you|we|they|he|she|it|this|that|which|who)(?:[ \\t\\u00a0]{1,8}(?:usually|really|also|just|probably|definitely|certainly|still|then|now|only))?[ \\t\\u00a0]{1,8}(?:can|could|will|would|should|must|might|shall)(?:[ \\t\\u00a0]{1,8}(?:usually|really|also|just|probably|definitely|certainly|still|then|now|only|quickly|easily))?[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["can", "could", "will", "would", "should", "must", "might", "shall"],
-    fixer: "en:wordClassModalNoun",
+    fixer: "en:@en.modalQuestionForms/1",
   }),
   frame({
     pattern:
       "(?<wh>when|why|how|where)[ \\t\\u00a0]{1,8}(?<target>(?<verb>[a-z]+)[ \\t\\u00a0]{1,8}(?<subject>you|he|she|we|they|I))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["when", "why", "how", "where"],
-    fixer: "en:wordClassQuestionWithoutDo",
+    fixer: "en:@en.modalQuestionForms/2",
     message: "review_msg_question_do",
   }),
   frame({
     pattern:
       "(?<subject>I|you|we|they|he|she|it|(?:the|my|our|your|his|her|their)[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?:here|there))?[ \\t\\u00a0]{1,8}since[ \\t\\u00a0]{1,8}(?<point>[0-9]{1,4}(?![0-9])|last|yesterday|childhood|birth)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["since"],
-    fixer: "en:wordClassSinceWithSimpleTense",
+    fixer: "en:@en.sinceWithSimpleTense/1",
   }),
   frame({
     pattern: "(?<target>it)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:wordClassItBeforeNoun",
+    fixer: "en:@en.itBeforeNoun/1",
   }),
   frame({
     pattern:

@@ -3706,24 +3706,93 @@ rules:
     style: match
     message: review_msg_sentence_fragment
     filter: usSlots
+    defs:
+      # Subordinators that leave a sentence unfinished without a main clause.
+      WC_SUBORDINATOR: '/^(?:because|although|though|when|whenever|after|before|since|unless|while|whereas|until|if|(?:so|even)[ \t ,]+(?:if|though)|so[ \t ,]+even[ \t ]+if|so[ \t ]+that|in[ \t ]+order[ \t ]+that|provided[ \t ]+that|even[ \t ]+if|even[ \t ]+though)$/i'
+      WC_FINITE_AUX: /^(?:is|are|was|were|am|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must|isn't|aren't|wasn't|weren't|hasn't|haven't|hadn't|don't|doesn't|didn't|won't|can't|couldn't|wouldn't|shouldn't|cannot)$/
+      # 1 when token i of a clause is a finite verb: an auxiliary, an -s or past form, or a base
+      # after I/you/we/they. After a determiner or "to" a word is a noun or an infinitive.
+      wcFiniteAt:
+        args: "tokens: EnToken[], i: number"
+        let:
+          t: tokens[i]
+          w: "t.lower.replaceAll(\"’\", \"'\")"
+          prev: 'tokens[i - 1]?.lower ?? ""'
+        return: >-
+          t.kind !== "word" ? 0 : WC_FINITE_AUX.test(w) ? 1
+          : EN_FUNCTION_WORDS.has(w) || /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|to|some|any|no)$/.test(prev) ? 0
+          : wcFiniteRead(w, prev)
+      wcFiniteRead:
+        args: "word: string, prev: string"
+        let:
+          read: englishWordInfo(word)
+        return: >-
+          !read ? 0 : read.verbs.some((v) => v.form === "third" || v.form === "past") ? 1
+          : /^(?:i|you|we|they)$/.test(prev) && read.verbs.some((v) => v.form === "base") ? 1 : 0
     frames:
       # "Because he was a great musician.", "When the wind howls in the trees.": a sentence that
       # is only a subordinate clause. Opt-in: answers and asides use such fragments on purpose.
       - regex: "(?<target>because|although|though|when|whenever|after|before|since|unless|while|whereas|until|if|(?:so|even)(?:[ \\t\\u00a0]*,)?{{S}}(?:if|though)|so(?:[ \\t\\u00a0]*,)?{{S}}even{{S}}if|so{{S}}that|in{{S}}order{{S}}that|provided{{S}}that){{S}}(?=[A-Za-z])"
-        fixer: wordClassSubordinateFragment
+        # The sentence ends with a plain period: no comma, no list, no question or ellipsis. The clause
+        # opens with its subject: a pronoun, a determiner phrase or a name, so a preposition reading
+        # ("After a long absence he came back") never applies. "If only he knew", "As if…": exclamations
+        # and comparisons. A determiner phrase followed by a pronoun was a prepositional opener: "After a
+        # long absence he came back".
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 30)
+          end: 'tokens.findIndex((t) => t.kind !== "word" && t.kind !== "number")'
+          stop: tokens[end]
+          clause: tokens.slice(0, end)
+          first: clause[0].lower
+          subjectStart: >-
+            /^(?:i|you|he|she|it|we|they|there|someone|everyone|nobody|nothing|everything|something)$/.test(first) ||
+            (/^(?:the|my|your|his|her|our|their|this|these|those|a|an|every|each|some)$/.test(first) && clause.length > 2) ||
+            (clause[0].text !== first && !englishWordInfo(first))
+          span: m.indices!.groups!.target
+        when:
+          - "/^[A-Z]/.test(target) && enAfterBreak(ctx, m.index) && WC_SUBORDINATOR.test(target)"
+          - '!(end < 2 || stop?.kind !== "end" || stop.text !== ".")'
+          - '!/^\.\./.test(ctx.text.slice(stop.start, stop.start + 2))'
+          - '!(!subjectStart || first === "only")'
+          - "!(!/^(?:i|you|he|she|it|we|they)$/.test(first) && clause.slice(1).some((t) => /^(?:i|you|he|she|we|they)$/.test(t.lower)))"
+          - "clause.reduce((count, t, i) => count + wcFiniteAt(clause, i), 0) === 1"
+        return: >-
+          finding("englishSentenceFragment", "review_msg_sentence_fragment", span[0], span[1], [],
+          { warningOnly: true, context: enEvidence(ctx, m.index, stop.end) })
       # "I look forward.", "I'm looking forward!": the phrase needs "to" and what is awaited.
       - regex: "(?:(?:I|we){{S}}(?<target>look)|(?:am|are|[a-z]+['’](?:m|re)|be){{S}}(?:(?:really|so|all|most|very|truly){{S}})?(?<target2>looking)){{S}}forward(?=[ \\t\\u00a0]*[.!])"
         owner: target|target2
-        fixer: wordClassForwardWithoutObject
+        let:
+          range: m.indices!.groups!.target ?? m.indices!.groups!.target2
+        return: >-
+          ({ ruleId: "englishSentenceFragment", messageKey: "review_msg_sentence_fragment", range: { start: range[0], end: m.index + m[0].length },
+          alternatives: [], warningOnly: true, context: enEvidence(ctx, m.index, m.index + m[0].length) })
   - id: en.forwardPreposition
     checks: [englishFixedPrepositions]
     style: match
     message: review_msg_fixed_prepositions
     filter: usSlots
+    defs:
+      # A determiner after a bare "forward" needs an awaited thing: "look forward your reply".
+      wcAwaitedAfter:
+        args: "ctx: DetectContext, end: number"
+        let:
+          after: enTokensAfter(ctx, end, 1)[0]
+        return: 'after?.kind === "word" && /^(?:reply|response|answer|meeting|visit|call|news|results|weekend|holidays?|trip|event|release|launch|concert|party|game)$/.test(after.lower)'
     frames:
       # "look forward your reply", "looking forward in hearing from you": the phrase takes "to".
       - regex: "(?:look|looks|looked|looking){{S}}(?<target>forward(?:{{S}}(?<wrong>in|of|at|for))?){{S}}(?<next>[a-z]+){{E}}"
-        fixer: wordClassForwardPreposition
+        # "look forward into the fender area", "look forward five years": a direction.
+        let:
+          owned: /^(?:your|our|their|his|her|my|the|seeing|hearing|meeting|working|receiving|reading|talking|speaking|getting|having)$/.test(next)
+          span: m.indices!.groups!.target
+        when:
+          - '!(!owned || (wrong && !/ing$/.test(next) && wrong !== "of"))'
+          - "!(!wrong && !/^(?:your|our|their|his|her|my|the)$/.test(next) && !/ing$/.test(next))"
+          - "!(!wrong && /^(?:the|his|her|my)$/.test(next)) || wcAwaitedAfter(ctx, m.index + m[0].length)"
+        return: >-
+          ({ ruleId: "englishFixedPrepositions", messageKey: "review_msg_fixed_prepositions", range: { start: span[0], end: span[1] },
+          alternatives: ["forward to"], context: enEvidence(ctx, m.index, m.index + m[0].length) })
   - id: en.bareBitArticles
     checks: [englishSentenceStructure]
     style: match
@@ -3732,56 +3801,268 @@ rules:
     frames:
       # "I was bit confused", "I'm bit tired": "a bit" before an adjective lost its article.
       - regex: "(?:am|is|are|was|were|[a-z]+['’](?:m|re|s)|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|got|getting){{S}}(?<target>bit){{S}}(?<next>[a-z]+){{E}}"
-        fixer: wordClassBareBit
+        # "I was bit by a dog", "got bit hard": the past of bite. An adjective or a participle adjective
+        # ("confused", "tired"), never a bare verb.
+        let:
+          read: englishWordInfo(next)
+          degree: /^(?:too|more|less|late|early|much|of)$/.test(next)
+          adjective: >-
+            !!read && (read.adjective || read.verbs.some((v) => v.form === "participle")) && !read.noun &&
+            !read.verbs.some((v) => v.form === "base" || v.form === "third") && !/ly$/.test(next)
+          span: m.indices!.groups!.target
+        when:
+          - "!/^(?:by|hard|badly|again|twice|once|while|when)$/.test(next)"
+          - degree || adjective
+        return: >-
+          finding("englishSentenceStructure", "review_msg_sentence_structure", span[0], span[1], ["a bit"],
+          { context: enEvidence(ctx, m.index, m.index + m[0].length) })
       # "an a flower", "the this idea", "a this dog": two determiners where one belongs.
       - regex: "(?<first>the|an|a){{S}}(?<second>a|an|this|these|those){{S}}(?<noun>[a-z]+){{E}}"
         owner: first
         message: review_msg_determiner_clash
-        fixer: wordClassStackedArticles
+        # "an an owl", "a a bike": a repeated article belongs to the repeated-word check; "an a flower"
+        # keeps the one that the sound of the noun takes. Letters and Latin: "the a key", "an a priori
+        # case", "the A team". Either determiner alone; a/an follows the first sound of the noun.
+        let:
+          read: englishWordInfo(noun)
+          article: 'englishInitialSound(noun) === "vowel" ? "an" : "a"'
+          alternatives: >-
+            [...new Set([first, second].map((d) => (/^an?$/i.test(d) ? article : d.toLowerCase()))
+            .map((word) => (/^[A-Z]/.test(first) ? word[0].toUpperCase() + word.slice(1) : word)))]
+        when:
+          - first.toLowerCase() !== second.toLowerCase()
+          - "!(second !== second.toLowerCase() || /^(?:priori|posteriori|fortiori|la|capella|cappella)$/.test(noun))"
+          - >-
+            !(/^an?$/.test(second) &&
+            /^(?:key|button|letter|variable|vowel|grade|side|string|column|field|sound|note|chord|word|team|list|level|version|type|class|series|plus|minus|major|minor|flat|sharp|grader|student|rating|score)$/.test(noun))
+          - "!(first !== first.toLowerCase() && !enAfterBreak(ctx, m.index))"
+          - "!(!read || !(read.noun || read.adjective) || EN_FUNCTION_WORDS.has(noun))"
+        return: >-
+          finding("englishSentenceStructure", "review_msg_determiner_clash", m.indices!.groups!.first[0], m.indices!.groups!.second[1],
+          alternatives, { ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}), context: enEvidence(ctx, m.index, m.index + m[0].length) })
   - id: en.itForIs
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
     filter: usSlots
+    defs:
+      WC_INDEFINITE: /^(?:nothing|everything|something|anything|everyone|someone|anyone|nobody)$/
+      # "the script it", "an update it", "nothing (else) it".
+      wcNounSubject:
+        args: "ctx: DetectContext, m: RegExpExecArray, before: string"
+        let:
+          run: '/([A-Za-z]+)[ \t ]+([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 40), m.index))'
+          det: 'run?.[1].toLowerCase() ?? ""'
+        return: >-
+          WC_INDEFINITE.test(before) || (before === "else" && WC_INDEFINITE.test(det)) ||
+          (/^(?:the|an|a|my|your|our|their|this)$/.test(det) &&
+          (enNounOnly(before) === "singular" || (!!englishWordInfo(before)?.noun && !englishWordInfo(before)?.plural)))
     frames:
       # "the script it not visible", "nothing it working", "this it the same issue": "it" typed
       # for "is" after a subject that is a noun phrase or an indefinite pronoun.
       - regex: "(?<target>it){{S}}(?<next>[a-z]+){{E}}"
-        fixer: wordClassItForIs
+        # "this it the exact issue": a predicate with a determiner after this/that. The predicate: not +
+        # a word, an -ing form, or an adjective, then the clause ends or goes on. "the way it
+        # currently…", "the time it took": a relative clause after its head.
+        let:
+          before: enWordBefore(ctx, m.index)
+          subject: >-
+            /^(?:this|that)$/.test(before) ? /^(?:the|a|an|not)$/.test(next) && enAfterBreak(ctx, m.index - before.length - 1)
+            : wcNounSubject(ctx, m, before)
+          read: englishWordInfo(next)
+          predicate: >-
+            next === "not" || /^(?:the|a|an)$/.test(next) || (!!read?.verbs.some((v) => v.form === "ing") && !read.noun) ||
+            (!!read?.adjective && !read.noun && !read.verbs.length && !/ly$/.test(next))
+          span: m.indices!.groups!.target
+        when:
+          - before
+          - subject
+          - "!/^(?:way|time|place|day|reason|moment|amount|speed|rate|extent|year|night|morning)$/.test(before)"
+          - predicate
+        return: >-
+          finding("englishConfusedWords", "review_msg_confused_word", span[0], span[1], ["is"],
+          { context: enEvidence(ctx, m.index, m.index + m[0].length) })
   - id: en.existentialSingular
     checks: [englishExistentialAgreement]
     style: match
     message: review_msg_existential_agreement
     filter: usSlots
+    defs:
+      # Existential "there" opens its clause.
+      WC_THERE_CUE: '/(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:if|when|whether|that|because|since|so|and|but|then|where|as|while|now|also|still|think|hope|said)[ \t ]+)$/i'
+      # Quantity nouns: "there are a lot/few/number of…" are plural.
+      WC_QUANTITY_NOUNS: /^(?:lot|lots|few|couple|number|bunch|variety|range|host|dozen|handful|pair|series|total|majority|minority|plethora|myriad|set|group|ton|tons|load|loads|deal|million|thousand|hundred|billion|half|third|quarter|percent|kind|type|sort|mix|collection|list|wealth|multitude|crowd|team|family|pack|flock|herd|batch|selection|combination)$/
+      WC_NUMBER_WORD: /^(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred|none|plenty)$/
+      WC_BARE_TAIL: /^(?:in|on|at|with|for|about|that|which|when|where|from|to|outside|inside|whether|under|around)$/
+      # Up to two adjectives before the head ("a new theory"): the index of the head.
+      wcAdjectiveSkip:
+        args: "tokens: EnToken[], k: number"
+        type: number
+        return: >-
+          k < 3 && tokens[k + 1]?.kind === "word" && englishWordInfo(tokens[k].lower)?.adjective && !englishWordInfo(tokens[k].lower)?.noun
+          ? wcAdjectiveSkip(tokens, k + 1) : k
+      # A bare singular that the authored table leaves out: "is a problem" or "are problems".
+      wcBareExistential:
+        args: "ctx: DetectContext, m: RegExpExecArray, noun: string, plural: string, next: EnToken | undefined, headEnd: number, singularVerb: string"
+        type: RawFinding | null
+        let:
+          verb: m.groups!.verb
+          a: 'englishInitialSound(noun) === "vowel" ? "an" : "a"'
+        when:
+          - '!(verb === "exist" || knownEnglishNounNumber(noun))'
+          - '!(!next || !(next.kind === "end" || next.kind === "comma" || (next.kind === "word" && WC_BARE_TAIL.test(next.lower))))'
+        return: >-
+          ({ ruleId: "englishExistentialAgreement", messageKey: "review_msg_existential_agreement",
+          range: { start: m.indices!.groups!.verb[0], end: headEnd }, alternatives: [`${singularVerb} ${a} ${noun}`, `${verb} ${plural}`],
+          requiresChoice: true, context: enEvidence(ctx, m.index, headEnd) })
     frames:
       # "There are a theory…", "There exist a school…", "There are argument whether…":
       # existential there with a plural verb and one singular noun.
       - regex: "(?<there>there){{S}}(?<verb>are|were|exist){{S}}(?=[a-z])"
         owner: verb
-        fixer: wordClassExistentialSingular
+        # "a theory of…" may still be fine; "a cat and a dog" is plural; a noun after is a compound; the
+        # authored existential check leaves a relative clause ("a problem that needs") alone. A
+        # coordination later in the sentence makes the whole plural: "a school … and a library", also
+        # across a line break.
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 14)
+          article: '/^an?$/.test(tokens[0]?.lower ?? "")'
+          k: "article ? wcAdjectiveSkip(tokens, 1) : 0"
+          head: tokens[k]
+          noun: head.lower
+          number: enNounNumber(noun)
+          read: englishWordInfo(noun)
+          next: tokens[k + 1]
+          clauseRest: '/^[^.!?;]*/.exec(ctx.text.slice(head.end, head.end + 200))![0]'
+          singularVerb: 'verb === "exist" ? "exists" : verb === "were" ? "was" : "is"'
+          span: m.indices!.groups!.verb
+        when:
+          - WC_THERE_CUE.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))
+          - 'head?.kind === "word" && head.text === head.lower && !ctx.dictionary.has(head.lower)'
+          - "!(EN_FUNCTION_WORDS.has(noun) || WC_QUANTITY_NOUNS.test(noun) || WC_NUMBER_WORD.test(noun))"
+          - '!(number?.number !== "singular" || number.singular === number.plural)'
+          - '!(read?.adjective || read?.verbs.some((v) => v.form !== "base"))'
+          - '!(next?.kind === "word" && /^(?:of|and|or|nor|that|which|who)$/.test(next.lower))'
+          - '!(next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower) && (enNounOnly(next.lower) || englishWordInfo(next.lower)?.noun))'
+          - '!/,|&|\b(?:and|or)\b/i.test(clauseRest)'
+        return: >-
+          article ? { ruleId: "englishExistentialAgreement", messageKey: "review_msg_existential_agreement", range: { start: span[0], end: span[1] },
+          alternatives: [singularVerb], context: enEvidence(ctx, m.index, head.end) }
+          : wcBareExistential(ctx, m, noun, number.plural, next, head.end, singularVerb)
   - id: en.modalQuestionForms
     checks: [englishAuxiliaryBaseVerb]
     style: match
     message: review_msg_auxiliary_base
     filter: usSlots
+    defs:
+      # Nouns that stand alone as adverbs or address: "as soon as we can tomorrow", "I will, sir".
+      WC_ADVERBIAL_NOUNS: /^(?:today|tomorrow|tonight|yesterday|everyday|anytime|sometime|someday|meantime|sir|madam|maam|guys|folks|everyone|everybody|someone|somebody|anyone|anybody|something|anything|everything|nothing|nobody|home|tho|lol|btw|pls|plz|thanks|mom|mum|dad|mother|father|honey|dear|darling|babe|baby|bro|dude|man|buddy|mate|son|kid|nowhere|anywhere|everywhere|somewhere|auto)$/
+      # "How come you…", "How dare you…", "What say you": fixed inversions.
+      WC_FIXED_INVERSION: /^(?:come|dare|say|be|need|ought|used)$/
+      # A closed word after the noun: the clause ends or a new phrase opens.
+      wcClosesAfter:
+        args: "t: EnToken | undefined"
+        return: >-
+          !t || t.kind === "end" || (t.kind === "word" && (t.text !== t.lower ||
+          /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|to|for|as|with|at|by|from|me|him|us|them|it)$/.test(t.lower)))
+      # The base form and tense of a finite lexical verb, or null.
+      wcFinite:
+        args: "word: string"
+        type: '{ lemma: string; tense: "base" | "third" | "past" } | null'
+        let:
+          forms: englishVerbForms(word)
+        return: >-
+          forms ? (forms.past === word && forms.past !== forms.lemma ? { lemma: forms.lemma, tense: "past" }
+          : forms.third === word ? { lemma: forms.lemma, tense: "third" } : forms.lemma === word ? { lemma: word, tense: "base" } : null)
+          : wcReadTense(word)
+      wcReadTense:
+        args: "word: string"
+        type: '{ lemma: string; tense: "base" | "third" | "past" } | null'
+        let:
+          verb: 'englishWordInfo(word)?.verbs.find((v) => v.form === "past" || v.form === "third" || v.form === "base")'
+        when:
+          - verb
+          - '!(verb.form === "base" && verb.lemma !== word)'
+        return: '({ lemma: verb.lemma, tense: verb.form as "base" | "third" | "past" })'
     frames:
       # "I would opportunity for me", "This will user OpenAI": a noun where the modal needs a verb.
       - regex: "(?<subject>I|you|we|they|he|she|it|this|that|which|who)(?:{{S}}(?:usually|really|also|just|probably|definitely|certainly|still|then|now|only))?{{S}}(?:can|could|will|would|should|must|might|shall)(?:{{S}}(?:usually|really|also|just|probably|definitely|certainly|still|then|now|only|quickly|easily))?{{S}}(?<target>[a-z]+){{E}}"
-        fixer: wordClassModalNoun
+        # A noun and nothing else: no verb, adjective or adverb reading.
+        let:
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          span: m.indices!.groups!.target
+        when:
+          - '!(subject !== subject.toLowerCase() && subject !== "I" && !enAfterBreak(ctx, m.index))'
+          - "!(EN_FUNCTION_WORDS.has(target) || WC_ADVERBIAL_NOUNS.test(target) || ctx.dictionary.has(target))"
+          - 'enNounOnly(target) === "singular"'
+          - wcClosesAfter(next)
+        return: >-
+          finding("englishAuxiliaryBaseVerb", "review_msg_auxiliary_base", span[0], span[1], [],
+          { warningOnly: true, context: enEvidence(ctx, m.index, span[1]) })
       # "When go you home?", "Where went she?": a fronted lexical verb needs do-support.
       - regex: "(?<wh>when|why|how|where){{S}}(?<target>(?<verb>[a-z]+){{S}}(?<subject>you|he|she|we|they|I)){{E}}"
         message: review_msg_question_do
-        fixer: wordClassQuestionWithoutDo
+        # A direct question: the sentence ends in "?".
+        let:
+          read: wcFinite(verb)
+          singular: /^(?:he|she)$/i.test(subject)
+          aux: 'read.tense === "past" ? "did" : read.tense === "third" || singular ? "does" : "do"'
+          span: m.indices!.groups!.target
+        when:
+          - enAfterBreak(ctx, m.index)
+          - "!(EN_FUNCTION_WORDS.has(verb) || WC_FIXED_INVERSION.test(verb) || ctx.dictionary.has(verb))"
+          - '/^[^.!\n]*\?/.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 160))'
+          - read
+          - '!(read.tense === "third" && !singular)'
+        return: >-
+          ({ ruleId: "englishAuxiliaryBaseVerb", messageKey: "review_msg_question_do", range: { start: span[0], end: span[1] },
+          alternatives: [`${aux} ${subject} ${read.lemma}`], context: enEvidence(ctx, m.index, span[1]) })
   - id: en.sinceWithSimpleTense
     checks: [englishTenseConsistency]
     style: match
     message: review_msg_since_perfect
     filter: usSlots
+    defs:
+      wcParticipleOf:
+        args: "lemma: string"
+        let:
+          forms: englishVerbForms(lemma)
+        return: 'forms?.lemma === lemma ? forms.participle : englishInflect(lemma, "past")'
+      wcSincePerfect:
+        args: "word: string, subject: string, singular: boolean, have: string"
+        return: >-
+          /^(?:am|is|are|was|were)$/.test(word) ? ((word === "am" && subject !== "i") || (word === "is" && !singular) ? null : `${have} been`)
+          : EN_FUNCTION_WORDS.has(word) ? null : wcFinitePerfect(word, singular, have)
+      wcFinitePerfect:
+        args: "word: string, singular: boolean, have: string"
+        let:
+          read: wcFinite(word)
+          participle: wcParticipleOf(read.lemma)
+        when:
+          - '!(!read || (read.tense === "third" && !singular) || (read.tense === "base" && singular))'
+          - participle
+        return: "`${have} ${participle}`"
     frames:
       # "I work here since 2002", "The boy is here since 10": since + a starting point needs a
       # perfect.
       - regex: "(?<subject>I|you|we|they|he|she|it|(?:the|my|our|your|his|her|their){{S}}[a-z]+){{S}}(?<target>[a-z]+)(?:{{S}}(?:here|there))?{{S}}since{{S}}(?<point>[0-9]{1,4}(?![0-9])|last|yesterday|childhood|birth){{E}}"
-        fixer: wordClassSinceWithSimpleTense
+        # "since 10 people complained": since meaning because.
+        let:
+          subj: subject.toLowerCase()
+          after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          number: '/\s/.test(subj) ? enNounNumber(subj.split(/\s+/).pop()!) : null'
+          singular: '/\s/.test(subj) ? number!.number === "singular" : /^(?:he|she|it)$/.test(subj)'
+          perfect: 'wcSincePerfect(target, subj, singular, singular ? "has" : "have")'
+          span: m.indices!.groups!.target
+        when:
+          - "enAfterBreak(ctx, m.index) || /^(?:and|but|so|that|because)$/.test(enWordBefore(ctx, m.index))"
+          - "!ctx.dictionary.has(target)"
+          - '!(/^[0-9]/.test(point) && after?.kind === "word" && !/^(?:am|pm|and|or|o)$/.test(after.lower))'
+          - "!/\\s/.test(subj) || !!number"
+          - perfect
+        return: >-
+          finding("englishTenseConsistency", "review_msg_since_perfect", span[0], span[1], [perfect],
+          { context: enEvidence(ctx, m.index, m.index + m[0].length) })
   - id: en.itBeforeNoun
     checks: [englishItsContext]
     style: match
@@ -3791,7 +4072,34 @@ rules:
       # "It origins date back", "Adelaide and it suburbs", "ten times it size": "it" before a
       # noun that cannot be its object's complement is the possessive.
       - regex: "(?<target>it){{S}}(?<noun>[a-z]+){{E}}"
-        fixer: wordClassItBeforeNoun
+        # "IT infrastructure" names a field. "Much of it efforts": after a quantity, "of it" before a
+        # noun is "of its". "most of it beta decays": after a quantity only a plural noun is owned. The
+        # noun phrase must go on into a verb or end: "It origins date back", "and it suburbs."
+        let:
+          atStart: enAfterBreak(ctx, m.index)
+          before: enWordBefore(ctx, m.index)
+          quantity: >-
+            before === "of" &&
+            /\b(?:much|most|all|some|none|part|each|any|many|both)[ \t ]+of[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 2)
+          next: tokens[0]
+          read: 'next?.kind === "word" ? englishWordInfo(next.lower) : null'
+          goesOn: >-
+            !next || next.kind === "end" || (next.kind === "comma" && !atStart) ||
+            (next.kind === "word" && (/^(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must)$/.test(next.lower) ||
+            !!read?.verbs.some((v) => v.form === "third" || v.form === "past") ||
+            (!!read?.verbs.length && !EN_FUNCTION_WORDS.has(next.lower) && !/^(?:out|off|up|down|over|back|away)$/.test(next.lower) &&
+            enNounOnly(noun) === "plural")))
+          span: m.indices!.groups!.target
+        when:
+          - '!(target !== "it" && (target !== "It" || !atStart))'
+          - '!(!atStart && !quantity && !/^(?:and|or|times)$/.test(before))'
+          - "!(ctx.dictionary.has(noun) || WC_ADVERBIAL_NOUNS.test(noun) || !enNounOnly(noun))"
+          - '!(quantity && !atStart && before === "of" && enNounOnly(noun) !== "plural")'
+          - goesOn
+        return: >-
+          ({ ruleId: "englishItsContext", messageKey: "review_msg_its_possessive", range: { start: span[0], end: span[1] },
+          alternatives: [target === "It" ? "Its" : "its"], context: enEvidence(ctx, m.index, m.index + m[0].length) })
   - id: en.apostrophes
     checks: [englishApostrophes]
     style: match
