@@ -4493,7 +4493,7 @@ fragments:
   NUMBER_STATUS: "(?:missing|broken|ready|new|old|available|useful)"
   NUMBER_PAST: "(?:failed|arrived|returned)"
   # The count words of EnglishNounNumber.ts (ENGLISH_COUNT_WORDS) and digits.
-  NUMBER_COUNT: "zero|one|two|three|four|five|six|seven|eight|nine|ten|[0-9]{1,4}"
+  NUMBER_COUNT: "zero|one|two|three|four|five|six|seven|eight|nine|ten|(?:0|1|2|3|4|5|6|7|8|9)[0-9]{0,3}"
   POSSESSIVE_ADJECTIVE: "(?:(?:new|old|cold|warm|red|blue|main|original|updated|private){{S}})?"
   POSSESSIVE_NOUN: "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)"
   # The day, a dotted, slashed or dashed month and the year: "7/8/2031", "07.08.2031".

@@ -4348,7 +4348,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<count>zero|one|two|three|four|five|six|seven|eight|nine|ten|[0-9]{1,4})[ \\t\\u00a0]{1,8}(?:(?:new|old|missing|broken|small|large|updated)[ \\t\\u00a0]{1,8})?(?<noun>[A-Za-z]+)(?<tail>(?:[ \\t\\u00a0]{1,8}(?:(?:failed|arrived|returned)|(?:in|on|near)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:report|folder|office|table|room|screen)))?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?<count>zero|one|two|three|four|five|six|seven|eight|nine|ten|(?:0|1|2|3|4|5|6|7|8|9)[0-9]{0,3})[ \\t\\u00a0]{1,8}(?:(?:new|old|missing|broken|small|large|updated)[ \\t\\u00a0]{1,8})?(?<noun>[A-Za-z]+)(?<tail>(?:[ \\t\\u00a0]{1,8}(?:(?:failed|arrived|returned)|(?:in|on|near)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:report|folder|office|table|room|screen)))?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "common:nounCount",
     owner: "none",
