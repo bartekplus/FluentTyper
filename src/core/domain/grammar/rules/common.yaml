@@ -4493,7 +4493,7 @@ fragments:
   NUMBER_STATUS: "(?:missing|broken|ready|new|old|available|useful)"
   NUMBER_PAST: "(?:failed|arrived|returned)"
   # The count words of EnglishNounNumber.ts (ENGLISH_COUNT_WORDS) and digits.
-  NUMBER_COUNT: "zero|one|two|three|four|five|six|seven|eight|nine|ten|[0-9]{1,4}"
+  NUMBER_COUNT: "zero|one|two|three|four|five|six|seven|eight|nine|ten|(?:0|1|2|3|4|5|6|7|8|9)[0-9]{0,3}"
   POSSESSIVE_ADJECTIVE: "(?:(?:new|old|cold|warm|red|blue|main|original|updated|private){{S}})?"
   POSSESSIVE_NOUN: "(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)"
   # The day, a dotted, slashed or dashed month and the year: "7/8/2031", "07.08.2031".
@@ -4674,13 +4674,20 @@ rules:
     frames:
       - regex: "(?<!{{EDGE}})(?:lost|checked|changed|updated|fixed|opened|closed|remembered|forgot|replaced|painted|cleaned){{S}}(?<target>it['’]s){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{COMPLETE}}{{E}}"
         flags: gidu
+        # The gates of the it's frames: "it's" (no literal of 3 letters finds it).
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsAfterVerb
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{S}}(?:is|was|looks|seems){{S}}(?:wet|dry|broken|new|old|red|blue|missing|different){{COMPLETE}}{{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsNounPredicate
       - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:unclear{{S}}whether{{S}}(?:the{{S}}change{{S}}will{{S}}affect{{S}}us|it{{S}}will{{S}}work)|ready{{S}}to{{S}}(?:use|go|open|start)|(?:cold|warm){{S}}outside|working{{S}}(?:now|again|today)|already{{S}}(?:been{{S}})?(?:fixed|updated|removed|replaced)){{COMPLETE}}{{E}}"
         flags: gidu
         message: review_msg_its_contraction
+        gate: "its[ \\t\\u00a0]{1,8}(?:unclear|ready|cold|warm|working|already)"
+        gateFlags: giu
         fixer: itsPhrase
       # "its" never precedes a verb, an article or a function word.
       - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|never|always|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going{{S}}to|getting{{S}}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time{{S}}to){{E}}"
@@ -4698,15 +4705,23 @@ rules:
       # "it's" never follows a preposition or precedes "own".
       - regex: "(?<!{{EDGE}})(?=it['’]s)(?<!(?:how|what){{S}}about{{S}})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among){{S}})(?<target>it['’]s){{S}}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like){{E}})[a-z]+{{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsAfterPreposition
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}own{{S}}[a-z]+{{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsOwn
       - regex: "(?<!{{EDGE}})(?=it['’]s)(?<=[a-z]{3,30}ed{{S}})(?<target>it['’]s){{S}}[0-9]{1,4}(?:st|nd|rd|th){{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsOrdinal
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing|time|because|like|as|kind|sort|type|going|getting){{E}})[a-z]+{{S}}(?:are|were|have){{E}}{{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsBeforeVerb
       - regex: "(?<!{{EDGE}})(?<target>lets){{S}}(?:try{{S}}again|go{{S}}home|start{{S}}now|work{{S}}together|take{{S}}a{{S}}break|check{{S}}the{{S}}file|open{{S}}the{{S}}folder|read{{S}}the{{S}}report|fix{{S}}the{{S}}problem|meet{{S}}tomorrow|wait{{S}}here|begin{{S}}with{{S}}the{{S}}basics){{COMPLETE}}{{E}}"
         flags: gidu
@@ -4780,9 +4795,14 @@ rules:
       # "She advised to wait", "The method requires to sort the list": with no object, these
       # verbs take the -ing form. A passive ("are advised to") has its subject as the object.
       - regex: "(?<!(?:am|is|are|was|were|be|been|being|get|gets|got|getting|isn['’]t|wasn['’]t|aren['’]t|weren['’]t){{S}})(?:(?:(?<subject>{{SUBJECT}})|(?<plural>[a-z]{3,}s)){{S}}(?:{{COMPLEMENT_MODALS}}{{S}}(?:not{{S}})?|{{COMPLEMENT_NEGATIVE}})(?:advise|advised|encourage|encouraged|permit|permitted)|to{{S}}(?:advise|encourage|permit)|(?<head>advises|encourages|requires)){{S}}(?<target>to{{S}}{{COMPLEMENT_WORD}})"
+        # Skips the frame when no advise/encourage/permit/requires + "to" stands in the text.
+        gate: "(?:advise[ds]?|encourage[ds]?|permit(?:ted)?|requires)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: adviseTo
       # "We may require to sign": a person after a modal is required to do something.
       - regex: "(?<subject>(?!(?:it|this|that|there|what|which|who){{E}})[A-Za-z]+){{S}}{{COMPLEMENT_MODALS}}(?:{{S}}not)?{{S}}(?<target>require){{S}}to{{S}}{{COMPLEMENT_WORD}}"
+        gate: "require[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: requireTo
       # "We went ahead and fix it": the second verb shares the tense of went, gone or goes; "go
       # ahead and fixed it" shares the base form. A noun can start a new clause ("went ahead and
@@ -4808,7 +4828,10 @@ rules:
     message: review_msg_perfect_participle
     frames:
       # have/be in every spelling, clitics on their owner ("I'd", "it's") and dropped apostrophes.
-      - regex: "(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its)){{PARTICIPLE_TAIL}}"
+      # A complete regex: WORD_START is one lookbehind here. Its "n't" test cannot start a match
+      # (no branch starts with "n"), and the global scan runs the regex at each character.
+      - regex: "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its)){{PARTICIPLE_TAIL}}"
+        wordStart: false
         owner: verb
         fixer: participleAfterAuxiliary
       # "Have you ate?", "Was it took?": the auxiliary opens the clause, a subject follows.
@@ -5032,7 +5055,7 @@ rules:
       - regex: "(?:we|they|you){{S}}(?:need|use|bought|ordered|checked|tested){{S}}(?:the|our|your){{S}}(?:new|old|necessary|available|basic|standard){{S}}(?<noun>equipments){{COMPLETE}}"
         owner: noun
         fixer: massNoun
-      - regex: "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|[1-9]){{S}}(?:(?:important|essential|useful|unusual|observable|natural){{S}})?(?<noun>criterion|criteria|phenomenon|phenomena){{COMPLETE}}"
+      - regex: "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|1|2|3|4|5|6|7|8|9){{S}}(?:(?:important|essential|useful|unusual|observable|natural){{S}})?(?<noun>criterion|criteria|phenomenon|phenomena){{COMPLETE}}"
         owner: noun
         fixer: massNoun
   - id: contextualCompounds
@@ -5202,14 +5225,25 @@ rules:
       # subject.
       - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_CONJUNCT}}|myself){{S}}and{{S}}(?<b>{{CASE_CONJUNCT}}|myself)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
         owner: none
+        # coordinatedSubjects needs me, him, her, them or myself as one side of the pair: the gate
+        # skips the frame when no such word stands next to "and". shortcut: the gate must match
+        # before the chunk end + 64, so a first side longer than about 56 characters across a
+        # chunk end could be missed; no real conjunct is that long.
+        gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: coordinatedSubjects
       # A present base verb after a pair of single words: "Tim and me work", "Me and Sam live".
       - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_ONE_WORD}}){{S}}and{{S}}(?<b>{{CASE_ONE_WORD}})(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>[a-z]+){{E}}"
         owner: none
+        gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: coordinatedSubjects
       # "Both Ana and me helped", "Either Ana or me will call", "Ana or myself can help".
       - regex: "(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0]){{CASE_COORDINATION_START}}(?:(?<lead>both|either|neither){{S}})?(?<a>{{CASE_CONJUNCT}}){{S}}(?<conj>and|or|nor){{S}}(?<b>me|myself|him|them)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
         owner: b
+        # Skips the frame when no "and/or me|myself|him|them" stands in the text.
+        gate: "(?:and|or)[ \\t\\u00a0]{1,8}(?:me|myself|him|them)[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: correlativeSubjects
       # "Whom is coming?", "to whomever wrote it": whom before its own finite verb is the subject.
       - regex: '(?<whom>whom(?:ever|soever)?){{S}}(?:(?<aux>{{CASE_AUX}})(?:{{S}}{{CASE_INSERT}})?{{S}}["“'']?(?<evidence>[a-z]+)|(?<verb>[a-z]+)){{E}}'
@@ -5225,6 +5259,11 @@ rules:
         fixer: pronounObject
       - regex: "(?:{{CASE_OBJECT_PREPOSITION}}|for|between){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}and{{S}}(?<i>I){{CASE_PAIR_ENDS}}"
         owner: a
+        # The gate: "and I" before the end of the pair (CASE_PAIR_ENDS). shortcut: as for
+        # coordinatedSubjects, a first side longer than about 56 characters across a chunk end could
+        # be missed.
+        gate: "and[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
+        gateFlags: giu
         fixer: andIObject
       # "Talk to Don or myself.": with no "I" before it in the sentence, myself is me.
       - regex: "(?:{{CASE_OBJECT_PREPOSITION}}|for|between){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>myself){{COMPLETE_OR_PAREN}}"
@@ -5234,6 +5273,10 @@ rules:
       # object pair before a closed word or the clause end.
       - regex: "(?=[a-z]+(?:{{S}}[a-z]+){1,3}{{S}}(?:and|or){{S}}I(?![\\p{L}]))(?<lead>[a-z]+){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>I)(?:{{E}}(?={{S}}(?<next>[a-z]+){{E}})|{{COMPLETE_OR_PAREN}})"
         owner: a
+        # andIBefore needs a clause end or an OBJECT_NEXT word (englishPronounCase.ts) after "I": the
+        # gate repeats that list. shortcut: as for coordinatedSubjects.
+        gate: "(?:and|or)[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
+        gateFlags: giu
         fixer: andIBefore
       # "Us developers are tired": "us" before a subject noun is "we".
       - regex: "(?=us(?![\\p{L}])){{CASE_CLAUSE_START}}(?<pronoun>us){{S}}(?<noun>[a-z]+)(?:{{S}}{{CASE_ADVERB}})?{{S}}{{CASE_FINITE}}{{E}}"
@@ -5304,11 +5347,16 @@ rules:
     frames:
       # Copular comparison + complete comparison argument; temporal sentence tails abstain.
       - regex: "(?:is|are|was|were){{S}}(?:(?:much|even|far|slightly){{S}})?{{CONFUSION_COMPARATIVE}}{{S}}(?<target>then){{S}}{{CONFUSION_ARGUMENT}}{{COMPLETE_OR_PAREN}}"
+        # The gate: "then" and the start of the argument after it.
+        gate: "then[ \\t\\u00a0]{1,8}(?:the|my|your|our|their|me|him|her|us|them)"
+        gateFlags: giu
         fixer: thenThan
       # A comparison closed by an object pronoun or "ever": "taller then me", "busier then ever",
       # and the fixed "rather then" and "easier said then done". "earlier then him" and
       # "then you/her/it" can be a sequence or a new clause, so they are left out.
       - regex: "(?:{{CONFUSION_COMPARATIVE}}|{{CONFUSION_MORE_COMPARATIVES}}){{S}}(?<target>then){{S}}(?:me|him|us|them|mine|yours|hers|ours|theirs|ever|usual|expected){{E}}"
+        gate: "then[ \\t\\u00a0]{1,8}(?:me|him|us|them|mine|yours|hers|ours|theirs|ever|usual|expected)"
+        gateFlags: giu
         fixer: thenThan
       # "I would rather then leave" may be "rather, then,": only "X rather then Y".
       - regex: "(?<!(?:would|had|should|['’]d){{S}})rather{{S}}(?<target>then){{E}}"
@@ -5326,10 +5374,14 @@ rules:
       # An object-taking verb + own + a known noun supplies a complete possessive phrase.
       - regex: "(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|used|found|lost){{S}}(?<target>you['’]re){{S}}own{{S}}{{CONFUSION_NOUN}}{{COMPLETE_OR_PAREN}}"
         check: englishYourYouAre
+        gate: "you['’]re[ \\t\\u00a0]{1,8}own"
+        gateFlags: giu
         fixer: youreOwn
       # No light/fast/slow: those adjectives are also base verbs after prospective "is to".
       - regex: "(?:is|are|was|were|am|be|seems?|looks?){{S}}(?<target>to){{S}}(?:heavy|large|small|hot|cold|late|early|expensive|difficult|hard|tired){{S}}to{{S}}(?:lift|carry|fit|eat|drink|finish|move|read|use|reach|leave|start|stop|understand){{E}}"
         check: englishToToo
+        gate: "to[ \\t\\u00a0]{1,8}(?:heavy|large|small|hot|cold|late|early|expensive|difficult|hard|tired)[ \\t\\u00a0]{1,8}to"
+        gateFlags: giu
         fixer: toTooAdjective
       # their/there/they're in frames where only one reading is grammatical. A finding at a start
       # where an earlier one is stays out (filter firstPerStart).
@@ -5364,10 +5416,15 @@ rules:
       # "people there own cars", so it needs a clause start, preposition or verb before it.
       - regex: "(?<target>there|they['’]?re){{S}}own{{S}}[a-z]+{{E}}"
         check: englishTheirThereTheyAre
+        gate: "(?:there|they['’]?re)[ \\t\\u00a0]{1,8}own"
+        gateFlags: giu
         fixer: theirOwn
       # then/than and to/too where the other reading has no grammatical slot. Identifiers and
       # names in the evidence ("versionName") abstain.
       - regex: "(?=[a-z]+(?:{{S}}[a-z]+)?{{S}}then(?![\\p{L}]))(?<!(?:more|most|less){{S}})(?:{{CONFUSION_COMPARATIVE}}|{{CONFUSION_COMPARISON_WORDS}}|(?:more|less){{S}}(?![a-z]+er{{E}})[a-z]+|(?<=(?:no{{S}}one|nobody|nothing|anything|anyone|someone|something|none|no){{S}})other){{S}}(?<target>then){{S}}(?:{{CONFUSION_COMPARED}}|(?:(?:the|a|an|my|your|our|their|its|this|that|those|these)(?:{{S}}(?!(?:[a-z]+ed){{E}})[a-z]+){1,3}|you|her)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:at|in|for|on|with|by|when|so){{E}})){{E}}"
+        # The gate: "then" and the start of a compared word or noun phrase after it.
+        gate: "then[ \\t\\u00a0]{1,8}(?:me|him|us|them|hers|his|ours|theirs|yours|mine|any|nothing|nobody|ever|before|usual|expected|necessary|needed|last|[0-9]|the|a|my|your|our|their|its|this|that|those|these|you|her)"
+        gateFlags: giu
         fixer: thenComparison
       - regex: "(?:now{{S}}and|until|till|since|by|back){{S}}(?<target>than)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:…)]|$))"
         fixer: thanTemporal
@@ -5385,9 +5442,15 @@ rules:
       # A clitic keeps its owner ("It’s to hard"); a soft line break may split the frame.
       - regex: "(?:[a-z]+(?=['’]))?{{CONFUSION_LINKING}}(?:{{S}}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})(?:(?:not|way|far|just|a{{S}}bit|much|still|also|really|simply){{S}})?(?<target>to){{S}}{{CONFUSION_DEGREE_ADJECTIVE}}(?:{{S}}(?:to|for){{S}}[a-z]+{{E}}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)))"
         check: englishToToo
+        # Skips the frame when no "to" + a degree adjective stands in the text. Keep the list the
+        # same as CONFUSION_DEGREE_ADJECTIVE.
+        gate: "to[ \\t\\u00a0]{1,8}(?:big|small|large|short|hot|cold|late|early|hard|easy|good|bad|high|loud|heavy|tired|hungry|busy|far|soon|much|many|expensive|difficult|complicated|ambitious|young|old|strict|risky|dangerous|tight|full|sweet|weak|strong|lazy)"
+        gateFlags: giu
         fixer: toTooDegree
       - regex: "(?:(?:go|goes|going|gone|went|take|takes|took|taken|push|pushed|carry|carried|speak|spoke|spoken|speaking|talk|talked|celebrate|celebrated|act|acted|judge|judged){{S}}(?<target>to){{S}}(?:far|soon)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:with|for|on|in|this|and|but|when|because|like){{E}})|(?<![Tt]he{{S}}|[Aa]{{S}}|[Tt]his{{S}}|[Tt]hat{{S}}|[Oo]ne{{S}}|[Nn]o{{S}}|[Bb]est{{S}}|[Ww]hich{{S}})way{{S}}(?<target>to){{S}}(?:much|many|long|big|small|far|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often)){{E}}"
         check: englishToToo
+        gate: "to[ \\t\\u00a0]{1,8}(?:far|soon|much|many|long|big|small|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often)"
+        gateFlags: giu
         fixer: toTooDegree
       # "too" never precedes a determiner or object pronoun, nor a bare verb after want/need…
       - regex: "(?<target>too){{S}}(?:the|a|an|him|them|me|us|my|your|his|our|their){{E}}"
@@ -5397,6 +5460,9 @@ rules:
       # slot; a pronoun, demonstrative or name there is a subject ("Didn't Sam too notice?").
       - regex: "(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided|n['’]t{{S}}(?!(?:i|you|we|they|he|she|it|this|that|these|those){{E}})(?<middle>[a-z]+)){{S}}(?<target>too){{S}}(?<verb>[a-z]+){{E}}"
         check: englishToToo
+        # Skips the frame when no "too" + a word stands in the text.
+        gate: "too[ \\t\\u00a0]{1,8}[a-z]"
+        gateFlags: giu
         fixer: tooBeforeVerb
       # were: a subject pronoun before where + a predicate that cannot start a place clause.
       - regex: "(?:we|they|you){{S}}(?<target>where){{S}}(?:(?:not|all|still|just|already|also|never|always|almost){{S}})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the{{S}}only|allowed|given|shown|sent|invited|expected|lucky|about|trying|waiting|working|looking|talking|finished|gone){{E}}"
@@ -5405,6 +5471,8 @@ rules:
       # where: a verb of knowing or finding before were + a subject and more clause.
       - regex: "(?:go|goes|went|look|looked|know|knows|knew|forgot|forget|remember|remembers|found|find|check|asked|ask|wonder|wondered|show|showed|tell|told|see|saw|sure|idea){{S}}(?:(?:me|us|him|her|them){{S}})?(?<target>were){{S}}(?:I|he|she|it|we|they|you|the{{S}}[a-z]+{{S}}(?:is|was|are|were|[a-z]+ed)){{E}}"
         check: englishWereWhere
+        gate: "were[ \\t\\u00a0]{1,8}(?:I|he|she|it|we|they|you|the[ \\t\\u00a0])"
+        gateFlags: giu
         fixer: whereClause
   - id: capitalizeStarts
     checks: [capitalizeSentenceStart, capitalizeAfterLineBreak]
@@ -5483,36 +5551,70 @@ rules:
       # Templates at a clause start: a singular subject with the base form or a plural subject
       # with the third person form.
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>look){{S}}(?:(?:quite{{S}})?promising|good){{E}}"
+        # The gate of a template whose prefilter word is common: the target and the words
+        # after it. Without them in the text, the frame does not run.
+        gate: "look[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>looks){{S}}(?:(?:quite{{S}})?promising|good){{E}}"
+        gate: "looks[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>accept){{S}}(?:words){{E}}"
+        gate: "accept[ \\t\\u00a0]{1,8}(?:words)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>accepts){{S}}(?:words){{E}}"
+        gate: "accepts[ \\t\\u00a0]{1,8}(?:words)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>struggle){{S}}(?:with{{S}}constructions){{E}}"
+        gate: "struggle[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>struggles){{S}}(?:with{{S}}constructions){{E}}"
+        gate: "struggles[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>make){{S}}(?:many{{S}}mistakes){{E}}"
+        gate: "make[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>makes){{S}}(?:many{{S}}mistakes){{E}}"
+        gate: "makes[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>work){{S}}(?:(?:correctly|well|reliably)){{E}}"
+        gate: "work[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>works){{S}}(?:(?:correctly|well|reliably)){{E}}"
+        gate: "works[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>suggest){{S}}(?:(?:a|an|the){{S}}(?:change|solution|correction)){{E}}"
+        gate: "suggest[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>suggests){{S}}(?:(?:a|an|the){{S}}(?:change|solution|correction)){{E}}"
+        gate: "suggests[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>forget){{S}}(?:an{{S}}article){{E}}"
+        gate: "forget[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>forgets){{S}}(?:an{{S}}article){{E}}"
+        gate: "forgets[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>have){{S}}(?:other{{S}}tasks|checked|finished|completed|passed|been){{E}}"
+        gate: "have[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>has){{S}}(?:other{{S}}tasks|checked|finished|completed|passed|been){{E}}"
+        gate: "has[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>need){{S}}(?:improvements){{E}}"
         fixer: agreementTemplate
@@ -5531,8 +5633,12 @@ rules:
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>was){{S}}(?:(?:consuming|running|working)){{E}}"
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>aren't){{S}}(?:detected){{E}}"
+        gate: "aren't[ \\t\\u00a0]{1,8}(?:detected)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>isn't){{S}}(?:detected){{E}}"
+        gate: "isn't[ \\t\\u00a0]{1,8}(?:detected)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>solve){{S}}(?:the{{S}}(?:original{{S}})?issue){{E}}"
         fixer: agreementTemplate

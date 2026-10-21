@@ -232,7 +232,8 @@ const OBJECT_FORM: Readonly<Record<string, string>> = {
 // ("In they went").
 const OBJECT_PREPOSITION =
   "(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)";
-// Words after which "X and I" cannot be a subject: they need no verb from the pair.
+// Words after which "X and I" cannot be a subject: they need no verb from the pair. The gate of
+// the andIBefore frame (grammar/rules/common.yaml) repeats this list: change both.
 const OBJECT_NEXT =
   /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)$/;
 
