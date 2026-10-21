@@ -3112,11 +3112,19 @@ rules:
       # possessive ("two weeks' notice"), so the writer chooses.
       - regex: "(?<q>{{APOSTROPHES_QUANTIFIERS}})(?:{{S}}(?<mod>[a-z]+))?{{S}}(?<w>[A-Za-z][A-Za-z&]*)['’]s{{E}}"
         owner: w
+        # Each match holds 's after its owner word. A gate of 's skips the text without
+        # one. An owner of 64 letters or more can end after the gate's reach: the long run
+        # keeps such a text in.
+        gate: "['’]s|[a-z&]{64}"
+        gateFlags: giu
         fixer: apostropheQuantifiedPlural
       # "where user's would", "most user's are": a bare noun before a finite verb is its plural
       # subject.
       - regex: "(?<w>[a-z]{3,})['’]s{{S}}(?<verb>would|could|should|are|were|have|don't|didn't|won't|aren't|weren't|haven't){{E}}"
         owner: w
+        # The gate is the same as in the first frame.
+        gate: "['’]s|[a-z&]{64}"
+        gateFlags: giu
         fixer: apostrophePluralSubject
       # "about the problem's it causes", "the one's I tested", "to user's that don't": a noun
       # with 's, then a relative clause (a subject and its verb, or that/who and a verb), is a
@@ -3124,10 +3132,16 @@ rules:
       # fails" could be "the problem is (that) it fails".
       - regex: "(?:(?<det>the|these|those|all|any|some|many|our|your|their|my){{S}})?(?<w>[a-z]{3,})['’]s{{S}}(?:(?<pron>I|we|you|they|he|she|it){{S}}(?<verb>[a-z]+(?:['’]t)?)|(?<rel>that|who){{S}}(?<verb2>[a-z]+(?:['’]t)?)){{E}}"
         owner: w
+        # The gate is the same as in the first frame.
+        gate: "['’]s|[a-z&]{64}"
+        gateFlags: giu
         fixer: apostropheRelativePlural
       # "he see's", "it last's", "Michael really want's": a verb's -s ending takes no apostrophe.
       - regex: "(?<subject>he|she|it|who|[a-z]{2,}|that)(?:{{S}}(?<adverb>really|just|also|always|never|often|still|only|usually|sometimes|actually|probably|rarely|even|simply))?{{S}}(?<v>[a-z]{2,})['’]s{{E}}"
         owner: v
+        # The gate is the same as in the first frame.
+        gate: "['’]s|[a-z&]{64}"
+        gateFlags: giu
         fixer: apostropheVerb
       # "We''ll", "Tom''s": one apostrophe.
       - regex: "(?<w>[A-Za-z]+)(?<marks>['’]['’])(?:s|t|ll|re|ve|d|m)(?![\\p{L}\\p{N}'’])"
@@ -3142,6 +3156,8 @@ rules:
       # "from other's photos": with no determiner, the owners are several others.
       - regex: "(?<w>other)['’]s{{S}}(?<n>[a-z]+){{E}}"
         owner: w
+        gate: "['’]s"
+        gateFlags: giu
         fixer: apostropheOthers
       # "last weeks meeting", "this years budget": a time noun owning the next noun.
       - regex: "(?<d>this|last|next){{S}}(?<t>week|weekend|month|year|morning|night|evening|afternoon|season|quarter|semester|summer|winter|autumn)s{{S}}(?<n>[A-Za-z]+){{E}}"
@@ -3155,6 +3171,8 @@ rules:
       # "a boy who's birthday is", "by who's standards": "whose" owns the noun after it.
       - regex: "(?<w>who)['’]s{{S}}(?<n>[a-z]+){{E}}"
         owner: w
+        gate: "['’]s"
+        gateFlags: giu
         fixer: apostropheWhose
   - id: en.productNames
     checks: [englishCanonicalCasing]

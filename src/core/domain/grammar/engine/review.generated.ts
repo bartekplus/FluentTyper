@@ -10998,6 +10998,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: [],
     fixer: "en:apostropheQuantifiedPlural",
     owner: "w",
+    gate: "['’]s|[a-z&]{64}",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -11018,6 +11020,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     ],
     fixer: "en:apostrophePluralSubject",
     owner: "w",
+    gate: "['’]s|[a-z&]{64}",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -11025,6 +11029,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: [],
     fixer: "en:apostropheRelativePlural",
     owner: "w",
+    gate: "['’]s|[a-z&]{64}",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -11032,6 +11038,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: [],
     fixer: "en:apostropheVerb",
     owner: "v",
+    gate: "['’]s|[a-z&]{64}",
+    gateFlags: "giu",
   }),
   frame({
     pattern: "(?<w>[A-Za-z]+)(?<marks>['’]['’])(?:s|t|ll|re|ve|d|m)(?![\\p{L}\\p{N}'’])",
@@ -11053,6 +11061,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["other"],
     fixer: "en:apostropheOthers",
     owner: "w",
+    gate: "['’]s",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -11072,6 +11082,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["who"],
     fixer: "en:apostropheWhose",
     owner: "w",
+    gate: "['’]s",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
