@@ -9,7 +9,7 @@ import {
   germanMayBeNoun,
   germanNounReading,
 } from "./germanLexicon";
-import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
+import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "../../engine/rules/de.generated";
 import { BOUNDARY, PRONOUNS, tokensAfter, tokensBefore } from "./shared";
 
 // A compound noun written as two words: "elf Fußball Spieler" (Fußballspieler), "die Abfahrts

@@ -2,7 +2,7 @@ import { namedExampleBefore } from "../exampleCues";
 import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
-import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
+import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "../../engine/rules/de.generated";
 import { englishLine, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
 import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
 

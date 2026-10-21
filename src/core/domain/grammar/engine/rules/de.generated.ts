@@ -5,6 +5,7 @@ import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult, RawFinding } from "../../library";
 import {
   capitalize,
+  deCanonicalCasing,
   deContextYear,
   deDaysInMonth,
   deEnglishLine,
@@ -17,18 +18,148 @@ import {
   deYearsFor,
   deumlaut,
   germanAdjective,
+  germanAdjectiveNoun,
   germanAuxiliary,
   germanDeterminerFits,
   germanGender,
   germanInfinitive,
   germanInfinitiveOf,
   germanListedNoun,
+  germanMayBeNoun,
+  germanNounOverAdjective,
   germanNounReading,
   germanPastInfinitives,
   germanVerbLike,
   namedExampleBefore,
   remember,
 } from "../../library";
+
+export const ARTICLES: ReadonlySet<string> = new Set([
+  "des",
+  "ein",
+  "eine",
+  "einen",
+  "einem",
+  "kein",
+  "keine",
+  "keinen",
+  "keinem",
+  "keinerlei",
+  "mein",
+  "meine",
+  "meinen",
+  "meinem",
+  "dein",
+  "deine",
+  "deinen",
+  "deinem",
+  "sein",
+  "seine",
+  "seinen",
+  "seinem",
+  "ihre",
+  "ihren",
+  "ihrem",
+  "unser",
+  "unsere",
+  "unseren",
+  "unserem",
+  "euer",
+  "eure",
+  "euren",
+  "eurem",
+  "am",
+  "im",
+  "zum",
+  "zur",
+  "beim",
+  "vom",
+  "ins",
+  "ans",
+  "aufs",
+  "ums",
+  "durchs",
+  "fürs",
+  "übers",
+  "unters",
+  "vors",
+  "hinterm",
+  "überm",
+  "unterm",
+]);
+
+export const DEMONSTRATIVES: ReadonlySet<string> = new Set([
+  "der",
+  "die",
+  "das",
+  "den",
+  "dem",
+  "dies",
+  "diese",
+  "dieser",
+  "diesen",
+  "diesem",
+  "dieses",
+  "jene",
+  "jener",
+  "jenen",
+  "jenem",
+  "jenes",
+  "welche",
+  "welcher",
+  "welchen",
+  "welchem",
+  "welches",
+  "solche",
+  "solcher",
+  "solchen",
+  "solchem",
+  "solches",
+]);
+
+export const PREPOSITIONS: ReadonlySet<string> = new Set([
+  "in",
+  "an",
+  "auf",
+  "aus",
+  "bei",
+  "mit",
+  "nach",
+  "von",
+  "vor",
+  "zu",
+  "für",
+  "gegen",
+  "ohne",
+  "durch",
+  "um",
+  "über",
+  "unter",
+  "hinter",
+  "neben",
+  "zwischen",
+  "seit",
+  "wegen",
+  "trotz",
+  "während",
+  "statt",
+  "anstatt",
+  "per",
+  "pro",
+  "laut",
+  "gemäß",
+  "dank",
+  "samt",
+  "bis",
+  "ab",
+  "außer",
+  "innerhalb",
+  "außerhalb",
+  "oberhalb",
+  "unterhalb",
+  "mittels",
+  "entlang",
+]);
 
 export const VERB_GOVERNORS: ReadonlySet<string> = new Set([
   "kann",
@@ -168,6 +299,633 @@ export const DE_SHORT_MONTHS: ReadonlySet<string> = new Set([
   "okt",
   "nov",
   "dez",
+]);
+
+export const NC_QUANTIFIERS: ReadonlySet<string> = new Set([
+  "alle",
+  "allen",
+  "aller",
+  "alles",
+  "viele",
+  "vielen",
+  "vieler",
+  "einige",
+  "einigen",
+  "einiger",
+  "mehrere",
+  "mehreren",
+  "beide",
+  "beiden",
+  "wenige",
+  "wenigen",
+  "andere",
+  "anderen",
+  "meisten",
+  "manche",
+  "mancher",
+  "manchen",
+  "manchem",
+  "manches",
+  "jede",
+  "jeder",
+  "jeden",
+  "jedem",
+  "jedes",
+  "einer",
+  "eines",
+  "keiner",
+  "keines",
+  "meiner",
+  "meines",
+  "deiner",
+  "deines",
+  "seiner",
+  "seines",
+  "ihrer",
+  "ihres",
+  "unserer",
+  "unseres",
+  "eurer",
+  "eures",
+  "ihr",
+]);
+
+export const NC_NUMBERS: ReadonlySet<string> = new Set([
+  "zwei",
+  "drei",
+  "vier",
+  "fünf",
+  "sechs",
+  "sieben",
+  "acht",
+  "neun",
+  "zehn",
+  "elf",
+  "zwölf",
+  "zwanzig",
+  "dreißig",
+  "hundert",
+  "tausend",
+]);
+
+export const NC_NOT_ADJECTIVES: ReadonlySet<string> = new Set([
+  "gerne",
+  "alleine",
+  "lange",
+  "heute",
+  "ohne",
+  "ferne",
+  "nahe",
+  "gestern",
+  "morgen",
+  "oben",
+  "unten",
+  "außen",
+  "innen",
+  "hinten",
+  "vorne",
+  "zusammen",
+  "trotzdem",
+  "seitdem",
+  "außerdem",
+  "ebenso",
+  "eben",
+  "wieder",
+  "immer",
+  "nimmer",
+  "sondern",
+  "aber",
+  "oder",
+  "weder",
+  "später",
+  "früher",
+  "näher",
+  "weiter",
+  "selten",
+  "offen",
+  "gegen",
+  "neben",
+  "unter",
+  "hinter",
+  "über",
+  "wider",
+  "bisschen",
+  "ihnen",
+  "denen",
+  "deren",
+  "dessen",
+  "wessen",
+  "habe",
+  "hatte",
+  "hätte",
+  "werde",
+  "wurde",
+  "würde",
+  "wäre",
+  "sei",
+  "könne",
+  "müsse",
+  "solle",
+  "wolle",
+  "dürfe",
+  "möge",
+  "wisse",
+  "gebe",
+  "hier",
+  "eher",
+  "gerade",
+]);
+
+export const NC_AUXILIARIES: ReadonlySet<string> = new Set([
+  "ist",
+  "sind",
+  "war",
+  "waren",
+  "wird",
+  "werden",
+  "wurde",
+  "wurden",
+  "hat",
+  "haben",
+  "hatte",
+  "hatten",
+  "kann",
+  "können",
+  "konnte",
+  "konnten",
+  "muss",
+  "müssen",
+  "musste",
+  "mussten",
+  "soll",
+  "sollen",
+  "sollte",
+  "sollten",
+  "will",
+  "wollen",
+  "wollte",
+  "wollten",
+  "darf",
+  "dürfen",
+  "durfte",
+  "durften",
+  "mag",
+  "möchte",
+  "möchten",
+  "würde",
+  "würden",
+  "wäre",
+  "wären",
+  "sei",
+  "seien",
+  "hätte",
+  "hätten",
+  "bleibt",
+  "blieb",
+  "gibt",
+  "gab",
+]);
+
+export const NC_COORDINATORS: ReadonlySet<string> = new Set(["und", "oder", "sowie", "bzw"]);
+
+export const NC_GENITIVES: ReadonlySet<string> = new Set([
+  "des",
+  "eines",
+  "meines",
+  "deines",
+  "seines",
+  "unseres",
+  "eures",
+  "dieses",
+  "jenes",
+]);
+
+export const NC_DEGREE_WORDS: ReadonlySet<string> = new Set([
+  "wirklich",
+  "sehr",
+  "ganz",
+  "ziemlich",
+  "besonders",
+  "äußerst",
+  "echt",
+  "total",
+  "so",
+  "recht",
+]);
+
+export const NC_CLAUSE_LINKS: ReadonlySet<string> = new Set([
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "doch",
+  "sondern",
+  "dass",
+  "weil",
+  "ob",
+  "wenn",
+  "als",
+  "obwohl",
+  "damit",
+  "bevor",
+  "nachdem",
+  "während",
+  "bis",
+  "falls",
+  "sobald",
+  "solange",
+  "da",
+  "wie",
+  "wo",
+  "was",
+  "wer",
+  "sodass",
+]);
+
+export const NC_GENITIVE_LIKE: ReadonlySet<string> = new Set([
+  "von",
+  "vom",
+  "der",
+  "des",
+  "dieser",
+  "dieses",
+  "jener",
+  "jenes",
+  "meiner",
+  "meines",
+  "deiner",
+  "deines",
+  "seiner",
+  "seines",
+  "ihrer",
+  "ihres",
+  "unserer",
+  "unseres",
+  "eurer",
+  "eures",
+  "einer",
+  "eines",
+]);
+
+export const NC_VERB_PARTICLE_NOUNS: ReadonlySet<string> = new Set([
+  "kopf",
+  "preis",
+  "statt",
+  "stand",
+  "eis",
+  "haus",
+  "hof",
+  "maß",
+  "not",
+  "acht",
+  "kehrt",
+  "hohn",
+]);
+
+export const NC_OBJECT_PRONOUNS: ReadonlySet<string> = new Set([
+  "mir",
+  "dir",
+  "ihm",
+  "ihr",
+  "uns",
+  "euch",
+  "ihnen",
+  "sich",
+  "sie",
+  "es",
+  "er",
+  "wir",
+  "ich",
+  "du",
+  "man",
+]);
+
+export const NC_HABEN: ReadonlySet<string> = new Set([
+  "habe",
+  "hast",
+  "hat",
+  "haben",
+  "habt",
+  "hatte",
+  "hattest",
+  "hatten",
+  "hattet",
+  "hätte",
+  "hätten",
+]);
+
+export const NC_SECOND_EXCEPTIONS: ReadonlySet<string> = new Set([
+  "halt",
+  "stand",
+  "statt",
+  "teil",
+  "preis",
+  "acht",
+]);
+
+export const NC_BARE_EXCEPTIONS: ReadonlySet<string> = new Set(["zuhause", "topp"]);
+
+export const NC_VERB_PARTICLES: ReadonlySet<string> = new Set([
+  "los",
+  "ab",
+  "an",
+  "auf",
+  "aus",
+  "ein",
+  "mit",
+  "vor",
+  "weg",
+  "zu",
+  "zurück",
+  "hin",
+  "her",
+  "fest",
+]);
+
+export const NC_FUNCTION_WORDS: ReadonlySet<string> = new Set([
+  "nicht",
+  "auch",
+  "noch",
+  "schon",
+  "nur",
+  "viel",
+  "wenig",
+  "mehr",
+  "genug",
+  "etwas",
+  "nichts",
+  "kein",
+  "gern",
+  "gerne",
+  "bitte",
+  "immer",
+  "wieder",
+  "dann",
+  "jetzt",
+  "heute",
+  "hier",
+  "da",
+  "dort",
+  "ja",
+  "doch",
+  "mal",
+  "gerade",
+  "nie",
+  "oft",
+  "ihm",
+  "ihnen",
+  "ihn",
+  "uns",
+  "euch",
+  "selbst",
+  "bloß",
+  "eben",
+  "halt",
+  "wohl",
+  "kaum",
+  "fast",
+  "sogar",
+  "gar",
+  "ganz",
+  "endlich",
+  "bereits",
+  "meist",
+  "erst",
+  "zuerst",
+]);
+
+export const NC_MAIN_CLAUSE_LINKS: ReadonlySet<string> = new Set([
+  "und",
+  "oder",
+  "aber",
+  "denn",
+  "doch",
+  "sondern",
+]);
+
+export const NC_SUBORDINATORS: ReadonlySet<string> = new Set([
+  "dass",
+  "weil",
+  "wenn",
+  "ob",
+  "obwohl",
+  "damit",
+  "nachdem",
+  "bevor",
+  "falls",
+  "sobald",
+  "solange",
+  "sodass",
+]);
+
+export const NC_WH_WORDS: ReadonlySet<string> = new Set([
+  "wie",
+  "wo",
+  "was",
+  "wer",
+  "wen",
+  "wem",
+  "wann",
+  "warum",
+  "weshalb",
+  "wieso",
+  "weswegen",
+  "wohin",
+  "woher",
+  "womit",
+  "wodurch",
+  "worauf",
+  "woran",
+  "worüber",
+  "wofür",
+]);
+
+export const NC_EITHER_EXCEPTIONS: ReadonlySet<string> = new Set([
+  "weiß",
+  "fern",
+  "fest",
+  "frei",
+  "klein",
+  "groß",
+  "dicht",
+  "nah",
+  "nahe",
+  "hoch",
+  "tief",
+  "weit",
+]);
+
+export const NC_ADVERB_COMPARATIVES: ReadonlySet<string> = new Set([
+  "lieber",
+  "eher",
+  "besser",
+  "mehr",
+  "weniger",
+  "länger",
+  "weiter",
+  "öfter",
+]);
+
+export const NOMINAL_LOWERCASE_OK: ReadonlySet<string> = new Set([
+  "anderen",
+  "andere",
+  "anderes",
+  "einen",
+  "einzige",
+  "einzigen",
+  "meisten",
+  "wenigsten",
+  "mindesten",
+  "ganzen",
+  "beiden",
+  "weiteres",
+  "mehr",
+  "weniger",
+  "viele",
+  "vieles",
+  "einiges",
+  "solches",
+  "folgendes",
+  "mögliche",
+  "dasselbe",
+  "denselben",
+  "demselben",
+  "letzten",
+  "nächsten",
+  "ersten",
+  "selben",
+  "selbigen",
+  "gleichen",
+]);
+
+export const NOMINAL_NOT_NEUTER: ReadonlySet<string> = new Set([
+  "alles",
+  "etwas",
+  "nichts",
+  "dieses",
+  "jenes",
+  "welches",
+  "manches",
+  "solches",
+  "folgendes",
+  "vieles",
+  "weniges",
+  "anderes",
+  "einiges",
+  "beides",
+  "jedes",
+  "keines",
+  "meines",
+  "deines",
+  "seines",
+  "ihres",
+  "unseres",
+  "eures",
+  "eines",
+  "dasselbe",
+]);
+
+export const NOMINAL_DEGREE: ReadonlySet<string> = new Set([
+  "sehr",
+  "ganz",
+  "wirklich",
+  "total",
+  "allzu",
+  "besonders",
+  "ziemlich",
+  "richtig",
+  "echt",
+  "so",
+  "recht",
+  "selbst",
+]);
+
+export const NAME_CUES: ReadonlySet<string> = new Set([
+  "heißt",
+  "heiße",
+  "heißen",
+  "hieß",
+  "hießen",
+  "nennt",
+  "nannte",
+  "genannt",
+  "namens",
+  "titel",
+  "und",
+  "oder",
+  "sowie",
+  "bzw",
+  "von",
+]);
+
+export const CAPITAL_PARTICLES: ReadonlySet<string> = new Set(["aus", "vor", "an", "ab", "zu"]);
+
+export const CAPITAL_SUBORDINATORS: ReadonlySet<string> = new Set([
+  "weil",
+  "dass",
+  "wenn",
+  "während",
+  "ob",
+  "als",
+  "obwohl",
+  "damit",
+  "bevor",
+  "nachdem",
+  "sobald",
+  "falls",
+  "da",
+  "seit",
+  "seitdem",
+]);
+
+export const NAME_TRIPLES: ReadonlySet<string> = new Set([
+  "heilig römisch:reich",
+  "zweit deutsch:fernsehen",
+  "erst deutsch:fernsehen",
+  "national olympisch:komitee",
+  "international olympisch:komitee",
+]);
+
+export const LOWER_PAIRS: ReadonlySet<string> = new Set([
+  "grün:Tee",
+  "schwarz:Tee",
+  "klein:Einmaleins",
+  "groß:Einmaleins",
+  "olympisch:Feuer",
+  "linear:Algebra",
+  "analytisch:Geometrie",
+  "englisch:Rasen",
+  "künstlich:Intelligenz",
+  "sozial:Netzwerk",
+  "sozial:Netzwerke",
+  "sozial:Medien",
+  "erneuerbar:Energien",
+  "erneuerbar:Energie",
+  "öffentlich:Dienst",
+  "mittler:Reife",
+  "rot:Faden",
+  "kalt:Buffet",
+  "höher:Gewalt",
+  "freundlich:Grüße",
+  "freundlich:Grüßen",
+  "herzlich:Grüße",
+  "herzlich:Grüßen",
+  "lieb:Grüße",
+  "lieb:Grüßen",
+  "best:Grüße",
+  "best:Grüßen",
+  "neu:Jahr",
+  "recht:Winkel",
+  "spitz:Winkel",
+  "stumpf:Winkel",
+  "offen:Tür",
+  "elektrisch:Feld",
+  "elektrisch:Feldstärke",
+  "elektrisch:Strom",
+  "magnetisch:Feld",
+  "mittler:Bildungsabschluss",
+  "mittler:Bildungsabschlüsse",
+  "gesund:Menschenverstand",
 ]);
 
 export const THAT_ADJECTIVES: ReadonlySet<string> = new Set([
@@ -495,6 +1253,13 @@ export const DE_MONTHS: Readonly<Record<string, number>> = {
   nov: 11,
   dezember: 12,
   dez: 12,
+};
+
+export const NOMINAL_IRREGULAR: Readonly<Record<string, string>> = {
+  be: "gut",
+  besser: "gut",
+  höch: "hoch",
+  näch: "nah",
 };
 
 export const SEIN_FOR: Readonly<Record<string, string>> = {
@@ -895,6 +1660,24 @@ export const JOINED_OPEN: Readonly<Record<string, string>> = {
 // de.yaml def IDIOM_FINDINGS
 export const IDIOM_FINDINGS = new WeakSet<RawFinding>();
 
+// de.yaml def NOUN_FINDINGS
+export const NOUN_FINDINGS = new WeakSet<RawFinding>();
+
+// de.yaml def PRONOMINAL_ADVERB
+export const PRONOMINAL_ADVERB =
+  /^(?:da|dar|hier|wo|wor)(?:an|auf|aus|bei|durch|für|gegen|hinter|in|mit|nach|neben|über|um|unter|von|vor|zu|zwischen)$/u;
+
+// de.yaml def boundaryBefore
+export function boundaryBefore(before: string[], i: number): number {
+  return i < 0 || BOUNDARY.test(before[i]) ? i : boundaryBefore(before, i - 1);
+}
+
+// de.yaml def governedBefore
+export function governedBefore(before: string[], at: number) {
+  const from = boundaryBefore(before, at - 1) + 1;
+  return before.slice(from, at).some((t) => VERB_GOVERNORS.has(t.toLowerCase()));
+}
+
 // de.yaml def ZURECHT_VERBS
 export const ZURECHT_VERBS =
   /(?<!\p{L})(?:ge)?(?:komm|kam|käm|leg|find|fand|fänd|mach|rück|weis|wies|stell|schneid|schnitt|bieg|bog|setz|zupf|richt)\p{Ll}*/u;
@@ -1089,6 +1872,861 @@ export function weekdayFix(
       `${g.weekday}${sep}${head}${dayText}`,
     ],
     parts.year === undefined ? "review_msg_weekday_no_year" : "review_msg_german_weekday_date",
+  );
+}
+
+// de.yaml rule de.nounCasing def NAME_PAIRS
+export const NAME_PAIRS = (
+  "!erst:Weltkrieg !zweit:Weltkrieg !französisch:Revolution !dreißigjährig:Krieg " +
+  "!hundertjährig:Krieg !siebenjährig:Krieg !transsibirisch:Eisenbahn !westfälisch:Frieden " +
+  "chinesisch:Mauer rot:Armee rot:Kreuz rot:Meer schwarz:Meer tot:Meer still:Ozean " +
+  "indisch:Ozean atlantisch:Ozean kalt:Krieg heilig:Abend heilig:Schrift heilig:Geist " +
+  "heilig:Land vereint:Nationen europäisch:Union europäisch:Zentralbank " +
+  "europäisch:Kommission nah:Osten fern:Osten mittler:Osten sächsisch:Schweiz " +
+  "fränkisch:Schweiz holsteinisch:Schweiz märkisch:Schweiz böhmisch:Schweiz schwäbisch:Alb " +
+  "olympisch:Spiele römisch:Reich jüngst:Gericht " +
+  "letzt:Abendmahl vereinigt:Staaten vereinigt:Königreich tschechisch:Republik " +
+  "dominikanisch:Republik zentralafrikanisch:Republik kanarisch:Inseln britisch:Inseln " +
+  "balearisch:Inseln ewig:Stadt dritt:Welt dritt:Reich golden:Zwanziger " +
+  "international:Währungsfonds international:Strafgerichtshof bayerisch:Rundfunk " +
+  "!trojanisch:Krieg !unbefleckt:Empfängnis !hängend:Gärten !hoh:Tatra !groß:Walachei " +
+  "!klein:Walachei !statistisch:Bundesamt !gelb:Fluss bayerisch:Fernsehen deutsch:Bank " +
+  "deutsch:Bund demokratisch:Republik demokratisch:Volksrepublik islamisch:Republik " +
+  "türkisch:Republik heilig:Vater englisch:Garten schief:Turm gelb:Seiten"
+).split(" ");
+
+// de.yaml rule de.nounCasing def NAME_ALWAYS
+export const NAME_ALWAYS = new Set(
+  NAME_PAIRS.filter((p) => p.startsWith("!")).map((p) => p.slice(1)),
+);
+
+// de.yaml rule de.nounCasing def NAME_PAIR_SET
+export const NAME_PAIR_SET = new Set(NAME_PAIRS.map((p) => p.replace("!", "")));
+
+// de.yaml rule de.nounCasing def NAME_NOUN_SET
+export const NAME_NOUN_SET = new Set(NAME_PAIRS.map((p) => p.split(":")[1]));
+
+// de.yaml rule de.nounCasing def NAME_DEFINITE
+export const NAME_DEFINITE =
+  /(?<![\p{L}\p{N}])(?:der|die|das|des|dem|den|im|am|vom|zum|zur|beim|ins)[ \t]+$/iu;
+
+// de.yaml rule de.nounCasing def nameStem
+export function nameStem(adj: string) {
+  return adj.toLowerCase().replace(/(?:e|en|er|es|em)$/, "");
+}
+
+// de.yaml rule de.nounCasing def nameLemmas
+export function nameLemmas(noun: string) {
+  return [noun, ...["s", "es", "n"].map((e) => noun.replace(new RegExp(`${e}$`), ""))];
+}
+
+// de.yaml rule de.nounCasing def nameCapital
+export function nameCapital(
+  ctx: DetectContext,
+  start: number,
+  context: { start: number; end: number },
+): RawFinding | null {
+  const word = /^\p{L}+/u.exec(ctx.text.slice(start))?.[0] ?? "";
+  if (!(/^\p{Ll}/u.test(word) && !ctx.dictionary.has(word) && !namedExampleBefore(ctx.text, start)))
+    return null;
+  return {
+    ruleId: "germanNounCasing",
+    messageKey: "review_msg_german_name_case",
+    range: { start, end: start + 1 },
+    alternatives: [word[0].toUpperCase()],
+    context,
+  };
+}
+
+// de.yaml rule de.nounCasing def capitalStemVerb
+export function capitalStemVerb(stem: string) {
+  return stem.length >= 2 && (germanInfinitive(`${stem}en`) || germanInfinitive(`${stem}n`));
+}
+
+// de.yaml rule de.nounCasing def capitalVerbAgrees
+export function capitalVerbAgrees(pronoun: string, low: string) {
+  const third = /t$/.test(low) && capitalStemVerb(low.replace(/e?t$/, ""));
+  return /(?:en|ern|eln)$/.test(low) && germanInfinitive(low)
+    ? pronoun === "wir" || pronoun === "sie"
+    : !!germanInfinitiveOf(low) || germanPastInfinitives(low).length > 0
+      ? true
+      : pronoun === "ich"
+        ? /e$/.test(low) && germanVerbLike(low)
+        : pronoun === "du"
+          ? /st$/.test(low) && capitalStemVerb(low.replace(/e?st$/, ""))
+          : pronoun === "wir"
+            ? false
+            : third;
+}
+
+// de.yaml rule de.nounCasing def NOMINAL_ENDING
+export const NOMINAL_ENDING = /^(.+?)(?:sten|ste|sten|e|en|em|er|es)$/;
+
+// de.yaml rule de.nounCasing def NOMINAL_DETERMINER
+export const NOMINAL_DETERMINER =
+  /^(?:k?ein|[dms]ein|ihr|unser|euer|das|dies|jen|jed|welch|manch|solch|all|viel|wenig|etwas|nichts)(?:e|en|er|es|em)?$/;
+
+// de.yaml rule de.nounCasing def nominalAdjectiveForm
+export function nominalAdjectiveForm(typed: string, comparative: boolean) {
+  const stem = NOMINAL_ENDING.exec(typed)?.[1];
+  if (!stem) return false;
+  return (
+    (comparative && !!NOMINAL_IRREGULAR[stem]) ||
+    (comparative ? [stem, stem.replace(/(?<=\p{L}{3})er$/u, "")] : [stem]).some((s) =>
+      [s, `${s}e`, deumlaut(s)].some((form) => germanAdjective(form)),
+    )
+  );
+}
+
+// de.yaml rule de.nounCasing def neuterAdjective
+export function neuterAdjective(w: string) {
+  return /^\p{Ll}+(?:e|en|er|es|em)$/u.test(w) && nominalAdjectiveForm(w, false);
+}
+
+// de.yaml rule de.nounCasing def neuterPriorAt
+export function neuterPriorAt(before: string[], at: number): number {
+  return at > 0 &&
+    (NOMINAL_DEGREE.has(before[at]) ||
+      before[at] === "," ||
+      nominalAdjectiveForm(before[at], false))
+    ? neuterPriorAt(before, at - 1)
+    : at;
+}
+
+// de.yaml rule de.nounCasing def nominalizedFinding
+export function nominalizedFinding(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const groups = m.indices!.groups ?? {};
+  const name = [
+    "target",
+    "sup",
+    "es",
+    "e",
+    "lang",
+    "ganzen",
+    "poss",
+    "abs",
+    "what",
+    "fixed",
+    "fixed2",
+    "rank",
+  ].find((k) => groups[k]);
+  const span = name ? groups[name] : [m.index + m[0].search(/\p{L}+$/u), m.index + m[0].length];
+  const start = span[0];
+  if (start < ctx.from || start >= ctx.to) return null;
+  const end = span[1];
+  const typed = ctx.text.slice(start, end);
+  if (!(/^\p{Ll}/u.test(typed) && !ctx.dictionary.has(typed))) return null;
+  const fixed = name === "fixed" || name === "fixed2" || name === "rank";
+  const fixedAfter = fixed ? (deTokensAfter(ctx.text, end, 1)[0] ?? "") : "";
+  if (fixed && /^\p{Ll}+(?:en|er|es|em)$/u.test(fixedAfter) && !germanInfinitive(fixedAfter))
+    return null;
+  if (NOMINAL_LOWERCASE_OK.has(typed) && name !== "what" && !fixed) return null;
+  if (!(
+    name !== "what" ||
+    !/[ \t]\p{Lu}/u.test(
+      ctx.text
+        .slice(Math.max(0, start - 120), start)
+        .split(/[.!?\n]/)
+        .at(-1)!,
+    )
+  ))
+    return null;
+  if (!(ctx.text.slice(Math.max(0, m.index - typed.length - 1), m.index).trim() !== typed))
+    return null;
+  if (
+    name !== "lang" &&
+    name !== "poss" &&
+    name !== "what" &&
+    !!name &&
+    !fixed &&
+    !nominalAdjectiveForm(typed, false)
+  )
+    return null;
+  const after = deTokensAfter(ctx.text, end, 2);
+  const next = after[0] ?? "";
+  const second = after[1] ?? "";
+  const pairedAttribute =
+    name === "es" &&
+    nominalAdjectiveForm(second, false) &&
+    !NOMINAL_NOT_NEUTER.has(second) &&
+    /^\p{Lu}/u.test(deTokensAfter(ctx.text, end, 3)[2] ?? "");
+  if (
+    /^(?:und|oder|bzw|sowie|\()$/.test(next) &&
+    name !== "ganzen" &&
+    name !== "lang" &&
+    (name !== "es" || next === "(" || pairedAttribute)
+  )
+    return null;
+  if (next === "," && /^(?:sondern|\p{Ll}+(?:e|en|er|es|em))$/u.test(second)) return null;
+  const adjectiveNext =
+    /^\p{Ll}+(?:e|en|er|es|em)$/u.test(next) &&
+    !germanVerbLike(next) &&
+    !PRONOMINAL_ADVERB.test(next) &&
+    !/^(?:hinter|unter|über|wider|aber|oder|sondern|weder|immer|wieder|gegen|ohne)$/.test(next);
+  if (adjectiveNext && name !== "es" && name !== "e" && !fixed) return null;
+  if (!name && /^als/.test(m[0]) && !/^\p{Ll}+$/u.test(next)) return null;
+  if (!name && /^als/.test(m[0]) && /^(?:der|des|die|das)$/.test(next)) return null;
+  if (
+    !name &&
+    /^als/.test(m[0]) &&
+    /^[^.!?,;:\n]{0,60}?\p{Ll}es[ \t]+\p{Lu}/u.test(ctx.text.slice(end, end + 80))
+  )
+    return null;
+  if (name === "e" && germanVerbLike(typed)) return null;
+  if (/^\p{Lu}/u.test(next) && !/^(?:Sie|Ihnen|Ihr|Ihre)$/.test(next)) return null;
+  if (
+    /^\p{Ll}+(?:e|en|er|es|em)$/u.test(next) &&
+    germanAdjective(NOMINAL_ENDING.exec(next)?.[1] ?? "")
+  )
+    return null;
+  const nextNoun = next.length > 2 ? germanNounReading(next) : null;
+  const before = deTokensBefore(ctx.text, m.index, 12);
+  if (
+    nextNoun === "noun" ||
+    (nextNoun === "finite" && !PRONOUNS.has(second.toLowerCase())) ||
+    (nextNoun === "infinitive" && name === "target" && !governedBefore(before, before.length))
+  )
+    return null;
+  if (namedExampleBefore(ctx.text, start)) return null;
+  return {
+    ruleId: "germanNounCasing",
+    messageKey: "review_msg_german_noun_case",
+    range: { start, end: start + 1 },
+    alternatives: [typed[0].toUpperCase()],
+    context: { start: m.index, end },
+  };
+}
+
+// de.yaml rule de.nounCasing def NC_NOMINALIZING
+export const NC_NOMINALIZING = /(?<![\p{L}\p{N}])(?:beim|zum|vom|ins)[ \t]+$/iu;
+
+// de.yaml rule de.nounCasing def NC_NEUTER_EIN
+export const NC_NEUTER_EIN =
+  /(?<![\p{L}\p{N}])(?:ein|kein|(?:mit|von|bei|aus|nach|zu|seit)[ \t]+k?einem)[ \t]+$/iu;
+
+// de.yaml rule de.nounCasing def NC_RELATIVE
+export const NC_RELATIVE =
+  /^(?:(?:\p{Ll}+ )?(?:der|die|das|dem|den|denen|dessen|deren|welche|welcher|welches|welchem|welchen))(?: |$)/u;
+
+// de.yaml rule de.nounCasing def NC_IDIOMS
+export const NC_IDIOMS =
+  /^(?:kreuz und quer|sage und schreibe|gang und gäbe|zeit (?:seines|ihres|meines|deines))\b/iu;
+
+// de.yaml rule de.nounCasing def NC_PARTICLE
+export const NC_PARTICLE =
+  /^(?:an|auf|aus|ab|ein|mit|nach|vor|zu|zurück|weg|bei|los|fest|hin|her)(?=\p{Ll}{3})/u;
+
+// de.yaml rule de.nounCasing def NC_MODALS
+export const NC_MODALS =
+  /^(?:k[aöo]nn|m[üu]ss|soll|will|woll|d[aüu]rf|mag|m[öo]cht|werd|wirst|wird|würd|wurd|lass|läss|ließ)/;
+
+// de.yaml rule de.nounCasing def NC_SUBJECT_AFTER_WH
+export const NC_SUBJECT_AFTER_WH = /^(?:ich|du|er|sie|es|wir|ihr|man|Sie|der|die|das)$/;
+
+// de.yaml rule de.nounCasing def blankStart
+export function blankStart(text: string, i: number): number {
+  return i > 0 && (text[i - 1] === " " || text[i - 1] === "\t") ? blankStart(text, i - 1) : i;
+}
+
+// de.yaml rule de.nounCasing def ncLower
+export function ncLower(token: string | undefined) {
+  return token?.toLowerCase() ?? "";
+}
+
+// de.yaml rule de.nounCasing def ncIsAdjective
+export function ncIsAdjective(token: string) {
+  return (
+    /^\p{Ll}{2,}(?:e|en|er|es|em)$/u.test(token) &&
+    !PRONOMINAL_ADVERB.test(token) &&
+    !/^(?:da|wo|bis|seit|vor|nach|um|hier|dort|ein|neben|hinter)her$|einander$/u.test(token) &&
+    !NC_NOT_ADJECTIVES.has(token) &&
+    !ARTICLES.has(token) &&
+    !DEMONSTRATIVES.has(token) &&
+    !NC_QUANTIFIERS.has(token) &&
+    germanNounReading(token) === null &&
+    !germanVerbLike(token)
+  );
+}
+
+// de.yaml rule de.nounCasing def ncInflectedAdjective
+export function ncInflectedAdjective(token: string) {
+  const stem = token.replace(/(?:e|en|er|es|em)$/, "");
+  return (
+    stem !== token &&
+    /^\p{Ll}+$/u.test(token) &&
+    !NC_NOT_ADJECTIVES.has(token) &&
+    !ARTICLES.has(token) &&
+    !DEMONSTRATIVES.has(token) &&
+    !NC_QUANTIFIERS.has(token) &&
+    (germanAdjective(stem) || germanAdjective(`${stem}e`))
+  );
+}
+
+// de.yaml rule de.nounCasing def ncAttributive
+export function ncAttributive(word: string) {
+  if (!(ncIsAdjective(word) && !PREPOSITIONS.has(word))) return false;
+  const stem = word.replace(/(?:e|en|er|es|em)$/, "");
+  return (
+    germanAdjective(stem) ||
+    germanAdjective(`${stem}e`) ||
+    !/^(?:ge|er|ver|be|ent|zer)\p{Ll}+en$/u.test(word)
+  );
+}
+
+// de.yaml rule de.nounCasing def ncFiniteVerb
+export function ncFiniteVerb(word: string) {
+  return (
+    NC_AUXILIARIES.has(word) ||
+    VERB_GOVERNORS.has(word) ||
+    (!PREPOSITIONS.has(word) &&
+      !ARTICLES.has(word) &&
+      !DEMONSTRATIVES.has(word) &&
+      germanNounReading(word) !== "noun" &&
+      (germanVerbLike(word) ||
+        (/^\p{Ll}{2,}e?t$/u.test(word) &&
+          [`${word.replace(/e?t$/, "")}en`, `${word.replace(/t$/, "")}n`].some((w) =>
+            germanInfinitive(w),
+          ))))
+  );
+}
+
+// de.yaml rule de.nounCasing def ncNeuterArticleInfinitive
+export function ncNeuterArticleInfinitive(ctx: DetectContext, index: number, length: number) {
+  if (!NC_NEUTER_EIN.test(ctx.text.slice(Math.max(0, index - 16), index))) return false;
+  const next = ncLower(deTokensAfter(ctx.text, index + length, 1)[0]);
+  if (!(next !== "zu")) return false;
+  return BOUNDARY.test(next) || PREPOSITIONS.has(next) || ncFiniteVerb(next);
+}
+
+// de.yaml rule de.nounCasing def ncSkipAdjectives
+export function ncSkipAdjectives(after: string[], i: number): number {
+  return i < after.length - 1 && ncIsAdjective(ncLower(after[i]))
+    ? ncSkipAdjectives(after, i + 1)
+    : i;
+}
+
+// de.yaml rule de.nounCasing def ncGenitiveThenVerb
+export function ncGenitiveThenVerb(after: string[]) {
+  if (!NC_GENITIVE_LIKE.has(ncLower(after[0]))) return false;
+  const i = ncSkipAdjectives(after, 1);
+  return /^\p{Lu}\p{Ll}/u.test(after[i] ?? "") && ncFiniteVerb(ncLower(after[i + 1]));
+}
+
+// de.yaml rule de.nounCasing def ncGermanWord
+export function ncGermanWord(w: string) {
+  return (
+    NC_FUNCTION_WORDS.has(w) ||
+    PRONOUNS.has(w) ||
+    VERB_GOVERNORS.has(w) ||
+    NC_AUXILIARIES.has(w) ||
+    PREPOSITIONS.has(w) ||
+    ARTICLES.has(w) ||
+    DEMONSTRATIVES.has(w) ||
+    NC_QUANTIFIERS.has(w) ||
+    NC_CLAUSE_LINKS.has(w) ||
+    NC_DEGREE_WORDS.has(w) ||
+    ncFiniteVerb(w) ||
+    germanInfinitive(w) ||
+    germanAdjective(w) ||
+    germanAdjective(w.replace(/(?:e|en|er|es|em)$/, ""))
+  );
+}
+
+// de.yaml rule de.nounCasing def ncBareNoun
+export function ncBareNoun(typed: string, before: string[], after: string[]) {
+  const prior = before.at(-1) ?? "";
+  const next = after[0] ?? "";
+  const nounPrior =
+    /^\p{Lu}\p{Ll}{2,}$/u.test(prior) &&
+    before.length > 1 &&
+    !BOUNDARY.test(before.at(-2)!) &&
+    !/(?:en|ern|eln)$/.test(typed) &&
+    BOUNDARY.test(next) &&
+    (germanNounReading(prior.toLowerCase()) !== null || germanGender(prior) !== null);
+  if (typed.length < 4 || NC_BARE_EXCEPTIONS.has(typed) || !(nounPrior || /^\p{Ll}+$/u.test(prior)))
+    return false;
+  const ends = BOUNDARY.test(next) || NC_COORDINATORS.has(next);
+  if (NC_VERB_PARTICLE_NOUNS.has(typed) && ends) return false;
+  if (
+    /^wurs(?:ch)?t$/.test(typed) &&
+    before.some((t) => /^(?:mir|dir|ihm|ihr|uns|euch|ihnen)$/i.test(t))
+  )
+    return false;
+  if (NC_VERB_PARTICLES.has(next) && BOUNDARY.test(after[1] ?? "")) return false;
+  return (
+    (nounPrior || ncGermanWord(prior)) &&
+    (ends || ncGermanWord(ncLower(next)) || /^ge\p{Ll}+(?:t|en)$/u.test(next))
+  );
+}
+
+// de.yaml rule de.nounCasing def ncHadObject
+export function ncHadObject(typed: string, before: string[], after: string[]) {
+  if (!(typed.length >= 4 && NC_HABEN.has(ncLower(before.at(-1))))) return false;
+  if (/^(?:be|er|ver|ge|ent|zer|emp|miss|über|unter|hinter|wider)\p{Ll}{3,}en$/u.test(typed))
+    return false;
+  const next = ncLower(after[0]);
+  return (
+    BOUNDARY.test(next) ||
+    PRONOMINAL_ADVERB.test(next) ||
+    /^(?:am|im|zum|zur|vom|beim|ins|ans|aufs|fürs)$/.test(next) ||
+    (PREPOSITIONS.has(next) && !VERB_GOVERNORS.has(ncLower(after[1])))
+  );
+}
+
+// de.yaml rule de.nounCasing def ncSecondFiniteFrom
+export function ncSecondFiniteFrom(before: string[], i: number, verb: boolean): boolean {
+  if (!(i >= 0 && !BOUNDARY.test(before[i]))) return verb;
+  const low = before[i].toLowerCase();
+  const stop =
+    NC_CLAUSE_LINKS.has(low) ||
+    NC_SUBORDINATORS.has(low) ||
+    NC_COORDINATORS.has(low) ||
+    (/^(?:der|die|das|den|dem|denen|welche[mnrs]?)$/.test(low) &&
+      (before[i - 1] === "," || /^\p{Lu}/u.test(before[i - 1] ?? ""))) ||
+    (/^(?:denen|deren|dessen)$/.test(low) && PREPOSITIONS.has(ncLower(before[i - 1])));
+  return stop
+    ? false
+    : ncSecondFiniteFrom(
+        before,
+        i - 1,
+        verb ||
+          (!(i === before.length - 1 && /en$/.test(low)) &&
+            i > 0 &&
+            before[i] === low &&
+            (NC_AUXILIARIES.has(low) || VERB_GOVERNORS.has(low) || ncFiniteVerb(low))),
+      );
+}
+
+// de.yaml rule de.nounCasing def ncSecondFinite
+export function ncSecondFinite(typed: string, before: string[], after: string[]) {
+  const next = ncLower(after[0]);
+  const ends = BOUNDARY.test(next) || (germanInfinitive(next) && BOUNDARY.test(after[1] ?? ""));
+  if (!(typed.length >= 4 && ends && /^\p{Ll}+$/u.test(before.at(-1) ?? ""))) return false;
+  if (NC_AUXILIARIES.has(typed) || VERB_GOVERNORS.has(typed) || NC_SECOND_EXCEPTIONS.has(typed))
+    return false;
+  return ncSecondFiniteFrom(before, before.length - 1, false);
+}
+
+// de.yaml rule de.nounCasing def ncPairedNoun
+export function ncPairedNoun(before: string[], after: string[]) {
+  const next = after[0] ?? "";
+  const noun = before.at(-2) ?? "";
+  return (
+    NC_COORDINATORS.has(ncLower(before.at(-1))) &&
+    /^\p{Lu}\p{Ll}+$/u.test(noun) &&
+    !BOUNDARY.test(before.at(-3) ?? ".") &&
+    germanNounReading(noun.toLowerCase()) !== null &&
+    (BOUNDARY.test(next) ||
+      NC_COORDINATORS.has(next) ||
+      (/^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert)$/u.test(next) && BOUNDARY.test(after[1] ?? "")))
+  );
+}
+
+// de.yaml rule de.nounCasing def ncTriggerFrom
+export function ncTriggerFrom(
+  before: string[],
+  i: number,
+  adjectives: boolean,
+  attribute: number,
+): { kind: string; at: number } | null {
+  if (!(i >= Math.max(0, before.length - 3)))
+    return attribute >= 0 ? { kind: "adjective", at: attribute } : null;
+  const token = before[i];
+  const low = token.toLowerCase();
+  const prior = ncLower(before[i - 1]);
+  const article = adjectives || PREPOSITIONS.has(prior);
+  return token !== low && i > 0 && !BOUNDARY.test(before[i - 1])
+    ? null
+    : /^\p{N}+$/u.test(token) || NC_NUMBERS.has(low)
+      ? {
+          kind:
+            PREPOSITIONS.has(prior) || ARTICLES.has(prior) || DEMONSTRATIVES.has(prior)
+              ? "article"
+              : "number",
+          at: i,
+        }
+      : ARTICLES.has(low) && !(/^(?:ich|wir|sie)$/.test(prior) && /^meinen?$/.test(low))
+        ? { kind: "article", at: i }
+        : DEMONSTRATIVES.has(low)
+          ? { kind: article ? "article" : "demonstrative", at: i }
+          : NC_QUANTIFIERS.has(low)
+            ? { kind: article ? "article" : "quantifier", at: i }
+            : PREPOSITIONS.has(low)
+              ? low === "vor" && prior === "wie"
+                ? null
+                : { kind: "preposition", at: i }
+              : adjectives && NC_DEGREE_WORDS.has(token)
+                ? ncTriggerFrom(before, i - 1, adjectives, attribute)
+                : ncTriggerAdjective(before, i, token, low, prior, attribute);
+}
+
+// de.yaml rule de.nounCasing def ncTriggerAdjective
+export function ncTriggerAdjective(
+  before: string[],
+  i: number,
+  token: string,
+  low: string,
+  prior: string,
+  attribute: number,
+): { kind: string; at: number } | null {
+  const lemma =
+    ARTICLES.has(prior) || DEMONSTRATIVES.has(prior) ? low.replace(/(?:e|en|er|es|em)$/, "") : "";
+  const stem = low.replace(/(?:e|en|er|es|em)$/, "");
+  const verbForm =
+    germanInfinitive(low) &&
+    !ARTICLES.has(prior) &&
+    !DEMONSTRATIVES.has(prior) &&
+    !NC_QUANTIFIERS.has(prior) &&
+    !PREPOSITIONS.has(prior);
+  const inflected =
+    stem !== low &&
+    !verbForm &&
+    !NC_NOT_ADJECTIVES.has(low) &&
+    !/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|manch|solch|all|d)$/.test(stem) &&
+    (germanAdjective(stem) ||
+      germanAdjective(`${stem}e`) ||
+      /^(?:ge|er|ver|be|ent|zer)\p{Ll}{3,}t$/u.test(stem));
+  return !(ncIsAdjective(low) || inflected || (lemma !== low && germanAdjective(lemma))) ||
+    (token !== low && !inflected)
+    ? low !== "als" && low !== "wie" && attribute >= 0
+      ? { kind: "adjective", at: attribute }
+      : null
+    : ncTriggerFrom(before, i - 1, true, inflected ? i : attribute);
+}
+
+// de.yaml rule de.nounCasing def ncModalBefore
+export function ncModalBefore(before: string[], at: number) {
+  const from = boundaryBefore(before, at - 1) + 1;
+  return before.slice(from, at).some((t) => NC_MODALS.test(t.toLowerCase()));
+}
+
+// de.yaml rule de.nounCasing def ncSubordinate
+export function ncSubordinate(before: string[], at: number) {
+  const b = boundaryBefore(before, at - 1);
+  return (
+    before
+      .slice(b + 1, at)
+      .some(
+        (t, k) =>
+          NC_SUBORDINATORS.has(t.toLowerCase()) ||
+          (NC_WH_WORDS.has(t.toLowerCase()) &&
+            (b + k + 2 === at || NC_SUBJECT_AFTER_WH.test(before[b + k + 2]))),
+      ) ||
+    (before[b] === "," && NC_RELATIVE.test(before.slice(b + 1, b + 3).join(" ")))
+  );
+}
+
+// de.yaml rule de.nounCasing def ncInfinitiveAfter
+export function ncInfinitiveAfter(after: string[]) {
+  const k = after.findIndex(
+    (t) =>
+      BOUNDARY.test(t) ||
+      germanInfinitive(t) ||
+      /^(?:sein|tun|\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert)$/u.test(t),
+  );
+  return k >= 0 && !BOUNDARY.test(after[k]);
+}
+
+// de.yaml rule de.nounCasing def ncNeuterRuledOut
+export function ncNeuterRuledOut(reading: string, typed: string, kind: string) {
+  const gender = germanGender(typed);
+  return gender
+    ? gender.gender !== "n" && gender.gender !== "x"
+    : reading === "finite" && /[^s]t$/.test(typed) && kind === "demonstrative";
+}
+
+// de.yaml rule de.nounCasing def ncAdjectiveKindHolds
+export function ncAdjectiveKindHolds(
+  reading: string,
+  before: string[],
+  at: number,
+  next: string,
+  ends: boolean,
+) {
+  const opens = at === 0 || BOUNDARY.test(before[at - 1]);
+  return opens && NC_AUXILIARIES.has(next)
+    ? true
+    : VERB_GOVERNORS.has(next) || PRONOUNS.has(next)
+      ? false
+      : reading === "infinitive" && ends
+        ? !opens && !ncSubordinate(before, at) && !ncModalBefore(before, at)
+        : reading === "finite" || !ends;
+}
+
+// de.yaml rule de.nounCasing def ncPronounLike
+export function ncPronounLike(w: string) {
+  return ARTICLES.has(w) || DEMONSTRATIVES.has(w) || NC_QUANTIFIERS.has(w) || PRONOUNS.has(w);
+}
+
+// de.yaml rule de.nounCasing def ncNounReadingHolds
+export function ncNounReadingHolds(
+  reading: string,
+  typed: string,
+  kind: string,
+  before: string[],
+  at: number,
+  after: string[],
+) {
+  const next = ncLower(after[0]);
+  const prior = before[at - 1];
+  const det = ncLower(before[at]);
+  const determiner = kind === "article" || kind === "demonstrative";
+  const clauseStart =
+    prior === undefined || BOUNDARY.test(prior) || NC_CLAUSE_LINKS.has(prior.toLowerCase());
+  const sentenceStart = prior === undefined || /^(?:[.!?\n„“"»«])$/.test(prior);
+  const ends = BOUNDARY.test(next) || NC_COORDINATORS.has(next);
+  return typed === "bitte" && kind !== "article"
+    ? false
+    : kind === "bare"
+      ? true
+      : kind === "preposition" && before.slice(at + 1).some((t) => ncInflectedAdjective(t))
+        ? true
+        : kind === "number" &&
+            reading === "infinitive" &&
+            !/^[01]$/.test(before[at]) &&
+            !/^(?:um|ab|bis|gegen|auf|zu|von)$/.test(ncLower(prior)) &&
+            !/^\p{Lu}/u.test(prior ?? "") &&
+            !VERB_GOVERNORS.has(next) &&
+            !(ncModalBefore(before, at) && BOUNDARY.test(next)) &&
+            [typed.slice(0, -1), typed.slice(0, -2)].some(
+              (stem) => stem.length >= 3 && germanNounReading(stem) !== null,
+            )
+          ? true
+          : kind === "adjective"
+            ? ncAdjectiveKindHolds(reading, before, at, next, ends)
+            : reading === "infinitive" && /^[01]$/.test(before[at])
+              ? false
+              : /^(?:das|dies|dieses|jenes|welches)$/.test(det) &&
+                  ncNeuterRuledOut(reading, typed, kind)
+                ? false
+                : reading === "infinitive" &&
+                    kind === "demonstrative" &&
+                    prior !== undefined &&
+                    !BOUNDARY.test(prior) &&
+                    !NC_MAIN_CLAUSE_LINKS.has(prior.toLowerCase()) &&
+                    (VERB_GOVERNORS.has(next) || NC_MODALS.test(next))
+                  ? false
+                  : kind === "demonstrative" && prior !== undefined && /^[,;:(–—-]$/.test(prior)
+                    ? false
+                    : determiner &&
+                        (NC_GENITIVES.has(next) ||
+                          (next === "," && NC_RELATIVE.test(after.slice(1, 3).join(" "))))
+                      ? true
+                      : before[at - 2] === "," &&
+                          PREPOSITIONS.has(ncLower(before[at - 1])) &&
+                          /^(?:der|die|das|dem|den|denen|welche[mnrs]?)$/.test(det)
+                        ? false
+                        : determiner && clauseStart && ncGenitiveThenVerb(after)
+                          ? true
+                          : determiner && reading === "finite" && NC_PARTICLE.test(typed) && !ends
+                            ? true
+                            : reading === "finite" &&
+                                DEMONSTRATIVES.has(det) &&
+                                ends &&
+                                ncSubordinate(before, at)
+                              ? false
+                              : reading === "finite" &&
+                                  /[^t]e$/.test(typed) &&
+                                  /^(?:die|der|diese|dieser|mehrere|viele|einige|alle|beide|wenige|manche)$/.test(
+                                    det,
+                                  )
+                                ? true
+                                : kind === "article" &&
+                                    PREPOSITIONS.has(ncLower(before[at - 1])) &&
+                                    (at < 2 || /^(?:[.!?\n„“"»«])$/.test(before[at - 2]))
+                                  ? true
+                                  : determiner &&
+                                      sentenceStart &&
+                                      ncLower(before[at]) !== "ihr" &&
+                                      !VERB_GOVERNORS.has(typed) &&
+                                      !ncPronounLike(next) &&
+                                      next !== typed &&
+                                      ncFiniteVerb(next)
+                                    ? true
+                                    : kind === "quantifier" ||
+                                        (kind === "demonstrative" && clauseStart)
+                                      ? NC_AUXILIARIES.has(next) || next === "des"
+                                      : kind === "number"
+                                        ? reading === "finite" && /(?:e|en|er|n|s)$/.test(typed)
+                                        : reading === "finite"
+                                          ? true
+                                          : kind === "preposition" && ncLower(before[at]) === "zu"
+                                            ? false
+                                            : VERB_GOVERNORS.has(next)
+                                              ? false
+                                              : reading === "infinitive" &&
+                                                  kind === "demonstrative" &&
+                                                  at === before.length - 1 &&
+                                                  ncModalBefore(before, at) &&
+                                                  !ncInfinitiveAfter(after)
+                                                ? false
+                                                : !ends
+                                                  ? true
+                                                  : reading === "infinitive" &&
+                                                      ncSubordinate(before, at)
+                                                    ? false
+                                                    : !governedBefore(before, at);
+}
+
+// de.yaml rule de.nounCasing def ncAdjectiveNounHolds
+export function ncAdjectiveNounHolds(kind: string, before: string[], at: number, after: string[]) {
+  const next = ncLower(after[0]);
+  const prior = before[at - 1];
+  const sentenceStart = prior === undefined || /^(?:[.!?\n„“"»«])$/.test(prior);
+  const clauseVerb =
+    /^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert|\p{Ll}+en)$/u.test(next) &&
+    (BOUNDARY.test(after[1] ?? "") || NC_AUXILIARIES.has(ncLower(after[1])));
+  const det = ncLower(before[at]);
+  if (
+    !(kind === "demonstrative"
+      ? (prior !== undefined &&
+          (VERB_GOVERNORS.has(ncLower(prior)) ||
+            NC_OBJECT_PRONOUNS.has(ncLower(prior)) ||
+            ncFiniteVerb(ncLower(prior))) &&
+          ((det !== "das" && (BOUNDARY.test(next) || clauseVerb)) ||
+            (/^de[rs]$/.test(next) && /^\p{Lu}/u.test(after[1] ?? "")))) ||
+        (sentenceStart &&
+          (ncFiniteVerb(next) || NC_GENITIVES.has(next) || ncGenitiveThenVerb(after)))
+      : kind === "article" || kind === "adjective")
+  )
+    return false;
+  if (kind !== "adjective" && !ARTICLES.has(det) && !DEMONSTRATIVES.has(det)) return false;
+  const participle =
+    /^(?:\p{Ll}*(?:ge|ver|be|er|ent|zer)\p{Ll}{2,}t|\p{Ll}{3,}iert)(e|en|er|es|em)$/u.exec(next);
+  return kind === "adjective"
+    ? BOUNDARY.test(next) ||
+        NC_COORDINATORS.has(next) ||
+        ARTICLES.has(next) ||
+        DEMONSTRATIVES.has(next) ||
+        PREPOSITIONS.has(next)
+    : BOUNDARY.test(next) ||
+        NC_COORDINATORS.has(next) ||
+        VERB_GOVERNORS.has(next) ||
+        ARTICLES.has(next) ||
+        DEMONSTRATIVES.has(next) ||
+        PREPOSITIONS.has(next) ||
+        clauseVerb
+      ? true
+      : participle && ncEndingsAfter(det)?.includes(participle[1])
+        ? false
+        : /^\p{Ll}/u.test(next) &&
+          !germanAdjective(next) &&
+          !ncAttributive(next) &&
+          germanNounReading(next) !== "noun";
+}
+
+// de.yaml rule de.nounCasing def ncEndingsAfter
+export function ncEndingsAfter(det: string): string[] | null {
+  const d = det.toLowerCase();
+  const ein = /^(?:k?ein|mein|dein|sein|ihr|unser|euer|eur)(e|en|em|er|es|)$/.exec(d);
+  return /^(?:der|die|dieser|diese|jener|jene|welcher|welche)$/.test(d)
+    ? ["e", "en"]
+    : /^(?:das|dieses|jenes|welches|ins|ans|aufs|fürs|übers|ums|durchs)$/.test(d)
+      ? ["e"]
+      : /^(?:den|dem|des|im|am|zum|zur|vom|beim)$/.test(d)
+        ? ["en"]
+        : /^(?:dies|jen|welch)(?:en|em)$/.test(d)
+          ? ["en"]
+          : !ein
+            ? null
+            : ein[1] === ""
+              ? ["er", "es"]
+              : ein[1] === "e"
+                ? ["e", "en"]
+                : ["en"];
+}
+
+// de.yaml rule de.nounCasing def ncEndingRulesOutAdjective
+export function ncEndingRulesOutAdjective(typed: string, kind: string, det: string) {
+  const parts = /^(\p{Ll}+?)(e|en|er|es|em)$/u.exec(typed);
+  const ending =
+    parts && (germanAdjective(parts[1]) || germanAdjective(`${parts[1]}e`)) ? parts[2] : "";
+  const allowed = ncEndingsAfter(det);
+  return kind === "adjective"
+    ? ending === ""
+    : kind !== "article"
+      ? false
+      : allowed !== null && !allowed.includes(ending);
+}
+
+// de.yaml rule de.nounCasing def ncEitherNounHolds
+export function ncEitherNounHolds(
+  typed: string,
+  kind0: string,
+  before: string[],
+  at: number,
+  after: string[],
+) {
+  if (NC_EITHER_EXCEPTIONS.has(typed) || PREPOSITIONS.has(typed) || ARTICLES.has(typed))
+    return false;
+  if (/^(?:k?ein|mein|dein|sein|ihr|unser|euer|eur)\p{Ll}*$/u.test(typed)) return false;
+  if (
+    /^(?:an|auf|aus|ab|ein|mit|nach|vor|zu|zurück|weg|bei|über|unter|durch|um)?(?:ge|be|ver|er|ent|zer)\p{Ll}{3,}(?:t|en)$/u.test(
+      typed,
+    )
+  )
+    return false;
+  const det = before[at] ?? "";
+  if (!(det.toLowerCase() !== "ihr")) return false;
+  if (/^einem$/i.test(det) && !PREPOSITIONS.has(ncLower(before[at - 1]))) return false;
+  const kind = kind0 === "article" && at !== before.length - 1 ? "adjective" : kind0;
+  if (
+    !(kind === "article"
+      ? !(DEMONSTRATIVES.has(det.toLowerCase()) && before[at - 2] === ",")
+      : kind === "adjective"
+        ? !(
+            NC_ADVERB_COMPARATIVES.has(ncLower(before.at(-1))) ||
+            /sten$/.test(ncLower(before.at(-1)))
+          )
+        : false)
+  )
+    return false;
+  if (!ncEndingRulesOutAdjective(typed, kind, det)) return false;
+  const next = ncLower(after[0]);
+  const clauseVerb =
+    /^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert|\p{Ll}+en)$/u.test(next) &&
+    BOUNDARY.test(after[1] ?? "");
+  return (
+    BOUNDARY.test(next) ||
+    NC_COORDINATORS.has(next) ||
+    PREPOSITIONS.has(next) ||
+    ARTICLES.has(next) ||
+    DEMONSTRATIVES.has(next) ||
+    next === "mehr" ||
+    clauseVerb
+  );
+}
+
+// de.yaml rule de.nounCasing def ncVerbOnlyForm
+export function ncVerbOnlyForm(typed: string) {
+  return (
+    typed.length >= 4 &&
+    /e$/.test(typed) &&
+    germanVerbLike(typed) &&
+    !germanInfinitive(typed) &&
+    !germanAdjective(typed) &&
+    !germanAdjective(typed.slice(0, -1)) &&
+    !NC_AUXILIARIES.has(typed) &&
+    !VERB_GOVERNORS.has(typed)
+  );
+}
+
+// de.yaml rule de.nounCasing def ncFramedNounHolds
+export function ncFramedNounHolds(before: string[], at: number, after: string[]) {
+  if (!(at === before.length - 1)) return false;
+  const det = ncLower(before[at]);
+  if (!(
+    /^(?:im|am|zum|zur|vom|beim|ins|ans|aufs|fürs|übers|durchs|ums)$/.test(det) ||
+    (/^(?:der|die|das|dem|den|des)$/.test(det) && PREPOSITIONS.has(ncLower(before[at - 1])))
+  ))
+    return false;
+  const next = ncLower(after[0]);
+  return (
+    (BOUNDARY.test(next) ||
+      NC_GENITIVES.has(next) ||
+      ((/^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert|\p{Ll}+en)$/u.test(next) || ncFiniteVerb(next)) &&
+        BOUNDARY.test(after[1] ?? ""))) &&
+    !ncSubordinate(before, at)
   );
 }
 
@@ -2057,6 +3695,246 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "review_msg_german_date_punctuation",
     );
   },
+  // de.yaml rule de.nounCasing frame 1
+  "@de.nounCasing/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const typed = m[0];
+    if (!(/^\p{Ll}/u.test(typed) && typed.length >= 3 && !NC_NUMBERS.has(typed))) return null;
+    const reading =
+      germanNounReading(typed) ??
+      (germanInfinitive(typed) &&
+      !ARTICLES.has(typed) &&
+      !NC_QUANTIFIERS.has(typed) &&
+      (NC_NOMINALIZING.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
+        ncNeuterArticleInfinitive(ctx, m.index, typed.length))
+        ? "noun"
+        : germanNounOverAdjective(typed)
+          ? "adjective"
+          : germanAdjectiveNoun(typed)
+            ? "either"
+            : ncVerbOnlyForm(typed)
+              ? "framed"
+              : null);
+    if (!(!!reading && !ctx.dictionary.has(typed) && !deCanonicalCasing(typed))) return null;
+    const end = m.index + typed.length;
+    if (/^[-'’/]/.test(ctx.text[end] ?? "") || (typed === "sog" && ctx.text[end] === "."))
+      return null;
+    const before = deTokensBefore(ctx.text, m.index, 12);
+    const after = deTokensAfter(ctx.text, end, 6);
+    const next = after[0] ?? "";
+    const triggered = ncTriggerFrom(before, before.length - 1, false, -1);
+    const paired =
+      !triggered &&
+      reading !== "infinitive" &&
+      ncPairedNoun(before, after) &&
+      !(germanAdjective(typed) && !BOUNDARY.test(next) && !NC_COORDINATORS.has(next));
+    const found =
+      triggered ??
+      ((reading === "noun" && ncBareNoun(typed, before, after)) ||
+      ((reading === "finite" || reading === "infinitive") && ncHadObject(typed, before, after)) ||
+      (reading === "finite" && ncSecondFinite(typed, before, after)) ||
+      paired
+        ? { kind: "bare", at: before.length - 1 }
+        : null);
+    if (!found) return null;
+    if ((next === "," || NC_COORDINATORS.has(next)) && ncAttributive(ncLower(after[1])))
+      return null;
+    if (PRONOUNS.has(next.toLowerCase()) || /^\p{N}/u.test(next)) return null;
+    if (next === "zu" && VERB_GOVERNORS.has(ncLower(after[1]))) return null;
+    const nextFirst = next.split("-")[0];
+    if (/^\p{Lu}/u.test(next) && nextFirst !== nextFirst.toUpperCase()) return null;
+    if (NC_IDIOMS.test(ctx.text.slice(m.index, m.index + 24))) return null;
+    if (
+      !(reading === "framed"
+        ? found.kind === "article" && ncFramedNounHolds(before, found.at, after)
+        : paired && (reading === "either" || reading === "adjective")
+          ? true
+          : reading === "either"
+            ? ncEitherNounHolds(
+                typed,
+                found.kind === "preposition" && found.at < before.length - 1
+                  ? "adjective"
+                  : found.kind,
+                before,
+                found.at,
+                after,
+              )
+            : reading === "adjective"
+              ? ncAdjectiveNounHolds(found.kind, before, found.at, after)
+              : !(
+                  reading !== "noun" &&
+                  (ncAttributive(next) ||
+                    !ncNounReadingHolds(reading, typed, found.kind, before, found.at, after))
+                ))
+    )
+      return null;
+    if (!(!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index))) return null;
+    return remember(NOUN_FINDINGS, {
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_noun_case",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [typed[0].toUpperCase()],
+      context: { start: Math.max(0, m.index - 40), end },
+    });
+  },
+  // de.yaml rule de.nounCasing frame 2
+  "@de.nounCasing/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const typed = m[0];
+    if (!(/^\p{Ll}{2,}es$/u.test(typed) && !NOMINAL_NOT_NEUTER.has(typed))) return null;
+    if (NOMINAL_LOWERCASE_OK.has(typed) || ctx.dictionary.has(typed) || germanNounReading(typed))
+      return null;
+    if (!nominalAdjectiveForm(typed, true)) return null;
+    const before = deTokensBefore(ctx.text, m.index, 6);
+    const prior = before[neuterPriorAt(before, before.length - 1)] ?? "";
+    if (
+      !/^\p{Ll}+$/u.test(prior) ||
+      NOMINAL_DETERMINER.test(prior) ||
+      /^(?:und|oder|sowie|als|was)$/.test(prior)
+    )
+      return null;
+    const end = m.index + typed.length;
+    const after = deTokensAfter(ctx.text, end, 2);
+    const next = after[0] ?? "";
+    if (/^\p{Lu}/u.test(next) || /^(?:[-'’/,…]|und|oder|sowie|bzw|sondern|als)$/.test(next))
+      return null;
+    const second = after[1] ?? "";
+    if (next === "." && second === ".") return null;
+    if (neuterAdjective(next) || (/^(?:,|und|oder)$/.test(next) && neuterAdjective(second)))
+      return null;
+    const nextReading = germanNounReading(next);
+    if (!(nextReading !== "noun" && nextReading !== "finite")) return null;
+    if (!(!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index))) return null;
+    return {
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_noun_case",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [typed[0].toUpperCase()],
+      context: { start: Math.max(0, m.index - 40), end },
+    };
+  },
+  // de.yaml rule de.nounCasing frame 3
+  "@de.nounCasing/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 4
+  "@de.nounCasing/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 5
+  "@de.nounCasing/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 6
+  "@de.nounCasing/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 7
+  "@de.nounCasing/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 8
+  "@de.nounCasing/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 9
+  "@de.nounCasing/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 10
+  "@de.nounCasing/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 11
+  "@de.nounCasing/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 12
+  "@de.nounCasing/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 13
+  "@de.nounCasing/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 14
+  "@de.nounCasing/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 15
+  "@de.nounCasing/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 16
+  "@de.nounCasing/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 17
+  "@de.nounCasing/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 18
+  "@de.nounCasing/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nominalizedFinding(m, ctx);
+  },
+  // de.yaml rule de.nounCasing frame 19
+  "@de.nounCasing/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const typed = m[0];
+    if (!/^\p{Lu}\p{Ll}{2,}$/u.test(typed)) return null;
+    const low = typed.toLowerCase();
+    if (!(germanAdjective(low) && !germanMayBeNoun(low) && !germanInfinitive(low))) return null;
+    const prior = deTokensBefore(ctx.text, m.index, 1)[0] ?? "";
+    if (!(/^\p{Ll}+$/u.test(prior) && !NAME_CUES.has(prior) && !PREPOSITIONS.has(prior)))
+      return null;
+    if (!(!ARTICLES.has(prior) && !DEMONSTRATIVES.has(prior))) return null;
+    const end = m.index + typed.length;
+    const after = deTokensAfter(ctx.text, end, 2);
+    const next = after[0] ?? "";
+    const second = after[1] ?? "";
+    const closes =
+      (BOUNDARY.test(next) && next !== "-") ||
+      (next === "zu" && germanInfinitive(second)) ||
+      ((/^\p{Ll}*(?:ge\p{Ll}+(?:t|en)|iert)$/u.test(next) || CAPITAL_PARTICLES.has(next)) &&
+        BOUNDARY.test(second));
+    if (!(closes && !ctx.dictionary.has(low))) return null;
+    if (/(?:isch|deutsch)$/.test(low) && next !== "vor") return null;
+    if (!(!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index))) return null;
+    return {
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_not_noun",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [typed[0].toLowerCase()],
+      context: { start: Math.max(0, m.index - 40), end },
+    };
+  },
+  // de.yaml rule de.nounCasing frame 20
+  "@de.nounCasing/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m[0].toLowerCase();
+    if (!/^(?:ich|du|er|sie|es|wir)$/.test(pronoun)) return null;
+    const end = m.index + m[0].length;
+    const gap = /^[ \t]{1,4}(\p{Lu}\p{Ll}{2,})(?![\p{L}\p{M}\p{N}_-])/u.exec(
+      ctx.text.slice(end, end + 40),
+    );
+    if (!gap) return null;
+    const typed = gap[1];
+    const start = end + gap[0].length - typed.length;
+    const next = deTokensAfter(ctx.text, start + typed.length, 1)[0] ?? "";
+    const prior = deTokensBefore(ctx.text, m.index, 1)[0];
+    const opens = prior === undefined || /^[.!?:\n„“"»«]$/.test(prior);
+    const subordinate = prior !== undefined && CAPITAL_SUBORDINATORS.has(prior.toLowerCase());
+    if (!(opens ? /^\p{Lu}/u.test(m[0]) : subordinate && BOUNDARY.test(next) && next !== "-"))
+      return null;
+    const low = typed.toLowerCase();
+    if (!(capitalVerbAgrees(pronoun, low) && !ctx.dictionary.has(low))) return null;
+    if (VERB_GOVERNORS.has(next) || (/en$/.test(low) && germanAdjective(low.slice(0, -2))))
+      return null;
+    if (!(!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index))) return null;
+    return {
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_not_noun",
+      range: { start, end: start + 1 },
+      alternatives: [typed[0].toLowerCase()],
+      context: { start: m.index, end: start + typed.length },
+    };
+  },
   // de.yaml rule de.nounCasing frame 21
   "@de.nounCasing/21": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     if (!idiomOpen(m, ctx)) return null;
@@ -2532,6 +4410,70 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@de.nounCasing/81": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     if (!idiomOpen(m, ctx)) return null;
     return idiomFinding(m, ctx, frame, capitalize(m.groups!.target));
+  },
+  // de.yaml rule de.nounCasing frame 82
+  "@de.nounCasing/82": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const noun = m.groups!.noun;
+    if (!NAME_TRIPLES.has(`${nameStem(first)} ${nameStem(second)}:${noun.toLowerCase()}`))
+      return null;
+    const context = { start: m.index, end: m.index + m[0].length };
+    return [
+      nameCapital(ctx, m.indices!.groups!.first[0], context),
+      nameCapital(ctx, m.indices!.groups!.second[0], context),
+    ].filter((f) => f !== null);
+  },
+  // de.yaml rule de.nounCasing frame 83
+  "@de.nounCasing/83": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const lemma = nameLemmas(noun).find((n) => LOWER_PAIRS.has(`${nameStem(adj)}:${n}`));
+    const start = m.index + m[0].indexOf(adj);
+    const before = ctx.text.slice(Math.max(0, start - 4), start);
+    if (!lemma || start === 0 || /(?:^|[.!?:\n„“"»«])[ \t]*$/.test(before)) return null;
+    if (!(!ctx.dictionary.has(adj.toLowerCase()) && !namedExampleBefore(ctx.text, start)))
+      return null;
+    return {
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_adjective_lowercase",
+      range: { start, end: start + 1 },
+      alternatives: [adj[0].toLowerCase()],
+      context: { start, end: m.index + m[0].length },
+    };
+  },
+  // de.yaml rule de.nounCasing frame 84
+  "@de.nounCasing/84": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nameCapital(ctx, m.indices!.groups!.target[0], {
+      start: m.index,
+      end: m.index + m[0].length,
+    });
+  },
+  // de.yaml rule de.nounCasing frame 85
+  "@de.nounCasing/85": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nameCapital(ctx, m.indices!.groups!.target[0], {
+      start: m.index,
+      end: m.index + m[0].length,
+    });
+  },
+  // de.yaml rule de.nounCasing frame 86
+  "@de.nounCasing/86": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const lemma = [noun, noun.replace(/(?:es|s|n)$/, "")].find((n) => NAME_NOUN_SET.has(n));
+    const pair = `${adj.replace(/(?:e|en|er|es|em)$/, "")}:${lemma}`;
+    if (!(!!lemma && NAME_PAIR_SET.has(pair))) return null;
+    const start = m.indices!.groups!.adj[0];
+    const before = ctx.text.slice(Math.max(0, start - 12), start);
+    if (!(NAME_ALWAYS.has(pair) || NAME_DEFINITE.test(before))) return null;
+    if (!(!ctx.dictionary.has(adj) && !namedExampleBefore(ctx.text, start))) return null;
+    return {
+      ruleId: "germanNounCasing",
+      messageKey: "review_msg_german_name_case",
+      range: { start, end: start + 1 },
+      alternatives: [adj[0].toUpperCase()],
+      context: { start: m.index, end: m.indices!.groups!.noun[1] },
+    };
   },
   // de.yaml rule de.nounCasing frame 87
   "@de.nounCasing/87": (m: RegExpExecArray): MatchResult => {
@@ -4274,6 +6216,13 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // de.yaml rule de.nounCasing filter
+  "@de.nounCasing/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const nounEnds = new Set(findings.filter((f) => IDIOM_FINDINGS.has(f)).map((f) => f.range.end));
+    return findings.filter(
+      (f) => !NOUN_FINDINGS.has(f) || !nounEnds.has(blankStart(ctx.text, f.range.start)),
+    );
+  },
   // de.yaml rule de.numbers filter
   "@de.numbers/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
     return findings.reduce(

@@ -10,7 +10,7 @@ import {
   germanVerbObjectCase,
   type GermanGenderReading,
 } from "./germanLexicon";
-import { PREPOSITIONS } from "./nounCasing";
+import { PREPOSITIONS } from "../../engine/rules/de.generated";
 import {
   BOUNDARY,
   ci,

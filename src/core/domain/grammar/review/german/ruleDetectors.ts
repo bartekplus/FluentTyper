@@ -10,10 +10,6 @@ import * as adjectiveForms from "./adjectiveForms";
 import * as articleGender from "./articleGender";
 import * as commas from "./commas";
 import * as compounds from "./compounds";
-import * as nounCasing from "./nounCasing";
-import * as nominalized from "./nominalized";
-import * as capitalized from "./capitalized";
-import * as names from "./names";
 import * as numbers from "./numbers";
 import * as prepositionCase from "./prepositionCase";
 import * as verbAgreement from "./verbAgreement";
@@ -29,14 +25,9 @@ export const FIXERS = mergePredicates<Fixer>(
   prepositionCase.FIXERS,
   verbAgreement.FIXERS,
   articleGender.FIXERS,
-  nounCasing.FIXERS,
-  nominalized.FIXERS,
-  capitalized.FIXERS,
-  names.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
 export const FILTERS = mergePredicates<FindingsFilter>(
   commas.FILTERS,
-  nounCasing.FILTERS,
 );

@@ -8,7 +8,7 @@ import {
   germanListedNoun,
   germanNounReading,
 } from "./germanLexicon";
-import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
+import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "../../engine/rules/de.generated";
 import {
   BOUNDARY,
   tokensAfter,

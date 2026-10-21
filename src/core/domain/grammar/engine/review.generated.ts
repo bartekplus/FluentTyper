@@ -3461,7 +3461,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     message: "review_msg_german_idiom_case",
     style: "match",
-    filter: "de:afterIdiomNoun",
+    filter: "de:@de.nounCasing/filter",
     source: "de",
   },
   {
@@ -23335,7 +23335,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Ll}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
-    fixer: "de:nounCase",
+    fixer: "de:@de.nounCasing/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -23343,7 +23343,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Ll}{2,}es(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
-    fixer: "de:bareNeuter",
+    fixer: "de:@de.nounCasing/2",
     flags: "gu",
     scan: "owned",
   }),
@@ -23351,14 +23351,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?:(?:im|zum|vom|ins|aufs|beim|fürs|übers|durchs)[ \\t\\u00a0]{1,8}(?<target>\\p{L}+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/3",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?:(?:das|dem|den|des)[ \\t\\u00a0]{1,8}(?<sup>\\p{L}+?(?:st|ßt)(?:e|en)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["das", "dem", "den", "des"],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/4",
     owner: "none",
   }),
   frame({
@@ -23376,56 +23376,56 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "erste",
       "ganzen",
     ],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/5",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?:(?:etwas|nichts|viel|wenig|allerlei|genug)(?:[ \\t\\u00a0]{1,8}(?:sehr|ganz|wirklich|total|allzu|besonders|ziemlich|richtig|echt|ganz[ \\t\\u00a0]{1,8}schön)){0,2}[ \\t\\u00a0]{1,8}(?<es>\\p{L}+e[sm])|(?:alles|manches)[ \\t\\u00a0]{1,8}(?<e>\\p{L}+e))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["etwas", "nichts", "viel", "wenig", "allerlei", "genug", "alles", "manches"],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/6",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?:(?:etwas|nichts|viel|wenig)[ \\t\\u00a0]{1,8}\\p{L}+e[sm][ \\t\\u00a0]{1,8}(?:und|oder|sowie)[ \\t\\u00a0]{1,8}(?<es>\\p{L}+e[sm]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["etwas", "nichts", "viel", "wenig"],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/7",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?:(?:mein|dein|sein|ihr|unser|euer)[ \\t\\u00a0]{1,8}(?<poss>bestes|möglichstes|übriges|erspartes|liebstes))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["bestes", "möglichstes", "übriges", "erspartes", "liebstes"],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/8",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?:[Dd]as[ \\t\\u00a0]{1,8}(?<abs>\\p{L}+e)(?=[ \\t\\u00a0]{1,8}(?:daran|dabei|darin|daraus|darauf|am|an[ \\t\\u00a0]{1,8}(?:der|dem|den|diesem|dieser|ihm|ihr))))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["das"],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/9",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?:[Dd]as[ \\t\\u00a0]{1,8}(?<what>\\p{L}+(?:st|ßt)e|erste|letzte|einzige|nächste)(?=,[ \\t\\u00a0]{1,8}(?:was|wo|wor)\\p{L}*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["das"],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/10",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?:(?:[Dd]er|[Dd]ie|[Dd]as)[ \\t\\u00a0]{1,8}(?<what>erste|zweite|dritte|vierte|fünfte|letzte|nächste)(?=,[ \\t\\u00a0]{1,8}(?:(?<=[Dd]er[ \\t\\u00a0]{1,8}\\p{L}{1,20},[ \\t\\u00a0]{1,8})der|(?<=[Dd]ie[ \\t\\u00a0]{1,8}\\p{L}{1,20},[ \\t\\u00a0]{1,8})die|(?<=[Dd]as[ \\t\\u00a0]{1,8}\\p{L}{1,20},[ \\t\\u00a0]{1,8})das)[ \\t\\u00a0]{1,8}(?!(?:erste|zweite|dritte|vierte|fünfte|letzte|nächste)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["erste", "zweite", "dritte", "vierte", "fünfte", "letzte", "nächste"],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/11",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?:(?:wurde|wurden|wird|werden|ist|war|bin|bist|sind|waren|wäre)[ \\t\\u00a0]{1,8}(?:(?:er|sie|es|ich|du|wir|ihr|man)[ \\t\\u00a0]{1,8})?(?:(?:wirklich|nur|doch|knapp|erst|schon|trotzdem|auch|wieder)[ \\t\\u00a0]{1,8})?(?<rank>(?:erst|zweit|dritt|letzt)e[rs]?)(?=[ \\t]*[.!?](?![.\\p{L}])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["erst", "zweit", "dritt", "letzt"],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/12",
     owner: "none",
   }),
   frame({
@@ -23447,7 +23447,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "violett",
       "beige",
     ],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/13",
     owner: "none",
   }),
   frame({
@@ -23471,7 +23471,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "japanisch",
       "latein",
     ],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/14",
     owner: "none",
   }),
   frame({
@@ -23495,7 +23495,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "japanisch",
       "latein",
     ],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/15",
     owner: "none",
   }),
   frame({
@@ -23519,7 +23519,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "japanisch",
       "latein",
     ],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/16",
     owner: "none",
   }),
   frame({
@@ -23543,7 +23543,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "japanisch",
       "latein",
     ],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/17",
     owner: "none",
   }),
   frame({
@@ -23561,14 +23561,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "wesentlichen",
       "besten",
     ],
-    fixer: "de:nominalizedFrame",
+    fixer: "de:@de.nounCasing/18",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Lu}\\p{Ll}{2,}(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
-    fixer: "de:capitalizedAdjective",
+    fixer: "de:@de.nounCasing/19",
     flags: "gu",
     scan: "owned",
   }),
@@ -23576,7 +23576,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])(?:[iI][cC][hH]|[dD][uU]|[eE][rR]|[sS][iI][eE]|[eE][sS]|[wW][iI][rR])(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
-    fixer: "de:capitalizedVerb",
+    fixer: "de:@de.nounCasing/20",
     flags: "gu",
     scan: "owned",
   }),
@@ -24208,7 +24208,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<first>\\p{L}+?(?:e|en|er|es|em))[ \\t\\u00a0]{1,8}(?<second>\\p{L}+?(?:e|en|er|es|em))[ \\t\\u00a0]{1,8}(?<noun>Reich|Fernsehen|Komitee)(?:es|s)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["reich", "fernsehen", "komitee"],
-    fixer: "de:nameTriple",
+    fixer: "de:@de.nounCasing/82",
     flags: "dgu",
     owner: "first",
   }),
@@ -24245,7 +24245,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "bildungsabschlüsse",
       "menschenverstand",
     ],
-    fixer: "de:lowercaseAdjective",
+    fixer: "de:@de.nounCasing/83",
     flags: "dgu",
     owner: "adj",
   }),
@@ -24253,7 +24253,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "Reich(?:es|s)?[ \\t\\u00a0]{1,8}(?<target>deutscher)[ \\t\\u00a0]{1,8}Nation(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["deutscher"],
-    fixer: "de:nameTarget",
+    fixer: "de:@de.nounCasing/84",
     flags: "dgu",
   }),
   frame({
@@ -24289,7 +24289,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "mailänder",
       "venezianer",
     ],
-    fixer: "de:nameTarget",
+    fixer: "de:@de.nounCasing/85",
     flags: "dgu",
   }),
   frame({
@@ -24346,7 +24346,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "turm",
       "seiten",
     ],
-    fixer: "de:nameAdjective",
+    fixer: "de:@de.nounCasing/86",
     flags: "dgu",
     owner: "adj",
   }),
