@@ -4,7 +4,6 @@ import { mergePredicates, type FindingsFilter, type Fixer } from "../../engine/r
 import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
 import * as passiveVoice from "./passiveVoice";
-import * as punctuation from "./punctuation";
 import * as slotConfusions from "./slotConfusions";
 import * as britishUsage from "./britishUsage";
 import * as confusions1 from "./confusions1";
@@ -100,7 +99,6 @@ export const FIXERS = mergePredicates<Fixer>(
   usageTables.FIXERS,
   dates.FIXERS,
   compoundForms.FIXERS,
-  punctuation.FIXERS,
   relativeSlots.FIXERS,
   missingVerbSlots.FIXERS,
   degreeSlots.FIXERS,
@@ -117,8 +115,4 @@ export const FIXERS = mergePredicates<Fixer>(
 );
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(
-  grammarStyle1.FILTERS,
-  fixedPhrases.FILTERS,
-  punctuation.FILTERS,
-);
+export const FILTERS = mergePredicates<FindingsFilter>(grammarStyle1.FILTERS, fixedPhrases.FILTERS);

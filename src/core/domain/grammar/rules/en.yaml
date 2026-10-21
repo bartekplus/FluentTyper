@@ -3459,7 +3459,8 @@ rules:
     checks: [englishApostrophes]
     style: match
     message: review_msg_plural_apostrophe
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
     sets:
       # Words after which a plural noun ends its phrase: a verb, a relative, a preposition...
       APOS_PHRASE_ENDS:
@@ -4241,7 +4242,8 @@ rules:
     checks: [englishCanonicalCasing]
     style: match
     message: review_msg_canonical_casing
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
     frames:
       # Brand names that are also ordinary words ("excel", "word", "chrome"): only before a noun
       # that only the product has.
@@ -4257,7 +4259,8 @@ rules:
     checks: [englishProperNounCapitalization]
     style: match
     message: review_msg_nationality_capital
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
     frames:
       # Nationalities, languages and religions are proper adjectives in English. One
       # case-sensitive alternation of the lowercase forms, not a scan of every word.
@@ -4865,7 +4868,8 @@ rules:
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
     maps:
       PLAIN_CONTRACTED: { am: "aren't", can: "can't", will: "won't" }
     sets:
@@ -4978,7 +4982,8 @@ rules:
     checks: [stylePassiveVoice]
     style: match
     message: review_msg_passive_voice
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
     frames:
       # A form of "be" with a past participle ("was caused by", "is said to", "have been
       # finalized"). A note, not a fix: turning it active needs the doer.
@@ -4989,47 +4994,150 @@ rules:
     checks: [englishPunctuation]
     style: match
     message: review_msg_stray_comma
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
+    defs:
+      # US English only; findings inside a quoted or parenthesized example are dropped.
+      usOutsideExamples:
+        args: "ctx: DetectContext, findings: RawFinding[]"
+        return: 'ctx.lang !== "en_US" ? [] : findings.filter((f) => !enQuotedMention(ctx, f))'
+      PUNCT_ABBREVIATION: /^(?:etc|inc|ltd|corp|approx|vol|eds|misc|dept|est|fig|ibid|viz|incl)$/
+      # Set phrases that end with a period: "What do you know.", "How do you do.", and a
+      # suggestion "Why don't you call her first."
+      PUNCT_NOT_A_QUESTION: /^(?:What do you know\.$|How do you do\.$|Why don['’]t (?:you|we)\b)/
+      punctStray:
+        args: "start: number, end: number, alternatives: string[]"
+        return: >-
+          finding("englishPunctuation", "review_msg_stray_comma", start, end, alternatives, {
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
     frames:
       # A comma right before a sentence mark: ",." ",!".
       - regex: "(?<=\\p{L}|\\p{N}|[)\"\\u201D\\u2019])[,;](?=[.!?](?!\\.))"
         scan: polish
         flags: gu
-        fixer: punctuationCommaMark
+        return: punctStray(m.index, m.index + 1, [""])
       # A comma inside a closing parenthesis: ",)".
       - regex: "(?<=[\\p{L}\\p{N}]),\\)"
         scan: polish
         flags: gu
-        fixer: punctuationCommaParen
+        return: punctStray(m.index, m.index + 2, ["),", ")"])
       # "for a “spell checker.”.": a period inside the closing quote and another after it.
       # Only after a lowercase word: "Acme Corp.".", "Cyc."." (a title) and "etc."." keep theirs.
       - regex: "(?<=(?<![\\p{L}\\p{N}.])(?<word>\\p{Ll}{3,})\\.[\"\\u201D])\\.(?!\\.)"
         scan: polish
         flags: gu
-        fixer: punctuationPeriodQuotePeriod
+        when: "!PUNCT_ABBREVIATION.test(word)"
+        return: 'finding("englishPunctuation", "review_msg_duplicate_punctuation", m.index, m.index + 1, [""])'
       # "Where did she go." A capitalized question word, an auxiliary and a pronoun open a
       # direct question; no comma or other mark comes before its period.
       - regex: "(?<=(?:^|[.!?][\"\\u201D\\u2019)]?[ \\t\\u00A0]{1,8}|\\n[ \\t\\u00A0]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \\t\\u00A0]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['\\u2019]t)?[ \\t\\u00A0]+(?:I|you|he|she|we|they|it)(?![\\p{L}'\\u2019])[^.!?,;:\\n\"\\u201C\\u201D()]{0,80}\\.(?![.\\p{L}\\p{N}])"
         scan: polish
         flags: gu
-        fixer: punctuationWhQuestion
+        let:
+          at: m.index + m[0].length - 1
+        when: "!PUNCT_NOT_A_QUESTION.test(m[0])"
+        return: 'finding("englishPunctuation", "review_msg_question_mark", at, at + 1, ["?"])'
       # "neither rich, nor poor": two items take no comma.
       - regex: "\\bneither\\b(?<items>[^,.;:!?\\n]{1,60}),(?=[ \\u00A0]+nor\\b(?![^.;:!?\\n]*,[ \\u00A0]*nor\\b))"
         scan: polish
         flags: giu
-        fixer: punctuationLastMark
+        let:
+          start: m.index + m[0].length - 1
+        return: punctStray(start, start + 1, [""])
       # An indirect question split from its verb: "Do you know, if".
       - regex: "(?<lead>let me know|let us know|I wonder|I'm wondering|I am wondering|I was wondering|I don't know|I do not know|do you know|does anyone know|does anybody know|I'm not sure|I am not sure)(?<comma>,){{S}}(?:if|whether|who|what|where|when|why|how){{E}}"
         owner: comma
-        fixer: punctuationComma
+        let:
+          start: m.indices!.groups!.comma[0]
+        return: punctStray(start, start + 1, [""])
       - regex: "(?:would be (?:great|nice|good|helpful|wonderful)|would appreciate it|would be grateful|would you mind)(?<comma>,){{S}}if{{S}}(?:you|we|I|someone|anyone|somebody|anybody){{E}}"
         owner: comma
-        fixer: punctuationComma
+        let:
+          start: m.indices!.groups!.comma[0]
+        return: punctStray(start, start + 1, [""])
   - id: en.introductoryCommas
     checks: [styleIntroductoryComma]
     style: match
     message: review_msg_introductory_comma
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
+    sets:
+      # "However large errors can occur" reads as "in whatever way large": only before a
+      # subject.
+      PUNCT_SUBJECT_STARTS:
+        [
+          I,
+          you,
+          he,
+          she,
+          it,
+          we,
+          they,
+          this,
+          that,
+          these,
+          those,
+          there,
+          the,
+          a,
+          an,
+          my,
+          your,
+          his,
+          her,
+          our,
+          their,
+          its,
+        ]
+      PUNCT_NOT_NAMES: [again, all, everyone, everybody, guys, folks, so, very, for, to, and, you]
+      PUNCT_FINITE:
+        [
+          am,
+          is,
+          are,
+          was,
+          were,
+          have,
+          has,
+          had,
+          do,
+          does,
+          did,
+          will,
+          would,
+          can,
+          could,
+          should,
+          may,
+          might,
+          must,
+          need,
+          want,
+          think,
+          know,
+          see,
+          get,
+          got,
+          noticed,
+          figured,
+          created,
+          mean,
+          like,
+          became,
+        ]
+    defs:
+      # The comma goes before the space after the phrase.
+      punctIntroductory:
+        args: "start: number, gap: string"
+        type: RawFinding
+        return: >-
+          ({
+            ruleId: "styleIntroductoryComma",
+            messageKey: "review_msg_introductory_comma",
+            range: { start, end: start + gap.length },
+            alternatives: [`,${gap}`],
+          })
     frames:
       # The comma after an opening linking word ("However", "In addition"). Bounded gaps: an
       # unbounded run in the lookbehind is reread at every position of a long run of spaces
@@ -5037,53 +5145,573 @@ rules:
       - regex: "(?<=(?:^|[.!?][\"”’)]?{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<w>{{PUNCTUATION_LINKING}})(?<gap>[ \\t\\u00a0]+)(?<next>[\\p{L}]+)"
         scan: polish
         flags: gu
-        fixer: introductoryOpener
+        when:
+          - '!(w === "However" && !PUNCT_SUBJECT_STARTS.has(next.toLowerCase()))'
+          # "Also known as", "Finally done": an adverb modifying the next word.
+          - >-
+            !(englishWordInfo(next)?.verbs.some((v) => v.form === "participle") &&
+              !PUNCT_SUBJECT_STARTS.has(next.toLowerCase()))
+        return: punctIntroductory(m.index + w.length, gap)
       # "With it I can", "if you work at it you can": a phrase ending in an object pronoun, then
       # a new subject with its verb.
       - regex: "(?:{{PUNCTUATION_PREPOSITIONS}}){{S}}(?<obj>{{PUNCTUATION_OBJECT}})(?<gap>{{S}})(?<subject>{{PUNCTUATION_SUBJECT}}){{S}}(?<verb>[a-z]+(?:['’][a-z]+)?){{E}}"
         owner: gap
-        fixer: introductoryPhrase
+        let:
+          low: verb.toLowerCase()
+          read: englishWordInfo(low)
+        when: >-
+          !(!PUNCT_FINITE.has(low) && !/['’]/.test(low) && !read?.verbs.some((v) => v.form !== "ing"))
+        return: punctIntroductory(m.indices!.groups!.gap[0], gap)
       # "If I can I will", "If it does it usually is": a short condition, then the main clause.
       - regex: "(?<lead>If|if){{S}}(?:{{PUNCTUATION_SUBJECT}}){{S}}(?<aux>can|can['’]t|cannot|could|couldn['’]t|does|doesn['’]t|do|don['’]t|did|didn['’]t|is|isn['’]t|was|wasn['’]t|will|won['’]t|would|wouldn['’]t|have|haven['’]t|has|hasn['’]t)(?:{{S}}not)?(?<gap>{{S}})(?<subject>{{PUNCTUATION_SUBJECT}}|we['’]ll|I['’]ll|you['’]ll|they['’]ll|it['’]ll|I['’]m){{E}}"
         owner: gap
-        fixer: introductoryCondition
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 3), m.index)
+        # "If" opens its sentence or follows a comma.
+        when: >-
+          !(m.index > 0 &&
+            !/(?:[.!?,;:]["”’)]?[ \t ]+|\n|^)$/.test(ctx.text.slice(0, m.index).slice(-4)) &&
+            before.trim())
+        return: punctIntroductory(m.indices!.groups!.gap[0], gap)
       # "Hey there this is great", "Great please have a look", "Awesome thanks for the help": a
       # greeting or a one-word reply opens the sentence before its clause.
       - regex: "(?<=(?:^|[.!?][\"”’)]?{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<gap>[ \\t\\u00a0]+)(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))"
         scan: polish
         flags: gu
-        fixer: introductoryGreeting
+        return: punctIntroductory(m.index + w.length, gap)
       # "I for one think so": the aside takes commas on both sides.
       - regex: "(?<![\\p{L}'\\u2019])I[ \\t\\u00A0]+for[ \\t\\u00A0]+one(?=[ \\t\\u00A0]+[a-z])"
         scan: polish
         flags: gu
-        fixer: introductoryIForOne
+        return: >-
+          ({
+            ruleId: "styleIntroductoryComma",
+            messageKey: "review_msg_introductory_comma",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [`I, for one,`],
+          })
       # The comma before a name addressed: "Thanks Tom".
       - regex: "(?<w>Thanks|Thank you|Hi|Hello|Hey there|Happy Birthday|Good morning|Good night)(?<gap>{{S}})(?<name>[A-Za-z]+){{E}}"
         owner: gap
-        fixer: introductoryNameAddress
+        let:
+          # "Thanks Again", "Thank you Very much": a capitalized ordinary word, not a name.
+          read: englishWordInfo(name.toLowerCase())
+        when:
+          # The frame ignores case; a name is capitalized.
+          - /^[A-Z][a-z]+$/.test(name)
+          - "!(read?.adverb || read?.adjective || PUNCT_NOT_NAMES.has(name.toLowerCase()))"
+        return: punctIntroductory(m.indices!.groups!.gap[0], gap)
   - id: en.clauseCommas
     checks: [styleClauseComma]
     style: match
     message: review_msg_clause_comma
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
+    sets:
+      PUNCT_BEFORE_THANKS:
+        [
+          it,
+          that,
+          this,
+          them,
+          good,
+          great,
+          perfect,
+          fine,
+          awesome,
+          helpful,
+          nice,
+          cool,
+          works,
+          worked,
+          helped,
+          helps,
+          done,
+          fixed,
+        ]
+      PUNCT_AUX:
+        [
+          am,
+          is,
+          are,
+          was,
+          were,
+          has,
+          have,
+          had,
+          do,
+          does,
+          did,
+          will,
+          would,
+          can,
+          could,
+          shall,
+          should,
+          may,
+          might,
+          must,
+          "isn't",
+          "aren't",
+          "wasn't",
+          "weren't",
+          "hasn't",
+          "haven't",
+          "hadn't",
+          "don't",
+          "doesn't",
+          "didn't",
+          "won't",
+          "wouldn't",
+          "can't",
+          cannot,
+          "couldn't",
+          "shouldn't",
+          "mustn't",
+        ]
+      PUNCT_SUBJECTS: [i, you, he, she, we, they, it]
+      PUNCT_OPENING_SUBJECTS:
+        [
+          i,
+          you,
+          he,
+          she,
+          it,
+          we,
+          they,
+          this,
+          that,
+          there,
+          these,
+          those,
+          the,
+          my,
+          your,
+          his,
+          her,
+          our,
+          their,
+          its,
+          some,
+          most,
+          many,
+          all,
+          both,
+          each,
+          every,
+          no,
+          one,
+          nobody,
+          everyone,
+          everybody,
+          someone,
+          somebody,
+          nothing,
+          everything,
+          something,
+        ]
+      PUNCT_DETERMINERS:
+        [
+          the,
+          my,
+          your,
+          his,
+          her,
+          our,
+          their,
+          its,
+          this,
+          these,
+          those,
+          some,
+          every,
+          each,
+          no,
+          most,
+          many,
+          several,
+        ]
+      # A subordinate opening or an embedded clause makes the coordinator ambiguous: "I think
+      # Tom and I agree", "Tell me if you go and I will come". Only when a clause follows the
+      # word.
+      PUNCT_SUBORDINATE:
+        [
+          if,
+          whether,
+          when,
+          whenever,
+          because,
+          since,
+          while,
+          although,
+          though,
+          unless,
+          until,
+          till,
+          before,
+          after,
+          where,
+          which,
+          who,
+          whom,
+          whose,
+          what,
+          how,
+          why,
+          than,
+          once,
+          either,
+          neither,
+          between,
+          whereas,
+          that,
+          think,
+          thought,
+          believe,
+          believed,
+          know,
+          knew,
+          guess,
+          hope,
+          hoped,
+          say,
+          said,
+          says,
+          feel,
+          felt,
+          suppose,
+          expect,
+          mean,
+          wonder,
+          wondered,
+          realize,
+          realized,
+          assume,
+          assumed,
+          heard,
+          tell,
+          told,
+          sure,
+          wish,
+        ]
+      # After a subordinator these leave nothing for it to govern: "I know that", "once before".
+      PUNCT_INERT: [it, that, this, them, so, too, then, before, yet, again, now]
+      # Words that cannot end a complete first clause before the coordinator.
+      PUNCT_NOT_CLAUSE_END:
+        [
+          to,
+          of,
+          for,
+          with,
+          at,
+          by,
+          from,
+          in,
+          on,
+          into,
+          about,
+          as,
+          the,
+          a,
+          an,
+          my,
+          your,
+          his,
+          her,
+          our,
+          their,
+          its,
+          both,
+          either,
+          neither,
+          between,
+          than,
+          rather,
+          more,
+          less,
+          not,
+          just,
+          only,
+          even,
+          very,
+          too,
+          so,
+          and,
+          or,
+          but,
+          i,
+          he,
+          she,
+          we,
+          they,
+        ]
+      PUNCT_LEAD_ADVERBS:
+        [
+          so,
+          therefore,
+          then,
+          again,
+          hopefully,
+          instead,
+          now,
+          thus,
+          still,
+          also,
+          immediately,
+          honestly,
+        ]
+      PUNCT_MID_ADVERBS:
+        [
+          often,
+          just,
+          really,
+          also,
+          never,
+          already,
+          still,
+          always,
+          only,
+          actually,
+          probably,
+          usually,
+          even,
+          then,
+          all,
+          both,
+        ]
+      PUNCT_WH: [what, why, how, when, where, who, which]
+    defs:
+      PUNCT_QUESTION_OPENING: /^(?:is|isn't|was|wasn't|are|aren't|were|weren't|do|don't|does|doesn't|did|didn't|will|won't|would|wouldn't|can|can't|could|couldn't|have|haven't|has|hasn't|should|shouldn't|shall|may|might|must|what|who|whom|whose|which|where|when|why|how)\b/i
+      PUNCT_CLAUSE_WORD: '/[\p{L}\p{N}$][\p{L}\p{N}''’$.&/-]*/gu'
+      # A clause boundary: a sentence mark before a capital, other stops, a comma or protected
+      # text.
+      PUNCT_CLAUSE_BREAK: '/[.!?]["”’)]*(?=[ \t ]+["“(]?\p{Lu}|$)|[;:\n￼]|,(?!\d)/gu'
+      PUNCT_POLITE_OPENING: /^(?:thank you|thanks|sorry|pardon me|excuse me)\b/i
+      PUNCT_CONTRACTED: '/^[\p{L}]+''(?:m|re|ve|ll|d)$|^(?:it|he|she|that|there|what|who|here|let)''s$|n''t$/iu'
+      PUNCT_PURPOSE: /^(?:can|could|may|might|would|will|won't|wouldn't|can't|couldn't)$/
+      punctAside:
+        args: "start: number, gap: string"
+        return: >-
+          finding("styleClauseComma", "review_msg_aside_comma", start, start + gap.length, [
+            `,${gap.replace(/^[ \t ]*/, " ")}`,
+          ])
+      # PUNCT_CLAUSE_WORD reads ' and ’ alike: one replace before the match spares one per word.
+      punctWords:
+        args: "text: string"
+        type: string[]
+        return: 'text.replace(/’/g, "''").match(PUNCT_CLAUSE_WORD) ?? []'
+      punctAdverb:
+        args: "word: string"
+        return: "PUNCT_MID_ADVERBS.has(word) || /^[a-z]{3,}ly$/.test(word)"
+      # The word reads as a finite verb after the subject word `subject`.
+      punctFiniteVerb:
+        args: "word: string, subject: string | undefined, opening: boolean"
+        let:
+          lower: word.toLowerCase()
+        return: "PUNCT_AUX.has(lower) || PUNCT_CONTRACTED.test(lower) || punctLexiconFinite(lower, subject, opening)"
+      # "Something happens", "The plug works": a -s verb right after a one-word opening subject.
+      punctLexiconFinite:
+        args: "lower: string, subject: string | undefined, opening: boolean"
+        let:
+          verbs: englishWordInfo(lower)?.verbs ?? []
+        when: "!(subject && PUNCT_DETERMINERS.has(subject))"
+        return: >-
+          verbs.some((v) => v.form === "past") ||
+          (subject && PUNCT_SUBJECTS.has(subject)
+            ? verbs.some((v) => v.form === (/^(?:he|she|it)$/.test(subject) ? "third" : "base"))
+            : opening && verbs.some((v) => v.form === "third"))
+        else: "false"
+      # Index of the word governing position at + 1, skipping adverbs in between.
+      punctSubjectAt:
+        args: "lower: string[], at: number"
+        type: number
+        return: "at > 0 && punctAdverb(lower[at]) ? punctSubjectAt(lower, at - 1) : at"
+      punctFiniteVerbAt:
+        args: "w: string, lower: string[], i: number"
+        let:
+          at: punctSubjectAt(lower, i - 1)
+        return: punctFiniteVerb(w, lower[at], at === 0)
+      # The text before the coordinator reads as a complete clause with its own subject and verb.
+      # "I'm 27" counts as three words.
+      punctFirstClause:
+        args: "segment: string, conj: string, question: boolean"
+        let:
+          all: punctWords(segment)
+          ws: '/^(?:and|but|or|so|yet|then)$/i.test(all[0] ?? "") ? all.slice(1) : all'
+          lower: ws.map((w) => w.toLowerCase())
+          polite: PUNCT_POLITE_OPENING.test(lower.join(" "))
+          size: ws.length + lower.filter((w) => PUNCT_CONTRACTED.test(w)).length
+          last: lower[lower.length - 1]
+        when:
+          - "!(size < 2 && !polite)"
+          - "!(PUNCT_NOT_CLAUSE_END.has(last) || PUNCT_AUX.has(last))"
+          - >-
+            !lower.some((w, i) =>
+              i >= (question ? 1 : 0) && PUNCT_SUBORDINATE.has(w) && lower.slice(i + 1).some((x) => !PUNCT_INERT.has(x)))
+          - '!(conj === "so" && lower.some((w) => w === "so" || w === "such"))'
+          - '!(conj === "yet" && lower.some((w) => w === "not" || w.endsWith("n''t")))'
+        return: polite || punctClauseHead(ws, lower, question)
+        else: "false"
+      # An imperative ("Rake the leaves and we'll burn them") has no subject of its own. An
+      # all-capitals acronym ("BOD") is a name, not a verb.
+      punctClauseHead:
+        args: "ws: string[], lower: string[], question: boolean"
+        let:
+          head: lower[0]
+          asks: question && (PUNCT_AUX.has(head) || PUNCT_WH.has(head))
+        when: >-
+          !(!asks &&
+            !PUNCT_OPENING_SUBJECTS.has(head) &&
+            (!/^\p{Lu}/u.test(ws[0]) ||
+              ((/^\p{Lu}+$/u.test(ws[0]) ? [] : (englishWordInfo(head)?.verbs ?? [])).some((v) => v.form === "base") &&
+                !punctFiniteVerb(ws[1], undefined, false))))
+        return: "asks || PUNCT_CONTRACTED.test(head) || ws.some((w, i) => i !== 0 && punctFiniteVerbAt(w, lower, i))"
+        else: "false"
+      # The text after the coordinator opens a complete clause. "and I was too", "but she wasn't
+      # either": an elliptical echo, not a full clause. "and thanks for", "so apologies for".
+      punctSecondClause:
+        args: "rest: string, conj: string, question: boolean"
+        let:
+          all: punctWords(rest)
+          ws: 'conj !== "so" && PUNCT_LEAD_ADVERBS.has(all[0]?.toLowerCase()) ? all.slice(1) : all'
+          lower: ws.map((w) => w.toLowerCase())
+          first: lower[0]
+          second: lower[1]
+        when:
+          - ws.length >= 2
+          - "!(ws.length <= 4 && /^(?:too|either|neither)$/.test(lower[ws.length - 1]))"
+        return: >-
+          conj === "although"
+            ? punctSubjectAndVerb(ws, lower, conj)
+            : first === "please"
+              ? (englishWordInfo(lower[punctAdverb(second) ? 2 : 1] ?? "")?.verbs.some((v) => v.form === "base") ?? false)
+              : /^(?:thanks|sorry|apologies)$/.test(first) && second === "for"
+                ? true
+                : (question && punctAsks(lower)) || punctSubjectAndVerb(ws, lower, conj)
+        else: "false"
+      punctAsks:
+        args: "lower: string[]"
+        let:
+          at: "PUNCT_WH.has(lower[0]) ? 1 : 0"
+          next: lower[at + 1]
+        return: "!!(PUNCT_AUX.has(lower[at]) && next && (at === 1 || PUNCT_SUBJECTS.has(next) || PUNCT_DETERMINERS.has(next)))"
+      # "so I'll", "so you'd" usually state a purpose. "and the game was", "but its owners left",
+      # "but Google isn't": a short subject and a verb. "so Max's sister is happy" may state a
+      # purpose: "so" takes only a pronoun subject.
+      punctSubjectAndVerb:
+        args: "ws: string[], lower: string[], conj: string"
+        let:
+          first: lower[0]
+          second: lower[1]
+        return: >-
+          first === "there"
+            ? PUNCT_AUX.has(second)
+            : PUNCT_CONTRACTED.test(first) && !first.endsWith("n't")
+              ? !(conj === "so" && /'(?:ll|d)$/.test(first))
+              : PUNCT_SUBJECTS.has(first) || /^th(?:is|ese|ose)$/.test(first)
+                ? punctPronounVerb(ws, lower, conj, first, second)
+                : conj !== "so" &&
+                  (PUNCT_DETERMINERS.has(first) || (/^\p{Lu}/u.test(ws[0]) && !PUNCT_SUBJECTS.has(first)) || /'s?$/.test(first)) &&
+                  punctPhraseVerb(lower, conj, 1)
+      # "so I can see", "so they would know": a purpose clause, no comma.
+      punctPronounVerb:
+        args: "ws: string[], lower: string[], conj: string, first: string, second: string"
+        let:
+          at: "punctAdverb(second) ? 2 : 1"
+          verb: lower[at]
+        return: >-
+          !!verb &&
+          punctFiniteVerb(ws[at], PUNCT_SUBJECTS.has(first) ? first : "it", false) &&
+          !(conj === "so" && PUNCT_PURPOSE.test(verb))
+      # The words 1 to 5 of a noun subject phrase: the first auxiliary or verb decides.
+      punctPhraseVerb:
+        args: "lower: string[], conj: string, at: number"
+        type: boolean
+        let:
+          word: lower[at]
+        when: at <= 5 && at < lower.length
+        return: >-
+          PUNCT_AUX.has(word) || PUNCT_CONTRACTED.test(word)
+            ? !(conj === "so" && PUNCT_PURPOSE.test(word))
+            : punctAdverb(word)
+              ? punctPhraseVerb(lower, conj, at + 1)
+              : punctPhraseWord(lower, conj, at, word)
+        else: "false"
+      # Unknown words, possessives and -ing modifiers can sit in the subject phrase.
+      punctPhraseWord:
+        args: "lower: string[], conj: string, at: number, word: string"
+        type: boolean
+        let:
+          read: englishWordInfo(word)
+        return: >-
+          at > 1 && read?.verbs.some((v) => v.form === "past" || v.form === "third")
+            ? read.noun !== true || read.verbs.some((v) => v.form === "past")
+            : PUNCT_NOT_CLAUSE_END.has(word) || /^(?:that|who|which|whose)$/.test(word)
+              ? false
+              : read && !read.noun && !read.adjective && !/'s?$|ing$/.test(word)
+                ? false
+                : punctPhraseVerb(lower, conj, at + 1)
+      # Cheap gate before any clause reading: the word after the coordinator can open a clause.
+      punctOpensClause:
+        args: "text: string, at: number"
+        let:
+          word: '/^[ \t ]+([\p{L}''’]+)/u.exec(text.slice(at))?.[1]'
+          lower: word.toLowerCase().replace(/’/g, "'")
+        when: "!!word"
+        return: >-
+          /^\p{Lu}|'/u.test(word) ||
+          PUNCT_SUBJECTS.has(lower) ||
+          PUNCT_DETERMINERS.has(lower) ||
+          PUNCT_LEAD_ADVERBS.has(lower) ||
+          PUNCT_WH.has(lower) ||
+          PUNCT_AUX.has(lower) ||
+          /^(?:there|please|thanks|sorry|apologies)$/.test(lower)
+        else: "false"
     frames:
       # "The older we get the wiser we are", "The sooner the better": a comma ends the first half.
       - regex: "(?<![\\p{L}'’])[Tt]he{{S}}(?:more|less|fewer|[a-z]{2,}er)(?:{{S}}(?:I|we|you|he|she|they|it|one|people){{S}}(?<verb>[a-z]+))?(?<gap>{{S}})the{{S}}(?:more|less|fewer|[a-z]{2,}er){{E}}"
         owner: gap
-        fixer: clauseCorrelative
+        let:
+          ws: m[0].toLowerCase().split(/[ \t ]+/)
+          # Comparatives only: "the other the", "the water the" are no pair.
+          compared: >-
+            [ws[1], ws[ws.length - 1]].every((w) =>
+              /^(?:more|less|fewer)$/.test(w) ||
+              /^(?:bett|wors|old|young|fast|slow|big|small|great|high|low|long|short|soon|late|earl|hard|easi|cheap|strong|weak|rich|poor|far|near|wid|tall|heavi|light|happi|harder|warm|cold|hot|loud|quiet)/.test(w))
+          start: m.indices!.groups!.gap[0]
+        when: >-
+          !(!compared ||
+            /^(?:other|another|water|paper|number|order|matter|under|over|after|never|ever|either|neither|together)$/.test(ws[1]))
+        return: 'finding("styleClauseComma", "review_msg_clause_comma", start, start + gap.length, [`,${gap}`])'
       # "She isn't coming is she?": a question tag. A tag pairs a negative auxiliary with a
       # positive statement ("isn't she?") or a positive one with a negative statement ("is
       # she?"); "do it?" ends in an object, not a tag.
       - regex: "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00A0]+)(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \\t\\u00A0]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \\t\\u00A0]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \\t\\u00A0]+it)))[ \\t\\u00A0]*\\?"
         scan: polish
         flags: gu
-        fixer: clauseTag
+        let:
+          # The statement before the tag opens its sentence with neither an auxiliary nor a
+          # wh-word.
+          before: ctx.text.slice(Math.max(0, m.index - 200), m.index)
+          cut: 'Math.max(...[...".!?\n￼"].map((c) => before.lastIndexOf(c)))'
+          sentence: before.slice(cut + 1).trim()
+          negative: '/n[''’]t\b|\bnot\b|\bnever\b/i.test(sentence)'
+        when:
+          - "!(!sentence || PUNCT_QUESTION_OPENING.test(sentence) || /,$/.test(sentence))"
+          # "Guess who is it?", "I wonder what is it?": an embedded question, not a tag.
+          - '!/\b(?:who|what|which|where|when|why|how|whether|if|than|as|so|that|because)$/i.test(sentence)'
+          - '/\b(?:I|you|he|she|it|we|they|there|this|that)\b|^\p{Lu}/u.test(sentence)'
+          - "!(neg ? negative : !negative)"
+        return: punctAside(m.index, gap)
       # "I found it thanks.", "Sounds good thanks.": a short reply, then its thanks.
       - regex: "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00a0]+)thanks(?=[ \\t\\u00a0]*[.!])"
         scan: polish
         flags: giu
-        fixer: clauseClosingThanks
+        let:
+          word: '/([\p{L}\p{N}'']+)$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1]'
+        # The sentence before has a verb or is a reply ("Sounds good thanks").
+        when: "!(!word || !PUNCT_BEFORE_THANKS.has(word.toLowerCase()))"
+        return: punctAside(m.index, gap)
       # "I voted early and I plan to vote again" -> "early, and I": two complete clauses joined
       # by a coordinator take a comma. Both sides must read as clauses: the first opens with its
       # subject and has a finite verb; the second opens with a subject and its verb, an inverted
@@ -5091,12 +5719,29 @@ rules:
       - regex: "(?<=[\\p{L}\\p{N}%)'\\u2019])(?<gap>[ \\t\\u00a0]+)(?<conj>and|but|or|so|yet|although)(?=[ \\t\\u00a0])"
         scan: polish
         flags: gu
-        fixer: clauseJoiner
+        let:
+          after: m.index + gap.length + conj.length
+          before: ctx.text.slice(Math.max(0, m.index - 256), m.index)
+          lastBreak: "[...before.matchAll(PUNCT_CLAUSE_BREAK)].at(-1)"
+          cut: "lastBreak ? lastBreak.index + lastBreak[0].length : 0"
+          tail: ctx.text.slice(after, after + 240)
+          end: tail.search(/[.!?;:,\n￼]/)
+          rest: "end < 0 ? tail : tail.slice(0, end)"
+          question: '/^[^.!\n]*\?/.test(tail)'
+        when:
+          - punctOpensClause(ctx.text, after)
+          - '!(conj === "so" && /^[ \t ]+that\b/i.test(ctx.text.slice(after, after + 8)))'
+          - punctFirstClause(before.slice(cut), conj, question)
+          - punctSecondClause(rest, conj, question)
+          # "you and I went": a coordinated subject, not two clauses.
+          - '!(/\byou$/i.test(before) && !/thank you$/i.test(before) && /^[ \t ]*I\b/.test(tail))'
+        return: 'finding("styleClauseComma", "review_msg_clause_comma", m.index, m.index + gap.length, [`,${gap}`])'
   - id: en.geographicThe
     checks: [englishPhraseCorrections]
     style: match
     message: review_msg_geographic_the
-    filter: usOutsideExamples
+    filter:
+      return: usOutsideExamples(ctx, findings)
     sets:
       ARTICLES_NOT_SUPERLATIVES: [best, worst]
       # "-est" words that are no superlative.

@@ -597,6 +597,379 @@ export const PLAIN_PARTITIVES: ReadonlySet<string> = new Set([
   "either",
 ]);
 
+export const PUNCT_SUBJECT_STARTS: ReadonlySet<string> = new Set([
+  "I",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "this",
+  "that",
+  "these",
+  "those",
+  "there",
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+]);
+
+export const PUNCT_NOT_NAMES: ReadonlySet<string> = new Set([
+  "again",
+  "all",
+  "everyone",
+  "everybody",
+  "guys",
+  "folks",
+  "so",
+  "very",
+  "for",
+  "to",
+  "and",
+  "you",
+]);
+
+export const PUNCT_FINITE: ReadonlySet<string> = new Set([
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "can",
+  "could",
+  "should",
+  "may",
+  "might",
+  "must",
+  "need",
+  "want",
+  "think",
+  "know",
+  "see",
+  "get",
+  "got",
+  "noticed",
+  "figured",
+  "created",
+  "mean",
+  "like",
+  "became",
+]);
+
+export const PUNCT_BEFORE_THANKS: ReadonlySet<string> = new Set([
+  "it",
+  "that",
+  "this",
+  "them",
+  "good",
+  "great",
+  "perfect",
+  "fine",
+  "awesome",
+  "helpful",
+  "nice",
+  "cool",
+  "works",
+  "worked",
+  "helped",
+  "helps",
+  "done",
+  "fixed",
+]);
+
+export const PUNCT_AUX: ReadonlySet<string> = new Set([
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+  "has",
+  "have",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "can",
+  "could",
+  "shall",
+  "should",
+  "may",
+  "might",
+  "must",
+  "isn't",
+  "aren't",
+  "wasn't",
+  "weren't",
+  "hasn't",
+  "haven't",
+  "hadn't",
+  "don't",
+  "doesn't",
+  "didn't",
+  "won't",
+  "wouldn't",
+  "can't",
+  "cannot",
+  "couldn't",
+  "shouldn't",
+  "mustn't",
+]);
+
+export const PUNCT_SUBJECTS: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "he",
+  "she",
+  "we",
+  "they",
+  "it",
+]);
+
+export const PUNCT_OPENING_SUBJECTS: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "this",
+  "that",
+  "there",
+  "these",
+  "those",
+  "the",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "some",
+  "most",
+  "many",
+  "all",
+  "both",
+  "each",
+  "every",
+  "no",
+  "one",
+  "nobody",
+  "everyone",
+  "everybody",
+  "someone",
+  "somebody",
+  "nothing",
+  "everything",
+  "something",
+]);
+
+export const PUNCT_DETERMINERS: ReadonlySet<string> = new Set([
+  "the",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "this",
+  "these",
+  "those",
+  "some",
+  "every",
+  "each",
+  "no",
+  "most",
+  "many",
+  "several",
+]);
+
+export const PUNCT_SUBORDINATE: ReadonlySet<string> = new Set([
+  "if",
+  "whether",
+  "when",
+  "whenever",
+  "because",
+  "since",
+  "while",
+  "although",
+  "though",
+  "unless",
+  "until",
+  "till",
+  "before",
+  "after",
+  "where",
+  "which",
+  "who",
+  "whom",
+  "whose",
+  "what",
+  "how",
+  "why",
+  "than",
+  "once",
+  "either",
+  "neither",
+  "between",
+  "whereas",
+  "that",
+  "think",
+  "thought",
+  "believe",
+  "believed",
+  "know",
+  "knew",
+  "guess",
+  "hope",
+  "hoped",
+  "say",
+  "said",
+  "says",
+  "feel",
+  "felt",
+  "suppose",
+  "expect",
+  "mean",
+  "wonder",
+  "wondered",
+  "realize",
+  "realized",
+  "assume",
+  "assumed",
+  "heard",
+  "tell",
+  "told",
+  "sure",
+  "wish",
+]);
+
+export const PUNCT_INERT: ReadonlySet<string> = new Set([
+  "it",
+  "that",
+  "this",
+  "them",
+  "so",
+  "too",
+  "then",
+  "before",
+  "yet",
+  "again",
+  "now",
+]);
+
+export const PUNCT_NOT_CLAUSE_END: ReadonlySet<string> = new Set([
+  "to",
+  "of",
+  "for",
+  "with",
+  "at",
+  "by",
+  "from",
+  "in",
+  "on",
+  "into",
+  "about",
+  "as",
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "both",
+  "either",
+  "neither",
+  "between",
+  "than",
+  "rather",
+  "more",
+  "less",
+  "not",
+  "just",
+  "only",
+  "even",
+  "very",
+  "too",
+  "so",
+  "and",
+  "or",
+  "but",
+  "i",
+  "he",
+  "she",
+  "we",
+  "they",
+]);
+
+export const PUNCT_LEAD_ADVERBS: ReadonlySet<string> = new Set([
+  "so",
+  "therefore",
+  "then",
+  "again",
+  "hopefully",
+  "instead",
+  "now",
+  "thus",
+  "still",
+  "also",
+  "immediately",
+  "honestly",
+]);
+
+export const PUNCT_MID_ADVERBS: ReadonlySet<string> = new Set([
+  "often",
+  "just",
+  "really",
+  "also",
+  "never",
+  "already",
+  "still",
+  "always",
+  "only",
+  "actually",
+  "probably",
+  "usually",
+  "even",
+  "then",
+  "all",
+  "both",
+]);
+
+export const PUNCT_WH: ReadonlySet<string> = new Set([
+  "what",
+  "why",
+  "how",
+  "when",
+  "where",
+  "who",
+  "which",
+]);
+
 export const ARTICLES_NOT_SUPERLATIVES: ReadonlySet<string> = new Set(["best", "worst"]);
 
 export const ARTICLES_EST_WORDS: ReadonlySet<string> = new Set([
@@ -1008,6 +1381,255 @@ export const PLAIN_DIMENSIONS = {
   height: /^(?:tall|taller|tallest)$/,
   weight: /^(?:heavy|heavier|heaviest|light|lighter|lightest)$/,
 } as Readonly<Record<string, RegExp>>;
+
+// en.yaml rule en.punctuation def usOutsideExamples
+export function usOutsideExamples(ctx: DetectContext, findings: RawFinding[]) {
+  return ctx.lang !== "en_US" ? [] : findings.filter((f) => !enQuotedMention(ctx, f));
+}
+
+// en.yaml rule en.punctuation def PUNCT_ABBREVIATION
+export const PUNCT_ABBREVIATION =
+  /^(?:etc|inc|ltd|corp|approx|vol|eds|misc|dept|est|fig|ibid|viz|incl)$/;
+
+// en.yaml rule en.punctuation def PUNCT_NOT_A_QUESTION
+export const PUNCT_NOT_A_QUESTION =
+  /^(?:What do you know\.$|How do you do\.$|Why don['’]t (?:you|we)\b)/;
+
+// en.yaml rule en.punctuation def punctStray
+export function punctStray(start: number, end: number, alternatives: string[]) {
+  return finding("englishPunctuation", "review_msg_stray_comma", start, end, alternatives, {
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  });
+}
+
+// en.yaml rule en.introductoryCommas def punctIntroductory
+export function punctIntroductory(start: number, gap: string): RawFinding {
+  return {
+    ruleId: "styleIntroductoryComma",
+    messageKey: "review_msg_introductory_comma",
+    range: { start, end: start + gap.length },
+    alternatives: [`,${gap}`],
+  };
+}
+
+// en.yaml rule en.clauseCommas def PUNCT_QUESTION_OPENING
+export const PUNCT_QUESTION_OPENING =
+  /^(?:is|isn't|was|wasn't|are|aren't|were|weren't|do|don't|does|doesn't|did|didn't|will|won't|would|wouldn't|can|can't|could|couldn't|have|haven't|has|hasn't|should|shouldn't|shall|may|might|must|what|who|whom|whose|which|where|when|why|how)\b/i;
+
+// en.yaml rule en.clauseCommas def PUNCT_CLAUSE_WORD
+export const PUNCT_CLAUSE_WORD = /[\p{L}\p{N}$][\p{L}\p{N}'’$.&/-]*/gu;
+
+// en.yaml rule en.clauseCommas def PUNCT_CLAUSE_BREAK
+export const PUNCT_CLAUSE_BREAK = /[.!?]["”’)]*(?=[ \t ]+["“(]?\p{Lu}|$)|[;:\n￼]|,(?!\d)/gu;
+
+// en.yaml rule en.clauseCommas def PUNCT_POLITE_OPENING
+export const PUNCT_POLITE_OPENING = /^(?:thank you|thanks|sorry|pardon me|excuse me)\b/i;
+
+// en.yaml rule en.clauseCommas def PUNCT_CONTRACTED
+export const PUNCT_CONTRACTED =
+  /^[\p{L}]+'(?:m|re|ve|ll|d)$|^(?:it|he|she|that|there|what|who|here|let)'s$|n't$/iu;
+
+// en.yaml rule en.clauseCommas def PUNCT_PURPOSE
+export const PUNCT_PURPOSE = /^(?:can|could|may|might|would|will|won't|wouldn't|can't|couldn't)$/;
+
+// en.yaml rule en.clauseCommas def punctAside
+export function punctAside(start: number, gap: string) {
+  return finding("styleClauseComma", "review_msg_aside_comma", start, start + gap.length, [
+    `,${gap.replace(/^[ \t ]*/, " ")}`,
+  ]);
+}
+
+// en.yaml rule en.clauseCommas def punctWords
+export function punctWords(text: string): string[] {
+  return text.replace(/’/g, "'").match(PUNCT_CLAUSE_WORD) ?? [];
+}
+
+// en.yaml rule en.clauseCommas def punctAdverb
+export function punctAdverb(word: string) {
+  return PUNCT_MID_ADVERBS.has(word) || /^[a-z]{3,}ly$/.test(word);
+}
+
+// en.yaml rule en.clauseCommas def punctFiniteVerb
+export function punctFiniteVerb(word: string, subject: string | undefined, opening: boolean) {
+  const lower = word.toLowerCase();
+  return (
+    PUNCT_AUX.has(lower) ||
+    PUNCT_CONTRACTED.test(lower) ||
+    punctLexiconFinite(lower, subject, opening)
+  );
+}
+
+// en.yaml rule en.clauseCommas def punctLexiconFinite
+export function punctLexiconFinite(lower: string, subject: string | undefined, opening: boolean) {
+  if (subject && PUNCT_DETERMINERS.has(subject)) return false;
+  const verbs = englishWordInfo(lower)?.verbs ?? [];
+  return (
+    verbs.some((v) => v.form === "past") ||
+    (subject && PUNCT_SUBJECTS.has(subject)
+      ? verbs.some((v) => v.form === (/^(?:he|she|it)$/.test(subject) ? "third" : "base"))
+      : opening && verbs.some((v) => v.form === "third"))
+  );
+}
+
+// en.yaml rule en.clauseCommas def punctSubjectAt
+export function punctSubjectAt(lower: string[], at: number): number {
+  return at > 0 && punctAdverb(lower[at]) ? punctSubjectAt(lower, at - 1) : at;
+}
+
+// en.yaml rule en.clauseCommas def punctFiniteVerbAt
+export function punctFiniteVerbAt(w: string, lower: string[], i: number) {
+  const at = punctSubjectAt(lower, i - 1);
+  return punctFiniteVerb(w, lower[at], at === 0);
+}
+
+// en.yaml rule en.clauseCommas def punctFirstClause
+export function punctFirstClause(segment: string, conj: string, question: boolean) {
+  const all = punctWords(segment);
+  const ws = /^(?:and|but|or|so|yet|then)$/i.test(all[0] ?? "") ? all.slice(1) : all;
+  const lower = ws.map((w) => w.toLowerCase());
+  const polite = PUNCT_POLITE_OPENING.test(lower.join(" "));
+  const size = ws.length + lower.filter((w) => PUNCT_CONTRACTED.test(w)).length;
+  if (size < 2 && !polite) return false;
+  const last = lower[lower.length - 1];
+  if (PUNCT_NOT_CLAUSE_END.has(last) || PUNCT_AUX.has(last)) return false;
+  if (
+    lower.some(
+      (w, i) =>
+        i >= (question ? 1 : 0) &&
+        PUNCT_SUBORDINATE.has(w) &&
+        lower.slice(i + 1).some((x) => !PUNCT_INERT.has(x)),
+    )
+  )
+    return false;
+  if (conj === "so" && lower.some((w) => w === "so" || w === "such")) return false;
+  if (conj === "yet" && lower.some((w) => w === "not" || w.endsWith("n't"))) return false;
+  return polite || punctClauseHead(ws, lower, question);
+}
+
+// en.yaml rule en.clauseCommas def punctClauseHead
+export function punctClauseHead(ws: string[], lower: string[], question: boolean) {
+  const head = lower[0];
+  const asks = question && (PUNCT_AUX.has(head) || PUNCT_WH.has(head));
+  if (
+    !asks &&
+    !PUNCT_OPENING_SUBJECTS.has(head) &&
+    (!/^\p{Lu}/u.test(ws[0]) ||
+      ((/^\p{Lu}+$/u.test(ws[0]) ? [] : (englishWordInfo(head)?.verbs ?? [])).some(
+        (v) => v.form === "base",
+      ) &&
+        !punctFiniteVerb(ws[1], undefined, false)))
+  )
+    return false;
+  return (
+    asks ||
+    PUNCT_CONTRACTED.test(head) ||
+    ws.some((w, i) => i !== 0 && punctFiniteVerbAt(w, lower, i))
+  );
+}
+
+// en.yaml rule en.clauseCommas def punctSecondClause
+export function punctSecondClause(rest: string, conj: string, question: boolean) {
+  const all = punctWords(rest);
+  const ws = conj !== "so" && PUNCT_LEAD_ADVERBS.has(all[0]?.toLowerCase()) ? all.slice(1) : all;
+  if (!(ws.length >= 2)) return false;
+  const lower = ws.map((w) => w.toLowerCase());
+  if (ws.length <= 4 && /^(?:too|either|neither)$/.test(lower[ws.length - 1])) return false;
+  const first = lower[0];
+  const second = lower[1];
+  return conj === "although"
+    ? punctSubjectAndVerb(ws, lower, conj)
+    : first === "please"
+      ? (englishWordInfo(lower[punctAdverb(second) ? 2 : 1] ?? "")?.verbs.some(
+          (v) => v.form === "base",
+        ) ?? false)
+      : /^(?:thanks|sorry|apologies)$/.test(first) && second === "for"
+        ? true
+        : (question && punctAsks(lower)) || punctSubjectAndVerb(ws, lower, conj);
+}
+
+// en.yaml rule en.clauseCommas def punctAsks
+export function punctAsks(lower: string[]) {
+  const at = PUNCT_WH.has(lower[0]) ? 1 : 0;
+  const next = lower[at + 1];
+  return !!(
+    PUNCT_AUX.has(lower[at]) &&
+    next &&
+    (at === 1 || PUNCT_SUBJECTS.has(next) || PUNCT_DETERMINERS.has(next))
+  );
+}
+
+// en.yaml rule en.clauseCommas def punctSubjectAndVerb
+export function punctSubjectAndVerb(ws: string[], lower: string[], conj: string) {
+  const first = lower[0];
+  const second = lower[1];
+  return first === "there"
+    ? PUNCT_AUX.has(second)
+    : PUNCT_CONTRACTED.test(first) && !first.endsWith("n't")
+      ? !(conj === "so" && /'(?:ll|d)$/.test(first))
+      : PUNCT_SUBJECTS.has(first) || /^th(?:is|ese|ose)$/.test(first)
+        ? punctPronounVerb(ws, lower, conj, first, second)
+        : conj !== "so" &&
+          (PUNCT_DETERMINERS.has(first) ||
+            (/^\p{Lu}/u.test(ws[0]) && !PUNCT_SUBJECTS.has(first)) ||
+            /'s?$/.test(first)) &&
+          punctPhraseVerb(lower, conj, 1);
+}
+
+// en.yaml rule en.clauseCommas def punctPronounVerb
+export function punctPronounVerb(
+  ws: string[],
+  lower: string[],
+  conj: string,
+  first: string,
+  second: string,
+) {
+  const at = punctAdverb(second) ? 2 : 1;
+  const verb = lower[at];
+  return (
+    !!verb &&
+    punctFiniteVerb(ws[at], PUNCT_SUBJECTS.has(first) ? first : "it", false) &&
+    !(conj === "so" && PUNCT_PURPOSE.test(verb))
+  );
+}
+
+// en.yaml rule en.clauseCommas def punctPhraseVerb
+export function punctPhraseVerb(lower: string[], conj: string, at: number): boolean {
+  if (!(at <= 5 && at < lower.length)) return false;
+  const word = lower[at];
+  return PUNCT_AUX.has(word) || PUNCT_CONTRACTED.test(word)
+    ? !(conj === "so" && PUNCT_PURPOSE.test(word))
+    : punctAdverb(word)
+      ? punctPhraseVerb(lower, conj, at + 1)
+      : punctPhraseWord(lower, conj, at, word);
+}
+
+// en.yaml rule en.clauseCommas def punctPhraseWord
+export function punctPhraseWord(lower: string[], conj: string, at: number, word: string): boolean {
+  const read = englishWordInfo(word);
+  return at > 1 && read?.verbs.some((v) => v.form === "past" || v.form === "third")
+    ? read.noun !== true || read.verbs.some((v) => v.form === "past")
+    : PUNCT_NOT_CLAUSE_END.has(word) || /^(?:that|who|which|whose)$/.test(word)
+      ? false
+      : read && !read.noun && !read.adjective && !/'s?$|ing$/.test(word)
+        ? false
+        : punctPhraseVerb(lower, conj, at + 1);
+}
+
+// en.yaml rule en.clauseCommas def punctOpensClause
+export function punctOpensClause(text: string, at: number) {
+  const word = /^[ \t ]+([\p{L}'’]+)/u.exec(text.slice(at))?.[1];
+  if (!word) return false;
+  const lower = word.toLowerCase().replace(/’/g, "'");
+  return (
+    /^\p{Lu}|'/u.test(word) ||
+    PUNCT_SUBJECTS.has(lower) ||
+    PUNCT_DETERMINERS.has(lower) ||
+    PUNCT_LEAD_ADVERBS.has(lower) ||
+    PUNCT_WH.has(lower) ||
+    PUNCT_AUX.has(lower) ||
+    /^(?:there|please|thanks|sorry|apologies)$/.test(lower)
+  );
+}
 
 // en.yaml rule en.geographicThe def ARTICLES_NOT_PLACE_WORDS
 export const ARTICLES_NOT_PLACE_WORDS = /^(?:The|A|An|My|Our|This|That|New|Old)\b/;
@@ -2222,6 +2844,171 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       context: { start: m.index, end: m.index + m[0].length },
     });
   },
+  // en.yaml rule en.punctuation frame 1
+  "@en.punctuation/1": (m: RegExpExecArray): MatchResult => {
+    return punctStray(m.index, m.index + 1, [""]);
+  },
+  // en.yaml rule en.punctuation frame 2
+  "@en.punctuation/2": (m: RegExpExecArray): MatchResult => {
+    return punctStray(m.index, m.index + 2, ["),", ")"]);
+  },
+  // en.yaml rule en.punctuation frame 3
+  "@en.punctuation/3": (m: RegExpExecArray): MatchResult => {
+    const word = m.groups!.word;
+    if (PUNCT_ABBREVIATION.test(word)) return null;
+    return finding("englishPunctuation", "review_msg_duplicate_punctuation", m.index, m.index + 1, [
+      "",
+    ]);
+  },
+  // en.yaml rule en.punctuation frame 4
+  "@en.punctuation/4": (m: RegExpExecArray): MatchResult => {
+    if (PUNCT_NOT_A_QUESTION.test(m[0])) return null;
+    const at = m.index + m[0].length - 1;
+    return finding("englishPunctuation", "review_msg_question_mark", at, at + 1, ["?"]);
+  },
+  // en.yaml rule en.punctuation frame 5
+  "@en.punctuation/5": (m: RegExpExecArray): MatchResult => {
+    const start = m.index + m[0].length - 1;
+    return punctStray(start, start + 1, [""]);
+  },
+  // en.yaml rule en.punctuation frame 6
+  "@en.punctuation/6": (m: RegExpExecArray): MatchResult => {
+    const start = m.indices!.groups!.comma[0];
+    return punctStray(start, start + 1, [""]);
+  },
+  // en.yaml rule en.punctuation frame 7
+  "@en.punctuation/7": (m: RegExpExecArray): MatchResult => {
+    const start = m.indices!.groups!.comma[0];
+    return punctStray(start, start + 1, [""]);
+  },
+  // en.yaml rule en.introductoryCommas frame 1
+  "@en.introductoryCommas/1": (m: RegExpExecArray): MatchResult => {
+    const w = m.groups!.w;
+    const gap = m.groups!.gap;
+    const next = m.groups!.next;
+    if (w === "However" && !PUNCT_SUBJECT_STARTS.has(next.toLowerCase())) return null;
+    if (
+      englishWordInfo(next)?.verbs.some((v) => v.form === "participle") &&
+      !PUNCT_SUBJECT_STARTS.has(next.toLowerCase())
+    )
+      return null;
+    return punctIntroductory(m.index + w.length, gap);
+  },
+  // en.yaml rule en.introductoryCommas frame 2
+  "@en.introductoryCommas/2": (m: RegExpExecArray): MatchResult => {
+    const gap = m.groups!.gap;
+    const verb = m.groups!.verb;
+    const low = verb.toLowerCase();
+    const read = englishWordInfo(low);
+    if (!PUNCT_FINITE.has(low) && !/['’]/.test(low) && !read?.verbs.some((v) => v.form !== "ing"))
+      return null;
+    return punctIntroductory(m.indices!.groups!.gap[0], gap);
+  },
+  // en.yaml rule en.introductoryCommas frame 3
+  "@en.introductoryCommas/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const gap = m.groups!.gap;
+    const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
+    if (
+      m.index > 0 &&
+      !/(?:[.!?,;:]["”’)]?[ \t ]+|\n|^)$/.test(ctx.text.slice(0, m.index).slice(-4)) &&
+      before.trim()
+    )
+      return null;
+    return punctIntroductory(m.indices!.groups!.gap[0], gap);
+  },
+  // en.yaml rule en.introductoryCommas frame 4
+  "@en.introductoryCommas/4": (m: RegExpExecArray): MatchResult => {
+    const w = m.groups!.w;
+    const gap = m.groups!.gap;
+    return punctIntroductory(m.index + w.length, gap);
+  },
+  // en.yaml rule en.introductoryCommas frame 5
+  "@en.introductoryCommas/5": (m: RegExpExecArray): MatchResult => {
+    return {
+      ruleId: "styleIntroductoryComma",
+      messageKey: "review_msg_introductory_comma",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`I, for one,`],
+    };
+  },
+  // en.yaml rule en.introductoryCommas frame 6
+  "@en.introductoryCommas/6": (m: RegExpExecArray): MatchResult => {
+    const gap = m.groups!.gap;
+    const name = m.groups!.name;
+    if (!/^[A-Z][a-z]+$/.test(name)) return null;
+    const read = englishWordInfo(name.toLowerCase());
+    if (read?.adverb || read?.adjective || PUNCT_NOT_NAMES.has(name.toLowerCase())) return null;
+    return punctIntroductory(m.indices!.groups!.gap[0], gap);
+  },
+  // en.yaml rule en.clauseCommas frame 1
+  "@en.clauseCommas/1": (m: RegExpExecArray): MatchResult => {
+    const gap = m.groups!.gap;
+    const ws = m[0].toLowerCase().split(/[ \t ]+/);
+    const compared = [ws[1], ws[ws.length - 1]].every(
+      (w) =>
+        /^(?:more|less|fewer)$/.test(w) ||
+        /^(?:bett|wors|old|young|fast|slow|big|small|great|high|low|long|short|soon|late|earl|hard|easi|cheap|strong|weak|rich|poor|far|near|wid|tall|heavi|light|happi|harder|warm|cold|hot|loud|quiet)/.test(
+          w,
+        ),
+    );
+    if (
+      !compared ||
+      /^(?:other|another|water|paper|number|order|matter|under|over|after|never|ever|either|neither|together)$/.test(
+        ws[1],
+      )
+    )
+      return null;
+    const start = m.indices!.groups!.gap[0];
+    return finding("styleClauseComma", "review_msg_clause_comma", start, start + gap.length, [
+      `,${gap}`,
+    ]);
+  },
+  // en.yaml rule en.clauseCommas frame 2
+  "@en.clauseCommas/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const gap = m.groups!.gap;
+    const neg = m.groups!.neg;
+    const before = ctx.text.slice(Math.max(0, m.index - 200), m.index);
+    const cut = Math.max(...[...".!?\n￼"].map((c) => before.lastIndexOf(c)));
+    const sentence = before.slice(cut + 1).trim();
+    if (!sentence || PUNCT_QUESTION_OPENING.test(sentence) || /,$/.test(sentence)) return null;
+    if (
+      /\b(?:who|what|which|where|when|why|how|whether|if|than|as|so|that|because)$/i.test(sentence)
+    )
+      return null;
+    if (!/\b(?:I|you|he|she|it|we|they|there|this|that)\b|^\p{Lu}/u.test(sentence)) return null;
+    const negative = /n['’]t\b|\bnot\b|\bnever\b/i.test(sentence);
+    if (neg ? negative : !negative) return null;
+    return punctAside(m.index, gap);
+  },
+  // en.yaml rule en.clauseCommas frame 3
+  "@en.clauseCommas/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const gap = m.groups!.gap;
+    const word = /([\p{L}\p{N}']+)$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1];
+    if (!word || !PUNCT_BEFORE_THANKS.has(word.toLowerCase())) return null;
+    return punctAside(m.index, gap);
+  },
+  // en.yaml rule en.clauseCommas frame 4
+  "@en.clauseCommas/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const gap = m.groups!.gap;
+    const conj = m.groups!.conj;
+    const after = m.index + gap.length + conj.length;
+    if (!punctOpensClause(ctx.text, after)) return null;
+    if (conj === "so" && /^[ \t ]+that\b/i.test(ctx.text.slice(after, after + 8))) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 256), m.index);
+    const lastBreak = [...before.matchAll(PUNCT_CLAUSE_BREAK)].at(-1);
+    const cut = lastBreak ? lastBreak.index + lastBreak[0].length : 0;
+    const tail = ctx.text.slice(after, after + 240);
+    const end = tail.search(/[.!?;:,\n￼]/);
+    const rest = end < 0 ? tail : tail.slice(0, end);
+    const question = /^[^.!\n]*\?/.test(tail);
+    if (!punctFirstClause(before.slice(cut), conj, question)) return null;
+    if (!punctSecondClause(rest, conj, question)) return null;
+    if (/\byou$/i.test(before) && !/thank you$/i.test(before) && /^[ \t ]*I\b/.test(tail))
+      return null;
+    return finding("styleClauseComma", "review_msg_clause_comma", m.index, m.index + gap.length, [
+      `,${gap}`,
+    ]);
+  },
   // en.yaml rule en.geographicThe frame 1
   "@en.geographicThe/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const prep = m.groups!.prep;
@@ -2954,6 +3741,42 @@ export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
   // en.yaml rule en.itBeforeNoun filter
   "@en.itBeforeNoun/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
     return usSlots(ctx, findings);
+  },
+  // en.yaml rule en.apostrophes filter
+  "@en.apostrophes/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
+  },
+  // en.yaml rule en.productNames filter
+  "@en.productNames/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
+  },
+  // en.yaml rule en.properNouns filter
+  "@en.properNouns/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
+  },
+  // en.yaml rule en.plainStyle filter
+  "@en.plainStyle/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
+  },
+  // en.yaml rule en.passiveVoice filter
+  "@en.passiveVoice/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
+  },
+  // en.yaml rule en.punctuation filter
+  "@en.punctuation/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
+  },
+  // en.yaml rule en.introductoryCommas filter
+  "@en.introductoryCommas/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
+  },
+  // en.yaml rule en.clauseCommas filter
+  "@en.clauseCommas/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
+  },
+  // en.yaml rule en.geographicThe filter
+  "@en.geographicThe/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return usOutsideExamples(ctx, findings);
   },
   // en.yaml rule en.missingArticle filter
   "@en.missingArticle/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {

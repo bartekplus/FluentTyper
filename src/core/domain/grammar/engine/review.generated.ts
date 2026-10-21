@@ -1819,7 +1819,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [748, 749, 750, 751, 752, 753, 754, 755, 756, 757],
     message: "review_msg_plural_apostrophe",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.apostrophes/filter",
     source: "en",
   },
   {
@@ -1829,7 +1829,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [758, 759],
     message: "review_msg_canonical_casing",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.productNames/filter",
     source: "en",
   },
   {
@@ -1839,7 +1839,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [760, 761, 762, 763],
     message: "review_msg_nationality_capital",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.properNouns/filter",
     source: "en",
   },
   {
@@ -1895,7 +1895,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [799, 800, 801, 802, 803, 804, 805],
     message: "review_msg_style_phrasing",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.plainStyle/filter",
     source: "en",
   },
   {
@@ -1905,7 +1905,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [806],
     message: "review_msg_passive_voice",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.passiveVoice/filter",
     source: "en",
   },
   {
@@ -1915,7 +1915,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [807, 808, 809, 810, 811, 812, 813],
     message: "review_msg_stray_comma",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.punctuation/filter",
     source: "en",
   },
   {
@@ -1925,7 +1925,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [814, 815, 816, 817, 818, 819],
     message: "review_msg_introductory_comma",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.introductoryCommas/filter",
     source: "en",
   },
   {
@@ -1935,7 +1935,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [820, 821, 822, 823],
     message: "review_msg_clause_comma",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.clauseCommas/filter",
     source: "en",
   },
   {
@@ -1945,7 +1945,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [824, 825],
     message: "review_msg_geographic_the",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.geographicThe/filter",
     source: "en",
   },
   {
@@ -12122,21 +12122,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: '(?<=\\p{L}|\\p{N}|[)"\\u201D\\u2019])[,;](?=[.!?](?!\\.))',
     literals: [],
-    fixer: "en:punctuationCommaMark",
+    fixer: "en:@en.punctuation/1",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=[\\p{L}\\p{N}]),\\)",
     literals: [],
-    fixer: "en:punctuationCommaParen",
+    fixer: "en:@en.punctuation/2",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: '(?<=(?<![\\p{L}\\p{N}.])(?<word>\\p{Ll}{3,})\\.["\\u201D])\\.(?!\\.)',
     literals: [],
-    fixer: "en:punctuationPeriodQuotePeriod",
+    fixer: "en:@en.punctuation/3",
     flags: "gu",
     scan: "polish",
   }),
@@ -12144,7 +12144,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[.!?][\"\\u201D\\u2019)]?[ \\t\\u00A0]{1,8}|\\n[ \\t\\u00A0]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \\t\\u00A0]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['\\u2019]t)?[ \\t\\u00A0]+(?:I|you|he|she|we|they|it)(?![\\p{L}'\\u2019])[^.!?,;:\\n\"\\u201C\\u201D()]{0,80}\\.(?![.\\p{L}\\p{N}])",
     literals: ["what", "where", "when", "why", "how", "who", "which"],
-    fixer: "en:punctuationWhQuestion",
+    fixer: "en:@en.punctuation/4",
     flags: "gu",
     scan: "polish",
   }),
@@ -12152,7 +12152,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "\\bneither\\b(?<items>[^,.;:!?\\n]{1,60}),(?=[ \\u00A0]+nor\\b(?![^.;:!?\\n]*,[ \\u00A0]*nor\\b))",
     literals: ["neither"],
-    fixer: "en:punctuationLastMark",
+    fixer: "en:@en.punctuation/5",
     flags: "giu",
     scan: "polish",
   }),
@@ -12174,14 +12174,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "sure",
       "sure",
     ],
-    fixer: "en:punctuationComma",
+    fixer: "en:@en.punctuation/6",
     owner: "comma",
   }),
   frame({
     pattern:
       "(?:would be (?:great|nice|good|helpful|wonderful)|would appreciate it|would be grateful|would you mind)(?<comma>,)[ \\t\\u00a0]{1,8}if[ \\t\\u00a0]{1,8}(?:you|we|I|someone|anyone|somebody|anybody)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["would", "appreciate", "grateful", "would"],
-    fixer: "en:punctuationComma",
+    fixer: "en:@en.punctuation/7",
     owner: "comma",
   }),
   frame({
@@ -12224,7 +12224,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "instead",
       "likewise",
     ],
-    fixer: "en:introductoryOpener",
+    fixer: "en:@en.introductoryCommas/1",
     flags: "gu",
     scan: "polish",
   }),
@@ -12232,28 +12232,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:with|for|to|at|about|on|in|by|after|around|from|into|without|like)[ \\t\\u00a0]{1,8}(?<obj>it|you|me|him|her|them|us)(?<gap>[ \\t\\u00a0]{1,8})(?<subject>I|we|you|they|he|she|it)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+(?:['’][a-z]+)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:introductoryPhrase",
+    fixer: "en:@en.introductoryCommas/2",
     owner: "gap",
   }),
   frame({
     pattern:
       "(?<lead>If|if)[ \\t\\u00a0]{1,8}(?:I|we|you|they|he|she|it)[ \\t\\u00a0]{1,8}(?<aux>can|can['’]t|cannot|could|couldn['’]t|does|doesn['’]t|do|don['’]t|did|didn['’]t|is|isn['’]t|was|wasn['’]t|will|won['’]t|would|wouldn['’]t|have|haven['’]t|has|hasn['’]t)(?:[ \\t\\u00a0]{1,8}not)?(?<gap>[ \\t\\u00a0]{1,8})(?<subject>I|we|you|they|he|she|it|we['’]ll|I['’]ll|you['’]ll|they['’]ll|it['’]ll|I['’]m)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:introductoryCondition",
+    fixer: "en:@en.introductoryCommas/3",
     owner: "gap",
   }),
   frame({
     pattern:
       "(?<=(?:^|[.!?][\"”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<gap>[ \\t\\u00a0]+)(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))",
     literals: [],
-    fixer: "en:introductoryGreeting",
+    fixer: "en:@en.introductoryCommas/4",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}'\\u2019])I[ \\t\\u00A0]+for[ \\t\\u00A0]+one(?=[ \\t\\u00A0]+[a-z])",
     literals: ["for"],
-    fixer: "en:introductoryIForOne",
+    fixer: "en:@en.introductoryCommas/5",
     flags: "gu",
     scan: "polish",
   }),
@@ -12261,28 +12261,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<w>Thanks|Thank you|Hi|Hello|Hey there|Happy Birthday|Good morning|Good night)(?<gap>[ \\t\\u00a0]{1,8})(?<name>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:introductoryNameAddress",
+    fixer: "en:@en.introductoryCommas/6",
     owner: "gap",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])[Tt]he[ \\t\\u00a0]{1,8}(?:more|less|fewer|[a-z]{2,}er)(?:[ \\t\\u00a0]{1,8}(?:I|we|you|he|she|they|it|one|people)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+))?(?<gap>[ \\t\\u00a0]{1,8})the[ \\t\\u00a0]{1,8}(?:more|less|fewer|[a-z]{2,}er)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:clauseCorrelative",
+    fixer: "en:@en.clauseCommas/1",
     owner: "gap",
   }),
   frame({
     pattern:
       "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00A0]+)(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \\t\\u00A0]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \\t\\u00A0]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \\t\\u00A0]+it)))[ \\t\\u00A0]*\\?",
     literals: [],
-    fixer: "en:clauseTag",
+    fixer: "en:@en.clauseCommas/2",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00a0]+)thanks(?=[ \\t\\u00a0]*[.!])",
     literals: ["thanks"],
-    fixer: "en:clauseClosingThanks",
+    fixer: "en:@en.clauseCommas/3",
     flags: "giu",
     scan: "polish",
   }),
@@ -12290,7 +12290,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=[\\p{L}\\p{N}%)'\\u2019])(?<gap>[ \\t\\u00a0]+)(?<conj>and|but|or|so|yet|although)(?=[ \\t\\u00a0])",
     literals: [],
-    fixer: "en:clauseJoiner",
+    fixer: "en:@en.clauseCommas/4",
     flags: "gu",
     scan: "polish",
   }),
