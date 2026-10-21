@@ -13,10 +13,32 @@ const ROOT = path.resolve(import.meta.dir, "..");
 const GRAMMAR = path.join(ROOT, "src/core/domain/grammar");
 // The hash of the inputs of the last write: the next run skips the work when they are the same.
 const STAMP = path.join(GRAMMAR, "review/rules/.inputs");
+const OUTPUT = /grammar\/review\/rules\/|grammar\/engine\/\w+\.generated\.ts$/;
 
-/** The hash of the files the generated modules come from. */
+const transpiler = new Bun.Transpiler({ loader: "ts" });
+
+/** `file` and the files it imports, transitively (only the relative imports). */
+function withImports(file: string, seen: Set<string>): void {
+  if (seen.has(file) || !existsSync(file)) return;
+  seen.add(file);
+  if (!file.endsWith(".ts")) return;
+  for (const { path: spec } of transpiler.scanImports(readFileSync(file, "utf8"))) {
+    if (!spec.startsWith(".")) continue;
+    const base = path.resolve(path.dirname(file), spec);
+    const found = [`${base}.ts`, path.join(base, "index.ts"), base].find(
+      (candidate) => candidate.endsWith(".ts") && existsSync(candidate),
+    );
+    if (found) withImports(found, seen);
+  }
+}
+
+/**
+ * The hash of the files the generated modules come from: the rule files, the library, the engine,
+ * the scripts and all the files they import.
+ */
 function inputsHash(): string {
-  const files = [
+  const files = new Set<string>();
+  for (const file of [
     ...readdirSync(RULES_DIR).map((file) => path.join(RULES_DIR, file)),
     path.join(GRAMMAR, "library.ts"),
     ...["library", "engine"].flatMap((dir) =>
@@ -28,12 +50,13 @@ function inputsHash(): string {
     path.join(ROOT, "scripts/grammarRules.ts"),
     path.join(ROOT, "scripts/compile-grammar-rules.ts"),
     path.join(ROOT, ".prettierrc"),
-  ].filter(
-    (file) => /\.(?:ts|yaml|json)$|\.prettierrc$/.test(file) && !file.includes(".generated."),
-  );
+  ])
+    // The modules this script writes are its outputs, not its inputs.
+    if (/\.(?:ts|yaml|json)$|\.prettierrc$/.test(file) && !OUTPUT.test(file))
+      withImports(file, files);
   const hash = createHash("sha256");
-  for (const file of files.sort())
-    if (existsSync(file)) hash.update(file).update(readFileSync(file));
+  for (const file of [...files].filter((file) => !OUTPUT.test(file)).sort())
+    hash.update(file).update(readFileSync(file));
   return hash.digest("hex");
 }
 
