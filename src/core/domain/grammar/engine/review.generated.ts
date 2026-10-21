@@ -23269,7 +23269,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "statten",
       "preis",
     ],
-    fixer: "de:boundVerb",
+    fixer: "de:@de.compounds/29",
     flags: "dgu",
     owner: "first",
   }),
@@ -23277,7 +23277,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<first>zu[ \\t\\u00a0]{1,8}Passe?|zupasse?)(?:[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["pass", "zupass"],
-    fixer: "de:zuPass",
+    fixer: "de:@de.compounds/30",
     flags: "dgu",
     owner: "first",
   }),
@@ -26440,7 +26440,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?:(?<article>n|ne|nen|nem|ner)(?=[ \\t]+(?<adjective>\\p{Ll}+(?:e|en|er|es|em)[ \\t]+)?\\p{Lu}\\p{Ll})|(?<joined>[mM]ags|[lL]iebs|[gG]ebs|[hH]abs|[nN]ehms|[mM]achs|[kK]enns|[wW]ills|[kK]anns|[sS]tehts|[gG]efällts|[gG]ehts|[gG]ibts|[kK]ommts|[sS]iehts|[lL]äufts|[kK]lappts|[pP]assts|[hH]aste|[bB]iste|[kK]annste|[wW]eißte|[sS]iehste|[wW]illste|[mM]einste|[gG]uckste|[mM]achste|[hH]örste|[gG]ehste|[kK]ommste))(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "de:spokenForm",
+    fixer: "de:@de.colloquial/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -26448,7 +26448,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?<![\\p{L}\\p{M}])(?:[Bb]rauch(?:e|st|t|en|te|test|ten|tet))(?<middle>(?:[ \\t]+[\\p{L}\\p{M}]+){1,6}?)[ \\t]+(?<verb>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:"\\u201C\\u201D]|[ \\t]*$)',
     literals: ["brauch"],
-    fixer: "de:needsZu",
+    fixer: "de:@de.colloquial/2",
     flags: "gu",
     scan: "owned",
     lookback: 80,
@@ -26457,7 +26457,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?<prep>[Aa]us|[Uu]m|[Aa]uf|[Ff]\\u00FCr|[Dd]urch|[Mm]it|[\\u00DC\\u00FC]ber|[Aa]n|[Vv]on|[Nn]ach|[Zz]u|[Ii]n|[Bb]ei|[Gg]egen|[Vv]or)[ \\t]+was(?![\\p{L}\\p{M}\\p{N}_-])",
     literals: ["was"],
-    fixer: "de:prepositionWhat",
+    fixer: "de:@de.colloquial/3",
     flags: "gu",
     scan: "owned",
   }),
@@ -26465,7 +26465,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>[Mm]acht|[Mm]achen|[Mm]achte|[Mm]achten|[Mm]achst|[Mm]ache)(?<gap>(?:[ \\t]+\\p{Ll}+){1,4}?)[ \\t]+(?:einen[ \\t]+|keinen[ \\t]+)?Sinn(?![\\p{L}\\p{M}\\p{N}_-])|Sinn[ \\t]+zu[ \\t]+(?<zu>machen)(?![\\p{L}\\p{M}\\p{N}_-])",
     literals: ["macht", "machen", "machte", "machten", "machst", "mache", "machen"],
-    fixer: "de:makesSense",
+    fixer: "de:@de.colloquial/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -26487,7 +26487,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "klo",
       "reli",
     ],
-    fixer: "de:clipped",
+    fixer: "de:@de.colloquial/5",
     flags: "gu",
     scan: "owned",
   }),
@@ -26495,7 +26495,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}-])(?<unit>Volt|Ampere|Coulomb|Watt|Kilowatt|Megawatt|PS|Hertz|Joule|Kilogramm|Gramm)-?[Zz]ahl(?<plural>en)?(?![\\p{L}\\p{N}-])",
     literals: ["zahl"],
-    fixer: "de:unitCount",
+    fixer: "de:@de.colloquial/6",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -26504,7 +26504,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}-])Kilo(?![\\p{L}\\p{N}-])(?<=(?:\\d|(?<![\\p{L}])(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|dreißig|fünfzig|hundert|halbes?|paar))[ \\t]{1,8}Kilo)",
     literals: ["kilo"],
-    fixer: "de:kilo",
+    fixer: "de:@de.colloquial/7",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -26513,7 +26513,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}-])Kilometer(?![\\p{L}\\p{N}-])(?:(?<=(?:schneller|langsamer)[ \\t]{1,8}als[ \\t]{1,8}(?:\\d+(?:,\\d+)?|\\p{Ll}+)[ \\t]{1,8}Kilometer)(?![ \\t]+(?:pro|je|in)(?![\\p{L}]))|(?<=(?:\\d|(?<![\\p{L}])(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|zwanzig|dreißig|fünfzig|hundert|halbes?|paar))[ \\t]{1,8}Kilometer)(?=[ \\t]{1,8}(?:schneller|langsamer)(?![\\p{L}])))",
     literals: ["kilometer"],
-    fixer: "de:speed",
+    fixer: "de:@de.colloquial/8",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -26522,7 +26522,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}-])(?<op>plus|minus|geteilt)[ \\t]+(?<verb>rechnen|rechnet|rechnest|rechne|gerechnet)(?![\\p{L}\\p{N}-])",
     literals: ["rechnen", "rechnet", "rechnest", "rechne", "gerechnet"],
-    fixer: "de:rechnen",
+    fixer: "de:@de.colloquial/9",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -26530,7 +26530,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{N}-])(?<op>Plus|Minus|Geteilt|Mal)-Rechnen(?![\\p{L}\\p{N}-])",
     literals: ["rechnen"],
-    fixer: "de:rechnenNoun",
+    fixer: "de:@de.colloquial/10",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -26539,7 +26539,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])(?<short>[Rr](?:an|um|aus|ein|auf|unter|\\u00FCber))(?<rest>\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])",
     literals: [],
-    fixer: "de:herParticle",
+    fixer: "de:@de.colloquial/11",
     flags: "gu",
     scan: "owned",
   }),
@@ -26751,7 +26751,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "nahe",
       "wieder",
     ],
-    fixer: "de:openVerb",
+    fixer: "de:@de.joinedVerbs/1",
     flags: "dgu",
     owner: "first",
   }),

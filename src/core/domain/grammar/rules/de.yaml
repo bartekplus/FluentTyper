@@ -297,12 +297,19 @@ rules:
       - regex: "{{WG}}(?:(?<first>zunichte|inne|zuteil|vonstatten|zugute|preis|zu{{S}}teil|von{{S}}statten|Preis)(?:(?<zu>{{S}}zu)?{{S}}(?<verb>\\p{Ll}+))?{{E}})"
         flags: dgu
         owner: first
-        fixer: boundVerb
+        return: joinedFinding(ctx, m, JOINED_BOUND_FORMS, "germanCompounds")
       # "zu Pass(e)": "zupass" next to a form of "kommen".
       - regex: "{{WG}}(?:(?<first>zu{{S}}Passe?|zupasse?)(?:{{S}}(?<verb>\\p{Ll}+))?{{E}})"
         flags: dgu
         owner: first
-        fixer: zuPass
+        let:
+          typed: verb ?? ""
+          start: m.indices!.groups!.first[0]
+          kommt: JOINED_KOMMEN.test(typed)
+          near: kommt || deTokensBefore(ctx.text, start, 4).some((t) => JOINED_KOMMEN.test(t))
+        when: "near && !(!/[ \\t]/.test(first) && !kommt)"
+        return: >-
+          joinedVerbFinding("germanCompounds", start, kommt ? m.index + m[0].length : start + first.length, `zupass${kommt ? typed : ""}`)
   - id: de.dates
     checks: [germanDates]
     style: match
@@ -3033,27 +3040,185 @@ rules:
     checks: [germanColloquial]
     style: match
     message: review_msg_german_colloquial
+    sets:
+      # "rein" and "ran" alone are an adjective ("rein zufällig") and a call ("ran an die Arbeit").
+      HER_ALONE: [rum, raus, rauf, runter, rüber]
+      # Gaps the phrase table already covers, and "den Sinn" as an object ("was den Sinn ausmacht").
+      COVERED_GAPS: [es, das, wenig, mehr, das keinen]
+    maps:
+      # The spoken short forms of her-/hin- particles and their full forms.
+      HER_FULL:
+        ran: [heran]
+        rum: [herum]
+        raus: [heraus, hinaus]
+        rein: [herein, hinein]
+        rauf: [herauf, hinauf]
+        runter: [herunter, hinunter]
+        rüber: [herüber, hinüber]
+      # "Sinn machen" copies the English phrase; German says "Sinn ergeben".
+      ERGEBEN: { macht: ergibt, machen: ergeben, machte: ergab, machten: ergaben, machst: ergibst, mache: ergebe, gemacht: ergeben }
+      # Clipped words of speech and their written forms ("Mathe", "Infos", "Kuli").
+      CLIPPED:
+        Mathe: [Mathematik]
+        Info: [Information]
+        Infos: [Informationen]
+        Uni: [Universität]
+        Unis: [Universitäten]
+        Abi: [Abitur]
+        Kuli: [Kugelschreiber]
+        Kulis: [Kugelschreiber]
+        Limo: [Limonade]
+        Deo: [Deodorant]
+        Klo: [Toilette]
+        Reli: [Religion]
+      # Spoken names of a measured quantity, and their written forms.
+      QUANTITY_NAMES:
+        volt: [elektrische Spannung]
+        ampere: [elektrische Stromstärke]
+        coulomb: [elektrische Ladung]
+        watt: [Leistung]
+        kilowatt: [Leistung]
+        megawatt: [Leistung]
+        ps: [Leistung]
+        hertz: [Frequenz]
+        joule: [Energie]
+        kilogramm: [Gewicht, Masse]
+        gramm: [Gewicht, Masse]
+      QUANTITY_PLURAL:
+        elektrische Spannung: elektrische Spannungen
+        elektrische Stromstärke: elektrische Stromstärken
+        elektrische Ladung: elektrische Ladungen
+        Leistung: Leistungen
+        Frequenz: Frequenzen
+        Energie: Energien
+        Gewicht: Gewichte
+        Masse: Massen
+      # "plus rechnen" (addieren) and "Plus-Rechnen" (Addition).
+      ARITHMETIC: { plus: addier, minus: subtrahier, geteilt: dividier }
+      RECHNEN_ENDINGS: { rechnen: en, rechnet: t, rechnest: st, rechne: e, gerechnet: t }
+      OPERATION: { Plus: Addition, Minus: Subtraktion, Geteilt: Division, Mal: Multiplikation }
+      # Spoken short forms: an article without "ei-" ("n netter Typ", "ne Frage"), a verb with
+      # "es" or "du" joined to it ("ich mags", "gehts", "meinste").
+      SPOKEN_ARTICLES: { n: ein, ne: eine, nen: einen, nem: einem, ner: einer }
+      SPOKEN_JOINED:
+        mags: mag es
+        liebs: liebe es
+        gebs: gebe es
+        habs: habe es
+        nehms: nehme es
+        machs: mache es
+        kenns: kenne es
+        wills: will es
+        kanns: kann es
+        stehts: steht es
+        gefällts: gefällt es
+        gehts: geht es
+        gibts: gibt es
+        kommts: kommt es
+        siehts: sieht es
+        läufts: läuft es
+        klappts: klappt es
+        passts: passt es
+        haste: hast du
+        biste: bist du
+        kannste: kannst du
+        weißte: weißt du
+        siehste: siehst du
+        willste: willst du
+        meinste: meinst du
+        guckste: guckst du
+        machste: machst du
+        hörste: hörst du
+        gehste: gehst du
+        kommste: kommst du
+    defs:
+      # "Du brauchst nicht kommen" → "zu kommen": the particle of a separable verb.
+      SPOKEN_SEPARABLE: /^(?:an|ab|auf|aus|bei|ein|mit|nach|vor|weg|zurück|her|hin|los|fest|zu|vorbei)/
+      # A spoken form at text[start, end), unless it is the writer's word or English.
+      spoken:
+        args: "ctx: DetectContext, start: number, end: number, alternatives: string[]"
+        type: RawFinding | null
+        let:
+          typed: ctx.text.slice(start, end)
+        when:
+          - "!ctx.dictionary.has(typed.toLowerCase()) && !namedExampleBefore(ctx.text, start)"
+          - "!deEnglishLine(ctx.text, start)"
+        return: >-
+          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start, end }, alternatives,
+          context: { start: Math.max(0, start - 40), end: end + 20 } })
+      # A spoken measure at m, read from 64 characters before the chunk; null outside it.
+      measure:
+        args: "m: RegExpExecArray, ctx: DetectContext, alternatives: string[]"
+        type: RawFinding | null
+        when: "!(m.index < ctx.from || namedExampleBefore(ctx.text, m.index))"
+        return: >-
+          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + m[0].length },
+          alternatives, context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+      # A verb form: an infinitive, a 1st singular or past form, a present form in -t or -st.
+      herVerbForm:
+        args: "word: string"
+        return: >-
+          word.length >= 3 && (germanVerbLike(word) || germanInfinitive(word) ||
+          [`${word.replace(/e?s?t$/, "")}en`, `${word.replace(/t$/, "")}n`].some((infinitive) => infinitive !== word && germanInfinitive(infinitive)))
+      # The verb after the particle: "bekommen", "zubekommen" (zu-infinitive), "gefallen" (a
+      # participle: "ge" + stem + "t" or "en").
+      herVerbAfter:
+        args: "rest: string"
+        let:
+          participle: '/^ge(\p{Ll}{2,}?)(?:et|t|en)$/u.exec(rest)'
+        return: >-
+          herVerbForm(rest) || (rest.startsWith("zu") && herVerbForm(rest.slice(2))) ||
+          (!!participle && [`${participle[1]}en`, `${participle[1]}n`].some((s) => germanInfinitive(s)))
     frames:
       # Spoken short forms (authored): an article without "ei-" ("n netter Typ", "ne Frage"),
       # a verb with "es" or "du" joined to it ("ich mags", "gehts", "meinste").
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?:(?<article>n|ne|nen|nem|ner)(?=[ \\t]+(?<adjective>\\p{Ll}+(?:e|en|er|es|em)[ \\t]+)?\\p{Lu}\\p{Ll})|(?<joined>[mM]ags|[lL]iebs|[gG]ebs|[hH]abs|[nN]ehms|[mM]achs|[kK]enns|[wW]ills|[kK]anns|[sS]tehts|[gG]efällts|[gG]ehts|[gG]ibts|[kK]ommts|[sS]iehts|[lL]äufts|[kK]lappts|[pP]assts|[hH]aste|[bB]iste|[kK]annste|[wW]eißte|[sS]iehste|[wW]illste|[mM]einste|[gG]uckste|[mM]achste|[hH]örste|[gG]ehste|[kK]ommste))(?![\\p{L}\\p{M}\\p{N}_'’-])"
         scan: owned
         flags: gu
-        fixer: spokenForm
+        let:
+          word: article ?? joined
+        when: '!(article === "n" && !adjective)'
+        return: >-
+          spoken(ctx, m.index, m.index + word.length, [deLikeTyped(word, article ? SPOKEN_ARTICLES[article] : SPOKEN_JOINED[joined.toLowerCase()])])
       # "Du brauchst nicht kommen" → "zu kommen": "brauchen" with a negation or "nur" takes
       # "zu". The scan starts 80 characters before the chunk; the verb must be in the chunk.
       - regex: "(?<![\\p{L}\\p{M}])(?:[Bb]rauch(?:e|st|t|en|te|test|ten|tet))(?<middle>(?:[ \\t]+[\\p{L}\\p{M}]+){1,6}?)[ \\t]+(?<verb>\\p{Ll}{3,}(?:en|ern|eln))(?=[ \\t]*[.!?,;:\"\\u201C\\u201D]|[ \\t]*$)"
         scan: owned
         lookback: 80
         flags: gu
-        fixer: needsZu
+        let:
+          words: middle.trim().split(/[ \t]+/)
+          start: m.index + m[0].length - verb.length
+          particle: SPOKEN_SEPARABLE.exec(verb)?.[0]
+        when:
+          - 'words.some((w) => /^(?:nicht|nie|kein\p{Ll}*|nur|bloß|erst)$/u.test(w))'
+          - '!(words.includes("zu") || /zu\p{Ll}+en$/u.test(verb) || !germanInfinitive(verb))'
+          - "!(start < ctx.from || start >= ctx.to)"
+        return: >-
+          spoken(ctx, start, start + verb.length, [particle && germanInfinitive(verb.slice(particle.length)) ? `${particle}zu${verb.slice(particle.length)}` : `zu ${verb}`])
       # A preposition with an interrogative "was" is spoken German; writing uses the wo(r)-
       # adverb: "Für was kämpft er?" (Wofür), "um was es geht" (worum). Not the indefinite
       # "was" ("für was Neues", "gegen was neues").
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<prep>[Aa]us|[Uu]m|[Aa]uf|[Ff]\\u00FCr|[Dd]urch|[Mm]it|[\\u00DC\\u00FC]ber|[Aa]n|[Vv]on|[Nn]ach|[Zz]u|[Ii]n|[Bb]ei|[Gg]egen|[Vv]or)[ \\t]+was(?![\\p{L}\\p{M}\\p{N}_-])"
         scan: owned
         flags: gu
-        fixer: prepositionWhat
+        let:
+          after: ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30)
+          clause: '/^[^.!?,;:\n]*/.exec(after)![0]'
+          before: ctx.text.slice(Math.max(0, m.index - 2), m.index)
+          low: prep.toLowerCase()
+        when:
+          # "was Neues", "was neues", "was anderes": "etwas"; "Auf was für einem …": "was für".
+          - '!/^[ \t]+(?:\p{Lu}|\p{Ll}+(?:es|e)(?![\p{L}])|für(?![\p{L}]))/u.test(after)'
+          # "um was zu essen", "um was aufzubauen": "um … zu" with "etwas".
+          - '!(/^[Uu]m$/.test(prep) && /(?<![\p{L}])zu(?![\p{L}])|\p{Ll}+zu\p{Ll}+en(?![\p{L}])/u.test(clause))'
+          # The clause opens with it: a question or an indirect question after a comma.
+          - '!(m.index > 0 && !/(?:^|[,;:\n„"]\s*|[.!?]\s+)$/.test(before))'
+        return: >-
+          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + m[0].length },
+          alternatives: [deLikeTyped(prep, /^[aeiouü]/.test(low) ? `wor${low}` : `wo${low}`)],
+          context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 } })
       # "Sinn machen" copies the English phrase; German says "Sinn ergeben". The phrase table
       # holds the adjacent forms; this frame takes the verb a few words before "Sinn" ("Das
       # macht für mich wenig Sinn", "Macht es vielleicht Sinn") and "Sinn zu machen". The scan
@@ -3062,12 +3227,37 @@ rules:
         scan: owned
         lookback: 64
         flags: gu
-        fixer: makesSense
+        let:
+          typed: verb ?? zu
+          start: "m.index + (verb ? 0 : m[0].length - zu.length)"
+          words: (gap ?? "").trim().split(/[ \t]+/)
+          rest: '/^[^.!?;:\n]*/.exec(ctx.text.slice(m.index + m[0].length))![0]'
+        when:
+          - "!(start < ctx.from || start >= ctx.to)"
+          - '!(verb && (COVERED_GAPS.has(words.join(" ")) || /^d(?:en|em|es|er|ie)$/.test(words.at(-1)!)))'
+          # "macht … Sinn aus": the verb "ausmachen", or a genitive after "Sinn" ("Sinn des Lebens").
+          - '!/^[ \t]+(?:des|der|eines|einer)(?![\p{L}])|(?<![\p{L}])aus[ \t]*$/u.test(rest)'
+          - "!namedExampleBefore(ctx.text, start) && !deEnglishLine(ctx.text, start)"
+        return: >-
+          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start, end: start + typed.length },
+          alternatives: [deLikeTyped(typed, ERGEBEN[typed.toLowerCase()])], context: { start: m.index, end: m.index + m[0].length } })
       # Clipped words of speech and their written forms ("Mathe", "Infos", "Kuli").
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#.-])(?:Mathe|Info|Infos|Uni|Unis|Abi|Kuli|Kulis|Limo|Deo|Klo|Reli)(?![\\p{L}\\p{M}\\p{N}_@/#-])"
         scan: owned
         flags: gu
-        fixer: clipped
+        let:
+          word: m[0]
+          after: ctx.text.slice(m.index + word.length, m.index + word.length + 24)
+          before: ctx.text.slice(Math.max(0, m.index - 12), m.index)
+        when:
+          # "Info-Abend", "Uni Hamburg", "NDR Info", "Info 2": part of a name or compound.
+          - '!/^(?:-|[ \t]+(?:\p{Lu}\p{L}*(?!\p{L})|\p{N}))/u.test(after)'
+          - '!/\p{Lu}{2,}[ \t]+$/u.test(before)'
+          - "!ctx.dictionary.has(word.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
+          - "!deEnglishLine(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + word.length },
+          alternatives: [...CLIPPED[word]], context: { start: Math.max(0, m.index - 40), end: m.index + word.length + 20 } })
       # Spoken names of a measured quantity and of arithmetic, and their written forms: "die
       # Voltzahl" (elektrische Spannung), "5 Kilo" (Kilogramm), "plus rechnen" (addieren),
       # "schneller als 50 Kilometer" (Kilometer pro Stunde: a speed, not a distance). These
@@ -3076,35 +3266,67 @@ rules:
         scan: owned
         lookback: 64
         flags: gu
-        fixer: unitCount
+        return: >-
+          measure(m, ctx, plural ? QUANTITY_NAMES[unit.toLowerCase()].map((n) => QUANTITY_PLURAL[n]) : [...QUANTITY_NAMES[unit.toLowerCase()]])
       # The word first, then a bounded look back: cheap on long runs of spaces without the
       # regex JIT.
       - regex: "(?<![\\p{L}\\p{N}-])Kilo(?![\\p{L}\\p{N}-])(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilo)"
         scan: owned
         lookback: 64
         flags: gu
-        fixer: kilo
+        return: measure(m, ctx, ["Kilogramm"])
       - regex: "(?<![\\p{L}\\p{N}-])Kilometer(?![\\p{L}\\p{N}-])(?:(?<=(?:schneller|langsamer)[ \\t]{1,8}als[ \\t]{1,8}(?:\\d+(?:,\\d+)?|\\p{Ll}+)[ \\t]{1,8}Kilometer)(?![ \\t]+(?:pro|je|in)(?![\\p{L}]))|(?<=(?:{{NUMBER_WORD}})[ \\t]{1,8}Kilometer)(?=[ \\t]{1,8}(?:schneller|langsamer)(?![\\p{L}])))"
         scan: owned
         lookback: 64
         flags: gu
-        fixer: speed
+        when: >-
+          !/(?<!\p{L})(?:die|diese|den|der|alle|ersten|letzten)[ \t]+\S+[ \t]+$/u.test(ctx.text.slice(Math.max(0, m.index - 30), m.index))
+        return: measure(m, ctx, ["Kilometer pro Stunde"])
       - regex: "(?<![\\p{L}\\p{N}-])(?<op>plus|minus|geteilt)[ \\t]+(?<verb>rechnen|rechnet|rechnest|rechne|gerechnet)(?![\\p{L}\\p{N}-])"
         scan: owned
         lookback: 64
         flags: gu
-        fixer: rechnen
+        return: "measure(m, ctx, [`${ARITHMETIC[op]}${RECHNEN_ENDINGS[verb]}`])"
       - regex: "(?<![\\p{L}\\p{N}-])(?<op>Plus|Minus|Geteilt|Mal)-Rechnen(?![\\p{L}\\p{N}-])"
         scan: owned
         lookback: 64
         flags: gu
-        fixer: rechnenNoun
+        return: measure(m, ctx, [OPERATION[op]])
       # The spoken short forms of her-/hin- particles before a verb ("reingehen", "rumsitzen"),
       # and "rum", "rüber", "runter", "rauf", "raus" on their own.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])(?<short>[Rr](?:an|um|aus|ein|auf|unter|\\u00FCber))(?<rest>\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_\\-'\\u2019])"
         scan: owned
         flags: gu
-        fixer: herParticle
+        let:
+          word: m[0]
+          low: word.toLowerCase()
+          key: short.toLowerCase()
+          capital: short !== key
+          before: ctx.text.slice(Math.max(0, m.index - 60), m.index)
+          after: ctx.text.slice(m.index + word.length, m.index + word.length + 12)
+          alternatives: >-
+            HER_FULL[key].map((full) => capital ? (full + rest)[0].toUpperCase() + (full + rest).slice(1) : full + rest)
+        when:
+          # A dictionary word of its own ("rangieren", "Ranzen"); the dictionary also lists a few
+          # colloquial raus- verbs ("rauslassen"), which stay checked. Capitalized inside a sentence: a
+          # noun ("die Rangliste"), unless a verb made one ("zum Rumprobieren"). "Rum" alone is the drink.
+          - >-
+            rest ? !((germanVerbLike(low) || germanInfinitive(low) || germanNounReading(low) !== null) && key === "ran") &&
+            !(capital && !/(?:en|ern|eln)$/.test(rest) && !/(?:^|[.!?:\n„“"»«])[ \t]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))) &&
+            herVerbAfter(rest)
+            : !capital && HER_ALONE.has(key)
+          # Idioms with no written twin: "sich an jemanden ranmachen", "ans Telefon rangehen", "jemandem
+          # eine runterhauen", "rum wie num"; and "rein- und rausschlüpfen".
+          - '!(/^ran(?:zu|ge)?mach/.test(low) || (/^rum$/.test(low) && /^\s+wie\s/.test(after)))'
+          - '!(/^ran(?:zu|ge)?geh|^ranging/.test(low) && /Telefon|Handy/.test(before))'
+          - '!(/^runter/.test(low) && /(?<!\p{L})einen?\s+$/u.test(before))'
+          - '!/-\s+(?:und|oder)\s+$/.test(before)'
+          - "!ctx.dictionary.has(low) && !namedExampleBefore(ctx.text, m.index)"
+          - "!deEnglishLine(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + word.length },
+          alternatives, context: { start: Math.max(0, m.index - 40), end: m.index + word.length },
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
   - id: de.recommended
     checks: [germanRecommendedSpelling]
     style: match
@@ -3352,13 +3574,145 @@ rules:
     checks: [germanJoinedVerbs]
     style: match
     message: review_msg_closed_compound
+    maps:
+      # The forms of the strong and irregular verbs below that a stem does not give.
+      JOINED_IRREGULAR:
+        nehmen: nimmt nimmst nahm nahmen genommen
+        lassen: lässt ließ ließen gelassen
+        sehen: sieht siehst sah sahen gesehen
+        schreiben: schrieb schrieben geschrieben
+        gehen: ging gingen gegangen
+        laufen: läuft lief liefen gelaufen
+        geben: gibt gibst gab gaben gegeben
+        halten: hält hielt hielten gehalten
+        treten: tritt trat traten getreten
+        stehen: stand standen gestanden
+        sprechen: spricht sprach sprachen gesprochen
+        heißen: hieß hießen geheißen
+        fallen: fällt fiel fielen gefallen
+        tun: tue tust tut tat taten getan
+        haben: habe hast hat habt hatte hatten gehabt
+        kommen: kam kamen gekommen
+        werden: wird wurde wurden geworden
+        fahren: fährt fuhr fuhren gefahren
+        ziehen: zog zogen gezogen
+        bringen: brachte brachten gebracht
+        schließen: schloss schlossen geschlossen
+        sitzen: saß saßen gesessen
+        wohnen: ""
+      # First parts that never stand alone, with their verbs (germanCompounds, on by default).
+      JOINED_BOUND:
+        zunichte: machen werden
+        inne: haben halten wohnen werden
+        zuteil: werden
+        vonstatten: gehen
+        zugute: kommen halten
+        preis: geben
+      # Adjectives and adverbs that make one verb of one meaning with these verbs
+      # (germanJoinedVerbs, opt-in). "zusammen", "wohl", "frei" and "gut schreiben" are left out:
+      # both readings are common. "den Sekt kalt stellen" is literal. "wieder gut machen",
+      # "wieder gutmachen": wiedergutmachen.
+      JOINED_OPEN:
+        fest: nehmen legen stellen halten setzen schreiben machen fahren
+        klar: machen stellen kommen
+        kalt: lassen
+        krank: schreiben melden
+        hoch: gehen rechnen laden stufen
+        groß: schreiben ziehen
+        klein: schreiben reden
+        schwarz: sehen arbeiten fahren
+        rot: sehen
+        schief: gehen laufen
+        glatt: gehen
+        zufrieden: lassen geben stellen
+        allein: lassen
+        satt: haben
+        gut: tun heißen
+        heilig: sprechen
+        kürzer: treten
+        schwer: fallen tun
+        sicher: stellen
+        kurz: fassen schließen
+        nahe: stehen treten legen bringen gehen
+        wiedergut: machen
+        wieder: gutmachen
+    defs:
+      # The forms of an infinitive, each with its kind: "machen" → "macht" (finite), "gemacht"
+      # (participle), "gemachte" (attribute).
+      joinedVerbForms:
+        args: "infinitive: string"
+        let:
+          irregular: JOINED_IRREGULAR[infinitive]
+          stem: infinitive.replace(/e?n$/, "")
+          e: '/[td]$/.test(stem) ? "e" : ""'
+          regular: irregular === undefined || irregular === ""
+          participles: 'regular ? [`ge${stem}${e}t`] : irregular.split(" ").filter((f) => f.startsWith("ge"))'
+          finite: >-
+            regular ? ["e", "st", "t", "te", "ten", "test"].map((end) => stem + (end === "e" ? "" : e) + end)
+            : [...irregular.split(" ").filter((f) => !f.startsWith("ge")), `${stem}e`]
+        return: >-
+          new Map<string, string>([[infinitive, "infinitive"], ...finite.map((f) => [f, "finite"] as [string, string]),
+          ...participles.flatMap((p) => [[p, "participle"] as [string, string], ...["e", "en", "er", "es", "em"].map((end) => [p + end, "attribute"] as [string, string])])])
+      # Each first part: the forms of its verbs.
+      joinedTables:
+        args: "table: Readonly<Record<string, string>>"
+        return: >-
+          new Map(Object.entries(table).map(([first, verbs]) => [first, new Map(verbs.split(" ").flatMap((verb) => [...joinedVerbForms(verb)]))] as [string, Map<string, string>]))
+      JOINED_BOUND_FORMS: joinedTables(JOINED_BOUND)
+      JOINED_OPEN_FORMS: joinedTables(JOINED_OPEN)
+      # Words before the first part that make it a plain adverb: "genauso gut tun", "zu nahe treten".
+      JOINED_DEGREE: /^(?:zu|allzu|so|genauso|ebenso|ganz|besonders|ziemlich|recht|wie|eher)$/
+      JOINED_KOMMEN: /^(?:kommen|kommt|kam|kamen|käme|kämen|gekommen)$/
+      joinedVerbFinding:
+        args: 'ruleId: "germanCompounds" | "germanJoinedVerbs", start: number, end: number, fix: string'
+        type: RawFinding
+        return: >-
+          ({ ruleId, messageKey: "review_msg_closed_compound", range: { start, end }, alternatives: [fix],
+          context: { start: Math.max(0, start - 40), end: end + 20 } })
+      # Whether the clause goes on after a verb form of this kind. "zufrieden lassen sie": the
+      # finite verb of a main clause, then its subject.
+      joinedCloses:
+        args: "kind: string, after: string[]"
+        let:
+          next: after[0] ?? ""
+        return: >-
+          kind === "attribute" ? /^\p{Lu}/u.test(next) : BOUNDARY.test(next) || next === "und" || next === "oder" ? true
+          : kind === "finite" || PRONOUNS.has(next) ? false : VERB_GOVERNORS.has(next) || germanVerbLike(next)
+      # The first part of m and its verb, joined when the verb ends its clause. "Preis" is a noun
+      # after a determiner or an adjective ("einen hohen Preis geben"). "zu teil.", "von
+      # statten", "Er gab es nicht Preis.": the bound part alone, at the end. "preis geben",
+      # "zugute kommen": the infinitive frame of de.compounds joins these.
+      joinedFinding:
+        args: 'ctx: DetectContext, m: RegExpExecArray, table: Map<string, Map<string, string>>, ruleId: "germanCompounds" | "germanJoinedVerbs"'
+        type: RawFinding | null
+        let:
+          typed: m.groups!.first
+          first: typed.replace(/[ \t ]+/g, "").toLowerCase()
+          zu: m.groups!.zu
+          verb: m.groups!.verb
+          start: m.indices!.groups!.first[0]
+          end: m.index + m[0].length
+          before: deTokensBefore(ctx.text, start, 6)
+          prior: (before.at(-1) ?? "").toLowerCase()
+          after: deTokensAfter(ctx.text, end, 2)
+          kind: "verb ? table.get(first)?.get(verb) : undefined"
+        when:
+          - "!JOINED_DEGREE.test(prior)"
+          - '!(typed === "Preis" && !/^(?:nicht|nie|es|sich|alles|nichts|kaum|nur|gern|gerne|sofort)$/.test(prior))'
+        return: >-
+          !kind || (zu && kind !== "infinitive")
+          ? (ruleId !== "germanCompounds" || verb || !BOUNDARY.test(after[0] ?? "") ||
+          (first === "preis" && !before.some((t) => /^(?:gab|gibt|gaben|gebe|gibst)$/.test(t))) || !/[ \t]|^Preis$/.test(typed)
+          ? null : joinedVerbFinding(ruleId, start, start + typed.length, first))
+          : kind === "infinitive" && (typed === "preis" || typed === "zugute") ? null
+          : !joinedCloses(kind, after) ? null : joinedVerbFinding(ruleId, start, end, `${first}${zu ? "zu" : ""}${verb}`)
     frames:
       # An adjective or adverb written apart from a verb with which it makes one verb: "fest
       # genommen" (festgenommen), "schief gehen" (schiefgehen).
       - regex: "{{WG}}(?:(?<first>wieder{{S}}gut|fest|klar|kalt|krank|hoch|groß|klein|schwarz|rot|schief|glatt|zufrieden|allein|satt|gut|heilig|kürzer|schwer|sicher|kurz|nahe|wieder)(?<zu>{{S}}zu)?{{S}}(?<verb>\\p{Ll}+){{E}})"
         flags: dgu
         owner: first
-        fixer: openVerb
+        return: joinedFinding(ctx, m, JOINED_OPEN_FORMS, "germanJoinedVerbs")
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

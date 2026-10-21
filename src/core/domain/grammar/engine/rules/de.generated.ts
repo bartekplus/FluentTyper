@@ -423,6 +423,16 @@ export const CHEMICAL_GASES: ReadonlySet<string> = new Set([
   "O³",
 ]);
 
+export const HER_ALONE: ReadonlySet<string> = new Set(["rum", "raus", "rauf", "runter", "rüber"]);
+
+export const COVERED_GAPS: ReadonlySet<string> = new Set([
+  "es",
+  "das",
+  "wenig",
+  "mehr",
+  "das keinen",
+]);
+
 export const JOINED_PAIRS: ReadonlySet<string> = new Set([
   "viel sagend",
   "hoch begabt",
@@ -615,6 +625,128 @@ export const ONE_OF: Readonly<Record<string, string>> = {
 
 export const SUBSCRIPTS: Readonly<Record<string, string>> = { "²": "₂", "³": "₃" };
 
+export const HER_FULL: Readonly<Record<string, readonly string[]>> = {
+  ran: ["heran"],
+  rum: ["herum"],
+  raus: ["heraus", "hinaus"],
+  rein: ["herein", "hinein"],
+  rauf: ["herauf", "hinauf"],
+  runter: ["herunter", "hinunter"],
+  rüber: ["herüber", "hinüber"],
+};
+
+export const ERGEBEN: Readonly<Record<string, string>> = {
+  macht: "ergibt",
+  machen: "ergeben",
+  machte: "ergab",
+  machten: "ergaben",
+  machst: "ergibst",
+  mache: "ergebe",
+  gemacht: "ergeben",
+};
+
+export const CLIPPED: Readonly<Record<string, readonly string[]>> = {
+  Mathe: ["Mathematik"],
+  Info: ["Information"],
+  Infos: ["Informationen"],
+  Uni: ["Universität"],
+  Unis: ["Universitäten"],
+  Abi: ["Abitur"],
+  Kuli: ["Kugelschreiber"],
+  Kulis: ["Kugelschreiber"],
+  Limo: ["Limonade"],
+  Deo: ["Deodorant"],
+  Klo: ["Toilette"],
+  Reli: ["Religion"],
+};
+
+export const QUANTITY_NAMES: Readonly<Record<string, readonly string[]>> = {
+  volt: ["elektrische Spannung"],
+  ampere: ["elektrische Stromstärke"],
+  coulomb: ["elektrische Ladung"],
+  watt: ["Leistung"],
+  kilowatt: ["Leistung"],
+  megawatt: ["Leistung"],
+  ps: ["Leistung"],
+  hertz: ["Frequenz"],
+  joule: ["Energie"],
+  kilogramm: ["Gewicht", "Masse"],
+  gramm: ["Gewicht", "Masse"],
+};
+
+export const QUANTITY_PLURAL: Readonly<Record<string, string>> = {
+  "elektrische Spannung": "elektrische Spannungen",
+  "elektrische Stromstärke": "elektrische Stromstärken",
+  "elektrische Ladung": "elektrische Ladungen",
+  Leistung: "Leistungen",
+  Frequenz: "Frequenzen",
+  Energie: "Energien",
+  Gewicht: "Gewichte",
+  Masse: "Massen",
+};
+
+export const ARITHMETIC: Readonly<Record<string, string>> = {
+  plus: "addier",
+  minus: "subtrahier",
+  geteilt: "dividier",
+};
+
+export const RECHNEN_ENDINGS: Readonly<Record<string, string>> = {
+  rechnen: "en",
+  rechnet: "t",
+  rechnest: "st",
+  rechne: "e",
+  gerechnet: "t",
+};
+
+export const OPERATION: Readonly<Record<string, string>> = {
+  Plus: "Addition",
+  Minus: "Subtraktion",
+  Geteilt: "Division",
+  Mal: "Multiplikation",
+};
+
+export const SPOKEN_ARTICLES: Readonly<Record<string, string>> = {
+  n: "ein",
+  ne: "eine",
+  nen: "einen",
+  nem: "einem",
+  ner: "einer",
+};
+
+export const SPOKEN_JOINED: Readonly<Record<string, string>> = {
+  mags: "mag es",
+  liebs: "liebe es",
+  gebs: "gebe es",
+  habs: "habe es",
+  nehms: "nehme es",
+  machs: "mache es",
+  kenns: "kenne es",
+  wills: "will es",
+  kanns: "kann es",
+  stehts: "steht es",
+  gefällts: "gefällt es",
+  gehts: "geht es",
+  gibts: "gibt es",
+  kommts: "kommt es",
+  siehts: "sieht es",
+  läufts: "läuft es",
+  klappts: "klappt es",
+  passts: "passt es",
+  haste: "hast du",
+  biste: "bist du",
+  kannste: "kannst du",
+  weißte: "weißt du",
+  siehste: "siehst du",
+  willste: "willst du",
+  meinste: "meinst du",
+  guckste: "guckst du",
+  machste: "machst du",
+  hörste: "hörst du",
+  gehste: "gehst du",
+  kommste: "kommst du",
+};
+
 export const REDUNDANT_NOUNS: Readonly<Record<string, readonly string[]>> = {
   rund: ["Kugel", "Kreis"],
   weiß: ["Schimmel"],
@@ -697,6 +829,67 @@ export const PHRASAL_PAIRS: Readonly<Record<string, readonly string[]>> = {
   teach: ["in"],
   break: ["even"],
   must: ["have"],
+};
+
+export const JOINED_IRREGULAR: Readonly<Record<string, string>> = {
+  nehmen: "nimmt nimmst nahm nahmen genommen",
+  lassen: "lässt ließ ließen gelassen",
+  sehen: "sieht siehst sah sahen gesehen",
+  schreiben: "schrieb schrieben geschrieben",
+  gehen: "ging gingen gegangen",
+  laufen: "läuft lief liefen gelaufen",
+  geben: "gibt gibst gab gaben gegeben",
+  halten: "hält hielt hielten gehalten",
+  treten: "tritt trat traten getreten",
+  stehen: "stand standen gestanden",
+  sprechen: "spricht sprach sprachen gesprochen",
+  heißen: "hieß hießen geheißen",
+  fallen: "fällt fiel fielen gefallen",
+  tun: "tue tust tut tat taten getan",
+  haben: "habe hast hat habt hatte hatten gehabt",
+  kommen: "kam kamen gekommen",
+  werden: "wird wurde wurden geworden",
+  fahren: "fährt fuhr fuhren gefahren",
+  ziehen: "zog zogen gezogen",
+  bringen: "brachte brachten gebracht",
+  schließen: "schloss schlossen geschlossen",
+  sitzen: "saß saßen gesessen",
+  wohnen: "",
+};
+
+export const JOINED_BOUND: Readonly<Record<string, string>> = {
+  zunichte: "machen werden",
+  inne: "haben halten wohnen werden",
+  zuteil: "werden",
+  vonstatten: "gehen",
+  zugute: "kommen halten",
+  preis: "geben",
+};
+
+export const JOINED_OPEN: Readonly<Record<string, string>> = {
+  fest: "nehmen legen stellen halten setzen schreiben machen fahren",
+  klar: "machen stellen kommen",
+  kalt: "lassen",
+  krank: "schreiben melden",
+  hoch: "gehen rechnen laden stufen",
+  groß: "schreiben ziehen",
+  klein: "schreiben reden",
+  schwarz: "sehen arbeiten fahren",
+  rot: "sehen",
+  schief: "gehen laufen",
+  glatt: "gehen",
+  zufrieden: "lassen geben stellen",
+  allein: "lassen",
+  satt: "haben",
+  gut: "tun heißen",
+  heilig: "sprechen",
+  kürzer: "treten",
+  schwer: "fallen tun",
+  sicher: "stellen",
+  kurz: "fassen schließen",
+  nahe: "stehen treten legen bringen gehen",
+  wiedergut: "machen",
+  wieder: "gutmachen",
 };
 
 // de.yaml def IDIOM_FINDINGS
@@ -1522,6 +1715,69 @@ export const RANGE_SCORE =
 export const CODE_BEFORE =
   /(?:Nr\.?|Nummer|PLZ|Postleitzahl|ID|Tel\.?|Telefon|Fax|Kto\.?|Konto|Kontonummer|Artikel|Bestellung|Code|Pin|PIN|Jahr|Jahre|Version|Seite|Zimmer|Raum|BLZ|IBAN|Kunden\p{L}*|Rechnung\p{L}*|Auftrag\p{L}*|Vorgang\p{L}*|Ticket\p{L}*)[ \t:.#-]*$/u;
 
+// de.yaml rule de.colloquial def SPOKEN_SEPARABLE
+export const SPOKEN_SEPARABLE =
+  /^(?:an|ab|auf|aus|bei|ein|mit|nach|vor|weg|zurück|her|hin|los|fest|zu|vorbei)/;
+
+// de.yaml rule de.colloquial def spoken
+export function spoken(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  alternatives: string[],
+): RawFinding | null {
+  const typed = ctx.text.slice(start, end);
+  if (!(!ctx.dictionary.has(typed.toLowerCase()) && !namedExampleBefore(ctx.text, start)))
+    return null;
+  if (deEnglishLine(ctx.text, start)) return null;
+  return {
+    ruleId: "germanColloquial",
+    messageKey: "review_msg_german_colloquial",
+    range: { start, end },
+    alternatives,
+    context: { start: Math.max(0, start - 40), end: end + 20 },
+  };
+}
+
+// de.yaml rule de.colloquial def measure
+export function measure(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  alternatives: string[],
+): RawFinding | null {
+  if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) return null;
+  return {
+    ruleId: "germanColloquial",
+    messageKey: "review_msg_german_colloquial",
+    range: { start: m.index, end: m.index + m[0].length },
+    alternatives,
+    context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// de.yaml rule de.colloquial def herVerbForm
+export function herVerbForm(word: string) {
+  return (
+    word.length >= 3 &&
+    (germanVerbLike(word) ||
+      germanInfinitive(word) ||
+      [`${word.replace(/e?s?t$/, "")}en`, `${word.replace(/t$/, "")}n`].some(
+        (infinitive) => infinitive !== word && germanInfinitive(infinitive),
+      ))
+  );
+}
+
+// de.yaml rule de.colloquial def herVerbAfter
+export function herVerbAfter(rest: string) {
+  const participle = /^ge(\p{Ll}{2,}?)(?:et|t|en)$/u.exec(rest);
+  return (
+    herVerbForm(rest) ||
+    (rest.startsWith("zu") && herVerbForm(rest.slice(2))) ||
+    (!!participle && [`${participle[1]}en`, `${participle[1]}n`].some((s) => germanInfinitive(s)))
+  );
+}
+
 // de.yaml rule de.recommended def PH_SPELLINGS
 export const PH_SPELLINGS = [
   [/phantas/g, "fantas"],
@@ -1577,8 +1833,142 @@ export function redundancyAdvice(
   };
 }
 
+// de.yaml rule de.joinedVerbs def joinedVerbForms
+export function joinedVerbForms(infinitive: string) {
+  const irregular = JOINED_IRREGULAR[infinitive];
+  const stem = infinitive.replace(/e?n$/, "");
+  const e = /[td]$/.test(stem) ? "e" : "";
+  const regular = irregular === undefined || irregular === "";
+  const participles = regular
+    ? [`ge${stem}${e}t`]
+    : irregular.split(" ").filter((f) => f.startsWith("ge"));
+  const finite = regular
+    ? ["e", "st", "t", "te", "ten", "test"].map((end) => stem + (end === "e" ? "" : e) + end)
+    : [...irregular.split(" ").filter((f) => !f.startsWith("ge")), `${stem}e`];
+  return new Map<string, string>([
+    [infinitive, "infinitive"],
+    ...finite.map((f) => [f, "finite"] as [string, string]),
+    ...participles.flatMap((p) => [
+      [p, "participle"] as [string, string],
+      ...["e", "en", "er", "es", "em"].map((end) => [p + end, "attribute"] as [string, string]),
+    ]),
+  ]);
+}
+
+// de.yaml rule de.joinedVerbs def joinedTables
+export function joinedTables(table: Readonly<Record<string, string>>) {
+  return new Map(
+    Object.entries(table).map(
+      ([first, verbs]) =>
+        [first, new Map(verbs.split(" ").flatMap((verb) => [...joinedVerbForms(verb)]))] as [
+          string,
+          Map<string, string>,
+        ],
+    ),
+  );
+}
+
+// de.yaml rule de.joinedVerbs def JOINED_BOUND_FORMS
+export const JOINED_BOUND_FORMS = joinedTables(JOINED_BOUND);
+
+// de.yaml rule de.joinedVerbs def JOINED_OPEN_FORMS
+export const JOINED_OPEN_FORMS = joinedTables(JOINED_OPEN);
+
+// de.yaml rule de.joinedVerbs def JOINED_DEGREE
+export const JOINED_DEGREE =
+  /^(?:zu|allzu|so|genauso|ebenso|ganz|besonders|ziemlich|recht|wie|eher)$/;
+
+// de.yaml rule de.joinedVerbs def JOINED_KOMMEN
+export const JOINED_KOMMEN = /^(?:kommen|kommt|kam|kamen|käme|kämen|gekommen)$/;
+
+// de.yaml rule de.joinedVerbs def joinedVerbFinding
+export function joinedVerbFinding(
+  ruleId: "germanCompounds" | "germanJoinedVerbs",
+  start: number,
+  end: number,
+  fix: string,
+): RawFinding {
+  return {
+    ruleId,
+    messageKey: "review_msg_closed_compound",
+    range: { start, end },
+    alternatives: [fix],
+    context: { start: Math.max(0, start - 40), end: end + 20 },
+  };
+}
+
+// de.yaml rule de.joinedVerbs def joinedCloses
+export function joinedCloses(kind: string, after: string[]) {
+  const next = after[0] ?? "";
+  return kind === "attribute"
+    ? /^\p{Lu}/u.test(next)
+    : BOUNDARY.test(next) || next === "und" || next === "oder"
+      ? true
+      : kind === "finite" || PRONOUNS.has(next)
+        ? false
+        : VERB_GOVERNORS.has(next) || germanVerbLike(next);
+}
+
+// de.yaml rule de.joinedVerbs def joinedFinding
+export function joinedFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  table: Map<string, Map<string, string>>,
+  ruleId: "germanCompounds" | "germanJoinedVerbs",
+): RawFinding | null {
+  const typed = m.groups!.first;
+  const first = typed.replace(/[ \t ]+/g, "").toLowerCase();
+  const zu = m.groups!.zu;
+  const verb = m.groups!.verb;
+  const start = m.indices!.groups!.first[0];
+  const end = m.index + m[0].length;
+  const before = deTokensBefore(ctx.text, start, 6);
+  const prior = (before.at(-1) ?? "").toLowerCase();
+  if (JOINED_DEGREE.test(prior)) return null;
+  if (
+    typed === "Preis" &&
+    !/^(?:nicht|nie|es|sich|alles|nichts|kaum|nur|gern|gerne|sofort)$/.test(prior)
+  )
+    return null;
+  const after = deTokensAfter(ctx.text, end, 2);
+  const kind = verb ? table.get(first)?.get(verb) : undefined;
+  return !kind || (zu && kind !== "infinitive")
+    ? ruleId !== "germanCompounds" ||
+      verb ||
+      !BOUNDARY.test(after[0] ?? "") ||
+      (first === "preis" && !before.some((t) => /^(?:gab|gibt|gaben|gebe|gibst)$/.test(t))) ||
+      !/[ \t]|^Preis$/.test(typed)
+      ? null
+      : joinedVerbFinding(ruleId, start, start + typed.length, first)
+    : kind === "infinitive" && (typed === "preis" || typed === "zugute")
+      ? null
+      : !joinedCloses(kind, after)
+        ? null
+        : joinedVerbFinding(ruleId, start, end, `${first}${zu ? "zu" : ""}${verb}`);
+}
+
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // de.yaml rule de.compounds frame 29
+  "@de.compounds/29": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return joinedFinding(ctx, m, JOINED_BOUND_FORMS, "germanCompounds");
+  },
+  // de.yaml rule de.compounds frame 30
+  "@de.compounds/30": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const verb = m.groups!.verb;
+    const typed = verb ?? "";
+    const start = m.indices!.groups!.first[0];
+    const kommt = JOINED_KOMMEN.test(typed);
+    const near = kommt || deTokensBefore(ctx.text, start, 4).some((t) => JOINED_KOMMEN.test(t));
+    if (!(near && !(!/[ \t]/.test(first) && !kommt))) return null;
+    return joinedVerbFinding(
+      "germanCompounds",
+      start,
+      kommt ? m.index + m[0].length : start + first.length,
+      `zupass${kommt ? typed : ""}`,
+    );
+  },
   // de.yaml rule de.dates frame 1
   "@de.dates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const weekday = m.groups!.weekday;
@@ -3537,6 +3927,176 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       requiresChoice: true,
     };
   },
+  // de.yaml rule de.colloquial frame 1
+  "@de.colloquial/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const article = m.groups!.article;
+    const adjective = m.groups!.adjective;
+    const joined = m.groups!.joined;
+    if (article === "n" && !adjective) return null;
+    const word = article ?? joined;
+    return spoken(ctx, m.index, m.index + word.length, [
+      deLikeTyped(word, article ? SPOKEN_ARTICLES[article] : SPOKEN_JOINED[joined.toLowerCase()]),
+    ]);
+  },
+  // de.yaml rule de.colloquial frame 2
+  "@de.colloquial/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const middle = m.groups!.middle;
+    const verb = m.groups!.verb;
+    const words = middle.trim().split(/[ \t]+/);
+    if (!words.some((w) => /^(?:nicht|nie|kein\p{Ll}*|nur|bloß|erst)$/u.test(w))) return null;
+    if (words.includes("zu") || /zu\p{Ll}+en$/u.test(verb) || !germanInfinitive(verb)) return null;
+    const start = m.index + m[0].length - verb.length;
+    if (start < ctx.from || start >= ctx.to) return null;
+    const particle = SPOKEN_SEPARABLE.exec(verb)?.[0];
+    return spoken(ctx, start, start + verb.length, [
+      particle && germanInfinitive(verb.slice(particle.length))
+        ? `${particle}zu${verb.slice(particle.length)}`
+        : `zu ${verb}`,
+    ]);
+  },
+  // de.yaml rule de.colloquial frame 3
+  "@de.colloquial/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 30);
+    if (/^[ \t]+(?:\p{Lu}|\p{Ll}+(?:es|e)(?![\p{L}])|für(?![\p{L}]))/u.test(after)) return null;
+    const clause = /^[^.!?,;:\n]*/.exec(after)![0];
+    if (
+      /^[Uu]m$/.test(prep) &&
+      /(?<![\p{L}])zu(?![\p{L}])|\p{Ll}+zu\p{Ll}+en(?![\p{L}])/u.test(clause)
+    )
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 2), m.index);
+    if (m.index > 0 && !/(?:^|[,;:\n„"]\s*|[.!?]\s+)$/.test(before)) return null;
+    const low = prep.toLowerCase();
+    return {
+      ruleId: "germanColloquial",
+      messageKey: "review_msg_german_colloquial",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [deLikeTyped(prep, /^[aeiouü]/.test(low) ? `wor${low}` : `wo${low}`)],
+      context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+    };
+  },
+  // de.yaml rule de.colloquial frame 4
+  "@de.colloquial/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const gap = m.groups!.gap;
+    const zu = m.groups!.zu;
+    const typed = verb ?? zu;
+    const start = m.index + (verb ? 0 : m[0].length - zu.length);
+    if (start < ctx.from || start >= ctx.to) return null;
+    const words = (gap ?? "").trim().split(/[ \t]+/);
+    if (verb && (COVERED_GAPS.has(words.join(" ")) || /^d(?:en|em|es|er|ie)$/.test(words.at(-1)!)))
+      return null;
+    const rest = /^[^.!?;:\n]*/.exec(ctx.text.slice(m.index + m[0].length))![0];
+    if (/^[ \t]+(?:des|der|eines|einer)(?![\p{L}])|(?<![\p{L}])aus[ \t]*$/u.test(rest)) return null;
+    if (!(!namedExampleBefore(ctx.text, start) && !deEnglishLine(ctx.text, start))) return null;
+    return {
+      ruleId: "germanColloquial",
+      messageKey: "review_msg_german_colloquial",
+      range: { start, end: start + typed.length },
+      alternatives: [deLikeTyped(typed, ERGEBEN[typed.toLowerCase()])],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // de.yaml rule de.colloquial frame 5
+  "@de.colloquial/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m[0];
+    const after = ctx.text.slice(m.index + word.length, m.index + word.length + 24);
+    if (/^(?:-|[ \t]+(?:\p{Lu}\p{L}*(?!\p{L})|\p{N}))/u.test(after)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    if (/\p{Lu}{2,}[ \t]+$/u.test(before)) return null;
+    if (!(!ctx.dictionary.has(word.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)))
+      return null;
+    if (deEnglishLine(ctx.text, m.index)) return null;
+    return {
+      ruleId: "germanColloquial",
+      messageKey: "review_msg_german_colloquial",
+      range: { start: m.index, end: m.index + word.length },
+      alternatives: [...CLIPPED[word]],
+      context: { start: Math.max(0, m.index - 40), end: m.index + word.length + 20 },
+    };
+  },
+  // de.yaml rule de.colloquial frame 6
+  "@de.colloquial/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const unit = m.groups!.unit;
+    const plural = m.groups!.plural;
+    return measure(
+      m,
+      ctx,
+      plural
+        ? QUANTITY_NAMES[unit.toLowerCase()].map((n) => QUANTITY_PLURAL[n])
+        : [...QUANTITY_NAMES[unit.toLowerCase()]],
+    );
+  },
+  // de.yaml rule de.colloquial frame 7
+  "@de.colloquial/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return measure(m, ctx, ["Kilogramm"]);
+  },
+  // de.yaml rule de.colloquial frame 8
+  "@de.colloquial/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (
+      /(?<!\p{L})(?:die|diese|den|der|alle|ersten|letzten)[ \t]+\S+[ \t]+$/u.test(
+        ctx.text.slice(Math.max(0, m.index - 30), m.index),
+      )
+    )
+      return null;
+    return measure(m, ctx, ["Kilometer pro Stunde"]);
+  },
+  // de.yaml rule de.colloquial frame 9
+  "@de.colloquial/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const op = m.groups!.op;
+    const verb = m.groups!.verb;
+    return measure(m, ctx, [`${ARITHMETIC[op]}${RECHNEN_ENDINGS[verb]}`]);
+  },
+  // de.yaml rule de.colloquial frame 10
+  "@de.colloquial/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const op = m.groups!.op;
+    return measure(m, ctx, [OPERATION[op]]);
+  },
+  // de.yaml rule de.colloquial frame 11
+  "@de.colloquial/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const short = m.groups!.short;
+    const rest = m.groups!.rest;
+    const word = m[0];
+    const low = word.toLowerCase();
+    const key = short.toLowerCase();
+    const capital = short !== key;
+    if (
+      !(rest
+        ? !(
+            (germanVerbLike(low) || germanInfinitive(low) || germanNounReading(low) !== null) &&
+            key === "ran"
+          ) &&
+          !(
+            capital &&
+            !/(?:en|ern|eln)$/.test(rest) &&
+            !/(?:^|[.!?:\n„“"»«])[ \t]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+          ) &&
+          herVerbAfter(rest)
+        : !capital && HER_ALONE.has(key))
+    )
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 60), m.index);
+    const after = ctx.text.slice(m.index + word.length, m.index + word.length + 12);
+    if (/^ran(?:zu|ge)?mach/.test(low) || (/^rum$/.test(low) && /^\s+wie\s/.test(after)))
+      return null;
+    if (/^ran(?:zu|ge)?geh|^ranging/.test(low) && /Telefon|Handy/.test(before)) return null;
+    if (/^runter/.test(low) && /(?<!\p{L})einen?\s+$/u.test(before)) return null;
+    if (/-\s+(?:und|oder)\s+$/.test(before)) return null;
+    if (!(!ctx.dictionary.has(low) && !namedExampleBefore(ctx.text, m.index))) return null;
+    if (deEnglishLine(ctx.text, m.index)) return null;
+    const alternatives = HER_FULL[key].map((full) =>
+      capital ? (full + rest)[0].toUpperCase() + (full + rest).slice(1) : full + rest,
+    );
+    return {
+      ruleId: "germanColloquial",
+      messageKey: "review_msg_german_colloquial",
+      range: { start: m.index, end: m.index + word.length },
+      alternatives,
+      context: { start: Math.max(0, m.index - 40), end: m.index + word.length },
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    };
+  },
   // de.yaml rule de.recommended frame 1
   "@de.recommended/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const target = m.groups!.target;
@@ -3705,6 +4265,10 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives: [`${verb}-${particle.toLowerCase()}${plural ?? ""}`],
       context: { start: span[0], end: span[1] },
     };
+  },
+  // de.yaml rule de.joinedVerbs frame 1
+  "@de.joinedVerbs/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return joinedFinding(ctx, m, JOINED_OPEN_FORMS, "germanJoinedVerbs");
   },
 };
 

@@ -8,10 +8,8 @@ import {
 } from "../../engine/reviewRules";
 import * as adjectiveForms from "./adjectiveForms";
 import * as articleGender from "./articleGender";
-import * as colloquial from "./colloquial";
 import * as commas from "./commas";
 import * as compounds from "./compounds";
-import * as joinedVerbs from "./joinedVerbs";
 import * as nounCasing from "./nounCasing";
 import * as nominalized from "./nominalized";
 import * as capitalized from "./capitalized";
@@ -25,9 +23,7 @@ export const PREDICATES = mergePredicates<Detector>();
 /** The named frame fixes of grammar/rules/de.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
   numbers.FIXERS,
-  colloquial.FIXERS,
   compounds.FIXERS,
-  joinedVerbs.FIXERS,
   adjectiveForms.FIXERS,
   commas.FIXERS,
   prepositionCase.FIXERS,
