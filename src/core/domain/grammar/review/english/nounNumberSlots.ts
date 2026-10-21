@@ -363,6 +363,13 @@ export const FIXERS = {
   },
   numberCountSingular: (m, ctx) => {
     const count = m.groups!.target.toLowerCase();
+    // The head is one of the first four words and must be a singular or mass noun.
+    if (
+      !wordsAfter(ctx, m.index + m[0].length, 4).some(
+        (w) => MASS.has(w.lower) || nounNumber(w.lower)?.number === "singular",
+      )
+    )
+      return null;
     const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
     const previous = wordBefore(ctx, m.index);
     if (/^[0-9]/.test(count)) {
