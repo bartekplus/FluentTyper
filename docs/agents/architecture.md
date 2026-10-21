@@ -37,11 +37,12 @@ Background code and page code communicate through contracts. They must not impor
 
 ## Grammar Rule Engine
 
-Grammar rules are declared in `src/core/domain/grammar/rules/*.yaml`, with their logic, and compiled at install and build time into `src/core/domain/grammar/engine/*.generated.ts` and `src/core/domain/grammar/review/rules/*.generated.ts` (not in git). The engine builds the typing rules and the Review detectors from the compiled rules. To add or change a rule, see [grammar rules](grammar-rules.md).
+Grammar rules are declared in `src/core/domain/grammar/rules/*.yaml`, with their logic, and compiled into generated TypeScript modules (see [when they are compiled](grammar-rules.md#commands)). The engine builds the typing rules and the Review detectors from the compiled rules. To add or change a rule, see [grammar rules](grammar-rules.md).
 
 - `engine/catalog.generated.ts` and `engine/live.generated.ts` are light: content scripts load them.
 - `review/rules/<file>.live.generated.ts` holds the typing rules of a rule file: content scripts load it, never the Review code of the rule files.
-- `engine/review.generated.ts` holds the Review rules and the phrase tables: only the background loads it.
+- `engine/review.generated.ts` holds the Review rules and the phrase tables of English, Greek and Croatian: only the background loads it.
+- `review/<language>/phrases.generated.ts` holds the phrase tables of a language with Review data. The build writes them to `review-data/<lang>.json` (see [phrase tables](grammar-rules.md#phrase-tables)).
 
 ## Review Clause Reader
 
