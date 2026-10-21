@@ -39,11 +39,8 @@ export {
 // Collective nouns and clause openings (library/english/words.ts).
 export { COLLECTIVE as EN_COLLECTIVE, opensClause as enOpensClause } from "./english/words";
 
-// Participles and noun-to-verb forms (review/english/realWordFrames).
-export {
-  nounVerb as enNounVerb,
-  participle as enParticiple,
-} from "../review/english/realWordFrames";
+// Participles and noun-to-verb forms (library/english/verbs.ts).
+export { nounVerb as enNounVerb, participle as enParticiple } from "./english/verbs";
 
 // Dotted tokens of prose and quoted mentions (library/english/words.ts).
 export {
@@ -53,3 +50,7 @@ export {
 
 // The casing of a fix like the typed words (library/english/words.ts).
 export { recase as enRecase } from "./english/words";
+
+// Group 1 (agreementSlots, clauseAgreementSlots, missingVerbSlots, relativeSlots,
+// agreementFrames, realWordFrames, verbSlots): lexicon readings that its rules read.
+export { englishCountNoun, englishNounPair } from "../implementations/helpers/EnglishLexicon";
