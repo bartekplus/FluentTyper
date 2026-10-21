@@ -3460,6 +3460,562 @@ rules:
     style: match
     message: review_msg_plural_apostrophe
     filter: usOutsideExamples
+    sets:
+      # Words after which a plural noun ends its phrase: a verb, a relative, a preposition...
+      APOS_PHRASE_ENDS:
+        [
+          that,
+          who,
+          which,
+          whom,
+          whose,
+          and,
+          or,
+          but,
+          nor,
+          are,
+          were,
+          have,
+          had,
+          has,
+          will,
+          would,
+          can,
+          could,
+          should,
+          may,
+          might,
+          must,
+          do,
+          did,
+          "don't",
+          "didn't",
+          "aren't",
+          "weren't",
+          "haven't",
+          "won't",
+          "can't",
+          "couldn't",
+          "wouldn't",
+          to,
+          in,
+          on,
+          at,
+          for,
+          with,
+          from,
+          of,
+          by,
+          into,
+          onto,
+          about,
+          over,
+          under,
+          ago,
+          later,
+          before,
+          after,
+          so,
+          as,
+          than,
+          i,
+          you,
+          we,
+          they,
+          he,
+          she,
+          it,
+          me,
+          him,
+          them,
+          us,
+          there,
+          here,
+          then,
+          now,
+          too,
+          also,
+          all,
+          both,
+          each,
+          still,
+          just,
+          already,
+          is,
+          was,
+          "isn't",
+          "wasn't",
+          need,
+          needed,
+          seem,
+          seemed,
+          look,
+          looked,
+          go,
+          went,
+          come,
+          came,
+          get,
+          got,
+          out,
+        ]
+      # Plurals that are not a singular + s, and nouns whose 's is a common possessive or
+      # contraction.
+      APOS_NOT_PLURALS:
+        [
+          people,
+          men,
+          women,
+          children,
+          folk,
+          police,
+          staff,
+          cattle,
+          personnel,
+          data,
+          media,
+          alumni,
+          everyone,
+          someone,
+          anyone,
+          nobody,
+          everybody,
+          somebody,
+          anybody,
+          "one's",
+          let,
+          it,
+          what,
+          that,
+          who,
+          there,
+          here,
+        ]
+      APOS_COUNT_WORDS:
+        [two, three, four, five, six, seven, eight, nine, ten, twelve, twenty, hundred]
+      # Capitalized words before a count that are no label: "The 3 SMEs", "All 5 CEOs".
+      APOS_LABEL_FREE:
+        [
+          the,
+          a,
+          an,
+          all,
+          these,
+          those,
+          some,
+          over,
+          about,
+          only,
+          nearly,
+          almost,
+          around,
+          with,
+          for,
+          in,
+          at,
+          by,
+          of,
+          and,
+          or,
+        ]
+      # Not after "and"/"or": "the plum and peach's are shorter" leaves the owned noun out.
+      APOS_BARE_SUBJECT_BEFORE:
+        [
+          most,
+          all,
+          some,
+          many,
+          where,
+          when,
+          if,
+          because,
+          think,
+          thought,
+          believe,
+          guess,
+          so,
+          why,
+          how,
+          whether,
+          while,
+          unless,
+        ]
+      APOS_OBJECT_SLOT:
+        [
+          about,
+          of,
+          to,
+          in,
+          on,
+          for,
+          with,
+          from,
+          at,
+          by,
+          into,
+          among,
+          between,
+          are,
+          were,
+          is,
+          was,
+          all,
+          any,
+          none,
+          many,
+          some,
+          most,
+          each,
+          see,
+          saw,
+          like,
+          read,
+          fix,
+          fixed,
+          tested,
+          check,
+          checked,
+        ]
+      APOS_CLAUSE_VERB:
+        [
+          had,
+          have,
+          has,
+          did,
+          do,
+          does,
+          was,
+          were,
+          is,
+          are,
+          will,
+          would,
+          can,
+          could,
+          made,
+          make,
+          got,
+          get,
+          use,
+          used,
+          tested,
+          wrote,
+          write,
+          need,
+          needed,
+          want,
+          wanted,
+          know,
+          knew,
+          see,
+          saw,
+          found,
+          find,
+          "don't",
+          "didn't",
+          "doesn't",
+          "can't",
+          "won't",
+          "haven't",
+          "hasn't",
+        ]
+      APOS_AFTER_VERB:
+        [
+          to,
+          the,
+          a,
+          an,
+          my,
+          your,
+          his,
+          her,
+          our,
+          their,
+          its,
+          this,
+          that,
+          these,
+          those,
+          it,
+          him,
+          them,
+          me,
+          us,
+          you,
+          all,
+          over,
+          up,
+          out,
+          on,
+          off,
+          in,
+          into,
+          for,
+          with,
+          about,
+          back,
+          away,
+          down,
+          not,
+          too,
+          so,
+          very,
+          like,
+          well,
+          really,
+          just,
+          quite,
+          much,
+          more,
+          less,
+        ]
+      APOS_OWNER_DETERMINERS:
+        [
+          each,
+          one,
+          the,
+          an,
+          any,
+          every,
+          no,
+          some,
+          this,
+          that,
+          my,
+          your,
+          his,
+          her,
+          our,
+          their,
+          its,
+          another,
+        ]
+      APOS_NOT_OWNED:
+        [
+          are,
+          were,
+          have,
+          has,
+          had,
+          will,
+          would,
+          can,
+          could,
+          should,
+          may,
+          might,
+          must,
+          is,
+          was,
+          been,
+          be,
+          do,
+          does,
+          did,
+          i,
+          you,
+          we,
+          they,
+          he,
+          she,
+          it,
+          of,
+          in,
+          on,
+          at,
+          for,
+          with,
+          to,
+          from,
+          and,
+          or,
+          but,
+          that,
+          which,
+          who,
+          as,
+          so,
+          than,
+          since,
+          by,
+          about,
+          ago,
+          before,
+          after,
+          later,
+          went,
+          came,
+          passed,
+          flew,
+          now,
+          then,
+        ]
+      APOS_DETERMINERS_BEFORE: [the, these, those, my, your, his, her, our, their, its, for, over]
+      APOS_FINITE_AFTER:
+        [is, are, was, were, has, have, had, will, would, can, could, does, do, did]
+      APOS_PREPOSITIONS:
+        [
+          by,
+          for,
+          to,
+          with,
+          from,
+          of,
+          about,
+          under,
+          in,
+          on,
+          at,
+          against,
+          through,
+          without,
+          among,
+          between,
+        ]
+      APOS_NOT_WHOSE:
+        [
+          who,
+          what,
+          that,
+          this,
+          there,
+          here,
+          home,
+          next,
+          up,
+          out,
+          in,
+          on,
+          off,
+          online,
+          back,
+          still,
+          also,
+          not,
+          now,
+          just,
+          really,
+          already,
+          always,
+          never,
+          often,
+          going,
+          coming,
+          done,
+          gone,
+          been,
+          got,
+          had,
+          friends,
+          boss,
+          ready,
+          right,
+          wrong,
+          sure,
+          afraid,
+          able,
+          the,
+          a,
+          an,
+          my,
+          your,
+          his,
+          her,
+          our,
+          their,
+          its,
+          anybody,
+          somebody,
+          someone,
+          anyone,
+          everyone,
+          everybody,
+          nobody,
+        ]
+    maps:
+      APOS_ENDINGS:
+        {
+          i: m ve ll d,
+          you: re ve ll d,
+          we: re ve ll d,
+          they: re ve ll d,
+          he: s ll d,
+          she: s ll d,
+          it: s ll d,
+        }
+    defs:
+      APOS_IRREGULAR_THIRD: >-
+        new Map([
+          ["be", "is"],
+          ["doe", "does"],
+          ["do", "does"],
+          ["go", "goes"],
+          ["have", "has"],
+        ])
+      APOS_INFO_OF: memoize(englishWordInfo, 20_000)
+      aposInfo:
+        args: "word: string"
+        return: APOS_INFO_OF(word.toLowerCase())
+      # The next word (lowercased) after `end`, "" at punctuation or the end, null after a symbol.
+      aposNextWord:
+        args: "ctx: DetectContext, end: number"
+        type: string | null
+        let:
+          after: ctx.text.slice(end, end + 40)
+          word: '/^[ \t ]+([A-Za-z]+(?:[''’][a-z]+)?)/.exec(after)'
+        when: '!/^[ \t ]*(?:[.!?,;:)\]"”…]|$|\n)/.test(after)'
+        return: 'word ? word[1].toLowerCase().replaceAll("’", "''") : null'
+        else: '""'
+      # The previous word (lowercased) before `start`, "" at a clause start.
+      aposPreviousWord:
+        args: "ctx: DetectContext, start: number"
+        let:
+          before: ctx.text.slice(Math.max(0, start - 40), start)
+        when: '!/(?:^|[.!?;:"“(\n])[ \t ]*$/.test(before)'
+        return: '/([A-Za-z]+(?:[''’][a-z]+)?)[ \t ]+$/.exec(before)?.[1].toLowerCase() ?? "?"'
+        else: '""'
+      # The plural of a noun typed with 's ("CD's" -> "CDs", "reply's" -> "replies"), or null.
+      aposPluralOf:
+        args: "word: string"
+        return: >-
+          /^[A-Z][A-Z&]*[A-Z]$/.test(word)
+            ? `${word}s`
+            : !/^[a-z]{2,}$/.test(word) || APOS_NOT_PLURALS.has(word)
+              ? null
+              : word === "one" || word === "other"
+                ? `${word}s`
+                : aposPairPlural(word, englishNounPair(word))
+      aposPairPlural:
+        args: "word: string, pair: { singular: string; plural: string } | null"
+        return: "pair ? (pair.singular === word ? pair.plural : null) : aposRegularPlural(word)"
+      # Derived nouns ("teacher", from teach + -er) carry no plural flag of their own. "tech" ->
+      # "techs" (a hard "ch"); a plain -s plural the lexicon leaves out still counts. "ex" ->
+      # "exes", "bus" -> "buses": a listed noun takes its regular plural.
+      aposRegularPlural:
+        args: "word: string"
+        type: string | null
+        let:
+          read: aposInfo(word)
+          plural: >-
+            /(?:[sxz]|[cs]h)$/.test(word)
+              ? `${word}es`
+              : /[^aeiou]y$/.test(word)
+                ? `${word.slice(0, -1)}ies`
+                : `${word}s`
+        when: "!(!read?.noun || read.plural)"
+        return: "aposInfo(plural)?.plural ? plural : aposInfo(`${word}s`) ? `${word}s` : plural"
+      # A numbered label ("Chapter 2 owner's guide", "Windows 10 user's"), not a count.
+      aposNumberedLabel:
+        args: "ctx: DetectContext, index: number"
+        let:
+          before: ctx.text.slice(Math.max(0, index - 24), index)
+          label: '/(\p{Lu}[\p{L}]*)[ \t ]+$/u.exec(before)?.[1]'
+        return: >-
+          (!!label && !APOS_LABEL_FREE.has(label.toLowerCase())) ||
+          /\b(?:no|number|model|version|chapter|section|page|step|level|row|column)\.?[ \t ]+$/i.test(before)
+      aposPhraseEnds:
+        args: "word: string | null"
+        return: 'word !== null && (word === "" || APOS_PHRASE_ENDS.has(word))'
     frames:
       # "two CD's", "several girl's that", "many customer's in": after a plural quantifier the
       # noun is a plural, which takes no apostrophe. Before another noun it may be a plural
@@ -3471,7 +4027,49 @@ rules:
         # keeps such a text in.
         gate: "['’]s|[a-z&]{64}"
         gateFlags: giu
-        fixer: apostropheQuantifiedPlural
+        let:
+          ql: q.toLowerCase()
+          read: "mod ? aposInfo(mod) : null"
+          # After a number, an unlisted lowercase noun ("2 outlet's") is counted too.
+          plural: >-
+            aposPluralOf(w) ??
+            (/^(?:[2-9]|[1-9][0-9]+)$/.test(q) && /^[a-z]{4,}$/.test(w) && !aposInfo(w) && !/s$/.test(w) ? `${w}s` : null)
+          start: m.indices!.groups!.w[0]
+          end: m.index + m[0].length
+          next: aposNextWord(ctx, end)
+          nextRead: "next ? aposInfo(next) : null"
+          ends: >-
+            next === "" ||
+            APOS_PHRASE_ENDS.has(next) ||
+            (!!nextRead && (!nextRead.noun || nextRead.verbs.some((v) => v.form === "past")))
+          alternatives: "ends ? [plural] : [`${plural}'`, plural]"
+        when:
+          # "The 2015 movie's": a year, not a count.
+          - '!/^(?:1[89]|20)\d\d$/.test(q)'
+          - "!(/[0-9]/.test(q) && aposNumberedLabel(ctx, m.index))"
+          # "all three manufacturer's", "many of those API's": a count or determiner in between.
+          - >-
+            !mod ||
+            (/^[a-z]+$/.test(mod) &&
+              (read?.adjective || mod === "other" || APOS_COUNT_WORDS.has(mod) || (/of$/i.test(q) && /^(?:these|those)$/.test(mod))))
+          - "!(!plural || ctx.dictionary.has(w.toLowerCase()))"
+          # "some user's settings" is one user; "all" and "some" count only acronyms or a closed
+          # phrase.
+          - >-
+            !((ql === "some" || ql === "all") && !/^[A-Z][A-Z&]*[A-Z]$/.test(w)) ||
+            (ql !== "some" && aposPhraseEnds(aposNextWord(ctx, m.index + m[0].length)))
+          # "these one's" yes; "both John's" is two owners.
+          - '!(ql === "these" || ql === "those" || ql === "both") || /^(?:[a-z]+|[A-Z][A-Z&]*[A-Z])$/.test(w)'
+          - next !== null
+        return: >-
+          ({
+            ruleId: "englishApostrophes",
+            messageKey: "review_msg_plural_apostrophe",
+            range: { start, end },
+            alternatives: alternatives.map((alt) => (/’/.test(m[0]) ? alt.replaceAll("'", "’") : alt)),
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+            context: enEvidence(ctx, m.index, end),
+          })
       # "where user's would", "most user's are": a bare noun before a finite verb is its plural
       # subject.
       - regex: "(?<w>[a-z]{3,})['’]s{{S}}(?<verb>would|could|should|are|were|have|don't|didn't|won't|aren't|weren't|haven't){{E}}"
@@ -3479,7 +4077,21 @@ rules:
         # The gate is the same as in the first frame.
         gate: "['’]s|[a-z&]{64}"
         gateFlags: giu
-        fixer: apostrophePluralSubject
+        let:
+          before: aposPreviousWord(ctx, m.index)
+          # "The car's are cheap", "those file's were": a plural verb right after the article.
+          article: >-
+            /^(?:these|those)$/.test(before) ||
+            (before === "the" && /^(?:are|were|aren't|weren't)$/.test(verb.replaceAll("’", "'")))
+          plural: aposPluralOf(w)
+          start: m.indices!.groups!.w[0]
+        when:
+          - "!((!article && !APOS_BARE_SUBJECT_BEFORE.has(before)) || ctx.dictionary.has(w))"
+          - "!!plural"
+        return: >-
+          finding("englishApostrophes", "review_msg_plural_apostrophe", start, start + w.length + 2, [plural], {
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
       # "about the problem's it causes", "the one's I tested", "to user's that don't": a noun
       # with 's, then a relative clause (a subject and its verb, or that/who and a verb), is a
       # plural. Only as an object (after a preposition or a verb of being): "The problem's it
@@ -3489,45 +4101,142 @@ rules:
         # The gate is the same as in the first frame.
         gate: "['’]s|[a-z&]{64}"
         gateFlags: giu
-        fixer: apostropheRelativePlural
+        let:
+          v: (verb ?? verb2).toLowerCase().replaceAll("’", "'")
+          read: aposInfo(v)
+          # The lexicon leaves out long plain nouns ("problem"): their plural is the plain -s one.
+          plural: "aposPluralOf(w) ?? (!aposInfo(w) && /[^s]$/.test(w) && w.length > 5 ? `${w}s` : null)"
+          start: m.indices!.groups!.w[0]
+        when:
+          - "!(!APOS_OBJECT_SLOT.has(aposPreviousWord(ctx, m.index)) || ctx.dictionary.has(w))"
+          - 'APOS_CLAUSE_VERB.has(v) || !!read?.verbs.some((x) => x.form === "past" || x.form === "third")'
+          - "!!plural"
+        return: >-
+          ({
+            ruleId: "englishApostrophes",
+            messageKey: "review_msg_plural_apostrophe",
+            range: { start, end: start + w.length + 2 },
+            alternatives: [plural],
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
       # "he see's", "it last's", "Michael really want's": a verb's -s ending takes no apostrophe.
       - regex: "(?<subject>he|she|it|who|[a-z]{2,}|that)(?:{{S}}(?<adverb>really|just|also|always|never|often|still|only|usually|sometimes|actually|probably|rarely|even|simply))?{{S}}(?<v>[a-z]{2,})['’]s{{E}}"
         owner: v
         # The gate is the same as in the first frame.
         gate: "['’]s|[a-z&]{64}"
         gateFlags: giu
-        fixer: apostropheVerb
+        let:
+          pronoun: /^(?:he|she|it|who)$/i.test(subject)
+          third: >-
+            APOS_IRREGULAR_THIRD.get(v) ??
+            (aposInfo(v)?.verbs.some((read) => read.form === "base" && read.lemma === v)
+              ? englishLexiconInflect(v, "third")
+              : null)
+          end: m.index + m[0].length
+          next: aposNextWord(ctx, end)
+          start: m.indices!.groups!.v[0]
+        when:
+          # "that dog's", "Sam bill's": only a pronoun subject or an adverb rules out an owner.
+          - pronoun || adverb
+          - "!(!third || ctx.dictionary.has(v))"
+          - '!(next === null || (next !== "" && !APOS_AFTER_VERB.has(next)))'
+        return: >-
+          finding("englishApostrophes", "review_msg_verb_apostrophe", start, end, [third], {
+            context: enEvidence(ctx, m.index, end),
+          })
       # "We''ll", "Tom''s": one apostrophe.
       - regex: "(?<w>[A-Za-z]+)(?<marks>['’]['’])(?:s|t|ll|re|ve|d|m)(?![\\p{L}\\p{N}'’])"
         owner: marks
         gate: "['’]['’]"
-        fixer: apostropheDoubled
+        let:
+          span: m.indices!.groups!.marks
+        return: 'finding("englishApostrophes", "review_msg_duplicate_punctuation", span[0], span[1], [marks[0]])'
       # "I' m", "they 're", "Julia' s new": a contraction or possessive split by a space.
       - regex: "(?<w>I|you|we|they|he|she|it|[a-z]{2,})(?<gap>['’]{{S}}|{{S}}['’])(?<s>m|re|ve|ll|d|s){{E}}"
         owner: gap
         gate: "['’][ \\t\\u00a0]|[ \\t\\u00a0]['’]"
-        fixer: apostropheSpaced
+        let:
+          allowed: APOS_ENDINGS[w.toLowerCase()]
+          span: m.indices!.groups!.gap
+        when:
+          - '!(allowed ? !allowed.split(" ").includes(s) : s !== "s" || !/^[A-Z][a-z]+$/.test(w))'
+          # A name's possessive needs the owned word right after it.
+          - '!(!allowed && !/^[ \t ]+[a-z]/.test(ctx.text.slice(m.index + m[0].length)))'
+          - '!(w !== "I" && !allowed && ctx.dictionary.has(w.toLowerCase()))'
+        return: 'finding("englishApostrophes", "review_msg_apostrophe_space", span[0], span[1], [gap.trim()])'
       # "from other's photos": with no determiner, the owners are several others.
       - regex: "(?<w>other)['’]s{{S}}(?<n>[a-z]+){{E}}"
         owner: w
         gate: "['’]s"
         gateFlags: giu
-        fixer: apostropheOthers
+        let:
+          # An unlisted word after it ("other's intentions") is read as the owned noun.
+          read: aposInfo(n)
+        when:
+          - 'w === "other" || w === "Other"'
+          - "!APOS_OWNER_DETERMINERS.has(aposPreviousWord(ctx, m.index))"
+          - "!(read ? !(read.noun || read.adjective) : n.length < 4)"
+          - "!APOS_PHRASE_ENDS.has(n)"
+        return: >-
+          ({
+            ruleId: "englishApostrophes",
+            messageKey: "review_msg_noun_possessive",
+            range: { start: m.index, end: m.index + "other's".length },
+            alternatives: [`${w}s${ctx.text[m.index + 5]}`],
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
       # "last weeks meeting", "this years budget": a time noun owning the next noun.
       - regex: "(?<d>this|last|next){{S}}(?<t>week|weekend|month|year|morning|night|evening|afternoon|season|quarter|semester|summer|winter|autumn)s{{S}}(?<n>[A-Za-z]+){{E}}"
         owner: t
-        fixer: apostropheTimeOwner
+        let:
+          read: aposInfo(n)
+          start: m.indices!.groups!.t[0]
+        when:
+          - "!(!/^[A-Za-z][a-z]*$/.test(t + n) || APOS_NOT_OWNED.has(n.toLowerCase()))"
+          - '!(d.toLowerCase() !== "this" && APOS_DETERMINERS_BEFORE.has(aposPreviousWord(ctx, m.index)))'
+          - "!(!/^[A-Z]/.test(n) && !read?.noun)"
+          - "!(read && ((!read.noun && read.verbs.length) || read.adverb))"
+        return: >-
+          finding("englishApostrophes", "review_msg_noun_possessive", start, start + t.length + 1, [`${t}'s`], {
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
       # "todays news", "yesterdays meeting": never a plural, always the possessive ("tomorrows"
       # is a grammarStyle2 row).
       - regex: "(?<t>today|yesterday|tonight)s{{E}}"
         owner: t
-        fixer: apostropheDayOwner
+        when: /^[A-Za-z][a-z]*$/.test(t)
+        return: >-
+          ({
+            ruleId: "englishApostrophes",
+            messageKey: "review_msg_noun_possessive",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [`${t}'s`],
+            context: enEvidence(ctx, m.index, m.index + m[0].length),
+          })
       # "a boy who's birthday is", "by who's standards": "whose" owns the noun after it.
       - regex: "(?<w>who)['’]s{{S}}(?<n>[a-z]+){{E}}"
         owner: w
         gate: "['’]s"
         gateFlags: giu
-        fixer: apostropheWhose
+        let:
+          read: aposInfo(n)
+          end: m.index + m[0].length
+          next: aposNextWord(ctx, end)
+          nextRead: "next ? aposInfo(next) : null"
+          owned: >-
+            (next !== null && APOS_FINITE_AFTER.has(next)) ||
+            !!nextRead?.verbs.some((v) => v.form === "past") ||
+            APOS_PREPOSITIONS.has(aposPreviousWord(ctx, m.index))
+        when:
+          # "WHO's list" is the organization.
+          - 'w === "who" || w === "Who"'
+          - "!(!read?.noun || APOS_NOT_WHOSE.has(n) || read.adjective || read.adverb)"
+          - '!read.verbs.some((v) => v.form !== "base" && v.form !== "third")'
+          - owned
+        return: >-
+          finding("englishApostrophes", "review_msg_whose", m.index, m.index + 5, [`${w}se`], {
+            context: enEvidence(ctx, m.index, end),
+          })
   - id: en.productNames
     checks: [englishCanonicalCasing]
     style: match

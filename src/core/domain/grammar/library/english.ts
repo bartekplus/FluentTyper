@@ -56,4 +56,8 @@ export { recase as enRecase } from "./english/words";
 
 // Group 3 (grammarStyle1, articles, confusionSlots, everydaySlots, wordFormSlots, punctuation,
 // typography, apostrophes, plainStyle).
-export { englishCountNoun, englishNounPair } from "../implementations/helpers/EnglishLexicon";
+export {
+  englishCountNoun,
+  englishLexiconInflect,
+  englishNounPair,
+} from "../implementations/helpers/EnglishLexicon";

@@ -1,7 +1,6 @@
 // The named Review detectors of grammar/rules/en.yaml; the rule file sets their checks,
 // languages and order.
 import { mergePredicates, type FindingsFilter, type Fixer } from "../../engine/reviewRules";
-import * as apostrophes from "./apostrophes";
 import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
 import * as passiveVoice from "./passiveVoice";
@@ -102,7 +101,6 @@ export const FIXERS = mergePredicates<Fixer>(
   dates.FIXERS,
   compoundForms.FIXERS,
   punctuation.FIXERS,
-  apostrophes.FIXERS,
   relativeSlots.FIXERS,
   missingVerbSlots.FIXERS,
   degreeSlots.FIXERS,

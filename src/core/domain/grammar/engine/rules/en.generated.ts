@@ -27,12 +27,522 @@ import {
   englishInflect,
   englishInitialSound,
   englishLemma,
+  englishLexiconInflect,
   englishNounPair,
   englishWordInfo,
   finding,
+  memoize,
   namedExampleBefore,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const APOS_PHRASE_ENDS: ReadonlySet<string> = new Set([
+  "that",
+  "who",
+  "which",
+  "whom",
+  "whose",
+  "and",
+  "or",
+  "but",
+  "nor",
+  "are",
+  "were",
+  "have",
+  "had",
+  "has",
+  "will",
+  "would",
+  "can",
+  "could",
+  "should",
+  "may",
+  "might",
+  "must",
+  "do",
+  "did",
+  "don't",
+  "didn't",
+  "aren't",
+  "weren't",
+  "haven't",
+  "won't",
+  "can't",
+  "couldn't",
+  "wouldn't",
+  "to",
+  "in",
+  "on",
+  "at",
+  "for",
+  "with",
+  "from",
+  "of",
+  "by",
+  "into",
+  "onto",
+  "about",
+  "over",
+  "under",
+  "ago",
+  "later",
+  "before",
+  "after",
+  "so",
+  "as",
+  "than",
+  "i",
+  "you",
+  "we",
+  "they",
+  "he",
+  "she",
+  "it",
+  "me",
+  "him",
+  "them",
+  "us",
+  "there",
+  "here",
+  "then",
+  "now",
+  "too",
+  "also",
+  "all",
+  "both",
+  "each",
+  "still",
+  "just",
+  "already",
+  "is",
+  "was",
+  "isn't",
+  "wasn't",
+  "need",
+  "needed",
+  "seem",
+  "seemed",
+  "look",
+  "looked",
+  "go",
+  "went",
+  "come",
+  "came",
+  "get",
+  "got",
+  "out",
+]);
+
+export const APOS_NOT_PLURALS: ReadonlySet<string> = new Set([
+  "people",
+  "men",
+  "women",
+  "children",
+  "folk",
+  "police",
+  "staff",
+  "cattle",
+  "personnel",
+  "data",
+  "media",
+  "alumni",
+  "everyone",
+  "someone",
+  "anyone",
+  "nobody",
+  "everybody",
+  "somebody",
+  "anybody",
+  "one's",
+  "let",
+  "it",
+  "what",
+  "that",
+  "who",
+  "there",
+  "here",
+]);
+
+export const APOS_COUNT_WORDS: ReadonlySet<string> = new Set([
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "twelve",
+  "twenty",
+  "hundred",
+]);
+
+export const APOS_LABEL_FREE: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "all",
+  "these",
+  "those",
+  "some",
+  "over",
+  "about",
+  "only",
+  "nearly",
+  "almost",
+  "around",
+  "with",
+  "for",
+  "in",
+  "at",
+  "by",
+  "of",
+  "and",
+  "or",
+]);
+
+export const APOS_BARE_SUBJECT_BEFORE: ReadonlySet<string> = new Set([
+  "most",
+  "all",
+  "some",
+  "many",
+  "where",
+  "when",
+  "if",
+  "because",
+  "think",
+  "thought",
+  "believe",
+  "guess",
+  "so",
+  "why",
+  "how",
+  "whether",
+  "while",
+  "unless",
+]);
+
+export const APOS_OBJECT_SLOT: ReadonlySet<string> = new Set([
+  "about",
+  "of",
+  "to",
+  "in",
+  "on",
+  "for",
+  "with",
+  "from",
+  "at",
+  "by",
+  "into",
+  "among",
+  "between",
+  "are",
+  "were",
+  "is",
+  "was",
+  "all",
+  "any",
+  "none",
+  "many",
+  "some",
+  "most",
+  "each",
+  "see",
+  "saw",
+  "like",
+  "read",
+  "fix",
+  "fixed",
+  "tested",
+  "check",
+  "checked",
+]);
+
+export const APOS_CLAUSE_VERB: ReadonlySet<string> = new Set([
+  "had",
+  "have",
+  "has",
+  "did",
+  "do",
+  "does",
+  "was",
+  "were",
+  "is",
+  "are",
+  "will",
+  "would",
+  "can",
+  "could",
+  "made",
+  "make",
+  "got",
+  "get",
+  "use",
+  "used",
+  "tested",
+  "wrote",
+  "write",
+  "need",
+  "needed",
+  "want",
+  "wanted",
+  "know",
+  "knew",
+  "see",
+  "saw",
+  "found",
+  "find",
+  "don't",
+  "didn't",
+  "doesn't",
+  "can't",
+  "won't",
+  "haven't",
+  "hasn't",
+]);
+
+export const APOS_AFTER_VERB: ReadonlySet<string> = new Set([
+  "to",
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "this",
+  "that",
+  "these",
+  "those",
+  "it",
+  "him",
+  "them",
+  "me",
+  "us",
+  "you",
+  "all",
+  "over",
+  "up",
+  "out",
+  "on",
+  "off",
+  "in",
+  "into",
+  "for",
+  "with",
+  "about",
+  "back",
+  "away",
+  "down",
+  "not",
+  "too",
+  "so",
+  "very",
+  "like",
+  "well",
+  "really",
+  "just",
+  "quite",
+  "much",
+  "more",
+  "less",
+]);
+
+export const APOS_OWNER_DETERMINERS: ReadonlySet<string> = new Set([
+  "each",
+  "one",
+  "the",
+  "an",
+  "any",
+  "every",
+  "no",
+  "some",
+  "this",
+  "that",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "another",
+]);
+
+export const APOS_NOT_OWNED: ReadonlySet<string> = new Set([
+  "are",
+  "were",
+  "have",
+  "has",
+  "had",
+  "will",
+  "would",
+  "can",
+  "could",
+  "should",
+  "may",
+  "might",
+  "must",
+  "is",
+  "was",
+  "been",
+  "be",
+  "do",
+  "does",
+  "did",
+  "i",
+  "you",
+  "we",
+  "they",
+  "he",
+  "she",
+  "it",
+  "of",
+  "in",
+  "on",
+  "at",
+  "for",
+  "with",
+  "to",
+  "from",
+  "and",
+  "or",
+  "but",
+  "that",
+  "which",
+  "who",
+  "as",
+  "so",
+  "than",
+  "since",
+  "by",
+  "about",
+  "ago",
+  "before",
+  "after",
+  "later",
+  "went",
+  "came",
+  "passed",
+  "flew",
+  "now",
+  "then",
+]);
+
+export const APOS_DETERMINERS_BEFORE: ReadonlySet<string> = new Set([
+  "the",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "for",
+  "over",
+]);
+
+export const APOS_FINITE_AFTER: ReadonlySet<string> = new Set([
+  "is",
+  "are",
+  "was",
+  "were",
+  "has",
+  "have",
+  "had",
+  "will",
+  "would",
+  "can",
+  "could",
+  "does",
+  "do",
+  "did",
+]);
+
+export const APOS_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "by",
+  "for",
+  "to",
+  "with",
+  "from",
+  "of",
+  "about",
+  "under",
+  "in",
+  "on",
+  "at",
+  "against",
+  "through",
+  "without",
+  "among",
+  "between",
+]);
+
+export const APOS_NOT_WHOSE: ReadonlySet<string> = new Set([
+  "who",
+  "what",
+  "that",
+  "this",
+  "there",
+  "here",
+  "home",
+  "next",
+  "up",
+  "out",
+  "in",
+  "on",
+  "off",
+  "online",
+  "back",
+  "still",
+  "also",
+  "not",
+  "now",
+  "just",
+  "really",
+  "already",
+  "always",
+  "never",
+  "often",
+  "going",
+  "coming",
+  "done",
+  "gone",
+  "been",
+  "got",
+  "had",
+  "friends",
+  "boss",
+  "ready",
+  "right",
+  "wrong",
+  "sure",
+  "afraid",
+  "able",
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "anybody",
+  "somebody",
+  "someone",
+  "anyone",
+  "everyone",
+  "everybody",
+  "nobody",
+]);
 
 export const TYPOGRAPHY_MEASURES: ReadonlySet<string> = new Set([
   "seconds",
@@ -223,6 +733,16 @@ export const ARTICLES_COUNT_NOUNS: ReadonlySet<string> = new Set([
   "ticket",
 ]);
 
+export const APOS_ENDINGS: Readonly<Record<string, string>> = {
+  i: "m ve ll d",
+  you: "re ve ll d",
+  we: "re ve ll d",
+  they: "re ve ll d",
+  he: "s ll d",
+  she: "s ll d",
+  it: "s ll d",
+};
+
 export const TYPOGRAPHY_FULL_WIDTH: Readonly<Record<string, string>> = { "？": "?", "！": "!" };
 
 export const TYPOGRAPHY_ARROWS: Readonly<Record<string, string>> = {
@@ -334,6 +854,83 @@ export function confusionComparative(word: string) {
 // en.yaml rule en.thenAfterComparative def confusionLastComparative
 export function confusionLastComparative(words: string[], k: number): number {
   return k < 0 || confusionComparative(words[k]) ? k : confusionLastComparative(words, k - 1);
+}
+
+// en.yaml rule en.apostrophes def APOS_IRREGULAR_THIRD
+export const APOS_IRREGULAR_THIRD = new Map([
+  ["be", "is"],
+  ["doe", "does"],
+  ["do", "does"],
+  ["go", "goes"],
+  ["have", "has"],
+]);
+
+// en.yaml rule en.apostrophes def APOS_INFO_OF
+export const APOS_INFO_OF = memoize(englishWordInfo, 20_000);
+
+// en.yaml rule en.apostrophes def aposInfo
+export function aposInfo(word: string) {
+  return APOS_INFO_OF(word.toLowerCase());
+}
+
+// en.yaml rule en.apostrophes def aposNextWord
+export function aposNextWord(ctx: DetectContext, end: number): string | null {
+  const after = ctx.text.slice(end, end + 40);
+  if (/^[ \t ]*(?:[.!?,;:)\]"”…]|$|\n)/.test(after)) return "";
+  const word = /^[ \t ]+([A-Za-z]+(?:['’][a-z]+)?)/.exec(after);
+  return word ? word[1].toLowerCase().replaceAll("’", "'") : null;
+}
+
+// en.yaml rule en.apostrophes def aposPreviousWord
+export function aposPreviousWord(ctx: DetectContext, start: number) {
+  const before = ctx.text.slice(Math.max(0, start - 40), start);
+  if (/(?:^|[.!?;:"“(\n])[ \t ]*$/.test(before)) return "";
+  return /([A-Za-z]+(?:['’][a-z]+)?)[ \t ]+$/.exec(before)?.[1].toLowerCase() ?? "?";
+}
+
+// en.yaml rule en.apostrophes def aposPluralOf
+export function aposPluralOf(word: string) {
+  return /^[A-Z][A-Z&]*[A-Z]$/.test(word)
+    ? `${word}s`
+    : !/^[a-z]{2,}$/.test(word) || APOS_NOT_PLURALS.has(word)
+      ? null
+      : word === "one" || word === "other"
+        ? `${word}s`
+        : aposPairPlural(word, englishNounPair(word));
+}
+
+// en.yaml rule en.apostrophes def aposPairPlural
+export function aposPairPlural(word: string, pair: { singular: string; plural: string } | null) {
+  return pair ? (pair.singular === word ? pair.plural : null) : aposRegularPlural(word);
+}
+
+// en.yaml rule en.apostrophes def aposRegularPlural
+export function aposRegularPlural(word: string): string | null {
+  const read = aposInfo(word);
+  if (!read?.noun || read.plural) return null;
+  const plural = /(?:[sxz]|[cs]h)$/.test(word)
+    ? `${word}es`
+    : /[^aeiou]y$/.test(word)
+      ? `${word.slice(0, -1)}ies`
+      : `${word}s`;
+  return aposInfo(plural)?.plural ? plural : aposInfo(`${word}s`) ? `${word}s` : plural;
+}
+
+// en.yaml rule en.apostrophes def aposNumberedLabel
+export function aposNumberedLabel(ctx: DetectContext, index: number) {
+  const before = ctx.text.slice(Math.max(0, index - 24), index);
+  const label = /(\p{Lu}[\p{L}]*)[ \t ]+$/u.exec(before)?.[1];
+  return (
+    (!!label && !APOS_LABEL_FREE.has(label.toLowerCase())) ||
+    /\b(?:no|number|model|version|chapter|section|page|step|level|row|column)\.?[ \t ]+$/i.test(
+      before,
+    )
+  );
+}
+
+// en.yaml rule en.apostrophes def aposPhraseEnds
+export function aposPhraseEnds(word: string | null) {
+  return word !== null && (word === "" || APOS_PHRASE_ENDS.has(word));
 }
 
 // en.yaml rule en.notation def TYPOGRAPHY_SUBSCRIPTS
@@ -955,6 +1552,222 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "were",
       m.index,
     );
+  },
+  // en.yaml rule en.apostrophes frame 1
+  "@en.apostrophes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const q = m.groups!.q;
+    const mod = m.groups!.mod;
+    const w = m.groups!.w;
+    if (/^(?:1[89]|20)\d\d$/.test(q)) return null;
+    if (/[0-9]/.test(q) && aposNumberedLabel(ctx, m.index)) return null;
+    const ql = q.toLowerCase();
+    const read = mod ? aposInfo(mod) : null;
+    if (!(
+      !mod ||
+      (/^[a-z]+$/.test(mod) &&
+        (read?.adjective ||
+          mod === "other" ||
+          APOS_COUNT_WORDS.has(mod) ||
+          (/of$/i.test(q) && /^(?:these|those)$/.test(mod))))
+    ))
+      return null;
+    const plural =
+      aposPluralOf(w) ??
+      (/^(?:[2-9]|[1-9][0-9]+)$/.test(q) && /^[a-z]{4,}$/.test(w) && !aposInfo(w) && !/s$/.test(w)
+        ? `${w}s`
+        : null);
+    if (!plural || ctx.dictionary.has(w.toLowerCase())) return null;
+    if (!(
+      !((ql === "some" || ql === "all") && !/^[A-Z][A-Z&]*[A-Z]$/.test(w)) ||
+      (ql !== "some" && aposPhraseEnds(aposNextWord(ctx, m.index + m[0].length)))
+    ))
+      return null;
+    if (!(
+      !(ql === "these" || ql === "those" || ql === "both") ||
+      /^(?:[a-z]+|[A-Z][A-Z&]*[A-Z])$/.test(w)
+    ))
+      return null;
+    const start = m.indices!.groups!.w[0];
+    const end = m.index + m[0].length;
+    const next = aposNextWord(ctx, end);
+    if (!(next !== null)) return null;
+    const nextRead = next ? aposInfo(next) : null;
+    const ends =
+      next === "" ||
+      APOS_PHRASE_ENDS.has(next) ||
+      (!!nextRead && (!nextRead.noun || nextRead.verbs.some((v) => v.form === "past")));
+    const alternatives = ends ? [plural] : [`${plural}'`, plural];
+    return {
+      ruleId: "englishApostrophes",
+      messageKey: "review_msg_plural_apostrophe",
+      range: { start, end },
+      alternatives: alternatives.map((alt) => (/’/.test(m[0]) ? alt.replaceAll("'", "’") : alt)),
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+      context: enEvidence(ctx, m.index, end),
+    };
+  },
+  // en.yaml rule en.apostrophes frame 2
+  "@en.apostrophes/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    const verb = m.groups!.verb;
+    const before = aposPreviousWord(ctx, m.index);
+    const article =
+      /^(?:these|those)$/.test(before) ||
+      (before === "the" && /^(?:are|were|aren't|weren't)$/.test(verb.replaceAll("’", "'")));
+    if ((!article && !APOS_BARE_SUBJECT_BEFORE.has(before)) || ctx.dictionary.has(w)) return null;
+    const plural = aposPluralOf(w);
+    if (!plural) return null;
+    const start = m.indices!.groups!.w[0];
+    return finding(
+      "englishApostrophes",
+      "review_msg_plural_apostrophe",
+      start,
+      start + w.length + 2,
+      [plural],
+      {
+        context: enEvidence(ctx, m.index, m.index + m[0].length),
+      },
+    );
+  },
+  // en.yaml rule en.apostrophes frame 3
+  "@en.apostrophes/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    const verb = m.groups!.verb;
+    const verb2 = m.groups!.verb2;
+    if (!APOS_OBJECT_SLOT.has(aposPreviousWord(ctx, m.index)) || ctx.dictionary.has(w)) return null;
+    const v = (verb ?? verb2).toLowerCase().replaceAll("’", "'");
+    const read = aposInfo(v);
+    if (!(
+      APOS_CLAUSE_VERB.has(v) || !!read?.verbs.some((x) => x.form === "past" || x.form === "third")
+    ))
+      return null;
+    const plural =
+      aposPluralOf(w) ?? (!aposInfo(w) && /[^s]$/.test(w) && w.length > 5 ? `${w}s` : null);
+    if (!plural) return null;
+    const start = m.indices!.groups!.w[0];
+    return {
+      ruleId: "englishApostrophes",
+      messageKey: "review_msg_plural_apostrophe",
+      range: { start, end: start + w.length + 2 },
+      alternatives: [plural],
+      context: enEvidence(ctx, m.index, m.index + m[0].length),
+    };
+  },
+  // en.yaml rule en.apostrophes frame 4
+  "@en.apostrophes/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const adverb = m.groups!.adverb;
+    const v = m.groups!.v;
+    const pronoun = /^(?:he|she|it|who)$/i.test(subject);
+    if (!(pronoun || adverb)) return null;
+    const third =
+      APOS_IRREGULAR_THIRD.get(v) ??
+      (aposInfo(v)?.verbs.some((read) => read.form === "base" && read.lemma === v)
+        ? englishLexiconInflect(v, "third")
+        : null);
+    if (!third || ctx.dictionary.has(v)) return null;
+    const end = m.index + m[0].length;
+    const next = aposNextWord(ctx, end);
+    if (next === null || (next !== "" && !APOS_AFTER_VERB.has(next))) return null;
+    const start = m.indices!.groups!.v[0];
+    return finding("englishApostrophes", "review_msg_verb_apostrophe", start, end, [third], {
+      context: enEvidence(ctx, m.index, end),
+    });
+  },
+  // en.yaml rule en.apostrophes frame 5
+  "@en.apostrophes/5": (m: RegExpExecArray): MatchResult => {
+    const marks = m.groups!.marks;
+    const span = m.indices!.groups!.marks;
+    return finding("englishApostrophes", "review_msg_duplicate_punctuation", span[0], span[1], [
+      marks[0],
+    ]);
+  },
+  // en.yaml rule en.apostrophes frame 6
+  "@en.apostrophes/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    const gap = m.groups!.gap;
+    const s = m.groups!.s;
+    const allowed = APOS_ENDINGS[w.toLowerCase()];
+    if (allowed ? !allowed.split(" ").includes(s) : s !== "s" || !/^[A-Z][a-z]+$/.test(w))
+      return null;
+    if (!allowed && !/^[ \t ]+[a-z]/.test(ctx.text.slice(m.index + m[0].length))) return null;
+    if (w !== "I" && !allowed && ctx.dictionary.has(w.toLowerCase())) return null;
+    const span = m.indices!.groups!.gap;
+    return finding("englishApostrophes", "review_msg_apostrophe_space", span[0], span[1], [
+      gap.trim(),
+    ]);
+  },
+  // en.yaml rule en.apostrophes frame 7
+  "@en.apostrophes/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    const n = m.groups!.n;
+    if (!(w === "other" || w === "Other")) return null;
+    if (APOS_OWNER_DETERMINERS.has(aposPreviousWord(ctx, m.index))) return null;
+    const read = aposInfo(n);
+    if (read ? !(read.noun || read.adjective) : n.length < 4) return null;
+    if (APOS_PHRASE_ENDS.has(n)) return null;
+    return {
+      ruleId: "englishApostrophes",
+      messageKey: "review_msg_noun_possessive",
+      range: { start: m.index, end: m.index + "other's".length },
+      alternatives: [`${w}s${ctx.text[m.index + 5]}`],
+      context: enEvidence(ctx, m.index, m.index + m[0].length),
+    };
+  },
+  // en.yaml rule en.apostrophes frame 8
+  "@en.apostrophes/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const d = m.groups!.d;
+    const t = m.groups!.t;
+    const n = m.groups!.n;
+    if (!/^[A-Za-z][a-z]*$/.test(t + n) || APOS_NOT_OWNED.has(n.toLowerCase())) return null;
+    if (d.toLowerCase() !== "this" && APOS_DETERMINERS_BEFORE.has(aposPreviousWord(ctx, m.index)))
+      return null;
+    const read = aposInfo(n);
+    if (!/^[A-Z]/.test(n) && !read?.noun) return null;
+    if (read && ((!read.noun && read.verbs.length) || read.adverb)) return null;
+    const start = m.indices!.groups!.t[0];
+    return finding(
+      "englishApostrophes",
+      "review_msg_noun_possessive",
+      start,
+      start + t.length + 1,
+      [`${t}'s`],
+      {
+        context: enEvidence(ctx, m.index, m.index + m[0].length),
+      },
+    );
+  },
+  // en.yaml rule en.apostrophes frame 9
+  "@en.apostrophes/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const t = m.groups!.t;
+    if (!/^[A-Za-z][a-z]*$/.test(t)) return null;
+    return {
+      ruleId: "englishApostrophes",
+      messageKey: "review_msg_noun_possessive",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${t}'s`],
+      context: enEvidence(ctx, m.index, m.index + m[0].length),
+    };
+  },
+  // en.yaml rule en.apostrophes frame 10
+  "@en.apostrophes/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const w = m.groups!.w;
+    const n = m.groups!.n;
+    if (!(w === "who" || w === "Who")) return null;
+    const read = aposInfo(n);
+    if (!read?.noun || APOS_NOT_WHOSE.has(n) || read.adjective || read.adverb) return null;
+    if (read.verbs.some((v) => v.form !== "base" && v.form !== "third")) return null;
+    const end = m.index + m[0].length;
+    const next = aposNextWord(ctx, end);
+    const nextRead = next ? aposInfo(next) : null;
+    const owned =
+      (next !== null && APOS_FINITE_AFTER.has(next)) ||
+      !!nextRead?.verbs.some((v) => v.form === "past") ||
+      APOS_PREPOSITIONS.has(aposPreviousWord(ctx, m.index));
+    if (!owned) return null;
+    return finding("englishApostrophes", "review_msg_whose", m.index, m.index + 5, [`${w}se`], {
+      context: enEvidence(ctx, m.index, end),
+    });
   },
   // en.yaml rule en.notation frame 1
   "@en.notation/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
