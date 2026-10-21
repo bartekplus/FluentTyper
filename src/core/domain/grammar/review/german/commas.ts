@@ -106,9 +106,23 @@ function finding(ctx: DetectContext, wordStart: number, word: string, at: number
 
 /** The word right before `index`, and where it starts, when only spaces come between. */
 function wordBefore(text: string, index: number): { word: string; start: number } | null {
-  const m = /([\p{L}\p{N}]+)[ \t ]+$/u.exec(text.slice(Math.max(0, index - 64), index));
-  return m ? { word: m[1], start: index - m[0].length } : null;
+  // A backward read of /([\p{L}\p{N}]+)[ \t\u00a0]+$/u on the 64 characters before `index`.
+  const low = Math.max(0, index - 64);
+  let at = index;
+  while (at > low && SPACE_BEFORE.includes(text[at - 1])) at--;
+  const end = at;
+  if (end === index) return null;
+  while (at > low) {
+    // A surrogate pair is one character, unless the window cuts it.
+    const pair = at - 2 >= low && /^[\ud800-\udbff][\udc00-\udfff]$/.test(text.slice(at - 2, at));
+    const from = pair ? at - 2 : at - 1;
+    if (!WORD_CHAR.test(text.slice(from, at))) break;
+    at = from;
+  }
+  return at === end ? null : { word: text.slice(at, end), start: at };
 }
+const SPACE_BEFORE = " \t\u00a0";
+const WORD_CHAR = /^[\p{L}\p{N}]$/u;
 
 /** A finite verb form: listed, or a regular third person ("lernt") of a known verb; not a
  * participle ("übereilt", "garantiert"). */
