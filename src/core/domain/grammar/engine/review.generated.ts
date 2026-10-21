@@ -4159,7 +4159,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "painted",
       "cleaned",
     ],
-    fixer: "common:itsAfterVerb",
+    fixer: "common:@possessives/1",
     flags: "gidu",
     gate: "it['’]s",
     gateFlags: "giu",
@@ -4186,7 +4186,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "battery",
       "address",
     ],
-    fixer: "common:itsNounPredicate",
+    fixer: "common:@possessives/2",
     flags: "gidu",
     gate: "it['’]s",
     gateFlags: "giu",
@@ -4195,7 +4195,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>its)[ \\t\\u00a0]{1,8}(?:unclear[ \\t\\u00a0]{1,8}whether[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}change[ \\t\\u00a0]{1,8}will[ \\t\\u00a0]{1,8}affect[ \\t\\u00a0]{1,8}us|it[ \\t\\u00a0]{1,8}will[ \\t\\u00a0]{1,8}work)|ready[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?:use|go|open|start)|(?:cold|warm)[ \\t\\u00a0]{1,8}outside|working[ \\t\\u00a0]{1,8}(?:now|again|today)|already[ \\t\\u00a0]{1,8}(?:been[ \\t\\u00a0]{1,8})?(?:fixed|updated|removed|replaced))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["unclear", "ready", "outside", "working", "already"],
-    fixer: "common:itsPhrase",
+    fixer: "common:@possessives/3",
     message: "review_msg_its_contraction",
     flags: "gidu",
     gate: "its[ \\t\\u00a0]{1,8}(?:unclear|ready|cold|warm|working|already)",
@@ -4205,7 +4205,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>its)[ \\t\\u00a0]{1,8}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|never|always|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going[ \\t\\u00a0]{1,8}to|getting[ \\t\\u00a0]{1,8}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time[ \\t\\u00a0]{1,8}to)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["its"],
-    fixer: "common:itsBeforeFunctionWord",
+    fixer: "common:@possessives/4",
     message: "review_msg_its_contraction",
     flags: "gidu",
   }),
@@ -4213,7 +4213,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>its)[ \\t\\u00a0]{1,8}(?:(?:also|just|still|really|very|pretty|quite)[ \\t\\u00a0]{1,8})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|free|done|over|here|there|now)(?=[ \\t\\u00a0]{1,8}(?:to|for|that|if|when|because|how|what|why)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["its"],
-    fixer: "common:itsBeforeAdjective",
+    fixer: "common:@possessives/5",
     message: "review_msg_its_contraction",
     flags: "gidu",
   }),
@@ -4221,7 +4221,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=its(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)[ \\t\\u00a0]{1,8})(?<target>its)[ \\t\\u00a0]{1,8}[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["its"],
-    fixer: "common:itsBeforeName",
+    fixer: "common:@possessives/6",
     message: "review_msg_its_contraction",
     flags: "gidu",
   }),
@@ -4229,7 +4229,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=it['’]s)(?<!(?:how|what)[ \\t\\u00a0]{1,8}about[ \\t\\u00a0]{1,8})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among)[ \\t\\u00a0]{1,8})(?<target>it['’]s)[ \\t\\u00a0]{1,8}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:itsAfterPreposition",
+    fixer: "common:@possessives/7",
     flags: "gidu",
     gate: "it['’]s",
     gateFlags: "giu",
@@ -4238,7 +4238,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>it['’]s)[ \\t\\u00a0]{1,8}own[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["own"],
-    fixer: "common:itsOwn",
+    fixer: "common:@possessives/8",
     flags: "gidu",
     gate: "it['’]s",
     gateFlags: "giu",
@@ -4247,7 +4247,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=it['’]s)(?<=[a-z]{3,30}ed[ \\t\\u00a0]{1,8})(?<target>it['’]s)[ \\t\\u00a0]{1,8}[0-9]{1,4}(?:st|nd|rd|th)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:itsOrdinal",
+    fixer: "common:@possessives/9",
     flags: "gidu",
     gate: "it['’]s",
     gateFlags: "giu",
@@ -4256,7 +4256,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>it['’]s)[ \\t\\u00a0]{1,8}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing|time|because|like|as|kind|sort|type|going|getting)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8}(?:are|were|have)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["are", "were", "have"],
-    fixer: "common:itsBeforeVerb",
+    fixer: "common:@possessives/10",
     flags: "gidu",
     gate: "it['’]s",
     gateFlags: "giu",
@@ -4265,7 +4265,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>lets)[ \\t\\u00a0]{1,8}(?:try[ \\t\\u00a0]{1,8}again|go[ \\t\\u00a0]{1,8}home|start[ \\t\\u00a0]{1,8}now|work[ \\t\\u00a0]{1,8}together|take[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}break|check[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}file|open[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}folder|read[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}report|fix[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}problem|meet[ \\t\\u00a0]{1,8}tomorrow|wait[ \\t\\u00a0]{1,8}here|begin[ \\t\\u00a0]{1,8}with[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}basics)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["lets"],
-    fixer: "common:letsPhrase",
+    fixer: "common:@possessives/11",
     message: "review_msg_lets_contraction",
     check: "englishLetsContext",
     flags: "gidu",
@@ -4274,7 +4274,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:someone|anyone|everyone|somebody|anybody|nobody|no[ \\t\\u00a0]{1,8}one)[ \\t\\u00a0]{1,8}(?<target>elses)[ \\t\\u00a0]{1,8}(?:(?:new|old|cold|warm|red|blue|main|original|updated|private)[ \\t\\u00a0]{1,8})?(?:policy|connection|surface|folder|file|password|screen|keyboard|owner|name|settings|color|cover|door|engine|battery|address)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["elses"],
-    fixer: "common:elsePossessive",
+    fixer: "common:@possessives/12",
     message: "review_msg_else_possessive",
     check: "englishElsePossessive",
     flags: "gidu",
@@ -4452,35 +4452,35 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<one>one[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the)[ \\t\\u00a0]{1,8}(?:(?:new|old|missing|broken|small|large|updated)[ \\t\\u00a0]{1,8})?(?<noun>[A-Za-z]+)(?<tail>[ \\t\\u00a0]{1,8}(?:(?:failed|arrived|returned)|(?:is|was)[ \\t\\u00a0]{1,8}(?:missing|broken|ready|new|old|available|useful)|has[ \\t\\u00a0]{1,8}failed))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["one"],
-    fixer: "common:nounCount",
+    fixer: "common:@nounNumber/1",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<count>zero|one|two|three|four|five|six|seven|eight|nine|ten|(?:0|1|2|3|4|5|6|7|8|9)[0-9]{0,3})[ \\t\\u00a0]{1,8}(?:(?:new|old|missing|broken|small|large|updated)[ \\t\\u00a0]{1,8})?(?<noun>[A-Za-z]+)(?<tail>(?:[ \\t\\u00a0]{1,8}(?:(?:failed|arrived|returned)|(?:in|on|near)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:report|folder|office|table|room|screen)))?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:nounCount",
+    fixer: "common:@nounNumber/2",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<dem>these|those)(?<gap>[ \\t\\u00a0]{1,8}(?:(?:new|old|missing|broken|small|large|updated)[ \\t\\u00a0]{1,8})?)(?<noun>[A-Za-z]+)(?<tail>[ \\t\\u00a0]{1,8}(?:(?<verb>are|were|is|was)[ \\t\\u00a0]{1,8}(?:missing|broken|ready|new|old|available|useful)|(?:failed|arrived|returned)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["these", "those"],
-    fixer: "common:nounCount",
+    fixer: "common:@nounNumber/3",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<one>one[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:the|my|your|his|her|our|their|these|those))[ \\t\\u00a0]{1,8}(?:[A-Za-z]+[ \\t\\u00a0]{1,8}){0,3}?(?<noun>[A-Za-z]+)(?<tail>[ \\t\\u00a0]{1,8}(?:is|was|has|had|does|did|can|could|will|would|should|must|seems|looks|that|which|who|where|with|in|on|at|of|for|to|from|I|I['’](?:ve|d|m)|we|you|they|he|she|it)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{0,8}[.!?,;:])(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["one"],
-    fixer: "common:nounCount",
+    fixer: "common:@nounNumber/4",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/#.\\\\-])(?:[Tt]he[ \\t\\u00a0]{1,8}(?:(?:early|mid|late)[ \\t\\u00a0-]{1,8})?(?:(?<four>1[0-9]{2}0|20[0-9]0)|(?<two>[1-9]0))|(?<=(?:^|[(\\[“\"‘]|\\b(?:in|from|during|since|of|through|until|by)[ \\t\\u00a0]{1,8}))(?<bare>1[0-9]{2}0|20[0-9]0)(?=['’]s[ \\t\\u00a0]{0,8}(?:[.!?,;:)\\]”\"]|$))|(?<tens>[1-9]0{1,3})(?=['’]s[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}[a-z]))(?<mark>['’])s(?![\\p{L}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:decadePlural",
+    fixer: "common:@nounNumber/5",
     flags: "gdu",
     owner: "none",
   }),
@@ -4716,71 +4716,71 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:we|they)[ \\t\\u00a0]{1,8}received[ \\t\\u00a0]{1,8}(?<target>many[ \\t\\u00a0]{1,8}(?:useful[ \\t\\u00a0]{1,8})?feedbacks)[ \\t\\u00a0]{1,8}from[ \\t\\u00a0]{1,8}(?:our|their)[ \\t\\u00a0]{1,8}users(?:(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))|[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8})",
     literals: ["feedbacks"],
-    fixer: "common:countWarning",
+    fixer: "common:@countability/1",
   }),
   frame({
     pattern:
       "(?:and|received)[ \\t\\u00a0]{1,8}(?<target>several[ \\t\\u00a0]{1,8}(?:important[ \\t\\u00a0]{1,8})?informations)[ \\t\\u00a0]{1,8}from[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}testing[ \\t\\u00a0]{1,8}team(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["informations"],
-    fixer: "common:countWarning",
+    fixer: "common:@countability/2",
   }),
   frame({
     pattern:
       "gave[ \\t\\u00a0]{1,8}us[ \\t\\u00a0]{1,8}(?<target>(?:two|three|four|[2-9])[ \\t\\u00a0]{1,8}advices)[ \\t\\u00a0]{1,8}about[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}user[ \\t\\u00a0]{1,8}interface(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["interface"],
-    fixer: "common:countWarning",
+    fixer: "common:@countability/3",
   }),
   frame({
     pattern:
       "(?:received|provides?|suggests?)[ \\t\\u00a0]{1,8}(?<target>a[ \\t\\u00a0]{1,8}information)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["information"],
-    fixer: "common:countWarning",
+    fixer: "common:@countability/4",
   }),
   frame({
     pattern:
       "(?:buy|need)[ \\t\\u00a0]{1,8}new[ \\t\\u00a0]{1,8}(?<target>equipments)[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:laboratory|office)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["equipments"],
-    fixer: "common:countEquipment",
+    fixer: "common:@countability/5",
     message: "review_msg_mass_noun",
   }),
   frame({
     pattern:
       "all[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?<target>datas)[ \\t\\u00a0]{1,8}collected[ \\t\\u00a0]{1,8}during[ \\t\\u00a0]{1,8}(?:previous[ \\t\\u00a0]{1,8})?tests(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["collected"],
-    fixer: "common:countData",
+    fixer: "common:@countability/6",
   }),
   frame({
     pattern:
       "which[ \\t\\u00a0]{1,8}(?<target>criterias)[ \\t\\u00a0]{1,8}should[ \\t\\u00a0]{1,8}be[ \\t\\u00a0]{1,8}used(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["criterias"],
-    fixer: "common:countCriteria",
+    fixer: "common:@countability/7",
   }),
   frame({
     pattern:
       "(?:the|this)[ \\t\\u00a0]{1,8}(?:page|guide|report|document)[ \\t\\u00a0]{1,8}(?:contains|provides|includes)[ \\t\\u00a0]{1,8}(?:useful|helpful|important|relevant|detailed|additional)[ \\t\\u00a0]{1,8}(?<noun>informations)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["informations"],
-    fixer: "common:massNoun",
+    fixer: "common:@countability/8",
     owner: "noun",
   }),
   frame({
     pattern:
       "(?:thanks[ \\t\\u00a0]{1,8}for|thank[ \\t\\u00a0]{1,8}you[ \\t\\u00a0]{1,8}for|we[ \\t\\u00a0]{1,8}appreciate|I[ \\t\\u00a0]{1,8}appreciate)[ \\t\\u00a0]{1,8}(?:the|your)[ \\t\\u00a0]{1,8}(?:helpful|useful|practical|valuable|thoughtful|excellent)[ \\t\\u00a0]{1,8}(?<noun>advices)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["advices"],
-    fixer: "common:massNoun",
+    fixer: "common:@countability/9",
     owner: "noun",
   }),
   frame({
     pattern:
       "(?:we|they|you)[ \\t\\u00a0]{1,8}(?:need|use|bought|ordered|checked|tested)[ \\t\\u00a0]{1,8}(?:the|our|your)[ \\t\\u00a0]{1,8}(?:new|old|necessary|available|basic|standard)[ \\t\\u00a0]{1,8}(?<noun>equipments)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["equipments"],
-    fixer: "common:massNoun",
+    fixer: "common:@countability/10",
     owner: "noun",
   }),
   frame({
     pattern:
       "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|1|2|3|4|5|6|7|8|9)[ \\t\\u00a0]{1,8}(?:(?:important|essential|useful|unusual|observable|natural)[ \\t\\u00a0]{1,8})?(?<noun>criterion|criteria|phenomenon|phenomena)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["criterion", "criteria", "phenomenon", "phenomena"],
-    fixer: "common:massNoun",
+    fixer: "common:@countability/11",
     owner: "noun",
   }),
   frame({

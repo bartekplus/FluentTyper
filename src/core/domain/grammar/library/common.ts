@@ -2,8 +2,10 @@
 // a match and the findings built from them.
 export { namedExampleBefore, quotedSpan, CUE_AND_QUOTE } from "../review/exampleCues";
 export {
+  around,
   caseLike,
   COMPLETE,
+  found,
   group,
   hasUserOrCasedWord,
   isLang,
@@ -16,6 +18,7 @@ export { graphemeEnd, overlapsSortedRanges, withTextApostrophes } from "../revie
 export {
   applyWordCase,
   carryCase,
+  detectWordCase,
   isLowercaseLetter,
   isTechnicalToken,
   lastNonSpaceBefore,
@@ -25,3 +28,7 @@ export { lastNonBlankBefore, opensClause } from "../implementations/helpers/Engl
 export { MASK_CHAR } from "../review/types";
 export { digitValue, invalidIsoDate } from "../review/isoDates";
 export { phraseRows } from "./common/engine";
+export {
+  englishNounForms,
+  hasCountPrefix,
+} from "../implementations/helpers/EnglishNounNumber";

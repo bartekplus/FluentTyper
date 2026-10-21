@@ -13,10 +13,15 @@ import type {
 import {
   TOKEN_END,
   WORD_START,
+  applyWordCase,
+  around,
   caseLike,
   detectWordCase,
+  englishNounForms,
   finding,
+  found,
   group,
+  hasCountPrefix,
   hasUserOrCasedWord,
   invalidIsoDate,
   matchTrailingEnglishPhrase,
@@ -26,6 +31,12 @@ import {
   replaceFrom,
   withTextApostrophes,
 } from "../../library";
+
+export const MASS_SINGULAR: Readonly<Record<string, string>> = {
+  informations: "information",
+  advices: "advice",
+  equipments: "equipment",
+};
 
 export const SPLIT_DE: Readonly<Record<string, string>> = {
   garnicht: "gar nicht",
@@ -226,6 +237,128 @@ export function correctAlot(phrase: string) {
   return style === "upper" ? "A LOT" : style === "title" ? "A lot" : "a lot";
 }
 
+// common.yaml rule possessives def possessiveFix
+export function possessiveFix(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  how: { replacement: string; clause?: boolean; cue?: boolean; name?: boolean },
+) {
+  const span = group(m, "target");
+  const afterTarget = ctx.text.slice(span[1], span[1] + 12);
+  if (!(
+    frame.messageKey !== "review_msg_its_contraction" ||
+    !(
+      /^[ \t ]+time\b/i.test(afterTarget) &&
+      /\b(?:take|takes|took|taken|taking|bide|bides|bided)[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, span[0] - 12), span[0]),
+      )
+    )
+  ))
+    return null;
+  if (!(
+    frame.messageKey !== "review_msg_its_contraction" ||
+    !/^[ \t ]+[A-Z](?![\p{L}\p{N}])/u.test(afterTarget)
+  ))
+    return null;
+  if (!(!how.name || /^[ \t ]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(span[1], span[1] + 10))))
+    return null;
+  const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+  const textStart = m.index <= 96 && /^[ \t ]*$/.test(before);
+  if (!(
+    !how.cue ||
+    /\b(?:think|thinks|thought|hope|guess|know|sure|since|because|if|when|but|so|that|and)[ \t ]+$/i.test(
+      before,
+    ) ||
+    textStart ||
+    /[.!?;:\n"“(][ \t ]*$/.test(before)
+  ))
+    return null;
+  if (!(
+    !how.clause ||
+    textStart ||
+    /(?:,[ \t ]*(?:but|and)[ \t ]+|[.!?;:\n][ \t ]*|,[ \t ]*["“'‘])["“'‘]{0,3}[ \t ]*$/.test(
+      before,
+    ) ||
+    /^[ \t ]*["“'‘]{1,3}$/.test(before)
+  ))
+    return null;
+  const typed = m.groups!.target;
+  if (!(frame.ruleId !== "englishElsePossessive" || typed === "elses")) return null;
+  if (!(typed !== typed.toUpperCase() && applyWordCase(typed, detectWordCase(typed)) === typed))
+    return null;
+  if (
+    (m[0].match(/[A-Za-z]+(?:['’][A-Za-z]+)?/g) ?? []).some((w) =>
+      ctx.dictionary.has(w.toLowerCase()),
+    )
+  )
+    return null;
+  return applyWordCase(how.replacement, detectWordCase(typed));
+}
+
+// common.yaml rule nounNumber def LABEL_WITH_NUMBER
+export const LABEL_WITH_NUMBER =
+  /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+(?!(?:first|last|next|other|top|best|only|few|many|same|final|initial|whole|entire|remaining|extra)\b)[\p{L}]+[ \t ]+$/iu;
+
+// common.yaml rule nounNumber def nounCount
+export function nounCount(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | null {
+  const g = m.groups!;
+  const noun = g.noun;
+  const count = g.count;
+  const dem = g.dem;
+  const verb = g.verb;
+  const forms = englishNounForms(noun);
+  if (!forms) return null;
+  const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+  if (count && hasCountPrefix(before)) return null;
+  if (
+    count &&
+    /^[0-9]/.test(count) &&
+    (/^(?:1[6-9]|20)[0-9]{2}$/.test(count) ||
+      /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+$/i.test(before) ||
+      /[+−×*/^-]$/.test(before) ||
+      LABEL_WITH_NUMBER.test(before))
+  )
+    return null;
+  if (count?.toLowerCase() === "one" && !g.tail && /(?:^|[.!?:;"“(][ \t ]*)$/.test(before))
+    return null;
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  if (!(!dem || noun.toLowerCase() === forms.singular)) return null;
+  const end = group(m, "noun")[1];
+  const plural = applyWordCase(forms.plural, detectWordCase(noun));
+  const singularDem = applyWordCase(
+    dem?.toLowerCase() === "these" ? "this" : "that",
+    detectWordCase(dem ?? ""),
+  );
+  const areVerb = !!verb && /^(?:are|were)$/i.test(verb);
+  const countOne = count && (count.toLowerCase() === "one" || /^0*1$/.test(count));
+  const corrected = applyWordCase(countOne ? forms.singular : forms.plural, detectWordCase(noun));
+  if (!(!!dem || corrected !== noun)) return null;
+  const start = dem && !areVerb ? group(m, "dem")[0] : group(m, "noun")[0];
+  if (!(start >= ctx.from && start < ctx.to)) return null;
+  const alternatives = !dem
+    ? [corrected]
+    : areVerb
+      ? [plural]
+      : verb
+        ? [`${singularDem}${g.gap}${noun}`]
+        : [`${dem}${g.gap}${plural}`, `${singularDem}${g.gap}${noun}`];
+  const requiresChoice = dem && !areVerb && !verb ? (true as const) : undefined;
+  const messageKey = dem
+    ? requiresChoice
+      ? "review_msg_noun_choice"
+      : "review_msg_demonstrative_number"
+    : g.one
+      ? "review_msg_one_of"
+      : "review_msg_noun_count";
+  return [
+    finding("englishNounNumber", messageKey, start, end, alternatives, {
+      requiresChoice,
+      context: around(ctx, m),
+    }),
+  ];
+}
+
 // common.yaml rule doubledDegree def doubledDegreeFinding
 export function doubledDegreeFinding(
   m: RegExpExecArray,
@@ -263,6 +396,51 @@ export function comparativeMarker(
     alternatives: [caseLike(marker, word)],
     context: { start: Math.max(0, m.index - 64), end },
     bulkBlock: "context-dependent",
+  };
+}
+
+// common.yaml rule countability def SPECIALIST
+export const SPECIALIST =
+  /\b(?:legal|law|court|criminal|judicial|indictment|prosecution|affidavit|writ|bank|banking|remittance|shipping|commercial|trade|patent|archaic|dialect|regional|terminology)\b/i;
+
+// common.yaml rule countability def countTemplate
+export function countTemplate(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  replacement: string,
+): RawFinding | null {
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  const fix = replacement ? applyWordCase(replacement, detectWordCase(m.groups!.target)) : "";
+  const result = found(ctx, m, frame.ruleId, frame.messageKey, [fix]);
+  if (SPECIALIST.test(ctx.text.slice(result.context!.start, result.context!.end))) return null;
+  return fix ? result : { ...result, alternatives: [], warningOnly: true as const };
+}
+
+// common.yaml rule countability def massNoun
+export function massNoun(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const span = group(m, "noun");
+  const noun = m.groups!.noun;
+  if (!(noun === noun.toLowerCase())) return null;
+  const singular = MASS_SINGULAR[noun] ?? "";
+  const context = {
+    start: Math.max(0, m.index - 128),
+    end: Math.min(ctx.text.length, m.index + m[0].length + 128),
+  };
+  if (SPECIALIST.test(ctx.scanText.slice(context.start, context.end))) return null;
+  const before = ctx.scanText.slice(context.start, m.index);
+  const count = m.groups!.count;
+  if (count && hasCountPrefix(before)) return null;
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  const corrected =
+    singular || noun.replace(/(?:on|a)$/, /^(?:one|1)$/i.test(count ?? "") ? "on" : "a");
+  if (!(corrected !== noun)) return null;
+  return {
+    ruleId: "englishCountability",
+    messageKey: singular ? "review_msg_mass_noun" : "review_msg_countable_number",
+    range: { start: span[0], end: span[1] },
+    alternatives: [corrected],
+    context,
   };
 }
 
@@ -327,10 +505,10 @@ export function quotedContraction(text: string, index: number) {
 // common.yaml rule spelling def backtickCode
 export function backtickCode(text: string, start: number) {
   const from = Math.max(0, start - 256);
-  const around = text.slice(from, start + 256);
+  const nearby = text.slice(from, start + 256);
   const at = start - from;
-  const lineEnd = around.indexOf("\n", at);
-  const line = around.slice(around.lastIndexOf("\n", at) + 1, lineEnd < 0 ? undefined : lineEnd);
+  const lineEnd = nearby.indexOf("\n", at);
+  const line = nearby.slice(nearby.lastIndexOf("\n", at) + 1, lineEnd < 0 ? undefined : lineEnd);
   return line.split("`").length > 2 && /(?<!\p{L})`|`(?!\p{L})/u.test(line);
 }
 
@@ -360,6 +538,92 @@ export function markedApostrophe(
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // common.yaml rule possessives frame 1
+  "@possessives/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its" });
+  },
+  // common.yaml rule possessives frame 2
+  "@possessives/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its", clause: true });
+  },
+  // common.yaml rule possessives frame 3
+  "@possessives/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "it's", clause: true });
+  },
+  // common.yaml rule possessives frame 4
+  "@possessives/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "it's" });
+  },
+  // common.yaml rule possessives frame 5
+  "@possessives/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "it's", cue: true });
+  },
+  // common.yaml rule possessives frame 6
+  "@possessives/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "it's", name: true });
+  },
+  // common.yaml rule possessives frame 7
+  "@possessives/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its" });
+  },
+  // common.yaml rule possessives frame 8
+  "@possessives/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its" });
+  },
+  // common.yaml rule possessives frame 9
+  "@possessives/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its" });
+  },
+  // common.yaml rule possessives frame 10
+  "@possessives/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "its", clause: true });
+  },
+  // common.yaml rule possessives frame 11
+  "@possessives/11": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "let's", clause: true });
+  },
+  // common.yaml rule possessives frame 12
+  "@possessives/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return possessiveFix(m, ctx, frame, { replacement: "else's" });
+  },
+  // common.yaml rule nounNumber frame 1
+  "@nounNumber/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nounCount(m, ctx);
+  },
+  // common.yaml rule nounNumber frame 2
+  "@nounNumber/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nounCount(m, ctx);
+  },
+  // common.yaml rule nounNumber frame 3
+  "@nounNumber/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nounCount(m, ctx);
+  },
+  // common.yaml rule nounNumber frame 4
+  "@nounNumber/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return nounCount(m, ctx);
+  },
+  // common.yaml rule nounNumber frame 5
+  "@nounNumber/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const four = m.groups!.four;
+    const two = m.groups!.two;
+    const bare = m.groups!.bare;
+    const tens = m.groups!.tens;
+    const mark = m.groups!.mark;
+    const spans = m.indices!.groups!;
+    const start = (spans.four ?? spans.two ?? spans.bare ?? spans.tens)[0];
+    if (!(start >= ctx.from && start < ctx.to)) return null;
+    const digits = four ?? two ?? bare ?? tens;
+    return [
+      {
+        ruleId: "englishNounNumber",
+        messageKey: "review_msg_decade_plural",
+        range: { start, end: m.index + m[0].length },
+        alternatives: two ? [`${mark}${digits}s`, `${digits}s`] : [`${digits}s`],
+        requiresChoice: two ? (true as const) : undefined,
+        context: around(ctx, m),
+      },
+    ];
+  },
   // common.yaml rule doubledDegree frame 1
   "@doubledDegree/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return doubledDegreeFinding(m, ctx, frame);
@@ -412,6 +676,50 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // common.yaml rule doubledDegree.el frame 1
   "@doubledDegree.el/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule countability frame 1
+  "@countability/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "");
+  },
+  // common.yaml rule countability frame 2
+  "@countability/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "");
+  },
+  // common.yaml rule countability frame 3
+  "@countability/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "");
+  },
+  // common.yaml rule countability frame 4
+  "@countability/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "");
+  },
+  // common.yaml rule countability frame 5
+  "@countability/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "equipment");
+  },
+  // common.yaml rule countability frame 6
+  "@countability/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "data");
+  },
+  // common.yaml rule countability frame 7
+  "@countability/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return countTemplate(m, ctx, frame, "criteria");
+  },
+  // common.yaml rule countability frame 8
+  "@countability/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return massNoun(m, ctx);
+  },
+  // common.yaml rule countability frame 9
+  "@countability/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return massNoun(m, ctx);
+  },
+  // common.yaml rule countability frame 10
+  "@countability/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return massNoun(m, ctx);
+  },
+  // common.yaml rule countability frame 11
+  "@countability/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return massNoun(m, ctx);
   },
   // common.yaml rule spelling frame 1
   "@spelling/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {

@@ -4722,68 +4722,124 @@ rules:
     checks: [englishItsContext, englishLetsContext, englishElsePossessive]
     style: match
     message: review_msg_its_possessive
+    defs:
+      # The fix of a possessive frame: `replacement` in the casing of the target. `clause`: the
+      # frame opens a clause. `cue`: a cue word, a clause start or the text start comes before
+      # the frame. `name`: a name follows the target.
+      possessiveFix:
+        args: >-
+          m: RegExpExecArray, ctx: DetectContext, frame: FrameRef,
+          how: { replacement: string; clause?: boolean; cue?: boolean; name?: boolean }
+        let:
+          span: group(m, "target")
+          afterTarget: ctx.text.slice(span[1], span[1] + 12)
+          before: ctx.scanText.slice(Math.max(0, m.index - 96), m.index)
+          textStart: 'm.index <= 96 && /^[ \t ]*$/.test(before)'
+          typed: m.groups!.target
+        when:
+          # "took its time to heal": the possessive in "take one's time".
+          - >-
+            frame.messageKey !== "review_msg_its_contraction" ||
+            !(/^[ \t ]+time\b/i.test(afterTarget) &&
+              /\b(?:take|takes|took|taken|taking|bide|bides|bided)[ \t ]+$/i.test(
+                ctx.text.slice(Math.max(0, span[0] - 12), span[0])))
+          # "on its A list": a capital letter names a list or grade.
+          - >-
+            frame.messageKey !== "review_msg_its_contraction" ||
+            !/^[ \t ]+[A-Z](?![\p{L}\p{N}])/u.test(afterTarget)
+          # A name after an opinion verb: "I hope its Katie." ("its accuracy" is possessive.)
+          - '!how.name || /^[ \t ]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(span[1], span[1] + 10))'
+          - >-
+            !how.cue ||
+            /\b(?:think|thinks|thought|hope|guess|know|sure|since|because|if|when|but|so|that|and)[ \t ]+$/i.test(before) ||
+            textStart ||
+            /[.!?;:\n"“(][ \t ]*$/.test(before)
+          - >-
+            !how.clause ||
+            textStart ||
+            /(?:,[ \t ]*(?:but|and)[ \t ]+|[.!?;:\n][ \t ]*|,[ \t ]*["“'‘])["“'‘]{0,3}[ \t ]*$/.test(before) ||
+            /^[ \t ]*["“'‘]{1,3}$/.test(before)
+          - frame.ruleId !== "englishElsePossessive" || typed === "elses"
+          # Uppercase may be an acronym, mixed case an identifier. Protect evidence words too.
+          - typed !== typed.toUpperCase() && applyWordCase(typed, detectWordCase(typed)) === typed
+          - >-
+            !(m[0].match(/[A-Za-z]+(?:['’][A-Za-z]+)?/g) ?? []).some((w) =>
+              ctx.dictionary.has(w.toLowerCase()))
+        return: applyWordCase(how.replacement, detectWordCase(typed))
     frames:
       - regex: "(?<!{{EDGE}})(?:lost|checked|changed|updated|fixed|opened|closed|remembered|forgot|replaced|painted|cleaned){{S}}(?<target>it['’]s){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{COMPLETE}}{{E}}"
         flags: gidu
         # The gates of the it's frames: "it's" (no literal of 3 letters finds it).
         gate: "it['’]s"
         gateFlags: giu
-        fixer: itsAfterVerb
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "its" })
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{S}}(?:is|was|looks|seems){{S}}(?:wet|dry|broken|new|old|red|blue|missing|different){{COMPLETE}}{{E}}"
         flags: gidu
         gate: "it['’]s"
         gateFlags: giu
-        fixer: itsNounPredicate
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "its", clause: true })
       - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:unclear{{S}}whether{{S}}(?:the{{S}}change{{S}}will{{S}}affect{{S}}us|it{{S}}will{{S}}work)|ready{{S}}to{{S}}(?:use|go|open|start)|(?:cold|warm){{S}}outside|working{{S}}(?:now|again|today)|already{{S}}(?:been{{S}})?(?:fixed|updated|removed|replaced)){{COMPLETE}}{{E}}"
         flags: gidu
         message: review_msg_its_contraction
         gate: "its[ \\t\\u00a0]{1,8}(?:unclear|ready|cold|warm|working|already)"
         gateFlags: giu
-        fixer: itsPhrase
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "it's", clause: true })
       # "its" never precedes a verb, an article or a function word.
       - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|never|always|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going{{S}}to|getting{{S}}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time{{S}}to){{E}}"
         flags: gidu
         message: review_msg_its_contraction
-        fixer: itsBeforeFunctionWord
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "it's" })
       - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:(?:also|just|still|really|very|pretty|quite){{S}})?(?:hard|easy|common|important|critical|crucial|essential|vital|necessary|possible|impossible|likely|unlikely|clear|obvious|true|amazing|nice|great|good|bad|fine|okay|ok|worth|better|best|worse|safe|fun|strange|weird|odd|interesting|useful|helpful|difficult|annoying|frustrating|sad|funny|normal|free|done|over|here|there|now)(?={{S}}(?:to|for|that|if|when|because|how|what|why){{E}}|{{COMPLETE}}){{E}}"
         flags: gidu
         message: review_msg_its_contraction
-        fixer: itsBeforeAdjective
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "it's", cue: true })
       - regex: "(?<!{{EDGE}})(?=its{{E}})(?<=(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet){{S}})(?<target>its){{S}}[a-z]+(?:{{S}}[a-z]+)?{{COMPLETE}}{{E}}"
         flags: gidu
         message: review_msg_its_contraction
-        fixer: itsBeforeName
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "it's", name: true })
       # "it's" never follows a preposition or precedes "own".
       - regex: "(?<!{{EDGE}})(?=it['’]s)(?<!(?:how|what){{S}}about{{S}})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among){{S}})(?<target>it['’]s){{S}}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like){{E}})[a-z]+{{E}}"
         flags: gidu
         gate: "it['’]s"
         gateFlags: giu
-        fixer: itsAfterPreposition
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "its" })
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}own{{S}}[a-z]+{{E}}"
         flags: gidu
         gate: "it['’]s"
         gateFlags: giu
-        fixer: itsOwn
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "its" })
       - regex: "(?<!{{EDGE}})(?=it['’]s)(?<=[a-z]{3,30}ed{{S}})(?<target>it['’]s){{S}}[0-9]{1,4}(?:st|nd|rd|th){{E}}"
         flags: gidu
         gate: "it['’]s"
         gateFlags: giu
-        fixer: itsOrdinal
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "its" })
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing|time|because|like|as|kind|sort|type|going|getting){{E}})[a-z]+{{S}}(?:are|were|have){{E}}{{E}}"
         flags: gidu
         gate: "it['’]s"
         gateFlags: giu
-        fixer: itsBeforeVerb
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "its", clause: true })
       - regex: "(?<!{{EDGE}})(?<target>lets){{S}}(?:try{{S}}again|go{{S}}home|start{{S}}now|work{{S}}together|take{{S}}a{{S}}break|check{{S}}the{{S}}file|open{{S}}the{{S}}folder|read{{S}}the{{S}}report|fix{{S}}the{{S}}problem|meet{{S}}tomorrow|wait{{S}}here|begin{{S}}with{{S}}the{{S}}basics){{COMPLETE}}{{E}}"
         flags: gidu
         check: englishLetsContext
         message: review_msg_lets_contraction
-        fixer: letsPhrase
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "let's", clause: true })
       - regex: "(?<!{{EDGE}})(?:someone|anyone|everyone|somebody|anybody|nobody|no{{S}}one){{S}}(?<target>elses){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{COMPLETE}}{{E}}"
         flags: gidu
         check: englishElsePossessive
         message: review_msg_else_possessive
-        fixer: elsePossessive
+        return: >-
+          possessiveFix(m, ctx, frame, { replacement: "else's" })
   - id: fixedPrepositions
     checks: [englishFixedPrepositions]
     style: template
@@ -4908,26 +4964,100 @@ rules:
     message: review_msg_noun_count
     filter:
       return: firstPerStart(findings)
+    defs:
+      # A determiner and a label before the number: "a grade 9", "my term 1", "the iOS 12". Not
+      # an ordinal or a quantity word ("the last 3 car").
+      LABEL_WITH_NUMBER: >-
+        /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+(?!(?:first|last|next|other|top|best|only|few|many|same|final|initial|whole|entire|remaining|extra)\b)[\p{L}]+[ \t ]+$/iu
+      # A known noun whose number does not fit the count, "one of the", or the demonstrative.
+      nounCount:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding[] | null
+        let:
+          g: m.groups!
+          noun: g.noun
+          count: g.count
+          dem: g.dem
+          verb: g.verb
+          forms: englishNounForms(noun)
+          before: ctx.scanText.slice(Math.max(0, m.index - 96), m.index)
+          end: group(m, "noun")[1]
+          plural: applyWordCase(forms.plural, detectWordCase(noun))
+          # "These file are", "those report failed": the demonstrative or the noun changes.
+          singularDem: 'applyWordCase(dem?.toLowerCase() === "these" ? "this" : "that", detectWordCase(dem ?? ""))'
+          areVerb: "!!verb && /^(?:are|were)$/i.test(verb)"
+          countOne: 'count && (count.toLowerCase() === "one" || /^0*1$/.test(count))'
+          corrected: "applyWordCase(countOne ? forms.singular : forms.plural, detectWordCase(noun))"
+          start: 'dem && !areVerb ? group(m, "dem")[0] : group(m, "noun")[0]'
+          alternatives: >-
+            !dem
+              ? [corrected]
+              : areVerb
+                ? [plural]
+                : verb
+                  ? [`${singularDem}${g.gap}${noun}`]
+                  : [`${dem}${g.gap}${plural}`, `${singularDem}${g.gap}${noun}`]
+          requiresChoice: "dem && !areVerb && !verb ? (true as const) : undefined"
+          messageKey: >-
+            dem
+              ? requiresChoice ? "review_msg_noun_choice" : "review_msg_demonstrative_number"
+              : g.one ? "review_msg_one_of" : "review_msg_noun_count"
+        when:
+          - "!!forms"
+          - "!(count && hasCountPrefix(before))"
+          # "a 1990 car", "the 3 bedroom flat": a year or a label modifies the noun. So does a
+          # name or label with its number: "a grade 9 student", "a Word 97 file", "N+1 queries".
+          - >-
+            !(count &&
+              /^[0-9]/.test(count) &&
+              (/^(?:1[6-9]|20)[0-9]{2}$/.test(count) ||
+                /\b(?:an?|the|this|that|its|his|her|their|our|my|your|every|each)[ \t ]+$/i.test(before) ||
+                /[+−×*/^-]$/.test(before) ||
+                LABEL_WITH_NUMBER.test(before)))
+          # Clause-initial "One leaves." is the pronoun and a verb; "One files arrived." is a count.
+          - '!(count?.toLowerCase() === "one" && !g.tail && /(?:^|[.!?:;"“(][ \t ]*)$/.test(before))'
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - "!dem || noun.toLowerCase() === forms.singular"
+          - "!!dem || corrected !== noun"
+          - start >= ctx.from && start < ctx.to
+        return: >-
+          [finding("englishNounNumber", messageKey, start, end, alternatives, {
+            requiresChoice,
+            context: around(ctx, m),
+          })]
     frames:
       - regex: "(?<one>one{{S}}of{{S}}the){{S}}{{NUMBER_ADJECTIVE}}(?<noun>[A-Za-z]+)(?<tail>{{S}}(?:{{NUMBER_PAST}}|(?:is|was){{S}}{{NUMBER_STATUS}}|has{{S}}failed)){{COMPLETE}}{{E}}"
         owner: none
-        fixer: nounCount
+        return: nounCount(m, ctx)
       - regex: "(?<count>{{NUMBER_COUNT}}){{S}}{{NUMBER_ADJECTIVE}}(?<noun>[A-Za-z]+)(?<tail>(?:{{S}}(?:{{NUMBER_PAST}}|(?:in|on|near){{S}}the{{S}}(?:report|folder|office|table|room|screen)))?){{COMPLETE}}{{E}}"
         owner: none
-        fixer: nounCount
+        return: nounCount(m, ctx)
       - regex: "(?<dem>these|those)(?<gap>{{S}}{{NUMBER_ADJECTIVE}})(?<noun>[A-Za-z]+)(?<tail>{{S}}(?:(?<verb>are|were|is|was){{S}}{{NUMBER_STATUS}}|{{NUMBER_PAST}})){{COMPLETE}}{{E}}"
         owner: none
-        fixer: nounCount
+        return: nounCount(m, ctx)
       # Up to three free modifiers; the known noun must end the phrase ("one of the file formats"
       # abstains).
       - regex: "(?<one>one{{S}}of{{S}}(?:the|my|your|his|her|our|their|these|those)){{S}}(?:[A-Za-z]+{{S}}){0,3}?(?<noun>[A-Za-z]+)(?<tail>{{S}}(?:is|was|has|had|does|did|can|could|will|would|should|must|seems|looks|that|which|who|where|with|in|on|at|of|for|to|from|I|I['’](?:ve|d|m)|we|you|they|he|she|it){{E}}|[ \\t\\u00a0]{0,8}[.!?,;:]){{E}}"
         owner: none
-        fixer: nounCount
+        return: nounCount(m, ctx)
       # "the 1990's" is a decade, not the year 1990's; names and versions ("Windows 10's") abstain.
       - regex: "(?<![\\p{L}\\p{N}_'’@/#.\\\\-])(?:[Tt]he{{S}}(?:(?:early|mid|late)[ \\t\\u00a0-]{1,8})?(?:(?<four>1[0-9]{2}0|20[0-9]0)|(?<two>[1-9]0))|(?<=(?:^|[(\\[“\"‘]|\\b(?:in|from|during|since|of|through|until|by){{S}}))(?<bare>1[0-9]{2}0|20[0-9]0)(?=['’]s[ \\t\\u00a0]{0,8}(?:[.!?,;:)\\]”\"]|$))|(?<tens>[1-9]0{1,3})(?=['’]s{{S}}of{{S}}[a-z]))(?<mark>['’])s(?![\\p{L}\\p{N}_'’@/#\\\\-])"
         flags: gdu
         owner: none
-        fixer: decadePlural
+        let:
+          spans: m.indices!.groups!
+          start: (spans.four ?? spans.two ?? spans.bare ?? spans.tens)[0]
+          digits: four ?? two ?? bare ?? tens
+        when: start >= ctx.from && start < ctx.to
+        return: >-
+          [{
+            ruleId: "englishNounNumber",
+            messageKey: "review_msg_decade_plural",
+            range: { start, end: m.index + m[0].length },
+            alternatives: two ? [`${mark}${digits}s`, `${digits}s`] : [`${digits}s`],
+            requiresChoice: two ? (true as const) : undefined,
+            context: around(ctx, m),
+          }]
   - id: usagePhrases
     checks: [englishUsagePhrases]
     style: template
@@ -5156,36 +5286,84 @@ rules:
     checks: [englishCountability]
     style: match
     message: review_msg_contextual_grammar
+    maps:
+      # The mass nouns of the mass noun frames and their singular forms.
+      MASS_SINGULAR: { informations: information, advices: advice, equipments: equipment }
+    defs:
+      # Words of a specialist register: legal, banking, trade, archaic or regional text.
+      SPECIALIST: >-
+        /\b(?:legal|law|court|criminal|judicial|indictment|prosecution|affidavit|writ|bank|banking|remittance|shipping|commercial|trade|patent|archaic|dialect|regional|terminology)\b/i
+      # A countability template: the fix in the casing of the target. A template without a fix
+      # only gives a warning; a specialist context abstains.
+      countTemplate:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef, replacement: string"
+        type: RawFinding | null
+        let:
+          fix: 'replacement ? applyWordCase(replacement, detectWordCase(m.groups!.target)) : ""'
+          result: found(ctx, m, frame.ruleId, frame.messageKey, [fix])
+        when:
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - "!SPECIALIST.test(ctx.text.slice(result.context!.start, result.context!.end))"
+        return: "fix ? result : { ...result, alternatives: [], warningOnly: true as const }"
+      # Ordinary-prose frames only. Quantified mass nouns abstain; no invented amount or unit.
+      massNoun:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          span: group(m, "noun")
+          noun: m.groups!.noun
+          singular: MASS_SINGULAR[noun] ?? ""
+          context: >-
+            ({ start: Math.max(0, m.index - 128), end: Math.min(ctx.text.length, m.index + m[0].length + 128) })
+          before: ctx.scanText.slice(context.start, m.index)
+          count: m.groups!.count
+          corrected: >-
+            singular || noun.replace(/(?:on|a)$/, /^(?:one|1)$/i.test(count ?? "") ? "on" : "a")
+        when:
+          - noun === noun.toLowerCase()
+          # The whole bounded window is evidence, including specialist qualifiers after the noun.
+          - "!SPECIALIST.test(ctx.scanText.slice(context.start, context.end))"
+          - "!(count && hasCountPrefix(before))"
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - corrected !== noun
+        return: >-
+          ({
+            ruleId: "englishCountability",
+            messageKey: singular ? "review_msg_mass_noun" : "review_msg_countable_number",
+            range: { start: span[0], end: span[1] },
+            alternatives: [corrected],
+            context,
+          })
     frames:
       # Templates; a template without a replacement only gives a warning.
       - regex: "(?:we|they){{S}}received{{S}}(?<target>many{{S}}(?:useful{{S}})?feedbacks){{S}}from{{S}}(?:our|their){{S}}users(?:{{COMPLETE}}|{{S}}and{{S}})"
-        fixer: countWarning
+        return: countTemplate(m, ctx, frame, "")
       - regex: "(?:and|received){{S}}(?<target>several{{S}}(?:important{{S}})?informations){{S}}from{{S}}the{{S}}testing{{S}}team{{COMPLETE}}"
-        fixer: countWarning
+        return: countTemplate(m, ctx, frame, "")
       - regex: "gave{{S}}us{{S}}(?<target>(?:two|three|four|[2-9]){{S}}advices){{S}}about{{S}}the{{S}}user{{S}}interface{{E}}"
-        fixer: countWarning
+        return: countTemplate(m, ctx, frame, "")
       - regex: "(?:received|provides?|suggests?){{S}}(?<target>a{{S}}information){{COMPLETE}}"
-        fixer: countWarning
+        return: countTemplate(m, ctx, frame, "")
       - regex: "(?:buy|need){{S}}new{{S}}(?<target>equipments){{S}}for{{S}}the{{S}}(?:laboratory|office){{COMPLETE}}"
         message: review_msg_mass_noun
-        fixer: countEquipment
+        return: countTemplate(m, ctx, frame, "equipment")
       - regex: "all{{S}}the{{S}}(?<target>datas){{S}}collected{{S}}during{{S}}(?:previous{{S}})?tests{{E}}"
-        fixer: countData
+        return: countTemplate(m, ctx, frame, "data")
       - regex: "which{{S}}(?<target>criterias){{S}}should{{S}}be{{S}}used{{COMPLETE}}"
-        fixer: countCriteria
+        return: countTemplate(m, ctx, frame, "criteria")
       # Mass nouns after a frame of ordinary prose, and counted Greek plurals.
       - regex: "(?:the|this){{S}}(?:page|guide|report|document){{S}}(?:contains|provides|includes){{S}}(?:useful|helpful|important|relevant|detailed|additional){{S}}(?<noun>informations){{COMPLETE}}"
         owner: noun
-        fixer: massNoun
+        return: massNoun(m, ctx)
       - regex: "(?:thanks{{S}}for|thank{{S}}you{{S}}for|we{{S}}appreciate|I{{S}}appreciate){{S}}(?:the|your){{S}}(?:helpful|useful|practical|valuable|thoughtful|excellent){{S}}(?<noun>advices){{COMPLETE}}"
         owner: noun
-        fixer: massNoun
+        return: massNoun(m, ctx)
       - regex: "(?:we|they|you){{S}}(?:need|use|bought|ordered|checked|tested){{S}}(?:the|our|your){{S}}(?:new|old|necessary|available|basic|standard){{S}}(?<noun>equipments){{COMPLETE}}"
         owner: noun
-        fixer: massNoun
+        return: massNoun(m, ctx)
       - regex: "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|1|2|3|4|5|6|7|8|9){{S}}(?:(?:important|essential|useful|unusual|observable|natural){{S}})?(?<noun>criterion|criteria|phenomenon|phenomena){{COMPLETE}}"
         owner: noun
-        fixer: massNoun
+        return: massNoun(m, ctx)
   - id: contextualCompounds
     checks: [englishContextualCompounds]
     style: template
@@ -5869,10 +6047,10 @@ rules:
         args: "text: string, start: number"
         let:
           from: Math.max(0, start - 256)
-          around: text.slice(from, start + 256)
+          nearby: text.slice(from, start + 256)
           at: start - from
-          lineEnd: around.indexOf("\n", at)
-          line: 'around.slice(around.lastIndexOf("\n", at) + 1, lineEnd < 0 ? undefined : lineEnd)'
+          lineEnd: nearby.indexOf("\n", at)
+          line: 'nearby.slice(nearby.lastIndexOf("\n", at) + 1, lineEnd < 0 ? undefined : lineEnd)'
         return: 'line.split("`").length > 2 && /(?<!\p{L})`|`(?!\p{L})/u.test(line)'
       # "don´t", "I;m", "c´est", "gibt´s": an apostrophe typed as the mark `mark`. Only the
       # English accent is `certain`; a semicolon or backtick may be meant.
@@ -5884,7 +6062,7 @@ rules:
         when:
           - "!namedExampleBefore(ctx.text, start)"
           - 'mark !== ";" || SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)'
-          - "mark !== '\"' || quotedContraction(ctx.text, start)"
+          - 'mark !== ''"'' || quotedContraction(ctx.text, start)'
           - 'mark !== "`" || !backtickCode(ctx.text, start)'
         return: >-
           ({
@@ -5988,21 +6166,21 @@ rules:
         lang: fr
         check: englishContractionNormalization
         message: review_msg_apostrophe_mark
-        return: 'markedApostrophe(m, ctx, frame, m[1], false)'
+        return: "markedApostrophe(m, ctx, frame, m[1], false)"
       - regex: "(?<=\\p{L})([\\u00B4`])s(?![\\p{L}\\p{M}\\p{N}_])"
         scan: owned
         flags: gu
         lang: de
         check: englishContractionNormalization
         message: review_msg_apostrophe_mark
-        return: 'markedApostrophe(m, ctx, frame, m[1], false)'
+        return: "markedApostrophe(m, ctx, frame, m[1], false)"
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_])d([\\u00B4`])(?=[aeiou\\u00E1\\u00E2\\u00E3\\u00E0\\u00E9\\u00EA\\u00ED\\u00F3\\u00F4\\u00F5\\u00FA])"
         scan: owned
         flags: giu
         lang: pt
         check: englishContractionNormalization
         message: review_msg_apostrophe_mark
-        return: 'markedApostrophe(m, ctx, frame, m[1], false)'
+        return: "markedApostrophe(m, ctx, frame, m[1], false)"
   - id: modalOf
     checks: [englishModalOfCorrection]
     style: match
