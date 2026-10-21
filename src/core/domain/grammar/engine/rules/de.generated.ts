@@ -1289,6 +1289,275 @@ export const DA_ADVERBS: ReadonlySet<string> = new Set([
   "bald",
 ]);
 
+export const ADJ_ADVERBIAL: ReadonlySet<string> = new Set([
+  "erst",
+  "ganz",
+  "gleich",
+  "sehr",
+  "recht",
+  "fast",
+  "viel",
+  "wenig",
+  "mehr",
+  "weniger",
+  "genug",
+  "eben",
+  "allein",
+  "halb",
+  "besonders",
+  "ziemlich",
+  "völlig",
+  "ausgerechnet",
+  "lila",
+  "rosa",
+  "prima",
+  "super",
+  "klasse",
+  "sexy",
+  "beige",
+  "orange",
+  "extra",
+  "genügend",
+  "maximal",
+  "minimal",
+  "hauptsächlich",
+]);
+
+export const ADJ_COMPOUND_FIRST: ReadonlySet<string> = new Set([
+  "rot",
+  "blau",
+  "grün",
+  "gelb",
+  "schwarz",
+  "grau",
+  "braun",
+  "bunt",
+  "süß",
+  "sauer",
+  "bitter",
+  "mager",
+  "trocken",
+  "weich",
+  "hart",
+  "frisch",
+  "alt",
+  "neu",
+  "falsch",
+  "klein",
+  "groß",
+  "hoch",
+  "tief",
+  "kurz",
+  "voll",
+  "leer",
+  "fein",
+  "echt",
+  "mehrfach",
+  "doppelt",
+  "universal",
+  "exklusiv",
+  "alternativ",
+  "brachial",
+  "schwarzweiß",
+  "best",
+  "mindest",
+  "höchst",
+  "kleinst",
+  "größt",
+  "national",
+  "zentral",
+  "parallel",
+  "rund",
+  "warm",
+  "kalt",
+  "schwer",
+  "frei",
+  "direkt",
+  "dunkel",
+  "hell",
+  "privat",
+  "fertig",
+  "nackt",
+  "geheim",
+  "negativ",
+  "positiv",
+  "komplett",
+  "original",
+  "gesamt",
+  "total",
+  "extrem",
+  "flüssig",
+  "fest",
+  "eigen",
+  "digital",
+  "fremd",
+  "passiv",
+  "aktiv",
+  "primär",
+  "spezial",
+  "normal",
+  "initiativ",
+  "pauschal",
+  "regional",
+]);
+
+export const ADJ_COMPOUND_ALONE: ReadonlySet<string> = new Set([
+  "rot",
+  "blau",
+  "grün",
+  "gelb",
+  "schwarz",
+  "grau",
+  "braun",
+  "bunt",
+  "süß",
+  "sauer",
+  "bitter",
+  "mager",
+  "trocken",
+  "weich",
+  "brachial",
+  "universal",
+  "schwarzweiß",
+  "best",
+  "mindest",
+  "höchst",
+  "kleinst",
+  "größt",
+  "digital",
+  "fremd",
+  "gesamt",
+  "flüssig",
+  "passiv",
+  "initiativ",
+  "spezial",
+]);
+
+export const ADJ_CLAUSE_ADVERBS: ReadonlySet<string> = new Set([
+  "sicher",
+  "bestimmt",
+  "wirklich",
+  "echt",
+  "total",
+  "ganz",
+  "voll",
+  "komplett",
+  "extrem",
+  "direkt",
+  "einfach",
+  "gern",
+  "oft",
+  "selten",
+  "gleich",
+  "sofort",
+  "kaum",
+  "natürlich",
+  "klar",
+  "leicht",
+  "schwer",
+  "genau",
+  "eigentlich",
+  "ziemlich",
+  "richtig",
+  "absolut",
+  "fast",
+  "wahrscheinlich",
+  "vielleicht",
+  "tatsächlich",
+  "ernsthaft",
+  "ständig",
+  "häufig",
+  "frei",
+]);
+
+export const ADJ_NOT_ADJECTIVES: ReadonlySet<string> = new Set([
+  "ein",
+  "eine",
+  "einer",
+  "unter",
+  "ober",
+  "laut",
+  "eigen",
+  "inner",
+  "äußer",
+  "hinter",
+  "vorder",
+  "mittler",
+  "weiß",
+  "weiss",
+]);
+
+export const ADJ_NOT_PREDICATIVE: ReadonlySet<string> = new Set([
+  "viele",
+  "vielen",
+  "wenige",
+  "wenigen",
+  "alle",
+  "allen",
+  "beide",
+  "beiden",
+  "einige",
+  "einigen",
+  "andere",
+  "anderen",
+  "manche",
+  "erste",
+  "ersten",
+  "zweite",
+  "dritte",
+  "letzte",
+  "letzten",
+  "nächste",
+  "nächsten",
+  "meine",
+  "deine",
+  "seine",
+  "ihre",
+  "unsere",
+  "eure",
+  "keine",
+  "gleiche",
+  "gleichen",
+  "selbe",
+  "selben",
+  "spitze",
+  "klasse",
+  "blöde",
+  "irre",
+  "öde",
+  "feige",
+  "träge",
+  "rege",
+  "trübe",
+  "bange",
+  "lose",
+  "leise",
+  "müde",
+  "böse",
+]);
+
+export const ADJ_EMPTY_SUBJECT: ReadonlySet<string> = new Set([
+  "es",
+  "hier",
+  "dort",
+  "dann",
+  "danach",
+  "nun",
+  "jetzt",
+  "heute",
+  "morgen",
+  "dabei",
+  "dadurch",
+  "damit",
+  "zudem",
+  "außerdem",
+  "zuerst",
+  "anschließend",
+  "künftig",
+  "bald",
+  "oft",
+]);
+
 export const SUSPENDED_PARTICLES: ReadonlySet<string> = new Set([
   "vor",
   "nach",
@@ -1770,6 +2039,66 @@ export const IDIOM_DECONTRACTED: Readonly<Record<string, string>> = {
 };
 
 export const DATIVE_OF: Readonly<Record<string, string>> = { ihn: "ihm", mich: "mir", dich: "dir" };
+
+export const ADJ_ENDINGS: Readonly<Record<string, string>> = {
+  der: "e",
+  die: "e",
+  das: "e",
+  den: "en",
+  dem: "en",
+  des: "en",
+  im: "en",
+  am: "en",
+  zum: "en",
+  zur: "en",
+  vom: "en",
+  beim: "en",
+  ins: "e",
+  ans: "e",
+  aufs: "e",
+  fürs: "e",
+  ums: "e",
+  durchs: "e",
+};
+
+export const ADJ_STRONG: Readonly<Record<string, readonly string[]>> = {
+  m: ["er", "en", "em", "en"],
+  f: ["e", "e", "er", "er"],
+  n: ["es", "es", "em", "en"],
+  pl: ["e", "e", "en", "er"],
+};
+
+export const ADJ_PREPOSITION_CASES: Readonly<Record<string, readonly number[]>> = {
+  mit: [2],
+  von: [2],
+  bei: [2],
+  aus: [2],
+  nach: [2],
+  seit: [2],
+  samt: [2],
+  nebst: [2],
+  außer: [2],
+  für: [1],
+  gegen: [1],
+  durch: [1],
+  ohne: [1],
+  um: [1],
+  wider: [1],
+  in: [1, 2],
+  an: [1, 2],
+  auf: [1, 2],
+  über: [1, 2],
+  unter: [1, 2],
+  vor: [1, 2],
+  hinter: [1, 2],
+  neben: [1, 2],
+  zwischen: [1, 2],
+  wegen: [3],
+  trotz: [3],
+  während: [3],
+  statt: [3],
+  anstatt: [3],
+};
 
 export const QUOTE_PARTNERS: Readonly<Record<string, readonly string[]>> = {
   "„": ["“", "„"],
@@ -3838,6 +4167,314 @@ export function sentenceAround(m: RegExpExecArray) {
   const tail = m.input.slice(m.index, m.index + 200);
   const end = /[.!?\n]/.exec(tail.slice(1))?.index ?? tail.length;
   return head.slice(start) + tail.slice(0, end + 2);
+}
+
+// de.yaml rule de.adjectiveForms def ADJ_PRONOUN_LIKE
+export const ADJ_PRONOUN_LIKE =
+  /^(?:k?ein|[dms]ein|ihr|unser|euer|dies|jen|jed|welch|manch|solch|all|viel)$/;
+
+// de.yaml rule de.adjectiveForms def ADJ_PARTICIPLE
+export const ADJ_PARTICIPLE =
+  /^(?:\p{Ll}*ge\p{Ll}{2,}(?:t|en)|\p{Ll}{3,}iert|(?:ver|be|er|ent|zer|miss|unter|über|durch|hinter|wider)\p{Ll}{2,}(?:t|en))$/u;
+
+// de.yaml rule de.adjectiveForms def adjNounKnown
+export function adjNounKnown(word: string) {
+  return germanNounReading(word.toLowerCase()) !== null || germanGender(word) !== null;
+}
+
+// de.yaml rule de.adjectiveForms def adjNominalized
+export function adjNominalized(word: string) {
+  const parts = /^(.+?)(?:e|er|en|es|em)$/.exec(word.toLowerCase());
+  return !!parts && germanAdjective(parts[1]);
+}
+
+// de.yaml rule de.adjectiveForms def adjInflect
+export function adjInflect(lemma: string, ending: string) {
+  const stem =
+    lemma === "hoch"
+      ? "hoh"
+      : /[^aeioul]el$/.test(lemma) || /(?:eu|au)er$/.test(lemma)
+        ? lemma.slice(0, -2) + lemma.at(-1)
+        : lemma;
+  return stem.endsWith("e") ? stem + ending.slice(1) : stem + ending;
+}
+
+// de.yaml rule de.adjectiveForms def adjEndingAfter
+export function adjEndingAfter(det: string, prior: string, word: string): string[] | null {
+  const low = det.toLowerCase();
+  const plural = /(?:[^i]n|s)$/.test(word);
+  const parts = /^(ein|kein|mein|dein|sein|ihr|unser|euer|dies|jed|welch)(e|en|em|er|es|)$/.exec(
+    low,
+  );
+  const einWord = !!parts && !["dies", "jed", "welch"].includes(parts[1]);
+  return Object.hasOwn(ADJ_ENDINGS, low)
+    ? low === "der" && PREPOSITIONS.has(prior.toLowerCase())
+      ? ["en"]
+      : low === "die" && plural
+        ? ["en"]
+        : [ADJ_ENDINGS[low]]
+    : !parts || (parts[1] === "ihr" && parts[2] === "")
+      ? null
+      : parts[2] === ""
+        ? einWord
+          ? ["er", "es"]
+          : null
+        : parts[2] === "e"
+          ? plural && parts[1] !== "ein"
+            ? ["en"]
+            : ["e"]
+          : parts[2] === "er" || parts[2] === "es"
+            ? einWord
+              ? ["en"]
+              : PREPOSITIONS.has(prior.toLowerCase())
+                ? ["en"]
+                : ["e"]
+            : ["en"];
+}
+
+// de.yaml rule de.adjectiveForms def adjStrongEndings
+export function adjStrongEndings(preposition: string, noun: string): string[] | null {
+  const cases0 = ADJ_PREPOSITION_CASES[preposition];
+  if (!cases0) return null;
+  const head = noun.split("-").at(-1)!;
+  const reading = germanGender(head);
+  const pluralKnown =
+    !reading &&
+    [head.slice(0, -1), head.slice(0, -2)].some(
+      (singular) => /n$/.test(head) && singular.length >= 3 && adjNounKnown(singular),
+    );
+  const genders = reading
+    ? [
+        ...(reading.gender === "x" ? ["m", "n"] : [reading.gender]),
+        ...(reading.plural ? ["pl"] : []),
+      ]
+    : pluralKnown
+      ? ["pl"]
+      : null;
+  if (!genders) return null;
+  if (!(genders.includes("pl") && genders.length === 1)) return null;
+  const singular = pluralKnown ? germanGender(head.slice(0, -1)) : null;
+  const cases =
+    pluralKnown && singular && singular.gender !== "f" && cases0.includes(2) ? [2] : cases0;
+  const endings = new Set(cases.flatMap((c) => genders.map((g) => ADJ_STRONG[g][c])));
+  return endings.size <= 2 ? [...endings] : null;
+}
+
+// de.yaml rule de.adjectiveForms def adjCompoundSingular
+export function adjCompoundSingular(
+  preposition: string,
+  adj: string,
+  noun: string,
+): string[] | null {
+  const cases = ADJ_PREPOSITION_CASES[preposition];
+  const reading = germanGender(noun.split("-").at(-1)!);
+  if (!(
+    !!cases &&
+    !!reading &&
+    !reading.plural &&
+    ADJ_COMPOUND_FIRST.has(adj) &&
+    !ADJ_ADVERBIAL.has(adj)
+  ))
+    return null;
+  const genders = reading.gender === "x" ? ["m", "n"] : [reading.gender];
+  const endings = new Set(cases.flatMap((c) => genders.map((g) => ADJ_STRONG[g][c])));
+  return endings.size <= 2 ? [...endings] : null;
+}
+
+// de.yaml rule de.adjectiveForms def adjEndingFinding
+export function adjEndingFinding(
+  m: RegExpExecArray,
+  span: [number, number],
+  fixes: string[],
+): RawFinding {
+  return {
+    ruleId: "germanAdjectiveForms",
+    messageKey: "review_msg_german_adjective_ending",
+    range: { start: span[0], end: span[1] },
+    alternatives: fixes,
+    context: { start: m.index, end: span[1] },
+    ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// de.yaml rule de.adjectiveForms def adjectiveNoArticle
+export function adjectiveNoArticle(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  low: string,
+  joinedNoun: boolean,
+  glued: string,
+): RawFinding | null {
+  const adj = m.groups!.adj;
+  const noun = m.groups!.noun;
+  const span = m.indices!.groups!.target;
+  const known =
+    joinedNoun &&
+    germanAdjective(adj) &&
+    ![ADJ_ADVERBIAL, ADJ_CLAUSE_ADVERBS, ADJ_NOT_ADJECTIVES, ARTICLES].some((set) => set.has(adj));
+  if (!(
+    (ADJ_COMPOUND_ALONE.has(adj) || known) &&
+    !/^(?:seh|sieh|sah)/.test(low) &&
+    !noun.includes("-") &&
+    /^\p{Ll}/u.test(m.groups!.det) &&
+    !ctx.dictionary.has(adj) &&
+    !ctx.dictionary.has(noun.toLowerCase())
+  ))
+    return null;
+  return {
+    ruleId: "germanAdjectiveForms",
+    messageKey: "review_msg_closed_compound",
+    range: { start: span[0], end: span[1] },
+    alternatives: [glued],
+    context: { start: m.index, end: span[1] },
+  };
+}
+
+// de.yaml rule de.adjectiveForms def adjectiveAfterDeterminer
+export function adjectiveAfterDeterminer(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  isPreposition: boolean,
+  joinedNoun: boolean,
+  glued: string,
+): RawFinding | null {
+  const det = m.groups!.det;
+  const adj = m.groups!.adj;
+  if (
+    !(germanAdjective(adj) || ADJ_COMPOUND_FIRST.has(adj)) ||
+    (ADJ_NOT_ADJECTIVES.has(adj) && !(joinedNoun && /^wei(?:ß|ss)$/.test(adj))) ||
+    ARTICLES.has(adj)
+  )
+    return null;
+  const noun = m.groups!.noun;
+  const low = det.toLowerCase();
+  const span = m.indices!.groups!.target;
+  const inflected = /^(.+?)(?:e|en|er|es|em)$/.exec(adj);
+  if (inflected && germanAdjective(inflected[1])) return null;
+  const next2 = deTokensAfter(ctx.text, m.indices!.groups!.noun[1], 2);
+  const after = next2[0] ?? "";
+  const head = next2[1] ?? "";
+  if (
+    /^\p{Ll}+(?:te|ten|ter|tes|tem|nde|nden|nder|ndes|ndem|ene|enen|ener|enes)$/u.test(after) &&
+    !(
+      BOUNDARY.test(head) &&
+      /^(?:\p{Ll}*ge\p{Ll}{2,}|(?:ver|be|er|ent|zer)\p{Ll}{2,})(?:t|en)$/u.test(after)
+    )
+  )
+    return null;
+  if (!(!ctx.dictionary.has(adj) && !ctx.dictionary.has(noun.toLowerCase()))) return null;
+  if (isPreposition && deTokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() === adj) return null;
+  const compound = adj + noun.toLowerCase();
+  const stemOnly =
+    /^(?:best|mindest|höchst|kleinst|größt)$/.test(adj) ||
+    (isPreposition && ADJ_COMPOUND_ALONE.has(adj));
+  const listedJoin = joinedNoun && germanListedNoun(compound) !== null;
+  return (listedJoin || (stemOnly && !adj.endsWith("e"))) && !noun.includes("-")
+    ? {
+        ruleId: "germanAdjectiveForms",
+        messageKey: "review_msg_closed_compound",
+        range: { start: span[0], end: span[1] },
+        alternatives: [adj[0].toUpperCase() + compound.slice(1)],
+        context: { start: m.index, end: span[1] },
+      }
+    : ADJ_ADVERBIAL.has(adj) || adjNominalized(noun) || !adjNounKnown(noun) || adj.endsWith("e")
+      ? null
+      : isPreposition
+        ? adjectiveAfterPreposition(m, low, adj, noun, after, joinedNoun, glued, span)
+        : adjectiveAfterArticle(ctx, m, det, low, adj, noun, joinedNoun, glued, span);
+}
+
+// de.yaml rule de.adjectiveForms def adjectiveAfterPreposition
+export function adjectiveAfterPreposition(
+  m: RegExpExecArray,
+  low: string,
+  adj: string,
+  noun: string,
+  after: string,
+  joinedNoun: boolean,
+  glued: string,
+  span: [number, number],
+): RawFinding | null {
+  if (/^(?:um|über|zu|bis|ab)$/.test(low) || ADJ_PRONOUN_LIKE.test(adj)) return null;
+  if (low === "für" && (after === "zu" || !adjStrongEndings(low, noun))) return null;
+  const endings = adjStrongEndings(low, noun) ?? adjCompoundSingular(low, adj, noun);
+  if (!endings) return null;
+  const fixes = [
+    ...endings.map((e) => `${adjInflect(adj, e)} ${noun}`),
+    ...((ADJ_COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-") ? [glued] : []),
+  ];
+  return adjEndingFinding(m, span, fixes);
+}
+
+// de.yaml rule de.adjectiveForms def adjectiveAfterArticle
+export function adjectiveAfterArticle(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  det: string,
+  low: string,
+  adj: string,
+  noun: string,
+  joinedNoun: boolean,
+  glued: string,
+  span: [number, number],
+): RawFinding | null {
+  if (adj.endsWith("e")) return null;
+  const before = deTokensBefore(ctx.text, m.index, 2);
+  const prior = before.at(-1) ?? "";
+  if (/^(?:denen|welchen|davon)$/i.test(prior) && /^k?ein(?:e|er|es)$/.test(low)) return null;
+  const comma = before.length > 1 ? before[0] : "";
+  if (comma === "," && /^d(?:er|en|em)$/.test(low)) return null;
+  const sentenceStart = prior === "" || /^[.!?:\n„"]$/.test(prior);
+  const stem = /^(\p{Ll}{2,}?)e?(?:te|ten|t)$/u.exec(prior)?.[1];
+  const pronounRead = /^d(?:er|ie|as)$/.test(low) && ADJ_CLAUSE_ADVERBS.has(adj);
+  const afterVerb =
+    !pronounRead &&
+    (VERB_GOVERNORS.has(prior) || (!!stem && !/^ge/.test(prior) && germanInfinitive(`${stem}en`)));
+  if (
+    /^d(?:er|ie|as|en|em)$/.test(low) &&
+    !sentenceStart &&
+    !afterVerb &&
+    !PREPOSITIONS.has(prior.toLowerCase()) &&
+    !ADJ_COMPOUND_ALONE.has(adj)
+  )
+    return null;
+  if (/^ein(?:em|er)$/.test(low) && !PREPOSITIONS.has(prior.toLowerCase())) return null;
+  if (/^(?:ich|wir|sie|die)$/i.test(prior) && /^(?:meine|meinen|seine)$/.test(low)) return null;
+  const endings0 = adjEndingAfter(det, prior, noun);
+  const gender = germanGender(noun.split("-").at(-1)!)?.gender;
+  const endings =
+    endings0 && endings0.length > 1 && (gender === "m" || gender === "n")
+      ? [gender === "m" ? "er" : "es"]
+      : endings0;
+  if (!endings) return null;
+  const fixes = [
+    ...endings.map((e) => `${adjInflect(adj, e)} ${noun}`),
+    ...((ADJ_COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-") ? [glued] : []),
+  ];
+  return adjEndingFinding(m, span, fixes);
+}
+
+// de.yaml rule de.adjectiveForms def adjLemmaOf
+export function adjLemmaOf(form: string): string | null {
+  const stem = form.replace(/(?:e|en)$/, "");
+  return stem === "hoh"
+    ? "hoch"
+    : ([
+        stem,
+        stem.replace(/([bcdfgkpt])l$/, "$1el"),
+        stem.replace(/([bcdfgkpt])r$/, "$1er"),
+        stem.replace(/(eu|au)r$/, "$1er"),
+      ].find((c) => c.length >= 3 && germanAdjective(c)) ?? null);
+}
+
+// de.yaml rule de.adjectiveForms def adjOfficialEndings
+export function adjOfficialEndings(det: string) {
+  const d = det.toLowerCase();
+  return d === "der" || d === "dieser" || d === "jeder"
+    ? ["e", "en"]
+    : /^(?:k?ein|mein|dein|sein|ihr|unser|euer)$/.test(d)
+      ? ["er"]
+      : ["en"];
 }
 
 // de.yaml rule de.suspendedHyphen def SUSPENDED_SINGULAR_VERBS
@@ -6762,6 +7399,91 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       ? "wahr"
       : null;
   },
+  // de.yaml rule de.adjectiveForms frame 1
+  "@de.adjectiveForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const low = det.toLowerCase();
+    const isDeterminer =
+      (ARTICLES.has(low) ||
+        DEMONSTRATIVES.has(low) ||
+        /^(?:ein|kein|mein|dein|sein|unser|euer)$/.test(low) ||
+        /^(?:k?ein|[dms]ein|ihr|unser|eur|jed)(?:er|es)$/.test(low)) &&
+      !(
+        det !== low &&
+        m.index > 0 &&
+        !/[.!?:\n„"]\s*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+      );
+    const isPreposition = PREPOSITIONS.has(low) && det === low;
+    const glued = adj[0].toUpperCase() + adj.slice(1) + noun.toLowerCase();
+    const joinedNoun = !adj.endsWith("e") && germanNounReading(adj + noun.toLowerCase()) !== null;
+    return isDeterminer || isPreposition
+      ? adjectiveAfterDeterminer(ctx, m, isPreposition, joinedNoun, glued)
+      : adjectiveNoArticle(ctx, m, low, joinedNoun, glued);
+  },
+  // de.yaml rule de.adjectiveForms frame 2
+  "@de.adjectiveForms/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const stem = adj.slice(0, -2);
+    const participle = /\p{Ll}{3,}end$/u.test(stem) && germanInfinitive(stem.slice(0, -1));
+    if (!(germanAdjective(stem) || participle) || ARTICLES.has(adj) || DEMONSTRATIVES.has(adj))
+      return null;
+    const reading = germanGender(noun);
+    const plural = reading
+      ? reading.plural || reading.gender === "f"
+      : [noun.slice(0, -1), noun.slice(0, -2)].some(
+          (s) => /n$/.test(noun) && s.length >= 3 && adjNounKnown(s),
+        ) ||
+        (/e$/.test(noun) &&
+          [noun.slice(0, -1), deumlaut(noun.slice(0, -1))].some((s) => adjNounKnown(s)));
+    if (!plural || (reading?.gender === "f" && !/n$/.test(noun))) return null;
+    const span = m.indices!.groups!.target;
+    const after = deTokensAfter(ctx.text, span[1], 2);
+    const next = after[0] ?? "";
+    const afterNext = after[1] ?? "";
+    if (!(ADJ_PARTICIPLE.test(next) && BOUNDARY.test(afterNext))) return null;
+    const first = (ctx.text
+      .slice(Math.max(0, m.index - 80), m.index)
+      .split(/[.!?;:\n,]/)
+      .at(-1)!
+      .match(/\p{L}+/gu) ?? [""])[0].toLowerCase();
+    if (!(!/[ns]$/.test(noun) || PREPOSITIONS.has(first) || ADJ_EMPTY_SUBJECT.has(first)))
+      return null;
+    if (!(!ctx.dictionary.has(adj) && !namedExampleBefore(ctx.text, span[0]))) return null;
+    return {
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_german_adjective_ending",
+      range: { start: span[0], end: span[1] },
+      alternatives: [`${stem}e ${noun}`],
+    };
+  },
+  // de.yaml rule de.adjectiveForms frame 3
+  "@de.adjectiveForms/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const target = m.groups!.target;
+    if (!(target.endsWith("es") === det.toLowerCase().endsWith("es"))) return null;
+    const stem = target.slice(0, -2);
+    if (
+      /^(?:ein|kein|mein|dein|sein|ihr|unser|eur|dies|jen|jed|welch|manch|solch|all|d)$/.test(stem)
+    )
+      return null;
+    if (!(
+      germanAdjective(stem) ||
+      germanAdjective(`${stem}e`) ||
+      germanAdjective(stem.replace(/(.)([lr])$/, "$1e$2"))
+    ))
+      return null;
+    if (ctx.dictionary.has(target)) return null;
+    return {
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_german_adjective_ending",
+      range: { start: m.indices!.groups!.target[1] - 2, end: m.indices!.groups!.target[1] },
+      alternatives: ["en"],
+      context: { start: m.index, end: m.indices!.groups!.target[1] },
+    };
+  },
   // de.yaml rule de.adjectiveForms frame 4
   "@de.adjectiveForms/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const adj = m.groups!.adj;
@@ -6776,6 +7498,62 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       range: { start: m.index, end: m.index + adj.length },
       alternatives: [wanted],
       context: { start: m.index, end: m.index + adj.length + title.length + 1 },
+    };
+  },
+  // de.yaml rule de.adjectiveForms frame 5
+  "@de.adjectiveForms/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (ADJ_NOT_PREDICATIVE.has(target) || germanAdjective(target) || ctx.dictionary.has(target))
+      return null;
+    if (!(germanNounReading(target) === null)) return null;
+    const lemma = adjLemmaOf(target);
+    if (!lemma) return null;
+    return {
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_german_predicative",
+      range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+      alternatives: [lemma],
+      context: { start: m.index, end: m.indices!.groups!.target[1] },
+    };
+  },
+  // de.yaml rule de.adjectiveForms frame 6
+  "@de.adjectiveForms/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prior = m.groups!.prior;
+    const target = m.groups!.target;
+    if (/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|d)\p{L}*$/iu.test(prior)) return null;
+    if (
+      /^(?:sowohl|als|wie)$/i.test(prior) ||
+      /^als[ \t]+auch/.test(ctx.text.slice(m.index + m[0].length + 1))
+    )
+      return null;
+    if (ADJ_NOT_PREDICATIVE.has(target) || germanAdjective(target) || ctx.dictionary.has(target))
+      return null;
+    const lemma = adjLemmaOf(target);
+    if (!lemma || /[aou](?![u])/.test(lemma.replace(/[ae]u/g, ""))) return null;
+    return {
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_german_predicative",
+      range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+      alternatives: [`${lemma}er`],
+      context: { start: m.index, end: m.indices!.groups!.target[1] + 4 },
+    };
+  },
+  // de.yaml rule de.adjectiveForms frame 7
+  "@de.adjectiveForms/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const target = m.groups!.target;
+    const stem = target.replace(/e[rn]?$/, "");
+    const endings = adjOfficialEndings(det);
+    if (endings.includes(target.slice(stem.length)) || ctx.dictionary.has(target.toLowerCase()))
+      return null;
+    const alternatives = endings.map((e) => stem + e);
+    return {
+      ruleId: "germanAdjectiveForms",
+      messageKey: "review_msg_german_adjective_ending",
+      range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+      alternatives,
+      context: { start: m.index, end: m.indices!.groups!.target[1] },
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
     };
   },
   // de.yaml rule de.suspendedHyphen frame 1

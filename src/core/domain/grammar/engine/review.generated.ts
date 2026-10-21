@@ -25807,21 +25807,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<det>\\p{L}+)(?:[ \\t\\u00a0]{1,8}(?:sehr|ziemlich|recht|ganz|besonders|wirklich|unglaublich|äußerst|echt|so|relativ|extrem))?[ \\t\\u00a0]{1,8}(?<target>(?<adj>\\p{Ll}+)[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:bareAdjective",
+    fixer: "de:@de.adjectiveForms/1",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Ll}{3})(?<=(?:werden|wurden|würden)[ \\t\\u00a0]{1,8})(?<target>(?<adj>\\p{Ll}{3,}en)[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "de:werdenPlural",
+    fixer: "de:@de.adjectiveForms/2",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<det>[dD]em|[iI]m|[zZ]um|[vV]om|[bB]eim|[aA]m|[eE]inem|[mM]einem|[dD]einem|[sS]einem|[iI]hrem|[uU]nserem|[eE]urem|[dD]iesem|[jJ]edem|[kK]einem|[dD]es|[eE]ines|[mM]eines|[dD]eines|[sS]eines|[iI]hres|[uU]nseres|[eE]ures|[dD]ieses|[jJ]edes|[kK]eines)[ \\t\\u00a0]{1,8}(?<target>\\p{Ll}+(?:em|es))(?=[ \\t\\u00a0]{1,8}\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "de:strongAfterArticle",
+    fixer: "de:@de.adjectiveForms/3",
     flags: "dgu",
   }),
   frame({
@@ -25851,7 +25851,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "blieb",
       "bleiben",
     ],
-    fixer: "de:predicative",
+    fixer: "de:@de.adjectiveForms/5",
     message: "review_msg_german_predicative",
     flags: "dgu",
   }),
@@ -25859,7 +25859,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<prior>\\p{L}+)[ \\t\\u00a0]{1,8}(?<target>\\p{Ll}{3,}?e)(?=[ \\t\\u00a0]{1,8}als(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "de:beforeAls",
+    fixer: "de:@de.adjectiveForms/6",
     message: "review_msg_german_predicative",
     flags: "dgu",
   }),
@@ -25867,7 +25867,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+(?:e|en|er|es|em))?[ \\t\\u00a0]{1,8}(?<target>\\p{L}*[Bb]eamte[rn]?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["beamte"],
-    fixer: "de:official",
+    fixer: "de:@de.adjectiveForms/7",
     flags: "dgu",
   }),
   frame({

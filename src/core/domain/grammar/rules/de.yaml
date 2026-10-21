@@ -3565,25 +3565,339 @@ rules:
     checks: [germanAdjectiveForms]
     style: match
     message: review_msg_german_adjective_ending
+    sets:
+      # Adjective lemmas that also work as adverbs before a noun phrase ("ein völlig Fremder", "die
+      # erst Mitte der 1920er erschienene"), and invariable ones.
+      ADJ_ADVERBIAL: [
+          erst, ganz, gleich, sehr, recht, fast, viel, wenig, mehr, weniger, genug, eben, allein, halb, besonders,
+          ziemlich, völlig, ausgerechnet, lila, rosa, prima, super, klasse, sexy, beige, orange, extra, genügend,
+          maximal, minimal, hauptsächlich,
+        ]
+      # Adjectives that often open a compound noun ("Rotwein", "Süßwasser", "Neuwagen"), and
+      # superlative stems that only stand in one ("Mindestlohn", "Höchstform"): written apart
+      # before a noun, the compound is offered too.
+      ADJ_COMPOUND_FIRST: [
+          rot, blau, grün, gelb, schwarz, grau, braun, bunt, süß, sauer, bitter, mager, trocken, weich, hart,
+          frisch, alt, neu, falsch, klein, groß, hoch, tief, kurz, voll, leer, fein, echt, mehrfach, doppelt,
+          universal, exklusiv, alternativ, brachial, schwarzweiß, best, mindest, höchst, kleinst, größt,
+          national, zentral, parallel, rund, warm, kalt, schwer, frei, direkt, dunkel, hell, privat, fertig,
+          nackt, geheim, negativ, positiv, komplett, original, gesamt, total, extrem, flüssig, fest, eigen,
+          digital, fremd, passiv, aktiv, primär, spezial, normal, initiativ, pauschal, regional,
+        ]
+      # The colour, taste and texture ones and the stems are no adverbs either, so they are checked
+      # with no article before them ("trinkt rot Wein").
+      ADJ_COMPOUND_ALONE: [
+          rot, blau, grün, gelb, schwarz, grau, braun, bunt, süß, sauer, bitter, mager, trocken, weich,
+          brachial, universal, schwarzweiß, best, mindest, höchst, kleinst, größt, digital, fremd, gesamt,
+          flüssig, passiv, initiativ, spezial,
+        ]
+      # Adjectives that are also clause adverbs ("hat das sicher Potenzial").
+      ADJ_CLAUSE_ADVERBS: [
+          sicher, bestimmt, wirklich, echt, total, ganz, voll, komplett, extrem, direkt, einfach, gern, oft,
+          selten, gleich, sofort, kaum, natürlich, klar, leicht, schwer, genau, eigentlich, ziemlich, richtig,
+          absolut, fast, wahrscheinlich, vielleicht, tatsächlich, ernsthaft, ständig, häufig, frei,
+        ]
+      # Words the adjective filter accepts that are articles, prepositions or fixed in idioms.
+      ADJ_NOT_ADJECTIVES: [ein, eine, einer, unter, ober, laut, eigen, inner, äußer, hinter, vorder, mittler, weiß, weiss]
+      # Inflected words that are no adjective here: quantifiers, ordinals, pronouns; lemmas in -e
+      # and colloquial invariable ones ("Das war spitze", "Das ist blöde").
+      ADJ_NOT_PREDICATIVE: [
+          viele, vielen, wenige, wenigen, alle, allen, beide, beiden, einige, einigen, andere, anderen, manche,
+          erste, ersten, zweite, dritte, letzte, letzten, nächste, nächsten, meine, deine, seine, ihre, unsere,
+          eure, keine, gleiche, gleichen, selbe, selben, spitze, klasse, blöde, irre, öde, feige, träge, rege,
+          trübe, bange, lose, leise, müde, böse,
+        ]
+      ADJ_EMPTY_SUBJECT: [
+          es, hier, dort, dann, danach, nun, jetzt, heute, morgen, dabei, dadurch, damit, zudem, außerdem, zuerst,
+          anschließend, künftig, bald, oft,
+        ]
+    maps:
+      # Determiner → the ending its adjective takes when the noun is singular.
+      ADJ_ENDINGS:
+        {
+          der: e, die: e, das: e, den: en, dem: en, des: en, im: en, am: en, zum: en, zur: en, vom: en, beim: en,
+          ins: e, ans: e, aufs: e, fürs: e, ums: e, durchs: e,
+        }
+      # Strong endings by gender, in the order nominative, accusative, dative, genitive.
+      ADJ_STRONG: { m: [er, en, em, en], f: [e, e, er, er], n: [es, es, em, en], pl: [e, e, en, er] }
+      # The cases (indexes into ADJ_STRONG) a preposition governs; two-way ones take two.
+      ADJ_PREPOSITION_CASES:
+        {
+          mit: [2], von: [2], bei: [2], aus: [2], nach: [2], seit: [2], samt: [2], nebst: [2], außer: [2],
+          für: [1], gegen: [1], durch: [1], ohne: [1], um: [1], wider: [1], in: [1, 2], an: [1, 2], auf: [1, 2],
+          über: [1, 2], unter: [1, 2], vor: [1, 2], hinter: [1, 2], neben: [1, 2], zwischen: [1, 2], wegen: [3],
+          trotz: [3], während: [3], statt: [3], anstatt: [3],
+        }
+    defs:
+      # Determiners and pronouns the adjective filter accepts ("bei ihr Rat", "für ihr Werk").
+      ADJ_PRONOUN_LIKE: /^(?:k?ein|[dms]ein|ihr|unser|euer|dies|jen|jed|welch|manch|solch|all|viel)$/
+      ADJ_PARTICIPLE: >-
+        /^(?:\p{Ll}*ge\p{Ll}{2,}(?:t|en)|\p{Ll}{3,}iert|(?:ver|be|er|ent|zer|miss|unter|über|durch|hinter|wider)\p{Ll}{2,}(?:t|en))$/u
+      # "Vorstellung" is no dictionary word but a noun of a known gender.
+      adjNounKnown:
+        args: "word: string"
+        return: germanNounReading(word.toLowerCase()) !== null || germanGender(word) !== null
+      # "Fremder", "Kranken": a noun made from an adjective.
+      adjNominalized:
+        args: "word: string"
+        let:
+          parts: /^(.+?)(?:e|er|en|es|em)$/.exec(word.toLowerCase())
+        return: "!!parts && germanAdjective(parts[1])"
+      # "edel" + "es" → "edles", "teuer" + "e" → "teure", "hoch" + "e" → "hohe", "müde" + "e";
+      # "parallel" keeps its stressed -el.
+      adjInflect:
+        args: "lemma: string, ending: string"
+        let:
+          stem: >-
+            lemma === "hoch" ? "hoh" : /[^aeioul]el$/.test(lemma) || /(?:eu|au)er$/.test(lemma) ? lemma.slice(0, -2) + lemma.at(-1) : lemma
+        return: 'stem.endsWith("e") ? stem + ending.slice(1) : stem + ending'
+      # The determiner's ending for its adjective, two for "ein" (edler / edles), or null. "die
+      # blau Augen": a plural noun.
+      adjEndingAfter:
+        args: "det: string, prior: string, word: string"
+        type: string[] | null
+        let:
+          low: det.toLowerCase()
+          plural: /(?:[^i]n|s)$/.test(word)
+          parts: /^(ein|kein|mein|dein|sein|ihr|unser|euer|dies|jed|welch)(e|en|em|er|es|)$/.exec(low)
+          einWord: '!!parts && !["dies", "jed", "welch"].includes(parts[1])'
+        return: >-
+          Object.hasOwn(ADJ_ENDINGS, low) ? (low === "der" && PREPOSITIONS.has(prior.toLowerCase()) ? ["en"] : low === "die" && plural ? ["en"] : [ADJ_ENDINGS[low]])
+          : !parts || (parts[1] === "ihr" && parts[2] === "") ? null
+          : parts[2] === "" ? (einWord ? ["er", "es"] : null)
+          : parts[2] === "e" ? (plural && parts[1] !== "ein" ? ["en"] : ["e"])
+          : parts[2] === "er" || parts[2] === "es" ? (einWord ? ["en"] : PREPOSITIONS.has(prior.toLowerCase()) ? ["en"] : ["e"])
+          : ["en"]
+      # The strong endings an adjective takes after a preposition before this noun, or null.
+      # "Anlagen", "Regeln", "Preisen": a plural in -n or -en of a known noun; "Gebäuden",
+      # "Kindern": the -n of a masculine or neuter plural marks the dative. Only a plural: before a
+      # singular the word is as often an adverb ("mit maximal Tempo").
+      adjStrongEndings:
+        args: "preposition: string, noun: string"
+        type: string[] | null
+        let:
+          cases0: ADJ_PREPOSITION_CASES[preposition]
+          head: 'noun.split("-").at(-1)!'
+          reading: germanGender(head)
+          pluralKnown: >-
+            !reading && [head.slice(0, -1), head.slice(0, -2)].some((singular) => /n$/.test(head) && singular.length >= 3 && adjNounKnown(singular))
+          genders: >-
+            reading ? [...(reading.gender === "x" ? ["m", "n"] : [reading.gender]), ...(reading.plural ? ["pl"] : [])] : pluralKnown ? ["pl"] : null
+          singular: "pluralKnown ? germanGender(head.slice(0, -1)) : null"
+          cases: 'pluralKnown && singular && singular.gender !== "f" && cases0.includes(2) ? [2] : cases0'
+          endings: new Set(cases.flatMap((c) => genders.map((g) => ADJ_STRONG[g][c])))
+        when:
+          - "!!cases0"
+          - "!!genders"
+          - genders.includes("pl") && genders.length === 1
+        return: "endings.size <= 2 ? [...endings] : null"
+      # The strong endings of a compound-opening adjective before a singular after a preposition.
+      adjCompoundSingular:
+        args: "preposition: string, adj: string, noun: string"
+        type: string[] | null
+        let:
+          cases: ADJ_PREPOSITION_CASES[preposition]
+          reading: 'germanGender(noun.split("-").at(-1)!)'
+          genders: 'reading.gender === "x" ? ["m", "n"] : [reading.gender]'
+          endings: new Set(cases.flatMap((c) => genders.map((g) => ADJ_STRONG[g][c])))
+        when: "!!cases && !!reading && !reading.plural && ADJ_COMPOUND_FIRST.has(adj) && !ADJ_ADVERBIAL.has(adj)"
+        return: "endings.size <= 2 ? [...endings] : null"
+      adjEndingFinding:
+        args: "m: RegExpExecArray, span: [number, number], fixes: string[]"
+        type: RawFinding
+        return: >-
+          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: span[0], end: span[1] },
+          alternatives: fixes, context: { start: m.index, end: span[1] }, ...(fixes.length > 1 ? { requiresChoice: true as const } : {}) })
+      # "Sie trinken lieber rot Wein", "kauft alt Gold": no article, a word that is no adverb.
+      # "schwarz sehen", "rot sehen": a colour after the verb.
+      adjectiveNoArticle:
+        args: "ctx: DetectContext, m: RegExpExecArray, low: string, joinedNoun: boolean, glued: string"
+        type: RawFinding | null
+        let:
+          adj: m.groups!.adj
+          noun: m.groups!.noun
+          span: m.indices!.groups!.target
+          known: >-
+            joinedNoun && germanAdjective(adj) && ![ADJ_ADVERBIAL, ADJ_CLAUSE_ADVERBS, ADJ_NOT_ADJECTIVES, ARTICLES].some((set) => set.has(adj))
+        when: >-
+          (ADJ_COMPOUND_ALONE.has(adj) || known) && !/^(?:seh|sieh|sah)/.test(low) && !noun.includes("-") &&
+          /^\p{Ll}/u.test(m.groups!.det) && !ctx.dictionary.has(adj) && !ctx.dictionary.has(noun.toLowerCase())
+        return: >-
+          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
+          alternatives: [glued], context: { start: m.index, end: span[1] } })
+      # An adjective with no ending after a determiner or a preposition. "aus weiß Gold": "weiß"
+      # (knows) only where it joins the noun. "letzte", "erster": already inflected. "im
+      # liebevoll Oma-Haus genannten Hof": an extended attribute before its noun; not a participle
+      # that ends the clause ("in öffentlich Gebäuden verboten."). "dicht an dicht Perlen": a fixed
+      # pair around the preposition. A compound the dictionary lists is the fix ("Echtzeit"), and
+      # a superlative stem or a word that is no adverb after a preposition ("in best Form", "aus
+      # rot Gold"); one only the n-gram counts show is offered beside the ending.
+      adjectiveAfterDeterminer:
+        args: "ctx: DetectContext, m: RegExpExecArray, isPreposition: boolean, joinedNoun: boolean, glued: string"
+        type: RawFinding | null
+        let:
+          det: m.groups!.det
+          adj: m.groups!.adj
+          noun: m.groups!.noun
+          low: det.toLowerCase()
+          span: m.indices!.groups!.target
+          inflected: /^(.+?)(?:e|en|er|es|em)$/.exec(adj)
+          next2: deTokensAfter(ctx.text, m.indices!.groups!.noun[1], 2)
+          after: next2[0] ?? ""
+          head: next2[1] ?? ""
+          compound: adj + noun.toLowerCase()
+          stemOnly: /^(?:best|mindest|höchst|kleinst|größt)$/.test(adj) || (isPreposition && ADJ_COMPOUND_ALONE.has(adj))
+          listedJoin: joinedNoun && germanListedNoun(compound) !== null
+        when:
+          - >-
+            !(!(germanAdjective(adj) || ADJ_COMPOUND_FIRST.has(adj)) || (ADJ_NOT_ADJECTIVES.has(adj) && !(joinedNoun && /^wei(?:ß|ss)$/.test(adj))) ||
+            ARTICLES.has(adj))
+          - "!(inflected && germanAdjective(inflected[1]))"
+          - >-
+            !(/^\p{Ll}+(?:te|ten|ter|tes|tem|nde|nden|nder|ndes|ndem|ene|enen|ener|enes)$/u.test(after) &&
+            !(BOUNDARY.test(head) && /^(?:\p{Ll}*ge\p{Ll}{2,}|(?:ver|be|er|ent|zer)\p{Ll}{2,})(?:t|en)$/u.test(after)))
+          - "!ctx.dictionary.has(adj) && !ctx.dictionary.has(noun.toLowerCase())"
+          - "!(isPreposition && deTokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() === adj)"
+        return: >-
+          (listedJoin || (stemOnly && !adj.endsWith("e"))) && !noun.includes("-")
+          ? { ruleId: "germanAdjectiveForms", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
+          alternatives: [adj[0].toUpperCase() + compound.slice(1)], context: { start: m.index, end: span[1] } }
+          : ADJ_ADVERBIAL.has(adj) || adjNominalized(noun) || !adjNounKnown(noun) || adj.endsWith("e") ? null
+          : isPreposition ? adjectiveAfterPreposition(m, low, adj, noun, after, joinedNoun, glued, span)
+          : adjectiveAfterArticle(ctx, m, det, low, adj, noun, joinedNoun, glued, span)
+      # "in öffentlich Anlagen": the strong ending the preposition's case calls for, before a
+      # plural. "für wichtig halten", "um … zu", "die Jahre über": no preposition there. "für
+      # verschieden Themen": "für" only before a plural, and not in "für richtig Kinder zu loben".
+      # "mit voll Ausstattung", "aus hart Pappe": before a singular, an adjective that opens
+      # compounds takes its ending or joins the noun.
+      adjectiveAfterPreposition:
+        args: "m: RegExpExecArray, low: string, adj: string, noun: string, after: string, joinedNoun: boolean, glued: string, span: [number, number]"
+        type: RawFinding | null
+        let:
+          endings: adjStrongEndings(low, noun) ?? adjCompoundSingular(low, adj, noun)
+          fixes: >-
+            [...endings.map((e) => `${adjInflect(adj, e)} ${noun}`), ...((ADJ_COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-") ? [glued] : [])]
+        when:
+          - "!(/^(?:um|über|zu|bis|ab)$/.test(low) || ADJ_PRONOUN_LIKE.test(adj))"
+          - '!(low === "für" && (after === "zu" || !adjStrongEndings(low, noun)))'
+          - "!!endings"
+        return: adjEndingFinding(m, span, fixes)
+      # An adjective with no ending after an article. "von denen eines offensichtlich Kinder
+      # ansprach": "eines" is a pronoun. ", in dem ständig Soldaten …": a relative pronoun. "der
+      # allgemein Anklang fand", "Ich meine wirklich Radio": a pronoun, or the verb. "Sie hatte die
+      # original Rechnung": after a finite verb the d-word is an article. "hat das sicher
+      # Potenzial": a pronoun subject and an adverb. "macht einem richtig Lust": the pronoun "one".
+      # "ein klein Haus" (kleines), "ein nett Mann" (netter): the noun's gender picks one ending.
+      # "ein neu Wagen": "neuer Wagen" or "Neuwagen".
+      adjectiveAfterArticle:
+        args: "ctx: DetectContext, m: RegExpExecArray, det: string, low: string, adj: string, noun: string, joinedNoun: boolean, glued: string, span: [number, number]"
+        type: RawFinding | null
+        let:
+          before: deTokensBefore(ctx.text, m.index, 2)
+          prior: before.at(-1) ?? ""
+          comma: 'before.length > 1 ? before[0] : ""'
+          sentenceStart: 'prior === "" || /^[.!?:\n„"]$/.test(prior)'
+          stem: '/^(\p{Ll}{2,}?)e?(?:te|ten|t)$/u.exec(prior)?.[1]'
+          pronounRead: /^d(?:er|ie|as)$/.test(low) && ADJ_CLAUSE_ADVERBS.has(adj)
+          afterVerb: '!pronounRead && (VERB_GOVERNORS.has(prior) || (!!stem && !/^ge/.test(prior) && germanInfinitive(`${stem}en`)))'
+          endings0: adjEndingAfter(det, prior, noun)
+          gender: 'germanGender(noun.split("-").at(-1)!)?.gender'
+          endings: 'endings0 && endings0.length > 1 && (gender === "m" || gender === "n") ? [gender === "m" ? "er" : "es"] : endings0'
+          fixes: >-
+            [...endings.map((e) => `${adjInflect(adj, e)} ${noun}`), ...((ADJ_COMPOUND_FIRST.has(adj) || joinedNoun) && !noun.includes("-") ? [glued] : [])]
+        when:
+          - '!adj.endsWith("e")'
+          - '!(/^(?:denen|welchen|davon)$/i.test(prior) && /^k?ein(?:e|er|es)$/.test(low))'
+          - '!(comma === "," && /^d(?:er|en|em)$/.test(low))'
+          - >-
+            !(/^d(?:er|ie|as|en|em)$/.test(low) && !sentenceStart && !afterVerb && !PREPOSITIONS.has(prior.toLowerCase()) &&
+            !ADJ_COMPOUND_ALONE.has(adj))
+          - '!(/^ein(?:em|er)$/.test(low) && !PREPOSITIONS.has(prior.toLowerCase()))'
+          - '!(/^(?:ich|wir|sie|die)$/i.test(prior) && /^(?:meine|meinen|seine)$/.test(low))'
+          - "!!endings"
+        return: adjEndingFinding(m, span, fixes)
+      # The lemma of an inflected adjective: "große" → groß, "dunkle" → dunkel, "teure" → teuer.
+      adjLemmaOf:
+        args: "form: string"
+        type: string | null
+        let:
+          stem: form.replace(/(?:e|en)$/, "")
+        return: >-
+          stem === "hoh" ? "hoch" : [stem, stem.replace(/([bcdfgkpt])l$/, "$1el"), stem.replace(/([bcdfgkpt])r$/, "$1er"),
+          stem.replace(/(eu|au)r$/, "$1er")].find((c) => c.length >= 3 && germanAdjective(c)) ?? null
+      # "Beamter" declines like an adjective and has no feminine "die Beamte": "der Beamte", "ein
+      # Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
+      adjOfficialEndings:
+        args: "det: string"
+        let:
+          d: det.toLowerCase()
+        return: 'd === "der" || d === "dieser" || d === "jeder" ? ["e", "en"] : /^(?:k?ein|mein|dein|sein|ihr|unser|euer)$/.test(d) ? ["er"] : ["en"]'
     frames:
       # An adjective before a noun without its ending: "eine lang Reise" (lange), "ein edel
       # Kraut" (edler/edles); or a compound written apart: "in echt Zeit" (Echtzeit). A degree
       # word may stand between the article and the adjective ("eine sehr schön Frau").
       - regex: "{{WG}}(?<det>\\p{L}+)(?:{{S}}(?:{{ADJ_DEGREE}}))?{{S}}(?<target>(?<adj>\\p{Ll}+){{S}}(?<noun>{{CAP_NOUN}})){{E}}"
         flags: dgu
-        fixer: bareAdjective
+        let:
+          low: det.toLowerCase()
+          isDeterminer: >-
+            (ARTICLES.has(low) || DEMONSTRATIVES.has(low) || /^(?:ein|kein|mein|dein|sein|unser|euer)$/.test(low) ||
+            /^(?:k?ein|[dms]ein|ihr|unser|eur|jed)(?:er|es)$/.test(low)) &&
+            !(det !== low && m.index > 0 && !/[.!?:\n„"]\s*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))
+          isPreposition: PREPOSITIONS.has(low) && det === low
+          glued: adj[0].toUpperCase() + adj.slice(1) + noun.toLowerCase()
+          # "Echtzeit", "Weißgold": the joined word is a known noun.
+          joinedNoun: '!adj.endsWith("e") && germanNounReading(adj + noun.toLowerCase()) !== null'
+        return: >-
+          isDeterminer || isPreposition ? adjectiveAfterDeterminer(ctx, m, isPreposition, joinedNoun, glued)
+          : adjectiveNoArticle(ctx, m, low, joinedNoun, glued)
       # "Es werden folgenden Daten gespeichert": with no article, the plural subject after
       # "werden" takes the strong ending -e ("folgende Daten"). A plural in -n or -s may be a
       # dative object ("Die Bücher werden armen Kindern geschenkt"), so it counts only when no
       # subject comes before "werden": the clause opens with a preposition, "es" or an adverb.
       - regex: "{{WG}}(?:(?=\\p{Ll}{3})(?<=(?:werden|wurden|würden){{S}})(?<target>(?<adj>\\p{Ll}{3,}en){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,})){{E}})"
         flags: dgu
-        fixer: werdenPlural
+        let:
+          stem: adj.slice(0, -2)
+          participle: /\p{Ll}{3,}end$/u.test(stem) && germanInfinitive(stem.slice(0, -1))
+          reading: germanGender(noun)
+          # "Bäume", "Projekte": a plural in -e of a known noun.
+          plural: >-
+            reading ? reading.plural || reading.gender === "f"
+            : [noun.slice(0, -1), noun.slice(0, -2)].some((s) => /n$/.test(noun) && s.length >= 3 && adjNounKnown(s)) ||
+            (/e$/.test(noun) && [noun.slice(0, -1), deumlaut(noun.slice(0, -1))].some((s) => adjNounKnown(s)))
+          span: m.indices!.groups!.target
+          after: deTokensAfter(ctx.text, span[1], 2)
+          next: after[0] ?? ""
+          afterNext: after[1] ?? ""
+          first: '(ctx.text.slice(Math.max(0, m.index - 80), m.index).split(/[.!?;:\n,]/).at(-1)!.match(/\p{L}+/gu) ?? [""])[0].toLowerCase()'
+        when:
+          - "!(!(germanAdjective(stem) || participle) || ARTICLES.has(adj) || DEMONSTRATIVES.has(adj))"
+          # A feminine singular ("folgenden Frage") is no plural; "-n" alone shows the plural.
+          - '!(!plural || (reading?.gender === "f" && !/n$/.test(noun)))'
+          - ADJ_PARTICIPLE.test(next) && BOUNDARY.test(afterNext)
+          - "!/[ns]$/.test(noun) || PREPOSITIONS.has(first) || ADJ_EMPTY_SUBJECT.has(first)"
+          - "!ctx.dictionary.has(adj) && !namedExampleBefore(ctx.text, span[0])"
+        return: >-
+          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: span[0], end: span[1] },
+          alternatives: [`${stem}e ${noun}`] })
       # The strong ending after an article that already shows the case: "im mentalem Lexikon"
       # (mentalen).
       - regex: "{{WG}}(?<det>[dD]em|[iI]m|[zZ]um|[vV]om|[bB]eim|[aA]m|[eE]inem|[mM]einem|[dD]einem|[sS]einem|[iI]hrem|[uU]nserem|[eE]urem|[dD]iesem|[jJ]edem|[kK]einem|[dD]es|[eE]ines|[mM]eines|[dD]eines|[sS]eines|[iI]hres|[uU]nseres|[eE]ures|[dD]ieses|[jJ]edes|[kK]eines){{S}}(?<target>\\p{Ll}+(?:em|es))(?={{S}}{{CAP_NOUN}}{{E}})"
         flags: dgu
-        fixer: strongAfterArticle
+        let:
+          stem: target.slice(0, -2)
+        when:
+          # "-em" after a dative article, "-es" after a genitive one.
+          - target.endsWith("es") === det.toLowerCase().endsWith("es")
+          # "einem einem Haus", "dem diesem": a determiner, not an adjective.
+          - "!/^(?:ein|kein|mein|dein|sein|ihr|unser|eur|dies|jen|jed|welch|manch|solch|all|d)$/.test(stem)"
+          - germanAdjective(stem) || germanAdjective(`${stem}e`) || germanAdjective(stem.replace(/(.)([lr])$/, "$1e$2"))
+          - "!ctx.dictionary.has(target)"
+        return: >-
+          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending",
+          range: { start: m.indices!.groups!.target[1] - 2, end: m.indices!.groups!.target[1] }, alternatives: ["en"],
+          context: { start: m.index, end: m.indices!.groups!.target[1] } })
       # Letter salutations: "Lieber Herr Müller", "Liebe Frau Weber", "Sehr geehrte Damen und
       # Herren" take the title's gender ("Liebe Herr" → Lieber). At a line start, or after a
       # greeting.
@@ -3603,18 +3917,49 @@ rules:
       - regex: "{{WG}}(?:{{COPULA_FORMS}})(?:{{S}}(?:{{DEGREE_ADVERBS}}))*{{S}}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])"
         flags: dgu
         message: review_msg_german_predicative
-        fixer: predicative
+        let:
+          lemma: adjLemmaOf(target)
+        when:
+          # "müde", "leise", "böse": the lemma itself ends in -e.
+          - "!(ADJ_NOT_PREDICATIVE.has(target) || germanAdjective(target) || ctx.dictionary.has(target))"
+          - germanNounReading(target) === null
+          - lemma
+        return: >-
+          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_predicative",
+          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [lemma],
+          context: { start: m.index, end: m.indices!.groups!.target[1] } })
       # "Er ist schnelle als ich" → schneller: an ending before "als" where the comparative
       # belongs.
       - regex: "{{WG}}(?<prior>\\p{L}+){{S}}(?<target>\\p{Ll}{3,}?e)(?={{S}}als{{E}})"
         flags: dgu
         message: review_msg_german_predicative
-        fixer: beforeAls
+        let:
+          lemma: adjLemmaOf(target)
+        when:
+          # "die rote als Ersatz", "sowohl eine kleine als auch": an elided noun or a pair.
+          - '!/^(?:k?ein|[dms]ein|ihr|unser|eu|dies|jen|jed|welch|d)\p{L}*$/iu.test(prior)'
+          - '!(/^(?:sowohl|als|wie)$/i.test(prior) || /^als[ \t]+auch/.test(ctx.text.slice(m.index + m[0].length + 1)))'
+          - "!(ADJ_NOT_PREDICATIVE.has(target) || germanAdjective(target) || ctx.dictionary.has(target))"
+          # A vowel that may take an umlaut in the comparative ("größer") is left out.
+          - '!(!lemma || /[aou](?![u])/.test(lemma.replace(/[ae]u/g, "")))'
+        return: >-
+          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_predicative",
+          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${lemma}er`],
+          context: { start: m.index, end: m.indices!.groups!.target[1] + 4 } })
       # "Beamter" declines like an adjective and has no feminine "die Beamte": "der Beamte",
       # "ein Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
       - regex: "{{WG}}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:{{S}}\\p{Ll}+(?:e|en|er|es|em))?{{S}}(?<target>\\p{L}*[Bb]eamte[rn]?){{E}}"
         flags: dgu
-        fixer: official
+        let:
+          # "Beamte", "Beamter", "Beamten": the typed ending after "Beamt".
+          stem: target.replace(/e[rn]?$/, "")
+          endings: adjOfficialEndings(det)
+          alternatives: endings.map((e) => stem + e)
+        when: "!(endings.includes(target.slice(stem.length)) || ctx.dictionary.has(target.toLowerCase()))"
+        return: >-
+          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending",
+          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives,
+          context: { start: m.index, end: m.indices!.groups!.target[1] }, ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
   - id: de.articleGender
     checks: [germanArticleGender]
     style: match
