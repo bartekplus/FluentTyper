@@ -233,19 +233,21 @@ function isGluedToTechnical(text: string, start: number, end: number): boolean {
 }
 
 /** Word starts and ends of ASCII-letter words ([A-Za-z]+) owned by the chunk. */
-function* asciiWords(ctx: DetectContext, lookback = 0): Generator<TextRange> {
+function asciiWords(ctx: DetectContext, lookback = 0): TextRange[] {
+  const words: TextRange[] = [];
   const regex = /[A-Za-z]+/g;
   regex.lastIndex = Math.max(0, ctx.from - lookback);
   for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
-    if (match.index >= ctx.to + lookback) return;
+    if (match.index >= ctx.to + lookback) break;
     const start = match.index;
     const end = start + match[0].length;
     // Letters glued to other word characters are part of a longer token ("teh2").
     if (WORD_CHAR.test(ctx.text[start - 1] ?? "") || WORD_CHAR.test(ctx.text[end] ?? "")) {
       continue;
     }
-    yield { start, end };
+    words.push({ start, end });
   }
+  return words;
 }
 
 /**
@@ -693,9 +695,69 @@ function isWhitespaceAt(text: string, index: number): boolean {
 
 // Stateless (no g or y flag) copies of the typing rules' patterns, compiled once each.
 const PHRASE_REGEX = new WeakMap<RegExp, RegExp>();
+// Per chunk: the words of asciiWords(ctx, PHRASE_WINDOW). All phrase predicates read one list.
+const PHRASE_WORDS = new WeakMap<DetectContext, TextRange[]>();
+
+// The lowercase code of text[index] for an ASCII letter: "| 32" maps only "A"-"Z" to "a"-"z".
+const lowerCodeAt = (text: string, index: number) => text.charCodeAt(index) | 32;
 
 /**
- * Runs a typing rule's end-anchored pattern at every word end of the chunk.
+ * The end of the token before the whitespace run that ends at `at`.
+ * -1 when the character before `at` is not whitespace.
+ */
+function tokenEndBefore(text: string, at: number): number {
+  if (at < 1 || !isWhitespaceAt(text, at - 1)) return -1;
+  let i = at - 1;
+  while (i > 0 && isWhitespaceAt(text, i - 1)) i -= 1;
+  return i;
+}
+
+const THEIR_THERE_VERBS = new Set(["is", "are", "was", "were"]);
+
+/**
+ * For each phrase predicate: a test of the word [start, end) of `text`. It is true
+ * when the pattern of the predicate can match a window that ends at `end`. It reads
+ * only what the pattern must find at the word or before the word. Thus a false
+ * result skips the window and the regex, and the findings stay the same (fuzz test:
+ * tests/grammar/ReviewPhraseLastWord.test.ts).
+ */
+export const PHRASE_LAST_WORD = {
+  // "... of <word>": whitespace before the word, and "of" before the whitespace.
+  modalOf: (text: string, start: number) => {
+    const e = tokenEndBefore(text, start);
+    return e >= 2 && lowerCodeAt(text, e - 1) === 0x66 && lowerCodeAt(text, e - 2) === 0x6f;
+  },
+  // The word is "welcome".
+  yourWelcome: (text: string, start: number, end: number) =>
+    end - start === 7 && text.slice(start, end).toLowerCase() === "welcome",
+  // The word is "is", "are", "was" or "were".
+  theirThere: (text: string, start: number, end: number) =>
+    end - start <= 4 && THEIR_THERE_VERBS.has(text.slice(start, end).toLowerCase()),
+  // "is|has|was|are <token>": the token ends at the word end; "is", "as" or "re" before it.
+  pronounVerb: (text: string, _start: number, end: number) => {
+    let i = end;
+    while (i > 0 && !isWhitespaceAt(text, i - 1)) i -= 1;
+    const e = tokenEndBefore(text, i);
+    if (e < 2) return false;
+    const last = lowerCodeAt(text, e - 1);
+    const previous = lowerCodeAt(text, e - 2);
+    return last === 0x73
+      ? previous === 0x69 || previous === 0x61
+      : last === 0x65 && previous === 0x72;
+  },
+  // "a|an|A|An <word>": whitespace before the word, and "a", "A", "an" or "An" before it.
+  articleAn: (text: string, start: number) => {
+    const e = tokenEndBefore(text, start);
+    if (e < 1) return false;
+    const last = text[e - 1];
+    if (last === "a" || last === "A") return true;
+    return last === "n" && e >= 2 && (text[e - 2] === "a" || text[e - 2] === "A");
+  },
+} satisfies Record<string, (text: string, start: number, end: number) => boolean>;
+
+/**
+ * Runs a typing rule's end-anchored pattern at each word end of the chunk
+ * where `lastWord` (a PHRASE_LAST_WORD test) is true.
  * The window holds the last `tokens` whitespace-separated tokens up to the
  * word: all the pattern can span, and it starts on a token boundary so "^" in
  * a pattern never lands mid-text.
@@ -704,6 +766,7 @@ function* phraseMatches(
   ctx: DetectContext,
   pattern: RegExp,
   tokens: number,
+  lastWord: (text: string, start: number, end: number) => boolean,
 ): Generator<PhraseMatch> {
   let regex = PHRASE_REGEX.get(pattern);
   if (!regex)
@@ -711,7 +774,10 @@ function* phraseMatches(
       pattern,
       (regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`)),
     );
-  for (const word of asciiWords(ctx, PHRASE_WINDOW)) {
+  let words = PHRASE_WORDS.get(ctx);
+  if (!words) PHRASE_WORDS.set(ctx, (words = asciiWords(ctx, PHRASE_WINDOW)));
+  for (const word of words) {
+    if (!lastWord(ctx.text, word.start, word.end)) continue;
     const limit = Math.max(0, word.end - PHRASE_WINDOW);
     let windowStart = word.start;
     while (windowStart > limit && !isWhitespaceAt(ctx.text, windowStart - 1)) windowStart -= 1;
@@ -742,7 +808,12 @@ function groupRange(match: RegExpExecArray, group: number): TextRange {
 
 const modalOf: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, MODAL_OF_REGEX, 3)) {
+  for (const { match, start, end } of phraseMatches(
+    ctx,
+    MODAL_OF_REGEX,
+    3,
+    PHRASE_LAST_WORD.modalOf,
+  )) {
     if (OF_IDIOMS.has(match[2].toLowerCase())) continue;
     if (isNounMight(match[1], ctx.text.slice(Math.max(0, start - 24), start))) continue;
     const modal = groupRange(match, 1);
@@ -765,7 +836,12 @@ const modalOf: Detector = (ctx) => {
 
 const yourWelcome: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, YOUR_WELCOME_REGEX, 2)) {
+  for (const { match, start, end } of phraseMatches(
+    ctx,
+    YOUR_WELCOME_REGEX,
+    2,
+    PHRASE_LAST_WORD.yourWelcome,
+  )) {
     // "Your welcome email" is possessive: only the sentence-final phrase counts.
     // The end of the whole text ends the sentence too; nothing is appended.
     if (end < ctx.text.length && !/^[.!?\r\n]/.test(ctx.text[end])) continue;
@@ -791,7 +867,12 @@ const yourWelcome: Detector = (ctx) => {
 
 const theirThere: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(ctx, THEIR_THERE_BE_REGEX, 2)) {
+  for (const { match, start, end } of phraseMatches(
+    ctx,
+    THEIR_THERE_BE_REGEX,
+    2,
+    PHRASE_LAST_WORD.theirThere,
+  )) {
     const phrase = match[0];
     const their = phrase.split(/\s+/)[0];
     const [there, verb] = correctTheirBeVerb(their, match[1]);
@@ -819,7 +900,12 @@ const YOU_SUBJECT_BEFORE = new Set([
 
 const pronounVerb: Detector = (ctx) => {
   const findings: RawFinding[] = [];
-  for (const { match, end } of phraseMatches(ctx, AGREEMENT_REGEX, 3)) {
+  for (const { match, end } of phraseMatches(
+    ctx,
+    AGREEMENT_REGEX,
+    3,
+    PHRASE_LAST_WORD.pronounVerb,
+  )) {
     const phrase = match[1];
     const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
     if (!corrected) continue;
@@ -888,18 +974,24 @@ const pronounVerb: Detector = (ctx) => {
 const articleAn: Detector = (ctx) => {
   const findings: RawFinding[] = [];
   const newlineBefore = lastIndexFinder(ctx.text, "\n");
-  for (const { match, start, end } of phraseMatches(ctx, ARTICLE_REGEX, 2)) {
+  for (const { match, start, end } of phraseMatches(
+    ctx,
+    ARTICLE_REGEX,
+    2,
+    PHRASE_LAST_WORD.articleAn,
+  )) {
     const [, article, word] = match;
     // "a an apple": a doubled article; the determiner clash drops one instead.
     if (/^(?:an?|the)$/i.test(word)) continue;
+    // First the cheap word test: most articles are correct. All tests here are pure.
+    const corrected = correctArticle(article, word, ctx.dictionary);
+    if (!corrected) continue;
     const lineStart = newlineBefore(start - 1) + 1;
     const sliceStart = Math.max(lineStart, start - 400);
     // A cut-off slice must not look like a line start to the sentence-start test.
     const beforeArticle = `${sliceStart > lineStart ? "x " : ""}${ctx.text.slice(sliceStart, start)}`;
     if (article[0] === "A" && !SENTENCE_START_REGEX.test(beforeArticle)) continue;
     if (!isArticleContext(beforeArticle)) continue;
-    const corrected = correctArticle(article, word, ctx.dictionary);
-    if (!corrected) continue;
     const articleRange = groupRange(match, 1);
     findings.push({
       ruleId: "englishArticleAnCorrection",
