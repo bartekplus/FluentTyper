@@ -17558,7 +17558,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas)(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "es:diacritics",
+    fixer: "es:@es.diacritics/1",
     flags: "giu",
     scan: "owned",
   }),

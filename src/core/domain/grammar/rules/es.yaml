@@ -517,13 +517,983 @@ rules:
     group: spanishAccents
     style: match
     message: review_msg_spanish_accent
+    # Question words after ¿ and ¡ or a verb of knowing (qué, cómo, dónde), and the stressed
+    # monosyllables (tú, él, mí, sí, sé, dé, té, más, aún) told from their unstressed twins by the
+    # closed-class word beside them. The es.diacritics frame lists the words of
+    # ES_INTERROGATIVE, ES_PLAIN_RELATIVE and the cases of esMonosyllable.
+    sets:
+      # The accented question words.
+      ES_ASKED_FORMS: [qué, cómo, dónde, adónde, cuándo, quién, quiénes, cuál, cuáles, cuánto, cuánta, cuántos, cuántas, cuán]
+      # Words a question may open with before its question word: "¿Y de qué…?", "¿Pero cómo…?".
+      ES_QUESTION_LEAD: ["y", e, o, u, pero, pues, entonces, bueno, ah, oye]
+      ES_ADVERBIALS: [bien, mal, tarde, pronto, aquí, allí, ahí, siempre, nunca]
+      # Nouns a question asks about after a preposition: "hasta qué punto", "de qué manera".
+      ES_QUESTION_NOUNS:
+        [punto, forma, manera, modo, hora, color, momento, medida, tipo, clase, edad, precio, tamaño, frecuencia, razón, motivo, lado, parte]
+      ES_DIA_SUBJECTS: [yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes]
+      # Irregular finite verbs and adverbs the dictionary also lists as nouns.
+      ES_DIA_FINITE:
+        [
+          es, son, era, fue, fui, vino, dije, dijo, hizo, puso, tuvo, estuvo, quiso, supo, pudo, trajo, anduvo, ve, ven,
+          eres, soy, somos, sois, estás, da, dan, haz, pon, sal, ten, di, va, van, ha, han, hay,
+        ]
+      ES_DIA_NOT_NOUNS:
+        [
+          sí, "no", bien, mal, mañana, tarde, hoy, ayer, noche, siempre, nunca, igual, tal, solo, sola, así, esto, eso,
+          aquello, ese, esa, qué, cómo, dónde, cuándo, quién, cuál, cuánto,
+        ]
+      # Gerunds whose missing object "qué" asks for: "¿Qué estás haciendo?". Any other progressive
+      # right after "¿Que" reads as an echo: "¿Que estás temblando?" (you say you are…?).
+      ES_ASKED_GERUNDS:
+        [
+          haciendo, diciendo, pensando, buscando, mirando, viendo, leyendo, comiendo, bebiendo, escribiendo,
+          esperando, tramando, planeando, preparando, cocinando, escuchando, insinuando, sugiriendo,
+          intentando, tomando, estudiando, contando, pidiendo, vendiendo, comprando, ocultando,
+          escondiendo, pasando, ocurriendo, sucediendo, aprendiendo, celebrando, proponiendo,
+        ]
+      ES_DIA_QUANTITY:
+        [
+          mucho, mucha, muchos, muchas, poco, poca, pocos, pocas, varios, varias, algunos, algunas, algún, alguna,
+          ningún, ninguna, tantos, tantas, bastantes, demasiados, demasiadas, dos, tres, cuatro, cinco, cien, mil,
+        ]
+      ES_EXISTS: [hay, había, habrá, hubo, habría]
+      ES_PLACE_START: [en, a, al, dentro, detrás, debajo, encima, fuera, delante, tras, bajo, sobre, aquí, allí, ahí, allá]
+      ES_AFTER_EVENT: [aquí, allí, ahí, allá, ahora, hoy, ayer, entonces, realmente, exactamente, después, antes, luego]
+      ES_AFTER_DEED: [para, con, ahora, hoy, mañana, aquí, allí, ahí, después, luego]
+      # Words that can follow a possessive "mi" inside its noun phrase.
+      ES_BEFORE_NOUN:
+        [mejor, peor, mayor, menor, primer, primera, último, última, único, única, propio, propia, gran, buen, querido, querida, pobre, viejo, vieja, nuevo, nueva, otro, otra]
+      ES_DIA_NUMBERS: [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, cien, mil]
+      # Verb forms no possessive goes before, though the dictionary lists "es" (the letter) and
+      # "fue" as nouns; "mi era", "mi vino" and "mi son" are nouns too.
+      ES_ONLY_VERBS:
+        [es, fue, fui, dijo, hizo, puso, tuvo, estuvo, quiso, supo, pudo, trajo, eres, soy, somos, estás, va, van, ha, han, hay, parece, parecen, resulta, resultan]
+      ES_ONE_OFF: [también, tampoco, nunca, jamás, mismo, misma]
+      # Finite verbs too common to need the lexicon: "el fue" can only be "él fue".
+      ES_COMMON_VERBS:
+        [es, era, fue, está, estaba, estuvo, tiene, tenía, tuvo, dijo, dice, hizo, hace, sabe, sabía, quiere, quería, quiso, puede, podía, pudo, iba, ha, había, será, sería]
+      ES_DIA_PRONOUNS: [yo, tú, ella, usted, nosotros, nosotras, vosotros, ellos, ellas, ti, mí, él]
+      ES_PLAIN_SI_PREV: [que, pues, eso, claro, ahora, creo]
+      ES_TEA: [verde, negro, rojo, blanco, chino, japonés, inglés, frío, caliente, helado, con, "y", de, del]
+      # Bare objects "dar" takes in set phrases: "dé cuenta", "dé voz", "dé las gracias".
+      ES_GIVEN:
+        [cuenta, voz, gracias, permiso, asentimiento, golpecitos, crédito, importancia, consentimiento, aprobación, apoyo, bendición]
+      # What "dar" gives with an article: "que Dios dé una respuesta", "que dé un alarido".
+      ES_GIVEN_WITH_ARTICLE: [respuesta, alarido, abrazo, beso, consejo]
+      # Subjects that may stand between the subjunctive trigger and "dé".
+      ES_SUBJECT_FILLERS: [él, ella, usted, alguien, nadie, dios, uno, cada, mismo, ahora, "no", nunca, ya]
+      # What follows an answer's "Sí,": "Sí, me gusta", "Sí, pero…", "Sí, claro".
+      ES_ANSWER_AFTER:
+        [
+          pero, claro, gracias, señor, señora, vale, bueno, ya, también, me, te, nos, lo, la, le, es, son, está, hay,
+          tengo, quiero, puedo, creo, exacto, correcto, perfecto, efectivamente, desde, seguro,
+        ]
+      ES_IRREGULAR_PAST:
+        [hice, hizo, fui, fue, fuimos, fueron, tuve, tuvo, dije, dijo, puse, puso, vine, vino, estuve, estuvo, pude, pudo, quise, quiso, supe, supo]
+      # Relatives written as question words after their antecedent: "nada qué hacer" -> "que".
+      ES_QUANTITY_ANTECEDENTS: [nada, algo, nadie, alguien, mucho, poco, bastante]
+      # Masculine adjectives that follow a subject "él": "él solo", "él mismo", "él propio".
+      ES_NOT_AFTER_EL: [solo, sólo, mismo, propio, único, entero, solito, junto, todo, bueno]
+    maps:
+      ES_INTERROGATIVE:
+        que: qué
+        como: cómo
+        donde: dónde
+        adonde: adónde
+        cuando: cuándo
+        quien: quién
+        quienes: quiénes
+        cual: cuál
+        cuales: cuáles
+        cuanto: cuánto
+        cuanta: cuánta
+        cuantos: cuántos
+        cuantas: cuántas
+        cuan: cuán
+      # "el modo cómo" -> "como", "la fecha cuándo" -> "cuando", "el lugar dónde" -> "donde".
+      ES_NOUN_ANTECEDENTS:
+        cómo: [modo, manera, forma]
+        cuándo: [fecha, día, momento, época, hora, año]
+        dónde: [lugar, sitio, casa, ciudad, zona, pueblo, país, parte, punto]
+      ES_PLAIN_RELATIVE:
+        qué: que
+        quién: quien
+        quiénes: quienes
+        dónde: donde
+        cómo: como
+        cuándo: cuando
+    defs:
+      # Verbs whose object can be an indirect question: "no sé qué hacer", "pregunta dónde vive".
+      ES_DIA_KNOWING: /^(?:sé|sabe|sabes|sabemos|saben|sabéis|sabía|sabías|sabían|sabíamos|saber|sabiendo|sabido|sabrá|sabré|sabría|supe|supo|supieron|supiera|supiéramos|pregunt\p{L}*|decidir|decide|decidió|decidieron|elegir|explica|explícame|explíqueme|explicar|imagin\p{L}*|recuerdo|recuerda|recordaba|averiguar|entender|entiendo|ignoro|dime|dinos)$/u
+      # The verbs whose "que" + noun can only be "qué": "¿sabes qué libro…?", "pregunta qué hora es".
+      ES_DIA_ASKING: /^(?:sé|sabe|sabes|sabemos|saben|sabía|sabías|sabían|saber|pregunt\p{L}*|decidir|elegir|averiguar|se)$/u
+      # Verbs of affection whose object is the clitic before them: "¿Que me adora?" (that she…?).
+      ES_AFFECTION: /^(?:quier[eo]|quieres|quieren|ama|amas|aman|adora|adoras|adoran|odia|odias|odian)$/u
+      ES_EVENT: /^(?:pas|ocurr|suced)(?:a|ó|aba|ará|ará|ía|e|ió|erá|irá|ado|ido)$/u
+      # "hacer" with no object of its own, after a dative clitic and a modal or "haber".
+      ES_DEED: /^(?:hacer|hacerles?|hago|haces|hace|hacemos|hacen|hice|hiciste|hizo|hicimos|hicieron|hecho|haré|harás|hará|haría|harías)$/u
+      ES_BEFORE_DEED: /^(?:puedo|puedes|puede|podemos|pueden|podría|podrías|debo|debes|debe|debemos|deben|quiero|quieres|quiere|queremos|quieren|voy|vas|va|vamos|van|tengo|tienes|tiene|tenemos|tienen|he|has|ha|hemos|han|había|habías|habían)$/u
+      ES_PRETERITE: /^\p{L}{2,}(?:é|ó|aste|iste|ió|aron|ieron)$/u
+      # Any noun or adjective the lexicon knows: "mente", "retrato", "asistencia".
+      esKnownNominal:
+        args: "word: string"
+        return: esIsNoun(word) || !!esAttributeOf(word) || esIsGenderedEntry(word)
+      # The question word right after "¿"/"¡", after at most one lead word and one preposition.
+      esOpensQuestion:
+        args: "at: SpanishAround"
+        type: '"?" | "!" | null'
+        let:
+          j1: 'ES_PREPOSITIONS.has(at.prev(1)) && !at.tokens[at.i].broken ? at.i - 2 : at.i - 1'
+          j: 'ES_QUESTION_LEAD.has(at.tokens[j1]?.lower ?? "") && at.tokens[j1]?.word ? j1 - 1 : j1'
+          mark: at.tokens[j]
+        when: mark && !(j < at.i - 1 && at.tokens[j + 1].broken)
+        return: 'mark.text === "¿" ? "?" : mark.text === "¡" ? "!" : null'
+      # A noun that no reading makes a verb form: "hora", "libro", "nombre".
+      esSolidNoun:
+        args: "word: string"
+        return: >-
+          !!word && esIsNoun(word) && !esAttributeOf(word) && !(esVerbLike(word) && !word.endsWith("o")) &&
+          !esSecondPersonVerb(word) && !esSubjunctiveLike(word) && !esIsInfinitive(word) && !ES_DIA_FINITE.has(word) &&
+          !ES_DIA_NOT_NOUNS.has(word) && !ES_DETERMINERS.has(word)
+      # "¿Que has visto un ovni?", "¿Que el vecino vino?": a question that repeats a statement ("you
+      # say that…?") rather than asking "what". Its clause names what "qué" would ask for. "te pasa"
+      # is a verb after its clitic, not the adjective "pasa".
+      esEchoQuestion:
+        args: "at: SpanishAround, j: number, haber: boolean, afterPreposition: boolean"
+        type: boolean
+        let:
+          token: at.tokens[j]
+          word: token.lower
+        when: j < at.tokens.length && j < at.i + 12
+        return: >-
+          token.broken || token.text === "?" || /^[.!;]$/u.test(token.text)
+            ? false
+            : !token.word
+              ? /^\p{N}/u.test(token.text) || esEchoQuestion(at, j + 1, haber, afterPreposition)
+              : (j > at.i + 1 && /^\p{Lu}/u.test(token.text)) ||
+                  ES_DETERMINERS.has(word) || ES_DIA_SUBJECTS.has(word) || word === "que" || word === "no" ||
+                  (/[áéíóú]/u.test(word) && ES_ASKED_FORMS.has(word)) ||
+                  /^\p{L}{4,}mente$/u.test(word) ||
+                  ((j === at.i + 1 || (ES_CLITICS.has(at.tokens[j - 1].lower) && !haber)) && esSubjunctiveLike(word)) ||
+                  (!!esAttributeOf(word) && !haber && !esIsGerund(word) &&
+                    !(ES_CLITICS.has(at.tokens[j - 1].lower) && esVerbLike(word))) ||
+                  (esSolidNoun(word) && !afterPreposition)
+                ? true
+                : esEchoQuestion(at, j + 1, /^(?:he|has|ha|hemos|habéis|han|había|habías|habían)$/u.test(word), ES_PREPOSITIONS.has(word))
+        else: "false"
+      # "¿Que nos odian?", "¿Que estás temblando?": a clause that leaves nothing for "qué" to ask,
+      # either a clitic object of a verb of affection or a progressive of a verb rarely asked about.
+      esEchoClause:
+        args: "at: SpanishAround"
+        let:
+          k: 'at.next(1) === "no" ? 2 : 1'
+          first: at.next(k)
+        return: >-
+          /^(?:me|te|lo|la|nos|os|los|las)$/u.test(first) && ES_AFFECTION.test(at.next(k + 1))
+            ? at.endsAfter(k + 1)
+            : /^(?:estás|está|están|estáis|estamos|estaba|estabas|estaban)$/u.test(first)
+              ? esIsGerund(at.next(k + 1)) && !ES_ASKED_GERUNDS.has(at.next(k + 1)) && at.endsAfter(k + 1)
+              : false
+      # A subjunctive verb before the "?": "¿Para que Juan venga?" states a purpose.
+      esPurposeClause:
+        args: "at: SpanishAround, j: number"
+        type: boolean
+        when: j < at.tokens.length && j < at.i + 12
+        return: >-
+          at.tokens[j].broken || /^[?.!;]$/u.test(at.tokens[j].text)
+            ? false
+            : (at.tokens[j].word && esSubjunctiveLike(at.tokens[j].lower) && !esIsNoun(at.tokens[j].lower)) ||
+              esPurposeClause(at, j + 1)
+        else: "false"
+      # What follows a "que" can only be read as a wish or an echo: "¡Que te vaya bien!".
+      esWishAfter:
+        args: "at: SpanishAround, k: number"
+        type: boolean
+        return: 'ES_CLITICS.has(at.next(k)) || at.next(k) === "no" ? esWishAfter(at, k + 1) : esSubjunctiveLike(at.next(k))'
+      # At most three words, none a finite verb, close the clause after tokens[i + k]. Past four
+      # words, only a clause with no other verb: "qué regalarle a los niños por Navidad".
+      esShortClause:
+        args: "at: SpanishAround, k: number, n: number"
+        type: boolean
+        let:
+          word: at.next(k + n)
+        return: >-
+          n > 8
+            ? false
+            : at.endsAfter(k + n - 1)
+              ? true
+              : !word || ES_DIA_FINITE.has(word) || word === "está" || word === "que"
+                ? false
+                : n > 4 && esFiniteVerb(word) && !esIsNoun(word) && !esAttributeOf(word)
+                  ? false
+                  : esShortClause(at, k, n + 1)
+      # A finite verb form: "pasa", "piensas", "ha", "hay", "quiere".
+      esFiniteNotNoun:
+        args: "word: string"
+        return: ES_DIA_FINITE.has(word) || /^(?:hay|he|has|ha|hemos|han|había|habían)$/u.test(word) || esFiniteVerb(word)
+      # Inside a question opened by "¿": "¿Crees que no sé que me mientes?" states a fact.
+      esInQuestionBack:
+        args: "at: SpanishAround, j: number, floor: number"
+        type: boolean
+        return: >-
+          j < floor
+            ? false
+            : at.tokens[j].text === "¿"
+              ? true
+              : /^[.!?;]$/u.test(at.tokens[j].text) || at.tokens[j + 1].broken ? false : esInQuestionBack(at, j - 1, floor)
+      esInQuestion:
+        args: "at: SpanishAround"
+        return: esInQuestionBack(at, at.i - 1, Math.max(0, at.i - 16))
+      # The words of the place phrase since its last preposition or determiner: a bare noun takes
+      # one ("en casa"), an article up to three ("en aquella enorme caja azul"); more is the thing
+      # that exists ("en casa comida", "en la sala un piano").
+      esPlaceStep:
+        args: "at: SpanishAround, k: number, content: number, room: number"
+        type: boolean
+        let:
+          word: at.next(k)
+        return: >-
+          k > 9
+            ? false
+            : at.endsAfter(k - 1)
+              ? true
+              : !word
+                ? false
+                : ES_PREPOSITIONS.has(word)
+                  ? esPlaceStep(at, k + 1, 0, /^(?:al|del)$/u.test(word) ? 3 : 1)
+                  : ES_DETERMINERS.has(word) || ES_DIA_SUBJECTS.has(word) || ES_DIA_QUANTITY.has(word)
+                    ? content ? false : esPlaceStep(at, k + 1, content, 3)
+                    : esFiniteNotNoun(word) && !esIsNoun(word)
+                      ? false
+                      : content + 1 > room ? false : esPlaceStep(at, k + 1, content + 1, room)
+      # "que hay en la caja.": "hay" and a place, then the clause ends with nothing that exists.
+      esMissingThing:
+        args: "at: SpanishAround"
+        return: ES_EXISTS.has(at.next()) && ES_PLACE_START.has(at.next(2)) && esPlaceStep(at, 3, 0, 1)
+      # "que ocurrió.", "que le pasa aquí", "que ha pasado": an event with no subject after it.
+      esUntoldEvent:
+        args: "at: SpanishAround"
+        let:
+          k1: 'ES_CLITICS.has(at.next(1)) ? 2 : 1'
+          k: '/^(?:ha|había|habrá|habría)$/u.test(at.next(k1)) ? k1 + 1 : k1'
+        when: ES_EVENT.test(at.next(k))
+        return: 'at.endsAfter(ES_AFTER_EVENT.has(at.next(k + 1)) ? k + 1 : k)'
+        else: "false"
+      # "sé qué has hecho.", "saber qué puedo hacer para…": the deed is asked about, not stated.
+      esUntoldDeed:
+        args: "at: SpanishAround"
+        let:
+          k1: '/^(?:me|te|le|les|nos|os)$/u.test(at.next(1)) ? 2 : 1'
+          k2: 'ES_BEFORE_DEED.test(at.next(k1)) ? (/^(?:a|que)$/u.test(at.next(k1 + 1)) ? k1 + 2 : k1 + 1) : k1'
+        when: ES_DEED.test(at.next(k2))
+        return: at.endsAfter(k2) || ES_AFTER_DEED.has(at.next(k2 + 1))
+        else: "false"
+      # A "¿" opens the sentence before tokens[i].
+      esMark0:
+        args: "at: SpanishAround"
+        return: esOpensQuestion(at) !== null || esInQuestion(at)
+      # "¿Como cuánto?", "¿como para pagar?": approximation and purpose, not "how". "¿A qué hora?";
+      # "¿A que te ha gustado?" is a bet. "¿Por qué no viniste?", "¿De qué sirve?"; "¿Para que lo
+      # sepas?" is a purpose clause. "¿Con que esta era la felicidad?" (so this was…) introduces a
+      # clause.
+      esAskedQuestion:
+        args: "at: SpanishAround, word: string, accented: string, prev: string, next: string"
+        return: >-
+          word === "como" && (ES_DETERMINERS.has(next) || next === "para" || /[áéíóú]/u.test(next))
+            ? null
+            : (word === "cuando" || word === "como") && esWishAfter(at, 1)
+              ? null
+              : word !== "que"
+                ? accented
+                : prev === "a"
+                  ? esSolidNoun(next) ? accented : null
+                  : ES_PREPOSITIONS.has(prev)
+                    ? esPurposeClause(at, at.i + 1) || ES_DETERMINERS.has(next) ? null : accented
+                    : next === "tal" || (esSolidNoun(next) && !ES_DETERMINERS.has(next))
+                      ? accented
+                      : esEchoQuestion(at, at.i + 1, false, false) || esEchoClause(at) ? null : accented
+      # "¡Cómo no!", "¡Pero cómo no le va a gustar!"; "¡Como no vengas…!" threatens. "¡Cómo me
+      # gusta!"; "¡Como le he dicho!" (as) and "¡Como se lo digo!" (if) are not. "¡Qué bonito!",
+      # "¡Qué suerte!", "¡Qué mal!", but "¡Que aproveche!", "¡Que sí!".
+      esExclaimed:
+        args: "at: SpanishAround, word: string, accented: string, next: string"
+        return: >-
+          word !== "que" && word !== "como" && word !== "cuan"
+            ? null
+            : ES_CLITICS.has(next) && word === "que"
+              ? null
+              : word === "como" && next === "no" && !esWishAfter(at, 1)
+                ? accented
+                : word === "como"
+                  ? /^(?:me|te|nos|os)$/u.test(next) && !/^(?:he|has|ha)$/u.test(at.next(2)) && !esWishAfter(at, 1)
+                    ? accented
+                    : null
+                  : word === "cuan"
+                    ? accented
+                    : next && !esSubjunctiveLike(next) && next !== "sí" && next !== "no" &&
+                        (esIsNoun(next) || !!esAttributeOf(next) || ES_ADVERBIALS.has(next) || next === "tan" || next === "más")
+                      ? accented
+                      : null
+      # "no sé qué hacer", "sabes qué libro", "pregunta dónde vive": after a verb of knowing, or
+      # undefined when the word goes on to the next checks. "no sé qué hacer ahora"; "sé que bajar
+      # música sin pagar está mal" is a statement. "me preguntaba qué medidas tomar": a noun and the
+      # infinitive it is the object of. "saber que personas como usted…": a bare plural may be the
+      # subject of the clause.
+      esKnowingQuestion:
+        args: "at: SpanishAround, word: string, accented: string, prev: string, next: string, nextToken: SpanishToken | undefined"
+        type: string | null | undefined
+        return: >-
+          !next
+            ? null
+            : esIsInfinitive(next)
+              ? esShortClause(at, 1, 1) ? accented : null
+              : word === "que" && (esIsNoun(next) || !!esAttributeOf(next)) && esIsInfinitive(at.next(2))
+                ? esShortClause(at, 2, 1) ? accented : null
+                : word === "que"
+                  ? ES_DIA_ASKING.test(prev) && esSolidNoun(next) && !next.endsWith("s") ? accented : null
+                  : word === "donde" || word === "adonde" || word === "quien" || word === "quienes"
+                    ? ES_CLITICS.has(next) || !!nextToken?.word ? accented : null
+                    : word === "cual" || word === "cuales"
+                      ? /^(?:es|son|era|eran|fue|será|sería|de)$/u.test(next) ? accented : null
+                      : undefined
+      # "no sé a qué se refiere", "me pregunto con qué ideas vendrá": a verb of knowing, a
+      # preposition and "que"; "saber de que" is no conjunction ("darse cuenta de que" is). "hasta
+      # qué punto", "de qué forma", "a qué hora": a preposition, then "que" and a bare noun that a
+      # question asks about; the conjunction would need a clause with its subject. "Que
+      # divertido.", "Que mujer tan lista.": an exclamation without its opening mark.
+      esInterrogativeTail:
+        args: "at: SpanishAround, word: string, accented: string, prev: string, next: string"
+        let:
+          before: at.tokens[at.i - 1]
+          sentenceStart: '!before || at.tokens[at.i].broken || /^[.!?…]$/u.test(before.text)'
+          closes: at.endsAfter(1) || /^(?:tan|más|es|son|era|está|estaba)$/u.test(at.next(2))
+        return: >-
+          (word === "que" || word === "quien" || word === "quienes") && /^(?:a|de|con|en|sobre)$/u.test(prev) &&
+          ES_DIA_KNOWING.test(at.prev(2)) && !esInQuestion(at) && next && !ES_DETERMINERS.has(next)
+            ? accented
+            : word === "que" && /^(?:a|de|en|hasta|por|con|desde)$/u.test(prev) && ES_QUESTION_NOUNS.has(next) &&
+                !/^(?:de|que)$/u.test(at.next(2))
+              ? accented
+              : word === "que" && sentenceStart && next && !esSubjunctiveLike(next) && !ES_CLITICS.has(next) && closes &&
+                  (!!esAttributeOf(next) || (esIsNoun(next) && !esVerbLike(next))) && next !== "no"
+                ? accented
+                : null
+      # The checks after the question marks. "¿Y tú qué cuentas?", "¿Y ahora qué?": a subject or
+      # "ahora" between "¿" and the word. "a cambio de qué.", "Para hacer qué.", "no recordaba
+      # qué.": a "que" closing the sentence after a preposition, an infinitive or a verb of knowing
+      # asks. "No sé qué pasa", "no sé qué le pasa": present "no sé" cannot state what it denies
+      # knowing, so an indicative after it is asked about ("No sé que sea así" keeps the
+      # conjunction). "me pregunto qué quería": wondering asks; "le pregunto que si viene" reports.
+      # "no sabía qué había en la caja", "explícame qué ocurrió": an existential or an event verb
+      # that leaves its subject or object unsaid is asked about.
+      esInterrogativeRest:
+        args: "at: SpanishAround, word: string, accented: string, prev: string, next: string, nextToken: SpanishToken | undefined"
+        let:
+          knowing: >-
+            ES_DIA_KNOWING.test(prev) || (prev === "se" && /^(?:no|yo|lo|ya)$/u.test(at.prev(2)))
+              ? esKnowingQuestion(at, word, accented, prev, next, nextToken)
+              : undefined
+        return: >-
+          word === "que" &&
+          /^(?:tú|usted|ustedes|vosotros|vosotras|ellos|ellas|él|ella|esto|eso|aquello|ahora|entonces)$/u.test(prev) &&
+          esOpensQuestion(esAround(at.tokens, at.i - 1)) === "?" && (!next || !esWishAfter(at, 1))
+            ? accented
+            : word === "que" && /^[.!?]$/u.test(nextToken?.text ?? "") && !nextToken!.broken &&
+                at.tokens[at.i + 2]?.text !== "." &&
+                (ES_PREPOSITIONS.has(prev) || ES_DIA_KNOWING.test(prev) || esIsInfinitive(prev))
+              ? accented
+              : word === "que" && prev === "sé" && /^(?:no|ni)$/u.test(at.prev(2)) && !esInQuestion(at) &&
+                  !!(ES_CLITICS.has(next) ? at.next(2) : next) &&
+                  esFiniteNotNoun(ES_CLITICS.has(next) ? at.next(2) : next) &&
+                  !esSubjunctiveLike(ES_CLITICS.has(next) ? at.next(2) : next)
+                ? accented
+                : word === "que" && /^pregunt\p{L}*$/u.test(prev) && /^(?:me|te|se|nos|os)$/u.test(at.prev(2)) &&
+                    !!next && esFiniteNotNoun(next) && !esIsNoun(next) && !esSubjunctiveLike(next)
+                  ? accented
+                  : word === "que" && (ES_DIA_KNOWING.test(prev) || /^(?:ver|veamos|mira|mirar)$/u.test(prev)) &&
+                      (esMissingThing(at) || esUntoldEvent(at) || esUntoldDeed(at))
+                    ? accented
+                    : knowing !== undefined
+                      ? knowing
+                      : esInterrogativeTail(at, word, accented, prev, next)
+      # "No importa el qué sino el cómo": a question word made a noun by "el", standing alone.
+      # "Hola, como estas?": "cómo" and "estar" closing a question without its opening mark. "en
+      # qué y cómo influía", "cómo y qué": a question word paired with another.
+      esInterrogative:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          accented: 'Object.hasOwn(ES_INTERROGATIVE, word) ? ES_INTERROGATIVE[word] : undefined'
+          next: at.next()
+          nextToken: at.tokens[at.i + 1]
+          prev: at.prev()
+          mark: esOpensQuestion(at)
+        when: accented
+        return: >-
+          prev === "el" && !/^cua(?:n|l|les)$/u.test(word) &&
+          ((at.endsAfter() && word !== "que") || /^(?:sino|ni|y|e|o|u)$/u.test(next)) && !nextToken?.broken
+            ? accented
+            : word === "como" && !esMark0(at) && esGreetingSlot(at) &&
+                /^(?:estas|esta|estás|está|están|estan|estáis|estais)$/u.test(next) &&
+                esEndsQuestion(esAround(at.tokens, at.i + 1))
+              ? accented
+              : word === "que" &&
+                  ((/^(?:y|e|o|u|ni)$/u.test(next) && /[áéíóú]/u.test(at.next(2)) && ES_ASKED_FORMS.has(at.next(2))) ||
+                    (/^(?:y|e|o|u|ni)$/u.test(prev) && /[áéíóú]/u.test(at.prev(2)) && ES_ASKED_FORMS.has(at.prev(2))))
+                ? accented
+                : mark === "?"
+                  ? esAskedQuestion(at, word, accented, prev, next)
+                  : mark === "!"
+                    ? esExclaimed(at, word, accented, next)
+                    : esInterrogativeRest(at, word, accented, prev, next, nextToken)
+      # "No tengo nada qué hacer", "alguien en quién confiar": a relative after its antecedent. "el
+      # lugar por donde"; a preposition before "cómo" or "cuándo" keeps the question.
+      esRelative:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          plainForm: 'Object.hasOwn(ES_PLAIN_RELATIVE, word) ? ES_PLAIN_RELATIVE[word] : undefined'
+          k: 'ES_PREPOSITIONS.has(at.prev()) ? 2 : 1'
+          antecedent: at.prev(k)
+        when: plainForm && at.tokens[at.i - 1]?.text !== "¿"
+        return: >-
+          ES_QUANTITY_ANTECEDENTS.has(antecedent) && esIsInfinitive(at.next())
+            ? plainForm
+            : (Object.hasOwn(ES_NOUN_ANTECEDENTS, word) && ES_NOUN_ANTECEDENTS[word].includes(antecedent)) &&
+                (k === 1 || word === "dónde") && !!at.next()
+              ? plainForm
+              : null
+      # After "para mi": a word that starts no noun phrase ("para mí es", "aparta de mí este").
+      esNotNounPhrase:
+        args: "word: string"
+        return: >-
+          !ES_BEFORE_NOUN.has(word) &&
+          (ES_ONLY_VERBS.has(word) || ES_DETERMINERS.has(word) || ES_PREPOSITIONS.has(word) || ES_DIA_NUMBERS.has(word) ||
+            /^(?:algo|nada|esto|eso|también|tampoco)$/u.test(word) ||
+            ((esVerbLike(word) || ES_DIA_FINITE.has(word) || ES_COMMON_VERBS.has(word) || esSecondPersonVerb(word)) &&
+              !esIsNoun(word) && !esAttributeOf(word)))
+      # "que no dé su asentimiento": a possessive before the bare object. "que cada uno dé según su
+      # corazón": "de" governs no other preposition.
+      esGiveObject:
+        args: "at: SpanishAround"
+        let:
+          k: '/^(?:su|sus|tu|tus|mi|mis)$/u.test(at.next()) ? 2 : 1'
+        return: >-
+          (ES_GIVEN.has(at.next(k)) && (at.endsAfter(k) || /^(?:de|del|a|al|por|para|y)$/u.test(at.next(k + 1)))) ||
+          (/^(?:un|una)$/u.test(at.next()) && ES_GIVEN_WITH_ARTICLE.has(at.next(2))) ||
+          (at.next() === "a" && at.next(2) === "luz") ||
+          /^(?:con|según)$/u.test(at.next())
+      esSubjectFillers:
+        args: "at: SpanishAround, k: number"
+        type: number
+        return: "k <= 3 && ES_SUBJECT_FILLERS.has(at.prev(k)) ? esSubjectFillers(at, k + 1) : k"
+      # "que (alguien) de": a subjunctive trigger, with at most two subject words between. "más que
+      # de cuenta": a comparison.
+      esSubjunctiveSlot:
+        args: "at: SpanishAround"
+        let:
+          k: esSubjectFillers(at, 1)
+        return: >-
+          /^(?:que|ojalá|quien|aunque|cuando)$/u.test(at.prev(k)) &&
+          !/^(?:más|menos|antes|mejor|peor|tal|así|ya)$/u.test(at.prev(k + 1))
+      esFiniteForm:
+        args: "word: string"
+        return: "!!word && (ES_DIA_FINITE.has(word) || esFiniteVerb(word))"
+      esParticipleOf:
+        args: "word: string"
+        return: "!!word && !!esParticiple(word)"
+      esPlainInfinitive:
+        args: "word: string"
+        return: /^\p{L}+[aeií]r$/u.test(word) && esIsInfinitive(word)
+      # A comma closes the phrase after tokens[i] before any finite verb: "Aún sin saberlo, se fue".
+      esConcessive:
+        args: "at: SpanishAround, k: number"
+        type: boolean
+        let:
+          token: at.tokens[at.i + k]
+        return: >-
+          k > 6 || !token || token.broken || /^[.;:!?]$/u.test(token.text)
+            ? false
+            : token.text === ","
+              ? k > 1
+              : k > 1 && token.word && ES_DIA_FINITE.has(token.lower) ? false : esConcessive(at, k + 1)
+      # The sentence ends after tokens[i + n] within a few words, with no comma or finite verb.
+      esEndsPlainly:
+        args: "at: SpanishAround, n: number, last: number"
+        type: boolean
+        let:
+          token: at.tokens[at.i + n]
+        return: >-
+          n > last
+            ? false
+            : !token || token.broken || /^[.!?]$/u.test(token.text)
+              ? true
+              : !token.word || ES_DIA_FINITE.has(token.lower) || esFiniteVerb(token.lower) ? false : esEndsPlainly(at, n + 1, last)
+      esSkipClitics:
+        args: "at: SpanishAround, k: number, limit: number"
+        type: number
+        return: "k < limit && ES_CLITICS.has(at.next(k)) ? esSkipClitics(at, k + 1, limit) : k"
+      # A preterite or perfect right after "si", past its clitics: "si hice", "si me ha importado".
+      esPastFact:
+        args: "at: SpanishAround, firstPerson: boolean"
+        let:
+          k: esSkipClitics(at, 1, 3)
+          verb: at.next(k)
+        return: >-
+          firstPerson
+            ? verb === "he"
+              ? !!esParticiple(at.next(k + 1))
+              : /^(?:hice|fui|tuve|dije|puse|vine|estuve|pude|quise|supe)$/u.test(verb) ||
+                (/^\p{L}{2,}é$/u.test(verb) && esFiniteVerb(verb) && !esIsNoun(verb))
+            : ES_IRREGULAR_PAST.has(verb) || (ES_PRETERITE.test(verb) && esFiniteVerb(verb) && !esIsNoun(verb))
+              ? true
+              : /^(?:he|has|ha|hemos|han)$/u.test(verb) && !!esParticiple(at.next(k + 1))
+      # The sentence runs to a plain full stop with no comma, colon or second clause.
+      esPlainSentence:
+        args: "at: SpanishAround, j: number"
+        type: boolean
+        let:
+          token: at.tokens[j]
+        when: j < at.tokens.length && j < at.i + 16
+        return: >-
+          token.broken
+            ? false
+            : token.text === "."
+              ? at.tokens[j + 1]?.text !== "."
+              : !token.word || /^(?:si|que|pero|porque|cuando|aunque)$/u.test(token.lower) ? false : esPlainSentence(at, j + 1)
+        else: "false"
+      # A "no" earlier in the sentence, before the "pero" right ahead of tokens[i].
+      esDeniedBefore:
+        args: "at: SpanishAround, j: number, floor: number"
+        type: boolean
+        return: >-
+          j < floor
+            ? false
+            : /^[.!?;]$/u.test(at.tokens[j].text) || at.tokens[j + 1].broken
+              ? false
+              : at.tokens[j].lower === "no" || esDeniedBefore(at, j - 1, floor)
+      # Finite verbs (that are no nouns) from tokens[j] to the full stop. "dímelo", "házmelo": an
+      # imperative carrying its pronouns.
+      esFiniteCount:
+        args: "at: SpanishAround, j: number"
+        type: number
+        let:
+          token: at.tokens[j]
+        when: j < at.tokens.length && j < at.i + 16
+        return: >-
+          token.broken || /^[.!?]$/u.test(token.text)
+            ? 0
+            : ((token.word && esFiniteForm(token.lower) && !esIsNoun(token.lower)) ||
+                (token.word && /^\p{L}*[áéíóú]\p{L}*(?:me|te|se|lo|la|le|nos|os|los|las|les)$/u.test(token.lower) &&
+                  !esIsInfinitive(token.lower) && !/(?:ándo|iéndo|yéndo)/u.test(token.lower))
+                ? 1
+                : 0) + esFiniteCount(at, j + 1)
+        else: "0"
+      # A finite verb before the clause ends: "pero si hay casos" is a condition. "pero sí a jóvenes
+      # que ríen": a verb after a relative pronoun is the relative clause's.
+      esVerbAhead:
+        args: "at: SpanishAround, k: number"
+        type: boolean
+        let:
+          token: at.tokens[at.i + k]
+        return: >-
+          k > 8 || !token || token.broken || /^[.;:!?,]$/u.test(token.text)
+            ? false
+            : /^(?:que|quien|quienes)$/u.test(token.lower)
+              ? false
+              : ES_DETERMINERS.has(token.lower) || ES_PREPOSITIONS.has(token.lower) || ES_CLITICS.has(token.lower)
+                ? esVerbAhead(at, k + 1)
+                : (token.word && (ES_DIA_FINITE.has(token.lower) || (esFiniteVerb(token.lower) && !esIsNoun(token.lower)))) ||
+                  esVerbAhead(at, k + 1)
+      # "a mí me gusta", "para mí, …", "confía en mí", "aparta de mí este cáliz". "en mi menor", "en
+      # mi bemol": the note. "en mi contra" is the possessive idiom; "en mi era" the noun. "a mí
+      # bailar me encanta", "lejos de mí decir eso": an infinitive with its object; "a mi parecer",
+      # "a mi entender", "de mi ser", "de mi peregrinar" are nouns. "en lo que a mí toca", "a mí
+      # respecta". "para mí son detalles", "para mí era un placer": "son" and "era" as nouns ("mi
+      # son cubano") take no article or plural noun after them. "algo para mi incomprensible",
+      # "para mi más característico": an adjective closing the phrase has no noun for a
+      # possessive; "mi más sincero pésame" has one. A participle, an invariant adjective or one in
+      # -ible: "mi hermano" may close too.
+      esMonoMi:
+        args: "at: SpanishAround, prev: string, next: string, nextToken: SpanishToken | undefined, ends: boolean"
+        let:
+          k: '/^(?:más|menos|muy|tan|bastante)$/u.test(next) ? 2 : 1'
+          adjective: at.next(k)
+        when: ES_PREPOSITIONS.has(prev)
+        return: >-
+          /^(?:bemol|sostenido|mayor|menor)$/u.test(next)
+            ? null
+            : ends || /^(?:mismo|misma|me|que|no|el|la|los|las|lo)$/u.test(next)
+              ? "mí"
+              : next === "era" && (prev === "en" || prev === "de")
+                ? null
+                : next && next !== "contra" && !/^\p{Lu}/u.test(nextToken?.text ?? "") && esNotNounPhrase(next)
+                  ? "mí"
+                  : esIsInfinitive(next) && !esIsNoun(next) && !/^(?:parecer|entender|ver)$/u.test(next) &&
+                      (prev === "a" || /^(?:eso|esto|aquello|nada|algo|tal)$/u.test(at.next(2)))
+                    ? "mí"
+                    : prev === "a" && /^(?:toca|respecta|concierne|atañe)$/u.test(next)
+                      ? "mí"
+                      : (next === "son" || (next === "era" && prev !== "en" && prev !== "de")) &&
+                          (ES_DETERMINERS.has(at.next(2)) || !!esReadNoun(at.next(2))?.plural)
+                        ? "mí"
+                        : (esParticiple(adjective) || ES_INVARIANT.has(adjective) || /ibles?$/u.test(adjective) ||
+                            (k === 2 && !!esAttributeOf(adjective))) &&
+                            !ES_PRENOMINAL.has(adjective.replace(/s$/u, "")) &&
+                            (at.endsAfter(k) || ES_PREPOSITIONS.has(at.next(k + 1)))
+                          ? "mí"
+                          : (next === "y" || next === "o" || next === "ni") &&
+                              (ES_DIA_PRONOUNS.has(at.next(2)) || ES_PREPOSITIONS.has(at.next(2)))
+                            ? "mí"
+                            : null
+        else: "null"
+      # "tú no vuelves", "tú también"; but "tu no asistencia", "tu mismo retrato". "¿Lo hiciste tú
+      # solo?", "Y tú más.". "si tú bajas el precio": a verb with its object, even when it is also a
+      # noun.
+      esMonoTu:
+        args: "at: SpanishAround, prev: string, next: string, ends: boolean"
+        return: >-
+          ES_CLITICS.has(next)
+            ? "tú"
+            : /^(?:solo|sola|más)$/u.test(next) && at.endsAfter(1)
+              ? "tú"
+              : /^(?:si|que|cuando|y|pero|porque|aunque)$/u.test(prev) && /(?:as|es)$/u.test(next) &&
+                  esVerbLike(next) && ES_DETERMINERS.has(at.next(2))
+                ? "tú"
+                : (next === "no" || ES_ONE_OFF.has(next)) && !esKnownNominal(at.next(2))
+                  ? "tú"
+                  : ends
+                    ? /^(?:como|entre|que|sino|según|excepto|menos|incluso|y|o|ni)$/u.test(prev) ? "tú" : null
+                    : next === "y" && ES_DIA_PRONOUNS.has(at.next(2)) && ES_PREPOSITIONS.has(prev)
+                      ? "tú"
+                      : esSecondPersonVerb(next) ? "tú" : null
+      # "en mí bemol", "sonata en mí menor": the note. "a tú pie", "aprobará mí envío": a possessive
+      # before a noun takes no accent. After a verb it may be the subject: "eres tú", "pones tú".
+      # "Tú cuentas las monedas": a second-person verb that is also a plural noun.
+      esMonoStressed:
+        args: "at: SpanishAround, word: string, prev: string, next: string"
+        return: >-
+          word === "mí" &&
+          (/^(?:bemol|sostenido)$/u.test(next) ||
+            (/^(?:mayor|menor)$/u.test(next) && /^(?:en|de)$/u.test(prev) && at.endsAfter(1)))
+            ? "mi"
+            : esVerbLike(prev) || ES_DIA_FINITE.has(prev) || /^(?:como|que|entre)$/u.test(prev)
+              ? null
+              : word === "tú" && next.endsWith("s") && esFiniteVerb(next)
+                ? null
+                : esSolidNoun(next) && !/^(?:bemol|menor|mayor)$/u.test(next)
+                  ? word === "tú" ? "tu" : "mi"
+                  : null
+      # "para el." / "entre el y yo" / "el se fue" / "el fue": the pronoun "él". "el pero", "el un
+      # día", "cuando el llegó", "el mismo sabe": no noun can follow. "sino el cuando." names the
+      # question word ("el cuándo"). "el té de menta". "si el la tiene", "el lo sabe": "la"/"lo"
+      # before a verb that is no noun ("el la menor" is the note). "si el pregunta", "el busca": a
+      # feminine noun that is also a verb takes no "el" (bar "el agua", "el hambre"), so the word
+      # is the verb and "el" its subject. "Hizo con el cuatro películas": no article goes before a
+      # count and its plural noun. "El tres veces campeón" counts times for the noun after.
+      esMonoEl:
+        args: "at: SpanishAround, prev: string, next: string, nextToken: SpanishToken | undefined"
+        return: >-
+          /^[.,;:!?()]$/u.test(nextToken?.text ?? "") || (!nextToken && !at.starts)
+            ? "él"
+            : next === "cuando" && (at.endsAfter(1) || /^(?:sino|ni|y|o)$/u.test(at.next(2)))
+              ? null
+              : /^(?:pero|aunque|cuando|mientras|un|una|unos|unas)$/u.test(next)
+                ? "él"
+                : /ó$/u.test(next) && !esIsNoun(next)
+                  ? "él"
+                  : /^(?:mismo)$/u.test(next) && (ES_COMMON_VERBS.has(at.next(2)) || ES_CLITICS.has(at.next(2)))
+                    ? "él"
+                    : next === "te" && (ES_TEA.has(at.next(2)) || at.endsAfter(1))
+                      ? null
+                      : ES_CLITICS.has(next) && next !== "la" && next !== "lo"
+                        ? "él"
+                        : (next === "la" || next === "lo") && esFiniteForm(at.next(2)) && !esIsNoun(at.next(2)) &&
+                            !ES_PREPOSITIONS.has(at.next(2))
+                          ? "él"
+                          : ES_COMMON_VERBS.has(next) || (ES_ONE_OFF.has(next) && next !== "mismo" && next !== "misma")
+                            ? "él"
+                            : /a$/u.test(next) && !/^h?[aá]/u.test(next) && esFiniteForm(next) &&
+                                esReadNoun(next)?.gender === "f" && !esReadNoun(next)?.plural && !esParticipleOf(next) &&
+                                !esGenderedForm(next) && !at.starts
+                              ? "él"
+                              : ES_DIA_NUMBERS.has(next) && !!esReadNoun(at.next(2))?.plural &&
+                                  !/^(?:de|veces)$/u.test(at.next(2)) && !at.starts
+                                ? "él"
+                                : next === "no" &&
+                                    (ES_CLITICS.has(at.next(2)) || ES_COMMON_VERBS.has(at.next(2)) || ES_DIA_FINITE.has(at.next(2)) ||
+                                      /^(?:siempre|nunca|ya)$/u.test(at.next(2)))
+                                  ? "él"
+                                  : (next === "y" || next === "o") && ES_DIA_PRONOUNS.has(at.next(2)) && ES_PREPOSITIONS.has(prev)
+                                    ? "él"
+                                    : null
+      # "Él coche lo dejé", "con él voto de", "Él mismo susto": a bare singular noun after it wants
+      # the article. "a él", "de él", "para él" and "por él" take objects after them. "él sereno y
+      # ella cansada": two subjects, each with its own word. "Él tranquilo": an adjective alone can
+      # follow the subject. "Con él voto yo": a verb form after the pronoun, unless "de" makes it a
+      # noun. "Él vera lo que quiere": a feminine noun ("la vera") takes no "el". With no known
+      # gender ("él tren") the typed masculine form stays; only its accent goes.
+      esMonoElAccent:
+        args: "at: SpanishAround, prev: string, next: string"
+        let:
+          governed: /^(?:con|en|sin|sobre|entre|hacia|desde|hasta|tras|según|ante|bajo|contra|durante|mediante)$/u.test(prev)
+          k: 'next === "mismo" ? 2 : 1'
+          noun: at.next(k)
+          form: esGenderedForm(noun)
+          masculineNoun: >-
+            esSolidNoun(noun) ||
+            (!!form && esIsNoun(noun) && !form.feminine && !form.plural && !esParticiple(noun) && !ES_NOT_AFTER_EL.has(noun))
+          verbForm: esVerbLike(noun) || esFiniteVerb(noun)
+        when:
+          - at.starts || governed
+          - noun && !noun.endsWith("s") && !/^\p{Lu}/u.test(at.tokens[at.i + k].text)
+          - '!(at.next(k + 1) === "y" && ES_DIA_PRONOUNS.has(at.next(k + 2)))'
+        return: >-
+          masculineNoun && esReadNoun(noun)?.gender !== "f" && (!verbForm || /^(?:de|del)$/u.test(at.next(k + 1))) &&
+          (k === 1 || esIsNoun(noun))
+            ? "el"
+            : null
+      # "yo no sé", "lo sé.", "no sé si", "no sé cómo". "se" + an accented question word, "lo se": no
+      # clitic reading ("lo" never precedes it). "no me sé la lección": "me sé" and an article
+      # before its noun. "Sé de qué hablo": "de" and a question word. "yo también sé nadar": a bare
+      # infinitive takes no clitic before it. "Sé amable": the imperative of "ser" before an
+      # adjective closing the sentence. "no sé la lección", "no sé lo que dices": "se lo/la" with a
+      # noun or "que" after.
+      esMonoSe:
+        args: "at: SpanishAround, prev: string, next: string, ends: boolean"
+        return: >-
+          /[áéíóú]/u.test(next) && ES_ASKED_FORMS.has(next)
+            ? "sé"
+            : prev === "lo" || prev === "me"
+              ? prev === "me" && /^(?:lo|la|los|las)$/u.test(next) && esSolidNoun(at.next(2))
+                ? "sé"
+                : /^(?:te|le|les|lo|la|los|las)$/u.test(next) ? null : "sé"
+              : next === "de" && /^(?:qué|quién|quiénes|dónde|cuál|cuáles)$/u.test(at.next(2))
+                ? "sé"
+                : esPlainInfinitive(next) && !ES_PREPOSITIONS.has(prev) && prev !== "para"
+                  ? "sé"
+                  : at.starts && /^\p{Lu}/u.test(at.tokens[at.i].text) &&
+                      (ES_INVARIANT.has(next) || /(?:ble|nte|z)$/u.test(next) || (!!esGenderedForm(next) && !esParticipleOf(next))) &&
+                      !esFiniteVerb(next) && (at.endsAfter(1) || ES_PREPOSITIONS.has(at.next(2)))
+                    ? "sé"
+                    : !/^(?:no|yo|ya|tampoco|bien)$/u.test(prev)
+                      ? null
+                      : ends
+                        ? "sé"
+                        : /^(?:lo|la|los|las)$/u.test(next) && (esSolidNoun(at.next(2)) || at.next(2) === "que")
+                          ? "sé"
+                          : /^(?:si|qué|cómo|dónde|quién|quiénes|cuándo|cuál|cuánto|cuántos|nada|nadie|mucho|muy|poco|eso|esto|que|como|donde|quien|cuando|cual)$/u.test(next)
+                            ? "sé"
+                            : null
+      # "cuando le dé esto", "que te dé tiempo": a clitic only goes before a verb. "que alguien dé
+      # cuenta", "espero que dé a luz": "dar" and its bare object. "que ahora él dé este paso":
+      # after a trigger and a personal subject, "de" before a determiner is the verb ("que ella de
+      # niña…" keeps the preposition before a bare noun). "cuando te las dé": a clitic pair before
+      # it. "el te de menta", and a sentence-initial "Te de…" (tea) are not clitics.
+      esMonoDe:
+        args: "at: SpanishAround, prev: string, next: string, ends: boolean"
+        return: >-
+          ends && prev
+            ? "dé"
+            : esGiveObject(at) && esSubjunctiveSlot(at)
+              ? "dé"
+              : /^(?:él|ella|usted|dios)$/u.test(prev) && esSubjunctiveSlot(at) &&
+                  /^(?:el|la|los|las|un|una|este|esta|estos|estas|ese|esa|su|sus|tu|tus|mi|mis)$/u.test(next)
+                ? "dé"
+                : /^(?:lo|la|los|las)$/u.test(prev) && /^(?:me|te|se|le|les|nos|os)$/u.test(at.prev(2))
+                  ? "dé"
+                  : !/^(?:me|te|le|les|nos|os)$/u.test(prev)
+                    ? null
+                    : ES_DETERMINERS.has(at.prev(2)) || ES_PREPOSITIONS.has(at.prev(2))
+                      ? null
+                      : esAround(at.tokens, at.i - 1).starts
+                        ? null
+                        : esIsInfinitive(next) ? null : "dé"
+      # "dije que sí.", "¡Sí!", "el sí", "eso sí,": a clause-final "si" is the affirmative. "sí que
+      # me gusta", "en sí de alegría". "Sí, me gusta.", "Sí, pero…": an answer; "Si, como dices,
+      # llueve" opens a condition. "Si pero no quiero": no condition starts with "pero". "Pasó esto,
+      # si, ¿y ahora?": an affirmation set off by commas ("si, y solo si," is not). "No tengo casos,
+      # pero si hay otros.": after a denial, "pero sí" and one verb running to the full stop; a
+      # condition would need its main clause too. "Aquello sí era felicidad": an emphatic yes after
+      # a demonstrative subject. "No tengo coche, pero sí moto": "pero sí" and a phrase with no verb
+      # of its own. "«Sí», le dijimos.": closed by its quote. "Si hice el trabajo.", "Esta vez si me
+      # ha importado.": a past fact opening a sentence that ends without the main clause a
+      # condition needs; at the very start only the speaker's own ("Si tuvo todas las
+      # oportunidades." may be a fragment).
+      esMonoSi:
+        args: "at: SpanishAround, prev: string, next: string, nextToken: SpanishToken | undefined, ends: boolean"
+        let:
+          after: at.tokens[at.i + 2]
+          lead: /^(?:pues|ahora|entonces)$/u.test(prev) || (prev === "vez" && at.prev(2) === "esta")
+        return: >-
+          prev === "el" || prev === "un"
+            ? next && esIsNoun(next) ? null : "sí"
+            : next === "que" && !at.endsAfter(1) && prev !== "como"
+              ? "sí"
+              : prev === "en" && (next === "de" || ends)
+                ? "sí"
+                : nextToken?.text === "," && at.starts && ES_ANSWER_AFTER.has(at.next(2))
+                  ? "sí"
+                  : next === "pero" && at.starts
+                    ? "sí"
+                    : nextToken?.text === "," && at.tokens[at.i - 1]?.text === "," && after && !after.broken &&
+                        (/^[¿¡]$/u.test(after.text) || /^(?:pero|claro|aunque)$/u.test(after.lower))
+                      ? "sí"
+                      : nextToken?.text === ","
+                        ? ES_PLAIN_SI_PREV.has(prev) ? "sí" : null
+                        : prev === "pero" && esDeniedBefore(at, at.i - 2, Math.max(0, at.i - 16)) &&
+                            esPlainSentence(at, at.i + 1) && esFiniteCount(at, at.i + 1) === 1
+                          ? "sí"
+                          : /^(?:esto|eso|aquello)$/u.test(prev) && esAround(at.tokens, at.i - 1).starts &&
+                              /^(?:es|era|fue|será|sería|está|estaba)$/u.test(next) && esEndsPlainly(at, 2, 7)
+                            ? "sí"
+                            : prev === "pero" && /^(?:a|al|un|una|unos|unas)$/u.test(next) && !esVerbAhead(at, 1)
+                              ? "sí"
+                              : /^[»”"]$/u.test(nextToken?.text ?? "") && /^[«“"]$/u.test(at.tokens[at.i - 1]?.text ?? "") &&
+                                  at.tokens[at.i + 2]?.text === ","
+                                ? "sí"
+                                : (lead || at.starts) && esPastFact(at, !lead) && esPlainSentence(at, at.i + 1)
+                                  ? "sí"
+                                  : ends ? "sí" : null
+      # "aún no", "aún más", "más aún", "es mi marido aún.": still. "Aún recuerdo", "aún se
+      # desconoce": still, before the verb or its clitic. "Estaban aún durmiendo": between "estar"
+      # and its gerund. "aun así", "aun cuando", "aun si" and "aun siendo" (even) take no verb.
+      # "Aún recuerdo aquel día", "que aún lucha": still, before a finite verb, even one that is
+      # also a noun when no comma closes it ("aun niños, trabajaban"). "que el gobierno aún tenga":
+      # still, inside a "que" clause before a subjunctive that is no other word; "aun tenga que ir"
+      # opening a clause is concessive (even if). "con los ojos aún abiertos": still, before a
+      # participle inside the clause.
+      esMonoAun:
+        args: "at: SpanishAround, prev: string, next: string, ends: boolean"
+        return: >-
+          next === "no" && !esIsGerund(at.next(2))
+            ? "aún"
+            : /^(?:más|menos|mayor|menor|mejor|peor)$/u.test(next)
+              ? "aún"
+              : /^(?:más|menos)$/u.test(prev)
+                ? "aún"
+                : ES_CLITICS.has(next) && next !== "la" && next !== "las" && next !== "los"
+                  ? "aún"
+                  : esIsGerund(next) && /^est[aá]/u.test(prev)
+                    ? "aún"
+                    : /^(?:así|cuando|si|con|sin|a|al|en)$/u.test(next) || ES_CONJUNCTIONS.has(next)
+                      ? null
+                      : esFiniteForm(next) && !esParticiple(next) && (!esAttributeOf(next) || esIsNoun(next)) &&
+                          (!esIsNoun(next) || (/[oae]$/u.test(next) && at.tokens[at.i + 2]?.text !== ","))
+                        ? "aún"
+                        : esSubjunctiveLike(next) && !esIsNoun(next) && !esAttributeOf(next) &&
+                            [1, 2, 3].some((k) => at.prev(k) === "que")
+                          ? "aún"
+                          : !at.starts && esParticipleOf(next) && at.tokens[at.i + 2]?.text !== ","
+                            ? "aún"
+                            : ends && !at.starts ? "aún" : null
+      # "aun así,", "aun si", "aun siendo": even. "más aún si" (even more) keeps the accent.
+      # "estaban aún durmiendo" keeps "still" between "estar" and its gerund. "Aun no siendo
+      # cierto": even, before a negated gerund. "Aún sin saberlo, se fue", "Aún cansado, lo
+      # intentó": a concessive phrase opening the sentence and closed by a comma before its verb.
+      # "Aún así lo hizo", "pero aún así siguió": "even so" opening its clause ("sigue aún así",
+      # "aún así de sucio" keep "still").
+      esMonoAunAccent:
+        args: "at: SpanishAround, prev: string, next: string"
+        return: >-
+          prev === "ni"
+            ? "aun"
+            : /^(?:más|menos|mejor|peor|mayor|menor)$/u.test(prev) || /mente$/u.test(prev)
+              ? null
+              : next === "si" || next === "cuando" || (esIsGerund(next) && !/^est[aá]/u.test(prev))
+                ? "aun"
+                : next === "no" && esIsGerund(at.next(2))
+                  ? "aun"
+                  : at.starts && (ES_PREPOSITIONS.has(next) || esParticipleOf(next)) && esConcessive(at, 1)
+                    ? "aun"
+                    : next === "así" &&
+                        (at.tokens[at.i + 2]?.text === "," ||
+                          ((at.starts || /^(?:y|e|pero|mas|sino)$/u.test(prev)) && !!at.next(2) &&
+                            !/^(?:de|que)$/u.test(at.next(2))))
+                      ? "aun"
+                      : null
+      # "lo más", "no hay más que", "más tarde": "mas" (but) only starts a clause.
+      esMonoMas:
+        args: "at: SpanishAround, prev: string, next: string, nextToken: SpanishToken | undefined, ends: boolean"
+        return: >-
+          at.starts || at.tokens[at.i - 1]?.text === ","
+            ? null
+            : /^\p{Lu}/u.test(at.tokens[at.i].text)
+              ? null
+              : ES_DETERMINERS.has(prev) || prev === "lo"
+                ? "más"
+                : ends || /^(?:que|de|tarde|temprano|bien|mal|o|allá|adelante|grande|pequeño)$/u.test(next)
+                  ? "más"
+                  : /^\p{N}/u.test(nextToken?.text ?? "") || !!esAttributeOf(next) ? "más" : null
+      # The fix of a stressed or unstressed monosyllable, or null. The clause ends after it:
+      # punctuation, not a closing quote ('la palabra "mi".'). "Se té han caído": a clitic, not
+      # tea. "un té", "el té verde", "leche con té".
+      esMonosyllable:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          prev: at.prev()
+          next: at.next()
+          nextToken: at.tokens[at.i + 1]
+          ends: >-
+            (nextToken ? /^[.,;:!?)]$/u.test(nextToken.text) && !nextToken.broken : true) &&
+            !(nextToken?.text === "." && at.tokens[at.i + 2]?.text === ".")
+        return: >-
+          word === "mi"
+            ? esMonoMi(at, prev, next, nextToken, ends)
+            : word === "tu"
+              ? esMonoTu(at, prev, next, ends)
+              : word === "tú" || word === "mí"
+                ? esMonoStressed(at, word, prev, next)
+                : word === "el"
+                  ? esMonoEl(at, prev, next, nextToken)
+                  : word === "él"
+                    ? esMonoElAccent(at, prev, next)
+                    : word === "se"
+                      ? esMonoSe(at, prev, next, ends)
+                      : word === "de"
+                        ? esMonoDe(at, prev, next, ends)
+                        : word === "té"
+                          ? /^(?:se|me|no)$/u.test(prev) && !!next && !ES_TEA.has(next) ? "te" : null
+                          : word === "te"
+                            ? prev === "un" || prev === "una"
+                              ? "té"
+                              : (prev === "de" || prev === "con") && (ends || next === "y" || next === "ahora")
+                                ? "té"
+                                : (prev === "el" || prev === "del" || prev === "al") && (ends || ES_TEA.has(next)) ? "té" : null
+                            : word === "si"
+                              ? esMonoSi(at, prev, next, nextToken, ends)
+                              : word === "aun"
+                                ? esMonoAun(at, prev, next, ends)
+                                : word === "aún"
+                                  ? esMonoAunAccent(at, prev, next)
+                                  : word === "mas"
+                                    ? esMonoMas(at, prev, next, nextToken, ends)
+                                    : null
     frames:
       # The question words, the relatives and the stressed monosyllables. The fixer reads the
       # words around the token (review/spanish/diacritics.ts).
       - regex: "(?:qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas){{WORD_TAIL}}"
         flags: giu
         scan: owned
-        fixer: diacritics
+        # A question word, a relative or a stressed monosyllable at the token.
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+          at: esAround(tokens, i)
+          question: esInterrogative(at)
+          fix: question ?? esRelative(at) ?? esMonosyllable(at)
+        when:
+          - i >= 0
+          - token.word && token.start >= ctx.from && token.start < ctx.to
+          - fix
+        return: >-
+          esReplaceToken(ctx, token, [fix], "spanishAccents",
+            question
+              ? "review_msg_spanish_interrogative"
+              : /[áéíóú]/u.test(fix) ? "review_msg_spanish_accent" : "review_msg_spanish_accent_extra",
+            tokens[i + 1])
   - id: es.verbAccents
     checks: [spanishAccents]
     group: spanishAccents
