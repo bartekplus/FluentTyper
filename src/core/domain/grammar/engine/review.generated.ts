@@ -19574,7 +19574,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>naj[ \\t\\u00a0]{1,8}(?<word>\\p{L}{2,}(?:sz[aeyąi]\\p{L}{0,3}|ej)))(?![\\p{L}])",
     literals: ["naj"],
-    fixer: "pl:compoundsNaj",
+    fixer: "pl:@pl.compoundsFrames/1",
   }),
   frame({
     pattern:
@@ -19625,7 +19625,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>po[ \\t\\u00a0]{1,8}woli)(?=[ \\t\\u00a0]*(?:[.!?,;:…)]|$)|[ \\t\\u00a0]{1,8}(?:się|nie|ale|i|a|\\p{L}+(?:ł|ła|ło|li|ły|je|ją|ie|isz|esz|my|cie|ąc))(?![\\p{L}]))",
     literals: ["woli"],
-    fixer: "pl:compoundsPo",
+    fixer: "pl:@pl.compoundsFrames/9",
   }),
   frame({
     pattern:
@@ -19673,7 +19673,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8})(?<target>tam[ \\t\\u00a0]{1,8}(?<pron>ten|ta|to|te|ci|tego|tej|temu|tą|tę|tym|tych|tymi))(?![\\p{L}])",
     literals: ["tam"],
-    fixer: "pl:compoundsTam",
+    fixer: "pl:@pl.compoundsFrames/17",
   }),
   frame({
     pattern:
@@ -19708,19 +19708,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|\\p{L}*ym|\\p{L}*im|tego|tamtego|to|tamto|jakimś)[ \\t\\u00a0]{1,8})(?<!["„“”«])(?<target>popołudniu)(?![\\p{L}])',
     literals: ["popołudniu"],
-    fixer: "pl:compoundsPopołudniu",
+    fixer: "pl:@pl.compoundsFrames/23",
   }),
   frame({
     pattern:
       "(?<target>(?<prep>na|w)[ \\t\\u00a0]{1,8}około)(?![ \\t\\u00a0]{1,8}(?:\\d|pół|półtora|jeden|jedna|jedno|dwa|dwie|dwóch|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|\\p{L}+naście|\\p{L}+dzieści|\\p{L}+dziesiąt|sto|\\p{L}+set|\\p{L}+sta|tysiąc|tysiące|tysięcy|milion\\p{L}*|miliard\\p{L}*|kilka|kilkanaście|kilkadziesiąt|kilkuset|kilku|kilkunastu|setki|tysiące|połowy|połowie|połowę|stu|dwustu|trzystu|czterystu|pięciu|sześciu|siedmiu|ośmiu|dziewięciu|dziesięciu|dwudziestu|trzydziestu|czterdziestu|pięćdziesięciu|stu)(?![\\p{L}])|[ \\t\\u00a0]*\\d)(?![\\p{L}])",
     literals: ["około"],
-    fixer: "pl:compoundsPrep",
+    fixer: "pl:@pl.compoundsFrames/24",
   }),
   frame({
     pattern:
       "(?<!\\p{L}(?:ej|szej)[ \\t\\u00a0]{1,8})(?<target>kary[ \\t\\u00a0]{1,8}godn(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])",
     literals: ["kary"],
-    fixer: "pl:compoundsKary",
+    fixer: "pl:@pl.compoundsFrames/25",
   }),
   frame({
     pattern:
@@ -19750,13 +19750,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<!(?:^|[^\\p{L}])(?:za|po|na|o|przez|w)[ \\t\\u00a0]{1,8})(?<target>co[ \\t\\u00a0]{1,8}(?<word>tygodniow|miesięczn|roczn|dzienn|godzinn)(?<end>ie|o|y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])",
     literals: ["tygodniow", "miesięczn", "roczn", "dzienn", "godzinn"],
-    fixer: "pl:compoundsCo",
+    fixer: "pl:@pl.compoundsFrames/30",
   }),
   frame({
     pattern:
       "(?<![\\p{L}])(?<target>(?<prefix>do|od|za|po|przy|roz|prze|pod|nad)[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{3,}))(?![\\p{L}])",
     literals: [],
-    fixer: "pl:compoundsPrefix",
+    fixer: "pl:@pl.compoundsFrames/31",
   }),
   frame({
     pattern:
@@ -19776,12 +19776,12 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "post",
       "wice",
     ],
-    fixer: "pl:compoundsPrefix2",
+    fixer: "pl:@pl.compoundsFrames/32",
   }),
   frame({
     pattern: "(?<![\\p{L}])(?<target>v-ce[ \\t\\u00a0]{1,8}(?<word>\\p{L}{3,}))(?![\\p{L}])",
     literals: [],
-    fixer: "pl:compoundsV",
+    fixer: "pl:@pl.compoundsFrames/33",
   }),
   frame({
     pattern:
@@ -19799,7 +19799,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’-])(?<verb>\\p{L}{1,20}?(?:ał|ała|ało|ali|ały|ił|iła|iło|ili|iły|ył|yła|yło|yli|yły|ął|ęła|ęło|ęli|ęły|ógł|ogła|ogło|ogli|ogły|eł|szedł|szła|szło|szli|szły))(?<space>[ \\t\\u00a0]{1,8})(?<by>by|bym|byś|byśmy|byście)(?![\\p{L}\\p{N}_'’-])",
     literals: [],
-    fixer: "pl:conditionalBy",
+    fixer: "pl:@pl.compounds/1",
     flags: "giu",
     scan: "polish",
   }),
@@ -19807,7 +19807,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'\\u2019-])(?<word>\\p{L}{2,30})(?<space>[ \\t\\u00A0]{1,8})(?<ending>\\u015Bmy|\\u015Bcie)(?![\\p{L}\\p{N}_'\\u2019-])",
     literals: [],
-    fixer: "pl:personEndings",
+    fixer: "pl:@pl.compounds/2",
     flags: "giu",
     scan: "polish",
   }),
@@ -19815,7 +19815,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’-])(?<nie>nie)(?<sp>[ \\t\\u00a0]+)(?<word>\\p{L}{2,}(?:ąc|on|an|ęt)(?:y|a|e|ego|ej|emu|ym|ych|ymi)|(?:naj)?(?:lepsz|gorsz|większ|wyższ|niższ|starsz|młodsz|dłuższ|krótsz|bliższ|dalsz|tańsz|droższ|szybsz|łatwiejsz|trudniejsz|ważniejsz|ciekawsz|lżejsz|cięższ|ładniejsz|prostsz|mądrzejsz|silniejsz|słabsz|bogatsz|nowsz|zdrowsz|piękniejsz|gorętsz|zimniejsz)(?:y|a|e|ego|ej|emu|ym|ych|ymi)|(?:naj)?(?:lepiej|gorzej)|\\p{L}{2,}(?:ow|n|sk|ck)(?:y|a|e|ego|ej|emu|ym|ych|ymi)|(?:dobr|zł|duż|wielk|mał|łatw|ciekaw|zdrow|chor|pewn|zdoln|grzeczn|uprzejm|wesoł|gotow|świadom|szczęśliw)(?:y|a|e|ego|ej|emu|ym|ych|ymi|zy|i)|(?:trudno|łatwo|dobrze|źle|daleko|wysoko|nisko|drogo|tanio|długo|dużo|mało|często|rzadko|chętnie|grzecznie|uprzejmie|ważne)|\\p{L}{2,}ość|\\p{L}{2,}(?:anie|enie|eniu|aniu))(?![\\p{L}\\p{N}_-])",
     literals: ["nie"],
-    fixer: "pl:nieJoined",
+    fixer: "pl:@pl.compounds/3",
     flags: "giu",
     scan: "polish",
   }),
@@ -20565,7 +20565,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4}|[IVXLC]{1,7})(?<dash>[ \\t]?[-—–][ \\t]?|’|')?(?<end>w?sz[yaeąę]|w?sz(?:ego|ej|emu|ym|ych|ymi)|wsi|g[iaeą]|gie|gi(?:ego|ej|emu|m|ch|mi)|c[iaeą]|cie|ci(?:ego|ej|emu|m|ch|mi)|[dt]?m[yaeą]|[dt]?m(?:ego|ej|emu|ym|ych|ymi)|s?t[yaeą]|s?t(?:ego|ej|emu|ym|ych|ymi)|go|ego|mu|emu|ej|ym|ych|ymi|y|i|a|e|u|ch|óch|ech|ciu|miu|ściu|tu|stu|ięć|ro|cio|mio|dmio|ścio|oro|oma|ma|[jrt]?(?:ka|ki|kę|ką|kom|kami|kach|ce)|t?ek|jek|rek)(?![\\p{L}\\p{N}_-])(?<rest>[ \\t\\u00a0]+(?<next>\\p{L}+))?",
     literals: [],
-    fixer: "pl:numeralSuffixes",
+    fixer: "pl:@pl.numerals/1",
     flags: "gu",
     scan: "polish",
   }),
@@ -20573,7 +20573,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_-])(?<num>dwu|trzy|cztero|pi\\u0119cio|sze\\u015Bcio|siedmio|o\\u015Bmio|dziewi\\u0119cio|dziesi\\u0119cio|kilku|kilkunasto|kilkudziesi\\u0119cio|wielo|ilu|paru|stu)[ \\t\\u00a0]{1,3}(?<part>krotn\\p{L}*)(?![\\p{L}\\p{N}_-])",
     literals: ["krotn"],
-    fixer: "pl:wordKrotny",
+    fixer: "pl:@pl.numerals/2",
     flags: "giu",
     scan: "polish",
   }),
@@ -20628,7 +20628,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "roczn",
       "dzienn",
     ],
-    fixer: "pl:compoundNumerals",
+    fixer: "pl:@pl.numerals/3",
     flags: "giu",
     scan: "polish",
   }),
@@ -20650,7 +20650,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "pisklęta",
       "niemowlęta",
     ],
-    fixer: "pl:collectives",
+    fixer: "pl:@pl.numerals/4",
     flags: "giu",
     scan: "polish",
   }),
@@ -20658,7 +20658,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<amount>\\d{1,3}(?:[ \\u00a0]\\d{3})*(?:[.,]\\d+)?)(?<sp>[ \\t\\u00a0]+)(?<unit>złoty|złote|złotych|grosz|grosze|groszy)(?![\\p{L}])(?=[ \\t\\u00a0]*(?:[.!?,;:)…]|$|[ \\t\\u00a0](?:i|a|na|za|do|od|w|z|ze|to|netto|brutto|miesięcznie|rocznie|dziennie)(?![\\p{L}])))",
     literals: ["złoty", "złote", "złotych", "grosz", "grosze", "groszy"],
-    fixer: "pl:currencyForms",
+    fixer: "pl:@pl.numerals/5",
     flags: "gu",
     scan: "polish",
   }),
@@ -20666,7 +20666,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<num>\\d{1,6}|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|pięćset|tysiąc|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?<sp>[ \\t\\u00a0]+)(?<unit>gram|kilogram|dekagram|miligram|wolt|amper|wat|kilowat)(?![\\p{L}])(?![ \\t\\u00a0]+(?:w|na|z|ze|o)(?![\\p{L}]))",
     literals: ["gram", "kilogram", "dekagram", "miligram", "wolt", "amper", "wat", "kilowat"],
-    fixer: "pl:unitForms",
+    fixer: "pl:@pl.numerals/6",
     flags: "giu",
     scan: "polish",
   }),
@@ -20674,7 +20674,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>[0-9]{4})(?![\\p{N}]|\\.\\p{N}))",
     literals: [],
-    fixer: "pl:impossibleDates",
+    fixer: "pl:@pl.dates/1",
     flags: "giu",
     scan: "polish",
   }),
@@ -20682,7 +20682,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{L}\\p{N}][-./])(?<year>[0-9٠-٩۰-۹]{4})-(?<month>[0-9٠-٩۰-۹]{2})-(?<day>[0-9٠-٩۰-۹]{2})(?![*_~]{0,3}[\\p{L}\\p{N}])(?![-./][\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pl:isoDate",
+    fixer: "pl:@pl.isoDates/1",
     flags: "gdu",
     owner: "none",
   }),
@@ -20690,7 +20690,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{1,2})(?:[ \\t\\u00a0]*[–—-][ \\t\\u00a0]*|[ \\t\\u00a0]+do[ \\t\\u00a0]+)(?<b>\\d{1,2})[ \\t\\u00a0]+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?![\\p{L}])",
     literals: [],
-    fixer: "pl:dayRanges",
+    fixer: "pl:@pl.datesFrames/1",
     flags: "giu",
     scan: "polish",
   }),
@@ -20698,7 +20698,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{3,4})[ \\t\\u00A0]*[\\u2013\\u2014-][ \\t\\u00A0]*(?<b>\\d{1,4})(?![\\p{N}.,]\\d|[\\p{L}\\p{N}-])",
     literals: [],
-    fixer: "pl:yearRanges",
+    fixer: "pl:@pl.datesFrames/2",
     flags: "gu",
     scan: "polish",
   }),
@@ -20731,7 +20731,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "listopada",
       "grudnia",
     ],
-    fixer: "pl:monthForms",
+    fixer: "pl:@pl.datesFrames/3",
     flags: "giu",
     scan: "polish",
   }),
@@ -20739,7 +20739,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>sty|lut|mar|kwi|maj|cze|lip|sie|wrz|paź|lis|gru)\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}])",
     literals: ["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"],
-    fixer: "pl:abbreviatedMonths",
+    fixer: "pl:@pl.datesFrames/4",
     flags: "giu",
     scan: "polish",
   }),
@@ -20747,14 +20747,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[^\\p{L}])(?:lata|lat|latach|latami|latom)[ \\t\\u00a0]{1,8})(?<year>1\\d[0-9]0|20[0-9]0)\\.",
     literals: [],
-    fixer: "pl:fullDecades",
+    fixer: "pl:@pl.datesFrames/5",
     flags: "giu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’])",
     literals: [],
-    fixer: "pl:apostropheYears",
+    fixer: "pl:@pl.datesFrames/6",
     flags: "gu",
     scan: "polish",
   }),
@@ -20762,7 +20762,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I|styczniu|lutym|marcu|kwietniu|maju|czerwcu|lipcu|sierpniu|wrześniu|październiku|listopadzie|grudniu|roku)[ \\t\\u00a0]{1,8}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}]))",
     literals: [],
-    fixer: "pl:longYears",
+    fixer: "pl:@pl.datesFrames/7",
     flags: "giu",
     scan: "polish",
   }),
@@ -21612,7 +21612,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])(?<word>\\p{L}{4,})[ \\t\\u00a0]{1,8}(?<target>jak)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}])",
     literals: ["jak"],
-    fixer: "pl:comparedWithJak",
+    fixer: "pl:@pl.comparedWithJak/1",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -21620,7 +21620,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])(?<marker>(?:naj)?bardziej|coraz[ \\t\\u00A0]+naj(?:bardziej|mniej))[ \\t\\u00A0]+(?<word>\\p{L}{3,})(?![\\p{L}])",
     literals: ["bardziej", "coraz"],
-    fixer: "pl:degrees",
+    fixer: "pl:@pl.degrees/1",
     flags: "giu",
     scan: "polish",
     anyCheck: true,

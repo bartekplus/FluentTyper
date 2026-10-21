@@ -4,11 +4,7 @@ import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/r
 import * as agreement from "./agreement";
 import * as clauses from "./clauses";
 import * as commas from "./commas";
-import * as compounds from "./compounds";
 import * as confusions from "./confusions";
-import * as dates from "./dates";
-import * as degree from "./degree";
-import * as numbers from "./numbers";
 import * as style from "./style";
 import * as subjects from "./subjects";
 import * as typos from "./typos";
@@ -20,11 +16,7 @@ export const FIXERS = mergePredicates<Fixer>(
   agreement.FIXERS,
   clauses.FIXERS,
   commas.FIXERS,
-  compounds.FIXERS,
   confusions.FIXERS,
-  dates.FIXERS,
-  degree.FIXERS,
-  numbers.FIXERS,
   style.FIXERS,
   subjects.FIXERS,
   typos.FIXERS,

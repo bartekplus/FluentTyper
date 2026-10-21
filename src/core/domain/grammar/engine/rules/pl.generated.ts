@@ -6,6 +6,7 @@ import type { DetectContext, MatchResult } from "../../library";
 import {
   PL_FEMININE,
   PL_MASCULINE,
+  PL_MONTHS_GENITIVE,
   PL_NEUTER,
   PL_VERB,
   namedExampleBefore,
@@ -13,10 +14,14 @@ import {
   plAdjectiveOf,
   plCaseLike,
   plCases,
+  plContextYear,
+  plDaysInMonth,
   plFindingAt,
   plFiniteVerb,
+  plHasAdjective,
   plImperativeVerb,
   plImpersonalVerb,
+  plInvalidIsoDate,
   plListedVerb,
   plNounTags,
   plOnlyNoun,
@@ -24,9 +29,130 @@ import {
   plPlaceForm,
   plSentenceStart,
   plUserOrNamed,
+  plWeekdayOf,
+  plYearsFor,
   tagsAnd,
   tagsCases,
 } from "../../library";
+
+export const COMPOUND_NOT_PAST: ReadonlySet<string> = new Set([
+  "siła",
+  "siły",
+  "skała",
+  "skały",
+  "ciało",
+  "ciała",
+  "działo",
+  "działa",
+  "mogiła",
+  "mogiły",
+  "chwała",
+  "chwały",
+  "żyła",
+  "żyły",
+  "nawała",
+  "chwili",
+  "sali",
+  "fali",
+  "stali",
+  "soli",
+  "roli",
+  "woli",
+  "cali",
+  "dali",
+  "wali",
+  "brali",
+  "pała",
+  "pały",
+  "pali",
+  "śmiały",
+  "biały",
+  "mały",
+  "cały",
+  "stały",
+  "dały",
+  "wały",
+  "zapał",
+  "zapały",
+  "upał",
+  "upały",
+  "kanał",
+  "kanały",
+  "szał",
+  "szały",
+  "bali",
+  "dział",
+  "działy",
+  "materiał",
+  "materiały",
+  "ideał",
+  "ideały",
+  "rytuał",
+  "rytuały",
+  "okazały",
+  "spały",
+]);
+
+export const DEGREE_IRREGULAR_ADVERBS: ReadonlySet<string> = new Set([
+  "lepiej",
+  "gorzej",
+  "więcej",
+  "mniej",
+  "bliżej",
+  "dalej",
+  "wyżej",
+  "niżej",
+  "szybciej",
+  "później",
+  "wcześniej",
+  "dłużej",
+  "krócej",
+]);
+
+export const NUMERAL_COLLECTIVE: Readonly<Record<string, string>> = {
+  dwa: "dwoje",
+  trzy: "troje",
+  cztery: "czworo",
+  pięć: "pięcioro",
+  sześć: "sześcioro",
+  siedem: "siedmioro",
+  osiem: "ośmioro",
+  dziewięć: "dziewięcioro",
+  dziesięć: "dziesięcioro",
+  jedenaście: "jedenaścioro",
+  dwanaście: "dwanaścioro",
+  trzynaście: "trzynaścioro",
+  czternaście: "czternaścioro",
+  piętnaście: "piętnaścioro",
+  szesnaście: "szesnaścioro",
+  siedemnaście: "siedemnaścioro",
+  osiemnaście: "osiemnaścioro",
+  dziewiętnaście: "dziewiętnaścioro",
+  dwadzieścia: "dwadzieścioro",
+  trzydzieści: "trzydzieścioro",
+  czterdzieści: "czterdzieścioro",
+  pięćdziesiąt: "pięćdziesięcioro",
+  sześćdziesiąt: "sześćdziesięcioro",
+  siedemdziesiąt: "siedemdziesięcioro",
+  osiemdziesiąt: "osiemdziesięcioro",
+  dziewięćdziesiąt: "dziewięćdziesięcioro",
+};
+
+export const NUMERAL_COLLECTIVE_NOUNS: Readonly<Record<string, string>> = {
+  dzieci: "dzieci",
+  drzwi: "drzwi",
+  oczy: "oczu",
+  uszy: "uszu",
+  sanie: "sań",
+  kurczęta: "kurcząt",
+  kocięta: "kociąt",
+  szczenięta: "szczeniąt",
+  źrebięta: "źrebiąt",
+  cielęta: "cieląt",
+  prosięta: "prosiąt",
+  pisklęta: "piskląt",
+  niemowlęta: "niemowląt",
+};
 
 export const FORMS_NA_PLACES: Readonly<Record<string, string>> = {
   węgier: "na Węgry",
@@ -68,6 +194,367 @@ export const PREPOSITIONS =
 
 // pl.yaml def PREPOSITION_WORDS
 export const PREPOSITION_WORDS = new Set(PREPOSITIONS.split("|"));
+
+// pl.yaml rule pl.compounds def COMPOUND_NOUN_PHRASE_BEFORE
+export const COMPOUND_NOUN_PHRASE_BEFORE = new RegExp(
+  `(?:^|[^\\p{L}])(?:${PREPOSITIONS}|tej|tym|tego|ta|to|te|ten|swojej|mojej|jego|jej)[ \\t\\u00a0]+$`,
+  "iu",
+);
+
+// pl.yaml rule pl.compounds def compoundInfinitive
+export function compoundInfinitive(word: string) {
+  return (
+    (/ć$/u.test(word) &&
+      !/(?:ść|ęć|sieć|płeć|nić|mać|śmierć|łokieć|paznokieć|kmieć|śmieć)$/u.test(word)) ||
+    /(?:^|[^\p{L}])(?:\p{L}*(?:móc|biec|piec|rzec|strzec|wlec|tłuc|ciec)|jeść|nieść|wieść|kraść|prząść|gnieść|paść|siąść|usiąść)$/u.test(
+      word,
+    )
+  );
+}
+
+// pl.yaml rule pl.compounds def COMPOUND_MODAL
+export const COMPOUND_MODAL =
+  /^(?:mógł|mogła|mogło|mogli|mogły|chciał|chciała|chciało|chcieli|chciały|musiał|musiała|musiało|musieli|musiały|miał|miała|miało|mieli|miały|umiał|umiała|umieli|potrafił|potrafiła|potrafili|wolał|wolała|woleli|zdołał|zdołała|zdołali|powinien|powinna|powinno|powinni)$/iu;
+
+// pl.yaml rule pl.compounds def COMPOUND_NIE_APART
+export const COMPOUND_NIE_APART =
+  /(?:zna|^można|stanie|staniu|^inn\p{L}*|^jedyn\p{L}*|^setn\p{L}*|tysięczn\p{L}*|^sam\p{L}*|głow[aeyąę]|mow[aeyąę]|słow[aeoyąę]|budow[aeyąę]|połow[aeyąę]|krow[aeyąę]|^ścian\p{L}*|^zmian\p{L}*|^cen[aeyąę]|^win[aeyąę]|^stron\p{L}*|^scen\p{L}*|^więcej|^mniej|^bardziej)$/iu;
+
+// pl.yaml rule pl.numerals def NUMERAL_CARDINALS
+export const NUMERAL_CARDINALS = {
+  1: ["jeden", "jednego"],
+  2: ["dwa", "dwóch"],
+  3: ["trzy", "trzech"],
+  4: ["cztery", "czterech"],
+  5: ["pięć", "pięciu"],
+  6: ["sześć", "sześciu"],
+  7: ["siedem", "siedmiu"],
+  8: ["osiem", "ośmiu"],
+  9: ["dziewięć", "dziewięciu"],
+  10: ["dziesięć", "dziesięciu"],
+} as Readonly<Record<number, readonly [string, string]>>;
+
+// pl.yaml rule pl.numerals def NUMERAL_NOUN_STEMS
+export const NUMERAL_NOUN_STEMS = {
+  1: "jedyn",
+  2: "dwój",
+  3: "trój",
+  4: "czwór",
+  5: "piąt",
+  6: "szóst",
+  7: "siódem",
+  8: "ósem",
+  9: "dziewiąt",
+  10: "dziesiąt",
+  11: "jedenast",
+  12: "dwunast",
+  13: "trzynast",
+  14: "czternast",
+  15: "piętnast",
+  16: "szesnast",
+  17: "siedemnast",
+  18: "osiemnast",
+  19: "dziewiętnast",
+  20: "dwudziest",
+  30: "trzydziest",
+  40: "czterdziest",
+  50: "pięćdziesiąt",
+  60: "sześćdziesiąt",
+  70: "siedemdziesiąt",
+  80: "osiemdziesiąt",
+  90: "dziewięćdziesiąt",
+  100: "set",
+  200: "dwuset",
+  300: "trzyset",
+  400: "czteryset",
+  500: "pięćset",
+  600: "sześćset",
+  700: "siedemset",
+  800: "osiemset",
+  900: "dziewięćset",
+} as Readonly<Record<number, string>>;
+
+// pl.yaml rule pl.numerals def numeralSuffixFix
+export function numeralSuffixFix(num: string, ending: string, next: string | undefined) {
+  const roman = /^[IVXLC]+$/.test(num);
+  const n = roman ? 0 : Number(num);
+  const end = ending.toLowerCase();
+  return roman
+    ? /^(?:go|ego|tego|ty|tym|wiecz|ym)$/u.test(end)
+      ? [num]
+      : null
+    : /^(?:[jrt]?(?:ka|ki|kę|ką|kom|kami|kach|ce)|t?ek|jek|rek)$/u.test(end)
+      ? numeralNounFix(num, n, end)
+      : /^(?:u|ch|óch|ech|ciu|miu|ściu|tu|stu|ięć|ro|cio|mio|dmio|ścio|oro|oma|ma)$/u.test(end)
+        ? !NUMERAL_CARDINALS[n] || /^(?:ro|oro|cio|mio|dmio|ścio)$/u.test(end)
+          ? [num]
+          : [
+              /^(?:u|ciu|miu|ściu|tu|stu|ech|óch|ch)$/u.test(end)
+                ? NUMERAL_CARDINALS[n][1]
+                : NUMERAL_CARDINALS[n][0],
+              num,
+            ]
+        : next &&
+            /^(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)$/iu.test(
+              next,
+            )
+          ? [num]
+          : [num + "."];
+}
+
+// pl.yaml rule pl.numerals def numeralNounFix
+export function numeralNounFix(num: string, n: number, end: string) {
+  const stem = NUMERAL_NOUN_STEMS[n];
+  const caseEnding = /(?:kami|kach|kom|ka|ki|kę|ką|ce|ek)$/u.exec(end)?.[0];
+  return !stem || !caseEnding ? [num] : [stem + caseEnding, num];
+}
+
+// pl.yaml rule pl.numerals def numeralSuffixFinding
+export function numeralSuffixFinding(
+  ctx: DetectContext,
+  num: string,
+  end: string,
+  next: string | undefined,
+  start: number,
+  tokenEnd: number,
+) {
+  const fixed = numeralSuffixFix(num, end, next);
+  if (!(fixed !== null)) return null;
+  return plFindingAt(ctx, start, tokenEnd, fixed, "polishNumerals", "review_msg_pl_numeral_suffix");
+}
+
+// pl.yaml rule pl.numerals def NUMERAL_CURRENCY
+export const NUMERAL_CURRENCY = {
+  złoty: ["złoty", "złote", "złotych", "złotego"],
+  złote: ["złoty", "złote", "złotych", "złotego"],
+  złotych: ["złoty", "złote", "złotych", "złotego"],
+  grosz: ["grosz", "grosze", "groszy", "grosza"],
+  grosze: ["grosz", "grosze", "groszy", "grosza"],
+  groszy: ["grosz", "grosze", "groszy", "grosza"],
+} as Readonly<Record<string, readonly [string, string, string, string]>>;
+
+// pl.yaml rule pl.numerals def numeralPluralForm
+export function numeralPluralForm(
+  amount: string,
+  forms: readonly [string, string, string, string],
+) {
+  const n = Number(amount.replace(/[\s ]/g, ""));
+  const lastTwo = n % 100;
+  const last = n % 10;
+  return /[.,]\d/.test(amount)
+    ? forms[3]
+    : n === 1
+      ? forms[0]
+      : last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14)
+        ? forms[1]
+        : forms[2];
+}
+
+// pl.yaml rule pl.numerals def NUMERAL_UNITS
+export const NUMERAL_UNITS = {
+  gram: ["gramy", "gramów"],
+  kilogram: ["kilogramy", "kilogramów"],
+  dekagram: ["dekagramy", "dekagramów"],
+  miligram: ["miligramy", "miligramów"],
+  wolt: ["wolty", "woltów"],
+  amper: ["ampery", "amperów"],
+  wat: ["waty", "watów"],
+  kilowat: ["kilowaty", "kilowatów"],
+} as Readonly<Record<string, readonly [string, string]>>;
+
+// pl.yaml rule pl.numerals def NUMERAL_WORDS
+export const NUMERAL_WORDS = {
+  dwa: 2,
+  trzy: 3,
+  cztery: 4,
+  pięć: 5,
+  sześć: 6,
+  siedem: 7,
+  osiem: 8,
+  dziewięć: 9,
+  dziesięć: 10,
+  dwadzieścia: 20,
+  trzydzieści: 30,
+  czterdzieści: 40,
+  pięćdziesiąt: 50,
+  sto: 100,
+  dwieście: 200,
+  trzysta: 300,
+  pięćset: 500,
+  tysiąc: 1000,
+  kilka: 5,
+  kilkanaście: 15,
+  kilkadziesiąt: 50,
+  kilkaset: 500,
+} as Readonly<Record<string, number>>;
+
+// pl.yaml rule pl.dates def DATE_NOMINATIVE
+export const DATE_NOMINATIVE = [
+  "styczeń",
+  "luty",
+  "marzec",
+  "kwiecień",
+  "maj",
+  "czerwiec",
+  "lipiec",
+  "sierpień",
+  "wrzesień",
+  "październik",
+  "listopad",
+  "grudzień",
+];
+
+// pl.yaml rule pl.dates def DATE_ABBREVIATED
+export const DATE_ABBREVIATED = [
+  "sty",
+  "lut",
+  "mar",
+  "kwi",
+  "maj",
+  "cze",
+  "lip",
+  "sie",
+  "wrz",
+  "paź",
+  "lis",
+  "gru",
+];
+
+// pl.yaml rule pl.dates def DATE_ROMAN
+export const DATE_ROMAN = [
+  "I",
+  "II",
+  "III",
+  "IV",
+  "V",
+  "VI",
+  "VII",
+  "VIII",
+  "IX",
+  "X",
+  "XI",
+  "XII",
+];
+
+// pl.yaml rule pl.dates def NOMINATIVE_WEEKDAYS
+export const NOMINATIVE_WEEKDAYS = [
+  "niedziela",
+  "poniedziałek",
+  "wtorek",
+  "środa",
+  "czwartek",
+  "piątek",
+  "sobota",
+];
+
+// pl.yaml rule pl.dates def DATE_ROMAN_CENTURY
+export const DATE_ROMAN_CENTURY = [
+  "",
+  "I",
+  "II",
+  "III",
+  "IV",
+  "V",
+  "VI",
+  "VII",
+  "VIII",
+  "IX",
+  "X",
+  "XI",
+  "XII",
+  "XIII",
+  "XIV",
+  "XV",
+  "XVI",
+  "XVII",
+  "XVIII",
+  "XIX",
+  "XX",
+  "XXI",
+];
+
+// pl.yaml rule pl.dates def DATE_WEEKDAYS
+export const DATE_WEEKDAYS = [
+  [/^(?:poniedział\p{L}*|pon|pn)$/iu, 1],
+  [/^(?:wtor\p{L}*|wt)$/iu, 2],
+  [/^(?:środ\p{L}*|śr|sr)$/iu, 3],
+  [/^(?:czwart\p{L}*|czw|cz)$/iu, 4],
+  [/^(?:piąt\p{L}*|pt)$/iu, 5],
+  [/^(?:sobot\p{L}*|sob|so)$/iu, 6],
+  [/^(?:niedziel\p{L}*|niedz|nd|ndz)$/iu, 0],
+] as readonly (readonly [RegExp, number])[];
+
+// pl.yaml rule pl.dates def DATE_WEEKDAY_BEFORE
+export const DATE_WEEKDAY_BEFORE =
+  /(?<![\p{L}])(?<w>poniedział\p{L}*|wtor\p{L}*|środ\p{L}*|czwart\p{L}*|piąt\p{L}*|sobot\p{L}*|niedziel\p{L}*|pon\.?|pn\.?|wt\.?|śr\.?|czw\.?|pt\.?|sob\.?|niedz\.?|nd\.?)[ \t ]*,?[ \t ]*$/iu;
+
+// pl.yaml rule pl.dates def DATE_WEEKDAY_AFTER
+export const DATE_WEEKDAY_AFTER =
+  /^[ \t ]*[,(][ \t ]*(?<w>poniedział\p{L}*|wtor\p{L}*|środ\p{L}*|czwart\p{L}*|piąt\p{L}*|sobot\p{L}*|niedziel\p{L}*|pon\.?|pn\.?|wt\.?|śr\.?|czw\.?|pt\.?|sob\.?|niedz\.?|nd\.?)(?![\p{L}])/iu;
+
+// pl.yaml rule pl.dates def dateMonthOf
+export function dateMonthOf(word: string) {
+  const lower = word.toLowerCase();
+  const roman = DATE_ROMAN.indexOf(word.toUpperCase());
+  const genitive = PL_MONTHS_GENITIVE.indexOf(lower);
+  return /^[ivx]+$/i.test(word) && roman >= 0
+    ? roman + 1
+    : genitive >= 0
+      ? genitive + 1
+      : DATE_NOMINATIVE.indexOf(lower) + 1;
+}
+
+// pl.yaml rule pl.dates def dateWeekdayNamed
+export function dateWeekdayNamed(word: string) {
+  const bare = word.replace(/\.$/, "");
+  return DATE_WEEKDAYS.find(([regex]) => regex.test(bare))?.[1] ?? null;
+}
+
+// pl.yaml rule pl.dates def dateWeekday
+export function dateWeekday(
+  ctx: DetectContext,
+  month: number,
+  y: number | undefined,
+  d: number,
+  start: number,
+  end: number,
+) {
+  const years =
+    y === undefined ? plYearsFor(month, d, plContextYear(ctx.text, start, ctx.lang)) : [y];
+  const weekdays = [...new Set(years.map((year) => plWeekdayOf(year, month, d)))];
+  const before = DATE_WEEKDAY_BEFORE.exec(ctx.text.slice(Math.max(0, start - 24), start));
+  const after = DATE_WEEKDAY_AFTER.exec(ctx.text.slice(end, end + 24));
+  const named = before ?? after;
+  if (!(named !== null)) return null;
+  const said = dateWeekdayNamed(named.groups!.w);
+  if (!(said !== null && years.length > 0 && !weekdays.includes(said))) return null;
+  const key = y === undefined ? "review_msg_weekday_no_year" : "review_msg_pl_weekday_date";
+  const typed = named.groups!.w;
+  const wordStart = before ? start - before[0].length : end + after![0].indexOf(typed);
+  const afterPreposition = /(?:^|[^\p{L}])(?:w|we|na|od|do|przez|za|po|przed)[ \t ]+$/iu.test(
+    ctx.text.slice(Math.max(0, wordStart - 12), wordStart),
+  );
+  return !afterPreposition && NOMINATIVE_WEEKDAYS.includes(typed.toLowerCase())
+    ? {
+        ...plFindingAt(
+          ctx,
+          wordStart,
+          wordStart + typed.length,
+          weekdays.map((w) => plCaseLike(typed, NOMINATIVE_WEEKDAYS[w])),
+          "polishDates",
+          key,
+        ),
+        requiresChoice: true as const,
+      }
+    : plFindingAt(
+        ctx,
+        Math.max(0, before ? start - before[0].length : end),
+        before ? end : end + after![0].length,
+        [],
+        "polishDates",
+        key,
+      );
+}
 
 // pl.yaml rule pl.prepositionForms def PREPOSITION_LONG
 export const PREPOSITION_LONG = {
@@ -217,6 +704,132 @@ export const RANGE_SCORE_BEFORE =
 // pl.yaml rule pl.rangeDashes def RANGE_SCORE_AFTER
 export const RANGE_SCORE_AFTER = /^[  ]+(?:dla|po)(?![\p{L}])/u;
 
+// pl.yaml rule pl.degrees def DEGREE_IRREGULAR
+export const DEGREE_IRREGULAR = {
+  dobry: "lepszy",
+  zły: "gorszy",
+  duży: "większy",
+  mały: "mniejszy",
+  wysoki: "wyższy",
+  niski: "niższy",
+  bliski: "bliższy",
+  daleki: "dalszy",
+  szeroki: "szerszy",
+  głęboki: "głębszy",
+  lekki: "lżejszy",
+  ciężki: "cięższy",
+  długi: "dłuższy",
+} as Record<string, string>;
+
+// pl.yaml rule pl.degrees def DEGREE_ADVERBS
+export const DEGREE_ADVERBS = {
+  dobrze: "lepiej",
+  źle: "gorzej",
+  szybko: "szybciej",
+  brzydko: "brzydziej",
+  krótko: "krócej",
+  słodko: "słodziej",
+  nisko: "niżej",
+  blisko: "bliżej",
+  wysoko: "wyżej",
+  ciężko: "ciężej",
+  lekko: "lżej",
+  rzadko: "rzadziej",
+  głęboko: "głębiej",
+  daleko: "dalej",
+  długo: "dłużej",
+  często: "częściej",
+  cicho: "ciszej",
+  głośno: "głośniej",
+  mocno: "mocniej",
+  łatwo: "łatwiej",
+  trudno: "trudniej",
+  tanio: "taniej",
+  drogo: "drożej",
+  wesoło: "weselej",
+} as Record<string, string>;
+
+// pl.yaml rule pl.degrees def DEGREE_UNGRADED
+export const DEGREE_UNGRADED =
+  /^(?:optymaln|maksymaln|minimaln)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|ie)$/u;
+
+// pl.yaml rule pl.degrees def comparativeOf
+export function comparativeOf(lemma: string) {
+  if (lemma.endsWith("szy")) return null;
+  return (
+    [
+      DEGREE_IRREGULAR[lemma],
+      lemma.replace(/ny$/, "niejszy"),
+      lemma.replace(/ni$/, "ńszy"),
+      lemma.replace(/(?:o|e)?k[iy]$/, "szy"),
+      lemma.replace(/[iy]$/, "szy"),
+    ].find((c) => c && c !== lemma && plHasAdjective(c)) ?? null
+  );
+}
+
+// pl.yaml rule pl.degrees def alreadyGraded
+export function alreadyGraded(word: string) {
+  const bare = word.startsWith("naj") ? word.slice(3) : word;
+  return (
+    DEGREE_IRREGULAR_ADVERBS.has(bare) ||
+    (/ej$/.test(bare) && plHasAdjective(bare + "szy")) ||
+    [plAdjectiveOf(bare)].some((adj) => !!adj && /szy$/.test(adj.lemma) && adj.lemma !== "pierwszy")
+  );
+}
+
+// pl.yaml rule pl.degrees def degreeStyle
+export function degreeStyle(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  marker: string,
+  word: string,
+  lower: string,
+  end: number,
+) {
+  const longer = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+  if (/(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t ]+(?:i|lub|albo|czy))[ \t ]+$/iu.test(longer))
+    return null;
+  const fixed = degreeFix(word, lower === "najbardziej" ? "naj" : "");
+  if (!(fixed !== null)) return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    end,
+    [plCaseLike(marker, fixed)],
+    "stylePhrasing",
+    "review_msg_style_phrasing",
+  );
+}
+
+// pl.yaml rule pl.degrees def degreeFix
+export function degreeFix(word: string, naj: string) {
+  const adverbFix = DEGREE_ADVERBS[word]
+    ? naj + DEGREE_ADVERBS[word]
+    : word.endsWith("nie")
+      ? degreeAdverbFix(word, naj)
+      : null;
+  return adverbFix || degreeAdjectiveFix(word, naj);
+}
+
+// pl.yaml rule pl.degrees def degreeAdverbFix
+export function degreeAdverbFix(word: string, naj: string) {
+  const comparative = plHasAdjective(word.slice(0, -2) + "y")
+    ? comparativeOf(word.slice(0, -2) + "y")
+    : null;
+  return comparative?.endsWith("iejszy") ? naj + comparative.slice(0, -3) : null;
+}
+
+// pl.yaml rule pl.degrees def degreeAdjectiveFix
+export function degreeAdjectiveFix(word: string, naj: string) {
+  const adj = plAdjectiveOf(word);
+  const comparative = adj && comparativeOf(adj.lemma);
+  return adj && comparative ? naj + plAdjectiveForm(comparative, adj.ending) : null;
+}
+
+// pl.yaml rule pl.degrees def DEGREE_CLAUSE_AFTER
+export const DEGREE_CLAUSE_AFTER =
+  /^(?:naj\p{L}*|i|ja|ty|on|ona|ono|my|wy|oni|one|się|to|tylko|zwykle|zawsze|wiadomo|wspomniałem|mówiłem|sądzę|myślę|widać|każdy|ktoś|coś|nikt|nic|gdyby|by|już)$/u;
+
 // pl.yaml rule pl.commaFrames def COMMA_ASIDE_PHRASE
 export const COMMA_ASIDE_PHRASE =
   /^(?:po (?:pierwsze|drugie|trzecie|czwarte|piąte|ostatnie|prostu|kolei|czym|co)|z (?:jednej|drugiej|innej|mojej|twojej|naszej) strony|w (?:końcu|ogóle|sumie|skrócie|zasadzie|rezultacie|efekcie|praktyce|rzeczywistości|istocie|gruncie rzeczy|każdym razie|przeciwnym razie|takim razie|tym razie|tym przypadku|tym wypadku|związku z tym|dodatku|zamian|zamian za to|ten sposób|szczególności|przeciwieństwie|porównaniu|skrócie|razie czego|razie potrzeby|razie wątpliwości|międzyczasie|tym czasie)|na (?:szczęście|nieszczęście|koniec|początek|przykład|razie|pewno|marginesie|wstępie|zakończenie|dodatek|ogół|odwrót|wszelki wypadek|domiar złego|przyszłość|tym etapie|wszelki)|przede wszystkim|mimo (?:to|wszystko)|pomimo to|bez (?:wątpienia|względu|dwóch zdań)|dla (?:przykładu|porządku|jasności|ścisłości)|ponad (?:to|wszystko)|poza tym|z (?:tego|tej) (?:powodu|przyczyny)|od (?:razu|tego czasu|teraz|dziś|jutra)|do (?:tego|rzeczy)|przy (?:tym|okazji)|za (?:to|chwilę|moment)|o (?:dziwo|ile))$/u;
@@ -337,6 +950,454 @@ export function fragmentVerbLike(word: string) {
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // pl.yaml rule pl.compoundsFrames frame 1
+  "@pl.compoundsFrames/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    return "naj" + word;
+  },
+  // pl.yaml rule pl.compoundsFrames frame 9
+  "@pl.compoundsFrames/9": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^po\s+Woli$/u.test(target) ? null : "powoli";
+  },
+  // pl.yaml rule pl.compoundsFrames frame 17
+  "@pl.compoundsFrames/17": (m: RegExpExecArray): string | readonly string[] | null => {
+    const pron = m.groups!.pron;
+    return "tam" + pron.toLowerCase();
+  },
+  // pl.yaml rule pl.compoundsFrames frame 23
+  "@pl.compoundsFrames/23": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.startsWith("P") ? null : "po południu";
+  },
+  // pl.yaml rule pl.compoundsFrames frame 24
+  "@pl.compoundsFrames/24": (m: RegExpExecArray): string | readonly string[] | null => {
+    const prep = m.groups!.prep;
+    return prep.toLowerCase() + "około";
+  },
+  // pl.yaml rule pl.compoundsFrames frame 25
+  "@pl.compoundsFrames/25": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return "karygodn" + end.toLowerCase();
+  },
+  // pl.yaml rule pl.compoundsFrames frame 30
+  "@pl.compoundsFrames/30": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    const end = m.groups!.end;
+    const ending = end.toLowerCase();
+    const stem = word.toLowerCase();
+    if ((ending === "o") !== /ow$/.test(stem) && (ending === "o" || ending === "ie")) return null;
+    return "co" + stem + ending;
+  },
+  // pl.yaml rule pl.compoundsFrames frame 31
+  "@pl.compoundsFrames/31": (m: RegExpExecArray): string | readonly string[] | null => {
+    const prefix = m.groups!.prefix;
+    const verb = m.groups!.verb;
+    if (
+      plNounTags(verb) ||
+      plAdjectiveOf(verb) ||
+      /(?:ść|ęć)$|^(?:pięć|sześć|siedem|osiem|mać|chęć|płeć|nić|sieć)$/u.test(verb)
+    )
+      return null;
+    if (!(/(?:ać|eć|ić|yć|uć|ąć)$/u.test(verb) || plFiniteVerb(verb))) return null;
+    if (/^(?:był\p{L}*|jest|są|będ\p{L}*|ma|mam|mieć|może)$/u.test(verb)) return null;
+    return prefix.toLowerCase() + verb;
+  },
+  // pl.yaml rule pl.compoundsFrames frame 32
+  "@pl.compoundsFrames/32": (m: RegExpExecArray): string | readonly string[] | null => {
+    const prefix = m.groups!.prefix;
+    const word = m.groups!.word;
+    return /^\p{Ll}/u.test(word) ? prefix + word : null;
+  },
+  // pl.yaml rule pl.compoundsFrames frame 33
+  "@pl.compoundsFrames/33": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    return "wice" + word;
+  },
+  // pl.yaml rule pl.compounds frame 1
+  "@pl.compounds/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const by = m.groups!.by;
+    if (COMPOUND_NOT_PAST.has(verb.toLowerCase()) || verb.length < 3) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (COMPOUND_NOUN_PHRASE_BEFORE.test(before)) return null;
+    const next = (
+      ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 60).match(/\p{L}+/gu) ?? []
+    ).slice(0, 4);
+    if (
+      by.length === 2 &&
+      !COMPOUND_MODAL.test(verb) &&
+      next.some((word) => compoundInfinitive(word.toLowerCase()))
+    )
+      return null;
+    if (/^\p{L}*(?:ł|ła|ło|li|ły)$/u.test(next[0] ?? "")) return null;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [plCaseLike(m[0], verb + by.toLowerCase())],
+      "englishClosedCompounds",
+      "review_msg_closed_compound",
+    );
+  },
+  // pl.yaml rule pl.compounds frame 2
+  "@pl.compounds/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    const ending = m.groups!.ending;
+    if (!/(?:li|ły|by|ło|ła)$/iu.test(word)) return null;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [plCaseLike(m[0], word + ending.toLowerCase())],
+      "englishClosedCompounds",
+      "review_msg_closed_compound",
+    );
+  },
+  // pl.yaml rule pl.compounds frame 3
+  "@pl.compounds/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const nie = m.groups!.nie;
+    const word = m.groups!.word;
+    if (COMPOUND_NIE_APART.test(word) || /^\p{Lu}/u.test(word)) return null;
+    const after = m.index + m[0].length;
+    const sentenceBefore =
+      ctx.text
+        .slice(Math.max(0, m.index - 200), m.index)
+        .split(/[.!?…\n]/u)
+        .at(-1) ?? "";
+    const sentenceAfter = ctx.text.slice(after, after + 200).split(/[.!…\n]/u)[0] ?? "";
+    if (sentenceAfter.includes("?")) return null;
+    if (
+      /(?:^|[^\p{L}])(?:to|czy|czyż|że|żeby|gdyby|jakby|by|a|ale|lecz|ani)[ \t ]+$/iu.test(
+        sentenceBefore,
+      )
+    )
+      return null;
+    if (/^[ \t ]+(?:od|niż)(?!\p{L})/iu.test(sentenceAfter)) return null;
+    if (
+      /^[^;:]{0,60}?(?:,[ \t ]*(?:ale|lecz|tylko|a|jednak)|[ \t ]lecz)(?!\p{L})/iu.test(
+        sentenceAfter,
+      )
+    )
+      return null;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      after,
+      [plCaseLike(nie, "nie") + word.toLowerCase()],
+      "englishClosedCompounds",
+      "review_msg_closed_compound",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 1
+  "@pl.numerals/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const dash = m.groups!.dash;
+    const end = m.groups!.end;
+    const rest = m.groups!.rest;
+    const next = m.groups!.next;
+    if (!dash && !/^(?:go|ego|tego|ty|tych|tym|szy|wszy|gi|ci|ciu|miu|stu)$/u.test(end))
+      return null;
+    if (dash && /^['’]$/.test(dash) && !/^(?:ty|go|ego|tych)$/u.test(end)) return null;
+    const start = m.index;
+    const tokenEnd = start + num.length + (dash?.length ?? 0) + end.length;
+    return next &&
+      /^(?:u|ro|cio|mio|dmio|ścio|ciu|miu|o|ech|óch|oma)$/u.test(end) &&
+      /^\p{Ll}+(?:ow|n|t|sk|cz|ln|ni)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|i)$/u.test(next) &&
+      !/^(?:lat|osób|ludzi)/u.test(next)
+      ? plFindingAt(
+          ctx,
+          start,
+          tokenEnd + rest.length,
+          [num + "-" + next],
+          "polishNumerals",
+          "review_msg_pl_numeral_hyphen",
+        )
+      : /^(?:u|ro|cio|mio|dmio|ścio|ciu|o)$/u.test(end) &&
+          /^[ \t ]+(?:i|lub|albo|oraz|czy)[ \t ]+\d+-\p{L}/u.test(
+            ctx.text.slice(tokenEnd, tokenEnd + 24),
+          )
+        ? plFindingAt(
+            ctx,
+            start,
+            tokenEnd,
+            [num + "-"],
+            "polishNumerals",
+            "review_msg_pl_numeral_hyphen",
+          )
+        : numeralSuffixFinding(ctx, num, end, next, start, tokenEnd);
+  },
+  // pl.yaml rule pl.numerals frame 2
+  "@pl.numerals/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const part = m.groups!.part;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [num + part.toLowerCase()],
+      "polishNumerals",
+      "review_msg_pl_numeral_hyphen",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 3
+  "@pl.numerals/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const gap = m.groups!.gap;
+    const part = m.groups!.part;
+    if (/^(?:letni|roczn|dzienn)/iu.test(part) && Number(num) < 2) return null;
+    if (/^(?:letni)$/iu.test(part) && !/[-–—]/u.test(gap)) return null;
+    if (plUserOrNamed(ctx, part)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [num + "-" + part.toLowerCase()],
+      "polishNumerals",
+      "review_msg_pl_numeral_hyphen",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 4
+  "@pl.numerals/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const sp = m.groups!.sp;
+    const noun = m.groups!.noun;
+    if (plUserOrNamed(ctx, m[0])) return null;
+    if (/(?:^|[^\p{L}])w[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))
+      return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [
+        plCaseLike(
+          m[0],
+          `${NUMERAL_COLLECTIVE[num.toLowerCase()]}${sp}${NUMERAL_COLLECTIVE_NOUNS[noun.toLowerCase()]}`,
+        ),
+      ],
+      "polishNumerals",
+      "review_msg_pl_numeral_noun",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 5
+  "@pl.numerals/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const amount = m.groups!.amount;
+    const sp = m.groups!.sp;
+    const unit = m.groups!.unit;
+    const wanted = numeralPluralForm(amount, NUMERAL_CURRENCY[unit]);
+    if (!(wanted !== unit)) return null;
+    const start = m.index + amount.length + sp.length;
+    return plFindingAt(
+      ctx,
+      start,
+      start + unit.length,
+      [wanted],
+      "polishNumerals",
+      "review_msg_pl_numeral_noun",
+    );
+  },
+  // pl.yaml rule pl.numerals frame 6
+  "@pl.numerals/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const num = m.groups!.num;
+    const sp = m.groups!.sp;
+    const unit = m.groups!.unit;
+    const n = /^\d+$/.test(num) ? Number(num) : NUMERAL_WORDS[num.toLowerCase()];
+    if (!(n !== 1)) return null;
+    if (plUserOrNamed(ctx, unit)) return null;
+    const forms = NUMERAL_UNITS[unit.toLowerCase()];
+    const lastTwo = n % 100;
+    const wanted =
+      n % 10 >= 2 && n % 10 <= 4 && !(lastTwo >= 12 && lastTwo <= 14) ? forms[0] : forms[1];
+    const start = m.index + num.length + sp.length;
+    return plFindingAt(
+      ctx,
+      start,
+      start + unit.length,
+      [wanted],
+      "polishNumerals",
+      "review_msg_pl_numeral_noun",
+    );
+  },
+  // pl.yaml rule pl.dates frame 1
+  "@pl.dates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const day = m.groups!.day;
+    const mword = m.groups!.mword;
+    const year = m.groups!.year;
+    const dday = m.groups!.dday;
+    const dmonth = m.groups!.dmonth;
+    const dyear = m.groups!.dyear;
+    const dayText = day ?? dday;
+    const yearText = year ?? dyear;
+    if (mword && /^[IVX]+$/.test(mword) && !yearText) return null;
+    if (mword && /^[ivx]+$/.test(mword)) return null;
+    const month = mword ? dateMonthOf(mword) : Number(dmonth);
+    const y = yearText ? Number(yearText) : undefined;
+    const d = Number(dayText);
+    return month < 1 || month > 12 || d < 1 || d > plDaysInMonth(month, y)
+      ? plFindingAt(
+          ctx,
+          m.index,
+          m.index + m[0].length,
+          [],
+          "polishDates",
+          "review_msg_pl_impossible_date",
+        )
+      : dateWeekday(ctx, month, y, d, m.index, m.index + m[0].length);
+  },
+  // pl.yaml rule pl.isoDates frame 1
+  "@pl.isoDates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const range = plInvalidIsoDate(m, ctx);
+    return (
+      range &&
+      plFindingAt(ctx, range.start, range.end, [], "polishDates", "review_msg_pl_impossible_date")
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 1
+  "@pl.datesFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    if (!(Number(a) >= Number(b))) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [],
+      "polishDates",
+      "review_msg_pl_impossible_date",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 2
+  "@pl.datesFrames/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
+    if (/^[ \t ]*\d/u.test(after)) return null;
+    const beforeChrist =
+      /^[ \t ]*(?:p\.?[ \t ]*n\.?[ \t ]*e|przed[ \t ]+(?:naszą|Chrystusem)|BC)/iu.test(after);
+    if (b.length !== a.length && b.length > 2 && !(beforeChrist && b.length > a.length))
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+    if (!/(?:latach|lata|okresie|sezonie|rok\p{L}*|w|od)[ \t ]+$/iu.test(before)) return null;
+    const startYear = Number(a);
+    const endYear = b.length < a.length ? Number(a.slice(0, a.length - b.length) + b) : Number(b);
+    if (beforeChrist ? endYear < startYear : endYear > startYear) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [],
+      "polishDates",
+      "review_msg_pl_impossible_date",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 3
+  "@pl.datesFrames/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const day = m.groups!.day;
+    const dot = m.groups!.dot;
+    const sp = m.groups!.sp;
+    const month = m.groups!.month;
+    const index = DATE_NOMINATIVE.indexOf(month.toLowerCase());
+    if (index >= 0 && /^\p{Lu}/u.test(month)) return null;
+    if (index < 0 && !dot) return null;
+    const spelled = /^\p{L}/u.test(day);
+    if (spelled && (dot || index < 0)) return null;
+    const genitive = index >= 0 ? PL_MONTHS_GENITIVE[index] : month.toLowerCase();
+    const start = m.index + day.length + sp.length;
+    return dot
+      ? plFindingAt(
+          ctx,
+          m.index,
+          m.index + m[0].length,
+          [day + sp + genitive],
+          "polishDates",
+          "review_msg_pl_month_form",
+        )
+      : plFindingAt(
+          ctx,
+          start,
+          start + month.length,
+          [plCaseLike(month, genitive)],
+          "polishDates",
+          "review_msg_pl_month_form",
+        );
+  },
+  // pl.yaml rule pl.datesFrames frame 4
+  "@pl.datesFrames/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const day = m.groups!.day;
+    const month = m.groups!.month;
+    const year = m.groups!.year;
+    if (!(month !== "maj")) return null;
+    const index = DATE_ABBREVIATED.indexOf(month.toLowerCase());
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [`${day} ${DATE_ROMAN[index]} ${year}`, `${day} ${PL_MONTHS_GENITIVE[index]} ${year}`],
+      "polishDates",
+      "review_msg_pl_month_form",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 5
+  "@pl.datesFrames/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const year = m.groups!.year;
+    const value = Number(year);
+    const century = DATE_ROMAN_CENTURY[Math.floor(value / 100) + 1];
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [value % 100 ? `${value % 100}. ${century} w.` : `${value}–${value + 9}`],
+      "polishDates",
+      "review_msg_pl_decade",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 6
+  "@pl.datesFrames/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const year = m.groups!.year;
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    const fixed =
+      year.length === 4
+        ? year
+        : /(?:^|[^\p{L}])(?:lata|lat|latach|latami|latom)[ \t ]+$/iu.test(before)
+          ? /^[ \t ]*[.]/u.test(ctx.text.slice(m.index + m[0].length))
+            ? year
+            : year + "."
+          : null;
+    if (!(fixed !== null)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [fixed],
+      "polishDates",
+      "review_msg_pl_decade",
+    );
+  },
+  // pl.yaml rule pl.datesFrames frame 7
+  "@pl.datesFrames/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const year = m.groups!.year;
+    const years = [
+      ...new Set(
+        Array.from({ length: year.length - 1 }, (_, i) => i + 1)
+          .filter((i) => year[i] === year[i - 1])
+          .map((i) => year.slice(0, i) + year.slice(i + 1)),
+      ),
+    ].filter((fix) => /^(?:1\d|20)\d\d$/.test(fix));
+    if (!(years.length === 1)) return null;
+    const start = m.index + m[0].length - year.length;
+    return plFindingAt(
+      ctx,
+      start,
+      start + year.length,
+      years,
+      "polishDates",
+      "review_msg_pl_impossible_date",
+    );
+  },
   // pl.yaml rule pl.prepositionForms frame 1
   "@pl.prepositionForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const prep = m.groups!.prep;
@@ -638,6 +1699,69 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives: ["–"],
       context: { start: m.index, end: m.index + m[0].length },
     };
+  },
+  // pl.yaml rule pl.comparedWithJak frame 1
+  "@pl.comparedWithJak/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    const lower = word.toLowerCase();
+    if (lower.startsWith("naj") || !alreadyGraded(lower) || plUserOrNamed(ctx, word)) return null;
+    if (lower === "później" || lower === "wcześniej") return null;
+    if (
+      /(?:^|[^\p{L}])(?:nic|niczym|niczego)[ \t ]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      )
+    )
+      return null;
+    const after = next.toLowerCase();
+    if (DEGREE_CLAUSE_AFTER.test(after) || plFiniteVerb(after)) return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        m.indices!.groups!.target[0],
+        m.indices!.groups!.target[1],
+        [plCaseLike(target, "niż")],
+        "englishPhraseCorrections",
+        "review_msg_contextual_grammar",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.degrees frame 1
+  "@pl.degrees/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const marker = m.groups!.marker;
+    const word = m.groups!.word;
+    if (plUserOrNamed(ctx, word)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 8), m.index);
+    if (/(?:^|[^\p{L}])(?:tym|im)[ \t ]+$/iu.test(before)) return null;
+    const lower = marker.toLowerCase();
+    const start = m.index;
+    const end = start + m[0].length;
+    return lower.startsWith("coraz")
+      ? plFindingAt(
+          ctx,
+          start,
+          start + marker.length,
+          [marker.replace(/naj(?=bardziej|mniej)/iu, "")],
+          "englishDoubledDegree",
+          "review_msg_doubled_degree",
+        )
+      : ctx.rules?.has("englishDoubledDegree") !== false &&
+          (alreadyGraded(word) || DEGREE_UNGRADED.test(word))
+        ? /^(?:lepsz|gorsz|lepiej|gorzej|lepsi|gorsi)/u.test(word) && lower === "bardziej"
+          ? null
+          : plFindingAt(
+              ctx,
+              start,
+              end,
+              [plCaseLike(marker, word)],
+              "englishDoubledDegree",
+              "review_msg_doubled_degree",
+            )
+        : ctx.rules && !ctx.rules.has("stylePhrasing")
+          ? null
+          : degreeStyle(ctx, m, marker, word, lower, end);
   },
   // pl.yaml rule pl.commaFrames frame 1
   "@pl.commaFrames/1": (m: RegExpExecArray): string | null => {

@@ -76,7 +76,7 @@ rules:
     frames:
       # "naj" is no word of its own: "naj lepszy", "naj częściej" -> the superlative.
       - regex: "(?<target>naj{{S}}(?<word>\\p{L}{2,}(?:sz[aeyąi]\\p{L}{0,3}|ej)))(?![\\p{L}])"
-        fixer: compoundsNaj
+        return: '"naj" + word'
       # "niema" (mute, feminine) before a genitive object, or after one at the clause end, is "nie ma".
       - regex: "(?<target>niema)(?={{S}}(?:pojęcia|czasu|sensu|go|jej|ich|nic|nikogo|niczego|już|tu|tam|potrzeby|mowy|problemu|racji|prawa|wątpliwości|szans|znaczenia|co|kto|gdzie|jak|czego|kogo|nas|was|mnie|ciebie|tego|takiej|takiego|żadnego|żadnej|żadnych|sprawy|szansy|dokąd|kiedy)(?![\\p{L}]))"
         check: englishAlotCorrection
@@ -104,7 +104,7 @@ rules:
         fix: "pośrodku"
       # "po woli dotarcia" (by the will to) and the Warsaw district "Wola" keep the noun.
       - regex: "(?<target>po{{S}}woli)(?=[ \\t\\u00a0]*(?:[.!?,;:…)]|$)|{{S}}(?:się|nie|ale|i|a|\\p{L}+(?:ł|ła|ło|li|ły|je|ją|ie|isz|esz|my|cie|ąc))(?![\\p{L}]))"
-        fixer: compoundsPo
+        return: '/^po\s+Woli$/u.test(target) ? null : "powoli"'
       # "ponad to, co" (beyond what) is two words.
       - regex: "(?<target>ponad{{S}}to)(?![\\p{L}])(?![ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:co|czego|czym)(?![\\p{L}]))"
         fix: "ponadto"
@@ -128,7 +128,7 @@ rules:
         fix: "wprawdzie"
       # A preposition takes no "tam": "na tam to dziecko" is the demonstrative "tamto".
       - regex: "(?<=(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed){{S}})(?<target>tam{{S}}(?<pron>ten|ta|to|te|ci|tego|tej|temu|tą|tę|tym|tych|tymi))(?![\\p{L}])"
-        fixer: compoundsTam
+        return: '"tam" + pron.toLowerCase()'
       # The noun "widzimisię" after a preposition or a possessive.
       - regex: "(?<=(?:^|[^\\p{L}])(?:od|z|na|dla|według|czyjegoś|czyjeś|czyjś|jego|jej|ich|swojego|swoje|swoim|własnego|własne){{S}})(?<target>widzi{{S}}mi{{S}}się)(?![\\p{L}])"
         fix: "widzimisię"
@@ -145,13 +145,13 @@ rules:
         fix: "w stanie"
       # "w ogóle" written as one is handled by SPLIT_WORDS; "popołudniu" after no preposition is "po południu".
       - regex: "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|\\p{L}*ym|\\p{L}*im|tego|tamtego|to|tamto|jakimś){{S}})(?<![\"„“”«])(?<target>popołudniu)(?![\\p{L}])"
-        fixer: compoundsPopołudniu
+        return: 'target.startsWith("P") ? null : "po południu"'
       # "na około 300 zł", "w około połowie": "około" is the approximation, not the adverb.
       - regex: "(?<target>(?<prep>na|w){{S}}około)(?!{{S}}(?:\\d|{{NUMERALS}})(?![\\p{L}])|[ \\t\\u00a0]*\\d)(?![\\p{L}])"
-        fixer: compoundsPrep
+        return: prep.toLowerCase() + "około"
       # "kary godny" (worthy of a penalty) after an adjective keeps the genitive: "najwyższej kary godne".
       - regex: "(?<!\\p{L}(?:ej|szej){{S}})(?<target>kary{{S}}godn(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])"
-        fixer: compoundsKary
+        return: '"karygodn" + end.toLowerCase()'
       # "nie mniej niż" (not less than) stays apart; "w tym nie mniej" is "including at least".
       - regex: "(?<target>nie{{S}}mniej)(?={{S}}jednak(?![\\p{L}]))(?!{{S}}jednak{{S}}niż)"
         fix: "niemniej"
@@ -165,17 +165,27 @@ rules:
         fix: "zazwyczaj"
       # "za co miesięcznie płacą" is the pronoun "co"; otherwise the adverbs and adjectives are one word.
       - regex: "(?<!(?:^|[^\\p{L}])(?:za|po|na|o|przez|w){{S}})(?<target>co{{S}}(?<word>tygodniow|miesięczn|roczn|dzienn|godzinn)(?<end>ie|o|y|a|e|ego|ej|emu|ą|ym|ych|ymi|i))(?![\\p{L}])"
-        fixer: compoundsCo
+        let:
+          ending: end.toLowerCase()
+          stem: word.toLowerCase()
+        # "codziennie" and "cotygodniowo": the adverb ending follows the adjective stem.
+        when: '!((ending === "o") !== /ow$/.test(stem) && (ending === "o" || ending === "ie"))'
+        return: '"co" + stem + ending'
       # "się do czekać", "od stresować": a verb prefix typed apart (a preposition never takes a
       # verb). Not a noun or a numeral in -ć ("do miłość", "od pięć"), nor "wy" (you).
       - regex: "(?<![\\p{L}])(?<target>(?<prefix>do|od|za|po|przy|roz|prze|pod|nad){{S}}(?<verb>\\p{L}{3,}))(?![\\p{L}])"
-        fixer: compoundsPrefix
+        when:
+          - "!(plNounTags(verb) || plAdjectiveOf(verb) || /(?:ść|ęć)$|^(?:pięć|sześć|siedem|osiem|mać|chęć|płeć|nić|sieć)$/u.test(verb))"
+          - "/(?:ać|eć|ić|yć|uć|ąć)$/u.test(verb) || plFiniteVerb(verb)"
+          # "za był", "do jest": a verb that takes no prefix stays apart (and stays wrong).
+          - '!/^(?:był\p{L}*|jest|są|będ\p{L}*|ma|mam|mieć|może)$/u.test(verb)'
+        return: prefix.toLowerCase() + verb
       # "eks-mąż", "mini-spódniczka", "quasi-nauka": a prefix joins the word it opens.
       - regex: "(?<![\\p{L}])(?<target>(?<prefix>eks|mini|maksi|maxi|super|ultra|mega|anty|pseudo|quasi|neo|post|wice)-(?<word>\\p{L}{3,}))(?![\\p{L}-])"
-        fixer: compoundsPrefix2
+        return: '/^\p{Ll}/u.test(word) ? prefix + word : null'
       # "v-ce prezes" -> "wiceprezes".
       - regex: "(?<![\\p{L}])(?<target>v-ce{{S}}(?<word>\\p{L}{3,}))(?![\\p{L}])"
-        fixer: compoundsV
+        return: '"wice" + word'
       # "wciągu" is also the hoist ("wciąg"); before a span of time it is "w ciągu".
       - regex: "(?<target>wciągu)(?={{S}}(?:\\d|ostatni\\p{L}*|następn\\p{L}*|najbliższ\\p{L}*|kilk\\p{L}*|roku|lat|dnia|dni|tygodnia|tygodni|miesiąca|miesięcy|godziny|godzin|minuty|minut|sekund\\p{L}*|jednego|jednej|dwóch|trzech|całego|całej|pierwsz\\p{L}*|ubiegł\\p{L}*|tego|tej|życia|doby)(?![\\p{L}]))"
         fix: "w ciągu"
@@ -186,18 +196,109 @@ rules:
     checks: [englishClosedCompounds, englishAlotCorrection]
     style: match
     message: review_msg_closed_compound
+    sets:
+      # Nouns and adjectives that end like past forms.
+      COMPOUND_NOT_PAST:
+        [
+          siła,
+          siły,
+          skała,
+          skały,
+          ciało,
+          ciała,
+          działo,
+          działa,
+          mogiła,
+          mogiły,
+          chwała,
+          chwały,
+          żyła,
+          żyły,
+          nawała,
+          chwili,
+          sali,
+          fali,
+          stali,
+          soli,
+          roli,
+          woli,
+          cali,
+          dali,
+          wali,
+          brali,
+          pała,
+          pały,
+          pali,
+          śmiały,
+          biały,
+          mały,
+          cały,
+          stały,
+          dały,
+          wały,
+          zapał,
+          zapały,
+          upał,
+          upały,
+          kanał,
+          kanały,
+          szał,
+          szały,
+          bali,
+          dział,
+          działy,
+          materiał,
+          materiały,
+          ideał,
+          ideały,
+          rytuał,
+          rytuały,
+          okazały,
+          spały,
+        ]
+    defs:
+      COMPOUND_NOUN_PHRASE_BEFORE: 'new RegExp(`(?:^|[^\\p{L}])(?:${PREPOSITIONS}|tej|tym|tego|ta|to|te|ten|swojej|mojej|jego|jej)[ \\t\\u00a0]+$`, "iu")'
+      # An infinitive ("pomóc", "zrobić"), not a noun in -ść or a numeral in -ęć.
+      compoundInfinitive:
+        args: "word: string"
+        return: >-
+          (/ć$/u.test(word) && !/(?:ść|ęć|sieć|płeć|nić|mać|śmierć|łokieć|paznokieć|kmieć|śmieć)$/u.test(word)) ||
+          /(?:^|[^\p{L}])(?:\p{L}*(?:móc|biec|piec|rzec|strzec|wlec|tłuc|ciec)|jeść|nieść|wieść|kraść|prząść|gnieść|paść|siąść|usiąść)$/u.test(word)
+      COMPOUND_MODAL: "/^(?:mógł|mogła|mogło|mogli|mogły|chciał|chciała|chciało|chcieli|chciały|musiał|musiała|musiało|musieli|musiały|miał|miała|miało|mieli|miały|umiał|umiała|umieli|potrafił|potrafiła|potrafili|wolał|wolała|woleli|zdołał|zdołała|zdołali|powinien|powinna|powinno|powinni)$/iu"
+      # Forms that are verbs, pronouns, ordinals or nouns despite the ending.
+      COMPOUND_NIE_APART: '/(?:zna|^można|stanie|staniu|^inn\p{L}*|^jedyn\p{L}*|^setn\p{L}*|tysięczn\p{L}*|^sam\p{L}*|głow[aeyąę]|mow[aeyąę]|słow[aeoyąę]|budow[aeyąę]|połow[aeyąę]|krow[aeyąę]|^ścian\p{L}*|^zmian\p{L}*|^cen[aeyąę]|^win[aeyąę]|^stron\p{L}*|^scen\p{L}*|^więcej|^mniej|^bardziej)$/iu'
     frames:
       # "zrobił by", "chciał bym": the conditional "by" with its person ending joins the past form;
       # the conjunction "by" before an infinitive stays apart.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<verb>{{PAST_VERB}})(?<space>{{S}})(?<by>by|bym|byś|byśmy|byście)(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: giu
-        fixer: conditionalBy
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          # The words after "by": an infinitive or a past form makes it the conjunction ("przyszedł by
+          # go zobaczyć", "chciał bym przyszedł").
+          next: '(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 60).match(/\p{L}+/gu) ?? []).slice(0, 4)'
+        when:
+          - "!(COMPOUND_NOT_PAST.has(verb.toLowerCase()) || verb.length < 3)"
+          # "w tej chwili by", "na fali by": a noun phrase, not a verb.
+          - "!COMPOUND_NOUN_PHRASE_BEFORE.test(before)"
+          # A person ending ("bym") or a modal ("mógł by zrobić") makes it the conditional.
+          - "!(by.length === 2 && !COMPOUND_MODAL.test(verb) && next.some((word) => compoundInfinitive(word.toLowerCase())))"
+          - '!/^\p{L}*(?:ł|ła|ło|li|ły)$/u.test(next[0] ?? "")'
+          - "!plUserOrNamed(ctx, m[0])"
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], verb + by.toLowerCase())],
+          "englishClosedCompounds", "review_msg_closed_compound")
       # "zrobili śmy": the personal ending "-śmy"/"-ście" is never a word of its own.
       - regex: "(?<![\\p{L}\\p{N}_'\\u2019-])(?<word>\\p{L}{2,30})(?<space>[ \\t\\u00A0]{1,8})(?<ending>\\u015Bmy|\\u015Bcie)(?![\\p{L}\\p{N}_'\\u2019-])"
         scan: polish
         flags: giu
-        fixer: personEndings
+        when:
+          - "/(?:li|ły|by|ło|ła)$/iu.test(word)"
+          - "!plUserOrNamed(ctx, m[0])"
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [plCaseLike(m[0], word + ending.toLowerCase())],
+          "englishClosedCompounds", "review_msg_closed_compound")
       # "nie" is written together with adjectives, adjectival participles, comparatives,
       # adjective-based adverbs and nouns in -ość/-anie (the 2026 rules: "niedobry", "niepalący",
       # "nielepszy", "nietrudno", "niepalenie"). It stays apart in a contrast ("nie dobry, lecz zły"),
@@ -205,7 +306,23 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<nie>nie)(?<sp>[ \\t\\u00a0]+)(?<word>{{NIE_FORMS}})(?![\\p{L}\\p{N}_-])"
         scan: polish
         flags: giu
-        fixer: nieJoined
+        let:
+          after: m.index + m[0].length
+          sentenceBefore: 'ctx.text.slice(Math.max(0, m.index - 200), m.index).split(/[.!?…\n]/u).at(-1) ?? ""'
+          sentenceAfter: 'ctx.text.slice(after, after + 200).split(/[.!…\n]/u)[0] ?? ""'
+        when:
+          - '!(COMPOUND_NIE_APART.test(word) || /^\p{Lu}/u.test(word))'
+          # A question, or "to nie …" / "czy nie …": the negation is the sentence's, not the word's.
+          - '!sentenceAfter.includes("?")'
+          - '!/(?:^|[^\p{L}])(?:to|czy|czyż|że|żeby|gdyby|jakby|by|a|ale|lecz|ani)[ \t ]+$/iu.test(sentenceBefore)'
+          # A comparison keeps the contrastive "nie": "nie lepszy od poprzednika".
+          - '!/^[ \t ]+(?:od|niż)(?!\p{L})/iu.test(sentenceAfter)'
+          # A contrast: "nie dobry, lecz zły", "nie tyle X, ile Y".
+          - '!/^[^;:]{0,60}?(?:,[ \t ]*(?:ale|lecz|tylko|a|jednak)|[ \t ]lecz)(?!\p{L})/iu.test(sentenceAfter)'
+          - "!plUserOrNamed(ctx, m[0])"
+        return: >-
+          plFindingAt(ctx, m.index, after, [plCaseLike(nie, "nie") + word.toLowerCase()],
+          "englishClosedCompounds", "review_msg_closed_compound")
   - id: pl.confusionsFrames
     checks: [englishPhraseCorrections]
     style: polish
@@ -550,41 +667,209 @@ rules:
     checks: [polishNumerals]
     style: match
     message: review_msg_pl_numeral_suffix
+    maps:
+      NUMERAL_COLLECTIVE:
+        dwa: dwoje
+        trzy: troje
+        cztery: czworo
+        pięć: pięcioro
+        sześć: sześcioro
+        siedem: siedmioro
+        osiem: ośmioro
+        dziewięć: dziewięcioro
+        dziesięć: dziesięcioro
+        jedenaście: jedenaścioro
+        dwanaście: dwanaścioro
+        trzynaście: trzynaścioro
+        czternaście: czternaścioro
+        piętnaście: piętnaścioro
+        szesnaście: szesnaścioro
+        siedemnaście: siedemnaścioro
+        osiemnaście: osiemnaścioro
+        dziewiętnaście: dziewiętnaścioro
+        dwadzieścia: dwadzieścioro
+        trzydzieści: trzydzieścioro
+        czterdzieści: czterdzieścioro
+        pięćdziesiąt: pięćdziesięcioro
+        sześćdziesiąt: sześćdziesięcioro
+        siedemdziesiąt: siedemdziesięcioro
+        osiemdziesiąt: osiemdziesięcioro
+        dziewięćdziesiąt: dziewięćdziesięcioro
+      # Nouns counted with collective numerals, nominative plural -> genitive plural.
+      NUMERAL_COLLECTIVE_NOUNS:
+        dzieci: dzieci
+        drzwi: drzwi
+        oczy: oczu
+        uszy: uszu
+        sanie: sań
+        kurczęta: kurcząt
+        kocięta: kociąt
+        szczenięta: szczeniąt
+        źrebięta: źrebiąt
+        cielęta: cieląt
+        prosięta: prosiąt
+        pisklęta: piskląt
+        niemowlęta: niemowląt
+    defs:
+      # Spelled-out cardinals (nominative, then the personal "-u" form) for 1–10.
+      NUMERAL_CARDINALS: >-
+        ({ 1: ["jeden", "jednego"], 2: ["dwa", "dwóch"], 3: ["trzy", "trzech"], 4: ["cztery", "czterech"],
+        5: ["pięć", "pięciu"], 6: ["sześć", "sześciu"], 7: ["siedem", "siedmiu"], 8: ["osiem", "ośmiu"],
+        9: ["dziewięć", "dziewięciu"], 10: ["dziesięć", "dziesięciu"] }) as
+        Readonly<Record<number, readonly [string, string]>>
+      # The numeral nouns ("piątka", "setka") without their "-ka" ending.
+      NUMERAL_NOUN_STEMS: >-
+        ({ 1: "jedyn", 2: "dwój", 3: "trój", 4: "czwór", 5: "piąt", 6: "szóst", 7: "siódem", 8: "ósem",
+        9: "dziewiąt", 10: "dziesiąt", 11: "jedenast", 12: "dwunast", 13: "trzynast", 14: "czternast",
+        15: "piętnast", 16: "szesnast", 17: "siedemnast", 18: "osiemnast", 19: "dziewiętnast",
+        20: "dwudziest", 30: "trzydziest", 40: "czterdziest", 50: "pięćdziesiąt", 60: "sześćdziesiąt",
+        70: "siedemdziesiąt", 80: "osiemdziesiąt", 90: "dziewięćdziesiąt", 100: "set", 200: "dwuset",
+        300: "trzyset", 400: "czteryset", 500: "pięćset", 600: "sześćset", 700: "siedemset",
+        800: "osiemset", 900: "dziewięćset" }) as Readonly<Record<number, string>>
+      # The fixes of a case ending typed after a number ("5-ty" -> "5.", "6-ciu" -> "sześciu").
+      numeralSuffixFix:
+        args: "num: string, ending: string, next: string | undefined"
+        let:
+          roman: "/^[IVXLC]+$/.test(num)"
+          n: "roman ? 0 : Number(num)"
+          end: ending.toLowerCase()
+        # "10-cio", "4-ro" are compound stems ("dziesięcio-"): the digits alone. An ordinal day
+        # before a month name is written without a dot: "21 maja".
+        return: >-
+          roman ? (/^(?:go|ego|tego|ty|tym|wiecz|ym)$/u.test(end) ? [num] : null)
+          : /^(?:{{NUMERAL_NOUN_END}})$/u.test(end) ? numeralNounFix(num, n, end)
+          : /^(?:{{CARDINAL_END}})$/u.test(end)
+          ? (!NUMERAL_CARDINALS[n] || /^(?:ro|oro|cio|mio|dmio|ścio)$/u.test(end) ? [num]
+          : [/^(?:u|ciu|miu|ściu|tu|stu|ech|óch|ch)$/u.test(end) ? NUMERAL_CARDINALS[n][1] : NUMERAL_CARDINALS[n][0], num])
+          : next && /^(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)$/iu.test(next)
+          ? [num] : [num + "."]
+      numeralNounFix:
+        args: "num: string, n: number, end: string"
+        let:
+          stem: NUMERAL_NOUN_STEMS[n]
+          caseEnding: /(?:kami|kach|kom|ka|ki|kę|ką|ce|ek)$/u.exec(end)?.[0]
+        return: "!stem || !caseEnding ? [num] : [stem + caseEnding, num]"
+      numeralSuffixFinding:
+        args: "ctx: DetectContext, num: string, end: string, next: string | undefined, start: number, tokenEnd: number"
+        let:
+          fixed: numeralSuffixFix(num, end, next)
+        when: fixed !== null
+        return: plFindingAt(ctx, start, tokenEnd, fixed, "polishNumerals", "review_msg_pl_numeral_suffix")
+      # The forms of "złoty" and "grosz": one, two to four, five and more, a fraction.
+      NUMERAL_CURRENCY: >-
+        ({ złoty: ["złoty", "złote", "złotych", "złotego"], złote: ["złoty", "złote", "złotych", "złotego"],
+        złotych: ["złoty", "złote", "złotych", "złotego"], grosz: ["grosz", "grosze", "groszy", "grosza"],
+        grosze: ["grosz", "grosze", "groszy", "grosza"], groszy: ["grosz", "grosze", "groszy", "grosza"] }) as
+        Readonly<Record<string, readonly [string, string, string, string]>>
+      # 1 złoty; 2–4 złote (not 12–14); else złotych; a fraction takes "złotego".
+      numeralPluralForm:
+        args: "amount: string, forms: readonly [string, string, string, string]"
+        let:
+          n: 'Number(amount.replace(/[\s ]/g, ""))'
+          lastTwo: n % 100
+          last: n % 10
+        return: >-
+          /[.,]\d/.test(amount) ? forms[3] : n === 1 ? forms[0]
+          : last >= 2 && last <= 4 && !(lastTwo >= 12 && lastTwo <= 14) ? forms[1] : forms[2]
+      # Unit names that take the plural after a number: "100 gramów", "2 kilogramy".
+      NUMERAL_UNITS: >-
+        ({ gram: ["gramy", "gramów"], kilogram: ["kilogramy", "kilogramów"], dekagram: ["dekagramy", "dekagramów"],
+        miligram: ["miligramy", "miligramów"], wolt: ["wolty", "woltów"], amper: ["ampery", "amperów"],
+        wat: ["waty", "watów"], kilowat: ["kilowaty", "kilowatów"] }) as
+        Readonly<Record<string, readonly [string, string]>>
+      NUMERAL_WORDS: >-
+        ({ dwa: 2, trzy: 3, cztery: 4, pięć: 5, sześć: 6, siedem: 7, osiem: 8, dziewięć: 9, dziesięć: 10,
+        dwadzieścia: 20, trzydzieści: 30, czterdzieści: 40, pięćdziesiąt: 50, sto: 100, dwieście: 200,
+        trzysta: 300, pięćset: 500, tysiąc: 1000, kilka: 5, kilkanaście: 15, kilkadziesiąt: 50,
+        kilkaset: 500 }) as Readonly<Record<string, number>>
     frames:
       # A digit (or Roman numeral), a dash or nothing, then a closed set of endings; not a unit ("5kg"):
       # "5-ty" is "5." or "piąty", "6-ciu" is "6" or "sześciu".
       - regex: "(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4}|[IVXLC]{1,7})(?<dash>[ \\t]?[-—–][ \\t]?|’|')?(?<end>{{ORDINAL_END}}|{{CARDINAL_END}}|{{NUMERAL_NOUN_END}})(?![\\p{L}\\p{N}_-])(?<rest>[ \\t\\u00a0]+(?<next>\\p{L}+))?"
         scan: polish
         flags: gu
-        fixer: numeralSuffixes
+        let:
+          start: m.index
+          tokenEnd: start + num.length + (dash?.length ?? 0) + end.length
+        when:
+          # Glued without a dash, only the unmistakable ordinal endings ("21go", "90tych").
+          - "!(!dash && !/^(?:go|ego|tego|ty|tych|tym|szy|wszy|gi|ci|ciu|miu|stu)$/u.test(end))"
+          - "!(dash && /^['’]$/.test(dash) && !/^(?:ty|go|ego|tych)$/u.test(end))"
+        # "32-u bitowy", "4-ro pasmowa": the digit joins the adjective with a hyphen. "32-u i 64-bitowe":
+        # the first digit keeps only its hyphen.
+        return: >-
+          next && /^(?:u|ro|cio|mio|dmio|ścio|ciu|miu|o|ech|óch|oma)$/u.test(end) &&
+          /^\p{Ll}+(?:ow|n|t|sk|cz|ln|ni)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|i)$/u.test(next) &&
+          !/^(?:lat|osób|ludzi)/u.test(next)
+          ? plFindingAt(ctx, start, tokenEnd + rest.length, [num + "-" + next], "polishNumerals",
+          "review_msg_pl_numeral_hyphen")
+          : /^(?:u|ro|cio|mio|dmio|ścio|ciu|o)$/u.test(end) &&
+          /^[ \t ]+(?:i|lub|albo|oraz|czy)[ \t ]+\d+-\p{L}/u.test(ctx.text.slice(tokenEnd, tokenEnd + 24))
+          ? plFindingAt(ctx, start, tokenEnd, [num + "-"], "polishNumerals", "review_msg_pl_numeral_hyphen")
+          : numeralSuffixFinding(ctx, num, end, next, start, tokenEnd)
       # "dwu krotnie", "ilu krotny": a numeral stem typed apart from "-krotny".
       - regex: "(?<![\\p{L}\\p{N}_-])(?<num>dwu|trzy|cztero|pi\\u0119cio|sze\\u015Bcio|siedmio|o\\u015Bmio|dziewi\\u0119cio|dziesi\\u0119cio|kilku|kilkunasto|kilkudziesi\\u0119cio|wielo|ilu|paru|stu)[ \\t\\u00a0]{1,3}(?<part>krotn\\p{L}*)(?![\\p{L}\\p{N}_-])"
         scan: polish
         flags: giu
-        fixer: wordKrotny
+        when: "!plUserOrNamed(ctx, m[0])"
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [num + part.toLowerCase()], "polishNumerals",
+          "review_msg_pl_numeral_hyphen")
       # A digit compound typed apart: "5 minutowy" (a five-minute ...), "3 krotny", "25 latek".
       # Only singular adjective forms: after a plural numeral a plural adjective can agree on its own
       # ("2 roczne raporty" are two annual reports).
       - regex: "(?<![\\p{L}\\p{N}_.,/-])(?<num>\\d{1,4})(?<gap>[ \\t\\u00a0]*['’][ \\t\\u00a0]*|[ \\t\\u00a0]+[-–—][ \\t\\u00a0]+|[ \\t\\u00a0]+[-–—]|[-–—][ \\t\\u00a0]+|[–—]|\\.[ \\t\\u00a0]{1,3}(?=krotn)|[ \\t\\u00a0]{1,3})(?<part>{{COMPOUND_PART}})(?![\\p{L}\\p{N}_-])"
         scan: polish
         flags: giu
-        fixer: compoundNumerals
+        when:
+          # "letni"/"roczny" with 1 is fine both ways; "letni" alone is "summer": only after 2+.
+          - "!(/^(?:letni|roczn|dzienn)/iu.test(part) && Number(num) < 2)"
+          # "25 letni" may be a summer day; with a dash ("25 - letni") it is the compound.
+          - "!(/^(?:letni)$/iu.test(part) && !/[-–—]/u.test(gap))"
+          - "!plUserOrNamed(ctx, part)"
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [num + "-" + part.toLowerCase()],
+          "polishNumerals", "review_msg_pl_numeral_hyphen")
       # "dwa dzieci" -> "dwoje dzieci": nouns counted with collective numerals.
       - regex: "(?<![\\p{L}\\p{N}])(?<num>dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|jedenaście|dwanaście|trzynaście|czternaście|piętnaście|szesnaście|siedemnaście|osiemnaście|dziewiętnaście|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sześćdziesiąt|siedemdziesiąt|osiemdziesiąt|dziewięćdziesiąt)(?<sp>[ \\t\\u00a0]+)(?<noun>dzieci|drzwi|oczy|uszy|sanie|kurczęta|kocięta|szczenięta|źrebięta|cielęta|prosięta|pisklęta|niemowlęta)(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: collectives
+        when:
+          - "!plUserOrNamed(ctx, m[0])"
+          # "rozmowa w cztery oczy" (in private) is an idiom.
+          - '!/(?:^|[^\p{L}])w[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))'
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length,
+          [plCaseLike(m[0], `${NUMERAL_COLLECTIVE[num.toLowerCase()]}${sp}${NUMERAL_COLLECTIVE_NOUNS[noun.toLowerCase()]}`)],
+          "polishNumerals", "review_msg_pl_numeral_noun")
       # 1 złoty; 2–4 złote (not 12–14); else złotych; a fraction takes "złotego". A noun after
       # "złote" makes it the adjective "golden": "2 złote medale".
       - regex: "(?<![\\p{L}\\p{N}.,])(?<amount>\\d{1,3}(?:[ \\u00a0]\\d{3})*(?:[.,]\\d+)?)(?<sp>[ \\t\\u00a0]+)(?<unit>złoty|złote|złotych|grosz|grosze|groszy)(?![\\p{L}])(?=[ \\t\\u00a0]*(?:[.!?,;:)…]|$|[ \\t\\u00a0](?:i|a|na|za|do|od|w|z|ze|to|netto|brutto|miesięcznie|rocznie|dziennie)(?![\\p{L}])))"
         scan: polish
         flags: gu
-        fixer: currencyForms
+        let:
+          wanted: numeralPluralForm(amount, NUMERAL_CURRENCY[unit])
+          start: m.index + amount.length + sp.length
+        when: wanted !== unit
+        return: >-
+          plFindingAt(ctx, start, start + unit.length, [wanted], "polishNumerals",
+          "review_msg_pl_numeral_noun")
       # Unit names that take the plural after a number: "100 gramów", "2 kilogramy".
       - regex: "(?<![\\p{L}\\p{N}.,])(?<num>\\d{1,6}|dwa|trzy|cztery|pięć|sześć|siedem|osiem|dziewięć|dziesięć|dwadzieścia|trzydzieści|czterdzieści|pięćdziesiąt|sto|dwieście|trzysta|pięćset|tysiąc|kilka|kilkanaście|kilkadziesiąt|kilkaset)(?<sp>[ \\t\\u00a0]+)(?<unit>gram|kilogram|dekagram|miligram|wolt|amper|wat|kilowat)(?![\\p{L}])(?![ \\t\\u00a0]+(?:w|na|z|ze|o)(?![\\p{L}]))"
         scan: polish
         flags: giu
-        fixer: unitForms
+        let:
+          n: '/^\d+$/.test(num) ? Number(num) : NUMERAL_WORDS[num.toLowerCase()]'
+          forms: NUMERAL_UNITS[unit.toLowerCase()]
+          lastTwo: n % 100
+          wanted: "n % 10 >= 2 && n % 10 <= 4 && !(lastTwo >= 12 && lastTwo <= 14) ? forms[0] : forms[1]"
+          start: m.index + num.length + sp.length
+        when:
+          - n !== 1
+          - "!plUserOrNamed(ctx, unit)"
+        return: >-
+          plFindingAt(ctx, start, start + unit.length, [wanted], "polishNumerals",
+          "review_msg_pl_numeral_noun")
   # Dates: a day the month does not have ("31 września", "29 lutego 2023"), a weekday that does
   # not fall on the date, a range that runs backwards, and the month's form after a day number
   # ("1 stycznia", not "1 styczeń", "1. stycznia" or the English-style "1 Sty").
@@ -592,13 +877,83 @@ rules:
     checks: [polishDates]
     style: match
     message: review_msg_pl_impossible_date
+    defs:
+      DATE_NOMINATIVE: '["styczeń", "luty", "marzec", "kwiecień", "maj", "czerwiec", "lipiec", "sierpień", "wrzesień", "październik", "listopad", "grudzień"]'
+      DATE_ABBREVIATED: '["sty", "lut", "mar", "kwi", "maj", "cze", "lip", "sie", "wrz", "paź", "lis", "gru"]'
+      DATE_ROMAN: '["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]'
+      # Weekdays in the nominative, Sunday first as Date.getUTCDay counts.
+      NOMINATIVE_WEEKDAYS: '["niedziela", "poniedziałek", "wtorek", "środa", "czwartek", "piątek", "sobota"]'
+      # The centuries in Roman numerals, from 1.
+      DATE_ROMAN_CENTURY: '["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII", "XIX", "XX", "XXI"]'
+      # Weekday stems (every case) and abbreviations, Monday first as in Polish calendars.
+      DATE_WEEKDAYS: >-
+        [[/^(?:poniedział\p{L}*|pon|pn)$/iu, 1], [/^(?:wtor\p{L}*|wt)$/iu, 2], [/^(?:środ\p{L}*|śr|sr)$/iu, 3],
+        [/^(?:czwart\p{L}*|czw|cz)$/iu, 4], [/^(?:piąt\p{L}*|pt)$/iu, 5], [/^(?:sobot\p{L}*|sob|so)$/iu, 6],
+        [/^(?:niedziel\p{L}*|niedz|nd|ndz)$/iu, 0]] as readonly (readonly [RegExp, number])[]
+      # A weekday right before the date ("wtorek, 27 sierpnia 2014") or after it ("…2014, wtorek",
+      # "(wtorek)").
+      DATE_WEEKDAY_BEFORE: '/(?<![\p{L}])(?<w>poniedział\p{L}*|wtor\p{L}*|środ\p{L}*|czwart\p{L}*|piąt\p{L}*|sobot\p{L}*|niedziel\p{L}*|pon\.?|pn\.?|wt\.?|śr\.?|czw\.?|pt\.?|sob\.?|niedz\.?|nd\.?)[ \t ]*,?[ \t ]*$/iu'
+      DATE_WEEKDAY_AFTER: '/^[ \t ]*[,(][ \t ]*(?<w>poniedział\p{L}*|wtor\p{L}*|środ\p{L}*|czwart\p{L}*|piąt\p{L}*|sobot\p{L}*|niedziel\p{L}*|pon\.?|pn\.?|wt\.?|śr\.?|czw\.?|pt\.?|sob\.?|niedz\.?|nd\.?)(?![\p{L}])/iu'
+      dateMonthOf:
+        args: "word: string"
+        let:
+          lower: word.toLowerCase()
+          roman: DATE_ROMAN.indexOf(word.toUpperCase())
+          genitive: PL_MONTHS_GENITIVE.indexOf(lower)
+        return: "/^[ivx]+$/i.test(word) && roman >= 0 ? roman + 1 : genitive >= 0 ? genitive + 1 : DATE_NOMINATIVE.indexOf(lower) + 1"
+      dateWeekdayNamed:
+        args: "word: string"
+        let:
+          bare: 'word.replace(/\.$/, "")'
+        return: DATE_WEEKDAYS.find(([regex]) => regex.test(bare))?.[1] ?? null
+      # A weekday next to the date that does not fall on it. No year: the years the date can mean
+      # (reviewClock).
+      dateWeekday:
+        args: "ctx: DetectContext, month: number, y: number | undefined, d: number, start: number, end: number"
+        let:
+          years: "y === undefined ? plYearsFor(month, d, plContextYear(ctx.text, start, ctx.lang)) : [y]"
+          weekdays: "[...new Set(years.map((year) => plWeekdayOf(year, month, d)))]"
+          before: DATE_WEEKDAY_BEFORE.exec(ctx.text.slice(Math.max(0, start - 24), start))
+          after: DATE_WEEKDAY_AFTER.exec(ctx.text.slice(end, end + 24))
+          named: before ?? after
+          said: dateWeekdayNamed(named.groups!.w)
+          key: 'y === undefined ? "review_msg_weekday_no_year" : "review_msg_pl_weekday_date"'
+          typed: named.groups!.w
+          wordStart: "before ? start - before[0].length : end + after![0].indexOf(typed)"
+          # A weekday in the nominative ("wtorek, 13 października") is replaced. After a
+          # preposition ("w środę") the case changes the form, so it only gets a warning.
+          afterPreposition: '/(?:^|[^\p{L}])(?:w|we|na|od|do|przez|za|po|przed)[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, wordStart - 12), wordStart))'
+        when:
+          - named !== null
+          - said !== null && years.length > 0 && !weekdays.includes(said)
+        # The day can be the slip instead: nothing is preselected.
+        return: >-
+          !afterPreposition && NOMINATIVE_WEEKDAYS.includes(typed.toLowerCase())
+          ? { ...plFindingAt(ctx, wordStart, wordStart + typed.length,
+          weekdays.map((w) => plCaseLike(typed, NOMINATIVE_WEEKDAYS[w])), "polishDates", key),
+          requiresChoice: true as const }
+          : plFindingAt(ctx, Math.max(0, before ? start - before[0].length : end),
+          before ? end : end + after![0].length, [], "polishDates", key)
     frames:
       # "27 sierpnia 2014", "27 VIII 2014", "31 września", and dotted "27.08.2014": a day the
       # month does not have, or a weekday that does not fall on the date.
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(?<day>\\d{1,2})[ \\t\\u00a0]+(?<mword>{{MONTH_WORD}})(?:[ \\t\\u00a0]+(?<year>\\d{3,4})(?![\\p{N}]))?(?![\\p{L}\\p{N}])|(?<dday>\\d{1,2})\\.(?<dmonth>\\d{1,2})\\.(?<dyear>[0-9]{4})(?![\\p{N}]|\\.\\p{N}))"
         scan: polish
         flags: giu
-        fixer: impossibleDates
+        let:
+          dayText: day ?? dday
+          yearText: year ?? dyear
+          month: "mword ? dateMonthOf(mword) : Number(dmonth)"
+          y: "yearText ? Number(yearText) : undefined"
+          d: Number(dayText)
+        when:
+          # A Roman month needs a year, or it may be a chapter or a list number.
+          - "!(mword && /^[IVX]+$/.test(mword) && !yearText)"
+          - "!(mword && /^[ivx]+$/.test(mword))"
+        return: >-
+          month < 1 || month > 12 || d < 1 || d > plDaysInMonth(month, y)
+          ? plFindingAt(ctx, m.index, m.index + m[0].length, [], "polishDates", "review_msg_pl_impossible_date")
+          : dateWeekday(ctx, month, y, d, m.index, m.index + m[0].length)
   - id: pl.isoDates
     checks: [polishDates]
     style: match
@@ -612,7 +967,9 @@ rules:
       - regex: "{{ISO_DATE}}"
         flags: gdu
         owner: none
-        fixer: isoDate
+        let:
+          range: plInvalidIsoDate(m, ctx)
+        return: 'range && plFindingAt(ctx, range.start, range.end, [], "polishDates", "review_msg_pl_impossible_date")'
   - id: pl.datesFrames
     checks: [polishDates]
     style: match
@@ -622,38 +979,107 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{1,2})(?:[ \\t\\u00a0]*[–—-][ \\t\\u00a0]*|[ \\t\\u00a0]+do[ \\t\\u00a0]+)(?<b>\\d{1,2})[ \\t\\u00a0]+(?:stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia|XII|XI|X|IX|VIII|VII|VI|V|IV|III|II|I)(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: dayRanges
+        when: Number(a) >= Number(b)
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [], "polishDates",
+          "review_msg_pl_impossible_date")
       # "1915–1840", "1855–40": a year range that runs backwards or repeats.
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?<a>\\d{3,4})[ \\t\\u00A0]*[\\u2013\\u2014-][ \\t\\u00A0]*(?<b>\\d{1,4})(?![\\p{N}.,]\\d|[\\p{L}\\p{N}-])"
         scan: polish
         flags: gu
-        fixer: yearRanges
+        let:
+          after: ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24)
+          # Years before Christ run backwards: "1814–1781 p.n.e." is right, "715–1840 p.n.e." is not.
+          beforeChrist: '/^[ \t ]*(?:p\.?[ \t ]*n\.?[ \t ]*e|przed[ \t ]+(?:naszą|Chrystusem)|BC)/iu.test(after)'
+          before: ctx.text.slice(Math.max(0, m.index - 16), m.index)
+          startYear: Number(a)
+          endYear: "b.length < a.length ? Number(a.slice(0, a.length - b.length) + b) : Number(b)"
+        when:
+          - '!/^[ \t ]*\d/u.test(after)'
+          # "1962 – 272" is a year and a count; a longer end year is a year only before Christ.
+          - "!(b.length !== a.length && b.length > 2 && !(beforeChrist && b.length > a.length))"
+          # Only in a year context: "w latach", "w okresie", "lata".
+          - '/(?:latach|lata|okresie|sezonie|rok\p{L}*|w|od)[ \t ]+$/iu.test(before)'
+          - "!(beforeChrist ? endYear < startYear : endYear > startYear)"
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [], "polishDates",
+          "review_msg_pl_impossible_date")
       # "1 styczeń 2000", "Pierwszy styczeń": the month after a day is in the genitive.
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2}|pierwszy|drugi|trzeci|czwarty|piąty)(?<dot>\\.)?(?<sp>[ \\t\\u00a0]+)(?<month>styczeń|luty|marzec|kwiecień|maj|czerwiec|lipiec|sierpień|wrzesień|październik|listopad|grudzień|stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia)(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: monthForms
+        let:
+          index: DATE_NOMINATIVE.indexOf(month.toLowerCase())
+          spelled: '/^\p{L}/u.test(day)'
+          genitive: "index >= 0 ? PL_MONTHS_GENITIVE[index] : month.toLowerCase()"
+          start: m.index + day.length + sp.length
+        when:
+          # "Maj" capitalized after "1" names the holiday; "w maju" etc. never reach here.
+          - '!(index >= 0 && /^\p{Lu}/u.test(month))'
+          - "!(index < 0 && !dot)"
+          - "!(spelled && (dot || index < 0))"
+        # "1. stycznia": no dot after the day before a month name.
+        return: >-
+          dot ? plFindingAt(ctx, m.index, m.index + m[0].length, [day + sp + genitive], "polishDates",
+          "review_msg_pl_month_form")
+          : plFindingAt(ctx, start, start + month.length, [plCaseLike(month, genitive)], "polishDates",
+          "review_msg_pl_month_form")
       # "21 Sty 2012": an English-style month abbreviation between day and year.
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?<day>\\d{1,2})(?<sp1>[ \\t\\u00a0]+)(?<month>sty|lut|mar|kwi|maj|cze|lip|sie|wrz|paź|lis|gru)\\.?(?<sp2>[ \\t\\u00a0]+)(?<year>\\d{4})(?![\\p{L}\\p{N}])"
         scan: polish
         flags: giu
-        fixer: abbreviatedMonths
+        let:
+          index: DATE_ABBREVIATED.indexOf(month.toLowerCase())
+        # "1 maj 2012" is the nominative month, which monthForms puts in the genitive.
+        when: month !== "maj"
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length,
+          [`${day} ${DATE_ROMAN[index]} ${year}`, `${day} ${PL_MONTHS_GENITIVE[index]} ${year}`],
+          "polishDates", "review_msg_pl_month_form")
       # Decades are written with the decade and the century: "lata 90. XX w.", not "lata 1990."
       # (an English calque).
       - regex: "(?<=(?:^|[^\\p{L}])(?:{{DECADE_WORDS}}){{S}})(?<year>1\\d[0-9]0|20[0-9]0)\\."
         scan: polish
         flags: giu
-        fixer: fullDecades
+        let:
+          value: Number(year)
+          century: DATE_ROMAN_CENTURY[Math.floor(value / 100) + 1]
+        # "lata 1900." has no "lata 00.": the fix names the years ("lata 1900–1909").
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length,
+          [value % 100 ? `${value % 100}. ${century} w.` : `${value}–${value + 9}`], "polishDates",
+          "review_msg_pl_decade")
       # A year takes no apostrophe ("lata '90", "Euro '2012").
       - regex: "(?<![\\p{L}\\p{N}])(?<mark>['’])(?<year>\\d{4}|\\d{2})(?![\\p{L}\\p{N}'’])"
         scan: polish
         flags: gu
-        fixer: apostropheYears
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 12), m.index)
+          # "Euro '2012": a full year needs no apostrophe; "lata '90" is the decade "90.".
+          fixed: >-
+            year.length === 4 ? year
+            : /(?:^|[^\p{L}])(?:{{DECADE_WORDS}})[ \t ]+$/iu.test(before)
+            ? (/^[ \t ]*[.]/u.test(ctx.text.slice(m.index + m[0].length)) ? year : year + ".")
+            : null
+        when: fixed !== null
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [fixed], "polishDates",
+          "review_msg_pl_decade")
       # "12 V 20015 r.", "w maju 20015 roku": a year with a digit typed twice.
       - regex: "(?<![\\p{L}])(?:{{MONTH_WORD}}|{{LOCATIVE}}|roku){{S}}(?<year>[12]\\d{4})(?=[ \\t\\u00a0]{0,8}(?:r\\.|rok\\p{L}*)(?![\\p{L}]))"
         scan: polish
         flags: giu
-        fixer: longYears
+        let:
+          # Drop one digit of a doubled pair: one year from 1000 to 2099, or no fix.
+          years: >-
+            [...new Set(Array.from({ length: year.length - 1 }, (_, i) => i + 1)
+            .filter((i) => year[i] === year[i - 1]).map((i) => year.slice(0, i) + year.slice(i + 1)))]
+            .filter((fix) => /^(?:1\d|20)\d\d$/.test(fix))
+          start: m.index + m[0].length - year.length
+        when: years.length === 1
+        return: >-
+          plFindingAt(ctx, start, start + year.length, years, "polishDates",
+          "review_msg_pl_impossible_date")
   # Polish commas: a subordinate clause is set off by a comma before its conjunction or relative
   # pronoun ("Wiem, że…", "dom, w którym…"), and a compound conjunction takes the comma before
   # it as a whole ("…, mimo że", not "mimo, że").
@@ -1320,11 +1746,105 @@ rules:
       - regex: "(?<![\\p{L}])(?<word>\\p{L}{4,}){{S}}(?<target>jak){{S}}(?<next>\\p{L}+)(?![\\p{L}])"
         scan: polish
         flags: gdiu
-        fixer: comparedWithJak
+        let:
+          lower: word.toLowerCase()
+          after: next.toLowerCase()
+        when:
+          - '!(lower.startsWith("naj") || !alreadyGraded(lower) || plUserOrNamed(ctx, word))'
+          # "później, jak wróci": "jak" after a time adverb opens a clause of time.
+          - '!(lower === "później" || lower === "wcześniej")'
+          # "nic więcej jak", "niczym więcej jak" (nothing but) is a set phrase.
+          - '!/(?:^|[^\p{L}])(?:nic|niczym|niczego)[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
+          - "!(DEGREE_CLAUSE_AFTER.test(after) || plFiniteVerb(after))"
+        return: >-
+          ({ ...plFindingAt(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1],
+          [plCaseLike(target, "niż")], "englishPhraseCorrections", "review_msg_contextual_grammar"),
+          context: { start: m.index, end: m.index + m[0].length } })
   - id: pl.degrees
     checks: [englishDoubledDegree, stylePhrasing]
     style: match
     message: review_msg_doubled_degree
+    sets:
+      # Comparative adverbs not spelled from their adjective.
+      DEGREE_IRREGULAR_ADVERBS:
+        [
+          lepiej,
+          gorzej,
+          więcej,
+          mniej,
+          bliżej,
+          dalej,
+          wyżej,
+          niżej,
+          szybciej,
+          później,
+          wcześniej,
+          dłużej,
+          krócej,
+        ]
+    defs:
+      # Irregular comparatives the stem rules do not reach.
+      DEGREE_IRREGULAR: >-
+        ({ dobry: "lepszy", zły: "gorszy", duży: "większy", mały: "mniejszy", wysoki: "wyższy",
+        niski: "niższy", bliski: "bliższy", daleki: "dalszy", szeroki: "szerszy", głęboki: "głębszy",
+        lekki: "lżejszy", ciężki: "cięższy", długi: "dłuższy" }) as Record<string, string>
+      # Comparative adverbs; adverbs in -o whose comparative changes the stem ("brzydko" -> "brzydziej").
+      DEGREE_ADVERBS: >-
+        ({ dobrze: "lepiej", źle: "gorzej", szybko: "szybciej", brzydko: "brzydziej", krótko: "krócej",
+        słodko: "słodziej", nisko: "niżej", blisko: "bliżej", wysoko: "wyżej", ciężko: "ciężej",
+        lekko: "lżej", rzadko: "rzadziej", głęboko: "głębiej", daleko: "dalej", długo: "dłużej",
+        często: "częściej", cicho: "ciszej", głośno: "głośniej", mocno: "mocniej", łatwo: "łatwiej",
+        trudno: "trudniej", tanio: "taniej", drogo: "drożej", wesoło: "weselej" }) as Record<string, string>
+      # Adjectives that name an extreme and take no degree.
+      DEGREE_UNGRADED: /^(?:optymaln|maksymaln|minimaln)(?:y|a|e|ego|ej|emu|ą|ym|ych|ymi|ie)$/u
+      # The synthetic comparative of a positive adjective, when the lexicon lists one.
+      comparativeOf:
+        args: "lemma: string"
+        when: '!lemma.endsWith("szy")'
+        return: >-
+          [DEGREE_IRREGULAR[lemma], lemma.replace(/ny$/, "niejszy"), lemma.replace(/ni$/, "ńszy"),
+          lemma.replace(/(?:o|e)?k[iy]$/, "szy"), lemma.replace(/[iy]$/, "szy")]
+          .find((c) => c && c !== lemma && plHasAdjective(c)) ?? null
+      # "ważniejszy", "najważniejszy", "dokładniej", "najbliżej": already a degree.
+      alreadyGraded:
+        args: "word: string"
+        let:
+          bare: 'word.startsWith("naj") ? word.slice(3) : word'
+        return: >-
+          DEGREE_IRREGULAR_ADVERBS.has(bare) || (/ej$/.test(bare) && plHasAdjective(bare + "szy")) ||
+          [plAdjectiveOf(bare)].some((adj) => !!adj && /szy$/.test(adj.lemma) && adj.lemma !== "pierwszy")
+      # "bardziej ważny" -> "ważniejszy" (stylePhrasing). "coraz bardziej popularna" and "mniej i
+      # bardziej poważnych" keep the analytic form.
+      degreeStyle:
+        args: "ctx: DetectContext, m: RegExpExecArray, marker: string, word: string, lower: string, end: number"
+        let:
+          longer: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          fixed: 'degreeFix(word, lower === "najbardziej" ? "naj" : "")'
+        when:
+          - '!/(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t ]+(?:i|lub|albo|czy))[ \t ]+$/iu.test(longer)'
+          - fixed !== null
+        return: plFindingAt(ctx, m.index, end, [plCaseLike(marker, fixed)], "stylePhrasing", "review_msg_style_phrasing")
+      degreeFix:
+        args: "word: string, naj: string"
+        let:
+          adverbFix: >-
+            DEGREE_ADVERBS[word] ? naj + DEGREE_ADVERBS[word]
+            : word.endsWith("nie") ? degreeAdverbFix(word, naj) : null
+        return: adverbFix || degreeAdjectiveFix(word, naj)
+      # "dokładnie" -> "dokładniej", from the comparative "dokładniejszy".
+      degreeAdverbFix:
+        args: "word: string, naj: string"
+        let:
+          comparative: 'plHasAdjective(word.slice(0, -2) + "y") ? comparativeOf(word.slice(0, -2) + "y") : null'
+        return: 'comparative?.endsWith("iejszy") ? naj + comparative.slice(0, -3) : null'
+      degreeAdjectiveFix:
+        args: "word: string, naj: string"
+        let:
+          adj: plAdjectiveOf(word)
+          comparative: adj && comparativeOf(adj.lemma)
+        return: "adj && comparative ? naj + plAdjectiveForm(comparative, adj.ending) : null"
+      # Words after "jak" that make it "if" or "as" ("lepiej jak przyjdziesz", "jak najszybciej").
+      DEGREE_CLAUSE_AFTER: /^(?:naj\p{L}*|i|ja|ty|on|ona|ono|my|wy|oni|one|się|to|tylko|zwykle|zawsze|wiadomo|wspomniałem|mówiłem|sądzę|myślę|widać|każdy|ktoś|coś|nikt|nic|gdyby|by|już)$/u
     frames:
       # "bardziej lepszy", "coraz najbardziej": a degree marked twice (englishDoubledDegree); opt-in,
       # "bardziej ważny" -> "ważniejszy" (stylePhrasing). The frame runs when either check is on.
@@ -1332,7 +1852,26 @@ rules:
         scan: polish
         flags: giu
         anyCheck: true
-        fixer: degrees
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 8), m.index)
+          lower: marker.toLowerCase()
+          start: m.index
+          end: start + m[0].length
+        when:
+          - "!plUserOrNamed(ctx, word)"
+          # "tym bardziej lepiej" is "all the more"; "im bardziej" sets up a comparison.
+          - '!/(?:^|[^\p{L}])(?:tym|im)[ \t ]+$/iu.test(before)'
+        # "coraz najbardziej popularna" -> "coraz bardziej", "coraz najmniej" -> "coraz mniej".
+        return: >-
+          lower.startsWith("coraz")
+          ? plFindingAt(ctx, start, start + marker.length, [marker.replace(/naj(?=bardziej|mniej)/iu, "")],
+          "englishDoubledDegree", "review_msg_doubled_degree")
+          : ctx.rules?.has("englishDoubledDegree") !== false && (alreadyGraded(word) || DEGREE_UNGRADED.test(word))
+          ? (/^(?:lepsz|gorsz|lepiej|gorzej|lepsi|gorsi)/u.test(word) && lower === "bardziej" ? null
+          : plFindingAt(ctx, start, end, [plCaseLike(marker, word)], "englishDoubledDegree",
+          "review_msg_doubled_degree"))
+          : ctx.rules && !ctx.rules.has("stylePhrasing") ? null
+          : degreeStyle(ctx, m, marker, word, lower, end)
   - id: pl.commaFrames
     checks: [polishMissingComma, polishMisplacedComma]
     style: comma

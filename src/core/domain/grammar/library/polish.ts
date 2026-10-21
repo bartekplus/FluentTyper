@@ -42,4 +42,12 @@ export {
   virileAdjective as plVirileAdjective,
   virileLemma as plVirileLemma,
 } from "../review/polish/lexicon";
+export { GENITIVE as PL_MONTHS_GENITIVE } from "../review/polish/dates";
+export {
+  contextYear as plContextYear,
+  daysInMonth as plDaysInMonth,
+  weekdayOf as plWeekdayOf,
+  yearsFor as plYearsFor,
+} from "../review/reviewClock";
+export { invalidIsoDate as plInvalidIsoDate } from "../review/isoDates";
 export { tagsAnd, tagsCases, tagsOr, tagsWithout } from "./polish/tags";
