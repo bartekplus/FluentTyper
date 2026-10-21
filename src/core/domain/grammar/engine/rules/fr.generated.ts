@@ -53,10 +53,13 @@ import {
   isNounLemma,
   isVerbHomograph,
   isVerbLemma,
+  lowestPerson,
+  maskPersons,
   namedExampleBefore,
   nearestDayOn,
   nounGender,
   pluralSingulars,
+  sentenceBounds,
   skipWhile,
   skipWords,
   subjectEndsAt,
@@ -1979,6 +1982,242 @@ export const TOUT_LINKING: ReadonlySet<string> = new Set([
   "demeurer",
 ]);
 
+export const MOOD_DETERMINERS: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "les",
+  "l'",
+  "un",
+  "une",
+  "des",
+  "du",
+  "ce",
+  "cet",
+  "cette",
+  "ces",
+  "mon",
+  "ma",
+  "mes",
+  "ton",
+  "ta",
+  "tes",
+  "son",
+  "sa",
+  "ses",
+  "notre",
+  "nos",
+  "votre",
+  "vos",
+  "leur",
+  "leurs",
+  "chaque",
+]);
+
+export const MOOD_NEGATION: ReadonlySet<string> = new Set(["ne", "n'"]);
+
+export const MOOD_COMPLEMENT: ReadonlySet<string> = new Set([
+  "de",
+  "d'",
+  "du",
+  "des",
+  "qui",
+  "que",
+  "qu'",
+  "dont",
+  "où",
+  "à",
+  "au",
+  "aux",
+]);
+
+export const WILL_LEMMAS: ReadonlySet<string> = new Set([
+  "vouloir",
+  "souhaiter",
+  "exiger",
+  "ordonner",
+  "désirer",
+  "préférer",
+  "aimer",
+  "falloir",
+  "craindre",
+  "redouter",
+  "regretter",
+  "douter",
+  "attendre",
+  "permettre",
+  "refuser",
+  "interdire",
+  "empêcher",
+  "suffire",
+  "demander",
+  "déplorer",
+  "détester",
+  "plaire",
+]);
+
+export const SUBJUNCTIVE_CONJUNCTIONS: ReadonlySet<string> = new Set([
+  "pour",
+  "afin",
+  "avant",
+  "sans",
+  "pourvu",
+]);
+
+export const IMPERSONAL: ReadonlySet<string> = new Set([
+  "important",
+  "nécessaire",
+  "essentiel",
+  "indispensable",
+  "possible",
+  "impossible",
+  "normal",
+  "temps",
+  "urgent",
+  "préférable",
+  "souhaitable",
+  "naturel",
+  "rare",
+  "juste",
+  "inadmissible",
+  "inacceptable",
+  "étonnant",
+  "regrettable",
+  "utile",
+  "dommage",
+  "triste",
+  "logique",
+  "honteux",
+]);
+
+export const MOOD_DEGREE: ReadonlySet<string> = new Set([
+  "si",
+  "tellement",
+  "tant",
+  "assez",
+  "trop",
+  "aussi",
+  "plus",
+  "moins",
+]);
+
+export const MOOD_SKIPPED: ReadonlySet<string> = new Set([
+  "pas",
+  "plus",
+  "jamais",
+  "vraiment",
+  "absolument",
+  "beaucoup",
+  "bien",
+]);
+
+export const MOOD_ETRE: ReadonlySet<string> = new Set([
+  "est",
+  "était",
+  "sera",
+  "serait",
+  "soit",
+  "fut",
+]);
+
+export const FAIRE_LEMMAS: ReadonlySet<string> = new Set(["faire"]);
+
+export const TROUVER_LEMMAS: ReadonlySet<string> = new Set(["trouver"]);
+
+export const VALOIR_LEMMAS: ReadonlySet<string> = new Set(["valoir"]);
+
+export const FAIRE_POUVOIR_LEMMAS: ReadonlySet<string> = new Set(["faire", "pouvoir"]);
+
+export const SUBJECT_AFTER_SI: ReadonlySet<string> = new Set([
+  "je",
+  "j'",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "nous",
+  "vous",
+  "ils",
+  "elles",
+]);
+
+export const SI_OPENERS: ReadonlySet<string> = new Set([
+  "et",
+  "mais",
+  "ou",
+  "même",
+  "sauf",
+  "comme",
+  "car",
+  "or",
+  "donc",
+]);
+
+export const WISHED: ReadonlySet<string> = new Set([
+  "aimé",
+  "souhaité",
+  "préféré",
+  "adoré",
+  "voulu",
+]);
+
+export const WISHING: ReadonlySet<string> = new Set([
+  "aimerai",
+  "voudrai",
+  "préférerai",
+  "souhaiterai",
+]);
+
+export const WISH_ADVERBS: ReadonlySet<string> = new Set([
+  "bien",
+  "beaucoup",
+  "vraiment",
+  "tant",
+  "pas",
+]);
+
+export const MOOD_MODALS: ReadonlySet<string> = new Set([
+  "pouvoir",
+  "vouloir",
+  "devoir",
+  "aimer",
+  "préférer",
+  "souhaiter",
+  "falloir",
+  "valoir",
+  "être",
+  "avoir",
+  "savoir",
+]);
+
+export const STATING: ReadonlySet<string> = new Set([
+  "espérer",
+  "affirmer",
+  "dire",
+  "assurer",
+  "savoir",
+  "promettre",
+]);
+
+export const TRUE_WORDS: ReadonlySet<string> = new Set([
+  "vrai",
+  "certain",
+  "sûr",
+  "clair",
+  "évident",
+  "exact",
+]);
+
+export const MAIN_SUBJECTS: ReadonlySet<string> = new Set([
+  "je",
+  "j'",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "ils",
+  "elles",
+]);
+
 export const MUTE_H: ReadonlySet<string> = new Set([
   "habiter",
   "habituer",
@@ -3504,6 +3743,36 @@ export const PLURAL_SUBJECT_FORMS: Readonly<Record<string, readonly string[]>> =
   elles: ["toutes"],
   nous: ["tous", "toutes"],
   vous: ["tous", "toutes"],
+};
+
+export const MOOD_PERSON: Readonly<Record<string, number>> = {
+  je: 1,
+  "j'": 1,
+  tu: 2,
+  il: 4,
+  elle: 4,
+  on: 4,
+  ce: 4,
+  "c'": 4,
+  cela: 4,
+  ça: 4,
+  nous: 8,
+  vous: 16,
+  ils: 32,
+  elles: 32,
+};
+
+export const IRREGULAR_SUBJUNCTIVE: Readonly<Record<string, readonly string[]>> = {
+  être: ["sois", "sois", "soit", "soyons", "soyez", "soient"],
+  avoir: ["aie", "aies", "ait", "ayons", "ayez", "aient"],
+  aller: ["aille", "ailles", "aille", "allions", "alliez", "aillent"],
+  faire: ["fasse", "fasses", "fasse", "fassions", "fassiez", "fassent"],
+  pouvoir: ["puisse", "puisses", "puisse", "puissions", "puissiez", "puissent"],
+  savoir: ["sache", "saches", "sache", "sachions", "sachiez", "sachent"],
+  vouloir: ["veuille", "veuilles", "veuille", "voulions", "vouliez", "veuillent"],
+  valoir: ["vaille", "vailles", "vaille", "valions", "valiez", "vaillent"],
+  falloir: ["", "", "faille", "", "", ""],
+  pleuvoir: ["", "", "pleuve", "", "", ""],
 };
 
 export const NE_ELIDED_SUBJECT: Readonly<Record<string, string>> = { "j'": "je", "c'": "ce" };
@@ -6440,6 +6709,283 @@ export function toutAfter(
                 : toutWord(ctx, m, lower, plural, after, before, fix);
 }
 
+// fr.yaml rule fr.mood def EMOTION
+export const EMOTION =
+  /^(?:content|ravi|heureu[sx]|heureuse|surpris|étonné|triste|désolé|fier|fière|furieu[sx]|furieuse|déçu|fâché|soulagé)(?:e?s?)$/;
+
+// fr.yaml rule fr.mood def FUTURE_CUES
+export const FUTURE_CUES =
+  /\b(?:demain|après-demain|bientôt|plus tard|prochaine?s?|un jour|dans (?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|dix|quelques) (?:minutes?|heures?|jours?|semaines?|mois|ans|années))\b/iu;
+
+// fr.yaml rule fr.mood def MOOD_SENTENCE_END
+export const MOOD_SENTENCE_END = /[.!?…;:\n]/u;
+
+// fr.yaml rule fr.mood def MOOD_CLAUSE_BREAK
+export const MOOD_CLAUSE_BREAK =
+  /(?:,[\s ]*(?:et|or|donc|car|puis)|(?<![\p{L}\p{M}\p{N}_'’-])mais)(?![\p{L}\p{M}\p{N}_'’-])/giu;
+
+// fr.yaml rule fr.mood def moodFinite
+export function moodFinite(word: string) {
+  return verbReadings(word).some((r) => typeof r.slot === "number");
+}
+
+// fr.yaml rule fr.mood def moodParticiple
+export function moodParticiple(word: string) {
+  return verbReadings(word).some((r) => r.slot === "Q");
+}
+
+// fr.yaml rule fr.mood def moodInfinitive
+export function moodInfinitive(t: FrenchToken | undefined) {
+  return !!t && verbReadings(t.w).some((r) => r.slot === "I");
+}
+
+// fr.yaml rule fr.mood def hasLemmaIn
+export function hasLemmaIn(word: string, lemmas: ReadonlySet<string>) {
+  return verbReadings(word).some(
+    (r) => lemmas.has(r.lemma) && (typeof r.slot === "number" || r.lemma === "falloir"),
+  );
+}
+
+// fr.yaml rule fr.mood def finiteInTense
+export function finiteInTense(word: string, tense: number) {
+  return verbReadings(word).filter((r) => typeof r.slot === "number" && r.tense === tense);
+}
+
+// fr.yaml rule fr.mood def regularSubjunctive
+export function regularSubjunctive(reading: VerbReading, person: number, index: number) {
+  const plural = conjugate({ ...reading, tense: 1 }, ILS)[0];
+  if (!(person === NOUS || person === VOUS || plural?.endsWith("ent"))) return null;
+  const form =
+    person === NOUS || person === VOUS
+      ? conjugate({ ...reading, tense: 2 }, person)[0]
+      : plural.slice(0, -3) + ["e", "es", "e", "", "", "ent"][index];
+  if (!form || !verbReadings(form).some((r) => r.lemma === reading.lemma)) return null;
+  if (!/(?:e|es|ent|ions|iez)$/.test(form)) return null;
+  return form;
+}
+
+// fr.yaml rule fr.mood def subjunctive
+export function subjunctive(reading: VerbReading, person: number) {
+  const index = [JE, TU, IL, NOUS, VOUS, ILS].indexOf(person);
+  const irregular = IRREGULAR_SUBJUNCTIVE[reading.lemma];
+  return irregular ? irregular[index] || null : regularSubjunctive(reading, person, index);
+}
+
+// fr.yaml rule fr.mood def triggersSubjunctive
+export function triggersSubjunctive(before: FrenchToken[]) {
+  const b0 = before[0]?.w;
+  if (!b0) return false;
+  const b1 = before[1]?.w;
+  const b2 = before[2]?.w;
+  const i = skipWords(before, 0, MOOD_SKIPPED);
+  return b0 === "bien"
+    ? !b1 || !moodFinite(b1)
+    : SUBJUNCTIVE_CONJUNCTIONS.has(b0)
+      ? true
+      : (b0 === "condition" || b0 === "moins") && b1 === "à"
+        ? true
+        : (b0 === "peur" || b0 === "crainte") && b1 === "de"
+          ? true
+          : b0 === "attendant" && b1 === "en"
+            ? true
+            : b0 === "ce" && b1 === "à" && b2 === "jusqu'"
+              ? true
+              : b0 === "dommage"
+                ? true
+                : b0 === "plaisir"
+                  ? !!b1 && hasLemmaIn(b1, FAIRE_LEMMAS)
+                  : b1 &&
+                      hasLemmaIn(b1, TROUVER_LEMMAS) &&
+                      (IMPERSONAL.has(b0) ||
+                        EMOTION.test(b0) ||
+                        /^(?:sympa|bizarre|étrange|dommage|génial|super|bien)$/.test(b0))
+                    ? true
+                    : IMPERSONAL.has(b0) || b0 === "probable"
+                      ? b0 === "probable" && b1 !== "peu"
+                        ? false
+                        : b0 === "probable"
+                          ? !!b2 && MOOD_ETRE.has(b2)
+                          : !!b1 && MOOD_ETRE.has(b1)
+                      : EMOTION.test(b0)
+                        ? !!b1 && !MOOD_DEGREE.has(b1) && (MOOD_ETRE.has(b1) || moodFinite(b1))
+                        : b0 === "mieux"
+                          ? !!b1 && hasLemmaIn(b1, VALOIR_LEMMAS)
+                          : (b0 === "peut" || b0 === "pourrait") && b1 === "se"
+                            ? true
+                            : b0 === "supposer" && b1 === "à"
+                              ? true
+                              : b0 === "il" && before[1]?.hyphen && b2 === "se"
+                                ? hasLemmaIn(before[1].w, FAIRE_POUVOIR_LEMMAS)
+                                : MOOD_PERSON[b0] && before[1]?.hyphen
+                                  ? hasLemmaIn(before[1].w, WILL_LEMMAS)
+                                  : !before[i] || !hasLemmaIn(before[i].w, WILL_LEMMAS)
+                                    ? false
+                                    : !(
+                                        verbReadings(before[i].w).some(
+                                          (r) => r.lemma === "douter",
+                                        ) &&
+                                        [
+                                          "se",
+                                          "me",
+                                          "te",
+                                          "nous",
+                                          "vous",
+                                          "s'",
+                                          "m'",
+                                          "t'",
+                                        ].includes(before[i + 1]?.w ?? "")
+                                      );
+}
+
+// fr.yaml rule fr.mood def nounPhraseEnd
+export function nounPhraseEnd(after: FrenchToken[], i: number): number | null {
+  return after[i] && !moodFinite(after[i].w) && i < 4
+    ? MOOD_COMPLEMENT.has(after[i].w)
+      ? null
+      : nounPhraseEnd(after, i + 1)
+    : i;
+}
+
+// fr.yaml rule fr.mood def clauseVerb
+export function clauseVerb(
+  after: FrenchToken[],
+  text: string,
+): { verb: FrenchToken; person: number } | null {
+  const first = after[0];
+  if (!first) return null;
+  const someone = ["chacun", "chacune", "quelqu'un"].includes(first.w);
+  const person = MOOD_PERSON[first.w] !== undefined ? MOOD_PERSON[first.w] : someone ? IL : 0;
+  const start =
+    MOOD_PERSON[first.w] !== undefined || someone
+      ? 1
+      : MOOD_DETERMINERS.has(first.w) || (/^tou/.test(first.w) && MOOD_DETERMINERS.has(after[1]?.w))
+        ? nounPhraseEnd(after, MOOD_DETERMINERS.has(first.w) ? 2 : 3)
+        : /^\p{Lu}/u.test(text.slice(first.start, first.end))
+          ? 1
+          : null;
+  if (!(start !== null)) return null;
+  const verb = after[skipWhile(after, start, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))];
+  if (!verb) return null;
+  return { verb, person };
+}
+
+// fr.yaml rule fr.mood def clauseAround
+export function clauseAround(text: string, start: number, end: number): [string, string] {
+  const bounds = sentenceBounds(text, start, 400, MOOD_SENTENCE_END);
+  const breaks = [...text.slice(bounds[0], bounds[1]).matchAll(MOOD_CLAUSE_BREAK)].map((b) => ({
+    start: bounds[0] + b.index,
+    end: bounds[0] + b.index + b[0].length,
+  }));
+  const head = breaks.filter((b) => b.end <= start).at(-1)?.end ?? bounds[0];
+  const tail = breaks.find((b) => b.end > start && b.start >= end)?.start ?? bounds[1];
+  return [text.slice(head, start), text.slice(end, tail)];
+}
+
+// fr.yaml rule fr.mood def firstPersonBefore
+export function firstPersonBefore(before: FrenchToken[]) {
+  const i = skipWhile(before, 0, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w));
+  return before[i]?.w === "je" || before[i]?.w === "j'";
+}
+
+// fr.yaml rule fr.mood def siImperfect
+export function siImperfect(part: string) {
+  const si = /(?:^|[\s,])(?:si|s')[\s ]*(?:\p{L}+['’]?[\s ]*){1,4}/iu.exec(part);
+  return !!si && si[0].split(/[\s ’']+/u).some((w) => finiteInTense(w.toLowerCase(), 2).length > 0);
+}
+
+// fr.yaml rule fr.mood def indicativeOf
+export function indicativeOf(word: string, person: number): string[] {
+  const readings = verbReadings(word);
+  if (!readings.length || !readings.every((r) => typeof r.slot === "number")) return [];
+  if (!readings.every((r) => r.tense === 6)) return [];
+  return [
+    ...new Set(
+      readings.flatMap((r) =>
+        maskPersons(r.slot, person || IL + ILS)
+          ? conjugate(
+              { ...r, tense: 1 },
+              lowestPerson(maskPersons(r.slot, person || IL + ILS)),
+            ).slice(0, 1)
+          : [],
+      ),
+    ),
+  ];
+}
+
+// fr.yaml rule fr.mood def triggersIndicative
+export function triggersIndicative(before: FrenchToken[]) {
+  const b0 = before[0]?.w;
+  if (!b0 || before.some((t) => MOOD_NEGATION.has(t.w) || t.hyphen)) return false;
+  const b1 = before[1]?.w;
+  const b2 = before[2]?.w;
+  return b0 === "moment" && b1 === "du"
+    ? true
+    : TRUE_WORDS.has(b0)
+      ? !!b1 && MOOD_ETRE.has(b1) && b2 === "il"
+      : b0 === "paraît" || b0 === "parait"
+        ? b1 === "il"
+        : verbReadings(b0).some((r) => typeof r.slot === "number" && STATING.has(r.lemma));
+}
+
+// fr.yaml rule fr.mood def wishedPast
+export function wishedPast(
+  word: string,
+  before: FrenchToken[],
+  after: FrenchToken[],
+  fix: WordFix,
+): RawFinding | null {
+  const participle = after[0].w;
+  if (word === "aura" && (participle === "voulu" || !MOOD_PERSON[before[0]?.w ?? ""])) return null;
+  const j = skipWhile(after, 1, (t) => CLITICS.has(t.w));
+  if (!(after[1]?.w === "bien" || moodInfinitive(after[j]))) return null;
+  return fix([word === "aurai" ? "aurais" : "aurait"]);
+}
+
+// fr.yaml rule fr.mood def politeWish
+export function politeWish(
+  word: string,
+  sentence: string,
+  after: FrenchToken[],
+  fix: WordFix,
+): RawFinding | null {
+  if (FUTURE_CUES.test(sentence) || /\b(?:quand|lorsque?|si|s'|dès)\b/iu.test(sentence))
+    return null;
+  const j = skipWhile(after, skipWords(after, 0, WISH_ADVERBS), (t) => CLITICS.has(t.w));
+  if (!moodInfinitive(after[j])) return null;
+  return fix([`${word}s`]);
+}
+
+// fr.yaml rule fr.mood def conditionalFuture
+export function conditionalFuture(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  word: string,
+  sentence: string,
+  fix: WordFix,
+): RawFinding | null {
+  const readings = verbReadings(word).filter((r) => typeof r.slot === "number");
+  if (!(readings.length > 0)) return null;
+  const modal = readings.some((r) => MOOD_MODALS.has(r.lemma));
+  if (modal && !readings.every((r) => r.tense === 4 && hasPerson(r.slot, JE))) return null;
+  const tense = readings.every((r) => r.tense === 5 && hasPerson(r.slot, JE))
+    ? 5
+    : readings.every((r) => r.tense === 4 && hasPerson(r.slot, JE))
+      ? 4
+      : 0;
+  if (!(tense !== 0)) return null;
+  const parts = tense === 4 ? clauseAround(ctx.text, m.index, m.index + m[0].length) : null;
+  return tense === 5
+    ? !FUTURE_CUES.test(sentence) || /\b(?:si|s'|que|qu'|mais|sinon|volontiers)\b/iu.test(sentence)
+      ? null
+      : /\b(?:place|avis)\b/iu.test(sentence)
+        ? null
+        : fix([word.slice(0, -1)])
+    : siImperfect(parts![0]) ||
+        (!readings.some((r) => r.lemma === "savoir") && siImperfect(parts![1]))
+      ? fix([`${word}s`])
+      : null;
+}
+
 // fr.yaml rule fr.negation def NE_VOWEL
 export const NE_VOWEL = /^[aeiouyâàäéèêëîïôöûùüœæ]/i;
 
@@ -8485,6 +9031,164 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       frame.ruleId,
       frame.messageKey,
     );
+  },
+  // fr.yaml rule fr.mood frame 1
+  "@fr.mood/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const lower = m[0].toLowerCase().replaceAll("’", "'");
+    const before = tokensBefore(ctx.text, m.index, 4);
+    if (!(lower.startsWith("quoiqu") || triggersSubjunctive(before))) return null;
+    const after = tokensAfter(ctx.text, m.index + m[0].length, 8);
+    const found = clauseVerb(after, ctx.text);
+    if (!found) return null;
+    const verb = found.verb;
+    const typed = ctx.text.slice(verb.start, verb.end);
+    if (/\p{Lu}/u.test(typed) || verb.hyphen) return null;
+    const readings = verbReadings(verb.w).filter(
+      (r) => !(found.person && r.slot === "Q" && verb === after[1]),
+    );
+    if (
+      !readings.length ||
+      !readings.every((r) => typeof r.slot === "number" && (r.tense === 1 || r.tense === 4))
+    )
+      return null;
+    if (verb === after[1] && MOOD_DETERMINERS.has(after[0].w)) return null;
+    if (isInflectedNoun(verb.w) && !found.person) return null;
+    const subjunctives = [
+      ...new Set(
+        readings
+          .map((r) => (found.person ? maskPersons(r.slot, found.person) : (r.slot as number)))
+          .map((mask, k) => (mask ? subjunctive(readings[k], lowestPerson(mask)) : null))
+          .filter((form) => form !== null),
+      ),
+    ];
+    if (subjunctives.length !== 1 || subjunctives.includes(verb.w)) return null;
+    const next = after[after.indexOf(verb) + 1];
+    if (readings[0].lemma === "aller" && next && verbReadings(next.w).some((r) => r.slot === "I"))
+      return null;
+    const had =
+      readings[0].lemma === "être" &&
+      next &&
+      (MOOD_DETERMINERS.has(next.w) || moodParticiple(next.w))
+        ? subjunctive({ ...readings[0], lemma: "avoir" }, lowestPerson(readings[0].slot as number))
+        : null;
+    return wordFinding(
+      ctx,
+      verb.start,
+      typed,
+      had ? [...new Set([...subjunctives, had])] : subjunctives,
+      frame.ruleId,
+      frame.messageKey,
+      {
+        start: m.index,
+        end: verb.end,
+      },
+    );
+  },
+  // fr.yaml rule fr.mood frame 2
+  "@fr.mood/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    if (!triggersIndicative(tokensBefore(ctx.text, m.index, 3))) return null;
+    const after = tokensAfter(ctx.text, m.index + m[0].length, 8);
+    const found = clauseVerb(after, ctx.text);
+    if (!found || found.verb.hyphen) return null;
+    const typed = ctx.text.slice(found.verb.start, found.verb.end);
+    if (/\p{Lu}/u.test(typed) || found.verb.w === "soit") return null;
+    const forms = indicativeOf(found.verb.w, found.person);
+    if (!(forms.length === 1)) return null;
+    return wordFinding(
+      ctx,
+      found.verb.start,
+      typed,
+      forms,
+      frame.ruleId,
+      "review_msg_fr_indicative",
+      { start: m.index, end: found.verb.end },
+    );
+  },
+  // fr.yaml rule fr.mood frame 3
+  "@fr.mood/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const subject = m[0].toLowerCase().replaceAll("’", "'");
+    if (!MAIN_SUBJECTS.has(subject) || ctx.text[m.index - 1] === "-") return null;
+    if (m.index === 0 && m[0] === subject) return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (previous && verbReadings(previous.w).some((r) => typeof r.slot === "number")) return null;
+    const clause = ctx.text.slice(
+      sentenceBounds(ctx.text, m.index, 400, MOOD_SENTENCE_END)[0],
+      m.index,
+    );
+    if (/(?:^|[^\p{L}])(?:que|qu['’]|quoique|quoiqu['’])/iu.test(clause)) return null;
+    const after = tokensAfter(ctx.text, m.index + m[0].length, 5);
+    const verb = after[skipWhile(after, 0, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))];
+    if (!verb || verb.hyphen || verb.w === "soit" || verb.w === "sache") return null;
+    const typed = ctx.text.slice(verb.start, verb.end);
+    if (!(typed === verb.w)) return null;
+    const forms = indicativeOf(verb.w, MOOD_PERSON[subject]);
+    if (!(forms.length === 1)) return null;
+    return wordFinding(ctx, verb.start, typed, forms, frame.ruleId, "review_msg_fr_indicative", {
+      start: m.index,
+      end: verb.end,
+    });
+  },
+  // fr.yaml rule fr.mood frame 4
+  "@fr.mood/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const lower = m[0].toLowerCase().replaceAll("’", "'");
+    const before = tokensBefore(ctx.text, m.index, 1);
+    if (before[0] && !SI_OPENERS.has(before[0].w)) return null;
+    const after = tokensAfter(ctx.text, m.index + m[0].length, 6);
+    const subject = after[0]?.w;
+    if (
+      !(lower === "s'"
+        ? subject === "il" || subject === "ils"
+        : !!subject && SUBJECT_AFTER_SI.has(subject))
+    )
+      return null;
+    const verb = after[skipWhile(after, 1, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))];
+    if (!verb || verb.hyphen) return null;
+    const typed = ctx.text.slice(verb.start, verb.end);
+    if (/\p{Lu}/u.test(typed)) return null;
+    const readings = verbReadings(verb.w);
+    if (!readings.length || !readings.every((r) => typeof r.slot === "number")) return null;
+    const person = MOOD_PERSON[subject];
+    const conditional = readings.every((r) => r.tense === 5);
+    const future = readings.every((r) => r.tense === 4);
+    if (!(conditional || future)) return null;
+    const forms = [
+      ...new Set(
+        readings
+          .filter((r) => hasPerson(r.slot, person))
+          .flatMap((r) => conjugate({ ...r, tense: conditional ? 2 : 1 }, person)),
+      ),
+    ];
+    if (!(forms.length === 1)) return null;
+    return wordFinding(ctx, verb.start, typed, forms, frame.ruleId, "review_msg_fr_conditional", {
+      start: m.index,
+      end: verb.end,
+    });
+  },
+  // fr.yaml rule fr.mood frame 5
+  "@fr.mood/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const typed = m[0];
+    if (/\p{Lu}/u.test(typed.slice(1)) || ctx.text[m.index + typed.length] === "-") return null;
+    const word = typed.toLowerCase();
+    const before = tokensBefore(ctx.text, m.index, 4);
+    if (!(firstPersonBefore(before) || (word === "aura" && before[0]))) return null;
+    const after = tokensAfter(ctx.text, m.index + typed.length, 4);
+    const bounds = sentenceBounds(ctx.text, m.index, 400, MOOD_SENTENCE_END);
+    const sentence = ctx.text.slice(bounds[0], bounds[1]);
+    const fix = (alternatives: string[]) =>
+      wordFinding(ctx, m.index, typed, alternatives, frame.ruleId, "review_msg_fr_conditional", {
+        start: before[0]?.start ?? m.index,
+        end: after[1]?.end ?? m.index + typed.length,
+      });
+    return (word === "aurai" || word === "aura") && WISHED.has(after[0]?.w ?? "")
+      ? wishedPast(word, before, after, fix)
+      : WISHING.has(word)
+        ? politeWish(word, sentence, after, fix)
+        : conditionalFuture(ctx, m, word, sentence, fix);
   },
   // fr.yaml rule fr.negation frame 1
   "@fr.negation/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

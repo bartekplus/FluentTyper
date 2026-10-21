@@ -18750,7 +18750,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:que|quoique)(?![\\p{L}\\p{M}\\p{N}_'’])|(?:qu|quoiqu)['’](?=\\p{L}))",
     literals: [],
-    fixer: "fr:subjunctiveAfterQue",
+    fixer: "fr:@fr.mood/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18759,7 +18759,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:que|quoique)(?![\\p{L}\\p{M}\\p{N}_'’])|(?:qu|quoiqu)['’](?=\\p{L}))",
     literals: [],
-    fixer: "fr:indicativeAfterQue",
+    fixer: "fr:@fr.mood/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18768,7 +18768,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:je|j['’]|tu|il|elle|on|ils|elles)(?![\\p{L}\\p{M}\\p{N}_’-])",
     literals: [],
-    fixer: "fr:mainSubjunctive",
+    fixer: "fr:@fr.mood/3",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18776,7 +18776,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:si(?![\\p{L}\\p{M}\\p{N}_'’])|s['’](?=ils?\\b))",
     literals: [],
-    fixer: "fr:afterSi",
+    fixer: "fr:@fr.mood/4",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18784,7 +18784,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:\\p{L}+rais?|aura)(?![\\p{L}\\p{M}\\p{N}_'’])",
     literals: ["rai", "aura"],
-    fixer: "fr:futureOrConditional",
+    fixer: "fr:@fr.mood/5",
     flags: "giu",
     scan: "owned",
     lookback: 1,

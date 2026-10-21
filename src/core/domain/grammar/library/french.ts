@@ -101,6 +101,32 @@ export type AlternativesFix = (alternatives: string[]) => RawFinding;
 /** A finding on a word with these alternatives, or null (wordFinding). */
 export type WordFix = (alternatives: string[]) => RawFinding | null;
 
+/** The persons of a verb slot that are also in `persons` (0 for a slot that is no finite form). */
+export const maskPersons = (slot: VerbSlot, persons: number): number =>
+  typeof slot === "number" ? slot & persons : 0;
+
+/** The first person of a mask of persons (JE before TU before IL ...). */
+export const lowestPerson = (mask: number): number => mask & -mask;
+
+/**
+ * The sentence around `index`: from the character after the last `stop` mark before it to the
+ * next `stop` mark, and at most `reach` characters on each side.
+ */
+export function sentenceBounds(
+  text: string,
+  index: number,
+  reach: number,
+  stop: RegExp,
+): [number, number] {
+  const first = Math.max(0, index - reach);
+  const last = Math.min(text.length, index + reach);
+  let start = index;
+  while (start > first && !stop.test(text[start - 1])) start--;
+  let end = index;
+  while (end < last && !stop.test(text[end])) end++;
+  return [start, end];
+}
+
 /** Whether a verb reading is a finite form (not an infinitive or a participle). */
 export const finiteReading = (reading: VerbReading): boolean => typeof reading.slot === "number";
 

@@ -3,7 +3,6 @@
 import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
 import * as adjectives from "./adjectives";
 import * as agreement from "./agreement";
-import * as mood from "./mood";
 import * as smallWords from "./smallWords";
 import * as verbForms from "./verbForms";
 
@@ -14,7 +13,6 @@ export const FIXERS = mergePredicates<Fixer>(
   adjectives.FIXERS,
   verbForms.FIXERS,
   agreement.FIXERS,
-  mood.FIXERS,
   smallWords.FIXERS,
 );
 

@@ -4818,38 +4818,555 @@ rules:
     checks: [frenchMood]
     style: match
     message: review_msg_fr_subjunctive
+    # Mood and tense read from closed triggers: "il faut que", "bien que", "vouloir que" take the
+    # subjunctive; "si" (if) takes the imperfect, never the conditional; "j'aurai aimé" and "je
+    # viendrais demain" mix up the conditional and the future, which sound alike in the first
+    # person. Tense positions in the generated conjugations: 1 present, 2 imperfect, 4 future, 5
+    # conditional, 6 subjunctive.
+    maps:
+      MOOD_PERSON:
+        {
+          je: 1,
+          "j'": 1,
+          tu: 2,
+          il: 4,
+          elle: 4,
+          on: 4,
+          ce: 4,
+          "c'": 4,
+          cela: 4,
+          ça: 4,
+          nous: 8,
+          vous: 16,
+          ils: 32,
+          elles: 32,
+        }
+      # Subjunctive forms the regular stems do not give.
+      IRREGULAR_SUBJUNCTIVE:
+        {
+          être: [sois, sois, soit, soyons, soyez, soient],
+          avoir: [aie, aies, ait, ayons, ayez, aient],
+          aller: [aille, ailles, aille, allions, alliez, aillent],
+          faire: [fasse, fasses, fasse, fassions, fassiez, fassent],
+          pouvoir: [puisse, puisses, puisse, puissions, puissiez, puissent],
+          savoir: [sache, saches, sache, sachions, sachiez, sachent],
+          vouloir: [veuille, veuilles, veuille, voulions, vouliez, veuillent],
+          valoir: [vaille, vailles, vaille, valions, valiez, vaillent],
+          falloir: ["", "", faille, "", "", ""],
+          pleuvoir: ["", "", pleuve, "", "", ""],
+        }
+    sets:
+      MOOD_DETERMINERS:
+        [
+          le,
+          la,
+          les,
+          l',
+          un,
+          une,
+          des,
+          du,
+          ce,
+          cet,
+          cette,
+          ces,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          son,
+          sa,
+          ses,
+          notre,
+          nos,
+          votre,
+          vos,
+          leur,
+          leurs,
+          chaque,
+        ]
+      MOOD_NEGATION: [ne, "n'"]
+      # Words after which a noun phrase continues with a complement: the verb is further on.
+      MOOD_COMPLEMENT: [de, d', du, des, qui, que, qu', dont, où, à, au, aux]
+      # Triggers of the subjunctive just before "que".
+      WILL_LEMMAS:
+        [
+          vouloir,
+          souhaiter,
+          exiger,
+          ordonner,
+          désirer,
+          préférer,
+          aimer,
+          falloir,
+          craindre,
+          redouter,
+          regretter,
+          douter,
+          attendre,
+          permettre,
+          refuser,
+          interdire,
+          empêcher,
+          suffire,
+          demander,
+          déplorer,
+          détester,
+          plaire,
+        ]
+      SUBJUNCTIVE_CONJUNCTIONS: [pour, afin, avant, sans, pourvu]
+      IMPERSONAL:
+        [
+          important,
+          nécessaire,
+          essentiel,
+          indispensable,
+          possible,
+          impossible,
+          normal,
+          temps,
+          urgent,
+          préférable,
+          souhaitable,
+          naturel,
+          rare,
+          juste,
+          inadmissible,
+          inacceptable,
+          étonnant,
+          regrettable,
+          utile,
+          dommage,
+          triste,
+          logique,
+          honteux,
+        ]
+      MOOD_DEGREE: [si, tellement, tant, assez, trop, aussi, plus, moins]
+      MOOD_SKIPPED: [pas, plus, jamais, vraiment, absolument, beaucoup, bien]
+      MOOD_ETRE: [est, était, sera, serait, soit, fut]
+      FAIRE_LEMMAS: [faire]
+      TROUVER_LEMMAS: [trouver]
+      VALOIR_LEMMAS: [valoir]
+      FAIRE_POUVOIR_LEMMAS: [faire, pouvoir]
+      SUBJECT_AFTER_SI: [je, "j'", tu, il, elle, on, nous, vous, ils, elles]
+      SI_OPENERS: [et, mais, ou, même, sauf, comme, car, or, donc]
+      # "j'aurai aimé savoir" -> "aurais": a wish in the past is a conditional.
+      WISHED: [aimé, souhaité, préféré, adoré, voulu]
+      # "j'aimerais bien venir": a polite wish.
+      WISHING: [aimerai, voudrai, préférerai, souhaiterai]
+      WISH_ADVERBS: [bien, beaucoup, vraiment, tant, pas]
+      MOOD_MODALS:
+        [pouvoir, vouloir, devoir, aimer, préférer, souhaiter, falloir, valoir, être, avoir, savoir]
+      # Triggers of the indicative before "que": "il est vrai que", "j'espère que", "du moment
+      # que".
+      STATING: [espérer, affirmer, dire, assurer, savoir, promettre]
+      TRUE_WORDS: [vrai, certain, sûr, clair, évident, exact]
+      MAIN_SUBJECTS: [je, "j'", tu, il, elle, on, ils, elles]
+    defs:
+      EMOTION: /^(?:content|ravi|heureu[sx]|heureuse|surpris|étonné|triste|désolé|fier|fière|furieu[sx]|furieuse|déçu|fâché|soulagé)(?:e?s?)$/
+      FUTURE_CUES: /\b(?:demain|après-demain|bientôt|plus tard|prochaine?s?|un jour|dans (?:\d+|un|une|deux|trois|quatre|cinq|six|sept|huit|dix|quelques) (?:minutes?|heures?|jours?|semaines?|mois|ans|années))\b/iu
+      MOOD_SENTENCE_END: '/[.!?…;:\n]/u'
+      # ", mais", ", et", ", donc" start a new clause. A plain comma does not: "Si tu venais, je".
+      MOOD_CLAUSE_BREAK: "/(?:,[\\s ]*(?:et|or|donc|car|puis)|(?<![\\p{L}\\p{M}\\p{N}_'’-])mais)(?![\\p{L}\\p{M}\\p{N}_'’-])/giu"
+      moodFinite:
+        args: "word: string"
+        return: 'verbReadings(word).some((r) => typeof r.slot === "number")'
+      moodParticiple:
+        args: "word: string"
+        return: 'verbReadings(word).some((r) => r.slot === "Q")'
+      moodInfinitive:
+        args: "t: FrenchToken | undefined"
+        return: '!!t && verbReadings(t.w).some((r) => r.slot === "I")'
+      # A finite form, or "fallu" ("il a fallu que").
+      hasLemmaIn:
+        args: "word: string, lemmas: ReadonlySet<string>"
+        return: 'verbReadings(word).some((r) => lemmas.has(r.lemma) && (typeof r.slot === "number" || r.lemma === "falloir"))'
+      finiteInTense:
+        args: "word: string, tense: number"
+        return: 'verbReadings(word).filter((r) => typeof r.slot === "number" && r.tense === tense)'
+      # The present subjunctive of a verb for one person: "ils prennent" -> "prenne". Variant
+      # spellings ("asseoir") upset the tense order: keep only subjunctive endings.
+      regularSubjunctive:
+        args: "reading: VerbReading, person: number, index: number"
+        let:
+          plural: "conjugate({ ...reading, tense: 1 }, ILS)[0]"
+          form: >-
+            person === NOUS || person === VOUS
+              ? conjugate({ ...reading, tense: 2 }, person)[0]
+              : plural.slice(0, -3) + ["e", "es", "e", "", "", "ent"][index]
+        when:
+          - 'person === NOUS || person === VOUS || plural?.endsWith("ent")'
+          - "!(!form || !verbReadings(form).some((r) => r.lemma === reading.lemma))"
+          - /(?:e|es|ent|ions|iez)$/.test(form)
+        return: form
+      subjunctive:
+        args: "reading: VerbReading, person: number"
+        let:
+          index: "[JE, TU, IL, NOUS, VOUS, ILS].indexOf(person)"
+          irregular: IRREGULAR_SUBJUNCTIVE[reading.lemma]
+        return: "irregular ? irregular[index] || null : regularSubjunctive(reading, person, index)"
+      # "condition que", "peur de que" ...: "ça lui fait plaisir que", "je trouve normal que", "à
+      # supposer que". "comment se fait-il que", "se peut-il que": the inverted "il" after faire
+      # or pouvoir. "faut-il que": the inverted subject after its verb. "il se doute que"
+      # (suspects) takes the indicative.
+      triggersSubjunctive:
+        args: "before: FrenchToken[]"
+        let:
+          b0: before[0]?.w
+          b1: before[1]?.w
+          b2: before[2]?.w
+          i: skipWords(before, 0, MOOD_SKIPPED)
+        when: "!!b0"
+        return: >-
+          b0 === "bien"
+            ? !b1 || !moodFinite(b1)
+            : SUBJUNCTIVE_CONJUNCTIONS.has(b0)
+              ? true
+              : (b0 === "condition" || b0 === "moins") && b1 === "à"
+                ? true
+                : (b0 === "peur" || b0 === "crainte") && b1 === "de"
+                  ? true
+                  : b0 === "attendant" && b1 === "en"
+                    ? true
+                    : b0 === "ce" && b1 === "à" && b2 === "jusqu'"
+                      ? true
+                      : b0 === "dommage"
+                        ? true
+                        : b0 === "plaisir"
+                          ? !!b1 && hasLemmaIn(b1, FAIRE_LEMMAS)
+                          : b1 &&
+                              hasLemmaIn(b1, TROUVER_LEMMAS) &&
+                              (IMPERSONAL.has(b0) || EMOTION.test(b0) || /^(?:sympa|bizarre|étrange|dommage|génial|super|bien)$/.test(b0))
+                            ? true
+                            : IMPERSONAL.has(b0) || b0 === "probable"
+                              ? b0 === "probable" && b1 !== "peu"
+                                ? false
+                                : b0 === "probable"
+                                  ? !!b2 && MOOD_ETRE.has(b2)
+                                  : !!b1 && MOOD_ETRE.has(b1)
+                              : EMOTION.test(b0)
+                                ? !!b1 && !MOOD_DEGREE.has(b1) && (MOOD_ETRE.has(b1) || moodFinite(b1))
+                                : b0 === "mieux"
+                                  ? !!b1 && hasLemmaIn(b1, VALOIR_LEMMAS)
+                                  : (b0 === "peut" || b0 === "pourrait") && b1 === "se"
+                                    ? true
+                                    : b0 === "supposer" && b1 === "à"
+                                      ? true
+                                      : b0 === "il" && before[1]?.hyphen && b2 === "se"
+                                        ? hasLemmaIn(before[1].w, FAIRE_POUVOIR_LEMMAS)
+                                        : MOOD_PERSON[b0] && before[1]?.hyphen
+                                          ? hasLemmaIn(before[1].w, WILL_LEMMAS)
+                                          : !before[i] || !hasLemmaIn(before[i].w, WILL_LEMMAS)
+                                            ? false
+                                            : !(
+                                                verbReadings(before[i].w).some((r) => r.lemma === "douter") &&
+                                                ["se", "me", "te", "nous", "vous", "s'", "m'", "t'"].includes(before[i + 1]?.w ?? "")
+                                              )
+        else: "false"
+      # The index after the words of a noun phrase from `i` ("tout le monde", "toutes ces
+      # personnes"), or null when a complement makes the verb lie further on.
+      nounPhraseEnd:
+        args: "after: FrenchToken[], i: number"
+        type: number | null
+        return: >-
+          after[i] && !moodFinite(after[i].w) && i < 4
+            ? MOOD_COMPLEMENT.has(after[i].w)
+              ? null
+              : nounPhraseEnd(after, i + 1)
+            : i
+      # The verb of the clause a "que" opens, with its subject's person when a pronoun gives it.
+      clauseVerb:
+        args: "after: FrenchToken[], text: string"
+        type: "{ verb: FrenchToken; person: number } | null"
+        let:
+          first: after[0]
+          someone: '["chacun", "chacune", "quelqu''un"].includes(first.w)'
+          person: "MOOD_PERSON[first.w] !== undefined ? MOOD_PERSON[first.w] : someone ? IL : 0"
+          start: >-
+            MOOD_PERSON[first.w] !== undefined || someone
+              ? 1
+              : MOOD_DETERMINERS.has(first.w) || (/^tou/.test(first.w) && MOOD_DETERMINERS.has(after[1]?.w))
+                ? nounPhraseEnd(after, MOOD_DETERMINERS.has(first.w) ? 2 : 3)
+                : /^\p{Lu}/u.test(text.slice(first.start, first.end))
+                  ? 1
+                  : null
+          verb: after[skipWhile(after, start, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))]
+        when:
+          - "!!first"
+          - start !== null
+          - "!!verb"
+        return: "{ verb, person }"
+      # The text of the clause before and after the word at [start, end).
+      clauseAround:
+        args: "text: string, start: number, end: number"
+        type: "[string, string]"
+        let:
+          bounds: sentenceBounds(text, start, 400, MOOD_SENTENCE_END)
+          breaks: >-
+            [...text.slice(bounds[0], bounds[1]).matchAll(MOOD_CLAUSE_BREAK)].map((b) => ({
+              start: bounds[0] + b.index,
+              end: bounds[0] + b.index + b[0].length,
+            }))
+          head: breaks.filter((b) => b.end <= start).at(-1)?.end ?? bounds[0]
+          tail: breaks.find((b) => b.end > start && b.start >= end)?.start ?? bounds[1]
+        return: "[text.slice(head, start), text.slice(end, tail)]"
+      # "je" or "j'" right before a verb (ne and clitics skipped).
+      firstPersonBefore:
+        args: "before: FrenchToken[]"
+        let:
+          i: skipWhile(before, 0, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))
+        return: 'before[i]?.w === "je" || before[i]?.w === "j''"'
+      # A "si" clause in the imperfect.
+      siImperfect:
+        args: "part: string"
+        let:
+          si: "/(?:^|[\\s,])(?:si|s')[\\s ]*(?:\\p{L}+['’]?[\\s ]*){1,4}/iu.exec(part)"
+        return: "!!si && si[0].split(/[\\s ’']+/u).some((w) => finiteInTense(w.toLowerCase(), 2).length > 0)"
+      # The present indicative of a subjunctive form, for the person the clause gives it. A noun
+      # subject is a third person.
+      indicativeOf:
+        args: "word: string, person: number"
+        type: string[]
+        let:
+          readings: verbReadings(word)
+        when:
+          - '!(!readings.length || !readings.every((r) => typeof r.slot === "number"))'
+          - readings.every((r) => r.tense === 6)
+        return: >-
+          [
+            ...new Set(
+              readings.flatMap((r) =>
+                maskPersons(r.slot, person || IL + ILS)
+                  ? conjugate({ ...r, tense: 1 }, lowestPerson(maskPersons(r.slot, person || IL + ILS))).slice(0, 1)
+                  : [],
+              ),
+            ),
+          ]
+        else: "[]"
+      # "il est certain qu'il parte", "j'espère que tu viennes".
+      triggersIndicative:
+        args: "before: FrenchToken[]"
+        let:
+          b0: before[0]?.w
+          b1: before[1]?.w
+          b2: before[2]?.w
+        when: "!(!b0 || before.some((t) => MOOD_NEGATION.has(t.w) || t.hyphen))"
+        return: >-
+          b0 === "moment" && b1 === "du"
+            ? true
+            : TRUE_WORDS.has(b0)
+              ? !!b1 && MOOD_ETRE.has(b1) && b2 === "il"
+              : b0 === "paraît" || b0 === "parait"
+                ? b1 === "il"
+                : verbReadings(b0).some((r) => typeof r.slot === "number" && STATING.has(r.lemma))
+        else: "false"
+      # "j'aurai aimé savoir", "il aura aimé venir".
+      wishedPast:
+        args: "word: string, before: FrenchToken[], after: FrenchToken[], fix: WordFix"
+        type: RawFinding | null
+        let:
+          participle: after[0].w
+          j: skipWhile(after, 1, (t) => CLITICS.has(t.w))
+        when:
+          - '!(word === "aura" && (participle === "voulu" || !MOOD_PERSON[before[0]?.w ?? ""]))'
+          - after[1]?.w === "bien" || moodInfinitive(after[j])
+        return: 'fix([word === "aurai" ? "aurais" : "aurait"])'
+      # "j'aimerai bien partir" -> "aimerais".
+      politeWish:
+        args: "word: string, sentence: string, after: FrenchToken[], fix: WordFix"
+        type: RawFinding | null
+        let:
+          j: skipWhile(after, skipWords(after, 0, WISH_ADVERBS), (t) => CLITICS.has(t.w))
+        when:
+          - "!(FUTURE_CUES.test(sentence) || /\\b(?:quand|lorsque?|si|s'|dès)\\b/iu.test(sentence))"
+          - moodInfinitive(after[j])
+        return: "fix([`${word}s`])"
+      # Modals and auxiliaries keep a polite conditional ("je voudrais"); only a "si" clause in the
+      # imperfect tells their future is wrong ("si j'avais su, je n'aurai pas" -> "aurais"). "je
+      # viendrais demain" -> "viendrai"; "si", reported speech or "mais" keep the conditional. "je
+      # mangerai du chocolat si j'aimais ça", "Si l'on me faisait confiance, je parviendrai": the
+      # "si" must sit in the clause of the verb: "Je partirai, mais si tu venais, je resterai".
+      # "je saurai demain si tu étais là": "si" after savoir asks whether.
+      conditionalFuture:
+        args: "ctx: DetectContext, m: RegExpExecArray, word: string, sentence: string, fix: WordFix"
+        type: RawFinding | null
+        let:
+          readings: 'verbReadings(word).filter((r) => typeof r.slot === "number")'
+          modal: readings.some((r) => MOOD_MODALS.has(r.lemma))
+          tense: >-
+            readings.every((r) => r.tense === 5 && hasPerson(r.slot, JE))
+              ? 5
+              : readings.every((r) => r.tense === 4 && hasPerson(r.slot, JE))
+                ? 4
+                : 0
+          parts: "tense === 4 ? clauseAround(ctx.text, m.index, m.index + m[0].length) : null"
+        when:
+          - readings.length > 0
+          - "!(modal && !readings.every((r) => r.tense === 4 && hasPerson(r.slot, JE)))"
+          - tense !== 0
+        return: >-
+          tense === 5
+            ? !FUTURE_CUES.test(sentence) || /\b(?:si|s'|que|qu'|mais|sinon|volontiers)\b/iu.test(sentence)
+              ? null
+              : /\b(?:place|avis)\b/iu.test(sentence)
+                ? null
+                : fix([word.slice(0, -1)])
+            : siImperfect(parts![0]) || (!readings.some((r) => r.lemma === "savoir") && siImperfect(parts![1]))
+              ? fix([`${word}s`])
+              : null
     frames:
-      # "il faut que tu viens" -> "viennes", "bien qu'il est tard" -> "soit".
+      # "il faut que tu viens" -> "viennes", "bien qu'il est tard" -> "soit". "que tu finis": a
+      # form right after its pronoun subject is no participle. Only a form that reads as a present
+      # or future indicative and as nothing else. "que la porte ferme": a noun right after its
+      # determiner is no verb. "que cela va fonctionner": "aller" + infinitive is reworded, not
+      # put in the subjunctive. "qu'il est une médaille": "est" may stand for "ait" as well as
+      # "soit".
       - regex: "{{WORD_START}}(?:(?:que|quoique)(?![\\p{L}\\p{M}\\p{N}_'’])|(?:qu|quoiqu)['’](?=\\p{L}))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: subjunctiveAfterQue
+        let:
+          lower: m[0].toLowerCase().replaceAll("’", "'")
+          before: tokensBefore(ctx.text, m.index, 4)
+          after: tokensAfter(ctx.text, m.index + m[0].length, 8)
+          found: clauseVerb(after, ctx.text)
+          verb: found.verb
+          typed: ctx.text.slice(verb.start, verb.end)
+          readings: verbReadings(verb.w).filter((r) => !(found.person && r.slot === "Q" && verb === after[1]))
+          subjunctives: >-
+            [
+              ...new Set(
+                readings
+                  .map((r) => (found.person ? maskPersons(r.slot, found.person) : (r.slot as number)))
+                  .map((mask, k) => (mask ? subjunctive(readings[k], lowestPerson(mask)) : null))
+                  .filter((form) => form !== null),
+              ),
+            ]
+          next: after[after.indexOf(verb) + 1]
+          had: >-
+            readings[0].lemma === "être" && next && (MOOD_DETERMINERS.has(next.w) || moodParticiple(next.w))
+              ? subjunctive({ ...readings[0], lemma: "avoir" }, lowestPerson(readings[0].slot as number))
+              : null
+        when:
+          - m.index >= ctx.from
+          - lower.startsWith("quoiqu") || triggersSubjunctive(before)
+          - "!!found"
+          - '!(/\p{Lu}/u.test(typed) || verb.hyphen)'
+          - >-
+            !(!readings.length ||
+              !readings.every((r) => typeof r.slot === "number" && (r.tense === 1 || r.tense === 4)))
+          - "!(verb === after[1] && MOOD_DETERMINERS.has(after[0].w))"
+          - "!(isInflectedNoun(verb.w) && !found.person)"
+          - "!(subjunctives.length !== 1 || subjunctives.includes(verb.w))"
+          - '!(readings[0].lemma === "aller" && next && verbReadings(next.w).some((r) => r.slot === "I"))'
+        return: >-
+          wordFinding(ctx, verb.start, typed, had ? [...new Set([...subjunctives, had])] : subjunctives, frame.ruleId, frame.messageKey, {
+            start: m.index,
+            end: verb.end,
+          })
       # "il est certain qu'il parte" -> "part", "j'espère que tu viennes" -> "viens".
       - regex: "{{WORD_START}}(?:(?:que|quoique)(?![\\p{L}\\p{M}\\p{N}_'’])|(?:qu|quoiqu)['’](?=\\p{L}))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: indicativeAfterQue
+        let:
+          after: tokensAfter(ctx.text, m.index + m[0].length, 8)
+          found: clauseVerb(after, ctx.text)
+          typed: ctx.text.slice(found.verb.start, found.verb.end)
+          forms: indicativeOf(found.verb.w, found.person)
+        when:
+          - m.index >= ctx.from
+          - triggersIndicative(tokensBefore(ctx.text, m.index, 3))
+          - "!(!found || found.verb.hyphen)"
+          - '!(/\p{Lu}/u.test(typed) || found.verb.w === "soit")'
+          - forms.length === 1
+        return: 'wordFinding(ctx, found.verb.start, typed, forms, frame.ruleId, "review_msg_fr_indicative", { start: m.index, end: found.verb.end })'
       # "Tu ne la croies pas" -> "crois", "Il comprenne mal" -> "comprend": a subjunctive form in a
-      # main clause, where no "que" comes before its pronoun subject.
+      # main clause, where no "que" comes before its pronoun subject. "il faille partir...": a
+      # lowercase fragment at the text start may be cut after "que". "Il voulait tu viennes": a
+      # "que" left out after a verb. "que je sache", "je ne sache pas": fixed phrases.
       - regex: "{{WORD_START}}(?:je|j['’]|tu|il|elle|on|ils|elles)(?![\\p{L}\\p{M}\\p{N}_’-])"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: mainSubjunctive
-      # "si j'aurais su" -> "avais", "si tu viendras" -> "viens".
+        let:
+          subject: m[0].toLowerCase().replaceAll("’", "'")
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          clause: ctx.text.slice(sentenceBounds(ctx.text, m.index, 400, MOOD_SENTENCE_END)[0], m.index)
+          after: tokensAfter(ctx.text, m.index + m[0].length, 5)
+          verb: after[skipWhile(after, 0, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))]
+          typed: ctx.text.slice(verb.start, verb.end)
+          forms: indicativeOf(verb.w, MOOD_PERSON[subject])
+        when:
+          - m.index >= ctx.from
+          - '!(!MAIN_SUBJECTS.has(subject) || ctx.text[m.index - 1] === "-")'
+          - "!(m.index === 0 && m[0] === subject)"
+          - '!(previous && verbReadings(previous.w).some((r) => typeof r.slot === "number"))'
+          - "!/(?:^|[^\\p{L}])(?:que|qu['’]|quoique|quoiqu['’])/iu.test(clause)"
+          - '!(!verb || verb.hyphen || verb.w === "soit" || verb.w === "sache")'
+          - typed === verb.w
+          - forms.length === 1
+        return: 'wordFinding(ctx, verb.start, typed, forms, frame.ruleId, "review_msg_fr_indicative", { start: m.index, end: verb.end })'
+      # "si j'aurais su" -> "avais", "si tu viendras" -> "viens". "s'il": the elided "si" holds
+      # its subject.
       - regex: "{{WORD_START}}(?:si(?![\\p{L}\\p{M}\\p{N}_'’])|s['’](?=ils?\\b))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: afterSi
+        let:
+          lower: m[0].toLowerCase().replaceAll("’", "'")
+          before: tokensBefore(ctx.text, m.index, 1)
+          after: tokensAfter(ctx.text, m.index + m[0].length, 6)
+          subject: after[0]?.w
+          verb: after[skipWhile(after, 1, (t) => MOOD_NEGATION.has(t.w) || CLITICS.has(t.w))]
+          typed: ctx.text.slice(verb.start, verb.end)
+          readings: verbReadings(verb.w)
+          person: MOOD_PERSON[subject]
+          conditional: readings.every((r) => r.tense === 5)
+          future: readings.every((r) => r.tense === 4)
+          forms: >-
+            [
+              ...new Set(
+                readings
+                  .filter((r) => hasPerson(r.slot, person))
+                  .flatMap((r) => conjugate({ ...r, tense: conditional ? 2 : 1 }, person)),
+              ),
+            ]
+        when:
+          - m.index >= ctx.from
+          - "!(before[0] && !SI_OPENERS.has(before[0].w))"
+          - 'lower === "s''" ? subject === "il" || subject === "ils" : !!subject && SUBJECT_AFTER_SI.has(subject)'
+          - "!(!verb || verb.hyphen)"
+          - '!/\p{Lu}/u.test(typed)'
+          - '!(!readings.length || !readings.every((r) => typeof r.slot === "number"))'
+          - conditional || future
+          - forms.length === 1
+        return: 'wordFinding(ctx, verb.start, typed, forms, frame.ruleId, "review_msg_fr_conditional", { start: m.index, end: verb.end })'
       # "j'aurai": the elided subject is glued on.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?:\\p{L}+rais?|aura)(?![\\p{L}\\p{M}\\p{N}_'’])"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: futureOrConditional
+        let:
+          typed: m[0]
+          word: typed.toLowerCase()
+          before: tokensBefore(ctx.text, m.index, 4)
+          after: tokensAfter(ctx.text, m.index + typed.length, 4)
+          bounds: sentenceBounds(ctx.text, m.index, 400, MOOD_SENTENCE_END)
+          sentence: ctx.text.slice(bounds[0], bounds[1])
+          fix: '(alternatives: string[]) => wordFinding(ctx, m.index, typed, alternatives, frame.ruleId, "review_msg_fr_conditional", { start: before[0]?.start ?? m.index, end: after[1]?.end ?? m.index + typed.length })'
+        when:
+          - m.index >= ctx.from
+          - '!(/\p{Lu}/u.test(typed.slice(1)) || ctx.text[m.index + typed.length] === "-")'
+          - 'firstPersonBefore(before) || (word === "aura" && before[0])'
+        return: >-
+          (word === "aurai" || word === "aura") && WISHED.has(after[0]?.w ?? "")
+            ? wishedPast(word, before, after, fix)
+            : WISHING.has(word)
+              ? politeWish(word, sentence, after, fix)
+              : conditionalFuture(ctx, m, word, sentence, fix)
   - id: fr.negation
     checks: [frenchMissingNe]
     style: match
