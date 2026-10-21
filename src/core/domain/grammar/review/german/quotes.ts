@@ -46,17 +46,20 @@ function lineOf(m: RegExpExecArray, text: string): [number, number] {
 const quoteMarks: MatchFixer = (line, ctx) => {
   const findings: RawFinding[] = [];
   const [paragraphStart, paragraphEnd] = lineOf(line, ctx.text);
+  const base = line.index;
   const stop = Math.min(ctx.to, paragraphEnd);
+  // The scan reads only this paragraph. A mark of two characters may end after the chunk.
+  const scan = ctx.scanText.slice(base, Math.min(ctx.to + 1, paragraphEnd));
   const marks = MARKS;
-  marks.lastIndex = line.index;
+  marks.lastIndex = 0;
   // Whether a German „ is open in this paragraph, read from its start.
-  let open = track(0, ctx.text.slice(paragraphStart, line.index));
-  let scanned = line.index;
-  for (let m = marks.exec(ctx.scanText); m && m.index < stop; m = marks.exec(ctx.scanText)) {
-    open = track(open, ctx.text.slice(scanned, m.index));
-    scanned = m.index + m[0].length;
+  let open = track(0, ctx.text.slice(paragraphStart, base));
+  let scanned = base;
+  for (let m = marks.exec(scan); m && base + m.index < stop; m = marks.exec(scan)) {
+    const at = base + m.index;
+    open = track(open, ctx.text.slice(scanned, at));
+    scanned = at + m[0].length;
     const [mark] = m;
-    const at = m.index;
     const opening = OPENING_AT(ctx.text, at, mark.length);
     // A quoted English phrase may keep its English marks: “I love you”.
     if (opening && open === 0 && mark !== '"') {
@@ -67,7 +70,7 @@ const quoteMarks: MatchFixer = (line, ctx) => {
         englishWords(ctx.text.slice(scanned, scanned + close.index))
       ) {
         scanned += close.index + close[0].length;
-        marks.lastIndex = scanned;
+        marks.lastIndex = scanned - base;
         continue;
       }
     }
