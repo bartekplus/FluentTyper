@@ -45,6 +45,104 @@ export const NOT_BASIS_ADJECTIVE: ReadonlySet<string> = new Set([
   "whatever",
 ]);
 
+export const DETERMINER_OR_OBJECT: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "some",
+  "any",
+  "all",
+  "every",
+  "each",
+  "it",
+  "them",
+  "me",
+  "him",
+  "us",
+  "you",
+]);
+
+export const LOOKS_LIKE_SUBJECT: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "some",
+  "any",
+  "all",
+  "every",
+  "each",
+  "it",
+  "you",
+  "we",
+  "they",
+  "he",
+  "she",
+  "i",
+  "there",
+  "many",
+  "most",
+  "no",
+  "both",
+  "nobody",
+  "nothing",
+  "everyone",
+  "everybody",
+  "everything",
+  "someone",
+  "somebody",
+  "something",
+  "anyone",
+  "anybody",
+  "anything",
+]);
+
+export const NOT_HOW_TO: ReadonlySet<string> = new Set([
+  "come",
+  "dare",
+  "do",
+  "does",
+  "did",
+  "go",
+  "people",
+  "be",
+  "say",
+  "mean",
+  "will",
+  "can",
+  "may",
+  "might",
+  "must",
+  "shall",
+  "should",
+  "would",
+  "could",
+  "have",
+  "has",
+  "had",
+]);
+
 export const EMAIL_VERB: Readonly<Record<string, string>> = {
   send: "email",
   sends: "emails",
@@ -60,6 +158,29 @@ export const REFLEXIVE_OF: Readonly<Record<string, string>> = {
   its: "itself",
   our: "ourselves",
   their: "themselves",
+};
+
+export const MAKE_FOR_DO: Readonly<Record<string, string>> = {
+  do: "make",
+  does: "makes",
+  did: "made",
+  doing: "making",
+  done: "made",
+};
+
+export const OURS_FOR_OBJECT: Readonly<Record<string, string>> = {
+  me: "mine",
+  you: "yours",
+  us: "ours",
+  him: "his",
+  them: "theirs",
+};
+
+export const GO_FOR_BECOME: Readonly<Record<string, string>> = {
+  become: "go",
+  becomes: "goes",
+  became: "went",
+  becoming: "going",
 };
 
 // en.yaml rule en.idiomPhrases2 def IDIOM_OBJECT
@@ -143,6 +264,10 @@ export function nounOrLongWord(word: string) {
   const info = englishWordInfo(word);
   return info ? info.noun || info.plural : word.length > 6;
 }
+
+// en.yaml rule en.idiomContextualCompounds def IN_DEPTH_CLOSERS
+export const IN_DEPTH_CLOSERS =
+  /^(?:by|today|these|those|this|that|now|nowadays|than|as|and|or|but|in|on|at|for|to|of|with|right|here|there|again|too|also|lately|recently|since|during|among|across|everywhere|worldwide|anymore|yet|then|when|while|because|if)$/i;
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
@@ -390,6 +515,137 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       info.verbs.some((v) => v.form === "participle")
       ? ""
       : null;
+  },
+  // en.yaml rule en.idiomPhrases4 frame 3
+  "@en.idiomPhrases4/3": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return MAKE_FOR_DO[target.toLowerCase()];
+  },
+  // en.yaml rule en.idiomPhrases4 frame 9
+  "@en.idiomPhrases4/9": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return OURS_FOR_OBJECT[target.toLowerCase()];
+  },
+  // en.yaml rule en.idiomPhrases4 frame 14
+  "@en.idiomPhrases4/14": (m: RegExpExecArray): string | readonly string[] | null => {
+    const next = m.groups!.next;
+    return /^(?:even|actually|really|just|literally|also)$/i.test(next) ||
+      englishWordInfo(next)?.adverb ||
+      (hasVerbForm(next, "base") && !DETERMINER_OR_OBJECT.has(next.toLowerCase()))
+      ? "as to"
+      : null;
+  },
+  // en.yaml rule en.idiomPhrases4 frame 16
+  "@en.idiomPhrases4/16": (m: RegExpExecArray): string | readonly string[] | null => {
+    const next = m.groups!.next;
+    const info = englishWordInfo(next);
+    return info && !info.noun && !info.plural ? null : "";
+  },
+  // en.yaml rule en.idiomPhrases4 frame 17
+  "@en.idiomPhrases4/17": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const an = /^[aeiou]/i.test(target) ? "an" : "a";
+    return `${target === target.toUpperCase() ? an.toUpperCase() : an} ${target}`;
+  },
+  // en.yaml rule en.idiomPhrases4 frame 18
+  "@en.idiomPhrases4/18": (m: RegExpExecArray): string | readonly string[] | null => {
+    const name = m.groups!.name;
+    return name && !/^\p{Lu}/u.test(name) ? null : "hello";
+  },
+  // en.yaml rule en.idiomPhrases4 frame 19
+  "@en.idiomPhrases4/19": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    const ing = m.groups!.ing;
+    return hasVerbForm(ing, "ing") ? `${word} of ` : null;
+  },
+  // en.yaml rule en.idiomPhrases4 frame 22
+  "@en.idiomPhrases4/22": (m: RegExpExecArray): string | readonly string[] | null => {
+    const next = m.groups!.next;
+    return LOOKS_LIKE_SUBJECT.has(next.toLowerCase()) ||
+      /^\p{Lu}/u.test(next) ||
+      (hasVerbForm(next, "ing") && !englishWordInfo(next)?.noun)
+      ? ""
+      : null;
+  },
+  // en.yaml rule en.idiomPhrases4 frame 23
+  "@en.idiomPhrases4/23": (m: RegExpExecArray): string | readonly string[] | null => {
+    return m[0] === m[0].toUpperCase()
+      ? "IT"
+      : /(?:^|[.!?\n]["”’)]{0,3})[ \t ]{0,8}["“'‘(]?$/u.test(
+            m.input.slice(Math.max(0, m.index - 14), m.index),
+          )
+        ? "It"
+        : "it";
+  },
+  // en.yaml rule en.idiomPhrases4 frame 26
+  "@en.idiomPhrases4/26": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    const owner = m.groups!.owner;
+    const nose = m.groups!.nose;
+    return `${verb} down ${owner} ${nose}`;
+  },
+  // en.yaml rule en.idiomPhrases4 frame 27
+  "@en.idiomPhrases4/27": (m: RegExpExecArray): string | readonly string[] | null => {
+    const not = m.groups!.not;
+    const done = m.groups!.done;
+    const participle = done.toLowerCase();
+    if (!(participle === "been" || hasVerbForm(participle, "participle"))) return null;
+    return not ? (/n['’]t/i.test(not) ? `hadn${not.match(/['’]/)![0]}t` : "had not") : "had";
+  },
+  // en.yaml rule en.idiomComplements frame 1
+  "@en.idiomComplements/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    const info = englishWordInfo(target);
+    if (
+      /^\p{Lu}/u.test(target) ||
+      NOT_HOW_TO.has(target.toLowerCase()) ||
+      !info?.verbs.some((v) => v.form === "base") ||
+      info.adjective ||
+      info.adverb
+    )
+      return null;
+    const object = englishWordInfo(next);
+    return DETERMINER_OR_OBJECT.has(next.toLowerCase()) ||
+      /^\p{Lu}/u.test(next) ||
+      hasVerbForm(next, "ing") ||
+      (!info.noun && (object ? object.noun && !object.verbs.length : next.length > 5))
+      ? `to ${target}`
+      : null;
+  },
+  // en.yaml rule en.idiomItsContext frame 1
+  "@en.idiomItsContext/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const adjective = m.groups!.adjective;
+    const info = englishWordInfo(adjective);
+    const superlative = /(?:est|^most|^least|^only)$/i.test(adjective);
+    return info?.adjective && !info.noun && !info.verbs.length && !superlative ? "it's" : null;
+  },
+  // en.yaml rule en.idiomCompounds4 frame 3
+  "@en.idiomCompounds4/3": (m: RegExpExecArray): string | readonly string[] | null => {
+    const joint = m.groups!.joint;
+    return [`fully${joint}fledged`, `fully${joint}fleshed out`];
+  },
+  // en.yaml rule en.idiomContextualCompounds frame 2
+  "@en.idiomContextualCompounds/2": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    const next = m.groups!.next;
+    const info = englishWordInfo(next);
+    if (
+      IN_DEPTH_CLOSERS.test(next) ||
+      (info ? info.adverb || !(info.noun || info.adjective) : next.length < 6)
+    )
+      return null;
+    return `in-${noun.toLowerCase()}`;
+  },
+  // en.yaml rule en.idiomStyle4 frame 1
+  "@en.idiomStyle4/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return GO_FOR_BECOME[target.toLowerCase()];
+  },
+  // en.yaml rule en.idiomStyle4 frame 2
+  "@en.idiomStyle4/2": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /^\p{Lu}/u.test(target) ? null : "in";
   },
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {

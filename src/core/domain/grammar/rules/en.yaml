@@ -693,13 +693,92 @@ rules:
   - id: en.idiomPhrases4
     checks: [englishPhraseCorrections]
     message: review_msg_phrase_correction
+    sets:
+      # Determiners and object pronouns: an object, not a verb, comes after them.
+      DETERMINER_OR_OBJECT:
+        [
+          the,
+          a,
+          an,
+          this,
+          that,
+          these,
+          those,
+          my,
+          your,
+          his,
+          her,
+          its,
+          our,
+          their,
+          some,
+          any,
+          all,
+          every,
+          each,
+          it,
+          them,
+          me,
+          him,
+          us,
+          you,
+        ]
+      # Words that open a clause's subject: "it looks like that the team…".
+      LOOKS_LIKE_SUBJECT:
+        [
+          the,
+          a,
+          an,
+          this,
+          that,
+          these,
+          those,
+          my,
+          your,
+          his,
+          her,
+          its,
+          our,
+          their,
+          some,
+          any,
+          all,
+          every,
+          each,
+          it,
+          you,
+          we,
+          they,
+          he,
+          she,
+          i,
+          there,
+          many,
+          most,
+          no,
+          both,
+          nobody,
+          nothing,
+          everyone,
+          everybody,
+          everything,
+          someone,
+          somebody,
+          something,
+          anyone,
+          anybody,
+          anything,
+        ]
+    maps:
+      MAKE_FOR_DO: { do: make, does: makes, did: made, doing: making, done: made }
+      OURS_FOR_OBJECT: { me: mine, you: yours, us: ours, him: his, them: theirs }
     frames:
       - regex: "(?:cure|cures|cured|curing){{S}}(?<target>against){{E}}"
         fix: "for"
       - regex: "(?<target>despite){{S}}(?:I|you|we|they|he|she|it|there){{S}}(?:am|is|are|was|were|has|have|had|do|does|did|can|could|will|would|should|may|might|must){{E}}"
         fix: ["although", "despite the fact that"]
       - regex: "(?=do|did)(?<!(?:^|[.!?\\n][\"”’)]{0,3})[ \\t\\u00a0]{0,8}[\"“'‘(]?){{notAfter:where|when|why|how|what|which|whose}}(?!(?:do|did|doing){{S}}a{{S}}mistake{{E}})(?<target>do|does|did|doing|done){{S}}(?:(?:{{IDIOMS4_DETERMINER}}|several|many|no|few|more|fewer|such|same|lots{{S}}of|so{{S}}many|too{{S}}many){{S}})(?:\\p{L}+{{S}})?mistakes?{{E}}"
-        fixer: makeMistake
+        return: MAKE_FOR_DO[target.toLowerCase()]
       - regex: "(?:the|an?){{S}}(?:\\p{L}+{{S}})?(?<target>except){{S}}of{{E}}"
         fix: "exception"
       - regex: "(?<!(?<![\\p{L}'’])(?:the|an?){{S}}(?:\\p{L}+{{S}})?)except{{S}}(?<target>of){{E}}(?!{{S}}course{{E}})"
@@ -712,7 +791,7 @@ rules:
       - regex: "(?=fee)(?<=(?:(?<!there{{S}})(?<![\\p{L}'’])(?:is|was|are|were|be|been)|(?<!there)['’]s){{S}}(?:(?:totally|completely|entirely|absolutely|really|always|now|still|also|actually|just|basically|usually|currently){{S}})?)(?<target>fee){{E}}(?:{{CLOSES}}|(?={{S}}(?:for|to|and|or|but|forever|now|again|today){{E}}))"
         fix: "free"
       - regex: "(?:friends?|enem(?:y|ies)|colleagues?|cousins?|neighbou?rs?){{S}}of{{S}}(?<target>me|you|us|him|them){{E}}(?!{{S}}(?:all|both|two|three|guys|folks|and|or){{E}})"
-        fixer: friendOfMine
+        return: OURS_FOR_OBJECT[target.toLowerCase()]
       - regex: "(?:full|filled|fill|fills|filling|packed){{S}}to{{S}}the{{S}}brim{{S}}(?<target>of){{E}}(?!{{S}}(?:the|a|an|its|each|every){{E}})"
         fix: "with"
       - regex: "(?:get|gets|got|gotten|getting|go|goes|went|gone|going){{S}}(?<target>pass){{S}}(?=(?:{{IDIOMS4_DETERMINER}}){{E}})(?!the{{S}}(?:time|ball|salt|word|test|exam|buck|torch|hat){{E}})"
@@ -722,37 +801,63 @@ rules:
       - regex: "(?:go|goes|went|going|gone){{S}}(?<target>into){{S}}sleep{{E}}(?!{{S}}(?:mode|modes|state|states|cycle|timer|setting|settings){{E}})"
         fix: "to"
       - regex: "(?:go|goes|went|gone|going){{S}}so{{S}}far{{S}}(?<target>to){{S}}(?<next>\\p{L}+){{E}}"
-        fixer: goSoFarAs
+        return: >-
+          /^(?:even|actually|really|just|literally|also)$/i.test(next) ||
+          englishWordInfo(next)?.adverb ||
+          (hasVerbForm(next, "base") && !DETERMINER_OR_OBJECT.has(next.toLowerCase()))
+            ? "as to"
+            : null
       - regex: "(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|isn['’]t|aren['’]t|wasn['’]t|weren['’]t|im|i['’]m|you['’]re|we['’]re|they['’]re|he['’]s|she['’]s|its|it['’]s|not){{S}}(?:(?:always|all|so|very|really|pretty|quite|too|particularly|especially|super|extremely|that|not){{S}}){0,2}good{{S}}(?<target>in){{S}}(?!(?:{{IDIOMS4_DETERMINER}}|practice|theory|general|terms|real|parts|places|moderation|comparison|person|shape|condition|health|spirit|faith|time|production|most{{S}}(?:cases|situations|respects|ways|places)|many|certain|one|both|red|blue|black|white|green|dark|light){{E}})(?=\\p{L})"
         fix: "at"
       - regex: "a{{S}}handful{{S}}(?<target>of{{S}})more{{S}}(?=(?<next>\\p{L}+){{E}})"
-        fixer: handfulMore
+        let:
+          info: englishWordInfo(next)
+        return: 'info && !info.noun && !info.plural ? null : ""'
       - regex: "(?:have|has|had|having){{S}}(?<target>(?:(?<adverb>real|really|very|extremely|super|incredibly|particularly|pretty){{S}})?hard){{S}}time{{E}}(?!{{S}}(?:limits?|constraints?|budgets?|deadlines?|requirements?|bounds?|windows?|slots?|frames?){{E}})"
-        fixer: hardTime
+        let:
+          an: '/^[aeiou]/i.test(target) ? "an" : "a"'
+        return: "`${target === target.toUpperCase() ? an.toUpperCase() : an} ${target}`"
         raw: true
       - regex: "(?=halo){{SENTENCE}}(?<target>halo)(?=[ \\t\\u00a0]*[,!?]|{{S}}(?:there|world|everyone|everybody|all|guys|folks|friends?|team){{E}}|{{S}}(?<name>\\p{L}+)[ \\t\\u00a0]*[,!.?])"
-        fixer: haloHello
+        return: 'name && !/^\p{Lu}/u.test(name) ? null : "hello"'
       - regex: "in{{S}}(?<target>(?<word>favou?r){{S}})(?<ing>\\p{L}+ing){{E}}"
-        fixer: inFavorOf
+        return: 'hasVerbForm(ing, "ing") ? `${word} of ` : null'
         raw: true
       - regex: "(?=on{{S}}stock)(?<=(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|being|back|have|has|had|having|keep|keeps|kept|it|them|inventory|not|still|currently|already){{S}})(?<target>on){{S}}stock{{E}}(?:{{CLOSES}}|(?={{S}}(?:at|but|or|for|and|in|again|now|yet|anymore|soon|today|until|right|though){{E}}))"
         fix: "in"
       - regex: "interested{{S}}(?<target>about|at|into|of|on|with){{E}}(?!{{S}}(?:all|first|once|least|times|the{{S}}(?:time|start|moment|outset|beginning)|that{{S}}(?:time|point)){{E}})"
         fix: "in"
       - regex: "(?:it|this){{S}}(?:looks|looked|seems|seemed){{S}}like{{S}}(?<target>that{{S}})(?<next>\\p{L}+){{E}}"
-        fixer: looksLikeThat
+        return: >-
+          LOOKS_LIKE_SUBJECT.has(next.toLowerCase()) ||
+          /^\p{Lu}/u.test(next) ||
+          (hasVerbForm(next, "ing") && !englishWordInfo(next)?.noun)
+            ? ""
+            : null
       - regex: "(?<target>I){{S}}(?:would|might|will|could|may|should)(?:{{S}}not)?{{S}}be{{S}}(?:a{{S}}(?:(?:real|great|huge|big|total|terrible|crying){{S}})?(?:shame|pity|bummer)|an?{{S}}(?:good|bad|great|better|nice|terrible|smart|wise|cool|neat){{S}}idea){{E}}"
-        fixer: itWouldBe
+        # A sentence or line start before the match, an opening quote allowed. Its longest form has 13
+        # characters, so 14 characters before the match are enough.
+        return: >-
+          m[0] === m[0].toUpperCase()
+            ? "IT"
+            : /(?:^|[.!?\n]["”’)]{0,3})[ \t ]{0,8}["“'‘(]?$/u.test(m.input.slice(Math.max(0, m.index - 14), m.index))
+              ? "It"
+              : "it"
         raw: true
       - regex: "jealous{{S}}(?<target>from){{E}}(?!{{S}}(?:within|without|then|now|day|birth|childhood|the{{S}}(?:start|beginning|outset)|[0-9]))"
         fix: "of"
       - regex: "{{notAfter:a|very|so|too|how|the|this|that|really|pretty|quite|such|fairly|extremely|super|rather|not}}(?<target>long){{S}}time{{S}}ago{{E}}"
         fix: "a long"
       - regex: "(?<target>(?<verb>look|looks|looked|looking){{S}}(?<owner>my|your|his|her|its|our|their|one['’]s){{S}}(?<nose>noses?){{S}}down){{E}}"
-        fixer: lookDownNose
+        return: "`${verb} down ${owner} ${nose}`"
         raw: true
       - regex: "(?=if{{S}})(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide){{S}})if{{S}}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their){{S}}\\p{L}+){{S}}(?<target>(?<not>would{{S}}not{{S}}have|wouldn['’]t{{S}}have)|would['’]ve|would{{S}}have|would{{S}}of|had['’]ve|hadve|had{{S}}of|had{{S}}have){{S}}(?<done>\\p{L}+){{E}}"
-        fixer: ifHadHave
+        let:
+          participle: done.toLowerCase()
+        when: 'participle === "been" || hasVerbForm(participle, "participle")'
+        # "would not have known" -> "had not known"; "wouldn't have" -> "hadn't".
+        return: >-
+          not ? (/n['’]t/i.test(not) ? `hadn${not.match(/['’]/)![0]}t` : "had not") : "had"
       - regex: "(?<target>for{{S}}free{{S}}of{{S}}charge){{E}}(?:{{CLOSES}}|(?={{S}}(?:for|to|and|or|but|are|is|was|were|in|on|at|with|by|if|as|so|from|via|until|since|because|anything){{E}}))"
         fix: ["free of charge", "for free"]
       - regex: "{{notAfter:in}}despite{{S}}(?<target>of{{S}})(?=\\p{L})"
@@ -780,16 +885,62 @@ rules:
   - id: en.idiomComplements
     checks: [englishVerbComplements]
     message: review_msg_missing_to
+    sets:
+      # "how come", "how dare you" and "how people…" are not a missing "to". Auxiliaries open a
+      # question ("How have these changes helped?"), not a how-to.
+      NOT_HOW_TO:
+        [
+          come,
+          dare,
+          do,
+          does,
+          did,
+          go,
+          people,
+          be,
+          say,
+          mean,
+          will,
+          can,
+          may,
+          might,
+          must,
+          shall,
+          should,
+          would,
+          could,
+          have,
+          has,
+          had,
+        ]
     frames:
       - regex: "how{{S}}(?<target>\\p{L}+){{S}}(?<next>\\p{L}+){{E}}"
-        fixer: howToVerb
+        let:
+          info: englishWordInfo(target)
+          object: englishWordInfo(next)
+        when: >-
+          !(/^\p{Lu}/u.test(target) || NOT_HOW_TO.has(target.toLowerCase()) ||
+          !info?.verbs.some((v) => v.form === "base") || info.adjective || info.adverb)
+        # "how form submissions are…": a noun before a noun is a compound subject.
+        return: >-
+          DETERMINER_OR_OBJECT.has(next.toLowerCase()) ||
+          /^\p{Lu}/u.test(next) ||
+          hasVerbForm(next, "ing") ||
+          (!info.noun && (object ? object.noun && !object.verbs.length : next.length > 5))
+            ? `to ${target}`
+            : null
         raw: true
   - id: en.idiomItsContext
     checks: [englishItsContext]
     message: review_msg_its_contraction
     frames:
       - regex: "(?=its{{S}})(?<=,{{S}}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure){{S}})(?<target>its){{S}}(?<adjective>\\p{L}+)(?:(?={{S}}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as){{E}})|{{CLOSES}})"
-        fixer: itsAdjective
+        let:
+          info: englishWordInfo(adjective)
+          # "its largest to date", "its lowest since 1994": a superlative names its own thing.
+          superlative: /(?:est|^most|^least|^only)$/i.test(adjective)
+        return: >-
+          info?.adjective && !info.noun && !info.verbs.length && !superlative ? "it's" : null
   - id: en.idiomCompounds4
     checks: [englishClosedCompounds]
     message: review_msg_closed_compound
@@ -799,23 +950,31 @@ rules:
       - regex: "(?<target>like{{S}}wise)(?=[ \\t\\u00a0]{0,8}[,;.!?])"
         fix: "likewise"
       - regex: "(?<target>fully(?<joint>-|{{S}})fleshed){{E}}(?!{{S}}out{{E}})"
-        fixer: fullyFleshedOut
+        return: "[`fully${joint}fledged`, `fully${joint}fleshed out`]"
   - id: en.idiomContextualCompounds
     checks: [englishContextualCompounds]
     message: review_msg_closed_compound
+    defs:
+      # Words after "in demand" / "in depth" that close the phrase instead of naming a noun.
+      IN_DEPTH_CLOSERS: /^(?:by|today|these|those|this|that|now|nowadays|than|as|and|or|but|in|on|at|for|to|of|with|right|here|there|again|too|also|lately|recently|since|during|among|across|everywhere|worldwide|anymore|yet|then|when|while|because|if)$/i
     frames:
       - regex: "(?:more|most|very|quite|pretty|really|fairly|less|so|too|an|a){{S}}(?<target>in{{S}}depth){{E}}"
         fix: "in-depth"
       - regex: "(?:of|for|with|and|the|some|more|most|very|highly|less|so){{S}}(?<target>in{{S}}(?<noun>depth|demand)){{S}}(?<next>\\p{L}+){{E}}"
-        fixer: inDepthNoun
+        let:
+          info: englishWordInfo(next)
+        when: "!(IN_DEPTH_CLOSERS.test(next) || (info ? info.adverb || !(info.noun || info.adjective) : next.length < 6))"
+        return: "`in-${noun.toLowerCase()}`"
   - id: en.idiomStyle4
     checks: [stylePhrasing]
     message: review_msg_style_phrasing
+    maps:
+      GO_FOR_BECOME: { become: go, becomes: goes, became: went, becoming: going }
     frames:
       - regex: "{{notAfter:have|has|had|having}}(?<!['’](?:ve|d){{S}})(?<target>become|becomes|became|becoming){{S}}missing{{E}}(?:{{CLOSES}}|(?={{S}}(?:and|but|or|from|in|on|at|after|when|because|again|too|for|during|without|since|while|if|then|so|\\p{L}+ly){{E}}))"
-        fixer: becomeMissing
+        return: GO_FOR_BECOME[target.toLowerCase()]
       - regex: "(?:implement|implements|implemented|implementing)(?:{{S}}[\\p{L}\\p{N}]+){0,3}?{{S}}(?<target>into){{E}}"
-        fixer: implementInto
+        return: '/^\p{Lu}/u.test(target) ? null : "in"'
   - id: en.idiomRedundancy
     checks: [styleRedundancy]
     message: review_msg_style_redundancy

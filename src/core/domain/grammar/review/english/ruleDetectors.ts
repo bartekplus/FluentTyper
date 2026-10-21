@@ -42,7 +42,6 @@ import * as fixedPhrases from "./fixedPhrases";
 import * as grammarStyle1 from "./grammarStyle1";
 import * as grammarStyle2 from "./grammarStyle2";
 import * as idioms1 from "./idioms1";
-import * as idioms4 from "./idioms4";
 import * as idioms5 from "./idioms5";
 import * as clauseSlots from "./clauseSlots";
 import * as everydaySlots from "./everydaySlots";
@@ -73,7 +72,6 @@ export const FIXERS = mergePredicates<Fixer>(
   neighbourTypos.FIXERS,
   clashFrames.FIXERS,
   idioms1.FIXERS,
-  idioms4.FIXERS,
   agreementFrames.FIXERS,
   clauseFrames.FIXERS,
   britishUsage.FIXERS,

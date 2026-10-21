@@ -7146,7 +7146,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=do|did)(?<!(?:^|[.!?\\n][\"”’)]{0,3})[ \\t\\u00a0]{0,8}[\"“'‘(]?)(?=\\p{L})(?<!(?<![\\p{L}'’])(?:where|when|why|how|what|which|whose)[ \\t\\u00a0]{1,8})(?!(?:do|did|doing)[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}mistake(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<target>do|does|did|doing|done)[ \\t\\u00a0]{1,8}(?:(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|all|every|each|several|many|no|few|more|fewer|such|same|lots[ \\t\\u00a0]{1,8}of|so[ \\t\\u00a0]{1,8}many|too[ \\t\\u00a0]{1,8}many)[ \\t\\u00a0]{1,8})(?:\\p{L}+[ \\t\\u00a0]{1,8})?mistakes?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["mistake"],
-    fixer: "en:makeMistake",
+    fixer: "en:@en.idiomPhrases4/3",
   }),
   frame({
     pattern:
@@ -7182,7 +7182,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:friends?|enem(?:y|ies)|colleagues?|cousins?|neighbou?rs?)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?<target>me|you|us|him|them)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:all|both|two|three|guys|folks|and|or)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["friend", "enem", "colleague", "cousin", "neighbo"],
-    fixer: "en:friendOfMine",
+    fixer: "en:@en.idiomPhrases4/9",
   }),
   frame({
     pattern:
@@ -7212,7 +7212,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:go|goes|went|gone|going)[ \\t\\u00a0]{1,8}so[ \\t\\u00a0]{1,8}far[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["far"],
-    fixer: "en:goSoFarAs",
+    fixer: "en:@en.idiomPhrases4/14",
   }),
   frame({
     pattern:
@@ -7224,26 +7224,26 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "a[ \\t\\u00a0]{1,8}handful[ \\t\\u00a0]{1,8}(?<target>of[ \\t\\u00a0]{1,8})more[ \\t\\u00a0]{1,8}(?=(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["handful"],
-    fixer: "en:handfulMore",
+    fixer: "en:@en.idiomPhrases4/16",
   }),
   frame({
     pattern:
       "(?:have|has|had|having)[ \\t\\u00a0]{1,8}(?<target>(?:(?<adverb>real|really|very|extremely|super|incredibly|particularly|pretty)[ \\t\\u00a0]{1,8})?hard)[ \\t\\u00a0]{1,8}time(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:limits?|constraints?|budgets?|deadlines?|requirements?|bounds?|windows?|slots?|frames?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["hard"],
-    fixer: "en:hardTime",
+    fixer: "en:@en.idiomPhrases4/17",
     raw: true,
   }),
   frame({
     pattern:
       "(?=halo)(?<=(?:^|[.!?\\n][\"”’)]{0,3})[ \\t\\u00a0]{0,8}[\"“'‘(]?)(?<target>halo)(?=[ \\t\\u00a0]*[,!?]|[ \\t\\u00a0]{1,8}(?:there|world|everyone|everybody|all|guys|folks|friends?|team)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}(?<name>\\p{L}+)[ \\t\\u00a0]*[,!.?])",
     literals: ["halo"],
-    fixer: "en:haloHello",
+    fixer: "en:@en.idiomPhrases4/18",
   }),
   frame({
     pattern:
       "in[ \\t\\u00a0]{1,8}(?<target>(?<word>favou?r)[ \\t\\u00a0]{1,8})(?<ing>\\p{L}+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["favo"],
-    fixer: "en:inFavorOf",
+    fixer: "en:@en.idiomPhrases4/19",
     raw: true,
   }),
   frame({
@@ -7262,13 +7262,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:it|this)[ \\t\\u00a0]{1,8}(?:looks|looked|seems|seemed)[ \\t\\u00a0]{1,8}like[ \\t\\u00a0]{1,8}(?<target>that[ \\t\\u00a0]{1,8})(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["looks", "looked", "seems", "seemed"],
-    fixer: "en:looksLikeThat",
+    fixer: "en:@en.idiomPhrases4/22",
   }),
   frame({
     pattern:
       "(?<target>I)[ \\t\\u00a0]{1,8}(?:would|might|will|could|may|should)(?:[ \\t\\u00a0]{1,8}not)?[ \\t\\u00a0]{1,8}be[ \\t\\u00a0]{1,8}(?:a[ \\t\\u00a0]{1,8}(?:(?:real|great|huge|big|total|terrible|crying)[ \\t\\u00a0]{1,8})?(?:shame|pity|bummer)|an?[ \\t\\u00a0]{1,8}(?:good|bad|great|better|nice|terrible|smart|wise|cool|neat)[ \\t\\u00a0]{1,8}idea)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["shame", "pity", "bummer", "idea"],
-    fixer: "en:itWouldBe",
+    fixer: "en:@en.idiomPhrases4/23",
     raw: true,
   }),
   frame({
@@ -7287,14 +7287,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<verb>look|looks|looked|looking)[ \\t\\u00a0]{1,8}(?<owner>my|your|his|her|its|our|their|one['’]s)[ \\t\\u00a0]{1,8}(?<nose>noses?)[ \\t\\u00a0]{1,8}down)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["look", "looks", "looked", "looking"],
-    fixer: "en:lookDownNose",
+    fixer: "en:@en.idiomPhrases4/26",
     raw: true,
   }),
   frame({
     pattern:
       "(?=if[ \\t\\u00a0]{1,8})(?<!(?:know|knows|knew|wonder|wondered|wondering|ask|asked|asking|sure|doubt|see|check|tell|decide)[ \\t\\u00a0]{1,8})if[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she|it|(?:the|that|this|my|your|his|her|our|their)[ \\t\\u00a0]{1,8}\\p{L}+)[ \\t\\u00a0]{1,8}(?<target>(?<not>would[ \\t\\u00a0]{1,8}not[ \\t\\u00a0]{1,8}have|wouldn['’]t[ \\t\\u00a0]{1,8}have)|would['’]ve|would[ \\t\\u00a0]{1,8}have|would[ \\t\\u00a0]{1,8}of|had['’]ve|hadve|had[ \\t\\u00a0]{1,8}of|had[ \\t\\u00a0]{1,8}have)[ \\t\\u00a0]{1,8}(?<done>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["would", "wouldn", "would", "would", "would", "had", "hadve", "had", "have"],
-    fixer: "en:ifHadHave",
+    fixer: "en:@en.idiomPhrases4/27",
   }),
   frame({
     pattern:
@@ -7336,14 +7336,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "how[ \\t\\u00a0]{1,8}(?<target>\\p{L}+)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["how"],
-    fixer: "en:howToVerb",
+    fixer: "en:@en.idiomComplements/1",
     raw: true,
   }),
   frame({
     pattern:
       "(?=its[ \\t\\u00a0]{1,8})(?<=,[ \\t\\u00a0]{1,8}|(?<![\\p{L}'’])(?:because|since|so|but|and|if|when|think|hope|guess|know|sure)[ \\t\\u00a0]{1,8})(?<target>its)[ \\t\\u00a0]{1,8}(?<adjective>\\p{L}+)(?:(?=[ \\t\\u00a0]{1,8}(?:for|to|that|because|and|but|if|when|now|again|too|enough|here|there|anyway|though|since|as)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)\"”]|$)))",
     literals: ["its"],
-    fixer: "en:itsAdjective",
+    fixer: "en:@en.idiomItsContext/1",
   }),
   frame({
     pattern:
@@ -7360,7 +7360,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>fully(?<joint>-|[ \\t\\u00a0]{1,8})fleshed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}out(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["fleshed"],
-    fixer: "en:fullyFleshedOut",
+    fixer: "en:@en.idiomCompounds4/3",
   }),
   frame({
     pattern:
@@ -7372,19 +7372,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:of|for|with|and|the|some|more|most|very|highly|less|so)[ \\t\\u00a0]{1,8}(?<target>in[ \\t\\u00a0]{1,8}(?<noun>depth|demand))[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["depth", "demand"],
-    fixer: "en:inDepthNoun",
+    fixer: "en:@en.idiomContextualCompounds/2",
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:have|has|had|having)[ \\t\\u00a0]{1,8})(?<!['’](?:ve|d)[ \\t\\u00a0]{1,8})(?<target>become|becomes|became|becoming)[ \\t\\u00a0]{1,8}missing(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)\"”]|$))|(?=[ \\t\\u00a0]{1,8}(?:and|but|or|from|in|on|at|after|when|because|again|too|for|during|without|since|while|if|then|so|\\p{L}+ly)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["missing"],
-    fixer: "en:becomeMissing",
+    fixer: "en:@en.idiomStyle4/1",
   }),
   frame({
     pattern:
       "(?:implement|implements|implemented|implementing)(?:[ \\t\\u00a0]{1,8}[\\p{L}\\p{N}]+){0,3}?[ \\t\\u00a0]{1,8}(?<target>into)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["implement", "implements", "implemented", "implementing"],
-    fixer: "en:implementInto",
+    fixer: "en:@en.idiomStyle4/2",
   }),
   frame({
     pattern:
