@@ -68,6 +68,41 @@ test("the literal prefilter keeps every match of case-sensitive and accented fra
   expect(at("GROẞE")(/(?<target>große)/dgiu)).toEqual(["GROẞE"]);
 });
 
+test("İ, ſ, K, Å and ẞ keep the literal prefilter and the start positions on", () => {
+  const ctxOf = (value: string) =>
+    ({ ...ctx, source: value, text: value, scanText: value, to: value.length }) as DetectContext;
+  // A frame that runs at its start positions runs a sticky copy: the regex itself never runs.
+  const execs = (text: string, regex: RegExp) => {
+    let calls = 0;
+    const exec = regex.exec.bind(regex);
+    regex.exec = (value) => (calls++, exec(value));
+    const found = [...frameScan(ctxOf(text), regex)].map((m) => m.index);
+    return { found, calls };
+  };
+  for (const letter of ["İ", "ſ", "K", "Å", "ẞ"]) {
+    const text = `${letter}zmir. We saw it.`;
+    expect(execs(text, /(?<target>saw)/dgiu)).toEqual({ found: [text.indexOf("saw")], calls: 0 });
+    expect(execs(text, /(?<target>zebra)/dgiu)).toEqual({ found: [], calls: 0 });
+  }
+});
+
+test("frames match across İ, ſ, K, Å and ẞ", () => {
+  const at = (value: string, pattern: string | RegExp) =>
+    [
+      ...frameScan(
+        { ...ctx, source: value, text: value, scanText: value, to: value.length },
+        pattern,
+        null,
+      ),
+    ].map((m) => [m.index, m[0]]);
+  expect(at("İzmir İs nice. We saw it.", "saw")).toEqual([[18, "saw"]]);
+  expect(at("İ saw", "saw")).toEqual([[2, "saw"]]);
+  expect(at("Gut ſo. Klaſse", /klasse/dgiu)).toEqual([[8, "Klaſse"]]);
+  expect(at("300 Kelvin", "kelvin")).toEqual([[4, "Kelvin"]]);
+  expect(at("1 Ångström", "ångström")).toEqual([[2, "Ångström"]]);
+  expect(at("DIE GROẞE STRAẞE", /stra(?:ß|ss)e/dgiu)).toEqual([[10, "STRAẞE"]]);
+});
+
 test("a frame may open on a contraction clitic glued to its host word", () => {
   const scan = (value: string, pattern: string, lang = "en_US") =>
     [

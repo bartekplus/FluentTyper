@@ -279,7 +279,7 @@ function anchorWindows(ctx: DetectContext, anchor: LiteralAnchor): Int32Array[] 
   let found = scanned.windows.get(key);
   if (found === undefined) {
     const base = Math.max(0, ctx.from - 256);
-    const lower = scanned.lower!;
+    const lower = scanned.lower;
     const list: number[] = [];
     for (const prefix of anchor.prefixes)
       for (let i = lower.indexOf(prefix); i !== -1; i = lower.indexOf(prefix, i + 1))
@@ -341,7 +341,7 @@ function windowedStarts(ctx: DetectContext, anchor: LiteralAnchor, framed: boole
   const windows: number[] = [];
   for (const prefix of anchor.prefixes) {
     // An occurrence after the chunk may still close a match that starts in it.
-    for (let i = lower!.indexOf(prefix); i !== -1; i = lower!.indexOf(prefix, i + 1)) {
+    for (let i = lower.indexOf(prefix); i !== -1; i = lower.indexOf(prefix, i + 1)) {
       const q = base + i;
       const start = windowStart(text, q, anchor.spaces, base);
       if (start >= ctx.to) break;
@@ -450,13 +450,11 @@ const LITERALS = new Map<string, string[]>();
 /** Gives the literals of a frame compiled ahead of time (grammar/rules/*.yaml). */
 export const primeFrameLiterals = (source: string, literals: string[]) =>
   LITERALS.set(source, literals);
-// The text a frame scan can match in, lowercased; null when the text holds a character whose
-// case-insensitive match is another letter than its lowercase (U+017F long s ~ s, U+212A
-// Kelvin sign ~ k, U+212B Angstrom sign, capital sharp s).
+// The text a frame scan can match in, lowercased.
 const SCANNED = new WeakMap<
   DetectContext,
   {
-    lower: string | null;
+    lower: string;
     grams: Uint8Array;
     found: Map<string, boolean>;
     aligned: boolean;
@@ -471,6 +469,19 @@ const SCANNED = new WeakMap<
 const gram = (text: string, at: number) =>
   (text.charCodeAt(at) * 961 + text.charCodeAt(at + 1) * 31 + text.charCodeAt(at + 2)) & 0x3fff;
 
+// Before lowercasing: İ, whose lowercase is two characters, and the letters that a regex ignoring
+// case matches as another letter (long s ~ s, Kelvin sign ~ k, Angstrom sign ~ å, capital sharp
+// s ~ ß). Each becomes that letter: positions stay in line, and the scan finds each literal that
+// a frame may match there (and maybe more).
+const FOLDS: Record<string, string> = {
+  İ: "i",
+  ſ: "s",
+  K: "k",
+  Å: "å",
+  ẞ: "ß",
+};
+const FOLDED = /[İſKÅẞ]/g;
+
 /**
  * False when a frame cannot match in this chunk's scan: the text from from-256 (where
  * scans start), lowercased, holds none of the literals of which every match consumes one. Such a frame is neither compiled nor run, which spares most frames on most text.
@@ -479,10 +490,10 @@ function scannedText(ctx: DetectContext) {
   let scanned = SCANNED.get(ctx);
   if (scanned === undefined) {
     const raw = ctx.scanText.slice(Math.max(0, ctx.from - 256));
-    const lower = /[\u017f\u212a\u212b\u1e9e]/.test(raw) ? null : raw.toLowerCase();
+    const lower = raw.replace(FOLDED, (char) => FOLDS[char]).toLowerCase();
     // Its three-letter runs: most literals fail there, before a search of the whole text.
     const grams = new Uint8Array(0x4000);
-    for (let i = 0; lower !== null && i + 3 <= lower.length; i++) grams[gram(lower, i)] = 1;
+    for (let i = 0; i + 3 <= lower.length; i++) grams[gram(lower, i)] = 1;
     SCANNED.set(
       ctx,
       (scanned = {
@@ -490,7 +501,7 @@ function scannedText(ctx: DetectContext) {
         grams,
         found: new Map(),
         // Positions line up with the text only when lowercasing kept every length.
-        aligned: lower !== null && lower.length === raw.length,
+        aligned: lower.length === raw.length,
         starts: new Map(),
         lists: new Map(),
         windows: new Map(),
@@ -512,7 +523,7 @@ const pair = (text: string, at: number) =>
  */
 function pairIndex(scanned: ReturnType<typeof scannedText>) {
   if (scanned.pairs === undefined) {
-    const lower = scanned.lower!;
+    const lower = scanned.lower;
     const head = new Int32Array(PAIR_BUCKETS).fill(-1);
     const next = new Int32Array(lower.length);
     for (let i = lower.length - 2; i >= 0; i--) {
@@ -535,7 +546,7 @@ function prefixStarts(ctx: DetectContext, prefix: string, framed: boolean): numb
   let starts = scanned.starts.get(key);
   if (starts === undefined) {
     starts = [];
-    const lower = scanned.lower!;
+    const lower = scanned.lower;
     const base = Math.max(0, ctx.from - 256);
     const limit = ctx.to - base;
     if (prefix.length >= 2) {
@@ -619,7 +630,6 @@ function mayMatch(ctx: DetectContext, source: string): boolean {
   if (literals === undefined) LITERALS.set(source, (literals = requiredLiterals(source)));
   if (literals.length === 0) return true;
   const { lower, grams, found } = scannedText(ctx);
-  if (lower === null) return true;
   for (const literal of literals) {
     // Most literals fail at the hashes, before the memo or a text search.
     if (grams[gram(literal, 0)] === 0 || grams[gram(literal, literal.length - 3)] === 0) continue;
