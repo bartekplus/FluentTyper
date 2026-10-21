@@ -4518,6 +4518,16 @@ defs:
     let:
       starts: new Set<number>()
     return: "findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start))"
+  # An impossible ISO date (the ISO_DATE frame of the language files): a warning with the rule
+  # and message of the frame.
+  isoDateWarning:
+    args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef"
+    type: RawFinding | null
+    let:
+      range: invalidIsoDate(m, ctx)
+    when: "!!range"
+    return: >-
+      ({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })
 
 rules:
   # Typing rules: each live check names its implementation (engine/liveRules.ts).
@@ -4990,13 +5000,32 @@ rules:
     lang: en
     style: match
     message: review_msg_doubled_degree
+    defs:
+      # The finding on the target: the comparative or superlative alone. User-dictionary words
+      # and casing that names something abstain.
+      doubledDegreeFinding:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef"
+        type: RawFinding | null
+        let:
+          span: group(m, "target")
+        when:
+          - ctx.lang === "en_US"
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - m.groups!.target === m.groups!.target.toLowerCase()
+        return: >-
+          finding(frame.ruleId, frame.messageKey, span[0], span[1], [m.groups!.word], {
+            context: {
+              start: Math.max(0, m.index - 128),
+              end: Math.min(ctx.text.length, m.index + m[0].length + 9),
+            },
+          })
     frames:
       # "this is more faster", "the new model was much more better than the old one".
       - regex: "{{DEGREE_SUBJECT}}{{S}}(?:much{{S}})?(?<target>more{{S}}(?<word>{{DEGREE_COMPARATIVE}}))(?:(?:{{S}}to{{S}}(?:test|use|read|find|check|build))|(?:{{S}}(?:than|then){{S}}(?:before|expected|(?:the|my|your|our){{S}}(?:(?:old|new|previous){{S}})?(?:{{DEGREE_NOUN}}|one)|[0-9]{1,6}(?!,|[.][0-9]))))?{{COMPLETE}}"
-        fixer: doubledDegree
+        return: doubledDegreeFinding(m, ctx, frame)
       # "this is the most fastest route".
       - regex: "{{DEGREE_SUBJECT}}{{S}}the{{S}}(?<target>most{{S}}(?<word>{{DEGREE_SUPERLATIVE}})){{S}}{{DEGREE_NOUN}}(?:{{S}}we{{S}}(?:tried|tested){{S}}so{{S}}far)?{{COMPLETE}}"
-        fixer: doubledDegree
+        return: doubledDegreeFinding(m, ctx, frame)
   # "plus meilleur", "más mejor", "bardziej lepszy", "πιο καλύτερος": the word is already
   # comparative. One rule for each language: the marker, a space and the comparative.
   - id: doubledDegree.fr
@@ -5004,11 +5033,40 @@ rules:
     lang: fr
     style: match
     message: review_msg_doubled_degree
+    defs:
+      # The finding of a comparison marker before a comparative: the comparative alone. A named
+      # example and user-dictionary words abstain.
+      comparativeMarker:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef"
+        type: RawFinding | null
+        let:
+          marker: m.groups!.marker
+          word: m.groups!.word
+          end: m.index + m[0].length
+        when:
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - "!ctx.dictionary.has(marker.toLowerCase()) && !ctx.dictionary.has(word.toLowerCase())"
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end },
+            alternatives: [caseLike(marker, word)],
+            context: { start: Math.max(0, m.index - 64), end },
+            bulkBlock: "context-dependent",
+          })
     frames:
       - regex: "{{OWNED_WORD_START}}(?<target>(?<marker>plus){{S}}(?<word>meilleure?s?|pires?)){{TOKEN_END}}"
         scan: owned
         flags: giu
-        fixer: comparativeMarker
+        # A negation in the clause before ("ne … plus meilleur" is "no longer better"), or
+        # "de plus" and "en plus".
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 64), m.index)
+        when:
+          - '!/(?<![\p{L}])(?:ne(?![\p{L}])|n[''’])[^.!?;:\n]{0,40}$/iu.test(before)'
+          - '!/(?<![\p{L}])(?:de|en)[ \t\u00a0]+$/iu.test(before)'
+        return: comparativeMarker(m, ctx, frame)
   - id: doubledDegree.es
     checks: [englishDoubledDegree]
     lang: es
@@ -5018,7 +5076,12 @@ rules:
       - regex: "{{OWNED_WORD_START}}(?<target>(?<marker>más){{S}}(?<word>mejor(?:es)?|peor(?:es)?)){{TOKEN_END}}"
         scan: owned
         flags: giu
-        fixer: comparativeMarker
+        # "cuanto más mejor": "the more the better".
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 64), m.index)
+        when:
+          - '!/(?<![\p{L}])cu[aá]nto[ \t\u00a0]+$/iu.test(before)'
+        return: comparativeMarker(m, ctx, frame)
   - id: doubledDegree.pt
     checks: [englishDoubledDegree]
     lang: pt
@@ -5028,7 +5091,13 @@ rules:
       - regex: "{{OWNED_WORD_START}}(?<target>(?<marker>mais){{S}}(?<word>melhor(?:es)?|pior(?:es)?)){{TOKEN_END}}"
         scan: owned
         flags: giu
-        fixer: comparativeMarker
+        # A negation in the clause before, or "quanto mais melhor": "the more the better".
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 64), m.index)
+        when:
+          - '!/(?<![\p{L}])(?:não|nunca|jamais)(?![\p{L}])[^.!?;:\n]{0,40}$/iu.test(before)'
+          - '!/(?<![\p{L}])quanto[ \t\u00a0]+$/iu.test(before)'
+        return: comparativeMarker(m, ctx, frame)
   - id: doubledDegree.pl
     checks: [englishDoubledDegree]
     lang: pl
@@ -5038,7 +5107,12 @@ rules:
       - regex: "{{OWNED_WORD_START}}(?<target>(?<marker>bardziej){{S}}(?<word>lepsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|lepsi|lepiej|gorsz(?:y|a|e|ego|ej|ym|ych|ymi|ą)|gorsi|gorzej)){{TOKEN_END}}"
         scan: owned
         flags: giu
-        fixer: comparativeMarker
+        # "tym bardziej" is "all the more": "tym bardziej lepiej" doubles nothing.
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 64), m.index)
+        when:
+          - '!/(?<![\p{L}])tym[ \t\u00a0]+$/iu.test(before)'
+        return: comparativeMarker(m, ctx, frame)
   - id: doubledDegree.hr
     checks: [englishDoubledDegree]
     lang: hr
@@ -5049,7 +5123,12 @@ rules:
       - regex: "{{OWNED_WORD_START}}(?<target>(?<marker>više){{S}}(?<word>bolj(?:i|a|eg|em|oj|ih|im|u))){{TOKEN_END}}"
         scan: owned
         flags: giu
-        fixer: comparativeMarker
+        # A negation in the clause before.
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 64), m.index)
+        when:
+          - '!/(?<![\p{L}])(?:ne|ni|nije|nisu|nisam|nisi|nismo|niste|nikad)(?![\p{L}])[^.!?;:\n]{0,40}$/iu.test(before)'
+        return: comparativeMarker(m, ctx, frame)
   - id: doubledDegree.sv
     checks: [englishDoubledDegree]
     lang: sv
@@ -5059,7 +5138,7 @@ rules:
       - regex: "{{OWNED_WORD_START}}(?<target>(?<marker>mera?){{S}}(?<word>bättre|sämre)){{TOKEN_END}}"
         scan: owned
         flags: giu
-        fixer: comparativeMarker
+        return: comparativeMarker(m, ctx, frame)
   - id: doubledDegree.el
     checks: [englishDoubledDegree]
     lang: el
@@ -5071,7 +5150,7 @@ rules:
       - regex: "{{OWNED_WORD_START}}(?<target>(?<marker>πιο){{S}}(?<word>(?!ουδέτερ|δεύτερ|ύστερ|πρότερ|έτερ|αμφότερ)\\p{L}*[άέήίόύώ]\\p{L}*τερ(?:ος|η|ο|οι|ες|α|ου|ης|ων|ους))){{TOKEN_END}}"
         scan: owned
         flags: giu
-        fixer: comparativeMarker
+        return: comparativeMarker(m, ctx, frame)
   # Ordinary-prose frames only. Quantified mass nouns abstain; no invented amount or unit.
   - id: countability
     checks: [englishCountability]
@@ -5575,81 +5654,355 @@ rules:
     checks: [englishTypoWhitelistCorrection, englishContractionNormalization, englishAlotCorrection]
     style: match
     message: review_msg_split_words
+    # Closed spellings that are always two words, by language. Left out because the joined form
+    # is a real word too: fr "entrain", es "entorno"/"sobretodo"/"talvez"/"osea" (ósea, typed
+    # without its accent), pt "agente", pl "niema", hr "dali"/"nemam"/"neću", sv "hursomhelst".
+    # And the French elisions without their apostrophe: forms that are no French word without
+    # it. "nest", "sil", "quelle" and "jen" are words (or English words) and stay out.
+    maps:
+      SPLIT_DE:
+        garnicht: "gar nicht"
+        garnichts: "gar nichts"
+        garkein: "gar kein"
+        garkeine: "gar keine"
+        garkeinen: "gar keinen"
+        garkeinem: "gar keinem"
+        garkeiner: "gar keiner"
+        vorallem: "vor allem"
+        aufjedenfall: "auf jeden Fall"
+        desweiteren: "des Weiteren"
+      SPLIT_FR:
+        parcontre: "par contre"
+        biensûr: "bien sûr"
+        biensur: "bien sûr"
+        tanpis: "tant pis"
+        toutdesuite: "tout de suite"
+        parceque: "parce que"
+        desfois: "des fois"
+      SPLIT_ES:
+        aveces: "a veces"
+        enserio: "en serio"
+        porfavor: "por favor"
+        apesar: "a pesar"
+        sinembargo: "sin embargo"
+        almenos: "al menos"
+        deacuerdo: "de acuerdo"
+      SPLIT_PT:
+        derrepente: "de repente"
+        concerteza: "com certeza"
+        apartir: "a partir"
+        porisso: "por isso"
+        denovo: "de novo"
+        emcima: "em cima"
+        atoa: "à toa"
+        porfavor: "por favor"
+      SPLIT_PL:
+        napewno: "na pewno"
+        wogóle: "w ogóle"
+        narazie: "na razie"
+        poprostu: "po prostu"
+        niewiem: "nie wiem"
+        niemam: "nie mam"
+        conajmniej: "co najmniej"
+        wkońcu: "w końcu"
+        naprzykład: "na przykład"
+        przedewszystkim: "przede wszystkim"
+        odrazu: "od razu"
+        niemożna: "nie można"
+        wgłąb: "w głąb"
+        wcelu: "w celu"
+        wczasie: "w czasie"
+        wtrakcie: "w trakcie"
+        wzwiązku: "w związku"
+        bezprzerwy: "bez przerwy"
+        bezwątpienia: "bez wątpienia"
+        napoczątku: "na początku"
+        nakoniec: "na koniec"
+        naszczęście: "na szczęście"
+        natyle: "na tyle"
+        naco: "na co"
+        conajwyżej: "co najwyżej"
+        codo: "co do"
+        dozobaczenia: "do zobaczenia"
+        dowidzenia: "do widzenia"
+        dziendobry: "dzień dobry"
+        pokolei: "po kolei"
+        pocichu: "po cichu"
+        potrochu: "po trochu"
+        odzawsze: "od zawsze"
+        niewiesz: "nie wiesz"
+        niewie: "nie wie"
+        niewiemy: "nie wiemy"
+        niewiedzą: "nie wiedzą"
+        niemasz: "nie masz"
+        niemamy: "nie mamy"
+        niemają: "nie mają"
+        niemogę: "nie mogę"
+        niemożesz: "nie możesz"
+        niemoże: "nie może"
+        niemożemy: "nie możemy"
+        niemogą: "nie mogą"
+        niechcę: "nie chcę"
+        niechcesz: "nie chcesz"
+        niechce: "nie chce"
+        niechcemy: "nie chcemy"
+        niechcą: "nie chcą"
+        nielubię: "nie lubię"
+        nielubisz: "nie lubisz"
+        nielubi: "nie lubi"
+        nielubimy: "nie lubimy"
+        nielubią: "nie lubią"
+        niejest: "nie jest"
+        niesą: "nie są"
+        niebył: "nie był"
+        niebyła: "nie była"
+        niebyło: "nie było"
+        niebyli: "nie byli"
+        niebędzie: "nie będzie"
+        niebędę: "nie będę"
+        nieumiem: "nie umiem"
+        nieumie: "nie umie"
+        nierozumiem: "nie rozumiem"
+        nierozumie: "nie rozumie"
+        nieznam: "nie znam"
+        niezna: "nie zna"
+        niewolno: "nie wolno"
+        nietrzeba: "nie trzeba"
+        niedziała: "nie działa"
+        niepamiętam: "nie pamiętam"
+        niemusisz: "nie musisz"
+        niemuszę: "nie muszę"
+        niemusi: "nie musi"
+      SPLIT_SV:
+        iallafall: "i alla fall"
+        iallfall: "i alla fall"
+        förmycket: "för mycket"
+        tillsist: "till sist"
+        iochmed: "i och med"
+        tillochmed: "till och med"
+        förövrigt: "för övrigt"
+      SPLIT_HR:
+        nemogu: "ne mogu"
+        nemožeš: "ne možeš"
+        nemože: "ne može"
+        nemožemo: "ne možemo"
+        nemožete: "ne možete"
+        neznam: "ne znam"
+        neznaš: "ne znaš"
+        nezna: "ne zna"
+        neznamo: "ne znamo"
+        neznate: "ne znate"
+        nebi: "ne bi"
+        nebih: "ne bih"
+        nebismo: "ne bismo"
+        nebiste: "ne biste"
+      FRENCH_ELISIONS:
+        cest: "c'est"
+        cétait: "c'était"
+        jai: "j'ai"
+        jaime: "j'aime"
+        jétais: "j'étais"
+        jespère: "j'espère"
+        quil: "qu'il"
+        quils: "qu'ils"
+        quon: "qu'on"
+        aujourdhui: "aujourd'hui"
+        daccord: "d'accord"
+        dailleurs: "d'ailleurs"
+        lorsquil: "lorsqu'il"
+        puisquil: "puisqu'il"
+    defs:
+      # The frame regex of each word table: tests/grammar/ReviewSpellingFrames.test.ts keeps the
+      # frames in step with the tables, then with the apostrophe frames.
+      SPELLING_FRAME_REGEXES: >-
+        [SPLIT_DE, SPLIT_FR, SPLIT_ES, SPLIT_PT, SPLIT_PL, SPLIT_SV, SPLIT_HR, FRENCH_ELISIONS]
+          .map((table) => new RegExp(`${WORD_START}(?:${Object.keys(table).join("|")})${TOKEN_END}`, "giu"))
+          .concat([
+            /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([\u00B4`;"])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
+            /(?<![\p{L}\p{M}\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([\u00B4`])(?=[aeiouyh\u00E0\u00E2\u00E6\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC])/giu,
+            /(?<=\p{L})([\u00B4`])s(?![\p{L}\p{M}\p{N}_])/gu,
+            /(?<![\p{L}\p{M}\p{N}_])d([\u00B4`])(?=[aeiou\u00E1\u00E2\u00E3\u00E0\u00E9\u00EA\u00ED\u00F3\u00F4\u00F5\u00FA])/giu,
+          ])
+      # Two words written as one ("napewno", "aveces"): the "alot" rule for other languages.
+      # `table` gives the two words.
+      splitWord:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef, table: Readonly<Record<string, string>>"
+        type: RawFinding | null
+        let:
+          typed: m[0]
+          lower: typed.toLowerCase()
+        when: "!ctx.dictionary.has(lower) && !namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + typed.length },
+            alternatives: [caseLike(typed, table[lower])],
+            dictionaryWord: typed,
+            bulkBlock: "context-dependent",
+          })
+      # "don;t" is only read as a contraction with a base that takes that ending.
+      SEMICOLON_BASES: >-
+        ({
+          t: /^(?:don|can|won|isn|aren|wasn|weren|didn|doesn|haven|hasn|hadn|shouldn|couldn|wouldn|mustn|needn|ain)$/i,
+          m: /^i$/i,
+          s: /^(?:it|let|that|there|here|he|she|what|who|where|how)$/i,
+          d: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+          ll: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+          re: /^(?:you|we|they|there|who|what)$/i,
+          ve: /^(?:i|you|we|they|who|could|would|should|might|must)$/i,
+        }) as Readonly<Record<string, RegExp>>
+      # 'We"ll', 'wasn"t', 'Tom"s': an English contraction or possessive typed with the double
+      # quote at `index`. A base after an opening quote ('the "if"s') is a quoted word.
+      quotedContraction:
+        args: "text: string, index: number"
+        let:
+          base: '/(?<![\p{L}\p{M}\p{N}_"“])\p{L}+$/u.exec(text.slice(Math.max(0, index - 40), index))'
+          end: '/^(t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/iu.exec(text.slice(index + 1, index + 4))'
+        when: "!!base && !!end"
+        return: 'end[1].toLowerCase() === "s" || SEMICOLON_BASES[end[1].toLowerCase()].test(base[0])'
+        else: "false"
+      # "`code`s": a backtick pair on the line is Markdown code, not an apostrophe. Backticks
+      # inside words only ("Won`t … You`re") open no code span. The line is read within a
+      # window, so a long line of marks stays linear.
+      backtickCode:
+        args: "text: string, start: number"
+        let:
+          from: Math.max(0, start - 256)
+          around: text.slice(from, start + 256)
+          at: start - from
+          lineEnd: around.indexOf("\n", at)
+          line: 'around.slice(around.lastIndexOf("\n", at) + 1, lineEnd < 0 ? undefined : lineEnd)'
+        return: 'line.split("`").length > 2 && /(?<!\p{L})`|`(?!\p{L})/u.test(line)'
+      # "don´t", "I;m", "c´est", "gibt´s": an apostrophe typed as the mark `mark`. Only the
+      # English accent is `certain`; a semicolon or backtick may be meant.
+      markedApostrophe:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef, mark: string, certain: boolean"
+        type: RawFinding | null
+        let:
+          start: m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0)
+        when:
+          - "!namedExampleBefore(ctx.text, start)"
+          - 'mark !== ";" || SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)'
+          - "mark !== '\"' || quotedContraction(ctx.text, start)"
+          - 'mark !== "`" || !backtickCode(ctx.text, start)'
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start, end: start + 1 },
+            alternatives: [withTextApostrophes(ctx.text, start, "'")],
+            context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
+            bulkBlock: certain ? undefined : "context-dependent",
+          })
     frames:
-      # Two words written as one, by language (the tables of review/multilingualLexicon.ts).
+      # Two words written as one, by language (the tables above).
       - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:garnicht|garnichts|garkein|garkeine|garkeinen|garkeinem|garkeiner|vorallem|aufjedenfall|desweiteren)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         scan: owned
         flags: giu
         lang: de
         check: englishAlotCorrection
-        fixer: splitWord_de
+        return: splitWord(m, ctx, frame, SPLIT_DE)
       - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:parcontre|biensûr|biensur|tanpis|toutdesuite|parceque|desfois)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         scan: owned
         flags: giu
         lang: fr
         check: englishAlotCorrection
-        fixer: splitWord_fr
+        return: splitWord(m, ctx, frame, SPLIT_FR)
       - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:aveces|enserio|porfavor|apesar|sinembargo|almenos|deacuerdo)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         scan: owned
         flags: giu
         lang: es
         check: englishAlotCorrection
-        fixer: splitWord_es
+        when:
+          # "te aveces" is the verb "avezarse".
+          - >-
+            m[0].toLowerCase() !== "aveces" ||
+            !/(?:^|\s)(?:me|te|se|nos|os)\s+$/iu.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
+        return: splitWord(m, ctx, frame, SPLIT_ES)
       - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:derrepente|concerteza|apartir|porisso|denovo|emcima|atoa|porfavor)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         scan: owned
         flags: giu
         lang: pt
         check: englishAlotCorrection
-        fixer: splitWord_pt
+        when:
+          # "o rebocador atoa o barco": "atoa" is also the verb "atoar" (to tow) before an
+          # object. After "ficar", "andar", "estar" or "viver" it is still "à toa".
+          - >-
+            m[0].toLowerCase() !== "atoa" ||
+            !/^[ \t\u00a0]+(?:[oa]s?|uns?|umas?|seus?|suas?|ess[ea]s?|est[ea]s?|aquel[ea]s?|nossos?|nossas?)(?![\p{L}])/iu.test(
+              ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 16)) ||
+            /(?<![\p{L}])(?:fic|and|est|viv)\p{L}*[ \t\u00a0]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+        return: splitWord(m, ctx, frame, SPLIT_PT)
       - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:napewno|wogóle|narazie|poprostu|niewiem|niemam|conajmniej|wkońcu|naprzykład|przedewszystkim|odrazu|niemożna|wgłąb|wcelu|wczasie|wtrakcie|wzwiązku|bezprzerwy|bezwątpienia|napoczątku|nakoniec|naszczęście|natyle|naco|conajwyżej|codo|dozobaczenia|dowidzenia|dziendobry|pokolei|pocichu|potrochu|odzawsze|niewiesz|niewie|niewiemy|niewiedzą|niemasz|niemamy|niemają|niemogę|niemożesz|niemoże|niemożemy|niemogą|niechcę|niechcesz|niechce|niechcemy|niechcą|nielubię|nielubisz|nielubi|nielubimy|nielubią|niejest|niesą|niebył|niebyła|niebyło|niebyli|niebędzie|niebędę|nieumiem|nieumie|nierozumiem|nierozumie|nieznam|niezna|niewolno|nietrzeba|niedziała|niepamiętam|niemusisz|niemuszę|niemusi)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         scan: owned
         flags: giu
         lang: pl
         check: englishAlotCorrection
-        fixer: splitWord_pl
+        return: splitWord(m, ctx, frame, SPLIT_PL)
       - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:iallafall|iallfall|förmycket|tillsist|iochmed|tillochmed|förövrigt)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         scan: owned
         flags: giu
         lang: sv
         check: englishAlotCorrection
-        fixer: splitWord_sv
+        return: splitWord(m, ctx, frame, SPLIT_SV)
       - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:nemogu|nemožeš|nemože|nemožemo|nemožete|neznam|neznaš|nezna|neznamo|neznate|nebi|nebih|nebismo|nebiste)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         scan: owned
         flags: giu
         lang: hr
         check: englishAlotCorrection
-        fixer: splitWord_hr
+        return: splitWord(m, ctx, frame, SPLIT_HR)
       # "cest", "jai", "aujourdhui": a French elision missing its apostrophe.
       - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:cest|cétait|jai|jaime|jétais|jespère|quil|quils|quon|aujourdhui|daccord|dailleurs|lorsquil|puisquil)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
         scan: owned
         flags: giu
         lang: fr
         check: englishContractionNormalization
-        fixer: frenchElision
+        message: review_msg_contraction
+        let:
+          typed: m[0]
+          lower: typed.toLowerCase()
+        when:
+          - "!ctx.dictionary.has(lower) && !namedExampleBefore(ctx.text, m.index)"
+          # "15:00 CEST": only the capital form is the time zone. A lowercase "cest" after a
+          # time ("À 20:40, cest terminé.") is still "c'est".
+          - typed !== "CEST"
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + typed.length },
+            alternatives: [caseLike(typed, withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS[lower]))],
+            bulkBlock: "context-dependent",
+          })
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_])(?<base>\\p{L}+)([\\u00B4`;\"])(?<end>t|s|m|d|ll|re|ve)(?![\\p{L}\\p{M}\\p{N}_])"
         scan: owned
         flags: giu
         lang: en
         check: englishContractionNormalization
-        fixer: markedApostrophe_en
+        message: review_msg_apostrophe_mark
+        return: 'markedApostrophe(m, ctx, frame, m[2], m[2] === "´")'
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([\\u00B4`])(?=[aeiouyh\\u00E0\\u00E2\\u00E6\\u00E9\\u00E8\\u00EA\\u00EB\\u00EE\\u00EF\\u00F4\\u0153\\u00F9\\u00FB\\u00FC])"
         scan: owned
         flags: giu
         lang: fr
         check: englishContractionNormalization
-        fixer: markedApostrophe_fr
+        message: review_msg_apostrophe_mark
+        return: 'markedApostrophe(m, ctx, frame, m[1], false)'
       - regex: "(?<=\\p{L})([\\u00B4`])s(?![\\p{L}\\p{M}\\p{N}_])"
         scan: owned
         flags: gu
         lang: de
         check: englishContractionNormalization
-        fixer: markedApostrophe_de
+        message: review_msg_apostrophe_mark
+        return: 'markedApostrophe(m, ctx, frame, m[1], false)'
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_])d([\\u00B4`])(?=[aeiou\\u00E1\\u00E2\\u00E3\\u00E0\\u00E9\\u00EA\\u00ED\\u00F3\\u00F4\\u00F5\\u00FA])"
         scan: owned
         flags: giu
         lang: pt
         check: englishContractionNormalization
-        fixer: markedApostrophe_pt
+        message: review_msg_apostrophe_mark
+        return: 'markedApostrophe(m, ctx, frame, m[1], false)'
   - id: modalOf
     checks: [englishModalOfCorrection]
     style: match
@@ -5914,7 +6267,24 @@ rules:
       - regex: "{{OWNED_WORD_START}}(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|januar|jänner|februar|märz|april|mai|juni|juli|september|oktober|november|dezember|weihnachten|ostern|pfingsten|august){{TOKEN_END}}"
         scan: owned
         flags: gu
-        fixer: germanNounCapital
+        let:
+          typed: m[0]
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+        when:
+          # "august" is also an adjective: only after a date word.
+          - >-
+            typed !== "august" ||
+            /(?:(?<![\p{L}])(?:im|anfang|ende|mitte|seit|bis|ab|vom|zum|nächsten|letzten|diesen|kommenden)|\d{1,2}\.)[ \t\u00a0]+$/iu.test(before)
+          - "!ctx.dictionary.has(typed) && !namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + 1 },
+            alternatives: [typed[0].toUpperCase()],
+            context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
+            bulkBlock: "context-dependent",
+          })
   - id: commaPeriodSpacing
     checks: [commaPeriodSpacing]
     style: match

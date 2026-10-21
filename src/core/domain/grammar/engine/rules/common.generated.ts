@@ -2,19 +2,219 @@
 // The code of grammar/rules/common.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, GrammarContext, GrammarEdit, RawFinding } from "../../library";
+import type {
+  DetectContext,
+  FrameRef,
+  GrammarContext,
+  GrammarEdit,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
+  TOKEN_END,
+  WORD_START,
+  caseLike,
   detectWordCase,
+  finding,
+  group,
+  hasUserOrCasedWord,
+  invalidIsoDate,
   matchTrailingEnglishPhrase,
+  namedExampleBefore,
   normalizeWordSet,
   phraseRows,
   replaceFrom,
+  withTextApostrophes,
 } from "../../library";
+
+export const SPLIT_DE: Readonly<Record<string, string>> = {
+  garnicht: "gar nicht",
+  garnichts: "gar nichts",
+  garkein: "gar kein",
+  garkeine: "gar keine",
+  garkeinen: "gar keinen",
+  garkeinem: "gar keinem",
+  garkeiner: "gar keiner",
+  vorallem: "vor allem",
+  aufjedenfall: "auf jeden Fall",
+  desweiteren: "des Weiteren",
+};
+
+export const SPLIT_FR: Readonly<Record<string, string>> = {
+  parcontre: "par contre",
+  biensûr: "bien sûr",
+  biensur: "bien sûr",
+  tanpis: "tant pis",
+  toutdesuite: "tout de suite",
+  parceque: "parce que",
+  desfois: "des fois",
+};
+
+export const SPLIT_ES: Readonly<Record<string, string>> = {
+  aveces: "a veces",
+  enserio: "en serio",
+  porfavor: "por favor",
+  apesar: "a pesar",
+  sinembargo: "sin embargo",
+  almenos: "al menos",
+  deacuerdo: "de acuerdo",
+};
+
+export const SPLIT_PT: Readonly<Record<string, string>> = {
+  derrepente: "de repente",
+  concerteza: "com certeza",
+  apartir: "a partir",
+  porisso: "por isso",
+  denovo: "de novo",
+  emcima: "em cima",
+  atoa: "à toa",
+  porfavor: "por favor",
+};
+
+export const SPLIT_PL: Readonly<Record<string, string>> = {
+  napewno: "na pewno",
+  wogóle: "w ogóle",
+  narazie: "na razie",
+  poprostu: "po prostu",
+  niewiem: "nie wiem",
+  niemam: "nie mam",
+  conajmniej: "co najmniej",
+  wkońcu: "w końcu",
+  naprzykład: "na przykład",
+  przedewszystkim: "przede wszystkim",
+  odrazu: "od razu",
+  niemożna: "nie można",
+  wgłąb: "w głąb",
+  wcelu: "w celu",
+  wczasie: "w czasie",
+  wtrakcie: "w trakcie",
+  wzwiązku: "w związku",
+  bezprzerwy: "bez przerwy",
+  bezwątpienia: "bez wątpienia",
+  napoczątku: "na początku",
+  nakoniec: "na koniec",
+  naszczęście: "na szczęście",
+  natyle: "na tyle",
+  naco: "na co",
+  conajwyżej: "co najwyżej",
+  codo: "co do",
+  dozobaczenia: "do zobaczenia",
+  dowidzenia: "do widzenia",
+  dziendobry: "dzień dobry",
+  pokolei: "po kolei",
+  pocichu: "po cichu",
+  potrochu: "po trochu",
+  odzawsze: "od zawsze",
+  niewiesz: "nie wiesz",
+  niewie: "nie wie",
+  niewiemy: "nie wiemy",
+  niewiedzą: "nie wiedzą",
+  niemasz: "nie masz",
+  niemamy: "nie mamy",
+  niemają: "nie mają",
+  niemogę: "nie mogę",
+  niemożesz: "nie możesz",
+  niemoże: "nie może",
+  niemożemy: "nie możemy",
+  niemogą: "nie mogą",
+  niechcę: "nie chcę",
+  niechcesz: "nie chcesz",
+  niechce: "nie chce",
+  niechcemy: "nie chcemy",
+  niechcą: "nie chcą",
+  nielubię: "nie lubię",
+  nielubisz: "nie lubisz",
+  nielubi: "nie lubi",
+  nielubimy: "nie lubimy",
+  nielubią: "nie lubią",
+  niejest: "nie jest",
+  niesą: "nie są",
+  niebył: "nie był",
+  niebyła: "nie była",
+  niebyło: "nie było",
+  niebyli: "nie byli",
+  niebędzie: "nie będzie",
+  niebędę: "nie będę",
+  nieumiem: "nie umiem",
+  nieumie: "nie umie",
+  nierozumiem: "nie rozumiem",
+  nierozumie: "nie rozumie",
+  nieznam: "nie znam",
+  niezna: "nie zna",
+  niewolno: "nie wolno",
+  nietrzeba: "nie trzeba",
+  niedziała: "nie działa",
+  niepamiętam: "nie pamiętam",
+  niemusisz: "nie musisz",
+  niemuszę: "nie muszę",
+  niemusi: "nie musi",
+};
+
+export const SPLIT_SV: Readonly<Record<string, string>> = {
+  iallafall: "i alla fall",
+  iallfall: "i alla fall",
+  förmycket: "för mycket",
+  tillsist: "till sist",
+  iochmed: "i och med",
+  tillochmed: "till och med",
+  förövrigt: "för övrigt",
+};
+
+export const SPLIT_HR: Readonly<Record<string, string>> = {
+  nemogu: "ne mogu",
+  nemožeš: "ne možeš",
+  nemože: "ne može",
+  nemožemo: "ne možemo",
+  nemožete: "ne možete",
+  neznam: "ne znam",
+  neznaš: "ne znaš",
+  nezna: "ne zna",
+  neznamo: "ne znamo",
+  neznate: "ne znate",
+  nebi: "ne bi",
+  nebih: "ne bih",
+  nebismo: "ne bismo",
+  nebiste: "ne biste",
+};
+
+export const FRENCH_ELISIONS: Readonly<Record<string, string>> = {
+  cest: "c'est",
+  cétait: "c'était",
+  jai: "j'ai",
+  jaime: "j'aime",
+  jétais: "j'étais",
+  jespère: "j'espère",
+  quil: "qu'il",
+  quils: "qu'ils",
+  quon: "qu'on",
+  aujourdhui: "aujourd'hui",
+  daccord: "d'accord",
+  dailleurs: "d'ailleurs",
+  lorsquil: "lorsqu'il",
+  puisquil: "puisqu'il",
+};
 
 // common.yaml def firstPerStart
 export function firstPerStart(findings: RawFinding[]) {
   const starts = new Set<number>();
   return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
+}
+
+// common.yaml def isoDateWarning
+export function isoDateWarning(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+): RawFinding | null {
+  const range = invalidIsoDate(m, ctx);
+  if (!range) return null;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range,
+    alternatives: [],
+    warningOnly: true,
+  };
 }
 
 // common.yaml rule englishAlotCorrection.live def ALOT_REGEX
@@ -26,8 +226,290 @@ export function correctAlot(phrase: string) {
   return style === "upper" ? "A LOT" : style === "title" ? "A lot" : "a lot";
 }
 
+// common.yaml rule doubledDegree def doubledDegreeFinding
+export function doubledDegreeFinding(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+): RawFinding | null {
+  if (!(ctx.lang === "en_US")) return null;
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  if (!(m.groups!.target === m.groups!.target.toLowerCase())) return null;
+  const span = group(m, "target");
+  return finding(frame.ruleId, frame.messageKey, span[0], span[1], [m.groups!.word], {
+    context: {
+      start: Math.max(0, m.index - 128),
+      end: Math.min(ctx.text.length, m.index + m[0].length + 9),
+    },
+  });
+}
+
+// common.yaml rule doubledDegree.fr def comparativeMarker
+export function comparativeMarker(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const marker = m.groups!.marker;
+  const word = m.groups!.word;
+  if (!(!ctx.dictionary.has(marker.toLowerCase()) && !ctx.dictionary.has(word.toLowerCase())))
+    return null;
+  const end = m.index + m[0].length;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range: { start: m.index, end },
+    alternatives: [caseLike(marker, word)],
+    context: { start: Math.max(0, m.index - 64), end },
+    bulkBlock: "context-dependent",
+  };
+}
+
+// common.yaml rule spelling def SPELLING_FRAME_REGEXES
+export const SPELLING_FRAME_REGEXES = [
+  SPLIT_DE,
+  SPLIT_FR,
+  SPLIT_ES,
+  SPLIT_PT,
+  SPLIT_PL,
+  SPLIT_SV,
+  SPLIT_HR,
+  FRENCH_ELISIONS,
+]
+  .map((table) => new RegExp(`${WORD_START}(?:${Object.keys(table).join("|")})${TOKEN_END}`, "giu"))
+  .concat([
+    /(?<![\p{L}\p{M}\p{N}_])(?<base>\p{L}+)([\u00B4`;"])(?<end>t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/giu,
+    /(?<![\p{L}\p{M}\p{N}_])(?:c|d|j|l|m|n|s|t|qu|jusqu|lorsqu|puisqu|quoiqu|presqu)([\u00B4`])(?=[aeiouyh\u00E0\u00E2\u00E6\u00E9\u00E8\u00EA\u00EB\u00EE\u00EF\u00F4\u0153\u00F9\u00FB\u00FC])/giu,
+    /(?<=\p{L})([\u00B4`])s(?![\p{L}\p{M}\p{N}_])/gu,
+    /(?<![\p{L}\p{M}\p{N}_])d([\u00B4`])(?=[aeiou\u00E1\u00E2\u00E3\u00E0\u00E9\u00EA\u00ED\u00F3\u00F4\u00F5\u00FA])/giu,
+  ]);
+
+// common.yaml rule spelling def splitWord
+export function splitWord(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  table: Readonly<Record<string, string>>,
+): RawFinding | null {
+  const typed = m[0];
+  const lower = typed.toLowerCase();
+  if (!(!ctx.dictionary.has(lower) && !namedExampleBefore(ctx.text, m.index))) return null;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range: { start: m.index, end: m.index + typed.length },
+    alternatives: [caseLike(typed, table[lower])],
+    dictionaryWord: typed,
+    bulkBlock: "context-dependent",
+  };
+}
+
+// common.yaml rule spelling def SEMICOLON_BASES
+export const SEMICOLON_BASES = {
+  t: /^(?:don|can|won|isn|aren|wasn|weren|didn|doesn|haven|hasn|hadn|shouldn|couldn|wouldn|mustn|needn|ain)$/i,
+  m: /^i$/i,
+  s: /^(?:it|let|that|there|here|he|she|what|who|where|how)$/i,
+  d: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+  ll: /^(?:i|you|we|they|he|she|it|that|there|who)$/i,
+  re: /^(?:you|we|they|there|who|what)$/i,
+  ve: /^(?:i|you|we|they|who|could|would|should|might|must)$/i,
+} as Readonly<Record<string, RegExp>>;
+
+// common.yaml rule spelling def quotedContraction
+export function quotedContraction(text: string, index: number) {
+  const base = /(?<![\p{L}\p{M}\p{N}_"“])\p{L}+$/u.exec(text.slice(Math.max(0, index - 40), index));
+  const end = /^(t|s|m|d|ll|re|ve)(?![\p{L}\p{M}\p{N}_])/iu.exec(text.slice(index + 1, index + 4));
+  if (!(!!base && !!end)) return false;
+  return end[1].toLowerCase() === "s" || SEMICOLON_BASES[end[1].toLowerCase()].test(base[0]);
+}
+
+// common.yaml rule spelling def backtickCode
+export function backtickCode(text: string, start: number) {
+  const from = Math.max(0, start - 256);
+  const around = text.slice(from, start + 256);
+  const at = start - from;
+  const lineEnd = around.indexOf("\n", at);
+  const line = around.slice(around.lastIndexOf("\n", at) + 1, lineEnd < 0 ? undefined : lineEnd);
+  return line.split("`").length > 2 && /(?<!\p{L})`|`(?!\p{L})/u.test(line);
+}
+
+// common.yaml rule spelling def markedApostrophe
+export function markedApostrophe(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+  mark: string,
+  certain: boolean,
+): RawFinding | null {
+  const start = m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0);
+  if (namedExampleBefore(ctx.text, start)) return null;
+  if (!(mark !== ";" || SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)))
+    return null;
+  if (!(mark !== '"' || quotedContraction(ctx.text, start))) return null;
+  if (!(mark !== "`" || !backtickCode(ctx.text, start))) return null;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range: { start, end: start + 1 },
+    alternatives: [withTextApostrophes(ctx.text, start, "'")],
+    context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
+    bulkBlock: certain ? undefined : "context-dependent",
+  };
+}
+
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // common.yaml rule doubledDegree frame 1
+  "@doubledDegree/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return doubledDegreeFinding(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree frame 2
+  "@doubledDegree/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return doubledDegreeFinding(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.fr frame 1
+  "@doubledDegree.fr/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (/(?<![\p{L}])(?:ne(?![\p{L}])|n['’])[^.!?;:\n]{0,40}$/iu.test(before)) return null;
+    if (/(?<![\p{L}])(?:de|en)[ \t\u00a0]+$/iu.test(before)) return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.es frame 1
+  "@doubledDegree.es/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (/(?<![\p{L}])cu[aá]nto[ \t\u00a0]+$/iu.test(before)) return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.pt frame 1
+  "@doubledDegree.pt/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (/(?<![\p{L}])(?:não|nunca|jamais)(?![\p{L}])[^.!?;:\n]{0,40}$/iu.test(before)) return null;
+    if (/(?<![\p{L}])quanto[ \t\u00a0]+$/iu.test(before)) return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.pl frame 1
+  "@doubledDegree.pl/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (/(?<![\p{L}])tym[ \t\u00a0]+$/iu.test(before)) return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.hr frame 1
+  "@doubledDegree.hr/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+    if (
+      /(?<![\p{L}])(?:ne|ni|nije|nisu|nisam|nisi|nismo|niste|nikad)(?![\p{L}])[^.!?;:\n]{0,40}$/iu.test(
+        before,
+      )
+    )
+      return null;
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.sv frame 1
+  "@doubledDegree.sv/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule doubledDegree.el frame 1
+  "@doubledDegree.el/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return comparativeMarker(m, ctx, frame);
+  },
+  // common.yaml rule spelling frame 1
+  "@spelling/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_DE);
+  },
+  // common.yaml rule spelling frame 2
+  "@spelling/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_FR);
+  },
+  // common.yaml rule spelling frame 3
+  "@spelling/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(
+      m[0].toLowerCase() !== "aveces" ||
+      !/(?:^|\s)(?:me|te|se|nos|os)\s+$/iu.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
+    ))
+      return null;
+    return splitWord(m, ctx, frame, SPLIT_ES);
+  },
+  // common.yaml rule spelling frame 4
+  "@spelling/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(
+      m[0].toLowerCase() !== "atoa" ||
+      !/^[ \t\u00a0]+(?:[oa]s?|uns?|umas?|seus?|suas?|ess[ea]s?|est[ea]s?|aquel[ea]s?|nossos?|nossas?)(?![\p{L}])/iu.test(
+        ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 16),
+      ) ||
+      /(?<![\p{L}])(?:fic|and|est|viv)\p{L}*[ \t\u00a0]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      )
+    ))
+      return null;
+    return splitWord(m, ctx, frame, SPLIT_PT);
+  },
+  // common.yaml rule spelling frame 5
+  "@spelling/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_PL);
+  },
+  // common.yaml rule spelling frame 6
+  "@spelling/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_SV);
+  },
+  // common.yaml rule spelling frame 7
+  "@spelling/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return splitWord(m, ctx, frame, SPLIT_HR);
+  },
+  // common.yaml rule spelling frame 8
+  "@spelling/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const typed = m[0];
+    const lower = typed.toLowerCase();
+    if (!(!ctx.dictionary.has(lower) && !namedExampleBefore(ctx.text, m.index))) return null;
+    if (!(typed !== "CEST")) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + typed.length },
+      alternatives: [
+        caseLike(typed, withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS[lower])),
+      ],
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule spelling frame 9
+  "@spelling/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return markedApostrophe(m, ctx, frame, m[2], m[2] === "´");
+  },
+  // common.yaml rule spelling frame 10
+  "@spelling/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return markedApostrophe(m, ctx, frame, m[1], false);
+  },
+  // common.yaml rule spelling frame 11
+  "@spelling/11": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return markedApostrophe(m, ctx, frame, m[1], false);
+  },
+  // common.yaml rule spelling frame 12
+  "@spelling/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return markedApostrophe(m, ctx, frame, m[1], false);
+  },
+  // common.yaml rule properNouns.de frame 1
+  "@properNouns.de/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const typed = m[0];
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (!(
+      typed !== "august" ||
+      /(?:(?<![\p{L}])(?:im|anfang|ende|mitte|seit|bis|ab|vom|zum|nächsten|letzten|diesen|kommenden)|\d{1,2}\.)[ \t\u00a0]+$/iu.test(
+        before,
+      )
+    ))
+      return null;
+    if (!(!ctx.dictionary.has(typed) && !namedExampleBefore(ctx.text, m.index))) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [typed[0].toUpperCase()],
+      context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
+      bulkBlock: "context-dependent",
+    };
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {

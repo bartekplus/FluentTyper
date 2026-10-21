@@ -23,4 +23,5 @@ export {
 } from "../implementations/helpers/GenericRuleShared";
 export { lastNonBlankBefore, opensClause } from "../implementations/helpers/EnglishRuleShared";
 export { MASK_CHAR } from "../review/types";
+export { digitValue, invalidIsoDate } from "../review/isoDates";
 export { phraseRows } from "./common/engine";
