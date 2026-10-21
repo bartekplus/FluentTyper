@@ -253,24 +253,6 @@ function isGluedToTechnical(text: string, start: number, end: number): boolean {
   return after === "." && isWordCharAt(text, end + 1);
 }
 
-/** Word starts and ends of ASCII-letter words ([A-Za-z]+) owned by the chunk. */
-function asciiWords(ctx: DetectContext, lookback = 0): TextRange[] {
-  const words: TextRange[] = [];
-  const regex = /[A-Za-z]+/g;
-  regex.lastIndex = Math.max(0, ctx.from - lookback);
-  for (let match = regex.exec(ctx.scanText); match; match = regex.exec(ctx.scanText)) {
-    if (match.index >= ctx.to + lookback) break;
-    const start = match.index;
-    const end = start + match[0].length;
-    // Letters glued to other word characters are part of a longer token ("teh2").
-    if (isWordCharAt(ctx.text, start - 1) || isWordCharAt(ctx.text, end)) {
-      continue;
-    }
-    words.push({ start, end });
-  }
-  return words;
-}
-
 /**
  * `text.lastIndexOf(needle, position)` for non-decreasing positions, reading
  * each character once: per-match line or paragraph lookups on a long line
@@ -735,8 +717,6 @@ function isWhitespaceAt(text: string, index: number): boolean {
 
 // Stateless (no g or y flag) copies of the typing rules' patterns, compiled once each.
 const PHRASE_REGEX = new WeakMap<RegExp, RegExp>();
-// Per chunk: the words of asciiWords(ctx, PHRASE_WINDOW). All phrase predicates read one list.
-const PHRASE_WORDS = new WeakMap<DetectContext, TextRange[]>();
 
 // The lowercase code of text[index] for an ASCII letter: "| 32" maps only "A"-"Z" to "a"-"z".
 const lowerCodeAt = (text: string, index: number) => text.charCodeAt(index) | 32;
@@ -796,49 +776,50 @@ export const PHRASE_LAST_WORD = {
 } satisfies Record<string, (text: string, start: number, end: number) => boolean>;
 
 /**
- * Runs a typing rule's end-anchored pattern at each word end of the chunk
- * where `lastWord` (a PHRASE_LAST_WORD test) is true.
+ * Runs a typing rule's end-anchored pattern at the end of `word` (a frame match of an
+ * ASCII-letter word, [A-Za-z]+) when `lastWord` (a PHRASE_LAST_WORD test) is true.
  * The window holds the last `tokens` whitespace-separated tokens up to the
  * word: all the pattern can span, and it starts on a token boundary so "^" in
  * a pattern never lands mid-text.
  */
-function* phraseMatches(
+function phraseMatch(
   ctx: DetectContext,
+  word: RegExpExecArray,
   pattern: RegExp,
   tokens: number,
   lastWord: (text: string, start: number, end: number) => boolean,
-): Generator<PhraseMatch> {
+): PhraseMatch | null {
+  const wordStart = word.index;
+  const wordEnd = wordStart + word[0].length;
+  // Letters glued to other word characters are part of a longer token ("teh2").
+  if (isWordCharAt(ctx.text, wordStart - 1) || isWordCharAt(ctx.text, wordEnd)) return null;
+  if (!lastWord(ctx.text, wordStart, wordEnd)) return null;
   let regex = PHRASE_REGEX.get(pattern);
   if (!regex)
     PHRASE_REGEX.set(
       pattern,
       (regex = new RegExp(pattern.source, `${pattern.flags.replace(/[gy]/g, "")}d`)),
     );
-  let words = PHRASE_WORDS.get(ctx);
-  if (!words) PHRASE_WORDS.set(ctx, (words = asciiWords(ctx, PHRASE_WINDOW)));
-  for (const word of words) {
-    if (!lastWord(ctx.text, word.start, word.end)) continue;
-    const limit = Math.max(0, word.end - PHRASE_WINDOW);
-    let windowStart = word.start;
-    while (windowStart > limit && !isWhitespaceAt(ctx.text, windowStart - 1)) windowStart -= 1;
-    if (windowStart > 0 && !isWhitespaceAt(ctx.text, windowStart - 1)) continue;
-    for (let count = 1; count < tokens; count += 1) {
-      let i = windowStart;
-      while (i > limit && isWhitespaceAt(ctx.text, i - 1)) i -= 1;
-      while (i > limit && !isWhitespaceAt(ctx.text, i - 1)) i -= 1;
-      if (i > 0 && !isWhitespaceAt(ctx.text, i - 1)) break;
-      windowStart = i;
-    }
-    const match = regex.exec(ctx.text.slice(windowStart, word.end));
-    if (!match) continue;
-    const start = windowStart + match.index;
-    if (!owned(ctx, start) || isGluedToTechnical(ctx.text, start, word.end)) continue;
-    // Absolute group indices.
-    match.indices = match.indices?.map((pair) =>
-      pair ? [pair[0] + windowStart, pair[1] + windowStart] : pair,
-    ) as RegExpIndicesArray;
-    yield { match, start, end: word.end };
+  const limit = Math.max(0, wordEnd - PHRASE_WINDOW);
+  let windowStart = wordStart;
+  while (windowStart > limit && !isWhitespaceAt(ctx.text, windowStart - 1)) windowStart -= 1;
+  if (windowStart > 0 && !isWhitespaceAt(ctx.text, windowStart - 1)) return null;
+  for (let count = 1; count < tokens; count += 1) {
+    let i = windowStart;
+    while (i > limit && isWhitespaceAt(ctx.text, i - 1)) i -= 1;
+    while (i > limit && !isWhitespaceAt(ctx.text, i - 1)) i -= 1;
+    if (i > 0 && !isWhitespaceAt(ctx.text, i - 1)) break;
+    windowStart = i;
   }
+  const match = regex.exec(ctx.text.slice(windowStart, wordEnd));
+  if (!match) return null;
+  const start = windowStart + match.index;
+  if (!owned(ctx, start) || isGluedToTechnical(ctx.text, start, wordEnd)) return null;
+  // Absolute group indices.
+  match.indices = match.indices?.map((pair) =>
+    pair ? [pair[0] + windowStart, pair[1] + windowStart] : pair,
+  ) as RegExpIndicesArray;
+  return { match, start, end: wordEnd };
 }
 
 function groupRange(match: RegExpExecArray, group: number): TextRange {
@@ -846,84 +827,64 @@ function groupRange(match: RegExpExecArray, group: number): TextRange {
   return { start, end };
 }
 
-const modalOf: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(
-    ctx,
-    MODAL_OF_REGEX,
-    3,
-    PHRASE_LAST_WORD.modalOf,
-  )) {
-    if (OF_IDIOMS.has(match[2].toLowerCase())) continue;
-    if (isNounMight(match[1], ctx.text.slice(Math.max(0, start - 24), start))) continue;
-    const modal = groupRange(match, 1);
-    let ofStart = modal.end;
-    while (/\s/.test(ctx.text[ofStart] ?? "")) ofStart += 1;
-    const ofRange = { start: ofStart, end: ofStart + 2 };
-    if (ctx.text.slice(ofRange.start, ofRange.end).toLowerCase() !== "of") continue;
-    findings.push({
-      ruleId: "englishModalOfCorrection",
-      messageKey: "review_msg_modal_of",
-      range: { start, end: ofRange.end },
-      alternatives: [
-        `${ctx.source.slice(start, ofRange.start)}${modalHaveWord(match[1], ctx.text.slice(ofRange.start, ofRange.end))}`,
-      ],
-      context: { start, end },
-    });
-  }
-  return findings;
+const modalOf: MatchFixer = (token, ctx) => {
+  const hit = phraseMatch(ctx, token, MODAL_OF_REGEX, 3, PHRASE_LAST_WORD.modalOf);
+  if (!hit) return null;
+  const { match, start, end } = hit;
+  if (OF_IDIOMS.has(match[2].toLowerCase())) return null;
+  if (isNounMight(match[1], ctx.text.slice(Math.max(0, start - 24), start))) return null;
+  const modal = groupRange(match, 1);
+  let ofStart = modal.end;
+  while (/\s/.test(ctx.text[ofStart] ?? "")) ofStart += 1;
+  const ofRange = { start: ofStart, end: ofStart + 2 };
+  if (ctx.text.slice(ofRange.start, ofRange.end).toLowerCase() !== "of") return null;
+  return {
+    ruleId: "englishModalOfCorrection",
+    messageKey: "review_msg_modal_of",
+    range: { start, end: ofRange.end },
+    alternatives: [
+      `${ctx.source.slice(start, ofRange.start)}${modalHaveWord(match[1], ctx.text.slice(ofRange.start, ofRange.end))}`,
+    ],
+    context: { start, end },
+  };
 };
 
-const yourWelcome: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(
-    ctx,
-    YOUR_WELCOME_REGEX,
-    2,
-    PHRASE_LAST_WORD.yourWelcome,
-  )) {
-    // "Your welcome email" is possessive: only the sentence-final phrase counts.
-    // The end of the whole text ends the sentence too; nothing is appended.
-    if (end < ctx.text.length && !/^[.!?\r\n]/.test(ctx.text[end])) continue;
-    // "Thank you all for your welcome." is possessive too: the reply opens its clause.
-    if (!opensClause(ctx.text, start)) continue;
-    const phrase = match[0];
-    const firstToken = phrase.split(/\s+/)[0];
-    const [you, welcome] = correctYourWelcome(firstToken);
-    const gap = phrase.slice(firstToken.length, phrase.length - "welcome".length);
-    findings.push({
-      ruleId: "englishYourWelcomeCorrection",
-      messageKey: "review_msg_your_welcome",
-      range: { start, end },
-      alternatives: [`${you}${gap}${welcome}`],
-      context: {
-        start: Math.max(0, lastNonBlankBefore(ctx.text, start)),
-        end: Math.min(ctx.text.length, end + 1),
-      },
-    });
-  }
-  return findings;
+const yourWelcome: MatchFixer = (token, ctx) => {
+  const hit = phraseMatch(ctx, token, YOUR_WELCOME_REGEX, 2, PHRASE_LAST_WORD.yourWelcome);
+  if (!hit) return null;
+  const { match, start, end } = hit;
+  // "Your welcome email" is possessive: only the sentence-final phrase counts.
+  // The end of the whole text ends the sentence too; nothing is appended.
+  if (end < ctx.text.length && !/^[.!?\r\n]/.test(ctx.text[end])) return null;
+  // "Thank you all for your welcome." is possessive too: the reply opens its clause.
+  if (!opensClause(ctx.text, start)) return null;
+  const phrase = match[0];
+  const firstToken = phrase.split(/\s+/)[0];
+  const [you, welcome] = correctYourWelcome(firstToken);
+  const gap = phrase.slice(firstToken.length, phrase.length - "welcome".length);
+  return {
+    ruleId: "englishYourWelcomeCorrection",
+    messageKey: "review_msg_your_welcome",
+    range: { start, end },
+    alternatives: [`${you}${gap}${welcome}`],
+    context: {
+      start: Math.max(0, lastNonBlankBefore(ctx.text, start)),
+      end: Math.min(ctx.text.length, end + 1),
+    },
+  };
 };
 
-const theirThere: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
-  for (const { match, start, end } of phraseMatches(
-    ctx,
-    THEIR_THERE_BE_REGEX,
-    2,
-    PHRASE_LAST_WORD.theirThere,
-  )) {
-    const phrase = match[0];
-    const their = phrase.split(/\s+/)[0];
-    const [there, verb] = correctTheirBeVerb(their, match[1]);
-    const gap = phrase.slice(their.length, phrase.length - match[1].length);
-    findings.push(
-      finding("englishTheirThereBeVerb", "review_msg_their_there", start, end, [
-        `${there}${gap}${verb}`,
-      ]),
-    );
-  }
-  return findings;
+const theirThere: MatchFixer = (token, ctx) => {
+  const hit = phraseMatch(ctx, token, THEIR_THERE_BE_REGEX, 2, PHRASE_LAST_WORD.theirThere);
+  if (!hit) return null;
+  const { match, start, end } = hit;
+  const phrase = match[0];
+  const their = phrase.split(/\s+/)[0];
+  const [there, verb] = correctTheirBeVerb(their, match[1]);
+  const gap = phrase.slice(their.length, phrase.length - match[1].length);
+  return finding("englishTheirThereBeVerb", "review_msg_their_there", start, end, [
+    `${there}${gap}${verb}`,
+  ]);
 };
 
 // A preposition or an -ing verb before "it": "it" is an object ("Behind it are …").
@@ -938,110 +899,98 @@ const YOU_SUBJECT_BEFORE = new Set([
   ...["whether", "since", "until", "once", "where", "wherever", "that"],
 ]);
 
-const pronounVerb: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
-  for (const { match, end } of phraseMatches(
-    ctx,
-    AGREEMENT_REGEX,
-    3,
-    PHRASE_LAST_WORD.pronounVerb,
-  )) {
-    const phrase = match[1];
-    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
-    if (!corrected) continue;
-    const [pronoun, verb] = correctPronounVerb(phrase, corrected);
-    const [inputPronoun, inputVerb] = phrase.split(/\s+/);
-    const phraseRange = groupRange(match, 1);
-    // A lowercase "i" before "is" is usually a variable ("if i is None"); the
-    // pronoun rule leaves it alone for the same reason. "i has" is too after a
-    // condition or determiner ("while i has items", "the i has").
-    if (inputPronoun === "i") {
-      if (NON_PRONOUN_FOLLOWERS.has(inputVerb.toLowerCase())) continue;
-      if (isVariableI(ctx.text, phraseRange.start)) continue;
-    }
-    const lookback = ctx.text.slice(Math.max(0, phraseRange.start - 48), phraseRange.start);
-    // "Behind it are two towers", "Backing it are banks": "it" is the object of the word before.
-    if (inputPronoun.toLowerCase() === "it" && OBJECT_IT_BEFORE.test(lookback)) continue;
-    // "the set I is", "an I is", "phase I is": a capital letter that names a thing.
-    if (
-      inputPronoun === "I" &&
-      /\b(?:a|an|the|set|ideal|matrix|phase|stage|type|part)[ \t\u00a0]+$/i.test(lookback)
-    )
-      continue;
-    let bulkBlock: RawFinding["bulkBlock"];
-    if (inputPronoun.toLowerCase() === "you") {
-      // "Everything I told you was", "Seeing you was", "the gift for you was":
-      // "you" is the object of the word before it, and "was" is right.
-      if (isObjectYou(ctx.text, phraseRange.start)) continue;
-      // "The day I called you was": "you" is the object inside a relative clause.
-      if (OBJECT_GAP_YOU.test(lookback) && englishWordInfo(OBJECT_GAP_YOU.exec(lookback)![1])?.noun)
-        continue;
-      const previous = PREVIOUS_WORD.exec(
-        ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
-      )?.[1].toLowerCase();
-      // Only a clause start says subject for sure ("You was late.", "if you
-      // was there"); anywhere else ("I heard you was sick") the word before
-      // may still take "you" as its object: one at a time.
-      if (!opensClause(ctx.text, phraseRange.start) && !YOU_SUBJECT_BEFORE.has(previous ?? "")) {
-        bulkBlock = "context-dependent";
-      }
-    }
-    // "Sam and I is a band", "you as well as he are", "am I nuts": a coordinated or
-    // compared pronoun, or an inverted question, is not this verb's whole subject. "and you
-    // was right" still opens a clause.
-    const before = ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start);
-    if (
-      /\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
-      (inputPronoun.toLowerCase() !== "you" && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before))
-    )
-      continue;
-    const gap = phrase.slice(inputPronoun.length, phrase.length - inputVerb.length);
-    // The pronoun "i" is always capitalized; the case rule would flag it anyway.
-    const fixedPronoun = pronoun === "i" ? "I" : pronoun;
-    findings.push({
-      ruleId: "englishPronounVerbWhitelistAgreement",
-      messageKey: "review_msg_pronoun_verb",
-      range: phraseRange,
-      alternatives: [`${fixedPronoun}${gap}${verb}`],
-      // The word before the pronoun decided it.
-      context: { start: previousTokensStart(ctx.text, phraseRange.start, 1), end },
-      bulkBlock,
-    });
+const pronounVerb: MatchFixer = (token, ctx) => {
+  const hit = phraseMatch(ctx, token, AGREEMENT_REGEX, 3, PHRASE_LAST_WORD.pronounVerb);
+  if (!hit) return null;
+  const { match, end } = hit;
+  const phrase = match[1];
+  const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
+  if (!corrected) return null;
+  const [pronoun, verb] = correctPronounVerb(phrase, corrected);
+  const [inputPronoun, inputVerb] = phrase.split(/\s+/);
+  const phraseRange = groupRange(match, 1);
+  // A lowercase "i" before "is" is usually a variable ("if i is None"); the
+  // pronoun rule leaves it alone for the same reason. "i has" is too after a
+  // condition or determiner ("while i has items", "the i has").
+  if (inputPronoun === "i") {
+    if (NON_PRONOUN_FOLLOWERS.has(inputVerb.toLowerCase())) return null;
+    if (isVariableI(ctx.text, phraseRange.start)) return null;
   }
-  return findings;
+  const lookback = ctx.text.slice(Math.max(0, phraseRange.start - 48), phraseRange.start);
+  // "Behind it are two towers", "Backing it are banks": "it" is the object of the word before.
+  if (inputPronoun.toLowerCase() === "it" && OBJECT_IT_BEFORE.test(lookback)) return null;
+  // "the set I is", "an I is", "phase I is": a capital letter that names a thing.
+  if (
+    inputPronoun === "I" &&
+    /\b(?:a|an|the|set|ideal|matrix|phase|stage|type|part)[ \t\u00a0]+$/i.test(lookback)
+  )
+    return null;
+  let bulkBlock: RawFinding["bulkBlock"];
+  if (inputPronoun.toLowerCase() === "you") {
+    // "Everything I told you was", "Seeing you was", "the gift for you was":
+    // "you" is the object of the word before it, and "was" is right.
+    if (isObjectYou(ctx.text, phraseRange.start)) return null;
+    // "The day I called you was": "you" is the object inside a relative clause.
+    if (OBJECT_GAP_YOU.test(lookback) && englishWordInfo(OBJECT_GAP_YOU.exec(lookback)![1])?.noun)
+      return null;
+    const previous = PREVIOUS_WORD.exec(
+      ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
+    )?.[1].toLowerCase();
+    // Only a clause start says subject for sure ("You was late.", "if you
+    // was there"); anywhere else ("I heard you was sick") the word before
+    // may still take "you" as its object: one at a time.
+    if (!opensClause(ctx.text, phraseRange.start) && !YOU_SUBJECT_BEFORE.has(previous ?? "")) {
+      bulkBlock = "context-dependent";
+    }
+  }
+  // "Sam and I is a band", "you as well as he are", "am I nuts": a coordinated or
+  // compared pronoun, or an inverted question, is not this verb's whole subject. "and you
+  // was right" still opens a clause.
+  const before = ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start);
+  if (
+    /\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
+    (inputPronoun.toLowerCase() !== "you" && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before))
+  )
+    return null;
+  const gap = phrase.slice(inputPronoun.length, phrase.length - inputVerb.length);
+  // The pronoun "i" is always capitalized; the case rule would flag it anyway.
+  const fixedPronoun = pronoun === "i" ? "I" : pronoun;
+  return {
+    ruleId: "englishPronounVerbWhitelistAgreement",
+    messageKey: "review_msg_pronoun_verb",
+    range: phraseRange,
+    alternatives: [`${fixedPronoun}${gap}${verb}`],
+    // The word before the pronoun decided it.
+    context: { start: previousTokensStart(ctx.text, phraseRange.start, 1), end },
+    bulkBlock,
+  };
 };
 
-const articleAn: Detector = (ctx) => {
-  const findings: RawFinding[] = [];
-  const newlineBefore = lastIndexFinder(ctx.text, "\n");
-  for (const { match, start, end } of phraseMatches(
-    ctx,
-    ARTICLE_REGEX,
-    2,
-    PHRASE_LAST_WORD.articleAn,
-  )) {
-    const [, article, word] = match;
-    // "a an apple": a doubled article; the determiner clash drops one instead.
-    if (/^(?:an?|the)$/i.test(word)) continue;
-    // First the cheap word test: most articles are correct. All tests here are pure.
-    const corrected = correctArticle(article, word, ctx.dictionary);
-    if (!corrected) continue;
-    const lineStart = newlineBefore(start - 1) + 1;
-    const sliceStart = Math.max(lineStart, start - 400);
-    // A cut-off slice must not look like a line start to the sentence-start test.
-    const beforeArticle = `${sliceStart > lineStart ? "x " : ""}${ctx.text.slice(sliceStart, start)}`;
-    if (article[0] === "A" && !SENTENCE_START_REGEX.test(beforeArticle)) continue;
-    if (!isArticleContext(beforeArticle)) continue;
-    const articleRange = groupRange(match, 1);
-    findings.push({
-      ruleId: "englishArticleAnCorrection",
-      messageKey: "review_msg_article",
-      range: { start: articleRange.start, end },
-      alternatives: [`${corrected}${ctx.source.slice(articleRange.end, end)}`],
-      context: { start: Math.max(0, start - 24), end },
-    });
-  }
-  return findings;
+const articleAn: MatchFixer = (token, ctx) => {
+  const hit = phraseMatch(ctx, token, ARTICLE_REGEX, 2, PHRASE_LAST_WORD.articleAn);
+  if (!hit) return null;
+  const { match, start, end } = hit;
+  const newlineBefore = finderOf(ctx, "\n");
+  const [, article, word] = match;
+  // "a an apple": a doubled article; the determiner clash drops one instead.
+  if (/^(?:an?|the)$/i.test(word)) return null;
+  // First the cheap word test: most articles are correct. All tests here are pure.
+  const corrected = correctArticle(article, word, ctx.dictionary);
+  if (!corrected) return null;
+  const lineStart = newlineBefore(start - 1) + 1;
+  const sliceStart = Math.max(lineStart, start - 400);
+  // A cut-off slice must not look like a line start to the sentence-start test.
+  const beforeArticle = `${sliceStart > lineStart ? "x " : ""}${ctx.text.slice(sliceStart, start)}`;
+  if (article[0] === "A" && !SENTENCE_START_REGEX.test(beforeArticle)) return null;
+  if (!isArticleContext(beforeArticle)) return null;
+  const articleRange = groupRange(match, 1);
+  return {
+    ruleId: "englishArticleAnCorrection",
+    messageKey: "review_msg_article",
+    range: { start: articleRange.start, end },
+    alternatives: [`${corrected}${ctx.source.slice(articleRange.end, end)}`],
+    context: { start: Math.max(0, start - 24), end },
+  };
 };
 
 // ------------------------------------------------------------------ typography
@@ -1702,11 +1651,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   // The phrase rows of the rule files (engine/phraseRows.ts), after the casing frame.
   phraseRows: phraseCorrections,
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
-  modalOf,
-  yourWelcome,
-  theirThere,
-  pronounVerb,
-  articleAn,
 };
 
 /** The frame fixes of the shared detectors of this module. */
@@ -1714,6 +1658,11 @@ const DETECTOR_FIXERS = {
   capitalizeStart,
   pronounI,
   spellingWord: (match, ctx) => spellingFindings(match, ctx),
+  modalOf,
+  yourWelcome,
+  theirThere,
+  pronounVerb,
+  articleAn,
   ordinal,
   properNoun,
   spaceBeforeComma,
