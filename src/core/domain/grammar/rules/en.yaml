@@ -4465,9 +4465,8 @@ rules:
         return: >-
           finding("englishCountability", "review_msg_countability", span[0], span[1],
           [caseLike(target, word === "less" ? "fewer" : "many")], { context: enEvidence(ctx, m.index, span[1]) })
-      # "many money", "a few homework": a count word before an uncountable noun (MASS of
-      # nounNumberSlots). "many research papers", "many junk bonds": the noun modifies the next
-      # one.
+      # "many money", "a few homework": a count word before an uncountable noun (EN_MASS). "many
+      # research papers", "many junk bonds": the noun modifies the next one.
       - regex: "(?<target>many|few|several|fewer){{S}}(?<noun>{{COUNTSLOTS_MASS_WORDS}}){{E}}"
         let:
           phraseEnd: m.index + m[0].length
