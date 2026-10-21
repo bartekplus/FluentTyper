@@ -303,6 +303,23 @@ function laterFiltered(
 
 /** The start positions of a frame with a literal anchor: the windows before its occurrences. */
 function anchoredStarts(ctx: DetectContext, anchor: LiteralAnchor, framed: boolean): Int32Array {
+  // Frames that share an anchor share its start positions in a chunk.
+  const scanned = scannedText(ctx);
+  const key = `${framed ? 1 : 0}\u0002${anchor.spaces}\u0002${setKey(anchor.prefixes)}`;
+  let cached = scanned.lists.get(key) as Int32Array | undefined;
+  if (cached === undefined) scanned.lists.set(key, (cached = windowedStarts(ctx, anchor, framed)));
+  return cached;
+}
+
+// A key for each list of prefixes, made once: frames with the same list share cached starts.
+const SET_KEYS = new WeakMap<readonly string[], string>();
+function setKey(prefixes: readonly string[]): string {
+  let key = SET_KEYS.get(prefixes);
+  if (key === undefined) SET_KEYS.set(prefixes, (key = prefixes.join("\u0002")));
+  return key;
+}
+
+function windowedStarts(ctx: DetectContext, anchor: LiteralAnchor, framed: boolean): Int32Array {
   const { lower } = scannedText(ctx);
   const base = Math.max(0, ctx.from - 256);
   const text = ctx.scanText;
@@ -429,6 +446,7 @@ const SCANNED = new WeakMap<
     found: Map<string, boolean>;
     aligned: boolean;
     starts: Map<string, number[]>;
+    lists: Map<string, ArrayLike<number>>;
     windows: Map<string, Int32Array[]>;
   }
 >();
@@ -458,6 +476,7 @@ function scannedText(ctx: DetectContext) {
         // Positions line up with the text only when lowercasing kept every length.
         aligned: lower !== null && lower.length === raw.length,
         starts: new Map(),
+        lists: new Map(),
         windows: new Map(),
       }),
     );
@@ -520,6 +539,19 @@ function frameStarts(
     return anchor === null ? null : anchoredStarts(ctx, anchor, framed);
   }
   if (prefixes.length === 1) return prefixStarts(ctx, prefixes[0], framed);
+  // Frames with the same prefixes share the merged list in a chunk.
+  const scanned = scannedText(ctx);
+  const key = `${framed ? 1 : 0}\u0003${setKey(prefixes)}`;
+  let merged = scanned.lists.get(key);
+  if (merged === undefined) scanned.lists.set(key, (merged = mergedStarts(ctx, prefixes, framed)));
+  return merged;
+}
+
+function mergedStarts(
+  ctx: DetectContext,
+  prefixes: readonly string[],
+  framed: boolean,
+): Int32Array {
   // No prefix starts another one, so two prefixes never stand at one position.
   const lists = prefixes.map((prefix) => prefixStarts(ctx, prefix, framed));
   let size = 0;
