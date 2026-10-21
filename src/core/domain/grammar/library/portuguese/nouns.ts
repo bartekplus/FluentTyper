@@ -91,6 +91,8 @@ export const ptFiniteLookalike = (word: string): boolean =>
 
 /** The singular of a plural noun, or null when `word` is no regular plural. */
 export function ptSingular(word: string): string | null {
+  // "mães" is the plural of "mãe"; the other plurals in -ães are of nouns in -ão ("pães").
+  if (word === "mães") return "mãe";
   if (/(?:ões|ães|ãos)$/.test(word)) return `${word.slice(0, -3)}ão`;
   // "anzóis" -> "anzol", "papéis" -> "papel" ("heróis" is the plural of "herói").
   if (/[^r]óis$|éis$/.test(word)) return `${word.slice(0, -3)}${word.at(-3) === "ó" ? "o" : "e"}l`;
