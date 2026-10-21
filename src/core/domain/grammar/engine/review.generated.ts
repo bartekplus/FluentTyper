@@ -11319,19 +11319,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<there>there)[ \\t\\u00a0]{1,8}(?:is|are|was|were)|there['’]s|(?<have>i|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:have|has|had)|(?<have2>i|you|we|they)['’]ve)[ \\t\\u00a0]{1,8}(?<target>not)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["not"],
-    fixer: "en:noNotNoForNot",
+    fixer: "en:@en.noForNot/1",
   }),
   frame({
     pattern:
       "(?:(?<modal>would|will|could|should|can|must|might|may|do|does|did)|(?<be>am|is|are|was|were|['’]m|['’]re)|(?<perfect>have|has|had))[ \\t\\u00a0]{1,8}(?<target>no)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:noNotNotForNo",
+    fixer: "en:@en.noForNot/2",
   }),
   frame({
     pattern:
       "(?<subject>I|you|we|they|he|she)[ \\t\\u00a0]{1,8}(?<no>no)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:noNotSubjectNo",
+    fixer: "en:@en.noForNot/3",
     owner: "no",
   }),
   frame({

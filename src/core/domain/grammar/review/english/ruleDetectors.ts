@@ -29,7 +29,6 @@ import * as questionSlots from "./questionSlots";
 import * as comparisonSlots from "./comparisonSlots";
 import * as collocationSlots from "./collocationSlots";
 import * as tenseSlots from "./tenseSlots";
-import * as noNotSlots from "./noNotSlots";
 import * as clauseAgreementSlots from "./clauseAgreementSlots";
 import * as wordClassSlots from "./wordClassSlots";
 import * as dialects from "./dialects";
@@ -123,7 +122,6 @@ export const FIXERS = mergePredicates<Fixer>(
   contractionSlots.FIXERS,
   nounNumberSlots.FIXERS,
   negationSlots.FIXERS,
-  noNotSlots.FIXERS,
   determinerSlots.FIXERS,
   passiveVoice.FIXERS,
 );

@@ -3134,18 +3134,162 @@ rules:
     style: match
     message: review_msg_confused_word
     filter: slotFindingsOncePerStart
+    sets:
+      # Quantity and focus words that "not" correctly negates: "not enough", "not only", "not
+      # one".
+      NO_NOT_WORDS:
+        [
+          enough,
+          only,
+          even,
+          one,
+          two,
+          three,
+          four,
+          five,
+          six,
+          seven,
+          eight,
+          nine,
+          ten,
+          eleven,
+          twelve,
+          twenty,
+          hundred,
+          thousand,
+          million,
+          dozen,
+          few,
+          several,
+          much,
+          many,
+          all,
+          every,
+          quite,
+          so,
+          too,
+          just,
+          really,
+          always,
+          yet,
+          nearly,
+          exactly,
+          merely,
+          necessarily,
+          least,
+          half,
+        ]
+    maps:
+      NO_NOT_MODAL:
+        { can: cannot, will: will not, could: could not, would: would not, should: should not }
+    defs:
+      # A noun with no verb reading, or one whose other reading cannot follow: after "there is
+      # not" a bare verb ("time"), after "have not" an -s verb ("issues"). "data" has no word
+      # class in the dictionary.
+      noNotBareNoun:
+        args: "word: string, afterHave: boolean"
+        when: "!EN_FUNCTION_WORDS.has(word) && !NO_NOT_WORDS.has(word)"
+        return: '!!enNounOnly(word) || EN_MASS.has(word) || word === "data" || noNotNounReading(word, afterHave)'
+        else: "false"
+      # After "have not" an -s verb cannot follow, so "issues", "doubts" are nouns.
+      noNotNounReading:
+        args: "word: string, afterHave: boolean"
+        let:
+          read: englishWordInfo(word)
+        return: >-
+          !afterHave ? !!read?.noun && !read.adjective && read.verbs.every((v) => v.form === "base" || v.form === "third")
+          : afterHave && !!read?.plural && !read.adjective && read.verbs.every((v) => v.form === "third")
+      noNotFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, fix: string"
+        type: RawFinding
+        let:
+          span: m.indices!.groups!.target
+        return: >-
+          ({ ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word", range: { start: span[0], end: span[1] },
+          alternatives: [caseLike(m.groups!.target, fix)], context: enEvidence(ctx, m.index, span[1]) })
+      # "I no like eggs": "no" for a missing do-support. "like" is a preposition too; after a
+      # subject and "no" it is the verb. "you no doubt know", "we no sooner…": a noun or
+      # comparative reading keeps "no".
+      noNotDoSupport:
+        args: "ctx: DetectContext, m: RegExpExecArray, verb: string, why: boolean, next: EnToken | undefined"
+        type: RawFinding | null
+        let:
+          subject: m.groups!.subject
+          verbEnd: m.indices!.groups!.verb[1]
+          read: 'verb === "like" ? null : englishWordInfo(verb)'
+          third: 'read?.verbs.find((v) => v.form === "third")'
+          base: 'verb === "like" || read?.verbs.some((v) => v.form === "base" && v.lemma === verb)'
+          singular: /^(?:he|she)$/.test(subject.toLowerCase())
+          lemma: "third ? third.lemma : verb"
+          aux: "singular ? \"doesn't\" : \"don't\""
+        when:
+          - '!((EN_FUNCTION_WORDS.has(verb) && verb !== "like") || NO_NOT_WORDS.has(verb) || (!base && !third))'
+          - "!/^(?:doubt|matter|sooner|longer|more|less|way|problem|worries|thanks)$/.test(verb)"
+          - "!read?.adjective"
+          - >-
+            !(read?.noun && !(!next || next.kind === "end" || (next.kind === "word" &&
+            /^(?:the|a|an|my|your|his|her|our|their|it|them|me|us|him|you|this|that|to|english|anything|much)$/.test(next.lower))))
+          - "!(third && !singular)"
+        return: >-
+          why ? finding("englishConfusedWords", "review_msg_confused_word", m.indices!.groups!.subject[0], verbEnd,
+          [`${aux} ${subject} ${lemma}`], { context: enEvidence(ctx, m.index, verbEnd) })
+          : finding("englishConfusedWords", "review_msg_confused_word", m.indices!.groups!.no[0], verbEnd,
+          [`${aux} ${lemma}`], { context: enEvidence(ctx, m.index, verbEnd) })
     frames:
-      # "There is not time", "there are not jaguars", "I have not issues".
+      # "There is not time", "there are not jaguars", "I have not issues". "The cooks there are
+      # not chefs": "there" after a noun is a place. "There is not easy way": an adjective before
+      # a singular noun at the end of its phrase. "there is not time to", "not one", "not much":
+      # the noun must be the head of its phrase.
       - regex: "(?:(?<there>there){{S}}(?:is|are|was|were)|there['’]s|(?<have>i|you|we|they|he|she|it){{S}}(?:have|has|had)|(?<have2>i|you|we|they)['’]ve){{S}}(?<target>not){{S}}(?<word>[a-z]+){{E}}"
-        fixer: noNotNoForNot
-      # "I would no do this", "I'm no going", "I have no begun".
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 2)
+          next: tokens[0]
+          after: tokens[1]
+          afterHave: "!!(have ?? have2)"
+          before: enWordBefore(ctx, m.index)
+          read: englishWordInfo(word)
+          adjectiveNoun: >-
+            !afterHave && !!read?.adjective && !read.adverb && !NO_NOT_WORDS.has(word) && !EN_FUNCTION_WORDS.has(word) &&
+            next?.kind === "word" && !!englishWordInfo(next.lower)?.noun && !englishWordInfo(next.lower)?.plural &&
+            !englishWordInfo(next.lower)?.adjective && (!after || after.kind !== "word" || EN_FUNCTION_WORDS.has(after.lower))
+        when:
+          - "!(before && !EN_FUNCTION_WORDS.has(before) && !/^(?:say|said|think|believe|assume|assuming)$/.test(before))"
+          - adjectiveNoun || noNotBareNoun(word, afterHave)
+          - '!(!adjectiveNoun && next?.kind === "word" && enNounOnly(next.lower) && !afterHave)'
+        return: noNotFinding(ctx, m, "no")
+      # "I would no do this", "I'm no going", "I have no begun". "would no doubt agree": a noun
+      # reading keeps "no". "It's no laughing matter": a gerund before a noun is a compound.
       - regex: "(?:(?<modal>would|will|could|should|can|must|might|may|do|does|did)|(?<be>am|is|are|was|were|['’]m|['’]re)|(?<perfect>have|has|had)){{S}}(?<target>no){{S}}(?<word>[a-z]+){{E}}"
-        fixer: noNotNotForNo
+        let:
+          read: englishWordInfo(word)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - "!!read && !read.adjective"
+          - >-
+            !((modal && !/^(?:do|go|be|get)$/.test(word) && (read.noun || EN_FUNCTION_WORDS.has(word))) ||
+            (!modal && EN_FUNCTION_WORDS.has(word)))
+          - >-
+            modal ? read.verbs.some((v) => v.form === "base" && v.lemma === word)
+            : be ? /ing$/.test(word) && !read.plural && read.verbs.some((v) => v.form === "ing") &&
+            (!next || next.kind !== "word" || /^(?:to|back|home|out|away|anywhere)$/.test(next.lower))
+            : !read.noun && read.verbs.some((v) => v.form === "participle") && !read.verbs.some((v) => v.form === "past" || v.form === "base")
+        return: noNotFinding(ctx, m, "not")
       # "I no like eggs", "She no like it", "Why you no speak English?", "I no can find it":
       # "no" standing for a missing do-support or "not".
       - regex: "(?<subject>I|you|we|they|he|she){{S}}(?<no>no){{S}}(?<verb>[a-z]+){{E}}"
         owner: "no"
-        fixer: noNotSubjectNo
+        let:
+          before: enWordBefore(ctx, m.index)
+          why: before === "why"
+          verbEnd: m.indices!.groups!.verb[1]
+          next: enTokensAfter(ctx, verbEnd, 1)[0]
+        when:
+          - '!(subject !== subject.toLowerCase() && subject !== "I" && !enAfterBreak(ctx, m.index))'
+          - "enAfterBreak(ctx, m.index) || /^(?:but|and|so|why|because|if|when|that)$/.test(before)"
+        return: >-
+          NO_NOT_MODAL[verb] && !why ? finding("englishConfusedWords", "review_msg_confused_word", m.indices!.groups!.no[0],
+          verbEnd, [NO_NOT_MODAL[verb]], { context: enEvidence(ctx, m.index, verbEnd) })
+          : noNotDoSupport(ctx, m, verb, why, next)
   # Subject-verb agreement across a relative clause or an aside. The relative-clause part keeps
   # one finding per verb start (usSlotsOnePerStart), so it is a rule of its own.
   - id: en.clauseAgreement

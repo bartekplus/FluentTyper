@@ -2,13 +2,14 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import type { DetectContext, EnToken, FrameRef, MatchResult, RawFinding } from "../../library";
 import {
   EN_FUNCTION_WORDS,
   EN_MASS,
   EN_PREPOSITIONS,
   MASS_WITH_COUNT_SENSE,
   caseLike,
+  enAfterBreak,
   enEvidence,
   enNounOnly,
   enTokensAfter,
@@ -33,11 +34,61 @@ export const COUNT_COUNTED_ELSEWHERE: ReadonlySet<string> = new Set([
   "clothing",
 ]);
 
+export const NO_NOT_WORDS: ReadonlySet<string> = new Set([
+  "enough",
+  "only",
+  "even",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "twenty",
+  "hundred",
+  "thousand",
+  "million",
+  "dozen",
+  "few",
+  "several",
+  "much",
+  "many",
+  "all",
+  "every",
+  "quite",
+  "so",
+  "too",
+  "just",
+  "really",
+  "always",
+  "yet",
+  "nearly",
+  "exactly",
+  "merely",
+  "necessarily",
+  "least",
+  "half",
+]);
+
 export const COUNT_MASS_COUNT: Readonly<Record<string, string>> = {
   many: "much",
   few: "little",
   several: "some",
   fewer: "less",
+};
+
+export const NO_NOT_MODAL: Readonly<Record<string, string>> = {
+  can: "cannot",
+  will: "will not",
+  could: "could not",
+  would: "would not",
+  should: "should not",
 };
 
 // en.yaml rule en.countNouns def COUNT_AMOUNT_UNITS
@@ -123,6 +174,93 @@ export function countMuchPlural(
   const clause = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 80), m.index))![0];
   if (/\b(?:thanks?|love|miss|appreciate)\b/i.test(clause)) return false;
   return true;
+}
+
+// en.yaml rule en.noForNot def noNotBareNoun
+export function noNotBareNoun(word: string, afterHave: boolean) {
+  if (!(!EN_FUNCTION_WORDS.has(word) && !NO_NOT_WORDS.has(word))) return false;
+  return (
+    !!enNounOnly(word) || EN_MASS.has(word) || word === "data" || noNotNounReading(word, afterHave)
+  );
+}
+
+// en.yaml rule en.noForNot def noNotNounReading
+export function noNotNounReading(word: string, afterHave: boolean) {
+  const read = englishWordInfo(word);
+  return !afterHave
+    ? !!read?.noun &&
+        !read.adjective &&
+        read.verbs.every((v) => v.form === "base" || v.form === "third")
+    : afterHave && !!read?.plural && !read.adjective && read.verbs.every((v) => v.form === "third");
+}
+
+// en.yaml rule en.noForNot def noNotFinding
+export function noNotFinding(ctx: DetectContext, m: RegExpExecArray, fix: string): RawFinding {
+  const span = m.indices!.groups!.target;
+  return {
+    ruleId: "englishConfusedWords",
+    messageKey: "review_msg_confused_word",
+    range: { start: span[0], end: span[1] },
+    alternatives: [caseLike(m.groups!.target, fix)],
+    context: enEvidence(ctx, m.index, span[1]),
+  };
+}
+
+// en.yaml rule en.noForNot def noNotDoSupport
+export function noNotDoSupport(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  verb: string,
+  why: boolean,
+  next: EnToken | undefined,
+): RawFinding | null {
+  const subject = m.groups!.subject;
+  const verbEnd = m.indices!.groups!.verb[1];
+  const read = verb === "like" ? null : englishWordInfo(verb);
+  const third = read?.verbs.find((v) => v.form === "third");
+  const base = verb === "like" || read?.verbs.some((v) => v.form === "base" && v.lemma === verb);
+  if (
+    (EN_FUNCTION_WORDS.has(verb) && verb !== "like") ||
+    NO_NOT_WORDS.has(verb) ||
+    (!base && !third)
+  )
+    return null;
+  if (/^(?:doubt|matter|sooner|longer|more|less|way|problem|worries|thanks)$/.test(verb))
+    return null;
+  if (read?.adjective) return null;
+  if (
+    read?.noun &&
+    !(
+      !next ||
+      next.kind === "end" ||
+      (next.kind === "word" &&
+        /^(?:the|a|an|my|your|his|her|our|their|it|them|me|us|him|you|this|that|to|english|anything|much)$/.test(
+          next.lower,
+        ))
+    )
+  )
+    return null;
+  const singular = /^(?:he|she)$/.test(subject.toLowerCase());
+  if (third && !singular) return null;
+  const lemma = third ? third.lemma : verb;
+  const aux = singular ? "doesn't" : "don't";
+  return why
+    ? finding(
+        "englishConfusedWords",
+        "review_msg_confused_word",
+        m.indices!.groups!.subject[0],
+        verbEnd,
+        [`${aux} ${subject} ${lemma}`],
+        { context: enEvidence(ctx, m.index, verbEnd) },
+      )
+    : finding(
+        "englishConfusedWords",
+        "review_msg_confused_word",
+        m.indices!.groups!.no[0],
+        verbEnd,
+        [`${aux} ${lemma}`],
+        { context: enEvidence(ctx, m.index, verbEnd) },
+      );
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -217,6 +355,92 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       [caseLike(article, rest)],
       { context: enEvidence(ctx, start, end) },
     );
+  },
+  // en.yaml rule en.noForNot frame 1
+  "@en.noForNot/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const have = m.groups!.have;
+    const have2 = m.groups!.have2;
+    const word = m.groups!.word;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 2);
+    const next = tokens[0];
+    const after = tokens[1];
+    const afterHave = !!(have ?? have2);
+    const before = enWordBefore(ctx, m.index);
+    if (
+      before &&
+      !EN_FUNCTION_WORDS.has(before) &&
+      !/^(?:say|said|think|believe|assume|assuming)$/.test(before)
+    )
+      return null;
+    const read = englishWordInfo(word);
+    const adjectiveNoun =
+      !afterHave &&
+      !!read?.adjective &&
+      !read.adverb &&
+      !NO_NOT_WORDS.has(word) &&
+      !EN_FUNCTION_WORDS.has(word) &&
+      next?.kind === "word" &&
+      !!englishWordInfo(next.lower)?.noun &&
+      !englishWordInfo(next.lower)?.plural &&
+      !englishWordInfo(next.lower)?.adjective &&
+      (!after || after.kind !== "word" || EN_FUNCTION_WORDS.has(after.lower));
+    if (!(adjectiveNoun || noNotBareNoun(word, afterHave))) return null;
+    if (!adjectiveNoun && next?.kind === "word" && enNounOnly(next.lower) && !afterHave)
+      return null;
+    return noNotFinding(ctx, m, "no");
+  },
+  // en.yaml rule en.noForNot frame 2
+  "@en.noForNot/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const modal = m.groups!.modal;
+    const be = m.groups!.be;
+    const word = m.groups!.word;
+    const read = englishWordInfo(word);
+    if (!(!!read && !read.adjective)) return null;
+    if (
+      (modal && !/^(?:do|go|be|get)$/.test(word) && (read.noun || EN_FUNCTION_WORDS.has(word))) ||
+      (!modal && EN_FUNCTION_WORDS.has(word))
+    )
+      return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (
+      !(modal
+        ? read.verbs.some((v) => v.form === "base" && v.lemma === word)
+        : be
+          ? /ing$/.test(word) &&
+            !read.plural &&
+            read.verbs.some((v) => v.form === "ing") &&
+            (!next ||
+              next.kind !== "word" ||
+              /^(?:to|back|home|out|away|anywhere)$/.test(next.lower))
+          : !read.noun &&
+            read.verbs.some((v) => v.form === "participle") &&
+            !read.verbs.some((v) => v.form === "past" || v.form === "base"))
+    )
+      return null;
+    return noNotFinding(ctx, m, "not");
+  },
+  // en.yaml rule en.noForNot frame 3
+  "@en.noForNot/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const verb = m.groups!.verb;
+    if (subject !== subject.toLowerCase() && subject !== "I" && !enAfterBreak(ctx, m.index))
+      return null;
+    const before = enWordBefore(ctx, m.index);
+    if (!(enAfterBreak(ctx, m.index) || /^(?:but|and|so|why|because|if|when|that)$/.test(before)))
+      return null;
+    const why = before === "why";
+    const verbEnd = m.indices!.groups!.verb[1];
+    const next = enTokensAfter(ctx, verbEnd, 1)[0];
+    return NO_NOT_MODAL[verb] && !why
+      ? finding(
+          "englishConfusedWords",
+          "review_msg_confused_word",
+          m.indices!.groups!.no[0],
+          verbEnd,
+          [NO_NOT_MODAL[verb]],
+          { context: enEvidence(ctx, m.index, verbEnd) },
+        )
+      : noNotDoSupport(ctx, m, verb, why, next);
   },
 };
 
