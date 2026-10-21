@@ -8,12 +8,11 @@ import {
 } from "../../engine/reviewRules";
 import { useEnFrameRules } from "../../library/english/rules";
 import { useRuleDetectors } from "../../library/english/views";
-import * as collocationSlots from "./collocationSlots";
 
 export const PREDICATES = mergePredicates();
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
-export const FIXERS = mergePredicates<Fixer>(collocationSlots.FIXERS);
+export const FIXERS = mergePredicates<Fixer>();
 
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
 export const FILTERS = mergePredicates<FindingsFilter>();

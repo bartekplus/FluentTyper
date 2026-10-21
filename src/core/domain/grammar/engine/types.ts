@@ -98,6 +98,8 @@ export interface FrameSpec extends BodySpec {
   fix?: string | readonly string[];
   /** A named fix function (a `FIXERS` record of the language); it may veto with null. */
   fixer?: string;
+  /** The name of the frame's code (`return`), when something must find the frame by it. */
+  name?: string;
   /** The fix already carries the typed casing. */
   raw?: boolean;
   /** The message of this frame, when it differs from the rule's. */

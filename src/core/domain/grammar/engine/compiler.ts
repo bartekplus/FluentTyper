@@ -118,6 +118,7 @@ const FRAME_KEYS = new Set([
   "let",
   "when",
   "return",
+  "name",
   "raw",
   "message",
   "clauseStart",
@@ -492,6 +493,7 @@ export function compileRuleFiles(
   }
 
   const ruleIds = new Set<string>();
+  const frameNames = new Set<string>();
   const rules: CompiledRule[] = [];
   const reviewPatterns: PatternSetOut = { patterns: [], anchors: {}, structural: [] };
   const livePatterns: PatternSetOut = { patterns: [], anchors: {}, structural: [] };
@@ -695,7 +697,15 @@ export function compileRuleFiles(
         )
           errors.push(`${at}: a frame needs a "target" group`);
         // A `return` expression becomes a fixer of the file's generated module.
-        const key = `@${spec.id}/${j + 1}`;
+        // The name of the frame's code: its `name`, or "@<rule id>/<frame number>".
+        if (entry.name !== undefined) {
+          if (!/^[A-Za-z_$][\w$]*$/.test(entry.name) || entry.return === undefined)
+            errors.push(`${at}: "name" is a name, for a frame with "return"`);
+          if (frameNames.has(`${name}:${entry.name}`))
+            errors.push(`${at}: frame name "${entry.name}" is used twice in ${name}.yaml`);
+          frameNames.add(`${name}:${entry.name}`);
+        }
+        const key = entry.name ?? `@${spec.id}/${j + 1}`;
         const fixCode =
           entry.return === undefined
             ? undefined

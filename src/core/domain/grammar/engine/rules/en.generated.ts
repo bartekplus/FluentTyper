@@ -22269,6 +22269,10 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       context: enEvidence(ctx, m.index, end),
     };
   },
+  // en.yaml rule en.collocations frame 1
+  collocationHead: (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return collocationHead(m, ctx);
+  },
   // en.yaml rule en.collocations frame 2
   "@en.collocations/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     if (!collocationOpen(m, ctx)) return null;
