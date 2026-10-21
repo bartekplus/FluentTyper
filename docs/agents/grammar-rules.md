@@ -146,7 +146,7 @@ A rule can also give:
 - `style: template`: the frames run in every language of the check, each frame has one `fix` string (an empty string deletes the target), and a finding keeps 96 characters of context before the match and 9 after it.
 - `filter:` code over `findings` (all findings of the rule) that returns the ones to keep.
 - `style: <name>`: the other styles (`slot`, `carry`, `german`, `portuguese`, `cased`, `polish`, `comma`, `swap`) set the language, the casing of the fix and the guards of a language. The comment on `style` in `engine/types.ts` gives each one.
-- `cue: [words]` on a frame of a `slot` rule: lowercase words. The frame runs only when one of them occurs from 256 characters before the chunk to 256 characters after it.
+- `cue: [words]` on a frame of a `slot` rule: lowercase words. The frame runs only when one of them occurs from 256 characters before the chunk to 256 characters after it. A slot frame without `cue` gets its prefilter literals as cue words, when each literal is a lowercase word. A literal can be part of a longer word (`[a-z]+ness` gives `ness`): then give `cue` words, or `cue: false` (no cue words).
 
 All frame styles run in one loop: `detectFrames` in `engine/frameStyles.ts`. A style is a row of the `STYLES` table there, not a loop of its own. To change how a style reads a match, change its row.
 
@@ -227,6 +227,9 @@ A file, and each of its rules, can define helpers for its code. All the names of
 ```yaml
 sets:
   STOP: [a, an, the] # a ReadonlySet<string>
+  OPENERS: >- # a long set: one string, split on whitespace
+    however moreover therefore
+    meanwhile
 maps:
   OPPOSITE: { left: right, right: left } # a Readonly<Record<string, string>>
 defs:
@@ -235,6 +238,8 @@ defs:
     args: "ctx: DetectContext, m: RegExpExecArray"
     return: 'ctx.text.slice(Math.max(0, m.index - 120), m.index).split(/[.!?;,:\n]/).at(-1) ?? ""'
 ```
+
+A set is a list, or one string of words that the compiler splits on whitespace. Prettier writes a long list one word per line, so give a long set as a folded string (`>-`). Use a list when a word holds a space.
 
 A function def can also have `let`, `when`, `else` (what it gives when a `when` fails; default `null`) and `type` (its result type; a recursive def needs it).
 
@@ -268,6 +273,7 @@ phrases:
 
 - `a | b = fix`: two typed forms with one fix.
 - `typed = fix1; fix2`: the user chooses a fix.
+- `~fazer uso de = ~usar; ~recorrer a` (Portuguese only): the compiler writes one row for each verb form of `ptConjugate`, in its slot order: `fazer uso de = usar; recorrer a`, `faço uso de = uso; recorro a`, and so on. The first word of the typed form and of each fix is the verb. A typed form that two slots share gives one row. The runtime gets the expanded rows.
 - The kinds are `words`, `phrases`, `compounds` and `style`. The kinds of a language set the languages of the phrase checks.
 - A language with Review data (`ar`, `de`, `es`, `fr`, `pl`, `pt`, `sv`) ships its tables in that data: the compiler writes them to `review/<language>/phrases.generated.ts`, and the build writes them to `review-data/<lang>.json`. The background loads the file before the first check of text in that language. The tables of the other languages are in `engine/review.generated.ts`.
 - English tables are named tables: `tables: { <name>: <rows> }`. The compiler gives them as `TABLES["en.<name>"]`.

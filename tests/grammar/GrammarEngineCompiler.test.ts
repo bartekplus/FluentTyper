@@ -104,6 +104,42 @@ test("phrase tables: kinds per language and the languages of a check", () => {
   expect(languagesOf(set.reviewMetadata.demoCheck)).toEqual(["en_US", "hr_HR"]);
 });
 
+test('phrase tables: a "~" row gives a row for each Portuguese verb form', () => {
+  const style = "~fazer uso de = ~usar; ~recorrer a\nfaz isso = fez isso\n";
+  const set = compileRuleFiles([
+    ["common", { lang: "*", checks: [check()] }],
+    ["pt_BR", { lang: "pt_BR", phrases: { style } }],
+  ]);
+  const rows = set.phrases.pt.style!;
+  expect(rows.slice(0, 3)).toEqual([
+    ["fazer uso de", ["usar", "recorrer a"]],
+    ["faço uso de", ["uso", "recorro a"]],
+    ["faz uso de", ["usa", "recorre a"]],
+  ]);
+  expect(rows.slice(-4)).toEqual([
+    ["fizer uso de", ["usar", "recorrer a"]],
+    ["fazendo uso de", ["usando", "recorrendo a"]],
+    ["feito uso de", ["usado", "recorrido a"]],
+    ["faz isso", "fez isso"],
+  ]);
+  // "levar" has one form for the infinitive and the future subjunctive: one row.
+  const regular = compileRuleFiles([
+    ["common", { lang: "*", checks: [check()] }],
+    ["pt_BR", { lang: "pt_BR", phrases: { style: "~levar em conta = ~considerar\n" } }],
+  ]);
+  expect(regular.phrases.pt.style).toHaveLength(16);
+  const message = errorsOf(() =>
+    compileRuleFiles([
+      ["common", { lang: "*", checks: [check()] }],
+      ["de", { lang: "de", phrases: { style: "~machen = ~tun\n" } }],
+      ["pt_BR", { lang: "pt_BR", phrases: { style: "~fazer uso de = usar\n~arroz = ~botar\n" } }],
+    ]),
+  );
+  expect(message).toContain('de.yaml phrases.style: row "~machen = ~tun"');
+  expect(message).toContain('pt_BR.yaml phrases.style: row "~fazer uso de = usar"');
+  expect(message).toContain('pt_BR.yaml phrases.style: row "~arroz = ~botar": Not a verb: arroz');
+});
+
 test("pooled table rows: a typed form two times, or a row that fixes to itself, is an error", () => {
   const message = errorsOf(() =>
     compile(
@@ -269,6 +305,25 @@ test("frames: fragments, guards, literals and fixes", () => {
     'a frame needs a "target" group',
   ])
     expect(message).toContain(fragment);
+});
+
+test("slot frames: the cue words default to the literals when each is a word", () => {
+  const frames = [
+    { regex: "(?:take|took){{S}}(?<target>pride){{S}}of{{E}}", fix: "x" },
+    { regex: "(?:take|took){{S}}(?<target>pride){{S}}of{{E}}", fix: "x", cue: ["pride"] },
+    { regex: "(?:take|took){{S}}(?<target>pride){{S}}of{{E}}", fix: "x", cue: false as const },
+    { regex: "(?<target>[a-z]+){{S}}x2{{E}}", fix: "x" },
+  ];
+  const set = compile(
+    { lang: "*", checks: [check()] },
+    {
+      lang: "en",
+      rules: [{ ...rule({ id: "en.slot", frames }), style: "slot" }],
+    },
+  );
+  const literals = set.frames[0].literals;
+  expect(literals.every((word) => /^\p{Ll}+$/u.test(word))).toBe(true);
+  expect(set.frames.map((frame) => frame.cue)).toEqual([literals, ["pride"], undefined, undefined]);
 });
 
 test("match frames: language files read common fragments; their own fragments win", () => {

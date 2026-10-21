@@ -4874,60 +4874,20 @@ defs:
 
 # The date words of the dateTense rules, in each language. Their code is at the end of `defs`.
 sets:
-  DE_BOUNDARY:
-    [
-      dass,
-      ob,
-      wenn,
-      falls,
-      weil,
-      als,
-      bevor,
-      nachdem,
-      sobald,
-      bis,
-      und,
-      aber,
-      oder,
-      sondern,
-      denn,
-      damit,
-      obwohl,
-      während,
-    ]
+  DE_BOUNDARY: >-
+    dass ob wenn falls weil als bevor nachdem sobald bis und aber oder sondern denn damit obwohl
+    während
   DE_CONDITIONAL: [wenn, falls, ob]
-  FR_BOUNDARY:
-    [que, qu, si, quand, lorsque, lorsqu, et, mais, ou, car, donc, puis, dont, où, qui, comme]
+  FR_BOUNDARY: >-
+    que qu si quand lorsque lorsqu et mais ou car donc puis dont où qui comme
   FR_ES_CONDITIONAL: [si]
-  ES_DATE_BOUNDARY:
-    [que, si, cuando, porque, aunque, "y", e, pero, o, u, ni, mientras, donde, quien, como]
+  ES_DATE_BOUNDARY: >-
+    que si cuando porque aunque y e pero o u ni mientras donde quien como
   PT_BOUNDARY: [que, se, quando, porque, embora, e, mas, ou, enquanto, onde, quem, como]
   PT_CONDITIONAL: [se]
-  PL_BOUNDARY:
-    [
-      że,
-      czy,
-      jeśli,
-      jeżeli,
-      gdy,
-      gdyby,
-      kiedy,
-      bo,
-      ponieważ,
-      aby,
-      żeby,
-      i,
-      ale,
-      lub,
-      albo,
-      oraz,
-      a,
-      który,
-      która,
-      które,
-      którzy,
-      jak,
-    ]
+  PL_BOUNDARY: >-
+    że czy jeśli jeżeli gdy gdyby kiedy bo ponieważ aby żeby i ale lub albo oraz a który która które
+    którzy jak
   PL_CONDITIONAL: [jeśli, jeżeli, gdyby, czy]
   AR_BOUNDARY: [أن, إن, إذا, لو, عندما, حتى, لأن, الذي, التي, الذين, لكن, ثم, بينما]
   AR_CONDITIONAL: [إذا, لو, إن]
@@ -4938,346 +4898,49 @@ sets:
   DE_NOT_PARTICIPLE: [gegen, gesamt, insgesamt, gerecht]
   FR_AVOIR: [ai, as, a, avons, avez, ont, avais, avait, avions, aviez, avaient]
   FR_ETRE: [suis, es, est, sommes, êtes, sont, étais, était, étions, étiez, étaient]
-  FR_ADVERBS:
-    [
-      pas,
-      jamais,
-      déjà,
-      bien,
-      tout,
-      tous,
-      enfin,
-      aussi,
-      encore,
-      beaucoup,
-      rien,
-      plus,
-      toujours,
-      vraiment,
-      finalement,
-    ]
-  FR_NOT_PARTICIPLE:
-    [
-      plus,
-      tous,
-      nous,
-      vous,
-      sous,
-      jus,
-      dessus,
-      ainsi,
-      aussi,
-      ici,
-      parmi,
-      lui,
-      qui,
-      si,
-      ni,
-      tu,
-      du,
-      lit,
-      bien,
-      tout,
-      lundi,
-      mardi,
-      mercredi,
-      jeudi,
-      vendredi,
-      samedi,
-      midi,
-      aujourd,
-    ]
-  FR_MOTION:
-    [
-      allé,
-      venu,
-      parti,
-      arrivé,
-      rentré,
-      revenu,
-      sorti,
-      entré,
-      monté,
-      descendu,
-      tombé,
-      né,
-      mort,
-      resté,
-      retourné,
-      devenu,
-      parvenu,
-    ]
+  FR_ADVERBS: >-
+    pas jamais déjà bien tout tous enfin aussi encore beaucoup rien plus toujours vraiment
+    finalement
+  FR_NOT_PARTICIPLE: >-
+    plus tous nous vous sous jus dessus ainsi aussi ici parmi lui qui si ni tu du lit bien tout
+    lundi mardi mercredi jeudi vendredi samedi midi aujourd
+  FR_MOTION: >-
+    allé venu parti arrivé rentré revenu sorti entré monté descendu tombé né mort resté retourné
+    devenu parvenu
   FR_SUBJECTS: [je, j, tu, il, elle, "on", nous, vous, ils, elles]
   FR_OBJECTS: [ne, "n", "y", en, le, la, les, l, lui, leur, me, m, te, t, se, s, nous, vous]
   FR_ALLER: [vais, vas, va, allons, allez, vont]
   ES_HABER: [he, has, ha, hemos, habéis, han, había, habías, habíamos, habíais, habían]
-  ES_PAST_WORDS:
-    [
-      fui,
-      fue,
-      fuimos,
-      fuiste,
-      fueron,
-      estuve,
-      estuvo,
-      estuvimos,
-      estuvieron,
-      tuve,
-      tuvo,
-      tuvimos,
-      tuvieron,
-      hice,
-      hizo,
-      hicimos,
-      hicieron,
-      dije,
-      dijo,
-      dijimos,
-      dijeron,
-      vinimos,
-      vinieron,
-      pude,
-      pudo,
-      pudimos,
-      pudieron,
-      puse,
-      puso,
-      pusimos,
-      pusieron,
-      quise,
-      quiso,
-      supe,
-      supo,
-      traje,
-      trajo,
-      trajimos,
-      era,
-      eras,
-      éramos,
-      eran,
-      iba,
-      ibas,
-      íbamos,
-      iban,
-      vio,
-      vimos,
-      vieron,
-      dio,
-      dimos,
-      dieron,
-    ]
-  ES_NOT_PAST:
-    [
-      esté,
-      dé,
-      sé,
-      fe,
-      café,
-      bebé,
-      josé,
-      comité,
-      puré,
-      chalé,
-      té,
-      qué,
-      porqué,
-      dominó,
-      buró,
-      rococó,
-      mamá,
-      papá,
-    ]
+  ES_PAST_WORDS: >-
+    fui fue fuimos fuiste fueron estuve estuvo estuvimos estuvieron tuve tuvo tuvimos tuvieron hice
+    hizo hicimos hicieron dije dijo dijimos dijeron vinimos vinieron pude pudo pudimos pudieron puse
+    puso pusimos pusieron quise quiso supe supo traje trajo trajimos era eras éramos eran iba ibas
+    íbamos iban vio vimos vieron dio dimos dieron
+  ES_NOT_PAST: >-
+    esté dé sé fe café bebé josé comité puré chalé té qué porqué dominó buró rococó mamá papá
   ES_IR: [voy, vas, va, vamos, vais, van]
-  PT_PAST_WORDS:
-    [
-      fui,
-      foi,
-      fomos,
-      foram,
-      foste,
-      estive,
-      esteve,
-      estivemos,
-      estiveram,
-      tive,
-      teve,
-      tivemos,
-      tiveram,
-      fiz,
-      fez,
-      fizemos,
-      fizeram,
-      disse,
-      dissemos,
-      disseram,
-      vi,
-      viu,
-      vimos,
-      viram,
-      pude,
-      pôde,
-      pudemos,
-      puderam,
-      era,
-      eras,
-      éramos,
-      eram,
-      vim,
-      veio,
-      viemos,
-      vieram,
-      quis,
-      quisemos,
-      soube,
-      trouxe,
-      pus,
-      pôs,
-    ]
+  PT_PAST_WORDS: >-
+    fui foi fomos foram foste estive esteve estivemos estiveram tive teve tivemos tiveram fiz fez
+    fizemos fizeram disse dissemos disseram vi viu vimos viram pude pôde pudemos puderam era eras
+    éramos eram vim veio viemos vieram quis quisemos soube trouxe pus pôs
   PT_NOT_PAST: [sei, lei, rei, grei, sou, estou, vou, dou]
   PT_PLUPERFECT: [tinha, tinhas, tínhamos, tinham, havia, havíamos, haviam]
   PT_IR: [vou, vais, vai, vamos, ides, vão]
   PL_FUTURE: [będę, będziesz, będzie, będziemy, będziecie, będą]
-  PL_NOT_PAST:
-    [
-      kanał,
-      upał,
-      zapał,
-      dział,
-      udział,
-      materiał,
-      przedział,
-      podział,
-      rozdział,
-      pył,
-      wał,
-      szał,
-      skała,
-      siła,
-      mogiła,
-      ciało,
-      mało,
-      działo,
-      chwili,
-      fali,
-      sali,
-      stali,
-      cały,
-      mały,
-      biały,
-      stały,
-      trwały,
-      doskonały,
-      dojrzały,
-      wspaniały,
-      okazały,
-      śmiały,
-      siły,
-      skały,
-      mogiły,
-    ]
+  PL_NOT_PAST: >-
+    kanał upał zapał dział udział materiał przedział podział rozdział pył wał szał skała siła mogiła
+    ciało mało działo chwili fali sali stali cały mały biały stały trwały doskonały dojrzały
+    wspaniały okazały śmiały siły skały mogiły
   AR_PAST: [لقد, كان, كانت, كنا, كنت, كانوا, كنتم, قمنا, قمت, قام, قامت]
   AR_FUTURE: [سوف, لن]
-  DE_PAST:
-    [
-      war,
-      waren,
-      ging,
-      gingen,
-      kam,
-      kamen,
-      sah,
-      sahen,
-      flog,
-      flogen,
-      fuhr,
-      fuhren,
-      schwamm,
-      schwammen,
-      lief,
-      liefen,
-      gab,
-      gaben,
-      nahm,
-      nahmen,
-      fand,
-      fanden,
-      blieb,
-      blieben,
-      schrieb,
-      schrieben,
-      sprach,
-      sprachen,
-      traf,
-      trafen,
-      aß,
-      aßen,
-      trank,
-      tranken,
-      saß,
-      saßen,
-      stand,
-      standen,
-      lag,
-      lagen,
-      rief,
-      riefen,
-      hielt,
-      hielten,
-      ließ,
-      ließen,
-      fiel,
-      fielen,
-      zog,
-      zogen,
-      bat,
-      baten,
-      schlief,
-      schliefen,
-      starb,
-      starben,
-      sang,
-      sangen,
-      sprang,
-      sprangen,
-      gewann,
-      gewannen,
-      begann,
-      begannen,
-      verlor,
-      verloren,
-      half,
-      halfen,
-      warf,
-      warfen,
-      wurde,
-      wurden,
-      brachte,
-      brachten,
-      dachte,
-      dachten,
-      kannte,
-      kannten,
-      nannte,
-      nannten,
-      rannte,
-      rannten,
-      wusste,
-      wussten,
-      ritt,
-      ritten,
-      stieg,
-      stiegen,
-      fing,
-      fingen,
-      bekam,
-      bekamen,
-      verließ,
-      verließen,
-      erhielt,
-      erhielten,
-      warst,
-      wart,
-    ]
+  DE_PAST: >-
+    war waren ging gingen kam kamen sah sahen flog flogen fuhr fuhren schwamm schwammen lief liefen
+    gab gaben nahm nahmen fand fanden blieb blieben schrieb schrieben sprach sprachen traf trafen aß
+    aßen trank tranken saß saßen stand standen lag lagen rief riefen hielt hielten ließ ließen fiel
+    fielen zog zogen bat baten schlief schliefen starb starben sang sangen sprang sprangen gewann
+    gewannen begann begannen verlor verloren half halfen warf warfen wurde wurden brachte brachten
+    dachte dachten kannte kannten nannte nannten rannte rannten wusste wussten ritt ritten stieg
+    stiegen fing fingen bekam bekamen verließ verließen erhielt erhielten warst wart
 maps:
   DE_MONTHS:
     januar: 1
@@ -5560,62 +5223,11 @@ rules:
       FORCE_PRONOUN_I_PREFIX: [im, ive]
       # Verbs that follow "can't", "won't" and "I'll" in their bare form. None of them is a noun
       # that "ill" or "cant" changes ("ill will", "ill health").
-      CONTRACTION_BARE_VERBS:
-        [
-          be,
-          go,
-          do,
-          get,
-          see,
-          find,
-          wait,
-          believe,
-          stop,
-          help,
-          make,
-          say,
-          tell,
-          think,
-          understand,
-          remember,
-          sleep,
-          come,
-          have,
-          work,
-          let,
-          take,
-          give,
-          use,
-          open,
-          load,
-          start,
-          run,
-          hear,
-          figure,
-          afford,
-          imagine,
-          explain,
-          decide,
-          read,
-          write,
-          send,
-          call,
-          try,
-          keep,
-          leave,
-          know,
-          change,
-          fix,
-          happen,
-          hurt,
-          matter,
-          stay,
-          agree,
-          check,
-          bring,
-          look,
-          need,
-        ]
+      CONTRACTION_BARE_VERBS: >-
+        be go do get see find wait believe stop help make say tell think understand remember sleep
+        come have work let take give use open load start run hear figure afford imagine explain
+        decide read write send call try keep leave know change fix happen hurt matter stay agree
+        check bring look need
       # One adverb can come between: "I cant really say".
       CONTRACTION_ADVERBS: [really, even, just, ever, always, possibly, still, actually]
     defs:
@@ -5742,37 +5354,9 @@ rules:
     sets:
       # "must of course", "would of necessity": a prepositional "of" looks like a mistake until
       # the next word comes, thus the correction waits for it.
-      OF_IDIOMS:
-        [
-          course,
-          necessity,
-          itself,
-          himself,
-          herself,
-          themselves,
-          late,
-          old,
-          sorts,
-          note,
-          interest,
-          value,
-          which,
-          whom,
-          them,
-          us,
-          these,
-          those,
-          the,
-          a,
-          an,
-          his,
-          her,
-          their,
-          its,
-          our,
-          my,
-          your,
-        ]
+      OF_IDIOMS: >-
+        course necessity itself himself herself themselves late old sorts note interest value which
+        whom them us these those the a an his her their its our my your
     defs:
       MODAL_OF_REGEX: '/\b((?:could|would|should|must|might)(?:n[''’]t)?)\s+of\s+([A-Za-z]+)$/i'
       # "the might of Rome", "with all our might of": the noun, not the modal.
@@ -5867,161 +5451,21 @@ rules:
       # Verbs and prepositions after which "you" can only be their object: "I told you was"
       # reads "(what) I told you was". Verbs that can start a clause ("I heard you was sick",
       # "I knew you was lying") are not in the list: after them "you" is usually the subject.
-      OBJECT_YOU_BEFORE:
-        [
-          tell,
-          tells,
-          told,
-          give,
-          gives,
-          gave,
-          given,
-          show,
-          shows,
-          showed,
-          shown,
-          send,
-          sends,
-          sent,
-          ask,
-          asks,
-          asked,
-          thank,
-          thanks,
-          thanked,
-          teach,
-          teaches,
-          taught,
-          pay,
-          pays,
-          paid,
-          bring,
-          brings,
-          brought,
-          buy,
-          buys,
-          bought,
-          owe,
-          owes,
-          owed,
-          lend,
-          lends,
-          lent,
-          sell,
-          sells,
-          sold,
-          write,
-          writes,
-          wrote,
-          written,
-          remind,
-          reminds,
-          reminded,
-          warn,
-          warns,
-          warned,
-          offer,
-          offers,
-          offered,
-          promise,
-          promises,
-          promised,
-          meet,
-          met,
-          love,
-          hate,
-          help,
-          call,
-          leave,
-          left,
-          hit,
-          hurt,
-          keep,
-          kept,
-          miss,
-          choose,
-          chose,
-          chosen,
-          lose,
-          lost,
-          beat,
-          catch,
-          caught,
-          bless,
-          blessed,
-          make,
-          made,
-          let,
-          want,
-          wanted,
-          need,
-          needed,
-          to,
-          for,
-          with,
-          of,
-          about,
-          from,
-          at,
-          by,
-          on,
-          upon,
-          onto,
-          into,
-          toward,
-          towards,
-          against,
-          without,
-          behind,
-          beside,
-          besides,
-          around,
-          near,
-          among,
-          between,
-          beyond,
-          under,
-          over,
-          through,
-          unto,
-          within,
-        ]
+      OBJECT_YOU_BEFORE: >-
+        tell tells told give gives gave given show shows showed shown send sends sent ask asks asked
+        thank thanks thanked teach teaches taught pay pays paid bring brings brought buy buys bought
+        owe owes owed lend lends lent sell sells sold write writes wrote written remind reminds
+        reminded warn warns warned offer offers offered promise promises promised meet met love hate
+        help call leave left hit hurt keep kept miss choose chose chosen lose lost beat catch caught
+        bless blessed make made let want wanted need needed to for with of about from at by on upon
+        onto into toward towards against without behind beside besides around near among between
+        beyond under over through unto within
       # Gerunds that can start a clause: "Knowing you was lying, I left".
-      CLAUSE_GERUNDS:
-        [
-          knowing,
-          hearing,
-          seeing,
-          finding,
-          thinking,
-          believing,
-          feeling,
-          noticing,
-          realizing,
-          realising,
-          hoping,
-          wishing,
-          saying,
-          guessing,
-          supposing,
-          assuming,
-          figuring,
-          imagining,
-          remembering,
-          forgetting,
-          understanding,
-          learning,
-          reading,
-          deciding,
-          suspecting,
-          fearing,
-          expecting,
-          pretending,
-          claiming,
-          admitting,
-          doubting,
-          trusting,
-        ]
+      CLAUSE_GERUNDS: >-
+        knowing hearing seeing finding thinking believing feeling noticing realizing realising
+        hoping wishing saying guessing supposing assuming figuring imagining remembering forgetting
+        understanding learning reading deciding suspecting fearing expecting pretending claiming
+        admitting doubting trusting
     defs:
       AGREEMENT_REGEX: /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i
       AGREEMENT_CORRECTIONS: >-
@@ -6092,70 +5536,11 @@ rules:
       # b", "option a early" and the SQL alias in "from users an group by" are identifiers. Thus
       # the article must also come after a word that comes before an article in prose, or open
       # a sentence.
-      ARTICLE_CONTEXT_WORDS:
-        [
-          is,
-          was,
-          are,
-          were,
-          am,
-          be,
-          been,
-          being,
-          "isn't",
-          "wasn't",
-          "it's",
-          "that's",
-          "there's",
-          "here's",
-          "what's",
-          "he's",
-          "she's",
-          have,
-          has,
-          had,
-          need,
-          needs,
-          needed,
-          want,
-          wants,
-          wanted,
-          get,
-          gets,
-          got,
-          take,
-          takes,
-          took,
-          buy,
-          bought,
-          wait,
-          for,
-          with,
-          in,
-          of,
-          to,
-          at,
-          on,
-          about,
-          like,
-          into,
-          after,
-          before,
-          without,
-          within,
-          during,
-          such,
-          what,
-          quite,
-          rather,
-          half,
-          not,
-          just,
-          only,
-          also,
-          and,
-          but,
-        ]
+      ARTICLE_CONTEXT_WORDS: >-
+        is was are were am be been being isn't wasn't it's that's there's here's what's he's she's
+        have has had need needs needed want wants wanted get gets got take takes took buy bought
+        wait for with in of to at on about like into after before without within during such what
+        quite rather half not just only also and but
       # "Is a important here?": a verb at the sentence start makes a question, and the word
       # after it is the subject, which can be a variable.
       ARTICLE_QUESTION_OPENERS: [is, was, are, were, "isn't", "wasn't"]
@@ -6808,34 +6193,9 @@ rules:
       # Exact, case-sensitive markers written after the amount. ISO codes that are also words
       # or common acronyms (ALL, TOP, CUP, TRY, CAD, ARS) are not in the list. "$", "£" and "¥"
       # usually come before the amount, and to move them is not spacing.
-      CURRENCY_MARKERS:
-        [
-          EUR,
-          USD,
-          GBP,
-          CHF,
-          PLN,
-          SEK,
-          NOK,
-          DKK,
-          CZK,
-          HUF,
-          RON,
-          BGN,
-          JPY,
-          CNY,
-          AUD,
-          NZD,
-          BRL,
-          MXN,
-          SAR,
-          AED,
-          INR,
-          UAH,
-          "€",
-          "zł",
-          kr,
-        ]
+      CURRENCY_MARKERS: >-
+        EUR USD GBP CHF PLN SEK NOK DKK CZK HUF RON BGN JPY CNY AUD NZD BRL MXN SAR AED INR UAH € zł
+        kr
     # "120zł " -> "120 zł ": adds the locale separator and changes nothing else.
     return: separateUnit(context, CURRENCY_MARKERS, null)
   - id: technicalTokenCompaction.live
@@ -7273,29 +6633,15 @@ rules:
       # write "a Nasa", "die Nato", and "Hr." (Herr), "Cia." (Companhia) or the name "Ai" are
       # words elsewhere. Not IKEA or LEGO (house styles often write "Ikea", "Lego") nor AI ("Ai"
       # is a place and a name).
-      ACRONYMS:
-        [NASA, NATO, FBI, CIA, HIV, DNA, RNA, CPU, GPU, HTML, URL, FAQ, PDF, CEO, CFO, HR, UFO]
+      ACRONYMS: >-
+        NASA NATO FBI CIA HIV DNA RNA CPU GPU HTML URL FAQ PDF CEO CFO HR UFO
       # Brands people use as lowercase verbs ("we skype", "je skype", "call or facetime"). A
       # lowercase form of these brands gets the brand casing only in a clear English noun
       # context. Not "fedex": the NAMES table in english/properNames.ts recases "fedexed" too.
       VERB_BRANDS: [skype, facetime, whatsapp, snapchat, paypal]
       # Words that can be between the noun cue and the brand ("install the latest skype").
-      BRAND_MODIFIERS:
-        [
-          latest,
-          new,
-          old,
-          free,
-          desktop,
-          mobile,
-          web,
-          official,
-          updated,
-          beta,
-          classic,
-          business,
-          personal,
-        ]
+      BRAND_MODIFIERS: >-
+        latest new old free desktop mobile web official updated beta classic business personal
       BRAND_PRONOUNS: [i, you, he, she, it, we, they, me, him, us, them, one]
     defs:
       # The canonical form of `word`, or undefined.
@@ -7585,349 +6931,43 @@ rules:
     sets:
       # Closed-class words that spelling alone would take for a base verb ("to all the", "and
       # others").
-      COMPLEMENT_FUNCTION_WORDS:
-        [
-          me,
-          you,
-          him,
-          her,
-          us,
-          them,
-          it,
-          the,
-          a,
-          an,
-          my,
-          your,
-          our,
-          their,
-          his,
-          its,
-          these,
-          those,
-          i,
-          we,
-          they,
-          he,
-          she,
-          this,
-          that,
-          some,
-          any,
-          all,
-          both,
-          each,
-          every,
-          either,
-          neither,
-          no,
-          none,
-          more,
-          most,
-          much,
-          many,
-          few,
-          less,
-          least,
-          other,
-          others,
-          another,
-          such,
-          own,
-          same,
-          lot,
-          anyone,
-          someone,
-          everyone,
-          nobody,
-          somebody,
-          everybody,
-          anybody,
-          and,
-          or,
-          but,
-          nor,
-          so,
-          yet,
-          if,
-          as,
-          than,
-          then,
-          because,
-          while,
-          when,
-          where,
-          why,
-          how,
-          what,
-          who,
-          whom,
-          whose,
-          which,
-          whether,
-          to,
-          of,
-          in,
-          on,
-          at,
-          by,
-          for,
-          from,
-          with,
-          about,
-          into,
-          onto,
-          over,
-          under,
-          up,
-          down,
-          out,
-          off,
-          through,
-          after,
-          before,
-          since,
-          until,
-          via,
-          per,
-          not,
-          never,
-          also,
-          just,
-          only,
-          still,
-          even,
-          very,
-          too,
-          really,
-          already,
-          always,
-          often,
-          again,
-          here,
-          there,
-          now,
-          today,
-          tomorrow,
-          tonight,
-          further,
-          better,
-          best,
-          first,
-          once,
-          well,
-          fast,
-          rather,
-          together,
-          is,
-          am,
-          are,
-          was,
-          were,
-          can,
-          could,
-          will,
-          would,
-          shall,
-          should,
-          may,
-          might,
-          must,
-        ]
+      COMPLEMENT_FUNCTION_WORDS: >-
+        me you him her us them it the a an my your our their his its these those i we they he she
+        this that some any all both each every either neither no none more most much many few less
+        least other others another such own same lot anyone someone everyone nobody somebody
+        everybody anybody and or but nor so yet if as than then because while when where why how
+        what who whom whose which whether to of in on at by for from with about into onto over under
+        up down out off through after before since until via per not never also just only still even
+        very too really already always often again here there now today tomorrow tonight further
+        better best first once well fast rather together is am are was were can could will would
+        shall should may might must
       # Closed classes for reading the words before a frame (lowercase, ’ folded to ').
-      COMPLEMENT_BE:
-        [am, is, are, was, were, be, been, being, "'m", "'re", "'s", isn, wasn, aren, weren]
+      COMPLEMENT_BE: >-
+        am is are was were be been being 'm 're 's isn wasn aren weren
       COMPLEMENT_GET: [get, gets, got, getting, gotten]
       COMPLEMENT_HAVE: [has, have, had, "'ve"]
-      COMPLEMENT_MODAL_DO:
-        [
-          will,
-          would,
-          shall,
-          should,
-          can,
-          could,
-          may,
-          might,
-          must,
-          "'ll",
-          "'d",
-          do,
-          does,
-          did,
-          don,
-          doesn,
-          didn,
-          won,
-          wouldn,
-          couldn,
-          shouldn,
-          cannot,
-        ]
-      COMPLEMENT_AUXILIARIES:
-        [
-          am,
-          is,
-          are,
-          was,
-          were,
-          be,
-          been,
-          being,
-          "'m",
-          "'re",
-          "'s",
-          isn,
-          wasn,
-          aren,
-          weren,
-          has,
-          have,
-          had,
-          "'ve",
-          will,
-          would,
-          shall,
-          should,
-          can,
-          could,
-          may,
-          might,
-          must,
-          "'ll",
-          "'d",
-          do,
-          does,
-          did,
-          don,
-          doesn,
-          didn,
-          won,
-          wouldn,
-          couldn,
-          shouldn,
-          cannot,
-          "'t",
-          not,
-          never,
-          also,
-          just,
-          really,
-          actually,
-          always,
-          even,
-          still,
-          ever,
-          already,
-          maybe,
-          probably,
-        ]
+      COMPLEMENT_MODAL_DO: >-
+        will would shall should can could may might must 'll 'd do does did don doesn didn won
+        wouldn couldn shouldn cannot
+      COMPLEMENT_AUXILIARIES: >-
+        am is are was were be been being 'm 're 's isn wasn aren weren has have had 've will would
+        shall should can could may might must 'll 'd do does did don doesn didn won wouldn couldn
+        shouldn cannot 't not never also just really actually always even still ever already maybe
+        probably
       COMPLEMENT_RELATIVES: [who, which, that, whom]
       FREE_RELATIVES: [what, whatever, whoever, whichever]
       COMPLEMENT_CONJUNCTIONS: [and, or, but, then]
-      COMPLEMENT_SUBORDINATORS:
-        [
-          because,
-          if,
-          when,
-          while,
-          although,
-          though,
-          since,
-          as,
-          so,
-          once,
-          until,
-          unless,
-          whereas,
-          how,
-          why,
-          whether,
-        ]
-      COMPLEMENT_PREPOSITIONS:
-        [
-          of,
-          in,
-          on,
-          at,
-          by,
-          for,
-          from,
-          with,
-          about,
-          into,
-          onto,
-          over,
-          under,
-          through,
-          after,
-          before,
-          since,
-          until,
-          via,
-          per,
-          to,
-          toward,
-          towards,
-          among,
-          between,
-          within,
-          without,
-          upon,
-          across,
-          behind,
-          beyond,
-          like,
-          near,
-          during,
-          against,
-          around,
-          thru,
-        ]
-      NP_DETERMINERS:
-        [
-          the,
-          a,
-          an,
-          my,
-          your,
-          our,
-          their,
-          his,
-          her,
-          its,
-          this,
-          that,
-          these,
-          those,
-          some,
-          any,
-          no,
-          every,
-          each,
-          many,
-          much,
-          several,
-          most,
-          all,
-          both,
-          few,
-          more,
-        ]
-      NP_INDEFINITES:
-        [
-          anyone,
-          anybody,
-          everyone,
-          everybody,
-          someone,
-          somebody,
-          nobody,
-          one,
-          none,
-          everything,
-          something,
-        ]
+      COMPLEMENT_SUBORDINATORS: >-
+        because if when while although though since as so once until unless whereas how why whether
+      COMPLEMENT_PREPOSITIONS: >-
+        of in on at by for from with about into onto over under through after before since until via
+        per to toward towards among between within without upon across behind beyond like near
+        during against around thru
+      NP_DETERMINERS: >-
+        the a an my your our their his her its this that these those some any no every each many
+        much several most all both few more
+      NP_INDEFINITES: >-
+        anyone anybody everyone everybody someone somebody nobody one none everything something
     defs:
       # What follows the verb: an object, a pointer or particle, "hear from you", or the clause
       # end. A bare noun is rarely followed by the first two; degree and time phrases ("summer a
@@ -8490,186 +7530,22 @@ rules:
     style: match
     message: review_msg_perfect_participle
     sets:
-      PARTICIPLE_DETERMINERS:
-        [
-          the,
-          a,
-          an,
-          this,
-          that,
-          these,
-          those,
-          my,
-          your,
-          his,
-          her,
-          its,
-          our,
-          their,
-          some,
-          any,
-          every,
-          each,
-          no,
-        ]
+      PARTICIPLE_DETERMINERS: >-
+        the a an this that these those my your his her its our their some any every each no
       # Closed-class words: after an ambiguous past they start no noun compound ("saw that",
       # "fell out").
-      PARTICIPLE_CLOSED:
-        [
-          the,
-          a,
-          an,
-          this,
-          that,
-          these,
-          those,
-          my,
-          your,
-          his,
-          her,
-          its,
-          our,
-          their,
-          some,
-          any,
-          every,
-          each,
-          no,
-          it,
-          them,
-          him,
-          us,
-          me,
-          you,
-          i,
-          he,
-          she,
-          we,
-          they,
-          what,
-          which,
-          who,
-          whom,
-          how,
-          why,
-          where,
-          when,
-          if,
-          whether,
-          to,
-          of,
-          in,
-          on,
-          at,
-          by,
-          for,
-          from,
-          with,
-          into,
-          onto,
-          out,
-          up,
-          down,
-          off,
-          over,
-          under,
-          through,
-          about,
-          after,
-          before,
-          since,
-          until,
-          around,
-          across,
-          along,
-          behind,
-          beneath,
-          between,
-          beyond,
-          against,
-          toward,
-          towards,
-          away,
-          back,
-          again,
-          here,
-          there,
-          now,
-          then,
-          and,
-          but,
-          or,
-          nor,
-          so,
-          as,
-          than,
-          not,
-          never,
-          yet,
-          too,
-          also,
-          very,
-          asleep,
-          apart,
-          aside,
-          ahead,
-          alone,
-          awake,
-          something,
-          anything,
-          nothing,
-          everything,
-          someone,
-          anyone,
-          everyone,
-          nobody,
-          somebody,
-          anybody,
-          everybody,
-          past,
-          near,
-          like,
-          upon,
-          via,
-          within,
-          without,
-          throughout,
-          inside,
-          outside,
-          below,
-          above,
-          beside,
-          among,
-          during,
-          except,
-          per,
-          despite,
-          unlike,
-          once,
-          twice,
-        ]
-      PARTICIPLE_ADVERBS:
-        [
-          not,
-          never,
-          already,
-          just,
-          ever,
-          really,
-          still,
-          also,
-          even,
-          only,
-          all,
-          both,
-          since,
-          then,
-          now,
-          always,
-          often,
-          sometimes,
-          seldom,
-        ]
+      PARTICIPLE_CLOSED: >-
+        the a an this that these those my your his her its our their some any every each no it them
+        him us me you i he she we they what which who whom how why where when if whether to of in on
+        at by for from with into onto out up down off over under through about after before since
+        until around across along behind beneath between beyond against toward towards away back
+        again here there now then and but or nor so as than not never yet too also very asleep apart
+        aside ahead alone awake something anything nothing everything someone anyone everyone nobody
+        somebody anybody everybody past near like upon via within without throughout inside outside
+        below above beside among during except per despite unlike once twice
+      PARTICIPLE_ADVERBS: >-
+        not never already just ever really still also even only all both since then now always often
+        sometimes seldom
       # A head the following clause can modify with an object gap: "Everything we had went into
       # it".
       GAP_HEADS: [what, whatever, whoever, whichever, everything, anything, something, nothing, all]
@@ -8683,195 +7559,19 @@ rules:
       # Closed-class words (prepositions, adverbs, determiners, reflexives), plus adjectives and
       # role nouns that take an object, a clause or a time phrase ("I am sure the build works",
       # "He is mean the whole time", "I am lead on this"). Open classes stay unlisted.
-      NOT_A_VERB:
-        [
-          like,
-          near,
-          past,
-          about,
-          above,
-          across,
-          after,
-          against,
-          along,
-          among,
-          amid,
-          around,
-          before,
-          behind,
-          below,
-          beneath,
-          beside,
-          between,
-          beyond,
-          by,
-          despite,
-          down,
-          during,
-          except,
-          for,
-          from,
-          in,
-          inside,
-          into,
-          off,
-          on,
-          onto,
-          opposite,
-          out,
-          outside,
-          over,
-          per,
-          round,
-          through,
-          throughout,
-          to,
-          toward,
-          towards,
-          under,
-          underneath,
-          unlike,
-          until,
-          up,
-          upon,
-          via,
-          with,
-          within,
-          without,
-          worth,
-          atop,
-          aboard,
-          alongside,
-          all,
-          both,
-          each,
-          either,
-          neither,
-          only,
-          just,
-          still,
-          also,
-          now,
-          here,
-          there,
-          home,
-          back,
-          away,
-          then,
-          so,
-          too,
-          very,
-          as,
-          at,
-          of,
-          not,
-          more,
-          most,
-          less,
-          again,
-          even,
-          ever,
-          never,
-          already,
-          once,
-          twice,
-          half,
-          double,
-          triple,
-          often,
-          quite,
-          rather,
-          almost,
-          yet,
-          soon,
-          maybe,
-          kinda,
-          sorta,
-          somewhat,
-          otherwise,
-          together,
-          apart,
-          ahead,
-          aside,
-          abroad,
-          alike,
-          instead,
-          the,
-          a,
-          an,
-          this,
-          that,
-          these,
-          those,
-          my,
-          your,
-          his,
-          her,
-          our,
-          their,
-          its,
-          some,
-          any,
-          no,
-          every,
-          one,
-          what,
-          who,
-          whom,
-          whose,
-          which,
-          where,
-          when,
-          why,
-          how,
-          myself,
-          yourself,
-          himself,
-          herself,
-          itself,
-          sure,
-          unsure,
-          aware,
-          unaware,
-          glad,
-          afraid,
-          sorry,
-          proud,
-          certain,
-          uncertain,
-          correct,
-          busy,
-          free,
-          ready,
-          done,
-          able,
-          unable,
-          due,
-          late,
-          early,
-          open,
-          close,
-          next,
-          full,
-          short,
-          sad,
-          mad,
-          fine,
-          ok,
-          okay,
-          right,
-          wrong,
-          alone,
-          asleep,
-          awake,
-          well,
-          ill,
-          safe,
-          new,
-          mean,
-          light,
-          lead,
-        ]
+      NOT_A_VERB: >-
+        like near past about above across after against along among amid around before behind below
+        beneath beside between beyond by despite down during except for from in inside into off on
+        onto opposite out outside over per round through throughout to toward towards under
+        underneath unlike until up upon via with within without worth atop aboard alongside all both
+        each either neither only just still also now here there home back away then so too very as
+        at of not more most less again even ever never already once twice half double triple often
+        quite rather almost yet soon maybe kinda sorta somewhat otherwise together apart ahead aside
+        abroad alike instead the a an this that these those my your his her our their its some any
+        no every one what who whom whose which where when why how myself yourself himself herself
+        itself sure unsure aware unaware glad afraid sorry proud certain uncertain correct busy free
+        ready done able unable due late early open close next full short sad mad fine ok okay right
+        wrong alone asleep awake well ill safe new mean light lead
     defs:
       NON_PERSON: /^(?:it|its|this|that|which|what|everything|something|nothing|anything)$/
       PARTICLE: '/^[ \t ]+(?:up|down|off|out|into|open|apart)(?![A-Za-z])/i'
@@ -9639,35 +8339,9 @@ rules:
     message: review_msg_repeated_words
     sets:
       # Verbs whose "to" opens an infinitive: "We need to to leave" doubles the marker.
-      INFINITIVE_TO_VERBS:
-        [
-          need,
-          needs,
-          needed,
-          have,
-          has,
-          had,
-          want,
-          wants,
-          wanted,
-          going,
-          got,
-          ought,
-          able,
-          used,
-          try,
-          tries,
-          tried,
-          trying,
-          plan,
-          plans,
-          planned,
-          hope,
-          hopes,
-          hoped,
-          decide,
-          decided,
-        ]
+      INFINITIVE_TO_VERBS: >-
+        need needs needed have has had want wants wanted going got ought able used try tries tried
+        trying plan plans planned hope hopes hoped decide decided
     defs:
       # Words that leave a gap for an elided infinitive: "whatever you need to to finish".
       INFINITIVE_GAP: /\b(?:what|whatever|which|who|whom|that|as|where|when|how)\b/i
@@ -9824,119 +8498,18 @@ rules:
       return: "findings.filter((f) => !ends.has(f.range.end) && !!ends.add(f.range.end))"
     sets:
       # Third-person forms that are also plural nouns, so "do/did" can be the main verb.
-      DO_OBJECT_NOUNS:
-        [
-          bears,
-          beats,
-          bends,
-          bets,
-          binds,
-          bites,
-          blows,
-          breaks,
-          breeds,
-          builds,
-          bursts,
-          buys,
-          catches,
-          costs,
-          cuts,
-          deals,
-          digs,
-          draws,
-          drinks,
-          drives,
-          falls,
-          feeds,
-          fights,
-          finds,
-          flies,
-          goes,
-          hangs,
-          hits,
-          holds,
-          keeps,
-          leads,
-          leaves,
-          lies,
-          lights,
-          means,
-          meets,
-          mistakes,
-          puts,
-          reads,
-          rebuilds,
-          reruns,
-          resets,
-          rewrites,
-          rides,
-          rings,
-          rises,
-          runs,
-          sets,
-          shakes,
-          shoots,
-          sinks,
-          sits,
-          slides,
-          spins,
-          splits,
-          spreads,
-          springs,
-          stands,
-          steals,
-          sticks,
-          stings,
-          strikes,
-          sweeps,
-          swims,
-          swings,
-          takes,
-          tears,
-          throws,
-          upsets,
-          wakes,
-          wins,
-          winds,
-          works,
-        ]
+      DO_OBJECT_NOUNS: >-
+        bears beats bends bets binds bites blows breaks breeds builds bursts buys catches costs cuts
+        deals digs draws drinks drives falls feeds fights finds flies goes hangs hits holds keeps
+        leads leaves lies lights means meets mistakes puts reads rebuilds reruns resets rewrites
+        rides rings rises runs sets shakes shoots sinks sits slides spins splits spreads springs
+        stands steals sticks stings strikes sweeps swims swings takes tears throws upsets wakes wins
+        winds works
       # Verbs whose -ed form describes how someone feels: "Are you interested/worried/bored?".
-      FEELING_VERBS:
-        [
-          interest,
-          satisfy,
-          excite,
-          bore,
-          tire,
-          scare,
-          worry,
-          surprise,
-          confuse,
-          disappoint,
-          amaze,
-          please,
-          embarrass,
-          annoy,
-          concern,
-          frighten,
-          shock,
-          terrify,
-          thrill,
-          impress,
-          overwhelm,
-          exhaust,
-          depress,
-          frustrate,
-          puzzle,
-          relieve,
-          delight,
-          fascinate,
-          horrify,
-          astonish,
-          irritate,
-          offend,
-          stress,
-        ]
+      FEELING_VERBS: >-
+        interest satisfy excite bore tire scare worry surprise confuse disappoint amaze please
+        embarrass annoy concern frighten shock terrify thrill impress overwhelm exhaust depress
+        frustrate puzzle relieve delight fascinate horrify astonish irritate offend stress
     defs:
       STARTS_WITH_AUXILIARY: >-
         /^(?:(?:what|when|where|why|how|who)[ \t ]{1,8})?(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)?|could(?:n['’]t)?|will|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|may|might|must(?:n['’]t)?)(?![A-Za-z])/i
@@ -12458,24 +11031,9 @@ rules:
     message: review_msg_pronoun_verb
     sets:
       # Subordinators after which "you" opens a clause as its subject: "if you was".
-      YOU_SUBJECT_BEFORE:
-        [
-          if,
-          when,
-          whenever,
-          because,
-          while,
-          although,
-          though,
-          unless,
-          whether,
-          since,
-          until,
-          once,
-          where,
-          wherever,
-          that,
-        ]
+      YOU_SUBJECT_BEFORE: >-
+        if when whenever because while although though unless whether since until once where
+        wherever that
     defs:
       # "is|has|was|are <token>": the token ends at the word end; "is", "as" or "re" before it.
       pronounVerbLastWord:

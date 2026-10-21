@@ -10,153 +10,23 @@ fragments:
 
 # The code of the rules' expressions (`let`, `when`, `return`): sets and defs.
 sets:
-  SV_ORDINAL_BEFORE:
-    [
-      den,
-      det,
-      på,
-      i,
-      för,
-      till,
-      sin,
-      sitt,
-      sina,
-      min,
-      mitt,
-      din,
-      ditt,
-      hans,
-      hennes,
-      deras,
-      dess,
-      vår,
-      vårt,
-      er,
-      ert,
-      varje,
-      kom,
-      slutade,
-      hamnade,
-    ]
+  SV_ORDINAL_BEFORE: >-
+    den det på i för till sin sitt sina min mitt din ditt hans hennes deras dess vår vårt er ert
+    varje kom slutade hamnade
   # After these the -s is a plural ("två PCs"), before these the word ends its phrase.
-  SV_PLURAL_BEFORE:
-    [
-      två,
-      tre,
-      fyra,
-      fem,
-      sex,
-      flera,
-      många,
-      alla,
-      några,
-      olika,
-      dessa,
-      de,
-      inga,
-      få,
-      fler,
-      våra,
-      era,
-      deras,
-    ]
-  SV_NOT_NOUNS:
-    [
-      för,
-      och,
-      som,
-      i,
-      på,
-      med,
-      till,
-      av,
-      är,
-      var,
-      har,
-      hade,
-      kan,
-      ska,
-      skulle,
-      eller,
-      men,
-      från,
-      att,
-      om,
-      under,
-      efter,
-      inte,
-      blir,
-      blev,
-      finns,
-      kommer,
-      måste,
-      vid,
-      mot,
-      utan,
-      så,
-      när,
-      då,
-      där,
-      hos,
-      än,
-      samt,
-    ]
-  SV_CLAUSE_OPENERS:
-    [
-      att,
-      och,
-      men,
-      när,
-      om,
-      eftersom,
-      då,
-      så,
-      medan,
-      innan,
-      tills,
-      fast,
-      fastän,
-      ifall,
-      därför,
-      hur,
-      varför,
-      var,
-      vad,
-      sedan,
-    ]
+  SV_PLURAL_BEFORE: >-
+    två tre fyra fem sex flera många alla några olika dessa de inga få fler våra era deras
+  SV_NOT_NOUNS: >-
+    för och som i på med till av är var har hade kan ska skulle eller men från att om under efter
+    inte blir blev finns kommer måste vid mot utan så när då där hos än samt
+  SV_CLAUSE_OPENERS: >-
+    att och men när om eftersom då så medan innan tills fast fastän ifall därför hur varför var vad
+    sedan
   # "gav en till mamma", "en till varje": till is the preposition before a person, a pronoun or
   # a quantifier.
-  SV_PERSONS:
-    [
-      mamma,
-      pappa,
-      mormor,
-      morfar,
-      farmor,
-      farfar,
-      bror,
-      syster,
-      kompis,
-      vän,
-      chef,
-      granne,
-      kollega,
-      lärare,
-      barn,
-      honom,
-      henne,
-      dem,
-      dom,
-      oss,
-      er,
-      mig,
-      dig,
-      sig,
-      varje,
-      alla,
-      var,
-      varandra,
-    ]
+  SV_PERSONS: >-
+    mamma pappa mormor morfar farmor farfar bror syster kompis vän chef granne kollega lärare barn
+    honom henne dem dom oss er mig dig sig varje alla var varandra
 defs:
   SV_ORDINAL_NOUNS: '/^[ \t\u00a0]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u'
   # "Mars" is also the planet and "Maj" a first name: only in a date.

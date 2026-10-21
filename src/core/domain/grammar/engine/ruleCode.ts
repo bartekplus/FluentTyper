@@ -82,7 +82,7 @@ export interface BodySpec {
 
 /** The helpers a rule file, or one of its rules, defines for its expressions. */
 export interface CodeSections {
-  readonly sets?: Readonly<Record<string, readonly string[]>>;
+  readonly sets?: Readonly<Record<string, readonly string[] | string>>;
   readonly maps?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly defs?: Readonly<Record<string, DefSpec>>;
 }
@@ -238,8 +238,9 @@ export function fileCode(
     for (const [key, words] of Object.entries(section.sets ?? {})) {
       const at = `${where} set ${key}`;
       claim(key, at);
-      if (!Array.isArray(words) || !words.every((word) => typeof word === "string"))
-        errors.push(`${at}: give a list of strings`);
+      if (typeof words === "string") sets[key] = words.split(/\s+/).filter(Boolean);
+      else if (!Array.isArray(words) || !words.every((word) => typeof word === "string"))
+        errors.push(`${at}: give a list of strings, or the words in one string`);
       else sets[key] = [...words];
     }
     for (const [key, value] of Object.entries(section.maps ?? {})) {

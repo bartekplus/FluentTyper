@@ -56,8 +56,9 @@ interface FrameSpec extends BodySpec {
   clauseStart?: boolean;
   /** Slot rules: the check of this frame (one of the rule's checks). */
   check?: string;
-  /** Slot rules: the frame runs only when one of these words occurs near the chunk. */
-  cue?: readonly string[];
+  /** Slot rules: the frame runs only when one of these words occurs near the chunk. Default: the
+   * frame's prefilter literals, when each is a lowercase word. False: no cue words. */
+  cue?: readonly string[] | false;
   /** False: the regex is complete and gets no word-start guard (it carries its own). */
   wordStart?: boolean;
   /** Polish rules: the fix keeps its own casing (names, abbreviations). */
@@ -171,8 +172,9 @@ export interface RuleFile {
   tables?: Readonly<Record<string, string>>;
   /** Regex fragments for the frames and expressions of the file: `{{NAME}}`. */
   fragments?: Readonly<Record<string, string>>;
-  /** Word sets that expressions read: name -> words (a ReadonlySet<string>). */
-  sets?: Readonly<Record<string, readonly string[]>>;
+  /** Word sets that expressions read: name -> words, a list or one string split on whitespace
+   * (a ReadonlySet<string>). */
+  sets?: Readonly<Record<string, readonly string[] | string>>;
   /** Mappings that expressions read: name -> key -> value. */
   maps?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   /** Named expressions and functions of the file's expressions; common.yaml's are shared. */

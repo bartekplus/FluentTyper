@@ -18,32 +18,8 @@ fragments:
 
 sets:
   # The determiners that every French determiner set holds; a rule's set adds its own.
-  FR_DETERMINERS:
-    [
-      le,
-      la,
-      les,
-      "l'",
-      un,
-      une,
-      ce,
-      cet,
-      cette,
-      ces,
-      mon,
-      ma,
-      mes,
-      ton,
-      ta,
-      tes,
-      sa,
-      ses,
-      notre,
-      nos,
-      votre,
-      vos,
-      leurs,
-    ]
+  FR_DETERMINERS: >-
+    le la les l' un une ce cet cette ces mon ma mes ton ta tes sa ses notre nos votre vos leurs
 
 # Most French frames scan as `inChunk` of review/french/frenchTokens.ts expects: an owned scan
 # from one character before the chunk (`scan: owned`, `lookback: 1`).
@@ -94,49 +70,11 @@ rules:
         }
     sets:
       # Adverbs that may stand between an auxiliary or a governing verb and the next verb.
-      VF_ADVERBS:
-        [
-          pas,
-          plus,
-          jamais,
-          rien,
-          bien,
-          mal,
-          déjà,
-          encore,
-          toujours,
-          souvent,
-          beaucoup,
-          trop,
-          vraiment,
-          tout,
-          enfin,
-          aussi,
-          même,
-          peu,
-          presque,
-          longtemps,
-          également,
-          ainsi,
-          juste,
-          seulement,
-          sûrement,
-          certainement,
-          probablement,
-          finalement,
-          simplement,
-          absolument,
-          point,
-          guère,
-          vite,
-          mieux,
-          notamment,
-          parfois,
-          rarement,
-          soudain,
-          aussitôt,
-          bientôt,
-        ]
+      VF_ADVERBS: >-
+        pas plus jamais rien bien mal déjà encore toujours souvent beaucoup trop vraiment tout enfin
+        aussi même peu presque longtemps également ainsi juste seulement sûrement certainement
+        probablement finalement simplement absolument point guère vite mieux notamment parfois
+        rarement soudain aussitôt bientôt
       VF_NEGATION: [ne, "n'"]
       # Object pronouns that only a verb follows: "la foule se déplace", "le garçon lui cache".
       VF_REFLEXIVES: [me, "m'", te, "t'", se, "s'", nous, vous, lui, leur]
@@ -147,160 +85,43 @@ rules:
       VF_GOVERNING: [pouvoir, devoir, aller, falloir, oser, daigner, compter, valoir]
       # Governing verbs that also take an attribute participle after an object pronoun ("je le
       # veux terminé", "je l'ai laissé fermé", "il se sait traqué"): there they abstain.
-      GOVERNING_WITH_ATTRIBUTE:
-        [
-          vouloir,
-          savoir,
-          aimer,
-          adorer,
-          préférer,
-          détester,
-          espérer,
-          souhaiter,
-          désirer,
-          faire,
-          laisser,
-          entendre,
-          sentir,
-          voir,
-          regarder,
-          écouter,
-        ]
+      GOVERNING_WITH_ATTRIBUTE: >-
+        vouloir savoir aimer adorer préférer détester espérer souhaiter désirer faire laisser
+        entendre sentir voir regarder écouter
       # "se faire aider", "se laisser tenter": a reflexive pronoun still governs an infinitive.
       REFLEXIVE_GOVERNORS: [faire, laisser]
       VF_DEGREE: [très, bien, trop, si, assez, vraiment, plutôt, tellement]
       # Words that may follow "c'est" + a participle in its clause: "c'est arrivé hier".
-      AFTER_CEST_PARTICIPLE:
-        [hier, comment, aujourd'hui, ici, là, quand, où, pourquoi, récemment, ce, cette]
+      AFTER_CEST_PARTICIPLE: >-
+        hier comment aujourd'hui ici là quand où pourquoi récemment ce cette
       # Words before an infinitive that govern it: "de se placer", "pour se lancer".
       VF_PREPOSITIONS: [de, "d'", pour, sans, à, par]
       # "rien de changé", "quoi de prévu", "près de nous", "deux de cassés": the participle or the
       # pronoun after "de" is not governed by it.
-      NOT_GOVERNING_DE:
-        [
-          rien,
-          quoi,
-          chose,
-          personne,
-          plus,
-          moins,
-          autre,
-          un,
-          une,
-          aucun,
-          aucune,
-          près,
-          loin,
-          autour,
-          auprès,
-          côté,
-          lors,
-          hors,
-          face,
-          part,
-          chacun,
-          chacune,
-          beaucoup,
-          plupart,
-          certains,
-          plusieurs,
-        ]
+      NOT_GOVERNING_DE: >-
+        rien quoi chose personne plus moins autre un une aucun aucune près loin autour auprès côté
+        lors hors face part chacun chacune beaucoup plupart certains plusieurs
       # "pour toujours", "à jamais": the adverb completes the preposition.
       PREPOSITION_ADVERBS: [toujours, jamais, longtemps, bientôt, plus, même]
       # Participles more often a misspelt noun than a verb there: "de coté" for "de côté".
       MISSPELT_NOUNS: [coté]
       # Adjectives and nouns before "à" + an infinitive: "facile à lire", "du mal à dormir".
-      A_GOVERNORS:
-        [
-          facile,
-          faciles,
-          difficile,
-          difficiles,
-          prêt,
-          prête,
-          prêts,
-          prêtes,
-          apte,
-          aptes,
-          simple,
-          simples,
-          agréable,
-          agréables,
-          pénible,
-          pénibles,
-          impossible,
-          impossibles,
-          dur,
-          dure,
-          durs,
-          dures,
-          lent,
-          lente,
-          mal,
-          peine,
-          difficultés,
-          difficulté,
-          tendance,
-          intérêt,
-        ]
+      A_GOVERNORS: >-
+        facile faciles difficile difficiles prêt prête prêts prêtes apte aptes simple simples
+        agréable agréables pénible pénibles impossible impossibles dur dure durs dures lent lente
+        mal peine difficultés difficulté tendance intérêt
       # Quantities an infinitive with "à" completes: "tout à gagner", "rien à signaler".
       TO_DO_QUANTITIES: [tout, rien, beaucoup, peu, trop, assez, plus]
       # Verbs whose "de", "à" or "par" introduces an infinitive far more than a noun.
-      INFINITIVE_PREPOSITION_VERBS:
-        [
-          venir,
-          continuer,
-          essayer,
-          finir,
-          arrêter,
-          cesser,
-          refuser,
-          accepter,
-          décider,
-          oublier,
-          tenter,
-          éviter,
-          choisir,
-          commencer,
-          apprendre,
-          chercher,
-          réussir,
-          hésiter,
-          aider,
-          obliger,
-          autoriser,
-        ]
+      INFINITIVE_PREPOSITION_VERBS: >-
+        venir continuer essayer finir arrêter cesser refuser accepter décider oublier tenter éviter
+        choisir commencer apprendre chercher réussir hésiter aider obliger autoriser
       # Verbs whose object may do what the infinitive after it says: "il laisse son fils acheter".
       OBJECT_INFINITIVE_GOVERNORS: [laisser, voir, regarder, entendre, écouter, sentir, faire]
       # Nouns of time after a participle that describes its noun: "la tour illuminée la nuit".
-      TIME_NOUNS:
-        [
-          nuit,
-          jour,
-          soir,
-          matin,
-          midi,
-          minuit,
-          veille,
-          lendemain,
-          semaine,
-          mois,
-          année,
-          an,
-          fois,
-          heure,
-          été,
-          hiver,
-          printemps,
-          automne,
-          lundi,
-          mardi,
-          mercredi,
-          jeudi,
-          vendredi,
-          samedi,
-          dimanche,
-        ]
+      TIME_NOUNS: >-
+        nuit jour soir matin midi minuit veille lendemain semaine mois année an fois heure été hiver
+        printemps automne lundi mardi mercredi jeudi vendredi samedi dimanche
       # Conjunctions that open a clause with its own subject. "que", "et", "ou", "où", "donc" and a
       # comma also come before an infinitive ("ne fait que vous plaindre", "vous saluer et vous
       # remercier", "nulle part où vous cacher", "je peux donc vous montrer"): left out.
@@ -308,22 +129,8 @@ rules:
       # Words that keep a sentence-initial "vous" + infinitive a clause of its own: "Vous aimer
       # aller au cinéma", "Vous jouer pas".
       CONTINUES_FINITE: [pas, jamais, plus, rien, point]
-      PLURAL_ETRE:
-        [
-          sommes,
-          êtes,
-          sont,
-          étions,
-          étiez,
-          étaient,
-          serons,
-          serez,
-          seront,
-          serions,
-          seriez,
-          seraient,
-          furent,
-        ]
+      PLURAL_ETRE: >-
+        sommes êtes sont étions étiez étaient serons serez seront serions seriez seraient furent
       PLURAL_AVOIR: [avons, avez, ont, avions, aviez, avaient, aurons, aurez, auront, auraient]
       VF_FEMININE_SUBJECTS: [elle, elles]
       VF_MASCULINE_SUBJECTS: [il, ils]
@@ -331,149 +138,34 @@ rules:
       AVOIR_INFINITIVE_GOVERNORS: [après, pour, sans, de, "d'"]
       AVOIR_SUBJECT_WORDS: [je, "j'", tu, il, elle, on, nous, vous, ils, elles, qui, ça, cela]
       # Clitics between a noun subject and its verb: "la foule se déplace", "ma moto ne marche".
-      VF_SUBJECT_CLITICS:
-        [se, s', ne, n', me, m', te, t', nous, vous, le, la, les, l', lui, leur, "y", en]
+      VF_SUBJECT_CLITICS: >-
+        se s' ne n' me m' te t' nous vous le la les l' lui leur y en
       # Verbs that take an object and then its infinitive: "je vois les enfants jouer", "il emmène
       # le chien promener".
-      OBJECT_INFINITIVE_EXTRA:
-        [emmener, envoyer, mener, amener, apercevoir, observer, contempler, écouter]
-      INFINITIVE_GOVERNOR_EXTRA:
-        [
-          vouloir,
-          venir,
-          partir,
-          sortir,
-          courir,
-          monter,
-          descendre,
-          rentrer,
-          retourner,
-          sembler,
-          paraître,
-          croire,
-          penser,
-          falloir,
-        ]
+      OBJECT_INFINITIVE_EXTRA: >-
+        emmener envoyer mener amener apercevoir observer contempler écouter
+      INFINITIVE_GOVERNOR_EXTRA: >-
+        vouloir venir partir sortir courir monter descendre rentrer retourner sembler paraître
+        croire penser falloir
       # Nouns that take an infinitive complement, its "de" sometimes dropped: "une envie rentrer".
-      INFINITIVE_NOUNS:
-        [
-          envie,
-          besoin,
-          temps,
-          moyen,
-          occasion,
-          opportunité,
-          droit,
-          peur,
-          intention,
-          façon,
-          manière,
-          raison,
-          chance,
-          possibilité,
-          capacité,
-          plaisir,
-          honte,
-          mal,
-          hâte,
-          idée,
-          habitude,
-          permission,
-          obligation,
-        ]
+      INFINITIVE_NOUNS: >-
+        envie besoin temps moyen occasion opportunité droit peur intention façon manière raison
+        chance possibilité capacité plaisir honte mal hâte idée habitude permission obligation
       VF_OBJECT_PRONOUNS: [le, la, les, l', lui, leur, me, m', te, t', se, s', nous, vous]
       # Adjectives that come before their noun: "un nouveau ficher" misspells the noun.
-      PRENOMINAL:
-        [
-          nouveau,
-          nouvel,
-          nouvelle,
-          nouveaux,
-          nouvelles,
-          beau,
-          bel,
-          belle,
-          beaux,
-          belles,
-          vieux,
-          vieil,
-          vieille,
-          petit,
-          petite,
-          petits,
-          petites,
-          grand,
-          grande,
-          grands,
-          grandes,
-          bon,
-          bonne,
-          bons,
-          bonnes,
-          gros,
-          grosse,
-          jeune,
-          jeunes,
-          autre,
-          autres,
-          même,
-          mêmes,
-          premier,
-          première,
-          dernier,
-          dernière,
-          prochain,
-          prochaine,
-          seul,
-          seule,
-          mauvais,
-          mauvaise,
-          joli,
-          jolie,
-        ]
-      PREPOSITIONS_BEFORE:
-        [
-          dans,
-          en,
-          sur,
-          sous,
-          avant,
-          après,
-          pendant,
-          depuis,
-          avec,
-          sans,
-          pour,
-          par,
-          chez,
-          vers,
-          entre,
-        ]
+      PRENOMINAL: >-
+        nouveau nouvel nouvelle nouveaux nouvelles beau bel belle beaux belles vieux vieil vieille
+        petit petite petits petites grand grande grands grandes bon bonne bons bonnes gros grosse
+        jeune jeunes autre autres même mêmes premier première dernier dernière prochain prochaine
+        seul seule mauvais mauvaise joli jolie
+      PREPOSITIONS_BEFORE: >-
+        dans en sur sous avant après pendant depuis avec sans pour par chez vers entre
       # Articles that are never object pronouns; "le", "la", "les", "l'" only after a preposition
       # or opening a clause.
       VF_ARTICLES: [un, une, des, du, au, aux]
       # Words that open a clause of its own, whose verb may follow a noun phrase.
-      VF_SUBORDINATORS:
-        [
-          que,
-          qu',
-          qui,
-          où,
-          dont,
-          si,
-          quand,
-          lorsque,
-          lorsqu',
-          puisque,
-          puisqu',
-          comme,
-          et,
-          ou,
-          mais,
-          car,
-          donc,
-          ni,
-        ]
+      VF_SUBORDINATORS: >-
+        que qu' qui où dont si quand lorsque lorsqu' puisque puisqu' comme et ou mais car donc ni
       # Prepositions that are also verb forms ("entrer", "contrer").
       NOT_PARTICIPLES: [entre, contre, outre]
     defs:
@@ -1169,221 +861,48 @@ rules:
     # ma/m'a) told apart by the words around them. Fixed frames that need no context are phrase
     # rows; these frames read a subject, a verb form or a clause boundary.
     sets:
-      HOMO_ADVERBS:
-        [
-          pas,
-          plus,
-          jamais,
-          bien,
-          déjà,
-          encore,
-          toujours,
-          souvent,
-          beaucoup,
-          vraiment,
-          aussi,
-          même,
-          enfin,
-          tout,
-        ]
-      HOMO_CONJUNCTIONS:
-        [
-          et,
-          mais,
-          ou,
-          donc,
-          or,
-          car,
-          que,
-          qu',
-          quand,
-          si,
-          puis,
-          alors,
-          comme,
-          lorsque,
-          lorsqu',
-          puisque,
-          puisqu',
-          où,
-          ainsi,
-        ]
+      HOMO_ADVERBS: >-
+        pas plus jamais bien déjà encore toujours souvent beaucoup vraiment aussi même enfin tout
+      HOMO_CONJUNCTIONS: >-
+        et mais ou donc or car que qu' quand si puis alors comme lorsque lorsqu' puisque puisqu' où
+        ainsi
       # Words that open a relative or completive clause: "ce qu'il a fait a surpris" keeps its "a".
       CLAUSE_SUBJECTS: [que, "qu'", qui, dont, où, ce, quoi]
       RELATIVE_LEQUEL: [laquelle, lequel, lesquels, lesquelles]
       # "a priori", "a cappella": Latin and Italian locutions keep their plain "a".
       LATIN_A: [priori, posteriori, minima, maxima, cappella, capella, contrario, fortiori, giorno]
-      HOMO_STRESSED:
-        [
-          moi,
-          toi,
-          lui,
-          elle,
-          eux,
-          elles,
-          nous,
-          vous,
-          soi,
-          quoi,
-          qui,
-          ça,
-          cela,
-          ceci,
-          tout,
-          tous,
-          toutes,
-          chaque,
-          chacun,
-          plusieurs,
-        ]
+      HOMO_STRESSED: >-
+        moi toi lui elle eux elles nous vous soi quoi qui ça cela ceci tout tous toutes chaque
+        chacun plusieurs
       # Bare nouns avoir takes in a locution: "a faim", "a lieu", "a accès", "a carte blanche".
-      AVOIR_BARE_NOUNS:
-        [
-          faim,
-          soif,
-          peur,
-          froid,
-          chaud,
-          sommeil,
-          raison,
-          tort,
-          besoin,
-          envie,
-          honte,
-          mal,
-          lieu,
-          cours,
-          droit,
-          horreur,
-          confiance,
-          hâte,
-          beau,
-          affaire,
-          recours,
-          trait,
-          part,
-          coutume,
-          tendance,
-          congé,
-          charge,
-          qualité,
-          vocation,
-          obligation,
-          interdiction,
-          ordre,
-          accès,
-          priorité,
-          pitié,
-          conscience,
-          connaissance,
-          intérêt,
-          foi,
-          soin,
-          marre,
-          cœur,
-          coeur,
-          idée,
-          avantage,
-          mission,
-          autorité,
-          carte,
-          peine,
-          force,
-          valeur,
-          gain,
-          rendez-vous,
-          pied,
-          main,
-          pignon,
-          madame,
-          monsieur,
-          mademoiselle,
-        ]
+      AVOIR_BARE_NOUNS: >-
+        faim soif peur froid chaud sommeil raison tort besoin envie honte mal lieu cours droit
+        horreur confiance hâte beau affaire recours trait part coutume tendance congé charge qualité
+        vocation obligation interdiction ordre accès priorité pitié conscience connaissance intérêt
+        foi soin marre cœur coeur idée avantage mission autorité carte peine force valeur gain
+        rendez-vous pied main pignon madame monsieur mademoiselle
       HOMO_QUANTIFIERS: [rien, beaucoup, peu, trop, tant, assez, chose]
       # Words after which "a" starts a locution of the preposition: "a côté", "a travers", "a
       # l'exception de". Avoir has no reading with them.
-      AFTER_PREPOSITION:
-        [côté, coté, travers, droite, gauche, cheval, vélo, présent, propos, condition]
+      AFTER_PREPOSITION: >-
+        côté coté travers droite gauche cheval vélo présent propos condition
       ELIDED_AFTER: [exception, accoutumée, instar, abri, égard, envers]
       # Days and times that close "a bientôt", "a demain", "a samedi" at the end of a clause.
-      FAREWELLS:
-        [bientôt, demain, lundi, mardi, mercredi, jeudi, vendredi, samedi, dimanche, tantôt]
+      FAREWELLS: >-
+        bientôt demain lundi mardi mercredi jeudi vendredi samedi dimanche tantôt
       # Words before "a" that only the preposition follows: "grâce a", "jusqu'a", "quant a".
-      BEFORE_PREPOSITION:
-        [
-          jusqu',
-          quant,
-          comparé,
-          comparativement,
-          contrairement,
-          conformément,
-          relativement,
-          proportionnellement,
-        ]
-      PLACE_TIME_NOUNS:
-        [
-          jour,
-          jours,
-          fois,
-          moment,
-          moments,
-          instant,
-          endroit,
-          endroits,
-          lieu,
-          lieux,
-          pays,
-          ville,
-          villes,
-          époque,
-          année,
-          années,
-          mois,
-          semaine,
-          soir,
-          matin,
-          période,
-          cas,
-          heure,
-          maison,
-          région,
-          monde,
-          situation,
-          hypothèse,
-          point,
-          état,
-          temps,
-          nuit,
-          soirée,
-          journée,
-          an,
-          siècle,
-          âge,
-          quartier,
-          village,
-          pièce,
-          chambre,
-          site,
-          page,
-          ferme,
-        ]
+      BEFORE_PREPOSITION: >-
+        jusqu' quant comparé comparativement contrairement conformément relativement
+        proportionnellement
+      PLACE_TIME_NOUNS: >-
+        jour jours fois moment moments instant endroit endroits lieu lieux pays ville villes époque
+        année années mois semaine soir matin période cas heure maison région monde situation
+        hypothèse point état temps nuit soirée journée an siècle âge quartier village pièce chambre
+        site page ferme
       ASKING_VERBS: [savoir, demander, indiquer, montrer, ignorer, expliquer]
       # Places a relative "où" names, with or without a determiner.
-      OU_PLACES:
-        [
-          endroit,
-          lieu,
-          pays,
-          ville,
-          villes,
-          maison,
-          région,
-          quartier,
-          village,
-          ferme,
-          pièce,
-          chambre,
-        ]
+      OU_PLACES: >-
+        endroit lieu pays ville villes maison région quartier village ferme pièce chambre
       # Verbs a "where?" follows at the end of a question: "tu vas où ?", "il est où ?".
       WHERE_VERBS: [être, aller, habiter]
       # "je sais ou est la gare": être right after it asks where.
@@ -1391,66 +910,17 @@ rules:
       OU_DEFINITE: [le, la, "l'", les, ce, cet, cette, ces]
       # Verbs whose attribute "sûr" may be: "être sûr", "se sentir sûr", "paraître sûr".
       LINKING_VERBS: [être, sentir, sembler, paraître, devenir, rester, demeurer]
-      HOMO_DEGREE_ADVERBS:
-        [
-          peu,
-          si,
-          très,
-          trop,
-          assez,
-          absolument,
-          tout,
-          fait,
-          complètement,
-          totalement,
-          parfaitement,
-          plutôt,
-        ]
+      HOMO_DEGREE_ADVERBS: >-
+        peu si très trop assez absolument tout fait complètement totalement parfaitement plutôt
       ETRE_THIRD: [sont, sera, serait, seront, seraient, fut, furent]
       SE_ADVERBS: [bien, mal, mieux, plus, moins, trop, tant, tout]
       # "sa" is a possessive: it never stands before these, or at a clause end.
-      NOT_AFTER_POSSESSIVE:
-        [
-          pour,
-          que,
-          qu',
-          à,
-          avec,
-          comme,
-          et,
-          ou,
-          mais,
-          alors,
-          donc,
-          quand,
-          si,
-          là,
-          ici,
-          aussi,
-          encore,
-          non,
-          oui,
-          pas,
-          avant,
-          après,
-          depuis,
-          pendant,
-          sans,
-          sur,
-          sous,
-          dans,
-          par,
-          chez,
-          en,
-          vers,
-          contre,
-          entre,
-          parce,
-          car,
-        ]
+      NOT_AFTER_POSSESSIVE: >-
+        pour que qu' à avec comme et ou mais alors donc quand si là ici aussi encore non oui pas
+        avant après depuis pendant sans sur sous dans par chez en vers contre entre parce car
       JUDGING_VERBS: [trouver, rendre, juger, considérer, croire]
-      HOMO_PREPOSITIONS:
-        [de, à, avec, pour, dans, par, sur, sous, chez, sans, selon, depuis, pendant, malgré]
+      HOMO_PREPOSITIONS: >-
+        de à avec pour dans par sur sous chez sans selon depuis pendant malgré
       HOMO_PLURAL_DETERMINERS: [les, des, ces, mes, tes, ses, nos, vos, leurs]
       # After "ce", words that open a plural noun phrase: "ce sont les enfants".
       CE_SONT_NEXT: [les, mes, tes, ses, nos, vos, leurs, eux, elles]
@@ -1460,144 +930,29 @@ rules:
       PEU_DEGREE: [un, très, trop, si, assez, petit, bien]
       INVERTED_SUBJECTS: [tu, vous, il, elle, on, ils, elles, nous]
       # Infinitives that are also common nouns after "du": "il a du pouvoir", "du savoir".
-      NOUN_INFINITIVES:
-        [pouvoir, savoir, devoir, vouloir, dîner, déjeuner, goûter, souper, rire, sourire, plaisir]
+      NOUN_INFINITIVES: >-
+        pouvoir savoir devoir vouloir dîner déjeuner goûter souper rire sourire plaisir
       # Words after "an" that keep it: "l'an dernier", "un an plus tard", "dix ans révolus".
-      AN_KEEPS:
-        [
-          dernier,
-          prochain,
-          passé,
-          passés,
-          neuf,
-          entier,
-          plein,
-          révolu,
-          révolus,
-          accompli,
-          accomplis,
-          complet,
-          complets,
-          environ,
-          plus,
-          après,
-          avant,
-          auparavant,
-          tout,
-          tous,
-          seulement,
-          exactement,
-          juste,
-          pile,
-          durant,
-          pendant,
-          chaque,
-          ou,
-          et,
-          mais,
-        ]
+      AN_KEEPS: >-
+        dernier prochain passé passés neuf entier plein révolu révolus accompli accomplis complet
+        complets environ plus après avant auparavant tout tous seulement exactement juste pile
+        durant pendant chaque ou et mais
       # What leaves a stain ("une tache de café"), what a stain is ("tenace") and what it is on.
-      STAINS:
-        [
-          café,
-          vin,
-          sang,
-          graisse,
-          gras,
-          encre,
-          huile,
-          ketchup,
-          sauce,
-          chocolat,
-          moutarde,
-          peinture,
-          boue,
-          rouille,
-          confiture,
-          jus,
-          thé,
-          lait,
-          sueur,
-          herbe,
-          cambouis,
-          goudron,
-          moisissure,
-          humidité,
-          mayonnaise,
-          beurre,
-        ]
+      STAINS: >-
+        café vin sang graisse gras encre huile ketchup sauce chocolat moutarde peinture boue rouille
+        confiture jus thé lait sueur herbe cambouis goudron moisissure humidité mayonnaise beurre
       STAIN_ADJECTIVES: [indélébile, indélébiles, tenace, tenaces]
-      STAINED_THINGS:
-        [
-          chemise,
-          chemisier,
-          pantalon,
-          jean,
-          robe,
-          jupe,
-          veste,
-          manteau,
-          pull,
-          cravate,
-          nappe,
-          tapis,
-          moquette,
-          drap,
-          draps,
-          oreiller,
-          canapé,
-          tissu,
-          vêtement,
-          vêtements,
-          linge,
-          lit,
-          mur,
-          plafond,
-        ]
+      STAINED_THINGS: >-
+        chemise chemisier pantalon jean robe jupe veste manteau pull cravate nappe tapis moquette
+        drap draps oreiller canapé tissu vêtement vêtements linge lit mur plafond
       # What a task is ("une tâche ardue") and verbs whose object is a task ("accomplir la tâche").
-      TASK_ADJECTIVES:
-        [
-          complexe,
-          complexes,
-          ménagère,
-          ménagères,
-          quotidienne,
-          quotidiennes,
-          principale,
-          principales,
-          administrative,
-          administratives,
-          répétitive,
-          répétitives,
-          fastidieuse,
-          fastidieuses,
-          ardue,
-          ardues,
-          ingrate,
-          ingrates,
-          délicate,
-          délicates,
-          prioritaire,
-          prioritaires,
-        ]
-      TASK_VERBS:
-        [
-          accomplir,
-          effectuer,
-          exécuter,
-          réaliser,
-          remplir,
-          terminer,
-          achever,
-          finir,
-          simplifier,
-          faciliter,
-          compliquer,
-          confier,
-          assigner,
-          déléguer,
-          répartir,
-        ]
+      TASK_ADJECTIVES: >-
+        complexe complexes ménagère ménagères quotidienne quotidiennes principale principales
+        administrative administratives répétitive répétitives fastidieuse fastidieuses ardue ardues
+        ingrate ingrates délicate délicates prioritaire prioritaires
+      TASK_VERBS: >-
+        accomplir effectuer exécuter réaliser remplir terminer achever finir simplifier faciliter
+        compliquer confier assigner déléguer répartir
     maps:
       DETERMINER_GENDER:
         {
@@ -3283,281 +2638,52 @@ rules:
     maps:
       PRONOUN_PERSON: { je: 1, tu: 2, il: 4, elle: 4, on: 4, nous: 8, vous: 16, ils: 32, elles: 32 }
     sets:
-      QUESTION_WORDS:
-        [que, qu', où, comment, pourquoi, quand, combien, quel, quelle, quels, quelles, quoi, qui]
+      QUESTION_WORDS: >-
+        que qu' où comment pourquoi quand combien quel quelle quels quelles quoi qui
       CE_VERBS: [est, était, sera, serait, fut]
       # After an inverted "ce": a clause, a pronoun or a common attribute ("est-ce possible ?").
-      CE_FOLLOWERS:
-        [
-          que,
-          qu',
-          qui,
-          là,
-          vrai,
-          possible,
-          grave,
-          normal,
-          bien,
-          mal,
-          juste,
-          faux,
-          exact,
-          sûr,
-          clair,
-          utile,
-          nécessaire,
-          obligatoire,
-          important,
-          ça,
-          cela,
-          vous,
-          toi,
-          lui,
-          moi,
-          elle,
-          eux,
-          nous,
-          elles,
-          pas,
-          vraiment,
-          encore,
-          toujours,
-          donc,
-        ]
+      CE_FOLLOWERS: >-
+        que qu' qui là vrai possible grave normal bien mal juste faux exact sûr clair utile
+        nécessaire obligatoire important ça cela vous toi lui moi elle eux nous elles pas vraiment
+        encore toujours donc
       # Prefixes that never stand alone: "anti inflation" -> "anti-inflation", "néo-rural" ->
       # "néorural"; the dictionary says which spelling exists.
-      PREFIX_WORDS:
-        [
-          anti,
-          auto,
-          néo,
-          géo,
-          méga,
-          mini,
-          ultra,
-          hyper,
-          multi,
-          psycho,
-          franco,
-          afro,
-          vice,
-          vidéo,
-          micro,
-          macro,
-          post,
-          co,
-          cyber,
-          extra,
-          inter,
-          intra,
-          semi,
-          pseudo,
-          quasi,
-          poly,
-          télé,
-          bio,
-          éco,
-          rétro,
-          zig,
-          anglo,
-          germano,
-          italo,
-          hispano,
-          gréco,
-          judéo,
-          sino,
-          russo,
-          austro,
-          euro,
-        ]
+      PREFIX_WORDS: >-
+        anti auto néo géo méga mini ultra hyper multi psycho franco afro vice vidéo micro macro post
+        co cyber extra inter intra semi pseudo quasi poly télé bio éco rétro zig anglo germano italo
+        hispano gréco judéo sino russo austro euro
       # Prefixes the dictionary may not list with a given word, which then take a hyphen: always
       # for a nationality ("franco-allemandes"), before a vowel for the others ("anti-inflation").
-      NATIONALITY_PREFIXES:
-        [franco, afro, anglo, germano, italo, hispano, gréco, judéo, sino, russo, austro, euro]
+      NATIONALITY_PREFIXES: >-
+        franco afro anglo germano italo hispano gréco judéo sino russo austro euro
       VOWEL_HYPHEN_PREFIXES: [anti, ultra, néo, semi, cyber, co]
       CLOSING_PREFIXES: [néo, géo, méga, psycho, post, micro, macro]
       # "sur", "sous" and "contre" are prepositions too: only before a participle or an infinitive.
       PREPOSITION_PREFIXES: [sur, sous, contre]
       # What may follow an object pronoun (never a noun, which would make "la" an article).
-      AFTER_PRONOUN:
-        [
-          à,
-          au,
-          aux,
-          dans,
-          sur,
-          sous,
-          avec,
-          pour,
-          en,
-          par,
-          chez,
-          vers,
-          de,
-          d',
-          du,
-          des,
-          un,
-          une,
-          ici,
-          là,
-          bien,
-          vite,
-          maintenant,
-          encore,
-          demain,
-          donc,
-          alors,
-          moi,
-          toi,
-          lui,
-          nous,
-          leur,
-          "y",
-        ]
+      AFTER_PRONOUN: >-
+        à au aux dans sur sous avec pour en par chez vers de d' du des un une ici là bien vite
+        maintenant encore demain donc alors moi toi lui nous leur y
       # "prends-en un", "parlez-en à ta sœur": what follows a pronoun "en" or "y".
-      EN_FOLLOWERS:
-        [
-          un,
-          une,
-          des,
-          deux,
-          trois,
-          à,
-          au,
-          aux,
-          plus,
-          moins,
-          encore,
-          autant,
-          beaucoup,
-          assez,
-          davantage,
-        ]
+      EN_FOLLOWERS: >-
+        un une des deux trois à au aux plus moins encore autant beaucoup assez davantage
       IMPERATIVE_CLAUSE_OPENERS: [et, puis, alors, mais, sinon, donc, ou]
-      PEU_BEFORE:
-        [
-          à,
-          un,
-          très,
-          trop,
-          si,
-          assez,
-          bien,
-          pour,
-          de,
-          le,
-          ce,
-          tout,
-          aussi,
-          ne,
-          n',
-          qui,
-          ça,
-          cela,
-          ici,
-          sous,
-          avant,
-        ]
+      PEU_BEFORE: >-
+        à un très trop si assez bien pour de le ce tout aussi ne n' qui ça cela ici sous avant
       # Prefixes that the 1990 spelling welds or keeps with a hyphen, both accepted ("co-auteur").
-      WELDED_PREFIXES:
-        [
-          co,
-          re,
-          ré,
-          pré,
-          anti,
-          auto,
-          néo,
-          post,
-          mini,
-          maxi,
-          multi,
-          ultra,
-          super,
-          hyper,
-          semi,
-          demi,
-          mi,
-          sous,
-          sur,
-          contre,
-          extra,
-          inter,
-          intra,
-          micro,
-          macro,
-          méga,
-          mono,
-          poly,
-          pro,
-          pseudo,
-          quasi,
-          télé,
-          vice,
-          ex,
-          non,
-          bi,
-          tri,
-          dé,
-          dés,
-          in,
-          im,
-          para,
-          éco,
-          bio,
-          géo,
-          euro,
-          cyber,
-          agro,
-          socio,
-          psycho,
-          électro,
-          thermo,
-          hydro,
-          aéro,
-          audio,
-          vidéo,
-          photo,
-          radio,
-          cardio,
-          neuro,
-          techno,
-          info,
-          crypto,
-        ]
+      WELDED_PREFIXES: >-
+        co re ré pré anti auto néo post mini maxi multi ultra super hyper semi demi mi sous sur
+        contre extra inter intra micro macro méga mono poly pro pseudo quasi télé vice ex non bi tri
+        dé dés in im para éco bio géo euro cyber agro socio psycho électro thermo hydro aéro audio
+        vidéo photo radio cardio neuro techno info crypto
       # Compounds that are no noun, so no determiner comes before them.
       BARE_COMPOUNDS: ["c'est-à-dire"]
       # Second words that make a clause of the pair ("le nord est froid", "peut être", "chez vous").
-      VERB_SECONDS:
-        [est, a, sont, ont, fait, font, être, avoir, vous, nous, moi, toi, lui, eux, là, ci, cent]
-      ARTICLE_CONTEXT:
-        [
-          de,
-          d',
-          à,
-          dans,
-          sur,
-          sous,
-          pour,
-          par,
-          avec,
-          sans,
-          chez,
-          vers,
-          entre,
-          après,
-          avant,
-          contre,
-          pendant,
-          depuis,
-          et,
-          ou,
-          mais,
-          que,
-          qu',
-          car,
-        ]
+      VERB_SECONDS: >-
+        est a sont ont fait font être avoir vous nous moi toi lui eux là ci cent
+      ARTICLE_CONTEXT: >-
+        de d' à dans sur sous pour par avec sans chez vers entre après avant contre pendant depuis
+        et ou mais que qu' car
     defs:
       # "son" is also the noun "sound" ("quel est ce son ?"): left out.
       HYPHEN_DETERMINERS: 'new Set([...FR_DETERMINERS, "des", "du", "leur"])'
@@ -3995,48 +3121,19 @@ rules:
     sets:
       # Pronouns that are always subjects; the others may be objects or stressed ("pour elle").
       ALWAYS_SUBJECT: [je, "j'", tu, il, on, ils]
-      AGR_OPENERS:
-        [
-          et,
-          mais,
-          ou,
-          donc,
-          car,
-          que,
-          qu',
-          quand,
-          si,
-          lorsque,
-          lorsqu',
-          puisque,
-          puisqu',
-          comme,
-          où,
-          alors,
-          puis,
-        ]
-      RELATIVE_PRONOUNS:
-        [
-          lequel,
-          laquelle,
-          lesquels,
-          lesquelles,
-          auquel,
-          auxquels,
-          auxquelles,
-          duquel,
-          desquels,
-          desquelles,
-          dont,
-        ]
+      AGR_OPENERS: >-
+        et mais ou donc car que qu' quand si lorsque lorsqu' puisque puisqu' comme où alors puis
+      RELATIVE_PRONOUNS: >-
+        lequel laquelle lesquels lesquelles auquel auxquels auxquelles duquel desquels desquelles
+        dont
       # Words that name the pronoun after them rather than let it be a subject.
       NAMING: [pronom, personnel, mot, terme, le, un, du, au, aux, les, des]
       COORDINATING_OR_RELATIVE: [et, ou, que, "qu'", où]
       # Nouns avoir takes bare in a locution: "elle a besoin de", "il a peur".
       BARE_AVOIR_NOUNS: [besoin, envie, peur, honte, faim, soif, hâte, sommeil, tort, raison]
       # Adverbs between an auxiliary and its participle: "il a aussi eu", "nous n'avons pas eu".
-      BEFORE_PARTICIPLE:
-        [aussi, déjà, toujours, jamais, pas, plus, encore, bien, souvent, vraiment, enfin, même]
+      BEFORE_PARTICIPLE: >-
+        aussi déjà toujours jamais pas plus encore bien souvent vraiment enfin même
       AFTER_BARE_NOUN: [de, "d'", du, des, que, "qu'"]
       AGR_QUANTITY_WORDS: [beaucoup, plusieurs, trop, peu, assez, quelques, certains]
       # Conjunctions after which "nous" or "vous" opens its clause as the subject: "si vous
@@ -4047,397 +3144,70 @@ rules:
       # Adverbs after which "nous" or "vous" opens its clause: "puis vous manger" -> "mangez".
       CLAUSE_ADVERBS: [puis, alors, ensuite, donc, car, comme, plus]
       # "nous deux", "vous autres", "elle seule", "je soussigné": words a pronoun may take.
-      AGR_AFTER_PRONOUN:
-        [
-          soussigné,
-          soussignée,
-          soussignés,
-          soussignées,
-          autres,
-          tous,
-          toutes,
-          tout,
-          même,
-          mêmes,
-          seul,
-          seule,
-          seuls,
-          seules,
-          aussi,
-          non,
-          pendant,
-          point,
-          pas,
-          plus,
-          rien,
-          personne,
-        ]
+      AGR_AFTER_PRONOUN: >-
+        soussigné soussignée soussignés soussignées autres tous toutes tout même mêmes seul seule
+        seuls seules aussi non pendant point pas plus rien personne
       # Function words the noun filter also lets through ("des" as "dés", "on", "leurs").
-      AGR_NOT_NOUNS:
-        [
-          et,
-          ou,
-          où,
-          "on",
-          en,
-          "y",
-          des,
-          les,
-          leurs,
-          ses,
-          ces,
-          mes,
-          tes,
-          nos,
-          vos,
-          le,
-          la,
-          un,
-          une,
-          du,
-          au,
-          aux,
-          de,
-          que,
-          qui,
-          si,
-          car,
-          mais,
-          donc,
-          or,
-          ni,
-        ]
+      AGR_NOT_NOUNS: >-
+        et ou où on en y des les leurs ses ces mes tes nos vos le la un une du au aux de que qui si
+        car mais donc or ni
       PREPOSITION_WORDS: [dans, sans, sous, vers, chez, par, pour, avec, entre, contre]
       PLACE_PREPOSITIONS: [dans, sous, chez]
       AGR_NUMBER_WORDS: [deux, trois, quatre, cinq, six, sept, huit, neuf, dix, cent, mille]
-      ETRE_FORMS:
-        [est, sont, était, étaient, sera, seront, serait, seraient, fut, furent, soit, soient]
-      AGR_ADVERBS:
-        [
-          pas,
-          plus,
-          jamais,
-          bien,
-          très,
-          trop,
-          si,
-          déjà,
-          toujours,
-          encore,
-          vraiment,
-          souvent,
-          vite,
-          enfin,
-          aussi,
-        ]
-      AGR_SINGULAR_DETERMINERS:
-        [le, la, l', un, une, ce, cet, cette, mon, ton, son, ma, ta, sa, notre, votre, chaque]
+      ETRE_FORMS: >-
+        est sont était étaient sera seront serait seraient fut furent soit soient
+      AGR_ADVERBS: >-
+        pas plus jamais bien très trop si déjà toujours encore vraiment souvent vite enfin aussi
+      AGR_SINGULAR_DETERMINERS: >-
+        le la l' un une ce cet cette mon ton son ma ta sa notre votre chaque
       AGR_PLURAL_DETERMINERS: [les, des, ces, mes, tes, ses, nos, vos, leurs, plusieurs]
       # Nouns of quantity whose verb follows their complement ("la plupart des gens pensent").
-      COLLECTIVES:
-        [
-          plupart,
-          peu,
-          nombre,
-          majorité,
-          minorité,
-          reste,
-          foule,
-          totalité,
-          ensemble,
-          moitié,
-          tiers,
-          quart,
-          dizaine,
-          douzaine,
-          vingtaine,
-          trentaine,
-          centaine,
-          millier,
-          million,
-          milliard,
-          partie,
-          infinité,
-          quantité,
-          multitude,
-          série,
-          masse,
-          tas,
-          genre,
-          sorte,
-          espèce,
-          type,
-          essaim,
-          groupe,
-          bande,
-          troupe,
-          troupeau,
-          nuée,
-          poignée,
-          flopée,
-          kyrielle,
-          horde,
-          meute,
-          myriade,
-          ribambelle,
-          tonne,
-        ]
+      COLLECTIVES: >-
+        plupart peu nombre majorité minorité reste foule totalité ensemble moitié tiers quart
+        dizaine douzaine vingtaine trentaine centaine millier million milliard partie infinité
+        quantité multitude série masse tas genre sorte espèce type essaim groupe bande troupe
+        troupeau nuée poignée flopée kyrielle horde meute myriade ribambelle tonne
       # "Chaque jour des fonctions sont ajoutées", "neuf heures lui conviendrait": a time or a
       # measure, not the subject the verb agrees with.
-      TIME_OR_MEASURE:
-        [
-          jour,
-          matin,
-          soir,
-          nuit,
-          semaine,
-          mois,
-          an,
-          année,
-          siècle,
-          heure,
-          minute,
-          seconde,
-          instant,
-          moment,
-          fois,
-          hiver,
-          été,
-          automne,
-          printemps,
-          lendemain,
-          veille,
-          midi,
-          lundi,
-          mardi,
-          mercredi,
-          jeudi,
-          vendredi,
-          samedi,
-          dimanche,
-          euro,
-          dollar,
-          franc,
-          centime,
-          kilo,
-          gramme,
-          kilogramme,
-          mètre,
-          kilomètre,
-          litre,
-          degré,
-          pour,
-        ]
-      AGR_CLAUSE_OPENERS:
-        [
-          mais,
-          car,
-          donc,
-          que,
-          qu',
-          quand,
-          si,
-          lorsque,
-          lorsqu',
-          puisque,
-          puisqu',
-          alors,
-          pourquoi,
-          cependant,
-          pourtant,
-        ]
+      TIME_OR_MEASURE: >-
+        jour matin soir nuit semaine mois an année siècle heure minute seconde instant moment fois
+        hiver été automne printemps lendemain veille midi lundi mardi mercredi jeudi vendredi samedi
+        dimanche euro dollar franc centime kilo gramme kilogramme mètre kilomètre litre degré pour
+      AGR_CLAUSE_OPENERS: >-
+        mais car donc que qu' quand si lorsque lorsqu' puisque puisqu' alors pourquoi cependant
+        pourtant
       # "aussi bien que", "plus vite que", "ne connaissent que": "que" compares or restricts there.
-      COMPARING:
-        [
-          plus,
-          moins,
-          aussi,
-          autant,
-          si,
-          tant,
-          bien,
-          mieux,
-          pire,
-          même,
-          autre,
-          autres,
-          ainsi,
-          ne,
-          n',
-          rien,
-          tel,
-          tels,
-          telle,
-          telles,
-        ]
-      AGR_NOT_HEADS:
-        [
-          plus,
-          moins,
-          mieux,
-          tant,
-          trop,
-          peu,
-          que,
-          qu',
-          dont,
-          qui,
-          quoi,
-          ne,
-          n',
-          des,
-          du,
-          de,
-          d',
-          un,
-          une,
-          lequel,
-          laquelle,
-          lesquels,
-          lesquelles,
-        ]
+      COMPARING: >-
+        plus moins aussi autant si tant bien mieux pire même autre autres ainsi ne n' rien tel tels
+        telle telles
+      AGR_NOT_HEADS: >-
+        plus moins mieux tant trop peu que qu' dont qui quoi ne n' des du de d' un une lequel
+        laquelle lesquels lesquelles
       AUXILIARY_HOMOGRAPHS: [est, a]
       # Determiners that open a verb's object and never follow a participle: "fait du bruit".
-      AGR_OBJECT_DETERMINERS:
-        [
-          du,
-          des,
-          un,
-          une,
-          mon,
-          ma,
-          mes,
-          ton,
-          ta,
-          tes,
-          son,
-          sa,
-          ses,
-          notre,
-          nos,
-          votre,
-          vos,
-          leurs,
-          cette,
-          ces,
-        ]
+      AGR_OBJECT_DETERMINERS: >-
+        du des un une mon ma mes ton ta tes son sa ses notre nos votre vos leurs cette ces
       # Number words that stand for a plural determiner or follow one: "les dix maisons".
-      AGR_NUMBERS:
-        [
-          deux,
-          trois,
-          quatre,
-          cinq,
-          six,
-          sept,
-          huit,
-          neuf,
-          dix,
-          onze,
-          douze,
-          treize,
-          quatorze,
-          quinze,
-          seize,
-          vingt,
-          trente,
-          quarante,
-          cinquante,
-          soixante,
-          cent,
-          mille,
-          plusieurs,
-          quelques,
-        ]
+      AGR_NUMBERS: >-
+        deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize vingt
+        trente quarante cinquante soixante cent mille plusieurs quelques
       # "Le prix des maisons", "les enfants dans le jardin": a complement between the head and its
       # verb.
-      COMPLEMENT_PREPOSITIONS:
-        [
-          de,
-          d',
-          du,
-          des,
-          dans,
-          sur,
-          sous,
-          entre,
-          avec,
-          chez,
-          à,
-          au,
-          aux,
-          par,
-          pour,
-          vers,
-          contre,
-          sans,
-        ]
+      COMPLEMENT_PREPOSITIONS: >-
+        de d' du des dans sur sous entre avec chez à au aux par pour vers contre sans
       # Words before a noun phrase that make it a complement, not the start of a list.
-      AGR_PREPOSITIONS:
-        [
-          de,
-          d',
-          du,
-          des,
-          à,
-          au,
-          aux,
-          en,
-          dans,
-          sur,
-          sous,
-          pour,
-          par,
-          avec,
-          sans,
-          chez,
-          après,
-          avant,
-          depuis,
-          pendant,
-          entre,
-          vers,
-          selon,
-          malgré,
-          contre,
-          durant,
-          dès,
-        ]
+      AGR_PREPOSITIONS: >-
+        de d' du des à au aux en dans sur sous pour par avec sans chez après avant depuis pendant
+        entre vers selon malgré contre durant dès
       PREDETERMINERS: [tous, toutes, seuls, seules]
       AGR_QUANTIFIERS: [certains, certaines, quelques]
       AGR_DEGREE: [très, si, trop, plus, bien, assez]
-      FRENCH_ADVERBS:
-        [ici, hier, demain, toujours, souvent, parfois, rarement, déjà, encore, aussi, également]
+      FRENCH_ADVERBS: >-
+        ici hier demain toujours souvent parfois rarement déjà encore aussi également
       # Words that end a subordinate clause's reach: another clause or a coordination starts.
-      CLAUSE_STOPS:
-        [
-          que,
-          qu',
-          qui,
-          dont,
-          où,
-          et,
-          ou,
-          mais,
-          si,
-          comme,
-          car,
-          donc,
-          lorsque,
-          lorsqu',
-          quand,
-          puisque,
-          puisqu',
-          je,
-          j',
-          tu,
-          il,
-          elle,
-          "on",
-          ils,
-          elles,
-          ni,
-        ]
+      CLAUSE_STOPS: >-
+        que qu' qui dont où et ou mais si comme car donc lorsque lorsqu' quand puisque puisqu' je j'
+        tu il elle on ils elles ni
       MARKING_CLITICS: [ne, n', me, m', te, t', se, s', lui, "y"]
       # Words before a noun phrase that make it an object whose relative clause agrees with it:
       # "voici les enfants qui jouent". After a preposition the phrase may complement a noun
@@ -4446,129 +3216,17 @@ rules:
       OBJECT_OPENERS: [voici, voilà]
       # Verbs a question may follow ("demande aux enfants qui veut venir"): "qui" may ask, not
       # relate.
-      AGR_ASKING:
-        [
-          demander,
-          dire,
-          savoir,
-          expliquer,
-          indiquer,
-          montrer,
-          raconter,
-          décider,
-          ignorer,
-          choisir,
-          deviner,
-        ]
+      AGR_ASKING: >-
+        demander dire savoir expliquer indiquer montrer raconter décider ignorer choisir deviner
       # Capitalized function words that open sentences or titles, which the verb and noun lists
       # leave out: never names.
-      NOT_NAMES:
-        [
-          ce,
-          cet,
-          cette,
-          ces,
-          ne,
-          me,
-          te,
-          se,
-          le,
-          la,
-          les,
-          lui,
-          leur,
-          qui,
-          que,
-          quoi,
-          quel,
-          quels,
-          quelle,
-          quelles,
-          tel,
-          tels,
-          telle,
-          telles,
-          pour,
-          par,
-          sur,
-          sous,
-          sans,
-          si,
-          ni,
-          mais,
-          car,
-          donc,
-          de,
-          du,
-          des,
-          dans,
-          chez,
-          vers,
-          voici,
-          voilà,
-          ça,
-          cela,
-          ceci,
-          celui,
-          celle,
-          ceux,
-          celles,
-          moi,
-          toi,
-          soi,
-          eux,
-          rien,
-          tout,
-          tous,
-          toute,
-          toutes,
-          chaque,
-          chacun,
-          chacune,
-          certains,
-          certaines,
-          plusieurs,
-          plus,
-          moins,
-          très,
-          trop,
-          peu,
-          beaucoup,
-          bien,
-          mal,
-          non,
-          puis,
-          quand,
-          comme,
-          comment,
-          pourquoi,
-          combien,
-          depuis,
-          pendant,
-          selon,
-          malgré,
-          parmi,
-          seul,
-          seule,
-          seuls,
-          seules,
-          nul,
-          nulle,
-          sauf,
-          mon,
-          ton,
-          son,
-          ma,
-          ta,
-          sa,
-          mes,
-          tes,
-          ses,
-          notre,
-          votre,
-          nos,
-          vos,
-        ]
+      NOT_NAMES: >-
+        ce cet cette ces ne me te se le la les lui leur qui que quoi quel quels quelle quelles tel
+        tels telle telles pour par sur sous sans si ni mais car donc de du des dans chez vers voici
+        voilà ça cela ceci celui celle ceux celles moi toi soi eux rien tout tous toute toutes
+        chaque chacun chacune certains certaines plusieurs plus moins très trop peu beaucoup bien
+        mal non puis quand comme comment pourquoi combien depuis pendant selon malgré parmi seul
+        seule seuls seules nul nulle sauf mon ton son ma ta sa mes tes ses notre votre nos vos
       # Pronouns between the opener and the verb; "le", "la", "les" may open the subject instead.
       INVERTED_CLITICS: [ne, n', se, s', "y", en, me, m', te, t', lui, leur]
       STRESSED_PRONOUNS: [moi, toi, lui, elle, nous, vous, eux, elles]
@@ -5795,8 +4453,8 @@ rules:
       # Words after which an elided form reads differently.
       NOT_A_WORD_AFTER: [à, a, ou, où, et, est, en, au, aux]
       ELISION_ARTICLES: [le, la, les, un, une, du, des, ce]
-      NOT_AFTER_ARTICLE:
-        [il, ils, elle, elles, "on", aussi, encore, avec, ici, ensuite, alors, après, aujourd'hui]
+      NOT_AFTER_ARTICLE: >-
+        il ils elle elles on aussi encore avec ici ensuite alors après aujourd'hui
       # Letters a text may use as variables ("si c divise a, alors c est premier").
       VARIABLE_LETTERS: [c, d, l, m, n, s, t]
       # Conjunctions ending in "que" elide only before these.
@@ -5807,143 +4465,19 @@ rules:
       PRONOUN_AFTER: [en, y]
       # Function words the verb and noun lists leave out that begin like an elision: "ma" is no
       # "m'a", "quelle" no "qu'elle", "davantage" no "d'avantage".
-      GLUED_LOOKALIKES:
-        [
-          ma,
-          ta,
-          sa,
-          mon,
-          ton,
-          son,
-          mes,
-          tes,
-          ses,
-          les,
-          des,
-          dès,
-          lui,
-          leur,
-          leurs,
-          là,
-          quel,
-          quelle,
-          quels,
-          quelles,
-          quoi,
-          qui,
-          quand,
-          quant,
-          quelque,
-          quelques,
-          quiconque,
-          davantage,
-          dont,
-          dans,
-          donc,
-          devant,
-          depuis,
-          derrière,
-          déjà,
-          demain,
-          dedans,
-          dehors,
-          jamais,
-          jusque,
-          jusqu,
-          lorsque,
-          loin,
-          longtemps,
-          maintenant,
-          moins,
-          même,
-          mêmes,
-          malgré,
-          mais,
-          ni,
-          non,
-          nous,
-          toujours,
-          tout,
-          toute,
-          tous,
-          toutes,
-          trop,
-          très,
-          tard,
-          tôt,
-          tant,
-          selon,
-          sans,
-          sous,
-          sur,
-          si,
-          soit,
-          sauf,
-          seulement,
-          souvent,
-          lequel,
-          laquelle,
-          lesquels,
-          lesquelles,
-          duquel,
-          desquels,
-          auquel,
-          le,
-          la,
-          de,
-          du,
-          ne,
-          me,
-          te,
-          se,
-          ce,
-          je,
-          tu,
-          il,
-          elle,
-          "on",
-          ils,
-          elles,
-          notre,
-          votre,
-          nos,
-          vos,
-          mien,
-          tien,
-          sien,
-          tandis,
-          tantôt,
-          dorénavant,
-          désormais,
-          jadis,
-          lors,
-        ]
+      GLUED_LOOKALIKES: >-
+        ma ta sa mon ton son mes tes ses les des dès lui leur leurs là quel quelle quels quelles
+        quoi qui quand quant quelque quelques quiconque davantage dont dans donc devant depuis
+        derrière déjà demain dedans dehors jamais jusque jusqu lorsque loin longtemps maintenant
+        moins même mêmes malgré mais ni non nous toujours tout toute tous toutes trop très tard tôt
+        tant selon sans sous sur si soit sauf seulement souvent lequel laquelle lesquels lesquelles
+        duquel desquels auquel le la de du ne me te se ce je tu il elle on ils elles notre votre nos
+        vos mien tien sien tandis tantôt dorénavant désormais jadis lors
       S_AFTER: [il, ils, en, y, est, était]
       D_AFTER: [un, une, en, où, autres, abord, accord, ailleurs]
-      QU_AFTER:
-        [
-          il,
-          ils,
-          elle,
-          elles,
-          "on",
-          un,
-          une,
-          en,
-          aucun,
-          aucune,
-          avec,
-          à,
-          au,
-          aux,
-          ont,
-          ici,
-          alors,
-          ainsi,
-          après,
-          avant,
-          entre,
-        ]
+      QU_AFTER: >-
+        il ils elle elles on un une en aucun aucune avec à au aux ont ici alors ainsi après avant
+        entre
       SIL_DETERMINERS: [le, les, un, des, du, au, aux, ce, ces, son, ses, mon, ton, leur]
       SINGULAR_MASCULINE: [un, le, ce, cet, mon, ton, son, notre, votre, leur, du, au]
     maps:
@@ -6333,231 +4867,45 @@ rules:
     sets:
       # Numbers also name things ("le numéro deux allemand", "tous les trois été"): left out.
       NUMBER_PLURAL: [les, des, mes, tes, ses, nos, vos, leurs, ces, aux, plusieurs, quelques]
-      NUMBER_SINGULAR:
-        [le, la, un, une, mon, ma, ton, ta, son, sa, ce, cet, cette, au, du, chaque, notre, votre]
+      NUMBER_SINGULAR: >-
+        le la un une mon ma ton ta son sa ce cet cette au du chaque notre votre
       # Determiners that are also object pronouns before a verb ("je les aime", "tu la portes").
       NUMBER_CLITIC: [le, la, les]
       # Words after a plural determiner that are no singular nouns: adverbs ("les trop nombreux"),
       # "quelque" (about), numbers ("les quatre"); days and months stay singular after a
       # distributive "les" ("les lundi et mardi"); "un tiens vaut mieux que deux tu l'auras": the
       # proverb's noun.
-      NUMBER_NOT_NOUNS:
-        [
-          tout,
-          peu,
-          trop,
-          bien,
-          mal,
-          fort,
-          très,
-          plus,
-          moins,
-          quelque,
-          environ,
-          même,
-          autant,
-          presque,
-          leur,
-          quatre,
-          cinq,
-          six,
-          sept,
-          huit,
-          neuf,
-          onze,
-          douze,
-          treize,
-          quatorze,
-          quinze,
-          seize,
-          vingt,
-          trente,
-          quarante,
-          cinquante,
-          soixante,
-          cent,
-          mille,
-          un,
-          une,
-          super,
-          méga,
-          mini,
-          maxi,
-          extra,
-          ultra,
-          hyper,
-          multi,
-          anti,
-          ex,
-          néo,
-          lundi,
-          mardi,
-          mercredi,
-          jeudi,
-          vendredi,
-          samedi,
-          dimanche,
-          janvier,
-          février,
-          mars,
-          avril,
-          mai,
-          juin,
-          juillet,
-          août,
-          septembre,
-          octobre,
-          novembre,
-          décembre,
-          tiens,
-          rien,
-        ]
+      NUMBER_NOT_NOUNS: >-
+        tout peu trop bien mal fort très plus moins quelque environ même autant presque leur quatre
+        cinq six sept huit neuf onze douze treize quatorze quinze seize vingt trente quarante
+        cinquante soixante cent mille un une super méga mini maxi extra ultra hyper multi anti ex
+        néo lundi mardi mercredi jeudi vendredi samedi dimanche janvier février mars avril mai juin
+        juillet août septembre octobre novembre décembre tiens rien
       # "-al" and "-au/-eu" plurals that take an s.
-      PLURAL_IN_S:
-        [
-          bal,
-          carnaval,
-          chacal,
-          festival,
-          récital,
-          régal,
-          cal,
-          naval,
-          fatal,
-          natal,
-          banal,
-          final,
-          bleu,
-          pneu,
-          landau,
-          sarrau,
-          émeu,
-        ]
+      PLURAL_IN_S: >-
+        bal carnaval chacal festival récital régal cal naval fatal natal banal final bleu pneu
+        landau sarrau émeu
       # Nouns after a figure that name a place or a score, not a count ("au 12 rue", "à 3 contre
       # 1"), and abbreviations ("5 min", "2 vol.").
-      NOT_COUNTED:
-        [
-          rue,
-          avenue,
-          boulevard,
-          place,
-          allée,
-          impasse,
-          chemin,
-          quai,
-          route,
-          contre,
-          min,
-          max,
-          hab,
-          vol,
-        ]
-      NUMBER_DETERMINERS:
-        [
-          deux,
-          trois,
-          quatre,
-          cinq,
-          six,
-          sept,
-          huit,
-          dix,
-          onze,
-          douze,
-          treize,
-          quatorze,
-          quinze,
-          seize,
-          vingt,
-          trente,
-          quarante,
-          cinquante,
-          soixante,
-          cent,
-          mille,
-        ]
+      NOT_COUNTED: >-
+        rue avenue boulevard place allée impasse chemin quai route contre min max hab vol
+      NUMBER_DETERMINERS: >-
+        deux trois quatre cinq six sept huit dix onze douze treize quatorze quinze seize vingt
+        trente quarante cinquante soixante cent mille
       # Labels a number names a rank or an item after: "numéro deux", "page trois", "chapitre dix".
-      RANKS:
-        [
-          numéro,
-          page,
-          chapitre,
-          article,
-          tome,
-          acte,
-          scène,
-          étage,
-          rang,
-          "n°",
-          volume,
-          livre,
-          partie,
-          leçon,
-        ]
+      RANKS: >-
+        numéro page chapitre article tome acte scène étage rang n° volume livre partie leçon
       # Adjectives that stand before their noun; the masculine forms in s or x ("gros", "vieux")
       # show no number and are left out.
-      PRENOMINAL_BASES:
-        [
-          grand,
-          grande,
-          petit,
-          petite,
-          grosse,
-          beau,
-          belle,
-          bon,
-          bonne,
-          mauvaise,
-          jeune,
-          vieille,
-          nouveau,
-          nouvelle,
-          joli,
-          jolie,
-          long,
-          longue,
-          haut,
-          haute,
-          vrai,
-          vraie,
-          fausse,
-          propre,
-          premier,
-          première,
-          dernier,
-          dernière,
-          prochain,
-          prochaine,
-          seul,
-          seule,
-          même,
-          autre,
-          meilleur,
-          meilleure,
-          pire,
-          gentil,
-          gentille,
-          excellent,
-          excellente,
-        ]
+      PRENOMINAL_BASES: >-
+        grand grande petit petite grosse beau belle bon bonne mauvaise jeune vieille nouveau
+        nouvelle joli jolie long longue haut haute vrai vraie fausse propre premier première dernier
+        dernière prochain prochaine seul seule même autre meilleur meilleure pire gentil gentille
+        excellent excellente
       DEGREE_WORDS: [plus, moins, très, si, aussi, trop]
       # Nouns that stay singular in apposition: "des idées choc", "des dates limite".
-      APPOSITIVE_NOUNS:
-        [
-          clé,
-          choc,
-          culte,
-          limite,
-          phare,
-          pilote,
-          type,
-          éclair,
-          record,
-          modèle,
-          témoin,
-          maison,
-          minute,
-        ]
+      APPOSITIVE_NOUNS: >-
+        clé choc culte limite phare pilote type éclair record modèle témoin maison minute
       # Words in the adjective slot that are determiners: "au moins certaines règles".
       NOT_SUPERLATIVES: [certain, certaine, certains, certaines, autre, autres, même, mêmes]
     maps:
@@ -6841,55 +5189,14 @@ rules:
     sets:
       # Adverbs and prefixes written apart that sit between a determiner and its noun ("une tout
       # autre", "la post saison", "la vice présidente").
-      GENDER_NOT_HEADS:
-        [
-          tout,
-          bien,
-          mieux,
-          plus,
-          moins,
-          très,
-          trop,
-          peu,
-          mini,
-          maxi,
-          post,
-          pré,
-          anti,
-          ex,
-          super,
-          hyper,
-          ultra,
-          vice,
-        ]
+      GENDER_NOT_HEADS: >-
+        tout bien mieux plus moins très trop peu mini maxi post pré anti ex super hyper ultra vice
       GENDER_FEMININE: [une, la, cette, ma, ta, sa, aucune]
       NEVER_PRONOUNS: [cette, cet, mon, ton, du, au, aucun, aucune]
       # "il est la demain": "là" before an adverb, which the homophone check offers.
-      LA_ADVERB_FOLLOWERS:
-        [
-          depuis,
-          pour,
-          avec,
-          dans,
-          chez,
-          parmi,
-          devant,
-          derrière,
-          maintenant,
-          aujourd'hui,
-          hier,
-          demain,
-          déjà,
-          encore,
-          toujours,
-          aussi,
-          quand,
-          mais,
-          car,
-          parce,
-          et,
-          ou,
-        ]
+      LA_ADVERB_FOLLOWERS: >-
+        depuis pour avec dans chez parmi devant derrière maintenant aujourd'hui hier demain déjà
+        encore toujours aussi quand mais car parce et ou
     defs:
       GENDER_VOWEL: /^[aeiouyâàäéèêëîïôöûùüœæ]/i
       # A verb form that no other entry spells.
@@ -6998,426 +5305,106 @@ rules:
     # gender comes from the determiner or the noun; adjective forms from the dictionary's gender
     # flags.
     sets:
-      ADJ_LINKING:
-        [
-          est,
-          sont,
-          était,
-          étaient,
-          sera,
-          seront,
-          serait,
-          seraient,
-          fut,
-          furent,
-          soit,
-          soient,
-          semble,
-          semblent,
-          paraît,
-          paraissent,
-          devient,
-          deviennent,
-          reste,
-          restent,
-          demeure,
-          demeurent,
-        ]
-      ADJ_ADVERBS:
-        [
-          très,
-          si,
-          trop,
-          assez,
-          plus,
-          moins,
-          bien,
-          fort,
-          peu,
-          vraiment,
-          toujours,
-          encore,
-          déjà,
-          souvent,
-          rien,
-          pas,
-          jamais,
-          donc,
-          pourtant,
-          aussi,
-          parfois,
-          enfin,
-          alors,
-          certes,
-          presque,
-          absolument,
-          guère,
-          point,
-          particulièrement,
-          extrêmement,
-          totalement,
-          complètement,
-          entièrement,
-          désormais,
-          beaucoup,
-          tellement,
-          longtemps,
-        ]
-      ADJ_PREPOSITIONS:
-        [
-          pour,
-          sur,
-          dans,
-          avec,
-          sans,
-          sous,
-          chez,
-          vers,
-          entre,
-          selon,
-          malgré,
-          pendant,
-          depuis,
-          contre,
-          devant,
-          derrière,
-        ]
+      ADJ_LINKING: >-
+        est sont était étaient sera seront serait seraient fut furent soit soient semble semblent
+        paraît paraissent devient deviennent reste restent demeure demeurent
+      ADJ_ADVERBS: >-
+        très si trop assez plus moins bien fort peu vraiment toujours encore déjà souvent rien pas
+        jamais donc pourtant aussi parfois enfin alors certes presque absolument guère point
+        particulièrement extrêmement totalement complètement entièrement désormais beaucoup
+        tellement longtemps
+      ADJ_PREPOSITIONS: >-
+        pour sur dans avec sans sous chez vers entre selon malgré pendant depuis contre devant
+        derrière
       # Words after which a noun phrase or a pronoun opens a clause.
-      ADJ_OPENERS:
-        [mais, car, donc, que, qu', quand, si, lorsque, lorsqu', puisque, puisqu', comme, où, alors]
+      ADJ_OPENERS: >-
+        mais car donc que qu' quand si lorsque lorsqu' puisque puisqu' comme où alors
       # "bleu clair", "bon marché": a compound color or price is invariable.
-      COMPOUND_SECOND:
-        [
-          clair,
-          foncé,
-          vif,
-          pâle,
-          marine,
-          ciel,
-          nuit,
-          roi,
-          électrique,
-          canard,
-          pétrole,
-          sombre,
-          marché,
-          cri,
-          devant,
-          public,
-          sur,
-        ]
+      COMPOUND_SECOND: >-
+        clair foncé vif pâle marine ciel nuit roi électrique canard pétrole sombre marché cri devant
+        public sur
       # Adjective entries that are mostly something else here: prepositions ("sur"), numbers
       # ("un", "neuf"), invariable colors ("marron"), determiners ("certain", "tel"), adjectives
       # used as adverbs ("plus haut", "voir clair", "coûter cher").
-      NOT_ADJECTIVES:
-        [
-          sur,
-          un,
-          neuf,
-          marron,
-          orange,
-          kaki,
-          cerise,
-          crème,
-          olive,
-          paille,
-          saumon,
-          turquoise,
-          bordeaux,
-          certain,
-          tel,
-          nul,
-          aucun,
-          même,
-          autre,
-          tors,
-          soudain,
-          client,
-          cadre,
-          modèle,
-          type,
-          standard,
-          clé,
-          haut,
-          bas,
-          fort,
-          cher,
-          juste,
-          net,
-          clair,
-          faux,
-          droit,
-        ]
+      NOT_ADJECTIVES: >-
+        sur un neuf marron orange kaki cerise crème olive paille saumon turquoise bordeaux certain
+        tel nul aucun même autre tors soudain client cadre modèle type standard clé haut bas fort
+        cher juste net clair faux droit
       # Of those, the ones that are plain adjectives after être: "les actions sont fortes".
       PREDICATE_ADJECTIVES: [haut, bas, fort, cher, juste, net, clair, faux, droit]
       # Nouns that open adverbial or quantity phrases ("un peu", "la plupart", "l'air").
-      ADJ_NOT_NOUNS:
-        [
-          peu,
-          plupart,
-          air,
-          autre,
-          tout,
-          rien,
-          reste,
-          moins,
-          plus,
-          point,
-          fait,
-          cas,
-          soit,
-          fois,
-          pas,
-          avant,
-          devant,
-          derrière,
-          dessus,
-          dessous,
-          arrière,
-          environ,
-          abord,
-        ]
+      ADJ_NOT_NOUNS: >-
+        peu plupart air autre tout rien reste moins plus point fait cas soit fois pas avant devant
+        derrière dessus dessous arrière environ abord
       # Nouns a "que" clause may complete rather than qualify: "l'idée que tu as compris".
-      COMPLETED_NOUNS:
-        [
-          impression,
-          idée,
-          sentiment,
-          espoir,
-          peur,
-          crainte,
-          certitude,
-          preuve,
-          conviction,
-          hypothèse,
-          sensation,
-          illusion,
-          opinion,
-          avis,
-          pensée,
-          constat,
-          conclusion,
-          signe,
-          garantie,
-          assurance,
-        ]
+      COMPLETED_NOUNS: >-
+        impression idée sentiment espoir peur crainte certitude preuve conviction hypothèse
+        sensation illusion opinion avis pensée constat conclusion signe garantie assurance
       # Adverbs of three words: "petit à petit", "peu à peu", "tout à fait".
       ADVERB_TRIPLES: ["petit à petit", "peu à peu", "pas à pas", "tout à fait", "tout de suite"]
       ADVERB_PAIRS:
         ["par conséquent", "bien entendu", "pour autant", "de nouveau", "en effet", "sans doute"]
       # Adjectives that stand before their noun: "la petite maison".
-      ADJ_PRENOMINAL:
-        [
-          grand,
-          petit,
-          beau,
-          bon,
-          nouveau,
-          vieux,
-          jeune,
-          joli,
-          gros,
-          long,
-          haut,
-          mauvais,
-          premier,
-          dernier,
-          seul,
-          vrai,
-          faux,
-          meilleur,
-        ]
+      ADJ_PRENOMINAL: >-
+        grand petit beau bon nouveau vieux jeune joli gros long haut mauvais premier dernier seul
+        vrai faux meilleur
       # Words that stay as they are before a noun ("une demi-heure", "feu la reine", "nu-pieds").
       FIXED_BEFORE_NOUN: [demi, mi, semi, nu, feu, plein, saint, sainte]
       DEGREE_BEFORE: [très, si, plus, moins, aussi, trop, bien, assez]
       # Adjective entries that are prepositions before a determiner: "pendant des années".
-      PREPOSITION_LIKE:
-        [pendant, durant, suivant, concernant, touchant, moyennant, excepté, passé, vu]
+      PREPOSITION_LIKE: >-
+        pendant durant suivant concernant touchant moyennant excepté passé vu
       LINKING_LEMMAS: [être, sembler, paraître, devenir, rester, demeurer]
       ADJ_MODALS: [pouvoir, devoir, sembler, paraître, aller, vouloir]
       ADJ_INDIRECT_OBJECTS: [me, m', te, t', lui, leur, nous, vous]
       CAUSATIVES: [laisser, faire, voir, entendre, sentir, regarder]
       # Quantity nouns whose predicate may agree with their complement: "la moitié des invités
       # sont partis".
-      ADJ_QUANTITIES:
-        [
-          plupart,
-          moitié,
-          majorité,
-          minorité,
-          partie,
-          totalité,
-          ensemble,
-          reste,
-          nombre,
-          foule,
-          tiers,
-          quart,
-          dizaine,
-          douzaine,
-          vingtaine,
-          centaine,
-          millier,
-          multitude,
-          série,
-          quantité,
-          infinité,
-          masse,
-        ]
+      ADJ_QUANTITIES: >-
+        plupart moitié majorité minorité partie totalité ensemble reste nombre foule tiers quart
+        dizaine douzaine vingtaine centaine millier multitude série quantité infinité masse
       SUBJECT_PREDETERMINERS: [seul, seule, seuls, seules, tous, toutes]
       # Verbs of coming, going and staying with no object, after which an adjective describes the
       # subject: "elle arrive essoufflée", "ils partent seuls".
-      STATE_VERBS:
-        [
-          arriver,
-          partir,
-          repartir,
-          sortir,
-          ressortir,
-          revenir,
-          rentrer,
-          venir,
-          retourner,
-          mourir,
-          naître,
-          tomber,
-          rester,
-          demeurer,
-          vivre,
-          dormir,
-        ]
+      STATE_VERBS: >-
+        arriver partir repartir sortir ressortir revenir rentrer venir retourner mourir naître
+        tomber rester demeurer vivre dormir
       STATE_MODALS: [pouvoir, devoir, vouloir, penser, aller, espérer]
       ADJ_REFLEXIVE: [se, s', me, m', te, t', nous, vous]
       # Verbs whose reflexive pronoun is an indirect object, so their participle stays
       # invariable: "ils se sont parlé", "elles se sont plu".
-      INDIRECT_REFLEXIVES:
-        [
-          parler,
-          téléphoner,
-          succéder,
-          plaire,
-          complaire,
-          déplaire,
-          sourire,
-          rire,
-          nuire,
-          mentir,
-          ressembler,
-          suffire,
-          convenir,
-          survivre,
-          écrire,
-          dire,
-          demander,
-          promettre,
-          permettre,
-          donner,
-          envoyer,
-          offrir,
-          acheter,
-          arroger,
-          imaginer,
-          figurer,
-          jurer,
-          répondre,
-          adresser,
-          rendre,
-        ]
+      INDIRECT_REFLEXIVES: >-
+        parler téléphoner succéder plaire complaire déplaire sourire rire nuire mentir ressembler
+        suffire convenir survivre écrire dire demander promettre permettre donner envoyer offrir
+        acheter arroger imaginer figurer jurer répondre adresser rendre
       ADJ_OBJECT_CLITICS: [le, la, les, l', me, m', te, t', se, s', nous, vous, en]
       ADJ_COORDINATORS: [et, ou, mais, car, puis]
       # Words that put a direct object before the verb: "quelles pommes vous avez mangées".
-      FRONTED:
-        [que, qu', quel, quelle, quels, quelles, combien, lequel, laquelle, lesquels, lesquelles]
+      FRONTED: >-
+        que qu' quel quelle quels quelles combien lequel laquelle lesquels lesquelles
       INDIRECT_CLITICS: [lui, leur]
       # Participles that stay invariable after "que": an infinitive is understood ("tous les
       # efforts que j'ai pu"), or "que" measures ("les heures que j'ai dormi").
-      INVARIABLE_PARTICIPLES:
-        [
-          pu,
-          dû,
-          voulu,
-          su,
-          cru,
-          pensé,
-          fallu,
-          valu,
-          coûté,
-          pesé,
-          mesuré,
-          vécu,
-          duré,
-          couru,
-          dormi,
-          marché,
-          régné,
-        ]
+      INVARIABLE_PARTICIPLES: >-
+        pu dû voulu su cru pensé fallu valu coûté pesé mesuré vécu duré couru dormi marché régné
       # Words before "que" that make it a conjunction, not a relative pronoun: "alors qu'elle a".
-      CONJUNCTION_LEADS:
-        [
-          alors,
-          après,
-          avant,
-          pendant,
-          tandis,
-          parce,
-          bien,
-          sorte,
-          ainsi,
-          dès,
-          depuis,
-          pour,
-          afin,
-          sans,
-          lors,
-        ]
-      PAIR_STOPS:
-        [quelques, plusieurs, certains, certaines, divers, diverses, différents, différentes]
+      CONJUNCTION_LEADS: >-
+        alors après avant pendant tandis parce bien sorte ainsi dès depuis pour afin sans lors
+      PAIR_STOPS: >-
+        quelques plusieurs certains certaines divers diverses différents différentes
       THIRD_PERSONS: [il, elle, ils, elles]
       TEL_LINKS: [est, sont, était, étaient, fut, furent, sera, seront]
       SUBJECT_WORDS: [je, j', tu, il, elle, "on", nous, vous, ils, elles, ce, c', cela, ça]
-      RELATIVE_PREPOSITIONS:
-        [
-          avec,
-          pour,
-          sur,
-          dans,
-          par,
-          sans,
-          chez,
-          contre,
-          entre,
-          parmi,
-          sous,
-          vers,
-          selon,
-          malgré,
-          devant,
-          derrière,
-          à,
-        ]
+      RELATIVE_PREPOSITIONS: >-
+        avec pour sur dans par sans chez contre entre parmi sous vers selon malgré devant derrière à
       INVERTING: [comment, où, quand]
       # "De chaque côté", "Au fond du jardin": a preposition that opens the clause. "de" counts
       # only before a determiner ("De nombreux enfants" is an article).
-      OPENING_PREPOSITIONS:
-        [de, d', à, au, aux, dans, sur, sous, devant, derrière, entre, parmi, chez, près, en]
+      OPENING_PREPOSITIONS: >-
+        de d' à au aux dans sur sous devant derrière entre parmi chez près en
       # "sont venus le soir": a time after the participle is no subject.
-      ADJ_TIME_NOUNS:
-        [
-          jour,
-          soir,
-          matin,
-          nuit,
-          mois,
-          an,
-          année,
-          semaine,
-          lendemain,
-          veille,
-          week-end,
-          heure,
-          moment,
-          fois,
-        ]
+      ADJ_TIME_NOUNS: >-
+        jour soir matin nuit mois an année semaine lendemain veille week-end heure moment fois
     maps:
       # Determiners with the gender (null: either) and number they show.
       ADJ_DETERMINERS:
@@ -9272,31 +7259,9 @@ rules:
       TOUT_NUMERALS: [deux, trois, quatre, cinq, six, sept, huit, neuf, dix]
       # Words between a plural determiner and its noun that say nothing of its gender.
       PRE_NOUN: [autres, premiers, premières, derniers, dernières, mêmes]
-      TOUT_PREPOSITIONS:
-        [
-          à,
-          de,
-          d',
-          pour,
-          par,
-          dans,
-          sur,
-          sous,
-          avec,
-          sans,
-          chez,
-          vers,
-          entre,
-          après,
-          avant,
-          contre,
-          pendant,
-          malgré,
-          selon,
-          et,
-          ou,
-          mais,
-        ]
+      TOUT_PREPOSITIONS: >-
+        à de d' pour par dans sur sous avec sans chez vers entre après avant contre pendant malgré
+        selon et ou mais
       # Idioms whose "tout" is right as written before a feminine noun.
       TOUT_IDIOMS: [ouïe, flamme, chose, pile, laine, soie, honte]
       # Words after a noun that make it the noun ("tout trace de", "tout confiance en lui").
@@ -9308,8 +7273,8 @@ rules:
       TOUT_ARTICLES: [un, une, des, du]
       # "une toute", "elle est toute": an article or être before "toute"; "en avant toute": the
       # fixed phrase.
-      ARTICLE_OR_ETRE:
-        [une, la, cette, sa, ma, ta, est, était, sera, fut, soit, reste, semble, paraît, avant]
+      ARTICLE_OR_ETRE: >-
+        une la cette sa ma ta est était sera fut soit reste semble paraît avant
       TOUT_SINGULAR_SUBJECTS: [je, "j'", tu, il, elle]
       TOUT_PLURAL_CLITICS: [les, nous, vous, leur, en]
     defs:
@@ -9761,58 +7726,15 @@ rules:
       # Words after which a noun phrase continues with a complement: the verb is further on.
       MOOD_COMPLEMENT: [de, d', du, des, qui, que, qu', dont, où, à, au, aux]
       # Triggers of the subjunctive just before "que".
-      WILL_LEMMAS:
-        [
-          vouloir,
-          souhaiter,
-          exiger,
-          ordonner,
-          désirer,
-          préférer,
-          aimer,
-          falloir,
-          craindre,
-          redouter,
-          regretter,
-          douter,
-          attendre,
-          permettre,
-          refuser,
-          interdire,
-          empêcher,
-          suffire,
-          demander,
-          déplorer,
-          détester,
-          plaire,
-        ]
+      WILL_LEMMAS: >-
+        vouloir souhaiter exiger ordonner désirer préférer aimer falloir craindre redouter regretter
+        douter attendre permettre refuser interdire empêcher suffire demander déplorer détester
+        plaire
       SUBJUNCTIVE_CONJUNCTIONS: [pour, afin, avant, sans, pourvu]
-      IMPERSONAL:
-        [
-          important,
-          nécessaire,
-          essentiel,
-          indispensable,
-          possible,
-          impossible,
-          normal,
-          temps,
-          urgent,
-          préférable,
-          souhaitable,
-          naturel,
-          rare,
-          juste,
-          inadmissible,
-          inacceptable,
-          étonnant,
-          regrettable,
-          utile,
-          dommage,
-          triste,
-          logique,
-          honteux,
-        ]
+      IMPERSONAL: >-
+        important nécessaire essentiel indispensable possible impossible normal temps urgent
+        préférable souhaitable naturel rare juste inadmissible inacceptable étonnant regrettable
+        utile dommage triste logique honteux
       MOOD_DEGREE: [si, tellement, tant, assez, trop, aussi, plus, moins]
       MOOD_SKIPPED: [pas, plus, jamais, vraiment, absolument, beaucoup, bien]
       MOOD_ETRE: [est, était, sera, serait, soit, fut]
@@ -9826,8 +7748,8 @@ rules:
       # "j'aimerais bien venir": a polite wish.
       WISHING: [aimerai, voudrai, préférerai, souhaiterai]
       WISH_ADVERBS: [bien, beaucoup, vraiment, tant, pas]
-      MOOD_MODALS:
-        [pouvoir, vouloir, devoir, aimer, préférer, souhaiter, falloir, valoir, être, avoir, savoir]
+      MOOD_MODALS: >-
+        pouvoir vouloir devoir aimer préférer souhaiter falloir valoir être avoir savoir
       # Triggers of the indicative before "que": "il est vrai que", "j'espère que", "du moment
       # que".
       STATING: [espérer, affirmer, dire, assurer, savoir, promettre]
@@ -10247,30 +8169,12 @@ rules:
     sets:
       # h-initial verbs that elide ("je n'habite pas").
       MUTE_H: [habiter, habituer, hésiter, hériter, honorer, humilier, héberger, hiberner]
-      NE_SUBJECTS:
-        [je, tu, il, elle, "on", nous, vous, ils, elles, ça, cela, ceci, c', j', t', personne, rien]
+      NE_SUBJECTS: >-
+        je tu il elle on nous vous ils elles ça cela ceci c' j' t' personne rien
       # "jamais" meaning "ever": after a relative, a comparison or a doubt.
-      EVER:
-        [
-          que,
-          qu',
-          qui,
-          si,
-          sans,
-          avant,
-          plus,
-          moins,
-          meilleur,
-          meilleure,
-          pire,
-          seul,
-          seule,
-          quiconque,
-          premier,
-          première,
-          dernier,
-          dernière,
-        ]
+      EVER: >-
+        que qu' qui si sans avant plus moins meilleur meilleure pire seul seule quiconque premier
+        première dernier dernière
       # "pas mal", "pas loin", "pas à pas": no negation of the verb.
       NOT_NEGATING_PAS: [mal, loin, cher, moins, plus, tard]
       AFTER_PLUS: [jamais, rien, personne, aucun, aucune, guère]
@@ -10447,13 +8351,13 @@ rules:
     sets:
       SW_SUBJECTS: [je, tu, il, elle, on, nous, vous, ils, elles]
       SW_THIRD: [il, elle, on, ils, elles]
-      SW_CLAUSE_PRONOUNS:
-        [je, j', tu, il, elle, "on", nous, vous, ils, elles, ce, c', ça, cela, pour, moi, toi]
-      SW_ADVERBS_AFTER_MAIS:
-        [bien, pas, plutôt, aussi, surtout, encore, non, oui, pourtant, alors, si, quand]
+      SW_CLAUSE_PRONOUNS: >-
+        je j' tu il elle on nous vous ils elles ce c' ça cela pour moi toi
+      SW_ADVERBS_AFTER_MAIS: >-
+        bien pas plutôt aussi surtout encore non oui pourtant alors si quand
       # Verbs that take "avantage" as their object: "tirer avantage", "avoir l'avantage".
-      AVANTAGE_VERBS:
-        [avoir, tirer, offrir, présenter, voir, trouver, apporter, donner, retirer, procurer]
+      AVANTAGE_VERBS: >-
+        avoir tirer offrir présenter voir trouver apporter donner retirer procurer
       # Prepositions after which "nous"/"vous" + a plural noun is the possessive misspelt.
       NOUN_PREPOSITIONS: [de, d', à, pour, avec, sur, par, dans, sans, selon]
       # Plurals that may address the reader or follow the pronoun: "merci à vous messieurs", "pour
@@ -10465,202 +8369,39 @@ rules:
       SOI_PREPOSITIONS: [de, d', derrière, devant, pour, sur, chez, avec, sans, à, entre]
       SW_STRESSED: [moi, toi, lui, elle, eux, nous, vous, elles, soi]
       # What "est" may introduce: a place, a degree or a time adverb.
-      AFTER_EST:
-        [
-          sur,
-          sous,
-          dans,
-          là,
-          ici,
-          très,
-          déjà,
-          bien,
-          trop,
-          plus,
-          toujours,
-          encore,
-          vraiment,
-          assez,
-          si,
-          devant,
-          derrière,
-          loin,
-          près,
-        ]
+      AFTER_EST: >-
+        sur sous dans là ici très déjà bien trop plus toujours encore vraiment assez si devant
+        derrière loin près
       # Words that open a clause of their own: "ce qu'il veut est simple", "celui qui part est
       # triste", "si tu viens, ..." keep the main verb "est"; so does an indirect question ("je
       # sais quel est le problème").
-      SUBORDINATING:
-        [
-          que,
-          qu',
-          qui,
-          dont,
-          où,
-          ce,
-          si,
-          quand,
-          lorsque,
-          lorsqu',
-          comme,
-          puisque,
-          puisqu',
-          quoi,
-          lequel,
-          laquelle,
-          quel,
-          quelle,
-          quels,
-          quelles,
-          comment,
-          pourquoi,
-          combien,
-        ]
-      GROW_BELIEF_OBJECTS:
-        [
-          que,
-          qu',
-          rien,
-          cela,
-          ça,
-          ceci,
-          le,
-          la,
-          les,
-          l',
-          ce,
-          cet,
-          cette,
-          ces,
-          mon,
-          ma,
-          mes,
-          ton,
-          ta,
-          tes,
-          son,
-          sa,
-          ses,
-          notre,
-          nos,
-          votre,
-          vos,
-          leur,
-          leurs,
-        ]
+      SUBORDINATING: >-
+        que qu' qui dont où ce si quand lorsque lorsqu' comme puisque puisqu' quoi lequel laquelle
+        quel quelle quels quelles comment pourquoi combien
+      GROW_BELIEF_OBJECTS: >-
+        que qu' rien cela ça ceci le la les l' ce cet cette ces mon ma mes ton ta tes son sa ses
+        notre nos votre vos leur leurs
       GROW_OBJECT_CLITICS: [me, m', te, t', le, la, les, l', en]
       # "croît la nuit", "croît cette année": a time, not an object.
-      GROW_TIMES:
-        [
-          nuit,
-          jour,
-          jours,
-          matin,
-          soir,
-          an,
-          ans,
-          année,
-          années,
-          hiver,
-          été,
-          printemps,
-          automne,
-          saison,
-          semaine,
-          mois,
-          siècle,
-        ]
+      GROW_TIMES: >-
+        nuit jour jours matin soir an ans année années hiver été printemps automne saison semaine
+        mois siècle
       RELATIVE_BELIEF: [auquel, auxquels, auxquelles, laquelle, quoi]
-      GROW_AFTER_VERB:
-        [
-          ne,
-          n',
-          pas,
-          plus,
-          jamais,
-          guère,
-          point,
-          vraiment,
-          bien,
-          aussi,
-          même,
-          toujours,
-          encore,
-          donc,
-        ]
+      GROW_AFTER_VERB: >-
+        ne n' pas plus jamais guère point vraiment bien aussi même toujours encore donc
       # Verbs that take être: "il est venu", not "il a venu".
-      AVOIR_ETRE_VERBS:
-        [
-          aller,
-          venir,
-          partir,
-          arriver,
-          naître,
-          mourir,
-          rester,
-          tomber,
-          entrer,
-          sortir,
-          monter,
-          descendre,
-          retourner,
-          devenir,
-          revenir,
-          rentrer,
-          décéder,
-          parvenir,
-          intervenir,
-          survenir,
-        ]
-      SKIPPED_AFTER:
-        [
-          pas,
-          plus,
-          jamais,
-          rien,
-          point,
-          guère,
-          déjà,
-          bien,
-          toujours,
-          souvent,
-          vraiment,
-          aussi,
-          encore,
-          tout,
-        ]
+      AVOIR_ETRE_VERBS: >-
+        aller venir partir arriver naître mourir rester tomber entrer sortir monter descendre
+        retourner devenir revenir rentrer décéder parvenir intervenir survenir
+      SKIPPED_AFTER: >-
+        pas plus jamais rien point guère déjà bien toujours souvent vraiment aussi encore tout
       # Words after which "qu'elle" opens a clause: "afin qu'elle", "dès qu'elle".
       QUELLE_OPENERS: [afin, pour, dès, bien, sans, avant, pendant, parce, alors]
       QUELLE_VERBS: [a, est, sont, ont, soit, soient, fait, était, sera]
       QUELLE_CLITICS: [ne, n', me, m', te, t', se, s', le, la, les, l', lui, leur, "y", en]
-      HUNDRED_NUMBER_WORDS:
-        [
-          un,
-          une,
-          deux,
-          trois,
-          quatre,
-          cinq,
-          six,
-          sept,
-          huit,
-          neuf,
-          dix,
-          onze,
-          douze,
-          treize,
-          quatorze,
-          quinze,
-          seize,
-          vingt,
-          trente,
-          quarante,
-          cinquante,
-          soixante,
-          cent,
-          mille,
-          et,
-        ]
+      HUNDRED_NUMBER_WORDS: >-
+        un une deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize
+        vingt trente quarante cinquante soixante cent mille et
       MULTIPLIERS: [deux, trois, quatre, cinq, six, sept, huit, neuf]
     defs:
       AVOIR_GOVERNORS: '/(?<![\p{L}\p{M}])(?:(?:que|quoique|qui|dont|où|quoi|soit|plaise)(?![\p{L}\p{M}])|(?:qu|quoiqu)[''’])/iu'
@@ -11229,32 +8970,8 @@ rules:
       DETERMINER_FEMININE_OF: { le: la, un: une, du: de la, au: à la, mon: ma, ton: ta, son: sa }
     sets:
       # Determiners that are never pronouns: a verb form after them is no verb.
-      ONLY_DETERMINERS:
-        [
-          un,
-          une,
-          des,
-          du,
-          au,
-          aux,
-          ce,
-          cet,
-          cette,
-          ces,
-          mon,
-          ton,
-          son,
-          ma,
-          ta,
-          sa,
-          mes,
-          tes,
-          ses,
-          notre,
-          votre,
-          nos,
-          vos,
-        ]
+      ONLY_DETERMINERS: >-
+        un une des du au aux ce cet cette ces mon ton son ma ta sa mes tes ses notre votre nos vos
       # Second words that make a pair right: "le leur", "aux leurs" (possessive pronouns), "le son",
       # "un ton" (nouns), "le un", "la une" (the number, the front page), "le notre" (le nôtre, an
       # accent away).
@@ -11663,102 +9380,30 @@ rules:
       # Subject pronouns never stressed: "elle", "nous", "vous" may open a dislocation ("Elle, elle
       # sait").
       CLITIC_SUBJECTS: [je, tu, il, ils, on]
-      COMMA_DETERMINERS:
-        [les, des, ces, mes, tes, ses, nos, vos, cette, cet, ma, ta, mon, notre, votre, leurs]
+      COMMA_DETERMINERS: >-
+        les des ces mes tes ses nos vos cette cet ma ta mon notre votre leurs
       OBJECT_CLITICS: [me, m', te, t', se, s', le, la, les, lui, leur, "y", en]
       # Object pronouns and "ne" between a subject pronoun and its verb.
       SUBJECT_CLITICS: [me, "m'", te, "t'", se, "s'", le, la, les, lui, leur, y, en, ne, "n'"]
       # A negation before the comma is left out: "j'en peux plus, avancer !" calls out.
       COMMA_ADVERBS: [déjà, bien, toujours, encore, souvent, vraiment, beaucoup, aussi, enfin]
       # Words that open an insertion after a relative or a conjunction: "qui, sans sa copie, ...".
-      INSERTION_OPENERS:
-        [
-          si,
-          quand,
-          lorsque,
-          lorsqu',
-          comme,
-          pour,
-          par,
-          sans,
-          avec,
-          dans,
-          sur,
-          sous,
-          selon,
-          malgré,
-          après,
-          avant,
-          en,
-          à,
-          au,
-          aux,
-          de,
-          d',
-          du,
-          des,
-          depuis,
-          pendant,
-          entre,
-          vers,
-          ni,
-          bien,
-          même,
-          surtout,
-          notamment,
-        ]
+      INSERTION_OPENERS: >-
+        si quand lorsque lorsqu' comme pour par sans avec dans sur sous selon malgré après avant en
+        à au aux de d' du des depuis pendant entre vers ni bien même surtout notamment
       COMMA_NEGATIONS: [pas, plus, jamais, rien, guère]
       COMMA_MODALS: [pouvoir, devoir, vouloir, savoir, aller, falloir]
       # Words that open a clause or a relative and take their words without a comma when no second
       # comma closes an insertion.
       CLAUSE_OPENERS: [qui, que, qu', où, ni, parce, lorsque, lorsqu', puisque, puisqu', quoique]
       # Words after which an inversion asks or follows an adverb: "que dit-il ?", "ainsi dit-il".
-      NOT_INCISE:
-        [
-          que,
-          qu',
-          comment,
-          pourquoi,
-          où,
-          quand,
-          combien,
-          quoi,
-          qui,
-          ainsi,
-          aussi,
-          peut-être,
-          encore,
-          doute,
-          moins,
-          peine,
-          sans,
-          tant,
-          toujours,
-        ]
+      NOT_INCISE: >-
+        que qu' comment pourquoi où quand combien quoi qui ainsi aussi peut-être encore doute moins
+        peine sans tant toujours
       COMMA_SUPERLATIVES: [plus, moins, mieux, pire, pis, meilleur, meilleure]
-      COMMA_TIMES:
-        [
-          jour,
-          matin,
-          soir,
-          nuit,
-          semaine,
-          mois,
-          an,
-          année,
-          fois,
-          heure,
-          moment,
-          instant,
-          été,
-          hiver,
-          automne,
-          printemps,
-          week-end,
-          lendemain,
-          veille,
-          midi,
-        ]
+      COMMA_TIMES: >-
+        jour matin soir nuit semaine mois an année fois heure moment instant été hiver automne
+        printemps week-end lendemain veille midi
     defs:
       commaFinite:
         args: "word: string"
@@ -12110,26 +9755,9 @@ rules:
         "Maurice": à
     sets:
       # Verbs after which "à la" + a country names where one goes or is: "arrivé à la Belgique".
-      PLACE_VERBS:
-        [
-          aller,
-          venir,
-          vivre,
-          habiter,
-          voyager,
-          partir,
-          arriver,
-          rester,
-          retourner,
-          séjourner,
-          travailler,
-          étudier,
-          déménager,
-          émigrer,
-          immigrer,
-          naître,
-          rentrer,
-        ]
+      PLACE_VERBS: >-
+        aller venir vivre habiter voyager partir arriver rester retourner séjourner travailler
+        étudier déménager émigrer immigrer naître rentrer
     frames:
       # "Je vais au France" -> "en France", "il vit en Portugal" -> "au Portugal".
       - regex: "{{WORD_START}}(?<prep>aux|au|en|à[ \\t]+la|à[ \\t]+l['’])(?:[ \\t]+|(?<=['’]))(?<country>{{COUNTRY_NAMES}}){{WORD_END}}"
@@ -12222,40 +9850,13 @@ rules:
         }
     sets:
       # Verbs that only ever take être: "il est allé", never "il a allé".
-      ETRE_VERBS:
-        [
-          aller,
-          venir,
-          devenir,
-          revenir,
-          parvenir,
-          survenir,
-          advenir,
-          arriver,
-          partir,
-          repartir,
-          naître,
-          mourir,
-          décéder,
-        ]
+      ETRE_VERBS: >-
+        aller venir devenir revenir parvenir survenir advenir arriver partir repartir naître mourir
+        décéder
       # Intransitive verbs that only take avoir and have no passive: "il a nagé", never "il est nagé".
-      AVOIR_VERBS:
-        [
-          nager,
-          dormir,
-          marcher,
-          voyager,
-          travailler,
-          rire,
-          sourire,
-          pleurer,
-          dîner,
-          déjeuner,
-          tousser,
-          éternuer,
-          mentir,
-          bavarder,
-        ]
+      AVOIR_VERBS: >-
+        nager dormir marcher voyager travailler rire sourire pleurer dîner déjeuner tousser éternuer
+        mentir bavarder
       AUX_BETWEEN: [pas, plus, jamais, déjà, encore, bien, toujours, souvent, vraiment]
     defs:
       # Only a past participle of one of the lemmas: no other reading.
@@ -12696,37 +10297,10 @@ rules:
     sets:
       # Colours named by a noun: they stay invariable ("rose", "mauve", "fauve" agree and are left
       # out).
-      NOUN_COLOURS:
-        [
-          marron,
-          kaki,
-          crème,
-          turquoise,
-          émeraude,
-          ocre,
-          saumon,
-          olive,
-          ivoire,
-          bordeaux,
-          prune,
-          cerise,
-          chocolat,
-          caramel,
-          moutarde,
-          corail,
-          azur,
-          sable,
-          citron,
-          framboise,
-          lavande,
-          abricot,
-          bronze,
-          argent,
-          cuivre,
-          acajou,
-          anthracite,
-          indigo,
-        ]
+      NOUN_COLOURS: >-
+        marron kaki crème turquoise émeraude ocre saumon olive ivoire bordeaux prune cerise chocolat
+        caramel moutarde corail azur sable citron framboise lavande abricot bronze argent cuivre
+        acajou anthracite indigo
       BASE_COLOURS: [bleu, vert, rouge, jaune, gris, brun, noir, blanc, violet, orange, beige]
       SHADES: [clair, foncé, pâle, vif, sombre, marine, ciel, nuit, électrique]
     defs:
@@ -12826,239 +10400,40 @@ rules:
         - "solutionner > résoudre : *"
         - "impacter > toucher affecter : *"
         - "émotionner > émouvoir : *"
-      CALQUE_ADVERBS:
-        [
-          pas,
-          plus,
-          jamais,
-          point,
-          toujours,
-          déjà,
-          bien,
-          enfin,
-          aussi,
-          souvent,
-          rarement,
-          encore,
-          vraiment,
-          finalement,
-          rapidement,
-          mieux,
-          mal,
-        ]
-      CALQUE_DETERMINERS:
-        [
-          le,
-          la,
-          l',
-          les,
-          un,
-          une,
-          des,
-          du,
-          de,
-          d',
-          ce,
-          cet,
-          cette,
-          ces,
-          mon,
-          ma,
-          mes,
-          ton,
-          ta,
-          tes,
-          son,
-          sa,
-          ses,
-          notre,
-          nos,
-          votre,
-          vos,
-          leur,
-          leurs,
-          tous,
-          toutes,
-          chaque,
-          plusieurs,
-          certains,
-          certaines,
-          quelques,
-          nombreux,
-          nombreuses,
-        ]
-      CALQUE_AUXILIARIES:
-        [a, ai, as, avons, avez, ont, avait, avaient, aura, auront, aurait, avoir, ayant]
+      CALQUE_ADVERBS: >-
+        pas plus jamais point toujours déjà bien enfin aussi souvent rarement encore vraiment
+        finalement rapidement mieux mal
+      CALQUE_DETERMINERS: >-
+        le la l' les un une des du de d' ce cet cette ces mon ma mes ton ta tes son sa ses notre nos
+        votre vos leur leurs tous toutes chaque plusieurs certains certaines quelques nombreux
+        nombreuses
+      CALQUE_AUXILIARIES: >-
+        a ai as avons avez ont avait avaient aura auront aurait avoir ayant
       # "un bon dix minutes": the English word order; French puts "bon" after the number.
-      STYLE_NUMBER_WORDS:
-        [
-          deux,
-          trois,
-          quatre,
-          cinq,
-          six,
-          sept,
-          huit,
-          neuf,
-          dix,
-          onze,
-          douze,
-          treize,
-          quatorze,
-          quinze,
-          seize,
-          vingt,
-          trente,
-          quarante,
-          cinquante,
-          soixante,
-          cent,
-          et,
-        ]
+      STYLE_NUMBER_WORDS: >-
+        deux trois quatre cinq six sept huit neuf dix onze douze treize quatorze quinze seize vingt
+        trente quarante cinquante soixante cent et
       FEMININE_UNITS: [minutes, heures, secondes, semaines, journées, années]
       # Forms of "aller", for "aller au coiffeur".
-      ALLER_FORMS:
-        [
-          aller,
-          vais,
-          vas,
-          va,
-          allons,
-          allez,
-          vont,
-          allé,
-          allée,
-          allés,
-          allées,
-          allais,
-          allait,
-          allions,
-          alliez,
-          allaient,
-          irai,
-          iras,
-          ira,
-          irons,
-          irez,
-          iront,
-          irais,
-          irait,
-          irions,
-          iriez,
-          iraient,
-          aille,
-          ailles,
-          aillent,
-        ]
-      TRADES:
-        [
-          coiffeur,
-          coiffeurs,
-          coiffeuse,
-          coiffeuses,
-          médecin,
-          médecins,
-          docteur,
-          docteurs,
-          dentiste,
-          dentistes,
-          boulanger,
-          boulangers,
-          boulangère,
-          boulangères,
-          boucher,
-          bouchers,
-          bouchère,
-          bouchères,
-          garagiste,
-          garagistes,
-          notaire,
-          notaires,
-          pharmacien,
-          pharmaciens,
-          pharmacienne,
-          pharmaciennes,
-          vétérinaire,
-          vétérinaires,
-          opticien,
-          opticiens,
-          opticienne,
-          opticiennes,
-          kiné,
-          kinés,
-          kinésithérapeute,
-          kinésithérapeutes,
-          ostéopathe,
-          ostéopathes,
-          psychologue,
-          psychologues,
-          psy,
-          psys,
-          avocat,
-          avocats,
-          avocate,
-          avocates,
-          épicier,
-          épiciers,
-          épicière,
-          épicières,
-          cordonnier,
-          cordonniers,
-          ophtalmo,
-          ophtalmos,
-          ophtalmologue,
-          ophtalmologues,
-          dermatologue,
-          dermatologues,
-          gynécologue,
-          gynécologues,
-          pédiatre,
-          pédiatres,
-          généraliste,
-          généralistes,
-          orthodontiste,
-          orthodontistes,
-          fleuriste,
-          fleuristes,
-        ]
-      REMEMBER_POSSESSIVES:
-        [
-          ce,
-          cet,
-          cette,
-          ces,
-          mon,
-          ma,
-          mes,
-          ton,
-          ta,
-          tes,
-          son,
-          sa,
-          ses,
-          notre,
-          nos,
-          votre,
-          vos,
-          leur,
-          leurs,
-        ]
+      ALLER_FORMS: >-
+        aller vais vas va allons allez vont allé allée allés allées allais allait allions alliez
+        allaient irai iras ira irons irez iront irais irait irions iriez iraient aille ailles
+        aillent
+      TRADES: >-
+        coiffeur coiffeurs coiffeuse coiffeuses médecin médecins docteur docteurs dentiste dentistes
+        boulanger boulangers boulangère boulangères boucher bouchers bouchère bouchères garagiste
+        garagistes notaire notaires pharmacien pharmaciens pharmacienne pharmaciennes vétérinaire
+        vétérinaires opticien opticiens opticienne opticiennes kiné kinés kinésithérapeute
+        kinésithérapeutes ostéopathe ostéopathes psychologue psychologues psy psys avocat avocats
+        avocate avocates épicier épiciers épicière épicières cordonnier cordonniers ophtalmo
+        ophtalmos ophtalmologue ophtalmologues dermatologue dermatologues gynécologue gynécologues
+        pédiatre pédiatres généraliste généralistes orthodontiste orthodontistes fleuriste
+        fleuristes
+      REMEMBER_POSSESSIVES: >-
+        ce cet cette ces mon ma mes ton ta tes son sa ses notre nos votre vos leur leurs
       Y_A_OPENERS: ["si", "qu'", que, mais, car, donc, quand, comme]
-      MONTER:
-        [
-          monter,
-          monte,
-          montes,
-          montons,
-          montez,
-          montent,
-          monté,
-          montée,
-          montés,
-          montées,
-          montait,
-          montaient,
-        ]
+      MONTER: >-
+        monter monte montes montons montez montent monté montée montés montées montait montaient
     maps:
       # Verb forms in one order: infinitive; present je, tu, il, nous, vous, ils; imperfect il,
       # ils; future il, ils; conditional il; past participle m, f, m plural, f plural; present
@@ -13427,389 +10802,41 @@ rules:
     sets:
       # Verbs that take a bare attribute, a bare topic, a time or a manner after them: "il devient
       # médecin", "il parle affaires", "il travaille dimanche", "il sort vainqueur", "il dit merci".
-      NO_OBJECT:
-        [
-          avoir,
-          être,
-          devenir,
-          rester,
-          demeurer,
-          sembler,
-          paraître,
-          naître,
-          mourir,
-          vivre,
-          finir,
-          terminer,
-          sortir,
-          partir,
-          arriver,
-          revenir,
-          tomber,
-          passer,
-          parler,
-          aller,
-          venir,
-          retourner,
-          entrer,
-          rentrer,
-          monter,
-          descendre,
-          valoir,
-          coûter,
-          peser,
-          mesurer,
-          compter,
-          voter,
-          dire,
-          répondre,
-          travailler,
-          dormir,
-          habiter,
-          rouler,
-          chausser,
-          voir,
-          sentir,
-          chanter,
-          sonner,
-          falloir,
-          manquer,
-          nommer,
-          élire,
-          appeler,
-          juger,
-          considérer,
-          croire,
-          signer,
-          danser,
-          étudier,
-          enseigner,
-          apprendre,
-          réviser,
-          jurer,
-          crier,
-          risquer,
-          miser,
-          parier,
-          penser,
-          rêver,
-          commencer,
-          continuer,
-          durer,
-          sauter,
-          courir,
-          marcher,
-        ]
+      NO_OBJECT: >-
+        avoir être devenir rester demeurer sembler paraître naître mourir vivre finir terminer
+        sortir partir arriver revenir tomber passer parler aller venir retourner entrer rentrer
+        monter descendre valoir coûter peser mesurer compter voter dire répondre travailler dormir
+        habiter rouler chausser voir sentir chanter sonner falloir manquer nommer élire appeler
+        juger considérer croire signer danser étudier enseigner apprendre réviser jurer crier
+        risquer miser parier penser rêver commencer continuer durer sauter courir marcher
       # Bare nouns of locutions ("prendre part", "faire peur", "porter plainte", "rendre visite"),
       # interjections and greetings a verb quotes ("il dit merci", "elle répond présent"), family
       # words used as names, times, roles and subjects of study.
-      BARE_WORDS:
-        [
-          part,
-          peur,
-          faim,
-          soif,
-          mal,
-          raison,
-          tort,
-          pied,
-          fin,
-          feu,
-          place,
-          forme,
-          corps,
-          racine,
-          soin,
-          garde,
-          conscience,
-          congé,
-          position,
-          note,
-          acte,
-          contact,
-          goût,
-          plaisir,
-          pitié,
-          patience,
-          courage,
-          langue,
-          face,
-          confiance,
-          semblant,
-          attention,
-          honte,
-          envie,
-          signe,
-          partie,
-          fortune,
-          faillite,
-          naufrage,
-          carrière,
-          défaut,
-          appel,
-          date,
-          foi,
-          recette,
-          office,
-          obstacle,
-          écho,
-          étape,
-          escale,
-          halte,
-          silence,
-          surface,
-          irruption,
-          route,
-          marche,
-          merveille,
-          sensation,
-          scandale,
-          sens,
-          légion,
-          loi,
-          preuve,
-          usage,
-          suite,
-          lieu,
-          naissance,
-          satisfaction,
-          cours,
-          ordre,
-          espoir,
-          connaissance,
-          haleine,
-          compte,
-          parole,
-          tête,
-          compagnie,
-          rigueur,
-          rancune,
-          visite,
-          service,
-          hommage,
-          justice,
-          grâce,
-          plainte,
-          secours,
-          malheur,
-          bonheur,
-          atteinte,
-          préjudice,
-          chance,
-          conseil,
-          assistance,
-          terme,
-          asile,
-          refuge,
-          moyen,
-          preneur,
-          victoire,
-          famine,
-          gare,
-          vengeance,
-          prise,
-          casaque,
-          bride,
-          querelle,
-          noise,
-          monnaie,
-          campagne,
-          retraite,
-          pavillon,
-          mesure,
-          temps,
-          terrain,
-          boutique,
-          bataille,
-          effet,
-          jour,
-          nuit,
-          soleil,
-          gaffe,
-          cause,
-          droit,
-          besoin,
-          horreur,
-          hâte,
-          affaire,
-          recours,
-          trait,
-          coutume,
-          tendance,
-          charge,
-          vocation,
-          accès,
-          priorité,
-          intérêt,
-          cœur,
-          coeur,
-          idée,
-          avantage,
-          mission,
-          autorité,
-          peine,
-          force,
-          valeur,
-          gain,
-          main,
-          fait,
-          objet,
-          référence,
-          allusion,
-          mention,
-          état,
-          figure,
-          illusion,
-          école,
-          mouche,
-          débat,
-          tache,
-          souche,
-          polémique,
-          grève,
-          front,
-          bloc,
-          masse,
-          nombre,
-          mine,
-          don,
-          vœu,
-          voeu,
-          serment,
-          relâche,
-          diète,
-          carême,
-          ripaille,
-          bombance,
-          trempette,
-          dodo,
-          pipi,
-          caca,
-          tilt,
-          parti,
-          profit,
-          domicile,
-          possession,
-          rang,
-          ombrage,
-          exemple,
-          modèle,
-          femme,
-          mari,
-          époux,
-          épouse,
-          fiancée,
-          contenance,
-          pardon,
-          audience,
-          réparation,
-          table,
-          cash,
-          crédit,
-          comptant,
-          acompte,
-          quartier,
-          relais,
-          exception,
-          erreur,
-          tout,
-          rien,
-          famille,
-          maison,
-          carbone,
-          fleurette,
-          chemin,
-          pièce,
-          passage,
-          ruine,
-          tribut,
-          culotte,
-          vie,
-          gorge,
-          chorus,
-          merci,
-          bonjour,
-          bonsoir,
-          adieu,
-          amen,
-          stop,
-          bravo,
-          oui,
-          non,
-          salut,
-          chapeau,
-          bingo,
-          pouce,
-          maman,
-          papa,
-          mamie,
-          mamy,
-          papi,
-          papy,
-          tonton,
-          tata,
-          mémé,
-          pépé,
-          bébé,
-          chéri,
-          chérie,
-          lundi,
-          mardi,
-          mercredi,
-          jeudi,
-          vendredi,
-          samedi,
-          dimanche,
-          janvier,
-          février,
-          mars,
-          avril,
-          mai,
-          juin,
-          juillet,
-          août,
-          septembre,
-          octobre,
-          novembre,
-          décembre,
-          matin,
-          soir,
-          midi,
-          minuit,
-          demain,
-          aujourd'hui,
-          semaine,
-          gardien,
-          attaquant,
-          défenseur,
-          arrière,
-          ailier,
-          milieu,
-          avant,
-          pivot,
-          meneur,
-          titulaire,
-          remplaçant,
-          médecine,
-          lettres,
-          philo,
-          philosophie,
-          maths,
-          mathématiques,
-          physique,
-          chimie,
-          biologie,
-          informatique,
-          économie,
-          sciences,
-          histoire,
-          géographie,
-          solo,
-          duo,
-          trio,
-          bis,
-          pile,
-        ]
+      BARE_WORDS: >-
+        part peur faim soif mal raison tort pied fin feu place forme corps racine soin garde
+        conscience congé position note acte contact goût plaisir pitié patience courage langue face
+        confiance semblant attention honte envie signe partie fortune faillite naufrage carrière
+        défaut appel date foi recette office obstacle écho étape escale halte silence surface
+        irruption route marche merveille sensation scandale sens légion loi preuve usage suite lieu
+        naissance satisfaction cours ordre espoir connaissance haleine compte parole tête compagnie
+        rigueur rancune visite service hommage justice grâce plainte secours malheur bonheur
+        atteinte préjudice chance conseil assistance terme asile refuge moyen preneur victoire
+        famine gare vengeance prise casaque bride querelle noise monnaie campagne retraite pavillon
+        mesure temps terrain boutique bataille effet jour nuit soleil gaffe cause droit besoin
+        horreur hâte affaire recours trait coutume tendance charge vocation accès priorité intérêt
+        cœur coeur idée avantage mission autorité peine force valeur gain main fait objet référence
+        allusion mention état figure illusion école mouche débat tache souche polémique grève front
+        bloc masse nombre mine don vœu voeu serment relâche diète carême ripaille bombance trempette
+        dodo pipi caca tilt parti profit domicile possession rang ombrage exemple modèle femme mari
+        époux épouse fiancée contenance pardon audience réparation table cash crédit comptant
+        acompte quartier relais exception erreur tout rien famille maison carbone fleurette chemin
+        pièce passage ruine tribut culotte vie gorge chorus merci bonjour bonsoir adieu amen stop
+        bravo oui non salut chapeau bingo pouce maman papa mamie mamy papi papy tonton tata mémé
+        pépé bébé chéri chérie lundi mardi mercredi jeudi vendredi samedi dimanche janvier février
+        mars avril mai juin juillet août septembre octobre novembre décembre matin soir midi minuit
+        demain aujourd'hui semaine gardien attaquant défenseur arrière ailier milieu avant pivot
+        meneur titulaire remplaçant médecine lettres philo philosophie maths mathématiques physique
+        chimie biologie informatique économie sciences histoire géographie solo duo trio bis pile
     defs:
       BARE_VOWEL: /^[aeiouyàâäéèêëîïôöûùüœæ]/
       # The readings of a word as a finite verb of the person.
@@ -13902,81 +10929,14 @@ rules:
     # Spoken French doubles some words for emphasis, so the check is off by default.
     sets:
       # The default-on repeated-word check already reads these (reviewDetectors.ts REPEATABLE_WORDS).
-      REPEAT_DEFAULT_ON:
-        [
-          le,
-          les,
-          une,
-          des,
-          du,
-          au,
-          aux,
-          dans,
-          pour,
-          avec,
-          sur,
-          et,
-          mais,
-          est,
-          sont,
-          par,
-          ce,
-          cette,
-          ces,
-          sans,
-          je,
-          tu,
-          il,
-          ils,
-          on,
-          à,
-          mon,
-          ma,
-          mes,
-          ton,
-          ta,
-          tes,
-          son,
-          sa,
-          ses,
-        ]
+      REPEAT_DEFAULT_ON: >-
+        le les une des du au aux dans pour avec sur et mais est sont par ce cette ces sans je tu il
+        ils on à mon ma mes ton ta tes son sa ses
       # Words that French doubles with no error: interjections and sounds ("ah ah", "là là"), a
       # stressed pronoun before its clitic ("lui lui a dit"), "en en mangeant", "si si", "non non".
-      DOUBLED_OK:
-        [
-          ah,
-          ha,
-          hé,
-          eh,
-          oh,
-          ho,
-          hi,
-          hein,
-          là,
-          si,
-          non,
-          oui,
-          bon,
-          bla,
-          toc,
-          pan,
-          chut,
-          hop,
-          ouh,
-          ouf,
-          bye,
-          da,
-          tic,
-          tac,
-          cha,
-          tam,
-          lui,
-          en,
-          nous,
-          vous,
-          elle,
-          elles,
-        ]
+      DOUBLED_OK: >-
+        ah ha hé eh oh ho hi hein là si non oui bon bla toc pan chut hop ouh ouf bye da tic tac cha
+        tam lui en nous vous elle elles
     defs:
       # "nous nous", "vous vous": a reflexive verb, unless another subject comes before them or
       # "ne" comes after them ("je vous vous écris", "que nous nous ne mentions pas").

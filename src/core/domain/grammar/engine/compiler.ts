@@ -1,4 +1,5 @@
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../lang";
+import { ptConjugate } from "../library/portuguese/verbs";
 import { scanStarts } from "./prefixes";
 import { parseRows, type PhraseRow } from "./rows";
 import {
@@ -227,6 +228,43 @@ export interface CompiledRuleSet {
 /** The two-letter code of a rule file language ("pt_BR" -> "pt"); undefined for "*". */
 const code = (lang: string) => (lang === "*" ? undefined : lang.slice(0, 2));
 
+/**
+ * Portuguese phrase rows: "~fazer uso de = ~usar; ~recorrer a" gives one row for each form of
+ * ptConjugate, in its slot order ("faço uso de = uso; recorro a", ...); a typed form comes once.
+ */
+function conjugatedRows(text: string, lang: string, where: string, errors: string[]): string {
+  return text
+    .split("\n")
+    .flatMap((line) => {
+      if (!line.startsWith("~")) return [line];
+      const at = line.indexOf(" = ");
+      const [verb, ...rest] = line.slice(1, at).split(" ");
+      const fixes = line.slice(at + 3).split("; ");
+      if (lang !== "pt" || at < 0 || line.includes(" | ") || fixes.some((f) => f[0] !== "~")) {
+        errors.push(`${where}: row "${line}": "~" needs Portuguese, one typed form and "~" fixes`);
+        return [];
+      }
+      try {
+        const forms = ptConjugate(verb);
+        const fixForms = fixes.map((fix) => {
+          const [fixVerb, ...fixRest] = fix.slice(1).split(" ");
+          return ptConjugate(fixVerb).map((form) => [form, ...fixRest].join(" "));
+        });
+        const seen = new Set<string>();
+        return forms.flatMap((form, slot) => {
+          const typed = [form, ...rest].join(" ");
+          if (seen.has(typed)) return [];
+          seen.add(typed);
+          return [`${typed} = ${fixForms.map((fix) => fix[slot]).join("; ")}`];
+        });
+      } catch (error) {
+        errors.push(`${where}: row "${line}": ${(error as Error).message}`);
+        return [];
+      }
+    })
+    .join("\n");
+}
+
 function checkLanguages(
   check: CheckSpec,
   phraseTableKinds: Record<string, string[]>,
@@ -317,7 +355,9 @@ export function compileRuleFiles(
             continue;
           }
           const k = kind as (typeof PHRASE_KINDS)[number];
-          phrases[lang][k] = parseRows(file.phrases[k]!, `${name}.yaml phrases.${k}`, errors);
+          const where = `${name}.yaml phrases.${k}`;
+          const rows = conjugatedRows(file.phrases[k]!, lang, where, errors);
+          phrases[lang][k] = parseRows(rows, where, errors);
         }
         phraseTableKinds[lang] = PHRASE_KINDS.filter((kind) => phrases[lang][kind]);
       }
@@ -563,7 +603,7 @@ export function compileRuleFiles(
           errors.push(`${at}: "targetOnly" needs style "carry"`);
         if (entry.check !== undefined && !spec.checks.includes(entry.check))
           errors.push(`${at}: check "${entry.check}" is not a check of the rule`);
-        for (const word of entry.cue ?? [])
+        for (const word of entry.cue || [])
           if (!/^\p{Ll}+$/u.test(word)) errors.push(`${at}: cue "${word}" is not a lowercase word`);
         if (entry.gateFlags !== undefined && entry.gate === undefined)
           errors.push(`${at}: "gateFlags" needs "gate"`);
@@ -614,9 +654,17 @@ export function compileRuleFiles(
                 pattern,
               });
         addCode(fixCode);
+        const literals = requiredLiterals(pattern);
+        // A slot frame without "cue" runs only near one of its literals, when each is a word.
+        const cue =
+          entry.cue ??
+          (spec.style === "slot" &&
+            literals.length > 0 &&
+            literals.every((word) => /^\p{Ll}+$/u.test(word)) &&
+            literals);
         frames.push({
           pattern,
-          literals: requiredLiterals(pattern),
+          literals,
           // The start positions of a frame scan (comma and swap frames run a Polish scan).
           ...(scan === "frame" && spec.style !== "comma" && spec.style !== "swap"
             ? scanStarts(spec.style === "cased" ? `${WORD_START}${pattern}` : pattern)
@@ -627,7 +675,7 @@ export function compileRuleFiles(
           ...(entry.message === undefined ? {} : { message: entry.message }),
           ...(entry.clauseStart ? { clauseStart: true as const } : {}),
           ...(entry.check === undefined ? {} : { check: entry.check }),
-          ...(entry.cue === undefined ? {} : { cue: [...entry.cue] }),
+          ...(cue ? { cue: [...cue] } : {}),
           ...(entry.wordStart === false ? { wordStart: false as const } : {}),
           ...(entry.verbatim ? { verbatim: true as const } : {}),
           ...(entry.lowercase ? { lowercase: true as const } : {}),
