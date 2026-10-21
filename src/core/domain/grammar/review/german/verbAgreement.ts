@@ -82,10 +82,6 @@ const SUBJECT_SLOTS: Readonly<Record<string, readonly Slot[]>> = {
   wir: [3],
   ihr: [4],
 };
-
-/** The slots of a subject word; an Object member name ("constructor") is no subject. */
-const subjectSlots = (word: string) =>
-  Object.hasOwn(SUBJECT_SLOTS, word) ? SUBJECT_SLOTS[word] : undefined;
 const OBJECT_TOO = wordSet("sie es ihr");
 const SUBJECTS = wordSet("ich du er sie es man wir ihr Sie");
 // "Ich denke, wir habe …": a main clause after an opinion verb and its comma.
@@ -181,7 +177,7 @@ function finding(start: number, typed: string, fits: string[], context: [number,
 const subjectVerb: MatchFixer = (m, ctx) => {
   const typed = m[0];
   const low = typed.toLowerCase();
-  const slots = subjectSlots(low);
+  const slots = SUBJECT_SLOTS[low];
   if (!slots) return null;
   const at = m.index;
   const end = at + typed.length;
@@ -393,7 +389,7 @@ const finalAuxiliary: MatchFixer = (m, ctx) => {
   // A finite verb in between ("weil ich glaube es ist") starts another clause.
   if (between.some((w) => !/^ge\p{Ll}+(?:t|en)$|en$|iert$/u.test(w) && germanVerbLike(w)))
     return null;
-  const fits = fitting(verb, subjectSlots(subject)!);
+  const fits = fitting(verb, SUBJECT_SLOTS[subject]);
   if (!fits) return null;
   const start = m.index + m[0].length - verb.length;
   if (start < ctx.from || start >= ctx.to) return null;
