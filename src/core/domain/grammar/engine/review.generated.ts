@@ -22892,7 +22892,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
+      "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Ll}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
     fixer: "de:nounCase",
     flags: "gu",
@@ -22900,7 +22900,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
+      "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Ll}{2,}es(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
     fixer: "de:bareNeuter",
     flags: "gu",
@@ -23125,7 +23125,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
+      "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Lu}\\p{Ll}{2,}(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
     fixer: "de:capitalizedAdjective",
     flags: "gu",
@@ -23133,7 +23133,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
+      "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])(?:[iI][cC][hH]|[dD][uU]|[eE][rR]|[sS][iI][eE]|[eE][sS]|[wW][iI][rR])(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
     fixer: "de:capitalizedVerb",
     flags: "gu",

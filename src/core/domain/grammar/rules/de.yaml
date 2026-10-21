@@ -254,15 +254,15 @@ rules:
     filter: afterIdiomNoun
     frames:
       # A lowercase noun after a determiner, a preposition or a number: "der zugriff", "mit
-      # schnellen schritten", "2 tage". German capitalizes every noun. Each word whose start the
-      # chunk owns.
-      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+      # schnellen schritten", "2 tage". German capitalizes every noun. Each lowercase word whose
+      # start the chunk owns.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Ll}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
         scan: owned
         flags: gu
         fixer: nounCase
       # A strong neuter adjective with no determiner and no noun after it is a noun: "Was gibt es
-      # neues?", "Wir wagen neues.", "um schlimmeres zu verhindern".
-      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+      # neues?", "Wir wagen neues.", "um schlimmeres zu verhindern". Each lowercase word in -es.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Ll}{2,}es(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
         scan: owned
         flags: gu
         fixer: bareNeuter
@@ -337,14 +337,15 @@ rules:
         owner: none
         fixer: nominalizedFrame
       # An adjective capitalized inside a sentence where it is no noun: "Ich bin dir unendlich
-      # Dankbar.", "Es lief völlig Problemlos."
-      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+      # Dankbar.", "Es lief völlig Problemlos." Each word with a capital and then lowercase
+      # letters only.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Lu}\\p{Ll}{2,}(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
         scan: owned
         flags: gu
         fixer: capitalizedAdjective
       # A finite verb capitalized after its subject pronoun: "Ich Koche heute.", "Wir Treffen uns
-      # später.", "weil ich Arbeite,".
-      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
+      # später.", "weil ich Arbeite,". The scan reads only the subject pronouns.
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])(?:[iI][cC][hH]|[dD][uU]|[eE][rR]|[sS][iI][eE]|[eE][sS]|[wW][iI][rR])(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
         scan: owned
         flags: gu
         fixer: capitalizedVerb
