@@ -198,9 +198,43 @@ function safePrefixes(raw: readonly string[] | null): readonly string[] | null {
   return !safe || safe.includes("") ? null : [...new Set(safe)];
 }
 
+/**
+ * `source` with each class of one letter in its two cases ("[dD]") written as the lowercase
+ * letter. The prefix parser reads a class as any character; the prefixes and the text they are
+ * found in are lowercase, so the letter gives the same start positions, and fewer of them.
+ */
+function foldCaseClasses(source: string): string {
+  let out = "";
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    if (char === "\\") {
+      out += source.slice(i, i + 2);
+      i++;
+    } else if (char === "[") {
+      // Skip the class as the prefix parser does: escapes inside it may hold "]".
+      let end = i + 1;
+      if (source[end] === "^") end++;
+      if (source[end] === "]") end++;
+      while (end < source.length && source[end] !== "]") end += source[end] === "\\" ? 2 : 1;
+      const [a, b] = [source[i + 1], source[i + 2]];
+      const pair =
+        end === i + 3 &&
+        a !== b &&
+        a.toLowerCase() === b.toLowerCase() &&
+        a.toLowerCase().length === 1 &&
+        PREFIX_CHAR.test(a) &&
+        PREFIX_CHAR.test(b);
+      out += pair ? a.toLowerCase() : source.slice(i, end + 1);
+      i = end;
+    } else out += char;
+  }
+  return out;
+}
+
 function framePrefixes(source: string): readonly string[] | null {
   let found = PREFIXES.get(source);
-  if (found === undefined) PREFIXES.set(source, (found = safePrefixes(startPrefixes(source))));
+  if (found === undefined)
+    PREFIXES.set(source, (found = safePrefixes(startPrefixes(foldCaseClasses(source)))));
   return found;
 }
 
@@ -210,7 +244,7 @@ const ANCHORS = new Map<string, LiteralAnchor | null>();
 function frameAnchor(source: string): LiteralAnchor | null {
   let found = ANCHORS.get(source);
   if (found === undefined) {
-    const anchor = literalAnchor(source);
+    const anchor = literalAnchor(foldCaseClasses(source));
     const prefixes = anchor && safePrefixes(anchor.prefixes);
     found = anchor && prefixes ? { prefixes: [...prefixes], spaces: anchor.spaces } : null;
     ANCHORS.set(source, found);
@@ -243,7 +277,7 @@ const LATER = new Map<string, LiteralAnchor | null>();
 function frameLater(source: string): LiteralAnchor | null {
   let found = LATER.get(source);
   if (found === undefined) {
-    const anchor = laterAnchor(source);
+    const anchor = laterAnchor(foldCaseClasses(source));
     const prefixes = anchor && safePrefixes(anchor.prefixes);
     found =
       anchor && prefixes && prefixes.every((prefix) => prefix.length >= 4)
