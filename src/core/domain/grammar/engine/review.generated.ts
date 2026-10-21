@@ -10338,45 +10338,45 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>I|you|he|she|it|we|they|this)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:missingSubjectBe",
+    fixer: "en:@en.missingVerbs/1",
   }),
   frame({
     pattern:
       "(?<target>there|here)[ \\t\\u00a0]{1,8}(?<det>a|an|some|any|no|nothing|nobody|several|many|my|our|your)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there", "here"],
-    fixer: "en:missingExistentialBe",
+    fixer: "en:@en.missingVerbs/2",
   }),
   frame({
     pattern:
       "(?<aux>can|could|would|will|should|can['’]t|couldn['’]t|have|has|haven['’]t|hasn['’]t)[ \\t\\u00a0]{1,8}(?<target>we|you|they|he|she|it|I|anyone|someone|everyone)(?:[ \\t\\u00a0]{1,8}(?:ever|still|not))?[ \\t\\u00a0]{1,8}(?:able|unable)[ \\t\\u00a0]{1,8}to(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["able", "unable"],
-    fixer: "en:missingAbleBe",
+    fixer: "en:@en.missingVerbs/3",
   }),
   frame({
     pattern:
       "(?<modal>would|will|could|should|might|may|must|can)(?<target>[ \\t\\u00a0]{1,8})(?:(?:very|too|so|extremely|quite|pretty|forever)[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+)|(?<fixed>ok|okay|worth))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["would", "will", "could", "should", "might", "may", "must", "can"],
-    fixer: "en:missingModalBe",
+    fixer: "en:@en.missingVerbs/4",
   }),
   frame({
     pattern:
       "(?:could|would|should|can|will|might|must|does|do|did|am|is|are|was|were|['’]m|['’]re)[ \\t\\u00a0]{1,8}(?<target>no)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:missingNoForNot",
+    fixer: "en:@en.missingVerbs/5",
     check: "englishConfusedWords",
   }),
   frame({
     pattern:
       "(?<lead>there[ \\t\\u00a0]{1,8}(?:is|are|was|were|['’]s)|(?:i|we|you|they)[ \\t\\u00a0]{1,8}(?:have|['’]ve)|(?:he|she|it)[ \\t\\u00a0]{1,8}has)[ \\t\\u00a0]{1,8}(?<target>not)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["not"],
-    fixer: "en:missingNotForNo",
+    fixer: "en:@en.missingVerbs/6",
     check: "englishConfusedWords",
   }),
   frame({
     pattern:
       "(?:I|we|you|they|he|she)[ \\t\\u00a0]{1,8}(?<target>[a-z]+ly)[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|his|her|our|their|these|those)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:missingAdverbVerb",
+    fixer: "en:@en.missingVerbs/7",
   }),
   frame({
     pattern:

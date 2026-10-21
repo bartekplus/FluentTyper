@@ -2,32 +2,232 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FixResult, FrameRef, MatchResult } from "../../library";
+import type {
+  DetectContext,
+  EnToken,
+  FixResult,
+  FrameRef,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
   ENGLISH_MASS_NOUNS,
   EN_DETERMINERS,
   EN_FUNCTION_WORDS,
   MASS_WITH_COUNT_SENSE,
+  caseLike,
   enAfterBreak,
+  enEvidence,
   enNounNumber,
+  enNounOnly,
   enNounVerb,
+  enOpensClause,
   enParticiple,
   enTokensAfter,
   enWordBefore,
+  enWordsAfter,
   englishCountNoun,
   englishInflect,
   englishLemma,
   englishNounPair,
   englishVerbForms,
   englishWordInfo,
+  finding,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const MV_ADVERB_RUN: ReadonlySet<string> = new Set([
+  "not",
+  "really",
+  "very",
+  "so",
+  "still",
+  "also",
+  "only",
+  "just",
+  "totally",
+  "too",
+  "much",
+  "always",
+  "probably",
+  "rarely",
+  "never",
+  "definitely",
+  "already",
+  "partially",
+  "properly",
+  "completely",
+  "pretty",
+  "quite",
+  "now",
+  "first",
+  "maybe",
+  "currently",
+  "actually",
+  "finally",
+  "more",
+  "less",
+]);
+
+export const MV_PREDICATIVE: ReadonlySet<string> = new Set([
+  "afraid",
+  "able",
+  "unable",
+  "sure",
+  "glad",
+  "sorry",
+  "worth",
+  "alone",
+  "awake",
+  "asleep",
+  "okay",
+  "ok",
+]);
+
+export const MV_NOT_PREDICATE: ReadonlySet<string> = new Set([
+  "just",
+  "likely",
+  "often",
+  "soon",
+  "together",
+  "alone",
+  "only",
+  "still",
+  "even",
+  "sure",
+  "best",
+  "most",
+  "least",
+  "all",
+  "intent",
+  "wan",
+]);
+
+export const MV_BE: Readonly<Record<string, string>> = {
+  i: "am",
+  you: "are",
+  we: "are",
+  they: "are",
+  he: "is",
+  she: "is",
+  it: "is",
+  this: "is",
+};
 
 export const VS_PERFECT_HAVE: Readonly<Record<string, string>> = {
   did: "had",
   does: "has",
   do: "have",
 };
+
+// en.yaml rule en.missingVerbs def MV_CLAUSE_CUE
+export const MV_CLAUSE_CUE =
+  /^(?:and|but|so|because|if|when|that|think|thought|know|knew|hope|guess|maybe|since|though|although|while|whether|sure|certain|clear|obvious|said|says|unless|once|until|why|how|what)$/;
+
+// en.yaml rule en.missingVerbs def MV_CLAUSE_ADJECTIVES
+export const MV_CLAUSE_ADJECTIVES =
+  /^(?:possible|likely|unlikely|clear|obvious|true|important|lucky|strange|odd|weird|funny|sad|good|great|nice|bad)$/;
+
+// en.yaml rule en.missingVerbs def MV_INTENSIFIERS
+export const MV_INTENSIFIERS = /^(?:fucking|freaking|frigging|bloody|damn|kindly)$/;
+
+// en.yaml rule en.missingVerbs def MV_AUX
+export const MV_AUX =
+  /^(?:is|are|was|were|am|has|have|had|do|does|did|will|would|can|could|should|may|might|must)$/;
+
+// en.yaml rule en.missingVerbs def MV_STOP
+export const MV_STOP = /^(?:that|which|who|to|and|but|because|if|when|then|so|or)$/;
+
+// en.yaml rule en.missingVerbs def mvSubjectClause
+export function mvSubjectClause(ctx: DetectContext, start: number) {
+  return (
+    enOpensClause(ctx, start, MV_CLAUSE_CUE) ||
+    /,[ \t ]*$/.test(ctx.text.slice(Math.max(0, start - 4), start))
+  );
+}
+
+// en.yaml rule en.missingVerbs def mvFiniteVerb
+export function mvFiniteVerb(word: string) {
+  const read = EN_FUNCTION_WORDS.has(word) ? null : englishWordInfo(word);
+  return (
+    !!read &&
+    !read.noun &&
+    !read.adjective &&
+    read.verbs.some((v) => v.form === "past" || v.form === "third")
+  );
+}
+
+// en.yaml rule en.missingVerbs def mvFiniteLater
+export function mvFiniteLater(tokens: EnToken[], from: number) {
+  const hit = tokens
+    .slice(from)
+    .find(
+      (t) =>
+        t.kind !== "comma" &&
+        (t.kind !== "word" ||
+          MV_AUX.test(t.lower) ||
+          MV_STOP.test(t.lower) ||
+          mvFiniteVerb(t.lower)),
+    );
+  return hit?.kind === "word" && !MV_STOP.test(hit.lower);
+}
+
+// en.yaml rule en.missingVerbs def mvNounLike
+export function mvNounLike(word: string) {
+  const read = englishWordInfo(word);
+  return (
+    !!read?.noun &&
+    !read.adverb &&
+    !/^(?:well|there|here|home|today|tonight|tomorrow|now|fine|great|okay|ok|out|back)$/.test(word)
+  );
+}
+
+// en.yaml rule en.missingVerbs def mvMissing
+export function mvMissing(
+  ctx: DetectContext,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  start: number,
+  end: number,
+  alternatives: string[],
+  until: number,
+) {
+  return finding(ruleId, messageKey, start, end, alternatives, {
+    context: enEvidence(ctx, start, until),
+  });
+}
+
+// en.yaml rule en.missingVerbs def mvNoPredicate
+export function mvNoPredicate(ctx: DetectContext, end: number, lower: string) {
+  const words = enWordsAfter(ctx, end, 3);
+  const k = !(words[0] && MV_ADVERB_RUN.has(words[0].lower))
+    ? 0
+    : !(words[1] && MV_ADVERB_RUN.has(words[1].lower))
+      ? 1
+      : 2;
+  const head = words[k];
+  if (!(head && head.text === head.lower)) return true;
+  return (k === 2 && words[0].lower === "too" && /^(?:much|many)$/.test(words[1].lower)) ||
+    (k === 0 && /^(?:a|an|the|my|our|your)$/.test(head.lower))
+    ? false
+    : lower === "this"
+      ? !(k > 0 && words[0].lower === "not")
+      : !mvPredicate(head.lower);
+}
+
+// en.yaml rule en.missingVerbs def mvPredicate
+export function mvPredicate(word: string) {
+  const read = EN_FUNCTION_WORDS.has(word) ? null : englishWordInfo(word);
+  return (
+    word === "one" ||
+    word === "worth" ||
+    MV_CLAUSE_ADJECTIVES.test(word) ||
+    MV_PREDICATIVE.has(word) ||
+    /^(?:fine|good|great|ready|right|wrong)$/.test(word) ||
+    (read?.adjective && !read.verbs.length) ||
+    read?.verbs.some((v) => v.form === "ing")
+  );
+}
 
 // en.yaml rule en.realWordFrames def rwRead
 export function rwRead(word: string | undefined) {
@@ -161,6 +361,348 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.missingVerbs frame 1
+  "@en.missingVerbs/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const lower = target.toLowerCase();
+    if (!(target === lower || target === "I" || enAfterBreak(ctx, m.index))) return null;
+    if (mvNoPredicate(ctx, m.index + m[0].length, lower)) return null;
+    if (!mvSubjectClause(ctx, m.index)) return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 10).map((t) =>
+      t.kind === "other" ? { ...t, kind: "end" as const } : t,
+    );
+    const k = !(tokens[0]?.kind === "word" && MV_ADVERB_RUN.has(tokens[0].lower))
+      ? 0
+      : !(tokens[1]?.kind === "word" && MV_ADVERB_RUN.has(tokens[1].lower))
+        ? 1
+        : 2;
+    const head = tokens[k];
+    if (!(head?.kind === "word" && head.text === head.lower)) return null;
+    if (tokens[0]?.lower === "not" && tokens[1]?.lower === "only") return null;
+    if (!(tokens[0]?.lower !== "maybe")) return null;
+    const word = head.lower;
+    const read = EN_FUNCTION_WORDS.has(word) ? null : englishWordInfo(word);
+    const next = tokens[k + 1];
+    const adverbs = tokens.slice(0, k).map((t) => t.lower);
+    if (MV_INTENSIFIERS.test(word) || (adverbs.length === 0 && /ly$/.test(word))) return null;
+    const closes =
+      !next ||
+      next.kind === "end" ||
+      next.kind === "comma" ||
+      (next.kind === "word" &&
+        /^(?:to|then|and|or|for|enough|than|now|anymore|again|too|because|so|outside|inside|here|there|today|tonight|tomorrow)$/.test(
+          next.lower,
+        ));
+    const tooMuch = /^too (?:much|many)$/.test(adverbs.join(" "));
+    const before = enWordBefore(ctx, m.index);
+    const verdict =
+      lower !== "this" &&
+      (tooMuch || (word === "one" && next?.kind === "word" && next.lower === "of"))
+        ? !/^(?:make|makes|made|count|counts|counted|call|calls|called|consider|considered|think|thought|find|found)$/.test(
+            before,
+          )
+          ? 1
+          : 0
+        : /^(?:a|an|the|my|our|your)$/.test(word) && k === 0
+          ? (lower !== "this" || word !== "my") &&
+            !/^(?:and|or|nor|think|thought|consider|considered|thinks)$/.test(before) &&
+            !/^(?:we|you)$/.test(lower)
+            ? 1
+            : 0
+          : lower === "this"
+            ? adverbs[0] === "not" &&
+              enAfterBreak(ctx, m.index) &&
+              (!!read?.adjective || !!read?.noun || /^(?:just|a|an|the)$/.test(word))
+              ? 1
+              : 0
+            : word === "worth" &&
+                next?.kind === "word" &&
+                (/ing$/.test(next.lower) || /^(?:the|a|an|it|every|more|less)$/.test(next.lower))
+              ? 1
+              : MV_CLAUSE_ADJECTIVES.test(word) &&
+                  next?.kind === "word" &&
+                  (/^(?:the|a|an|we|you|they|he|she|i|my|our|your|their)$/.test(next.lower) ||
+                    (lower === "it" && /^(?:this|that)$/.test(next.lower))) &&
+                  !/^(?:think|thought|believe|believed|consider|considered|find|found|deem|deemed|made|make|makes|keep)$/.test(
+                    before,
+                  )
+                ? 2
+                : MV_PREDICATIVE.has(word) ||
+                    (/^(?:fine|good|great|ready|right|wrong)$/.test(word) &&
+                      (!/^(?:it|this|you)$/.test(lower) ||
+                        !/^(?:think|thought|believe|believed|consider|considered|find|found|deem|deemed)$/.test(
+                          before,
+                        ))) ||
+                    (read?.adjective &&
+                      !read.verbs.length &&
+                      !MV_NOT_PREDICATE.has(word) &&
+                      (!read.noun ||
+                        (closes &&
+                          (!/^(?:it|this|you)$/.test(lower) ||
+                            !/^(?:think|thought|believe|believed|consider|considered|find|found|deem|deemed)$/.test(
+                              before,
+                            )))))
+                  ? !(
+                      !/^(?:also|still)$/.test(adverbs[0] ?? "") &&
+                      !closes &&
+                      next?.kind === "word" &&
+                      (enNounOnly(next.lower) ||
+                        englishWordInfo(next.lower)?.noun ||
+                        englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base"))
+                    )
+                    ? 1
+                    : 0
+                  : read?.verbs.some((v) => v.form === "ing") &&
+                      (!read.noun || !next || next.kind !== "word" || !mvNounLike(next.lower)) &&
+                      !/^(?:being|having)$/.test(word) &&
+                      lower !== "this" &&
+                      !(
+                        k === 0 &&
+                        next?.kind === "word" &&
+                        !/^(?:great|fine|well|good|perfectly|ok|okay|now|again)$/.test(
+                          next.lower,
+                        ) &&
+                        (enNounOnly(next.lower) || englishWordInfo(next.lower)?.noun)
+                      ) &&
+                      !/^or$/.test(before) &&
+                      !(
+                        before === "and" &&
+                        tokens
+                          .slice(k + 1)
+                          .some(
+                            (t) =>
+                              t.kind === "word" &&
+                              englishWordInfo(t.lower)?.verbs.some(
+                                (v) => v.form === "third" || v.form === "past",
+                              ),
+                          )
+                      )
+                    ? 1
+                    : 0;
+    if (!(verdict > 0 && (verdict === 2 || !mvFiniteLater(tokens, k + 1)))) return null;
+    const inverted = /\b(?:am|is|are|was|were)((?:[ \t]+[A-Za-z]+){0,3})[ \t]+$/i.exec(
+      ctx.text.slice(Math.max(0, m.index - 48), m.index),
+    );
+    if (
+      inverted &&
+      !/\b(?:so|if|that|because|when|hope|think|but|sure|certain|clear|glad|afraid)\b/i.test(
+        inverted[1],
+      )
+    )
+      return null;
+    if (
+      !enAfterBreak(ctx, m.index) &&
+      /^(?:make|makes|made|keep|keeps|kept|find|found|consider|let|leave|left|have|get|got|see|saw)$/.test(
+        before,
+      )
+    )
+      return null;
+    const typedStart = m.indices!.groups!.target[0];
+    const end = m.indices!.groups!.target[1];
+    const pair =
+      before === "and" && lower !== "it"
+        ? /(?:^|[.!?;:,\n"“(])[ \t ]*((?:(?!(?:what|when|how|why|where)\b)[A-Za-z]+[ \t ]+){1,2}and[ \t ]+)$/i.exec(
+            ctx.text.slice(Math.max(0, typedStart - 40), typedStart),
+          )
+        : null;
+    const coordinated = !!pair && !!read?.verbs.some((v) => v.form === "ing");
+    const be = coordinated ? "are" : MV_BE[lower];
+    const start = coordinated && pair ? typedStart - pair[1].length : typedStart;
+    const subjectText = coordinated ? ctx.text.slice(start, end) : target;
+    const wh = /\b(what|when|how|why)[ \t]+$/i.exec(ctx.text.slice(Math.max(0, start - 8), start));
+    const question = wh && /^[^.!\n]*\?/.test(ctx.text.slice(head.end, head.end + 120));
+    return question
+      ? mvMissing(
+          ctx,
+          "englishSentenceStructure",
+          "review_msg_clause_be",
+          start - wh[0].length,
+          end,
+          [`${wh[1]} ${be} ${subjectText}`],
+          head.end,
+        )
+      : enAfterBreak(ctx, start) &&
+          /^[^.!\n]{0,40}\?/.test(ctx.text.slice(head.end, head.end + 48)) &&
+          lower !== "this"
+        ? mvMissing(
+            ctx,
+            "englishSentenceStructure",
+            "review_msg_clause_be",
+            start,
+            end,
+            [
+              `${caseLike(subjectText, be)} ${coordinated || target === "I" ? subjectText : target.toLowerCase()}`,
+            ],
+            head.end,
+          )
+        : mvMissing(
+            ctx,
+            "englishSentenceStructure",
+            "review_msg_clause_be",
+            start,
+            end,
+            [`${subjectText} ${be}`],
+            head.end,
+          );
+  },
+  // en.yaml rule en.missingVerbs frame 2
+  "@en.missingVerbs/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const det = m.groups!.det;
+    if (!(target === target.toLowerCase() || enAfterBreak(ctx, m.index))) return null;
+    if (!(mvSubjectClause(ctx, m.index) || enWordBefore(ctx, m.index) === "hope")) return null;
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 10);
+    if (!(tokens[0]?.kind === "word")) return null;
+    if (mvFiniteLater(tokens, 0) || tokens.some((t) => t.kind === "other")) return null;
+    const low = det.toLowerCase();
+    const next = tokens[0]?.lower ?? "";
+    const run = tokens.slice(0, 4);
+    const stop = run.findIndex((t) => t.kind !== "word" || EN_FUNCTION_WORDS.has(t.lower));
+    const pluralNoun = (stop < 0 ? run : run.slice(0, stop)).some(
+      (t, i) => i > 0 && /[^s]s$/.test(t.lower) && !!englishWordInfo(t.lower)?.plural,
+    );
+    const plural =
+      /^(?:several|many)$/.test(low) ||
+      (/^an?$/.test(low) && /^(?:lot|couple|number|bunch|few)$/.test(next)) ||
+      (/^(?:some|any|my|our|your|no)$/.test(low) &&
+        ((/s$/.test(next) && !/ss$/.test(next)) || pluralNoun));
+    return mvMissing(
+      ctx,
+      "englishSentenceStructure",
+      "review_msg_clause_be",
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [`${target} ${plural ? "are" : "is"}`],
+      m.index + m[0].length,
+    );
+  },
+  // en.yaml rule en.missingVerbs frame 3
+  "@en.missingVerbs/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const aux = m.groups!.aux;
+    const target = m.groups!.target;
+    const low = aux.toLowerCase();
+    if (/^ha/.test(low) && !enAfterBreak(ctx, m.index)) return null;
+    return mvMissing(
+      ctx,
+      "englishSentenceStructure",
+      "review_msg_clause_be",
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [`${target} ${/^ha/.test(low) ? "been" : "be"}`],
+      m.index + m[0].length,
+    );
+  },
+  // en.yaml rule en.missingVerbs frame 4
+  "@en.missingVerbs/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adjective = m.groups!.adjective;
+    const fixed = m.groups!.fixed;
+    const read = adjective ? englishWordInfo(adjective) : null;
+    if (
+      !(adjective
+        ? !!read &&
+          (read.adjective || read.verbs.some((v) => v.form === "participle")) &&
+          !read.verbs.some((v) => v.form === "base") &&
+          !/^(?:much|many|few|little|likely)$/.test(adjective)
+        : !(fixed && !/^(?:it|that|this|which)$/.test(enWordBefore(ctx, m.index))))
+    )
+      return null;
+    return mvMissing(
+      ctx,
+      "englishSentenceStructure",
+      "review_msg_missing_be",
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [" be "],
+      m.index + m[0].length,
+    );
+  },
+  // en.yaml rule en.missingVerbs frame 5
+  "@en.missingVerbs/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const word = m.groups!.word;
+    if (
+      EN_FUNCTION_WORDS.has(word) ||
+      /^(?:longer|doubt|matter|one|good|better|worse|different|less|more|way|problem|big|bigger)$/.test(
+        word,
+      )
+    )
+      return null;
+    const read = englishWordInfo(word);
+    if (!read || read.noun || read.plural) return null;
+    const verbBase = read.verbs.some((v) => v.form === "base") && !read.adjective;
+    const ing = read.verbs.some((v) => v.form === "ing");
+    const adjective = read.adjective && !read.verbs.length && !/er$/.test(word);
+    const be = /^(?:am|is|are|was|were|['’]m|['’]re)$/i.test(m[0].split(/\s+/)[0]);
+    const after = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (
+      !(be
+        ? !/\bthere[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) &&
+          !(
+            after?.kind === "word" &&
+            (enNounOnly(after.lower) || englishWordInfo(after.lower)?.noun)
+          ) &&
+          !(verbBase || !(ing || adjective))
+        : verbBase)
+    )
+      return null;
+    return mvMissing(
+      ctx,
+      "englishConfusedWords",
+      "review_msg_confused_word",
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [caseLike(target, "not")],
+      m.index + m[0].length,
+    );
+  },
+  // en.yaml rule en.missingVerbs frame 6
+  "@en.missingVerbs/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = m.groups!.word;
+    if (!(
+      enAfterBreak(ctx, m.index) ||
+      /^(?:if|that|so|and|but|because|since|when|think|know)$/.test(enWordBefore(ctx, m.index))
+    ))
+      return null;
+    if (/^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/.test(word)) return null;
+    if (
+      EN_FUNCTION_WORDS.has(word) ||
+      /^(?:enough|sufficient|any|much|many|yet|got|gotten|been)$/.test(word)
+    )
+      return null;
+    const read = englishWordInfo(word);
+    const noun = read ? read.noun && !read.verbs.length && !read.adverb : !!enNounOnly(word);
+    const tokens = enTokensAfter(ctx, m.index + m[0].length, 2);
+    const adjectiveNoun =
+      !!read?.adjective &&
+      !read.verbs.length &&
+      tokens[0]?.kind === "word" &&
+      !!enNounOnly(tokens[0].lower);
+    if (!(noun || adjectiveNoun)) return null;
+    return mvMissing(
+      ctx,
+      "englishConfusedWords",
+      "review_msg_confused_word",
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      ["no"],
+      m.index + m[0].length,
+    );
+  },
+  // en.yaml rule en.missingVerbs frame 7
+  "@en.missingVerbs/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const read = englishWordInfo(target);
+    if (!read?.adverb || read.adjective || read.noun || read.verbs.length) return null;
+    if (!mvSubjectClause(ctx, m.index)) return null;
+    return finding(
+      "englishSentenceStructure",
+      "review_msg_sentence_structure",
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [],
+      { warningOnly: true, context: enEvidence(ctx, m.index, m.index + m[0].length) },
+    );
   },
   // en.yaml rule en.realWordFrames frame 1
   "@en.realWordFrames/1": (m: RegExpExecArray, ctx: DetectContext): FixResult => {

@@ -2514,30 +2514,335 @@ rules:
     style: match
     message: review_msg_clause_be
     filter: slotFindingsOncePerStart
+    # Clauses whose subject has no verb: "It very easy", "I not sure", "There a lot of ways",
+    # "Can we able to", "would very helpful", and no/not mixed up next to a verb or noun.
+    sets:
+      MV_ADVERB_RUN:
+        [
+          not,
+          really,
+          very,
+          so,
+          still,
+          also,
+          only,
+          just,
+          totally,
+          too,
+          much,
+          always,
+          probably,
+          rarely,
+          never,
+          definitely,
+          already,
+          partially,
+          properly,
+          completely,
+          pretty,
+          quite,
+          now,
+          first,
+          maybe,
+          currently,
+          actually,
+          finally,
+          more,
+          less,
+        ]
+      # Predicate words the lexicon gives no adjective reading.
+      MV_PREDICATIVE:
+        [afraid, able, unable, sure, glad, sorry, worth, alone, awake, asleep, okay, ok]
+      # "wan" (pale) is far more often "want" with a lost letter: "I wan this".
+      MV_NOT_PREDICATE:
+        [
+          just,
+          likely,
+          often,
+          soon,
+          together,
+          alone,
+          only,
+          still,
+          even,
+          sure,
+          best,
+          most,
+          least,
+          all,
+          intent,
+          wan,
+        ]
+    maps:
+      MV_BE: { i: am, you: are, we: are, they: are, he: is, she: is, it: is, this: is }
+    defs:
+      # Words after which a subject opens a clause.
+      MV_CLAUSE_CUE: >-
+        /^(?:and|but|so|because|if|when|that|think|thought|know|knew|hope|guess|maybe|since|though|although|while|whether|sure|certain|clear|obvious|said|says|unless|once|until|why|how|what)$/
+      # Adjectives that take a clause: "it possible the…", "it likely we…".
+      MV_CLAUSE_ADJECTIVES: >-
+        /^(?:possible|likely|unlikely|clear|obvious|true|important|lucky|strange|odd|weird|funny|sad|good|great|nice|bad)$/
+      MV_INTENSIFIERS: /^(?:fucking|freaking|frigging|bloody|damn|kindly)$/
+      # Finite auxiliaries, and words that end the look for a finite verb.
+      MV_AUX: >-
+        /^(?:is|are|was|were|am|has|have|had|do|does|did|will|would|can|could|should|may|might|must)$/
+      MV_STOP: /^(?:that|which|who|to|and|but|because|if|when|then|so|or)$/
+      # "I don't know, it pathetic": a clause may also open after a comma.
+      mvSubjectClause:
+        args: "ctx: DetectContext, start: number"
+        return: >-
+          enOpensClause(ctx, start, MV_CLAUSE_CUE) || /,[ \t ]*$/.test(ctx.text.slice(Math.max(0,
+          start - 4), start))
+      # A verb-only past or -s form.
+      mvFiniteVerb:
+        args: "word: string"
+        let:
+          read: "EN_FUNCTION_WORDS.has(word) ? null : englishWordInfo(word)"
+        return: >-
+          !!read && !read.noun && !read.adjective && read.verbs.some((v) => v.form === "past" ||
+          v.form === "third")
+      # A finite verb before the clause ends: the subject already has its verb.
+      mvFiniteLater:
+        args: "tokens: EnToken[], from: number"
+        let:
+          hit: >-
+            tokens.slice(from).find((t) => t.kind !== "comma" && (t.kind !== "word" ||
+            MV_AUX.test(t.lower) || MV_STOP.test(t.lower) || mvFiniteVerb(t.lower)))
+        return: 'hit?.kind === "word" && !MV_STOP.test(hit.lower)'
+      # A noun that is no adverb: after a gerund noun it continues a compound ("meeting rooms").
+      mvNounLike:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        return: >-
+          !!read?.noun && !read.adverb &&
+          !/^(?:well|there|here|home|today|tonight|tomorrow|now|fine|great|okay|ok|out|back)$/.test(word)
+      # A finding that replaces [start, end) with each alternative; its context reaches `until`.
+      mvMissing:
+        args: >-
+          ctx: DetectContext, ruleId: RawFinding["ruleId"], messageKey: RawFinding["messageKey"],
+          start: number, end: number, alternatives: string[], until: number
+        return: "finding(ruleId, messageKey, start, end, alternatives, { context: enEvidence(ctx, start, until) })"
+      # True when no predicate test of missingSubjectBe can accept the word after the subject
+      # `lower` and up to two adverbs. Each test below is the condition of one branch of that
+      # frame's predicate tests: keep the two in step. It reads three words, not ten tokens.
+      mvNoPredicate:
+        args: "ctx: DetectContext, end: number, lower: string"
+        let:
+          words: enWordsAfter(ctx, end, 3)
+          k: >-
+            !(words[0] && MV_ADVERB_RUN.has(words[0].lower)) ? 0 : !(words[1] &&
+            MV_ADVERB_RUN.has(words[1].lower)) ? 1 : 2
+          head: words[k]
+        when: head && head.text === head.lower
+        return: >-
+          (k === 2 && words[0].lower === "too" && /^(?:much|many)$/.test(words[1].lower)) || (k === 0
+          && /^(?:a|an|the|my|our|your)$/.test(head.lower)) ? false : lower === "this" ? !(k > 0 &&
+          words[0].lower === "not") : !mvPredicate(head.lower)
+        else: "true"
+      # A word that can be a predicate after a subject (mvNoPredicate).
+      mvPredicate:
+        args: "word: string"
+        let:
+          read: "EN_FUNCTION_WORDS.has(word) ? null : englishWordInfo(word)"
+        return: >-
+          word === "one" || word === "worth" || MV_CLAUSE_ADJECTIVES.test(word) ||
+          MV_PREDICATIVE.has(word) || /^(?:fine|good|great|ready|right|wrong)$/.test(word) ||
+          (read?.adjective && !read.verbs.length) || read?.verbs.some((v) => v.form === "ing")
     frames:
       # "It very easy", "I not sure", "He a racist", "You going to be there": a subject and no be.
       - regex: "(?<target>I|you|he|she|it|we|they|this){{S}}(?=[a-z])"
-        fixer: missingSubjectBe
+        let:
+          lower: target.toLowerCase()
+          # An unreadable token ("(", a URL) ends the look-ahead like punctuation.
+          tokens: >-
+            enTokensAfter(ctx, m.index + m[0].length, 10).map((t) => t.kind === "other" ? { ...t,
+            kind: "end" as const } : t)
+          k: >-
+            !(tokens[0]?.kind === "word" && MV_ADVERB_RUN.has(tokens[0].lower)) ? 0 :
+            !(tokens[1]?.kind === "word" && MV_ADVERB_RUN.has(tokens[1].lower)) ? 1 : 2
+          head: tokens[k]
+          word: head.lower
+          read: "EN_FUNCTION_WORDS.has(word) ? null : englishWordInfo(word)"
+          next: tokens[k + 1]
+          adverbs: tokens.slice(0, k).map((t) => t.lower)
+          # The predicate closes: punctuation or a closed word that cannot continue a noun phrase.
+          closes: >-
+            !next || next.kind === "end" || next.kind === "comma" || (next.kind === "word" &&
+            /^(?:to|then|and|or|for|enough|than|now|anymore|again|too|because|so|outside|inside|here|there|today|tonight|tomorrow)$/.test(next.lower))
+          # "It too much work", "it too many steps": too + a quantity is a predicate.
+          tooMuch: /^too (?:much|many)$/.test(adverbs.join(" "))
+          before: enWordBefore(ctx, m.index)
+          # 0: no predicate; 1: a predicate; 2: a predicate before a clause.
+          verdict: >-
+            lower !== "this" && (tooMuch || (word === "one" && next?.kind === "word" && next.lower
+            === "of"))
+              ? (!/^(?:make|makes|made|count|counts|counted|call|calls|called|consider|considered|think|thought|find|found)$/.test(before) ? 1 : 0)
+              : /^(?:a|an|the|my|our|your)$/.test(word) && k === 0
+              ? ((lower !== "this" || word !== "my") && !/^(?:and|or|nor|think|thought|consider|considered|thinks)$/.test(before) && !/^(?:we|you)$/.test(lower) ? 1 : 0)
+              : lower === "this"
+              ? (adverbs[0] === "not" && enAfterBreak(ctx, m.index) && (!!read?.adjective || !!read?.noun || /^(?:just|a|an|the)$/.test(word)) ? 1 : 0)
+              : word === "worth" && next?.kind === "word" && (/ing$/.test(next.lower) || /^(?:the|a|an|it|every|more|less)$/.test(next.lower))
+              ? 1
+              : MV_CLAUSE_ADJECTIVES.test(word) && next?.kind === "word" && (/^(?:the|a|an|we|you|they|he|she|i|my|our|your|their)$/.test(next.lower) || (lower === "it" && /^(?:this|that)$/.test(next.lower))) && !/^(?:think|thought|believe|believed|consider|considered|find|found|deem|deemed|made|make|makes|keep)$/.test(before)
+              ? 2
+              : MV_PREDICATIVE.has(word) || (/^(?:fine|good|great|ready|right|wrong)$/.test(word) && (!/^(?:it|this|you)$/.test(lower) || !/^(?:think|thought|believe|believed|consider|considered|find|found|deem|deemed)$/.test(before))) || (read?.adjective && !read.verbs.length && !MV_NOT_PREDICATE.has(word) && (!read.noun || (closes && (!/^(?:it|this|you)$/.test(lower) || !/^(?:think|thought|believe|believed|consider|considered|find|found|deem|deemed)$/.test(before)))))
+              ? (!(!/^(?:also|still)$/.test(adverbs[0] ?? "") && !closes && next?.kind === "word" && (enNounOnly(next.lower) || englishWordInfo(next.lower)?.noun || englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base"))) ? 1 : 0)
+              : read?.verbs.some((v) => v.form === "ing") && (!read.noun || !next || next.kind !== "word" || !mvNounLike(next.lower)) && !/^(?:being|having)$/.test(word) && lower !== "this" && !(k === 0 && next?.kind === "word" && !/^(?:great|fine|well|good|perfectly|ok|okay|now|again)$/.test(next.lower) && (enNounOnly(next.lower) || englishWordInfo(next.lower)?.noun)) && !/^or$/.test(before) && !(before === "and" && tokens.slice(k + 1).some((t) => t.kind === "word" && englishWordInfo(t.lower)?.verbs.some((v) => v.form === "third" || v.form === "past")))
+              ? 1
+              : 0
+          # "How are Tom and I doing?": be already stands before the subject.
+          inverted: >-
+            /\b(?:am|is|are|was|were)((?:[ \t]+[A-Za-z]+){0,3})[ \t]+$/i.exec(ctx.text.slice(Math.max(0,
+            m.index - 48), m.index))
+          typedStart: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          # "Adam and I going": a coordinated subject at the clause start is plural; "…ago and it
+          # still working" joins two clauses.
+          pair: >-
+            before === "and" && lower !== "it"
+              ? /(?:^|[.!?;:,\n"“(])[ \t ]*((?:(?!(?:what|when|how|why|where)\b)[A-Za-z]+[ \t ]+){1,2}and[ \t ]+)$/i.exec(ctx.text.slice(Math.max(0, typedStart - 40), typedStart))
+              : null
+          coordinated: '!!pair && !!read?.verbs.some((v) => v.form === "ing")'
+          be: 'coordinated ? "are" : MV_BE[lower]'
+          # Show the whole subject ("Adam and I are"), not "I are".
+          start: "coordinated && pair ? typedStart - pair[1].length : typedStart"
+          subjectText: "coordinated ? ctx.text.slice(start, end) : target"
+          # "What they doing?": a direct question inverts.
+          wh: /\b(what|when|how|why)[ \t]+$/i.exec(ctx.text.slice(Math.max(0, start - 8), start))
+          question: wh && /^[^.!\n]*\?/.test(ctx.text.slice(head.end, head.end + 120))
+        when:
+          - target === lower || target === "I" || enAfterBreak(ctx, m.index)
+          - "!mvNoPredicate(ctx, m.index + m[0].length, lower)"
+          - mvSubjectClause(ctx, m.index)
+          - head?.kind === "word" && head.text === head.lower
+          # "This not only helps": a focus construction. "It maybe helpful" is "may be"
+          # (wordFormSlots).
+          - '!(tokens[0]?.lower === "not" && tokens[1]?.lower === "only")'
+          - tokens[0]?.lower !== "maybe"
+          - "!(MV_INTENSIFIERS.test(word) || (adverbs.length === 0 && /ly$/.test(word)))"
+          - verdict > 0 && (verdict === 2 || !mvFiniteLater(tokens, k + 1))
+          - '!(inverted && !/\b(?:so|if|that|because|when|hope|think|but|sure|certain|clear|glad|afraid)\b/i.test(inverted[1]))'
+          # A word right before that takes the pronoun as its object: "make it easy".
+          - >-
+            !(!enAfterBreak(ctx, m.index) &&
+            /^(?:make|makes|made|keep|keeps|kept|find|found|consider|let|leave|left|have|get|got|see|saw)$/.test(before))
+        # "You good?", "We ready to go?": a short yes/no question puts be first.
+        return: >-
+          question
+            ? mvMissing(ctx, "englishSentenceStructure", "review_msg_clause_be", start - wh[0].length, end, [`${wh[1]} ${be} ${subjectText}`], head.end)
+            : enAfterBreak(ctx, start) && /^[^.!\n]{0,40}\?/.test(ctx.text.slice(head.end, head.end + 48)) && lower !== "this"
+            ? mvMissing(ctx, "englishSentenceStructure", "review_msg_clause_be", start, end, [`${caseLike(subjectText, be)} ${coordinated || target === "I" ? subjectText : target.toLowerCase()}`], head.end)
+            : mvMissing(ctx, "englishSentenceStructure", "review_msg_clause_be", start, end, [`${subjectText} ${be}`], head.end)
       # "There a lot of ways", "Here my new song", "if there any questions": there/here + no verb.
       - regex: "(?<target>there|here){{S}}(?<det>a|an|some|any|no|nothing|nobody|several|many|my|our|your){{E}}"
-        fixer: missingExistentialBe
+        let:
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 10)
+          # "a lot/couple/number/bunch of", "some/any/several/many + plural": are.
+          low: det.toLowerCase()
+          next: tokens[0]?.lower ?? ""
+          # A plural noun in the words before a closed word: "my new songs", "some free seats left".
+          run: tokens.slice(0, 4)
+          stop: run.findIndex((t) => t.kind !== "word" || EN_FUNCTION_WORDS.has(t.lower))
+          pluralNoun: >-
+            (stop < 0 ? run : run.slice(0, stop)).some((t, i) => i > 0 && /[^s]s$/.test(t.lower) &&
+            !!englishWordInfo(t.lower)?.plural)
+          plural: >-
+            /^(?:several|many)$/.test(low) || (/^an?$/.test(low) &&
+            /^(?:lot|couple|number|bunch|few)$/.test(next)) || (/^(?:some|any|my|our|your|no)$/.test(low)
+            && ((/s$/.test(next) && !/ss$/.test(next)) || pluralNoun))
+        when:
+          - target === target.toLowerCase() || enAfterBreak(ctx, m.index)
+          - mvSubjectClause(ctx, m.index) || enWordBefore(ctx, m.index) === "hope"
+          # "Here a, b and c are constants": a list of letters.
+          - tokens[0]?.kind === "word"
+          - '!(mvFiniteLater(tokens, 0) || tokens.some((t) => t.kind === "other"))'
+        return: >-
+          mvMissing(ctx, "englishSentenceStructure", "review_msg_clause_be", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [`${target} ${plural ? "are" : "is"}`], m.index + m[0].length)
       # "Can we able to…", "Have you able to…": able needs be/been.
       - regex: "(?<aux>can|could|would|will|should|can['’]t|couldn['’]t|have|has|haven['’]t|hasn['’]t){{S}}(?<target>we|you|they|he|she|it|I|anyone|someone|everyone)(?:{{S}}(?:ever|still|not))?{{S}}(?:able|unable){{S}}to{{E}}"
-        fixer: missingAbleBe
+        let:
+          low: aux.toLowerCase()
+        when:
+          # "…and then have it able to…": a causative have.
+          - "!(/^ha/.test(low) && !enAfterBreak(ctx, m.index))"
+        return: >-
+          mvMissing(ctx, "englishSentenceStructure", "review_msg_clause_be", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [`${target} ${/^ha/.test(low) ? "been" : "be"}`], m.index +
+          m[0].length)
       # "It would very helpful", "It will OK to go": a modal before a degree word and an adjective.
       - regex: "(?<modal>would|will|could|should|might|may|must|can)(?<target>{{S}})(?:(?:very|too|so|extremely|quite|pretty|forever){{S}}(?<adjective>[a-z]+)|(?<fixed>ok|okay|worth)){{E}}"
-        fixer: missingModalBe
+        let:
+          read: "adjective ? englishWordInfo(adjective) : null"
+        when:
+          - >-
+            adjective ? !!read && (read.adjective || read.verbs.some((v) => v.form === "participle"))
+            && !read.verbs.some((v) => v.form === "base") &&
+            !/^(?:much|many|few|little|likely)$/.test(adjective) : !(fixed &&
+            !/^(?:it|that|this|which)$/.test(enWordBefore(ctx, m.index)))
+        return: >-
+          mvMissing(ctx, "englishSentenceStructure", "review_msg_missing_be", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [" be "], m.index + m[0].length)
       # "She could no hear": no for not.
       - regex: "(?:could|would|should|can|will|might|must|does|do|did|am|is|are|was|were|['’]m|['’]re){{S}}(?<target>no){{S}}(?<word>[a-z]+){{E}}"
         check: englishConfusedWords
-        fixer: missingNoForNot
+        let:
+          read: englishWordInfo(word)
+          verbBase: 'read.verbs.some((v) => v.form === "base") && !read.adjective'
+          ing: 'read.verbs.some((v) => v.form === "ing")'
+          adjective: read.adjective && !read.verbs.length && !/er$/.test(word)
+          be: >-
+            /^(?:am|is|are|was|were|['’]m|['’]re)$/i.test(m[0].split(/\s+/)[0])
+          after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - >-
+            !(EN_FUNCTION_WORDS.has(word) ||
+            /^(?:longer|doubt|matter|one|good|better|worse|different|less|more|way|problem|big|bigger)$/.test(word))
+          - "!(!read || read.noun || read.plural)"
+          # "There was no stopping him", "It is no easy thing": a noun phrase after be.
+          - >-
+            be ? !/\bthere[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) &&
+            !(after?.kind === "word" && (enNounOnly(after.lower) ||
+            englishWordInfo(after.lower)?.noun)) && !(verbBase || !(ing || adjective)) : verbBase
+        return: >-
+          mvMissing(ctx, "englishConfusedWords", "review_msg_confused_word", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [caseLike(target, "not")], m.index + m[0].length)
       # "There is not time", "I have not idea": not for no.
       - regex: "(?<lead>there{{S}}(?:is|are|was|were|['’]s)|(?:i|we|you|they){{S}}(?:have|['’]ve)|(?:he|she|it){{S}}has){{S}}(?<target>not){{S}}(?<word>[a-z]+){{E}}"
         check: englishConfusedWords
-        fixer: missingNotForNo
+        let:
+          read: englishWordInfo(word)
+          noun: "read ? read.noun && !read.verbs.length && !read.adverb : !!enNounOnly(word)"
+          tokens: enTokensAfter(ctx, m.index + m[0].length, 2)
+          # "There is not a…", "I have not seen": only a bare noun phrase takes "no".
+          adjectiveNoun: >-
+            !!read?.adjective && !read.verbs.length && tokens[0]?.kind === "word" &&
+            !!enNounOnly(tokens[0].lower)
+        when:
+          # "the folks that work there are not mechanics": a locative there.
+          - >-
+            enAfterBreak(ctx, m.index) ||
+            /^(?:if|that|so|and|but|because|since|when|think|know)$/.test(enWordBefore(ctx, m.index))
+          - "!/^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/.test(word)"
+          - "!(EN_FUNCTION_WORDS.has(word) || /^(?:enough|sufficient|any|much|many|yet|got|gotten|been)$/.test(word))"
+          - noun || adjectiveNoun
+        return: >-
+          mvMissing(ctx, "englishConfusedWords", "review_msg_confused_word", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], ["no"], m.index + m[0].length)
       # "I quickly the flashlight": a subject, an -ly adverb and then a determiner, no verb.
       - regex: "(?:I|we|you|they|he|she){{S}}(?<target>[a-z]+ly){{S}}(?:the|a|an|my|your|his|her|our|their|these|those){{E}}"
-        fixer: missingAdverbVerb
+        let:
+          read: englishWordInfo(target)
+        when:
+          # Only an adverb: "early", "only", "likely" and "daily" are adjectives too.
+          - "!(!read?.adverb || read.adjective || read.noun || read.verbs.length)"
+          - mvSubjectClause(ctx, m.index)
+        # No fix: the missing verb cannot be guessed.
+        return: >-
+          finding("englishSentenceStructure", "review_msg_sentence_structure", m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1], [], { warningOnly: true, context: enEvidence(ctx, m.index, m.index
+          + m[0].length) })
   - id: en.determinerConfusions
     checks: [englishConfusedWords]
     style: match
