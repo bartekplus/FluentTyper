@@ -46,13 +46,11 @@ import * as neighbourSlots from "./neighbourSlots";
 import * as clauseFrames from "./clauseFrames";
 import * as slipFrames from "./slipFrames";
 import * as realWordFrames from "./realWordFrames";
-import * as clauseGaps from "./clauseGaps";
 import * as misheardWords from "./misheardWords";
 import * as verbSlots from "./verbSlots";
 import * as nounSlots from "./nounSlots";
 import * as agreementFrames from "./agreementFrames";
 import * as neighbourTypos from "./neighbourTypos";
-import * as clashFrames from "./clashFrames";
 
 export const PREDICATES = mergePredicates();
 
@@ -62,10 +60,8 @@ export const FIXERS = mergePredicates<Fixer>(
   articles.FIXERS,
   idioms5.FIXERS,
   slotConfusions.FIXERS,
-  clauseGaps.FIXERS,
   slipFrames.FIXERS,
   neighbourTypos.FIXERS,
-  clashFrames.FIXERS,
   idioms1.FIXERS,
   idioms2.FIXERS,
   idioms4.FIXERS,

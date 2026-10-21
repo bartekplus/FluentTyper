@@ -25,6 +25,7 @@ import {
   enNounOnly,
   enTokensAfter,
   enWordBefore,
+  englishInflect,
   englishLemma,
   englishVerbForms,
   englishWordInfo,
@@ -232,6 +233,16 @@ export const BRITISH_UNITS: Readonly<Record<string, string>> = {
   liter: "litre",
   liters: "litres",
 };
+
+export const CLASH_BE_I: Readonly<Record<string, string>> = {
+  is: "am not",
+  are: "am not",
+  were: "wasn't",
+};
+
+export const CLASH_BE_PLURAL: Readonly<Record<string, string>> = { is: "aren't", was: "weren't" };
+
+export const CLASH_BE_SINGULAR: Readonly<Record<string, string>> = { are: "isn't", were: "wasn't" };
 
 // en.yaml rule en.toForToo def degreeLexiconTarget
 export function degreeLexiconTarget(word: string): boolean {
@@ -643,6 +654,84 @@ export const PREPOSITION_MONTHS =
 // en.yaml rule en.prepositionSlots def prepositionIng
 export function prepositionIng(word: string) {
   return !!englishWordInfo(word.toLowerCase())?.verbs.some((v) => v.form === "ing");
+}
+
+// en.yaml rule en.clauseGaps def clauseGapsRead
+export function clauseGapsRead(word: string | undefined) {
+  return word ? englishWordInfo(word.toLowerCase()) : null;
+}
+
+// en.yaml rule en.clauseGaps def CLAUSEGAPS_THIRD
+export const CLAUSEGAPS_THIRD = ["it", "he", "she"];
+
+// en.yaml rule en.clauseGaps def CLAUSEGAPS_PAST_BE
+export const CLAUSEGAPS_PAST_BE = ["it", "I", "he", "she"];
+
+// en.yaml rule en.clauseGaps def CLAUSEGAPS_ANY
+export const CLAUSEGAPS_ANY = ["you", "I", "it", "we"];
+
+// en.yaml rule en.clauseGaps def clauseGapsAdjective
+export function clauseGapsAdjective(word: string) {
+  const r = clauseGapsRead(word);
+  return !!r?.adjective && !r.noun && !r.verbs.length;
+}
+
+// en.yaml rule en.clauseGaps def clauseGapsBaseVerb
+export function clauseGapsBaseVerb(word: string) {
+  return (
+    !!clauseGapsRead(word)?.verbs.some((v) => v.form === "base") && !EN_FUNCTION_WORDS.has(word)
+  );
+}
+
+// en.yaml rule en.clashFrames def CLASH_BIT_LEAD
+export const CLASH_BIT_LEAD =
+  /^(?:['’](?:m|re|s)|am|is|are|was|were|be|been|being|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|gets|got|getting|have|has|had|having|and|or|with|for|just|only|also|still)$/;
+
+// en.yaml rule en.clashFrames def CLASH_NOT_BEFORE_LITTLE
+export const CLASH_NOT_BEFORE_LITTLE =
+  /^(?:a|the|this|that|my|your|his|her|our|their|its|every|each|one|no|any|some|which|what|whose)$/;
+
+// en.yaml rule en.clashFrames def CLASH_NEED_SUBJECT
+export const CLASH_NEED_SUBJECT =
+  /^(?:it|this|that|he|she|they|these|those|everything|something|nothing)$/;
+
+// en.yaml rule en.clashFrames def CLASH_NEEDS_CHANGED
+export const CLASH_NEEDS_CHANGED =
+  /^(?:changed|evolved|increased|decreased|shifted|differed|varied|expanded|emerged|developed|existed|remained|appeared|happened|occurred|arrived|continued|ended|started|peaked|grew|exceeded|included|listed|stated|mentioned|outlined|described|identified|addressed)$/;
+
+// en.yaml rule en.clashFrames def CLASH_SUBJUNCTIVE
+export const CLASH_SUBJUNCTIVE =
+  /\b(?:if|wish|wished|wishes|though|unless|suppose|supposing|imagine|only)\b/i;
+
+// en.yaml rule en.clashFrames def clashSentenceBefore
+export function clashSentenceBefore(ctx: DetectContext, index: number) {
+  return (
+    ctx.text
+      .slice(Math.max(0, index - 80), index)
+      .split(/[.!?\n]/)
+      .at(-1) ?? ""
+  );
+}
+
+// en.yaml rule en.clashFrames def CLASH_KEEP_MORE
+export const CLASH_KEEP_MORE = /^(?:likely|often|real|right|wrong|fun|apt|just|true|ill|well)$/;
+
+// en.yaml rule en.clashFrames def clashComparative
+export function clashComparative(adjective: string): string | null {
+  const own = englishWordInfo(adjective);
+  if (!(own?.adjective && !/ly$/.test(adjective))) return null;
+  const syllables = adjective.replace(/e$/, "").match(/[aeiouy]+/g)?.length ?? 0;
+  if (syllables > 1 && !/(?:[^aeiou]y|le)$/.test(adjective)) return null;
+  const doubled = /[^aeiou][aeiou]([bdgmnpt])$/.exec(adjective);
+  const form = /[^aeiou]y$/.test(adjective)
+    ? `${adjective.slice(0, -1)}ier`
+    : adjective.endsWith("e")
+      ? `${adjective}r`
+      : doubled
+        ? `${adjective}${doubled[1]}er`
+        : `${adjective}er`;
+  const read = englishWordInfo(form);
+  return read?.adjective && !read.noun ? form : null;
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -1213,6 +1302,237 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     return (read?.adjective || nonNoun) && !read?.verbs.some((v) => v.form !== "base")
       ? `${prefix}-${word}`
       : null;
+  },
+  // en.yaml rule en.clauseGaps frame 1
+  "@en.clauseGaps/1": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    const verb = target.toLowerCase();
+    const nextWord = next.toLowerCase();
+    if (/^(?:be|i|you|he|she|it|we|they|there|this|that)$/.test(nextWord) || /['’]/.test(nextWord))
+      return null;
+    if (!(
+      verb !== "need" ||
+      /^(?:anything|something|any|more|help|a|an|the|to|me|it|them|us|some)$/.test(nextWord)
+    ))
+      return null;
+    if (!(
+      verb !== "need" || /^(?:if|unless)$/i.test(enWordBefore(ctx, m.index + m[0].indexOf(target)))
+    ))
+      return null;
+    const r = clauseGapsRead(nextWord);
+    if (!(
+      verb === "need" ||
+      !(r && (r.noun || r.plural) && !r.verbs.length && !r.adjective && !r.adverb)
+    ))
+      return null;
+    if (
+      /^(?:will|can|must|might|may)$/.test(verb) &&
+      !/^(?:not|be|have|also|never|always|probably|definitely|just|really|still|only)$/.test(
+        nextWord,
+      ) &&
+      (!r?.verbs.some((v) => v.form === "base") || r.noun || r.plural)
+    )
+      return null;
+    const pronouns = /^(?:is|isn['’]t|has|hasn['’]t|does|doesn['’]t)$/.test(verb)
+      ? CLAUSEGAPS_THIRD
+      : /^was/.test(verb)
+        ? CLAUSEGAPS_PAST_BE
+        : verb === "need"
+          ? ["you", "I", "we"]
+          : CLAUSEGAPS_ANY;
+    const start = m.indices!.groups!.target[0];
+    const end = m.indices!.groups!.target[1];
+    const typed = ctx.text.slice(start, end);
+    return { alternatives: pronouns.map((p) => `${p} ${typed}`), range: [start, end], raw: true };
+  },
+  // en.yaml rule en.clauseGaps frame 2
+  "@en.clauseGaps/2": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    if (
+      /\bor\b/i.test(m[0]) ||
+      /\bneither\b/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index))
+    )
+      return null;
+    const before = enWordBefore(ctx, m.index);
+    const r = EN_FUNCTION_WORDS.has(before) ? null : clauseGapsRead(before);
+    return r && (r.noun || r.plural) ? null : "or";
+  },
+  // en.yaml rule en.clauseGaps frame 3
+  "@en.clauseGaps/3": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const two = m.groups!.two;
+    if (!(target === target.toLowerCase())) return null;
+    const one = target.toLowerCase();
+    const twoWord = two.toLowerCase();
+    if (!(one !== twoWord && !EN_FUNCTION_WORDS.has(one) && !EN_FUNCTION_WORDS.has(twoWord)))
+      return null;
+    const a = clauseGapsRead(one);
+    const b = clauseGapsRead(twoWord);
+    if (!(a?.verbs.length && b?.verbs.length)) return null;
+    const lemma = a.verbs.find((v) => b.verbs.some((w) => w.lemma === v.lemma))?.lemma;
+    if (!(lemma && (!/^(?:have|be|do|get|let|go)$/.test(lemma) || one === "going"))) return null;
+    const kindsA = a.verbs.filter((v) => v.lemma === lemma).map((v) => v.form);
+    const kindsB = b.verbs.filter((v) => v.lemma === lemma).map((v) => v.form);
+    if (kindsA.some((k) => kindsB.includes(k))) return null;
+    const before = enWordBefore(ctx, m.index);
+    const secondBase = kindsB.includes("base") && !b.plural;
+    const slip =
+      (secondBase && kindsA.some((k) => k === "past" || k === "ing")) ||
+      (/^(?:i|we|you|they)$/.test(before) && kindsA.includes("base") && kindsB.includes("past"));
+    if (!slip) return null;
+    const nounFirst = a.noun && !a.verbs.some((v) => v.form === "ing" || v.form === "past");
+    if (EN_DETERMINERS.has(before) || (nounFirst && !/^(?:to|i|we|you|they|he|she)$/.test(before)))
+      return null;
+    return { alternatives: [one, twoWord], range: [m.index, m.indices!.groups!.two[1]] };
+  },
+  // en.yaml rule en.clauseGaps frame 4
+  "@en.clauseGaps/4": (m: RegExpExecArray): FixResult => {
+    const cmp = m.groups!.cmp;
+    const cmpWord = cmp.toLowerCase();
+    return /^(?:more|less|fewer)/.test(cmpWord) || clauseGapsAdjective(cmpWord) ? "than" : null;
+  },
+  // en.yaml rule en.clauseGaps frame 5
+  "@en.clauseGaps/5": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const verb = m.groups!.verb;
+    const verbWord = verb?.toLowerCase();
+    const before = enWordBefore(ctx, m.index);
+    return verbWord
+      ? clauseGapsBaseVerb(verbWord) &&
+        /^(?:might|may|will|would|could|should|shall|must)$/.test(before)
+        ? "thereafter"
+        : null
+      : /^(?:gradually|shortly|soon|immediately|and|decreases|increases|declines|rises)$/.test(
+            before,
+          )
+        ? "thereafter"
+        : null;
+  },
+  // en.yaml rule en.clashFrames frame 2
+  "@en.clashFrames/2": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    if (!enAfterBreak(ctx, m.index)) return null;
+    return "";
+  },
+  // en.yaml rule en.clashFrames frame 3
+  "@en.clashFrames/3": (m: RegExpExecArray): FixResult => {
+    const word = m.groups!.word;
+    return word;
+  },
+  // en.yaml rule en.clashFrames frame 4
+  "@en.clashFrames/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const subject = m.groups!.subject;
+    const be = m.groups!.be;
+    if (subject === "i" || /^(?:and|or|nor|than|as)$/.test(enWordBefore(ctx, m.index))) return null;
+    const s = subject.toLowerCase();
+    const b = be.toLowerCase();
+    if (b === "were" && CLASH_SUBJUNCTIVE.test(clashSentenceBefore(ctx, m.index))) return null;
+    const fix =
+      s === "i"
+        ? CLASH_BE_I[b]
+        : s === "we" || s === "they"
+          ? CLASH_BE_PLURAL[b]
+          : CLASH_BE_SINGULAR[b];
+    return fix ?? null;
+  },
+  // en.yaml rule en.clashFrames frame 5
+  "@en.clashFrames/5": (m: RegExpExecArray): FixResult => {
+    const count = m.groups!.count;
+    const target = m.groups!.target;
+    return count === "1" ? null : `${target}s`;
+  },
+  // en.yaml rule en.clashFrames frame 6
+  "@en.clashFrames/6": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const subject = m.groups!.subject;
+    const need = m.groups!.need;
+    const verb = m.groups!.verb;
+    const s = subject.toLowerCase();
+    const v = verb.toLowerCase();
+    if (CLASH_NEEDS_CHANGED.test(v)) return null;
+    if (!englishWordInfo(v)?.verbs.some((x) => x.form === "participle")) return null;
+    const read = englishWordInfo(s);
+    const nounSubject = !!read?.noun && EN_DETERMINERS.has(enWordBefore(ctx, m.index));
+    if (!(CLASH_NEED_SUBJECT.test(s) || nounSubject)) return null;
+    return [`${need} to be ${verb}`, `${need} ${v.replace(/e?d$/, "")}ing`].filter(
+      (alt, i) => i === 0 || englishWordInfo(alt.split(" ")[1]),
+    );
+  },
+  // en.yaml rule en.clashFrames frame 7
+  "@en.clashFrames/7": (m: RegExpExecArray): FixResult => {
+    const be = m.groups!.be;
+    const adverb = m.groups!.adverb;
+    const will = /n['’]t$/i.test(be) ? "won't" : /^['’]/.test(be) ? `${be[0]}ll` : "will";
+    return [`${be}${adverb}`, `${will}${adverb} be`];
+  },
+  // en.yaml rule en.clashFrames frame 8
+  "@en.clashFrames/8": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const lead = m.groups!.lead;
+    const little = m.groups!.little;
+    const word = lead?.toLowerCase();
+    const before = word === "little" ? enWordBefore(ctx, m.index) : "";
+    if (
+      word === "little" &&
+      (before ? CLASH_NOT_BEFORE_LITTLE.test(before) : !enAfterBreak(ctx, m.index))
+    )
+      return null;
+    if (!(
+      word === "little" ||
+      (word === undefined
+        ? !!little && enAfterBreak(ctx, m.index)
+        : little
+          ? !CLASH_NOT_BEFORE_LITTLE.test(word)
+          : CLASH_BIT_LEAD.test(word))
+    ))
+      return null;
+    return word === "little"
+      ? { alternatives: ["a little bit"], range: [m.index, m.index + m[0].length] }
+      : little
+        ? "a little bit"
+        : "a bit";
+  },
+  // en.yaml rule en.clashFrames frame 9
+  "@en.clashFrames/9": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const be = m.groups!.be;
+    const rest = m.groups!.rest;
+    const subject = m.groups!.subject;
+    const verb = m.groups!.verb;
+    if (!(enAfterBreak(ctx, m.index) && subject !== "i")) return null;
+    const read = englishWordInfo(verb);
+    if (!(read?.verbs.length && !read.adjective && !read.adverb)) return null;
+    const irregular = englishVerbForms(verb);
+    const end = m.index + m[0].length;
+    const following = /^[ \t ]+([a-z]+)/i.exec(ctx.text.slice(end, end + 24));
+    if (
+      read.noun &&
+      (irregular?.lemma !== verb || !following || /^(?:or|and|nor|but)$/i.test(following[1]))
+    )
+      return null;
+    if (!read.verbs.every((v) => v.form === "base" && v.lemma === verb)) return null;
+    if (irregular?.participle === verb || /^(?:be|suppose|use|please)$/.test(verb)) return null;
+    const b = be.toLowerCase();
+    const aux = /^(?:was|were)$/.test(b) ? "did" : /^(?:he|she|it)$/i.test(subject) ? "does" : "do";
+    const ing = englishInflect(verb, "ing");
+    return [`${aux}${rest}${verb}`, ...(ing ? [`${be}${rest}${ing}`] : [])];
+  },
+  // en.yaml rule en.clashFrames frame 10
+  "@en.clashFrames/10": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const adjective = m.groups!.adjective;
+    const other = m.groups!.other;
+    if (!(adjective === adjective.toLowerCase() && !CLASH_KEEP_MORE.test(adjective))) return null;
+    if (/^(?:no|once|never|and|the)$/.test(enWordBefore(ctx, m.index))) return null;
+    const otherRead = other && englishWordInfo(other.toLowerCase());
+    if (otherRead && otherRead.adjective && !otherRead.noun) return null;
+    return clashComparative(adjective);
+  },
+  // en.yaml rule en.clashFrames frame 12
+  "@en.clashFrames/12": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    if (!enAfterBreak(ctx, m.index)) return null;
+    return "";
+  },
+  // en.yaml rule en.clashFrames frame 13
+  "@en.clashFrames/13": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const word = m.groups!.word;
+    if (!(target.slice(-word.length) === word.toLowerCase())) return null;
+    return { alternatives: [`${word}, ${word.toLowerCase()}`, word], raw: true };
   },
 };
 

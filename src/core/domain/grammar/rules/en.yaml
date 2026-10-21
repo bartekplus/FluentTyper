@@ -6432,35 +6432,124 @@ rules:
     checks: [englishSentenceStructure, englishConfusedWords, englishThenThan]
     style: slot
     message: review_msg_confused_word
+    defs:
+      clauseGapsRead:
+        args: "word: string | undefined"
+        return: "word ? englishWordInfo(word.toLowerCase()) : null"
+      # The pronouns that a subject gap takes, by the verb after it.
+      CLAUSEGAPS_THIRD: '["it", "he", "she"]'
+      CLAUSEGAPS_PAST_BE: '["it", "I", "he", "she"]'
+      CLAUSEGAPS_ANY: '["you", "I", "it", "we"]'
+      # "order that 10 units": an -er noun or verb is no comparative.
+      clauseGapsAdjective:
+        args: "word: string"
+        let:
+          r: clauseGapsRead(word)
+        return: "!!r?.adjective && !r.noun && !r.verbs.length"
+      # "We got there after lunch": after opens a phrase of its own.
+      clauseGapsBaseVerb:
+        args: "word: string"
+        return: '!!clauseGapsRead(word)?.verbs.some((v) => v.form === "base") && !EN_FUNCTION_WORDS.has(word)'
     frames:
       # "Delete the sentence if is too long", "since was happening", "if should have questions":
       # a subordinator directly before a finite verb has lost its subject.
       - regex: "(?<![\\p{L}'’])(?:if|since|because|unless|although|whether){{S}}(?<target>{{GAP_VERB}}|need){{S}}(?<next>[a-z]+){{E}}"
         message: review_msg_sentence_structure
         cue: ["if", "since", "because", "unless", "although", "whether"]
-        fixer: clauseGapsIs
+        let:
+          verb: target.toLowerCase()
+          nextWord: next.toLowerCase()
+          r: clauseGapsRead(nextWord)
+          pronouns: >-
+            /^(?:is|isn['’]t|has|hasn['’]t|does|doesn['’]t)$/.test(verb) ? CLAUSEGAPS_THIRD
+            : /^was/.test(verb) ? CLAUSEGAPS_PAST_BE
+            : verb === "need" ? ["you", "I", "we"] : CLAUSEGAPS_ANY
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          typed: ctx.text.slice(start, end)
+        when:
+          # "if need be", "since will power…", "if won't we'll": an idiom, a noun or a subject.
+          - >-
+            !(/^(?:be|i|you|he|she|it|we|they|there|this|that)$/.test(nextWord) || /['’]/.test(nextWord))
+          # "if need anything else": an object after need.
+          - >-
+            verb !== "need" || /^(?:anything|something|any|more|help|a|an|the|to|me|it|them|us|some)$/.test(nextWord)
+          - >-
+            verb !== "need" || /^(?:if|unless)$/i.test(enWordBefore(ctx, m.index + m[0].indexOf(target)))
+          - >-
+            verb === "need" || !(r && (r.noun || r.plural) && !r.verbs.length && !r.adjective && !r.adverb)
+          # "because will power…", "since can openers…": a modal that is also a noun needs a
+          # plain verb or adverb after it.
+          - >-
+            !(/^(?:will|can|must|might|may)$/.test(verb) &&
+            !/^(?:not|be|have|also|never|always|probably|definitely|just|really|still|only)$/.test(nextWord) &&
+            (!r?.verbs.some((v) => v.form === "base") || r.noun || r.plural))
+        return: "({ alternatives: pronouns.map((p) => `${p} ${typed}`), range: [start, end], raw: true })"
       # "either the client nor the server": either pairs with or.
       - regex: "(?<![\\p{L}'’])either{{S}}(?:[^.!?;:\\n,]{1,60}?){{S}}(?<target>nor){{E}}"
         check: englishConfusedWords
         cue: ["either"]
-        fixer: clauseGapsNor
+        let:
+          before: enWordBefore(ctx, m.index)
+          r: "EN_FUNCTION_WORDS.has(before) ? null : clauseGapsRead(before)"
+        # "either Iran or Iraq, nor…", "not the case either that…": an "or" of its own, or the
+        # adverb either after a noun.
+        when: '!(/\bor\b/i.test(m[0]) || /\bneither\b/i.test(ctx.text.slice(Math.max(0, m.index - 60), m.index)))'
+        return: 'r && (r.noun || r.plural) ? null : "or"'
       # "I want wanted to thank you", "To made make it better": two forms of one verb.
       # The fixer rejects a function word: the frame skips the frequent ones.
       - regex: "(?<![\\p{L}'’-])(?!(?:{{CLAUSE_GAPS_FUNCTION}}){{S}})(?<target>[a-z]{2,})(?={{S}}(?!(?:{{CLAUSE_GAPS_FUNCTION}})(?![a-z]))(?<two>[a-z]{2,}){{E}})"
         check: englishConfusedWords
         message: review_msg_repeated_words
-        fixer: clauseGapsA
+        let:
+          one: target.toLowerCase()
+          twoWord: two.toLowerCase()
+          a: clauseGapsRead(one)
+          b: clauseGapsRead(twoWord)
+          lemma: a.verbs.find((v) => b.verbs.some((w) => w.lemma === v.lemma))?.lemma
+          # Both forms must differ in kind: "set sets" is a noun and its verb.
+          kindsA: a.verbs.filter((v) => v.lemma === lemma).map((v) => v.form)
+          kindsB: b.verbs.filter((v) => v.lemma === lemma).map((v) => v.form)
+          before: enWordBefore(ctx, m.index)
+          # Only a slip pairs "made make", "going go" or "I want wanted"; "I know knows" (a
+          # relative clause), "to marry married", "locking locks" and "connect connected devices"
+          # are two words with jobs of their own.
+          secondBase: kindsB.includes("base") && !b.plural
+          slip: >-
+            (secondBase && kindsA.some((k) => k === "past" || k === "ing")) ||
+            (/^(?:i|we|you|they)$/.test(before) && kindsA.includes("base") && kindsB.includes("past"))
+          nounFirst: a.noun && !a.verbs.some((v) => v.form === "ing" || v.form === "past")
+        when:
+          - target === target.toLowerCase()
+          - one !== twoWord && !EN_FUNCTION_WORDS.has(one) && !EN_FUNCTION_WORDS.has(twoWord)
+          - a?.verbs.length && b?.verbs.length
+          # have/be/do/get build verb groups with their own forms ("had had", "got gotten").
+          - lemma && (!/^(?:have|be|do|get|let|go)$/.test(lemma) || one === "going")
+          - "!kindsA.some((k) => kindsB.includes(k))"
+          - slip
+          # "the test tested", "a run runs": a determiner makes the first word a noun.
+          - >-
+            !(EN_DETERMINERS.has(before) || (nounFirst && !/^(?:to|i|we|you|they|he|she)$/.test(before)))
+        return: "({ alternatives: [one, twoWord], range: [m.index, m.indices!.groups!.two[1]] })"
       # "greater that 10", "more than that expected": than after a comparative.
       - regex: "(?<![\\p{L}'’])(?<cmp>[a-z]+er|more{{S}}[a-z]+|less{{S}}[a-z]+|more|less|fewer){{S}}(?<target>that){{S}}(?=\\d|(?:ever|usual|expected|before|anticipated|planned|needed|necessary|required){{E}})"
         check: englishThenThan
         message: review_msg_then_than
         cue: ["that"]
-        fixer: clauseGapsThat
+        let:
+          cmpWord: cmp.toLowerCase()
+        return: '/^(?:more|less|fewer)/.test(cmpWord) || clauseGapsAdjective(cmpWord) ? "than" : null'
       # "it decreases gradually there after.", "might there after happen": thereafter.
       - regex: "(?<![\\p{L}'’])(?<target>there{{S}}after)(?=[ \\t\\u00a0]*[.!?;]|{{S}}(?<verb>[a-z]+){{E}})"
         check: englishConfusedWords
         cue: ["after"]
-        fixer: clauseGapsThere
+        let:
+          verbWord: verb?.toLowerCase()
+          before: enWordBefore(ctx, m.index)
+        return: >-
+          verbWord
+          ? clauseGapsBaseVerb(verbWord) && /^(?:might|may|will|would|could|should|shall|must)$/.test(before) ? "thereafter" : null
+          : /^(?:gradually|shortly|soon|immediately|and|decreases|increases|declines|rises)$/.test(before) ? "thereafter" : null
   - id: en.misheardWords
     checks: [englishConfusedWords, englishPhraseCorrections, englishAuxiliaryBaseVerb, englishToToo]
     style: slot
@@ -7448,6 +7537,47 @@ rules:
       ]
     style: slot
     message: review_msg_sentence_structure
+    maps:
+      # The negative be that agrees with "I", with "we"/"they", and with the other pronouns.
+      CLASH_BE_I: { is: am not, are: am not, were: wasn't }
+      CLASH_BE_PLURAL: { is: aren't, was: weren't }
+      CLASH_BE_SINGULAR: { are: isn't, were: wasn't }
+    defs:
+      # Words before a bare "bit" + degree word that leave "a" out: "I'm bit lazy", "and bit of".
+      CLASH_BIT_LEAD: /^(?:['’](?:m|re|s)|am|is|are|was|were|be|been|being|feel|feels|felt|seem|seems|seemed|look|looks|looked|get|gets|got|getting|have|has|had|having|and|or|with|for|just|only|also|still)$/
+      # Determiners that already own "little bit": "a little bit", "every little bit helps".
+      CLASH_NOT_BEFORE_LITTLE: /^(?:a|the|this|that|my|your|his|her|our|their|its|every|each|one|no|any|some|which|what|whose)$/
+      # Subjects that take "needs fixed" only as the verb: a pronoun, or a determiner + one noun.
+      CLASH_NEED_SUBJECT: /^(?:it|this|that|he|she|they|these|those|everything|something|nothing)$/
+      # Participles that also read as a past after a plural noun "needs": "Our needs changed".
+      CLASH_NEEDS_CHANGED: /^(?:changed|evolved|increased|decreased|shifted|differed|varied|expanded|emerged|developed|existed|remained|appeared|happened|occurred|arrived|continued|ended|started|peaked|grew|exceeded|included|listed|stated|mentioned|outlined|described|identified|addressed)$/
+      # Words that make a following "were" a subjunctive.
+      CLASH_SUBJUNCTIVE: /\b(?:if|wish|wished|wishes|though|unless|suppose|supposing|imagine|only)\b/i
+      # The text from the last sentence end before `index`, at most 80 characters.
+      clashSentenceBefore:
+        args: "ctx: DetectContext, index: number"
+        return: 'ctx.text.slice(Math.max(0, index - 80), index).split(/[.!?\n]/).at(-1) ?? ""'
+      # "more likely", "more often": set phrases that stay.
+      CLASH_KEEP_MORE: /^(?:likely|often|real|right|wrong|fun|apt|just|true|ill|well)$/
+      # "easier", "clearer", "safer": the -er comparative that the dictionary lists as an
+      # adjective. One syllable, or two that end in -y or -le: "more robust" and "more common"
+      # stay. "opener", "cleaner" also name things: only a pure adjective form is offered.
+      clashComparative:
+        args: "adjective: string"
+        type: string | null
+        let:
+          own: englishWordInfo(adjective)
+          syllables: adjective.replace(/e$/, "").match(/[aeiouy]+/g)?.length ?? 0
+          doubled: /[^aeiou][aeiou]([bdgmnpt])$/.exec(adjective)
+          form: >-
+            /[^aeiou]y$/.test(adjective) ? `${adjective.slice(0, -1)}ier`
+            : adjective.endsWith("e") ? `${adjective}r`
+            : doubled ? `${adjective}${doubled[1]}er` : `${adjective}er`
+          read: englishWordInfo(form)
+        when:
+          - own?.adjective && !/ly$/.test(adjective)
+          - "!(syllables > 1 && !/(?:[^aeiou]y|le)$/.test(adjective))"
+        return: "read?.adjective && !read.noun ? form : null"
     frames:
       # "I'm haven't been", "It's just doesn't seem right": a contracted be before a negative
       # auxiliary. A contraction never ends a clause, so the be is always extra.
@@ -7488,54 +7618,117 @@ rules:
             "wouldn",
             "shouldn",
           ]
-        fixer: clashFramesT
+        when: enAfterBreak(ctx, m.index)
+        return: '""'
       # "It's the site that's we are using", "what's I'm doing": "'s" before a whole clause.
       # "you're" and "they're" count only before -ing or "not" ("what's you're name" is "your").
       - regex: "{{START}}(?<target>(?<word>that|what)['’]s){{S}}(?:(?:I|you|we|they|he|she|it){{S}}(?:am|are|is|was|were)|I['’]m|(?:he|she|it)['’]s|we['’]re|(?:you|they)['’]re(?={{S}}(?:[a-z]+ing|not){{E}})){{E}}"
         cue: ["that", "what"]
-        fixer: clashFramesWord
+        return: word
       # "I isn't", "I really aren't", "we isn't", "she weren't": a negative be that does not
       # agree with its pronoun. "it" and "you" can be objects ("the ones that made it aren't").
       - regex: "{{START}}(?<subject>I|we|they|he|she)(?:{{S}}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?{{S}}(?<target>(?<be>is|are|was|were)n['’]t){{E}}"
         check: englishPronounVerbWhitelistAgreement
         message: review_msg_pronoun_verb
         cue: ["isn", "aren", "wasn", "weren"]
-        fixer: clashFramesBe
+        let:
+          s: subject.toLowerCase()
+          b: be.toLowerCase()
+          fix: 's === "i" ? CLASH_BE_I[b] : s === "we" || s === "they" ? CLASH_BE_PLURAL[b] : CLASH_BE_SINGULAR[b]'
+        when:
+          # A lowercase "i" is a variable; "you and I", "than they" are no whole subject.
+          - '!(subject === "i" || /^(?:and|or|nor|than|as)$/.test(enWordBefore(ctx, m.index)))'
+          # "I wish I weren't", "if she weren't so young": a subjunctive were.
+          - '!(b === "were" && CLASH_SUBJUNCTIVE.test(clashSentenceBefore(ctx, m.index)))'
+        return: fix ?? null
       # "He turned 25 year old.", "She is six month old now": a plural count before "old".
       # "a 25 year old" is a noun and wants hyphens.
       - regex: "(?:{{START}}(?:is|was|turned|turns|turn|turning|be|am|are|were|being)|['’](?:s|m|re)){{S}}(?<count>{{COUNT}}){{S}}(?<target>year|month|week|day){{S}}old(?=[ \\t\\u00a0]*(?:[.,;:!?)]|$)|{{S}}(?:and|but|now|today|this|last|when|in){{E}})"
         check: englishNounNumber
         message: review_msg_noun_count
         cue: ["old"]
-        fixer: clashFramesYear
+        return: 'count === "1" ? null : `${target}s`'
       # "My car needs fixed", "The walls need painted": the dialect "need" + participle.
       - regex: "{{START}}(?<subject>[a-z]+){{S}}(?<target>(?<need>needs|need|needed){{S}}(?<verb>[a-z]+ed))(?=[ \\t\\u00a0]*(?:[.!?,;]|$)|{{S}}(?:before|soon|again|now|badly|if|when|or|and){{E}})"
         check: englishVerbComplements
         message: review_msg_verb_complements
         cue: ["need", "needs", "needed"]
-        fixer: clashFramesNeed
+        let:
+          s: subject.toLowerCase()
+          v: verb.toLowerCase()
+          read: englishWordInfo(s)
+          nounSubject: "!!read?.noun && EN_DETERMINERS.has(enWordBefore(ctx, m.index))"
+        when:
+          - "!CLASH_NEEDS_CHANGED.test(v)"
+          - englishWordInfo(v)?.verbs.some((x) => x.form === "participle")
+          - CLASH_NEED_SUBJECT.test(s) || nounSubject
+        return: >-
+          [`${need} to be ${verb}`, `${need} ${v.replace(/e?d$/, "")}ing`].filter((alt, i) =>
+          i === 0 || englishWordInfo(alt.split(" ")[1]))
       # "She wasn't ever be able", "I'm never be able": be, an adverb, then a second be.
       - regex: "(?<target>(?<be>{{START}}(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|am|is|are|was|were)|['’](?:m|re|s))(?<adverb>{{S}}(?:ever|never|always|still|just|not)){{S}}be)(?={{S}}(?:able|unable|possible|allowed){{E}})"
         cue: ["able", "unable", "possible", "allowed"]
-        fixer: clashFramesBe2
+        let:
+          will: >-
+            /n['’]t$/i.test(be) ? "won't" : /^['’]/.test(be) ? `${be[0]}ll` : "will"
+        return: "[`${be}${adverb}`, `${will}${adverb} be`]"
       # "I'm bit lazy", "having bit of a problem", "think little bit different": "a" is missing.
       - regex: "(?:(?<lead>{{START}}[a-z]+|['’](?:m|re|s)){{S}})?(?<target>(?<little>little{{S}})?bit)(?={{S}}(?:of{{S}}an?|too|more|less|late|early|better|worse|different|differently|longer|slow|slower|faster|tired|lazy|busy|confused|stupid|strange|weird|odd|nervous|worried|bored|cold|hot|warm){{E}})"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
         cue: ["bit"]
-        fixer: clashFramesLittle
+        let:
+          word: lead?.toLowerCase()
+          before: 'word === "little" ? enWordBefore(ctx, m.index) : ""'
+        when:
+          # "Little bit stupid": the lead is "little" itself, at the clause start or after a word.
+          - >-
+            !(word === "little" && (before ? CLASH_NOT_BEFORE_LITTLE.test(before) : !enAfterBreak(ctx, m.index)))
+          - >-
+            word === "little" || (word === undefined ? !!little && enAfterBreak(ctx, m.index)
+            : little ? !CLASH_NOT_BEFORE_LITTLE.test(word) : CLASH_BIT_LEAD.test(word))
+        return: >-
+          word === "little" ? { alternatives: ["a little bit"], range: [m.index, m.index + m[0].length] }
+          : little ? "a little bit" : "a bit"
       # "Are we have to go?", "Am I finally go home?": be inverted before a base verb.
       - regex: "(?<target>(?<be>{{START}}(?:are|is|am|was|were))(?<rest>{{S}}(?<subject>I|you|we|they|he|she|it)(?:{{S}}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?{{S}})(?<verb>[a-z]+)){{E}}"
         check: englishAuxiliaryBaseVerb
         message: review_msg_question_do
         cue: ["are", "is", "am", "was", "were"]
-        fixer: clashFramesBe3
+        let:
+          read: englishWordInfo(verb)
+          # A noun reading counts only for the irregular verbs ("Are we have", "Am I go"): "Is it
+          # love?" and "Are we friends?" are nouns after be.
+          irregular: englishVerbForms(verb)
+          end: m.index + m[0].length
+          following: '/^[ \t ]+([a-z]+)/i.exec(ctx.text.slice(end, end + 24))'
+          b: be.toLowerCase()
+          aux: '/^(?:was|were)$/.test(b) ? "did" : /^(?:he|she|it)$/i.test(subject) ? "does" : "do"'
+          ing: englishInflect(verb, "ing")
+        when:
+          # A lowercase "i" is a variable.
+          - enAfterBreak(ctx, m.index) && subject !== "i"
+          - read?.verbs.length && !read.adjective && !read.adverb
+          # "Is it work or play?": a noun before a conjunction or the clause end.
+          - >-
+            !(read.noun && (irregular?.lemma !== verb || !following || /^(?:or|and|nor|but)$/i.test(following[1])))
+          - 'read.verbs.every((v) => v.form === "base" && v.lemma === verb)'
+          # "Is he suppose to" wants "supposed"; "Are you please going" has the adverb please.
+          - "!(irregular?.participle === verb || /^(?:be|suppose|use|please)$/.test(verb))"
+        return: "[`${aux}${rest}${verb}`, ...(ing ? [`${be}${rest}${ing}`] : [])]"
       # Opt-in: "more easy to read" -> "easier", "more clear" -> "clearer".
       - regex: "{{START}}(?<target>more{{S}}(?<adjective>[a-z]{3,8}))(?={{S}}(?:to|for|if|when|with){{E}}|{{S}}than{{S}}(?<other>[a-z]+)|[ \\t\\u00a0]*(?:[.,;:!?)]|$))"
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["more"]
-        fixer: clashFramesMore
+        let:
+          otherRead: other && englishWordInfo(other.toLowerCase())
+        when:
+          - adjective === adjective.toLowerCase() && !CLASH_KEEP_MORE.test(adjective)
+          # "all the more sad", "the more sad I got": the correlative keeps "more".
+          - "!/^(?:no|once|never|and|the)$/.test(enWordBefore(ctx, m.index))"
+          - "!(otherRead && otherRead.adjective && !otherRead.noun)"
+        return: clashComparative(adjective)
       # Opt-in: "The reason we left is because…" -> "is that".
       - regex: "{{START}}reason(?:{{S}}[a-z'’]+){0,8}?{{S}}(?:is|was){{S}}(?<target>because){{E}}(?!{{S}}of{{E}})"
         check: stylePhrasing
@@ -7547,14 +7740,17 @@ rules:
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["please"]
-        fixer: clashFramesT2
+        when: enAfterBreak(ctx, m.index)
+        return: '""'
       # Opt-in: "very very cool" -> "very, very cool" or one "very". A word must follow ("so so"
       # alone is "so-so").
       - regex: "{{START}}(?<target>(?<word>very|so|far|long|really){{S}}\\k<word>){{S}}(?=[a-z])"
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["very", "so", "far", "long", "really"]
-        fixer: clashFramesWord2
+        # Typed casing differs ("So so"): the backreference matched case-blind.
+        when: target.slice(-word.length) === word.toLowerCase()
+        return: "({ alternatives: [`${word}, ${word.toLowerCase()}`, word], raw: true })"
 
 # Phrase tables by name, in index order: "typed = fix", "a | b = fix" for typed variants,
 # "fix1; fix2" for choices. The "<module>.phrases", ".compounds" and ".style" tables

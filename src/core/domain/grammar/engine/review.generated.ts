@@ -15699,7 +15699,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:if|since|because|unless|although|whether)[ \\t\\u00a0]{1,8}(?<target>is|was|has|does|did|will|would|should|can|could|must|might|isn['’]t|wasn['’]t|hasn['’]t|doesn['’]t|didn['’]t|won['’]t|wouldn['’]t|shouldn['’]t|can['’]t|couldn['’]t|need)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:clauseGapsIs",
+    fixer: "en:@en.clauseGaps/1",
     message: "review_msg_sentence_structure",
     cue: ["if", "since", "because", "unless", "although", "whether"],
   }),
@@ -15707,7 +15707,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])either[ \\t\\u00a0]{1,8}(?:[^.!?;:\\n,]{1,60}?)[ \\t\\u00a0]{1,8}(?<target>nor)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["either"],
-    fixer: "en:clauseGapsNor",
+    fixer: "en:@en.clauseGaps/2",
     check: "englishConfusedWords",
     cue: ["either"],
   }),
@@ -15715,7 +15715,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’-])(?!(?:a(?:bout|bsolutely|cross|ctually|gain|gainst|ll|lmost|long|lready|lso|lthough|lways|m|mong|n|nd|nother|ny|pparently|re|round|s|t)|b(?:arely|asically|e|ecause|een|ehind|eing|etween|eyond|oth|ut|y)|c(?:an|ertainly|learly|ompletely|ould)|d(?:efinitely|espite|id|o|oes|own|uring)|e(?:ach|ither|ven|ver|very)|f(?:ar|ew|inally|or|rom)|h(?:ad|ardly|as|ave|e|er|ere|im|is|ow)|i(?:f|n|nside|nto|s|t)|just|l(?:east|ess|ike|iterally)|m(?:any|ay|aybe|e|ight|ore|ost|uch|ust|y)|n(?:ear|early|either|ever|o|or|ot|ow)|o(?:bviously|f|ff|ften|n|nce|nly|nto|r|ther|thers|ur|ut|utside|ver|wn)|p(?:ast|er|erhaps|retty|robably)|quite|r(?:ather|eally)|s(?:ame|eriously|everal|hall|he|hould|imply|ince|o|ome|ometimes|oon|till|uch|urely)|t(?:han|hat|he|heir|hem|hen|here|hese|hey|his|hose|hough|hrough|hroughout|o|oo|otally|oward|owards|ruly)|u(?:nder|nless|ntil|p|pon|s|sually)|v(?:ery|ia)|w(?:as|ay|e|ere|hat|hatever|hen|here|hether|hich|hile|ho|hy|ill|ith|ithin|ithout|ould)|y(?:et|ou|our))[ \\t\\u00a0]{1,8})(?<target>[a-z]{2,})(?=[ \\t\\u00a0]{1,8}(?!(?:a(?:bout|bsolutely|cross|ctually|gain|gainst|ll|lmost|long|lready|lso|lthough|lways|m|mong|n|nd|nother|ny|pparently|re|round|s|t)|b(?:arely|asically|e|ecause|een|ehind|eing|etween|eyond|oth|ut|y)|c(?:an|ertainly|learly|ompletely|ould)|d(?:efinitely|espite|id|o|oes|own|uring)|e(?:ach|ither|ven|ver|very)|f(?:ar|ew|inally|or|rom)|h(?:ad|ardly|as|ave|e|er|ere|im|is|ow)|i(?:f|n|nside|nto|s|t)|just|l(?:east|ess|ike|iterally)|m(?:any|ay|aybe|e|ight|ore|ost|uch|ust|y)|n(?:ear|early|either|ever|o|or|ot|ow)|o(?:bviously|f|ff|ften|n|nce|nly|nto|r|ther|thers|ur|ut|utside|ver|wn)|p(?:ast|er|erhaps|retty|robably)|quite|r(?:ather|eally)|s(?:ame|eriously|everal|hall|he|hould|imply|ince|o|ome|ometimes|oon|till|uch|urely)|t(?:han|hat|he|heir|hem|hen|here|hese|hey|his|hose|hough|hrough|hroughout|o|oo|otally|oward|owards|ruly)|u(?:nder|nless|ntil|p|pon|s|sually)|v(?:ery|ia)|w(?:as|ay|e|ere|hat|hatever|hen|here|hether|hich|hile|ho|hy|ill|ith|ithin|ithout|ould)|y(?:et|ou|our))(?![a-z]))(?<two>[a-z]{2,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:clauseGapsA",
+    fixer: "en:@en.clauseGaps/3",
     message: "review_msg_repeated_words",
     check: "englishConfusedWords",
   }),
@@ -15723,7 +15723,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<cmp>[a-z]+er|more[ \\t\\u00a0]{1,8}[a-z]+|less[ \\t\\u00a0]{1,8}[a-z]+|more|less|fewer)[ \\t\\u00a0]{1,8}(?<target>that)[ \\t\\u00a0]{1,8}(?=\\d|(?:ever|usual|expected|before|anticipated|planned|needed|necessary|required)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["that"],
-    fixer: "en:clauseGapsThat",
+    fixer: "en:@en.clauseGaps/4",
     message: "review_msg_then_than",
     check: "englishThenThan",
     cue: ["that"],
@@ -15732,7 +15732,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<target>there[ \\t\\u00a0]{1,8}after)(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["there"],
-    fixer: "en:clauseGapsThere",
+    fixer: "en:@en.clauseGaps/5",
     check: "englishConfusedWords",
     cue: ["after"],
   }),
@@ -17440,7 +17440,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it)(?<target>[ \\t\\u00a0]{1,8}(?:am|is|are|was|were)(?:n['’]t)?)(?:[ \\t\\u00a0]{1,8}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?[ \\t\\u00a0]{1,8}(?:has|have|had|does|do|did|is|are|was|were|wo|ca|could|would|should)n['’]t(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:clashFramesT",
+    fixer: "en:@en.clashFrames/2",
     cue: [
       "hasn",
       "haven",
@@ -17461,14 +17461,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<target>(?<word>that|what)['’]s)[ \\t\\u00a0]{1,8}(?:(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?:am|are|is|was|were)|I['’]m|(?:he|she|it)['’]s|we['’]re|(?:you|they)['’]re(?=[ \\t\\u00a0]{1,8}(?:[a-z]+ing|not)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["that", "what"],
-    fixer: "en:clashFramesWord",
+    fixer: "en:@en.clashFrames/3",
     cue: ["that", "what"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?<subject>I|we|they|he|she)(?:[ \\t\\u00a0]{1,8}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?[ \\t\\u00a0]{1,8}(?<target>(?<be>is|are|was|were)n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:clashFramesBe",
+    fixer: "en:@en.clashFrames/4",
     message: "review_msg_pronoun_verb",
     check: "englishPronounVerbWhitelistAgreement",
     cue: ["isn", "aren", "wasn", "weren"],
@@ -17477,7 +17477,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<![\\p{L}'’])(?:is|was|turned|turns|turn|turning|be|am|are|were|being)|['’](?:s|m|re))[ \\t\\u00a0]{1,8}(?<count>\\d+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[ \\t\\u00a0]{1,8}(?<target>year|month|week|day)[ \\t\\u00a0]{1,8}old(?=[ \\t\\u00a0]*(?:[.,;:!?)]|$)|[ \\t\\u00a0]{1,8}(?:and|but|now|today|this|last|when|in)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["year", "month", "week", "day"],
-    fixer: "en:clashFramesYear",
+    fixer: "en:@en.clashFrames/5",
     message: "review_msg_noun_count",
     check: "englishNounNumber",
     cue: ["old"],
@@ -17486,7 +17486,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<subject>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>(?<need>needs|need|needed)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+ed))(?=[ \\t\\u00a0]*(?:[.!?,;]|$)|[ \\t\\u00a0]{1,8}(?:before|soon|again|now|badly|if|when|or|and)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["needs", "need", "needed"],
-    fixer: "en:clashFramesNeed",
+    fixer: "en:@en.clashFrames/6",
     message: "review_msg_verb_complements",
     check: "englishVerbComplements",
     cue: ["need", "needs", "needed"],
@@ -17495,14 +17495,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<be>(?<![\\p{L}'’])(?:isn['’]t|aren['’]t|wasn['’]t|weren['’]t|am|is|are|was|were)|['’](?:m|re|s))(?<adverb>[ \\t\\u00a0]{1,8}(?:ever|never|always|still|just|not))[ \\t\\u00a0]{1,8}be)(?=[ \\t\\u00a0]{1,8}(?:able|unable|possible|allowed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["ever", "never", "always", "still", "just", "not"],
-    fixer: "en:clashFramesBe2",
+    fixer: "en:@en.clashFrames/7",
     cue: ["able", "unable", "possible", "allowed"],
   }),
   frame({
     pattern:
       "(?:(?<lead>(?<![\\p{L}'’])[a-z]+|['’](?:m|re|s))[ \\t\\u00a0]{1,8})?(?<target>(?<little>little[ \\t\\u00a0]{1,8})?bit)(?=[ \\t\\u00a0]{1,8}(?:of[ \\t\\u00a0]{1,8}an?|too|more|less|late|early|better|worse|different|differently|longer|slow|slower|faster|tired|lazy|busy|confused|stupid|strange|weird|odd|nervous|worried|bored|cold|hot|warm)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["bit"],
-    fixer: "en:clashFramesLittle",
+    fixer: "en:@en.clashFrames/8",
     message: "review_msg_contextual_grammar",
     check: "englishPhraseCorrections",
     cue: ["bit"],
@@ -17511,7 +17511,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<be>(?<![\\p{L}'’])(?:are|is|am|was|were))(?<rest>[ \\t\\u00a0]{1,8}(?<subject>I|you|we|they|he|she|it)(?:[ \\t\\u00a0]{1,8}(?:just|really|still|also|obviously|actually|simply|certainly|definitely|probably|clearly|usually|honestly|sometimes|finally|ever|even|already))?[ \\t\\u00a0]{1,8})(?<verb>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:clashFramesBe3",
+    fixer: "en:@en.clashFrames/9",
     message: "review_msg_question_do",
     check: "englishAuxiliaryBaseVerb",
     cue: ["are", "is", "am", "was", "were"],
@@ -17520,7 +17520,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<target>more[ \\t\\u00a0]{1,8}(?<adjective>[a-z]{3,8}))(?=[ \\t\\u00a0]{1,8}(?:to|for|if|when|with)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}than[ \\t\\u00a0]{1,8}(?<other>[a-z]+)|[ \\t\\u00a0]*(?:[.,;:!?)]|$))",
     literals: ["more"],
-    fixer: "en:clashFramesMore",
+    fixer: "en:@en.clashFrames/10",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: ["more"],
@@ -17538,7 +17538,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])please(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!?\\n]{1,100}?(?<target>,?[ \\t\\u00a0]{1,8}please)(?=[ \\t\\u00a0]*[.!?])",
     literals: ["please"],
-    fixer: "en:clashFramesT2",
+    fixer: "en:@en.clashFrames/12",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: ["please"],
@@ -17547,7 +17547,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<target>(?<word>very|so|far|long|really)[ \\t\\u00a0]{1,8}\\k<word>)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:clashFramesWord2",
+    fixer: "en:@en.clashFrames/13",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: ["very", "so", "far", "long", "really"],
