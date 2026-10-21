@@ -18732,7 +18732,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:tout|toute|tous|toutes)(?![\\p{L}\\p{M}\\p{N}_'’])",
     literals: ["tout", "toute", "tous", "toutes"],
-    fixer: "fr:tout",
+    fixer: "fr:@fr.tout/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18741,7 +18741,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:bonjour|bonsoir|salut|merci|bienvenue|bravo)[ \\t]+à[ \\t]+(?:vous[ \\t]+)?|d['’]entre[ \\t]+(?:nous[ \\t]+|vous[ \\t]+)?)(?<tout>tout|toute)(?=[ \\t]*(?:[.!?,;…]|$))",
     literals: ["bonjour", "bonsoir", "salut", "merci", "bienvenue", "bravo", "entre"],
-    fixer: "fr:pronounTout",
+    fixer: "fr:@fr.tout/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -19325,18 +19325,18 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>un[ \\t\\u00a0]{1,8}bon[ \\t\\u00a0]{1,8}(?<count>\\p{L}+(?:-\\p{L}+)*|\\d+)[ \\t\\u00a0]{1,8}(?<unit>minutes|heures|secondes|semaines|journées|années|jours|mois|ans))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["bon"],
-    fixer: "fr:goodNumber",
+    fixer: "fr:@fr.style/1",
   }),
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?<target>[KkMGT]B)(?![\\p{L}\\p{N}_])",
     literals: [],
-    fixer: "fr:byteUnits",
+    fixer: "fr:@fr.style/2",
     flags: "dgu",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_-])",
     literals: [],
-    fixer: "fr:styleWord",
+    fixer: "fr:@fr.style/3",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -19345,7 +19345,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])rappel(?:le|les|lent|ons|ez|ais|ait|aient|é|ée|és|ées|er)(?![\\p{L}\\p{M}\\p{N}_-])",
     literals: ["rappel"],
-    fixer: "fr:rememberOf",
+    fixer: "fr:@fr.style/4",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -19354,7 +19354,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<=(?<!\\p{L})[qQ]u['’])|(?<![\\p{L}\\p{M}\\p{N}_'’-]))[yY](?=[ \\t]+(?:en[ \\t]+)?a(?![\\p{L}\\p{M}\\p{N}_'’-]))",
     literals: [],
-    fixer: "fr:spokenYa",
+    fixer: "fr:@fr.style/5",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -19363,7 +19363,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<det>le|la|les|l['’])[ \\t]*(?<noun>\\p{L}+)[ \\t]+à[ \\t]+(?<who>moi|toi|lui|elle|nous|vous|eux|elles)(?![\\p{L}\\p{M}\\p{N}_'’])",
     literals: ["moi", "toi", "lui", "elle", "nous", "vous", "eux", "elles"],
-    fixer: "fr:ownerAfterNoun",
+    fixer: "fr:@fr.style/6",
     flags: "giu",
     scan: "owned",
     lookback: 1,

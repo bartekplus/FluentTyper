@@ -98,6 +98,8 @@ export type EndFix = (end: number) => RawFinding | null;
 export type PlainFix = () => RawFinding | null;
 /** A finding with fixed evidence and these alternatives. */
 export type AlternativesFix = (alternatives: string[]) => RawFinding;
+/** A finding on a word with these alternatives, or null (wordFinding). */
+export type WordFix = (alternatives: string[]) => RawFinding | null;
 
 /** Whether a verb reading is a finite form (not an infinitive or a participle). */
 export const finiteReading = (reading: VerbReading): boolean => typeof reading.slot === "number";

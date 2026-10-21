@@ -5,8 +5,6 @@ import * as adjectives from "./adjectives";
 import * as agreement from "./agreement";
 import * as mood from "./mood";
 import * as smallWords from "./smallWords";
-import * as style from "./style";
-import * as tout from "./tout";
 import * as verbForms from "./verbForms";
 
 export const PREDICATES = mergePredicates();
@@ -16,8 +14,6 @@ export const FIXERS = mergePredicates<Fixer>(
   adjectives.FIXERS,
   verbForms.FIXERS,
   agreement.FIXERS,
-  style.FIXERS,
-  tout.FIXERS,
   mood.FIXERS,
   smallWords.FIXERS,
 );

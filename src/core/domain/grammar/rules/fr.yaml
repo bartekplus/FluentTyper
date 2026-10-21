@@ -4339,20 +4339,481 @@ rules:
     checks: [frenchTout]
     style: match
     message: review_msg_fr_tout
+    # "tout" agrees with the noun phrase it opens: "tout le monde", "toute la journée", "tous les
+    # jours", "toutes ces idées", "tous ceux", "tout cela". The determiner gives the number and,
+    # when it can, the gender; otherwise the noun's gender list decides.
+    maps:
+      TOUT_FORMS: { ms: tout, fs: toute, mp: tous, fp: toutes }
+      TOUT_SINGULAR_DETERMINERS:
+        {
+          le: m,
+          ce: m,
+          cet: m,
+          la: f,
+          cette: f,
+          ma: f,
+          ta: f,
+          sa: f,
+          mon: null,
+          ton: null,
+          son: null,
+          notre: null,
+          votre: null,
+          "l'": null,
+        }
+      PLURAL_SUBJECT_FORMS:
+        { ils: [tous], elles: [toutes], nous: [tous, toutes], vous: [tous, toutes] }
+    sets:
+      TOUT_PLURAL_DETERMINERS: [les, ces, mes, tes, ses, nos, vos, leurs]
+      TOUT_NUMERALS: [deux, trois, quatre, cinq, six, sept, huit, neuf, dix]
+      # Words between a plural determiner and its noun that say nothing of its gender.
+      PRE_NOUN: [autres, premiers, premières, derniers, dernières, mêmes]
+      TOUT_PREPOSITIONS:
+        [
+          à,
+          de,
+          d',
+          pour,
+          par,
+          dans,
+          sur,
+          sous,
+          avec,
+          sans,
+          chez,
+          vers,
+          entre,
+          après,
+          avant,
+          contre,
+          pendant,
+          malgré,
+          selon,
+          et,
+          ou,
+          mais,
+        ]
+      # Idioms whose "tout" is right as written before a feminine noun.
+      TOUT_IDIOMS: [ouïe, flamme, chose, pile, laine, soie, honte]
+      # Words after a noun that make it the noun ("tout trace de", "tout confiance en lui").
+      NOUN_COMPLEMENTS: [de, d', du, des, en, à, au, aux, pour, dans, sur, avec, envers]
+      TOUT_NEGATIONS: [ne, "n'", pas, plus, jamais]
+      MASCULINE_SINGULAR: [un, le, mon, ton, son, ce, cet, du, au]
+      # "Ils ont tout fait une fois": a time after the object "tout".
+      TOUT_TIMES: [fois, heure, minute, jour, semaine, mois, année, an, nuit, matin, soir]
+      TOUT_ARTICLES: [un, une, des, du]
+      # "une toute", "elle est toute": an article or être before "toute"; "en avant toute": the
+      # fixed phrase.
+      ARTICLE_OR_ETRE:
+        [une, la, cette, sa, ma, ta, est, était, sera, fut, soit, reste, semble, paraît, avant]
+      TOUT_SINGULAR_SUBJECTS: [je, "j'", tu, il, elle]
+      TOUT_PLURAL_CLITICS: [les, nous, vous, leur, en]
+      # Linking verbs after which "tout" before an adjective is the adverb: "elle est tout émue".
+      TOUT_LINKING: [être, sembler, paraître, devenir, rester, demeurer]
+    defs:
+      finiteOrParticiple:
+        args: "word: string"
+        return: 'verbReadings(word).some((r) => typeof r.slot === "number" || r.slot === "Q" || r.slot === "I")'
+      # A verb form that is not also a noun: "savent", "voir".
+      verbOnly:
+        args: "word: string"
+        return: "!isInflectedNoun(word) && finiteOrParticiple(word)"
+      singularGender:
+        args: "word: string"
+        type: FrenchGender | null
+        let:
+          direct: nounGender(word)
+          singular: 'word.endsWith("aux") ? `${word.slice(0, -3)}al` : word.replace(/[sx]$/, "")'
+        return: >-
+          word === "personne" || word === "personnes"
+            ? "f"
+            : direct
+              ? direct
+              : singular !== word
+                ? nounGender(singular)
+                : null
+      # The gender of the noun a determiner opens, skipping numerals and "autres". "tous les deux
+      # partie de": after a numeral only a plural noun belongs to the determiner.
+      headGenderAt:
+        args: "after: FrenchToken[], from: number, i: number, numeral: boolean"
+        type: FrenchGender | null | "verb"
+        return: >-
+          i >= Math.min(after.length, from + 3)
+            ? null
+            : i === from && verbOnly(after[i].w)
+              ? "verb"
+              : TOUT_NUMERALS.has(after[i].w) || PRE_NOUN.has(after[i].w)
+                ? headGenderAt(after, from, i + 1, numeral || TOUT_NUMERALS.has(after[i].w))
+                : numeral && !/[sx]$/.test(after[i].w)
+                  ? null
+                  : singularGender(after[i].w)
+      # "Ils prennent tous le bus", "Elles ont toutes la grippe": a plural "tous" after its verb is
+      # a pronoun, and the determiner after it opens the object.
+      floatingTous:
+        args: "before: FrenchToken[], text: string, index: number"
+        let:
+          previous: before[0]
+        return: >-
+          !previous
+            ? /,[\s  ]*$/u.test(text.slice(Math.max(0, index - 4), index))
+            : TOUT_PREPOSITIONS.has(previous.w)
+              ? false
+              : SUBJECT_PRONOUNS.has(previous.w) || CLITICS.has(previous.w) || finiteOrParticiple(previous.w)
+      # "Ils ont tout obtenu un diplôme", "Elles n'avaient pas toute un ticket", "Elles savaient
+      # toute que": after a plural subject and its verb, "tout" that is no object and no
+      # determiner of the next noun is the subject's floating "tous" or "toutes".
+      floatingPlural:
+        args: "lower: string, before: FrenchToken[], after: FrenchToken[]"
+        type: readonly string[] | null
+        let:
+          k: skipWords(before, 0, TOUT_NEGATIONS)
+          verb: before[k]
+          readings: 'verbReadings(verb.w).filter((r) => typeof r.slot === "number")'
+          j: skipWhile(before, k + 1, (t) => CLITICS.has(t.w) || TOUT_NEGATIONS.has(t.w))
+          subject: before[j] && PLURAL_SUBJECT_FORMS[before[j].w]
+          next: after[0]
+          object: after[1]
+          avoir: 'readings.some((r) => r.lemma === "avoir")'
+          participle: 'verbReadings(next.w).length > 0 && verbReadings(next.w).every((r) => r.slot === "Q")'
+          objectAfter: >-
+            object &&
+            (TOUT_ARTICLES.has(object.w) || TOUT_PLURAL_DETERMINERS.has(object.w) || object.w in TOUT_SINGULAR_DETERMINERS) &&
+            !TOUT_TIMES.has(after[2]?.w ?? "")
+        when:
+          - lower === "tout" || lower === "toute"
+          - "!!verb"
+          - readings.some((r) => hasPerson(r.slot, ILS + NOUS + VOUS))
+          - "!!subject"
+          - "!!next"
+        return: >-
+          avoir && participle && objectAfter
+            ? subject
+            : lower === "toute" && MASCULINE_SINGULAR.has(next.w)
+              ? subject
+              : next.w === "que" || next.w === "qu'"
+                ? subject
+                : null
+      # A singular subject pronoun, its verb, then "tous" with no plural pronoun to float from. A
+      # form that is also a noun is the verb only for avoir ("tu as") after its subject. "j'ai tous
+      # essayé": a participle after avoir; "il veut tous savoir": an infinitive. "il fera tous pour
+      # lui": a preposition after it.
+      singularTousClause:
+        args: "ctx: DetectContext, m: RegExpExecArray, next: FrenchToken"
+        let:
+          clause: tokensBefore(ctx.text, m.index, 6)
+          k: 'skipWhile(clause, 1, (t) => CLITICS.has(t.w) || ["ne", "n''"].includes(t.w))'
+          subject: clause[k]
+          verb: 'verbReadings(clause[0].w).filter((r) => typeof r.slot === "number")'
+          avoir: 'verb.some((r) => r.lemma === "avoir")'
+          readings: verbReadings(next.w)
+        when:
+          - '!(!subject || !TOUT_SINGULAR_SUBJECTS.has(subject.w) || ctx.text[subject.start - 1] === "-")'
+          - "!clause.slice(1, k).some((t) => TOUT_PLURAL_CLITICS.has(t.w))"
+          - "!(!verb.length || (isInflectedNoun(clause[0].w) && !avoir))"
+        return: >-
+          avoir
+            ? readings.some((r) => r.slot === "Q")
+            : readings.some((r) => r.slot === "I" && r.lemma === next.w)
+              ? true
+              : ["pour", "par", "avec", "sans"].includes(next.w)
+        else: "false"
+      # "j'ai tous essayé", "il veut tous savoir", "il fera tous pour lui", "les tous premiers":
+      # "tous" where no plural noun or pronoun can be its own: the pronoun or the adverb "tout".
+      # "les tous premiers", "des tous petits": the adverb between a determiner and an adjective.
+      singularTous:
+        args: "ctx: DetectContext, m: RegExpExecArray, before: FrenchToken[], after: FrenchToken[]"
+        return: >-
+          (!!before[0] &&
+            ["les", "des", "ces", "mes", "tes", "ses", "nos", "vos", "leurs"].includes(before[0].w) &&
+            adjectiveReadings(after[0].w).some((r) => r.slot[1] === "p")) ||
+          singularTousClause(ctx, m, after[0])
+      # Whether "tout" before an adjective is the adverb: after a linking verb or a noun. "une
+      # veste tout neuve": right after a noun its determiner opened.
+      adverbialTout:
+        args: "before: FrenchToken[]"
+        let:
+          previous: before[0]
+          det: 'before[1]?.w ?? ""'
+        when: "!!previous"
+        return: >-
+          verbReadings(previous.w).some((r) => typeof r.slot === "number" && TOUT_LINKING.has(r.lemma))
+            ? true
+            : (det in TOUT_SINGULAR_DETERMINERS || TOUT_PLURAL_DETERMINERS.has(det) || ["une", "des"].includes(det)) &&
+              Boolean(nounGender(previous.w) || nounGender(previous.w.replace(/s$/, "")))
+        else: "false"
+      auxiliaryBefore:
+        args: "before: FrenchToken[]"
+        return: 'verbReadings(before[0]?.w ?? "").some((r) => typeof r.slot === "number" && (r.lemma === "avoir" || r.lemma === "être"))'
+      # The gender and number slots of a word as an adjective; "étonnée", "émues": a feminine
+      # participle.
+      adjectiveSlots:
+        args: "w: string"
+        type: ReadonlySet<string>
+        return: >-
+          !adjectiveReadings(w).length && /é(?:e|es)$/.test(w) && verbReadings(w).every((r) => r.slot === "Q") && verbReadings(w).length
+            ? new Set([w.endsWith("s") ? "fp" : "fs"])
+            : new Set(adjectiveReadings(w).map((r) => r.slot))
+      # "tout le ranger": the pronoun before its verb. "Tout l'alarme": an object pronoun before a
+      # verb that is also a noun. "toute mon enfance": a possessive keeps "mon" before a feminine
+      # vowel noun. "tous le monde", "tous le temps" ("ils ont tous le temps" is fine); before
+      # other nouns only after a preposition or at a clause start, where "tous" cannot be the
+      # subject; "à tous la vérité": "à tous" (to everyone) is a pronoun too.
+      toutSingularDeterminer:
+        args: "ctx: DetectContext, m: RegExpExecArray, lower: string, plural: boolean, after: FrenchToken[], before: FrenchToken[], fix: WordFix"
+        type: RawFinding | null
+        let:
+          w: after[0].w
+          head: headGenderAt(after, 1, 1, false)
+          gender: "TOUT_SINGULAR_DETERMINERS[w] === null ? head : TOUT_SINGULAR_DETERMINERS[w]"
+          noun: after[1]?.w
+          idiom: 'noun === "monde" || noun === "temps"'
+          right: 'gender === "m" ? "tout" : "toute"'
+        when:
+          - head !== "verb"
+          - '!(w === "l''" && after[1] && verbReadings(after[1].w).some((r) => typeof r.slot === "number"))'
+          - "!!gender"
+          - "!plural || !(idiom ? auxiliaryBefore(before) : before[0] || floatingTous(before, ctx.text, m.index))"
+        return: "lower === right ? null : fix([right])"
+      # "tous les voir": a pronoun object; only the singular is wrong. "Nous avons tous nos
+      # secrets": a "tous" after its verb belongs to the subject; "je présente à tous mes
+      # excuses": "à tous" (to everyone) is a pronoun.
+      toutPluralDeterminer:
+        args: "ctx: DetectContext, m: RegExpExecArray, lower: string, plural: boolean, after: FrenchToken[], before: FrenchToken[], fix: WordFix"
+        type: RawFinding | null
+        let:
+          head: headGenderAt(after, 1, 1, false)
+          right: 'head === "m" ? "tous" : "toutes"'
+        return: >-
+          head === "verb" || !head
+            ? plural
+              ? null
+              : fix(["tous", "toutes"])
+            : plural && floatingTous(before, ctx.text, m.index)
+              ? null
+              : plural && before[0] && ["à", "pour", "entre"].includes(before[0].w)
+                ? null
+                : lower === right
+                  ? null
+                  : fix([right])
+      # "une toute autre affaire": the adverb before "autre" after an article; "tout autre
+      # personne" with no article: "any other", agreeing with the noun.
+      toutAutre:
+        args: "lower: string, after: FrenchToken[], before: FrenchToken[], fix: WordFix"
+        type: RawFinding | null
+        let:
+          gender: 'after[1] ? (after[1].w === "personne" ? "f" : nounGender(after[1].w)) : null'
+          right: 'gender === "m" ? "tout" : "toute"'
+        return: >-
+          before[0] && ["un", "une"].includes(before[0].w)
+            ? lower === "tout"
+              ? null
+              : fix(["tout"])
+            : before[0] && before[0].w in TOUT_SINGULAR_DETERMINERS
+              ? null
+              : !gender || adjectiveReadings(after[1].w).length
+                ? null
+                : lower === right
+                  ? null
+                  : fix([right])
+      # "elle est tout belle", "une veste tout neuve": the adverb takes the gender and number of a
+      # feminine adjective starting with a consonant; before a vowel it stays "tout" ("toute
+      # étonnée" -> "tout étonnée").
+      adverbAgreement:
+        args: "w: string, lower: string, slots: ReadonlySet<string>, fix: WordFix"
+        type: RawFinding | null
+        let:
+          vowel: /^[aeiouyâàéèêëîïôûœ]/.test(w)
+          right: 'slots.has("fp") && !slots.has("fs") ? "toutes" : slots.has("fs") && !slots.has("fp") ? "toute" : null'
+        return: >-
+          vowel && lower === "toute" && !slots.has("fp")
+            ? fix(["tout"])
+            : !vowel && !/^h/.test(w) && right && lower !== right
+              ? fix([right])
+              : null
+      # "pour tout nouvelle adhésion": before an adjective that starts with a consonant and its
+      # noun, "tout" agrees with the noun whether it is the determiner or the adverb. "il inspecte
+      # tout trace": after a verb or a preposition a noun that is also a verb form ("trace") is the
+      # noun; at a clause start it may be the verb ("tout porte à croire"). After a verb, only
+      # when a "de" complement or nothing follows ("il sait tout montre qu'il..." makes "tout" the
+      # subject). "Elle est tout sourire": an adverb after être.
+      toutSingularNoun:
+        args: "lower: string, after: FrenchToken[], before: FrenchToken[], fix: WordFix"
+        type: RawFinding | null
+        let:
+          w: after[0].w
+          finiteNext: 'verbReadings(w).some((r) => typeof r.slot === "number")'
+          nounSlot: >-
+            !!before[0] &&
+            (TOUT_PREPOSITIONS.has(before[0].w) ||
+              (verbReadings(before[0].w).some((r) => typeof r.slot === "number" || r.slot === "Q") &&
+                (!after[1] || NOUN_COMPLEMENTS.has(after[1].w))))
+          adjectives: adjectiveReadings(w)
+          nextGender: "after[1] ? nounGender(after[1].w) : null"
+          gender: 'w === "personne" ? "f" : nounGender(w)'
+        return: >-
+          adjectives.length
+            ? !nextGender || /^[aeiouyâàéèêëîïôûœh]/.test(w)
+              ? null
+              : !adjectives.some((r) => r.slot === `${nextGender}s`)
+                ? null
+                : !before[0] || !TOUT_PREPOSITIONS.has(before[0].w)
+                  ? null
+                  : lower === (nextGender === "m" ? "tout" : "toute")
+                    ? null
+                    : fix([nextGender === "m" ? "tout" : "toute"])
+            : finiteOrParticiple(w) && !(nounSlot && isInflectedNoun(w) && finiteNext)
+              ? null
+              : !gender
+                ? null
+                : before[0] && verbReadings(before[0].w).some((r) => r.lemma === "être")
+                  ? null
+                  : lower === (gender === "m" ? "tout" : "toute")
+                    ? null
+                    : fix([gender === "m" ? "tout" : "toute"])
+      # "Tout hommes" -> "Tous", "Toutes personne" -> "Toute": a bare noun of the other number.
+      # "toutes deux", "tous ensemble": a number or an adverb, no noun. A plural "tous" before a
+      # singular word may be the pronoun ("on a tous envie"): only at a clause start. "tout
+      # personne" -> "toute personne", "toute sujet" -> "tout sujet".
+      toutNoun:
+        args: "ctx: DetectContext, m: RegExpExecArray, lower: string, plural: boolean, after: FrenchToken[], before: FrenchToken[], fix: WordFix"
+        type: RawFinding | null
+        let:
+          next: after[0]
+          w: next.w
+          nounPlural: /[sx]$/.test(w) && !isNounLemma(w)
+          bareGender: >-
+            plural !== nounPlural &&
+            (!plural || !before[0]) &&
+            w.length > 2 &&
+            isInflectedNoun(w) &&
+            !TOUT_NUMERALS.has(w) &&
+            w !== "ensemble" &&
+            !/^\p{Lu}/u.test(ctx.text.slice(next.start, next.end)) &&
+            !adjectiveReadings(w).length &&
+            !verbReadings(w).length
+              ? singularGender(w)
+              : null
+          right: 'bareGender ? TOUT_FORMS[`${bareGender}${nounPlural ? "p" : "s"}`] : ""'
+        return: >-
+          bareGender
+            ? lower === right
+              ? null
+              : fix([carryCase(m[0], right)])
+            : plural || TOUT_IDIOMS.has(w) || /^\p{Lu}/u.test(ctx.text.slice(next.start, next.end))
+              ? null
+              : toutSingularNoun(lower, after, before, fix)
+      # "tout seule" -> "toute seule": "tout seul" is the adverb after any word. "tous" may be the
+      # pronoun ("ils sont tous contents"): left alone. "Toute est prêt", "Toute arrive à point":
+      # the pronoun subject of a verb is "tout"; a capital "Toute" inside a sentence opens a title
+      # ("son livre, Toute la nuit"); "toute sont en Australie": a plural verb takes the pronoun
+      # "toutes". "il a toute oublié": the object pronoun between avoir and its participle is
+      # "tout" (after être "tout" may be the adverb: left alone); "elle nous a toute sauvées": a
+      # plural participle shows the pronoun "toutes".
+      toutWord:
+        args: "ctx: DetectContext, m: RegExpExecArray, lower: string, plural: boolean, after: FrenchToken[], before: FrenchToken[], fix: WordFix"
+        type: RawFinding | null
+        let:
+          w: after[0].w
+          slots: adjectiveSlots(w)
+          adjective: >-
+            lower !== "tous" &&
+            (adverbialTout(before) || adjectiveReadings(w).some((r) => r.lemma === "seul")) &&
+            slots.size > 0 &&
+            [...slots].every((slot) => slot[0] === "f") &&
+            !isInflectedNoun(w) &&
+            !verbReadings(w).some((r) => typeof r.slot === "number")
+          sentenceStart: /(?:^|[.!?…]\s*)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+        return: >-
+          adjective
+            ? adverbAgreement(w, lower, slots, fix)
+            : lower === "toute" &&
+                !before[0] &&
+                (sentenceStart || m[0] === lower) &&
+                verbReadings(w).some((r) => typeof r.slot === "number") &&
+                (!isInflectedNoun(w) || verbReadings(w).some((r) => r.lemma === "être" || r.lemma === "avoir"))
+              ? fix([verbReadings(w).every((r) => r.slot === 32) ? "toutes" : "tout"])
+              : lower === "toute" &&
+                  verbReadings(before[0]?.w ?? "").some((r) => typeof r.slot === "number" && r.lemma === "avoir") &&
+                  verbReadings(w).length > 0 &&
+                  verbReadings(w).every((r) => r.slot === "Q")
+                ? fix([w.endsWith("es") ? "toutes" : w.endsWith("s") ? "tous" : "tout"])
+                : lower === "tous" && singularTous(ctx, m, before, after)
+                  ? fix(["tout"])
+                  : toutNoun(ctx, m, lower, plural, after, before, fix)
+      # "tous ça" -> "tout ça". "tout ceux" -> "tous ceux", "toutes ceux" -> "tous ceux"; "avant
+      # tout ceux-là", "après tout". "Ils sont tout deux" -> "tous deux".
+      toutAfter:
+        args: "ctx: DetectContext, m: RegExpExecArray, lower: string, plural: boolean, after: FrenchToken[], before: FrenchToken[]"
+        type: RawFinding | null
+        let:
+          w: after[0].w
+          fix: '(alternatives: string[]) => wordFinding(ctx, m.index, m[0], alternatives, "frenchTout", "review_msg_fr_tout", { start: m.index, end: after[Math.min(after.length - 1, 1)].end })'
+          floated: floatingPlural(lower, tokensBefore(ctx.text, m.index, 5), after)
+        return: >-
+          floated
+            ? fix([...floated])
+            : w === "ça" || w === "cela" || w === "ceci"
+              ? lower === "tout" || floatingTous(before, ctx.text, m.index)
+                ? null
+                : fix(["tout"])
+              : w === "ceux" || w === "celles"
+                ? before[0] && ["avant", "après", "malgré"].includes(before[0].w)
+                  ? null
+                  : lower === (w === "ceux" ? "tous" : "toutes")
+                    ? null
+                    : fix([w === "ceux" ? "tous" : "toutes"])
+                : w in TOUT_SINGULAR_DETERMINERS
+                  ? toutSingularDeterminer(ctx, m, lower, plural, after, before, fix)
+                  : TOUT_PLURAL_DETERMINERS.has(w)
+                    ? toutPluralDeterminer(ctx, m, lower, plural, after, before, fix)
+                    : (w === "deux" || w === "trois") && !plural
+                      ? (after[1] && isNounLemma(after[1].w)) ||
+                        !before[0] ||
+                        !(SUBJECT_PRONOUNS.has(before[0].w) || ["à", "pour", "entre"].includes(before[0].w) || finiteOrParticiple(before[0].w))
+                        ? null
+                        : fix(lower === "toute" ? ["toutes"] : ["tous", "toutes"])
+                      : w === "autre" && !plural
+                        ? toutAutre(lower, after, before, fix)
+                        : toutWord(ctx, m, lower, plural, after, before, fix)
     frames:
-      # FORMS lists the four forms; the pattern is built from them.
+      # The four forms of "tout". "c'est tous.", "Malgré tous,": the pronoun "tout". "mieux que
+      # toute.", "il les a appelées toute,": "toute" alone is the pronoun "toutes". "le tout",
+      # "un tout": the noun.
       - regex: "{{WORD_START}}(?:tout|toute|tous|toutes)(?![\\p{L}\\p{M}\\p{N}_'’])"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: tout
-      # "Bonjour à tous", "merci à vous toutes", "le meilleur d'entre tous": "tout" alone at the end
-      # of a greeting or after "d'entre" is the plural pronoun.
+        let:
+          typed: m[0]
+          lower: typed.toLowerCase()
+          after: tokensAfter(ctx.text, m.index + typed.length, 5)
+          next: after[0]
+          before: tokensBefore(ctx.text, m.index, 2)
+          closing: '/^[ \t ]{0,2}(?:[.!?;,…]|$)/u.test(ctx.text.slice(m.index + typed.length))'
+        when: m.index >= ctx.from
+        return: >-
+          lower === "tous" && closing && ((before[0]?.w === "est" && before[1]?.w === "c'") || before[0]?.w === "malgré")
+            ? wordFinding(ctx, m.index, typed, [carryCase(typed, "tout")], frame.ruleId, frame.messageKey)
+            : lower === "toute" && before[0] && !ARTICLE_OR_ETRE.has(before[0].w) && !(before[0].w === "à" && !before[1]) && closing
+              ? wordFinding(ctx, m.index, typed, [carryCase(typed, "toutes")], frame.ruleId, frame.messageKey)
+              : !next || next.start > m.index + typed.length + 3
+                ? null
+                : ctx.text[m.index + typed.length] === "-"
+                  ? null
+                  : before[0] && ["le", "un", "du", "au"].includes(before[0].w)
+                    ? null
+                    : toutAfter(ctx, m, lower, lower.endsWith("s"), after, before)
+      # "Bonjour à tous", "merci à vous toutes", "le meilleur d'entre tous": "tout" alone at the
+      # end of a greeting or after "d'entre" is the plural pronoun. "à tout" alone also offers the
+      # feminine: the group may be all women.
       - regex: "{{WORD_START}}(?:(?:bonjour|bonsoir|salut|merci|bienvenue|bravo)[ \\t]+à[ \\t]+(?:vous[ \\t]+)?|d['’]entre[ \\t]+(?:nous[ \\t]+|vous[ \\t]+)?)(?<tout>tout|toute)(?=[ \\t]*(?:[.!?,;…]|$))"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: pronounTout
+        when: m.index >= ctx.from
+        return: >-
+          wordFinding(ctx, m.index + m[0].length - tout.length, tout,
+            tout.toLowerCase() === "toute" ? ["toutes"] : ["tous", "toutes"], frame.ruleId, frame.messageKey)
   - id: fr.mood
     checks: [frenchMood]
     style: match
@@ -6295,41 +6756,620 @@ rules:
     checks: [stylePhrasing]
     style: match
     message: review_msg_style_phrasing
+    # French style advice (opt-in stylePhrasing) that needs more than a fixed phrase. The phrase
+    # rows (calques, criticized phrasings, pleonasms) are in the phrase tables below.
+    sets:
+      # "calque > native native : nouns". The calque takes the native verb before these objects;
+      # "*" means any use, and "!" marks a verb that "de" after it makes correct ("partir d'un
+      # projet").
+      VERB_CALQUE_LINES:
+        - "rencontrer > respecter : norme exigence échéance critère obligation engagement"
+        - "rencontrer > satisfaire : besoin attente demande"
+        - "rencontrer > atteindre : objectif cible quota"
+        - "compléter > remplir : formulaire questionnaire fiche déclaration sondage"
+        - "compléter > conclure : transaction vente entente accord"
+        - "opérer > exploiter : entreprise commerce magasin restaurant usine boutique franchise hôtel mine compagnie"
+        - "opérer > conduire manœuvrer : machine grue véhicule chariot"
+        - "émettre > délivrer : passeport permis visa diplôme licence attestation"
+        - "émettre > publier : communiqué"
+        - "endosser > appuyer : candidature candidat candidate proposition"
+        - "supporter > soutenir appuyer : candidat candidate candidature cause initiative proposition réforme"
+        - "adresser > aborder traiter : problème enjeu préoccupation défi problématique sujet"
+        - "couper > réduire : dépense coût budget subvention salaire effectif prix"
+        - "couper > supprimer : emploi"
+        - "contrôler > maîtriser : incendie brasier"
+        - "briser > battre : record"
+        - "passer > adopter : loi règlement résolution motion"
+        - "placer > passer : commande appel"
+        - "loger > déposer : plainte grief"
+        - "initier > lancer amorcer : projet programme processus démarche réforme changement dialogue enquête procédure"
+        - "!partir > lancer : entreprise compagnie commerce projet mode rumeur débat discussion"
+        - "combler > pourvoir : poste"
+        - "solutionner > résoudre : *"
+        - "impacter > toucher affecter : *"
+        - "émotionner > émouvoir : *"
+      CALQUE_ADVERBS:
+        [
+          pas,
+          plus,
+          jamais,
+          point,
+          toujours,
+          déjà,
+          bien,
+          enfin,
+          aussi,
+          souvent,
+          rarement,
+          encore,
+          vraiment,
+          finalement,
+          rapidement,
+          mieux,
+          mal,
+        ]
+      CALQUE_DETERMINERS:
+        [
+          le,
+          la,
+          l',
+          les,
+          un,
+          une,
+          des,
+          du,
+          de,
+          d',
+          ce,
+          cet,
+          cette,
+          ces,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          son,
+          sa,
+          ses,
+          notre,
+          nos,
+          votre,
+          vos,
+          leur,
+          leurs,
+          tous,
+          toutes,
+          chaque,
+          plusieurs,
+          certains,
+          certaines,
+          quelques,
+          nombreux,
+          nombreuses,
+        ]
+      CALQUE_AUXILIARIES:
+        [a, ai, as, avons, avez, ont, avait, avaient, aura, auront, aurait, avoir, ayant]
+      # "un bon dix minutes": the English word order; French puts "bon" after the number.
+      STYLE_NUMBER_WORDS:
+        [
+          deux,
+          trois,
+          quatre,
+          cinq,
+          six,
+          sept,
+          huit,
+          neuf,
+          dix,
+          onze,
+          douze,
+          treize,
+          quatorze,
+          quinze,
+          seize,
+          vingt,
+          trente,
+          quarante,
+          cinquante,
+          soixante,
+          cent,
+          et,
+        ]
+      FEMININE_UNITS: [minutes, heures, secondes, semaines, journées, années]
+      # Forms of "aller", for "aller au coiffeur".
+      ALLER_FORMS:
+        [
+          aller,
+          vais,
+          vas,
+          va,
+          allons,
+          allez,
+          vont,
+          allé,
+          allée,
+          allés,
+          allées,
+          allais,
+          allait,
+          allions,
+          alliez,
+          allaient,
+          irai,
+          iras,
+          ira,
+          irons,
+          irez,
+          iront,
+          irais,
+          irait,
+          irions,
+          iriez,
+          iraient,
+          aille,
+          ailles,
+          aillent,
+        ]
+      TRADES:
+        [
+          coiffeur,
+          coiffeurs,
+          coiffeuse,
+          coiffeuses,
+          médecin,
+          médecins,
+          docteur,
+          docteurs,
+          dentiste,
+          dentistes,
+          boulanger,
+          boulangers,
+          boulangère,
+          boulangères,
+          boucher,
+          bouchers,
+          bouchère,
+          bouchères,
+          garagiste,
+          garagistes,
+          notaire,
+          notaires,
+          pharmacien,
+          pharmaciens,
+          pharmacienne,
+          pharmaciennes,
+          vétérinaire,
+          vétérinaires,
+          opticien,
+          opticiens,
+          opticienne,
+          opticiennes,
+          kiné,
+          kinés,
+          kinésithérapeute,
+          kinésithérapeutes,
+          ostéopathe,
+          ostéopathes,
+          psychologue,
+          psychologues,
+          psy,
+          psys,
+          avocat,
+          avocats,
+          avocate,
+          avocates,
+          épicier,
+          épiciers,
+          épicière,
+          épicières,
+          cordonnier,
+          cordonniers,
+          ophtalmo,
+          ophtalmos,
+          ophtalmologue,
+          ophtalmologues,
+          dermatologue,
+          dermatologues,
+          gynécologue,
+          gynécologues,
+          pédiatre,
+          pédiatres,
+          généraliste,
+          généralistes,
+          orthodontiste,
+          orthodontistes,
+          fleuriste,
+          fleuristes,
+        ]
+      REMEMBER_REFLEXIVE: [me, "m'", te, "t'", se, "s'", nous, vous]
+      REMEMBER_POSSESSIVES:
+        [
+          ce,
+          cet,
+          cette,
+          ces,
+          mon,
+          ma,
+          mes,
+          ton,
+          ta,
+          tes,
+          son,
+          sa,
+          ses,
+          notre,
+          nos,
+          votre,
+          vos,
+          leur,
+          leurs,
+        ]
+      # Words after "y a" that need the "ne" written French adds: "il n'y a pas".
+      Y_NEGATIVES: [pas, plus, rien, jamais, personne, point, guère]
+      Y_A_OPENERS: ["si", "qu'", que, mais, car, donc, quand, comme]
+      MONTER:
+        [
+          monter,
+          monte,
+          montes,
+          montons,
+          montez,
+          montent,
+          monté,
+          montée,
+          montés,
+          montées,
+          montait,
+          montaient,
+        ]
+    maps:
+      # Verb forms in one order: infinitive; present je, tu, il, nous, vous, ils; imperfect il,
+      # ils; future il, ils; conditional il; past participle m, f, m plural, f plural; present
+      # participle.
+      IRREGULAR_VERBS:
+        émettre: "émettre émets émets émet émettons émettez émettent émettait émettaient émettra émettront émettrait émis émise émis émises émettant"
+        partir: "partir pars pars part partons partez partent partait partaient partira partiront partirait parti partie partis parties partant"
+        remplir: "remplir remplis remplis remplit remplissons remplissez remplissent remplissait remplissaient remplira rempliront remplirait rempli remplie remplis remplies remplissant"
+        satisfaire: "satisfaire satisfais satisfais satisfait satisfaisons satisfaites satisfont satisfaisait satisfaisaient satisfera satisferont satisferait satisfait satisfaite satisfaits satisfaites satisfaisant"
+        atteindre: "atteindre atteins atteins atteint atteignons atteignez atteignent atteignait atteignaient atteindra atteindront atteindrait atteint atteinte atteints atteintes atteignant"
+        battre: "battre bats bats bat battons battez battent battait battaient battra battront battrait battu battue battus battues battant"
+        réduire: "réduire réduis réduis réduit réduisons réduisez réduisent réduisait réduisaient réduira réduiront réduirait réduit réduite réduits réduites réduisant"
+        soutenir: "soutenir soutiens soutiens soutient soutenons soutenez soutiennent soutenait soutenaient soutiendra soutiendront soutiendrait soutenu soutenue soutenus soutenues soutenant"
+        conclure: "conclure conclus conclus conclut concluons concluez concluent concluait concluaient conclura concluront conclurait conclu conclue conclus conclues concluant"
+        conduire: "conduire conduis conduis conduit conduisons conduisez conduisent conduisait conduisaient conduira conduiront conduirait conduit conduite conduits conduites conduisant"
+        résoudre: "résoudre résous résous résout résolvons résolvez résolvent résolvait résolvaient résoudra résoudront résoudrait résolu résolue résolus résolues résolvant"
+        émouvoir: "émouvoir émeus émeus émeut émouvons émouvez émeuvent émouvait émouvaient émouvra émouvront émouvrait ému émue émus émues émouvant"
+        pourvoir: "pourvoir pourvois pourvois pourvoit pourvoyons pourvoyez pourvoient pourvoyait pourvoyaient pourvoira pourvoiront pourvoirait pourvu pourvue pourvus pourvues pourvoyant"
+      # "41 MB": French writes bytes as octets.
+      BYTE_UNITS: { KB: ko, kB: ko, MB: Mo, GB: Go, TB: To }
+      ADDRESSED_FIX: { de: à, du: au, des: aux, "d'": "à " }
+      STRESSED_OWNERS:
+        {
+          moi: [mon, ma, mes],
+          toi: [ton, ta, tes],
+          lui: [son, sa, ses],
+          elle: [son, sa, ses],
+          nous: [notre, notre, nos],
+          vous: [votre, votre, vos],
+          eux: [leur, leur, leurs],
+          elles: [leur, leur, leurs],
+        }
+    defs:
+      calqueNounPlural:
+        args: "noun: string"
+        return: "/[sxz]$/.test(noun) ? noun : /al$/.test(noun) ? `${noun.slice(0, -2)}aux` : `${noun}s`"
+      # One row of the calque table.
+      calqueEntry:
+        args: "line: string"
+        let:
+          head: 'line.split(" : ")[0]'
+          nouns: 'line.split(" : ")[1]'
+          calque: 'head.split(" > ")[0]'
+        return: >-
+          ({
+            lemma: calque.replace("!", ""),
+            natives: head.split(" > ")[1].split(" "),
+            nouns: nouns === "*" ? null : new Set(nouns.split(" ").flatMap((n) => [n, calqueNounPlural(n)])),
+            noDe: calque.startsWith("!"),
+          })
+      CALQUE_ENTRIES: "[...VERB_CALQUE_LINES].map((line) => calqueEntry(line))"
+      # The forms of a verb in the order of IRREGULAR_VERBS; -er verbs are built ("lançons",
+      # "appuie", "complète").
+      calqueVerbForms:
+        args: "lemma: string"
+        let:
+          stem: lemma.slice(0, -2)
+          hard: 'stem.replace(/c$/, "ç").replace(/g$/, "ge")'
+          mute: 'stem.replace(/y$/, "i").replace(/é([^aeiouéèêy]+)$/, "è$1")'
+          future: 'stem.replace(/y$/, "i")'
+        return: >-
+          IRREGULAR_VERBS[lemma]
+            ? IRREGULAR_VERBS[lemma].split(" ")
+            : [
+                lemma,
+                `${mute}e`,
+                `${mute}es`,
+                `${mute}e`,
+                `${hard}ons`,
+                `${stem}ez`,
+                `${mute}ent`,
+                `${hard}ait`,
+                `${hard}aient`,
+                `${future}era`,
+                `${future}eront`,
+                `${future}erait`,
+                ...["é", "ée", "és", "ées"].map((end) => stem + end),
+                `${hard}ant`,
+              ]
+      # Typed form -> the calque verb (its first row) and the slots the form fills.
+      CALQUE_FORMS: >-
+        [...new Set(CALQUE_ENTRIES.map((entry) => entry.lemma))]
+          .flatMap((lemma) => calqueVerbForms(lemma).map((form, slot) => ({ form, lemma, slot })))
+          .reduce(
+            (forms, t) =>
+              forms.set(
+                t.form,
+                forms.has(t.form)
+                  ? { lemma: forms.get(t.form)!.lemma, slots: [...forms.get(t.form)!.slots, t.slot] }
+                  : { lemma: t.lemma, slots: [t.slot] },
+              ),
+            new Map<string, { lemma: string; slots: number[] }>(),
+          )
+      # The object noun after a verb: adverbs, one or two determiners, at most one more word.
+      calqueObject:
+        args: "text: string, end: number, nouns: ReadonlySet<string>, noDe: boolean"
+        let:
+          after: tokensAfter(text, end, 7)
+          i: "CALQUE_ADVERBS.has(after[0]?.w) ? (CALQUE_ADVERBS.has(after[1]?.w) ? 2 : 1) : 0"
+          j: "CALQUE_DETERMINERS.has(after[i + 1]?.w) ? i + 2 : i + 1"
+        when: "!(!CALQUE_DETERMINERS.has(after[i]?.w) || (noDe && /^d/.test(after[i].w)))"
+        return: "[after[j], after[j + 1]].find((t) => t && nouns.has(t.w)) ?? null"
+      # One calque row on a verb form: the native verb's form for the same slots.
+      calqueFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, natives: string[], nouns: ReadonlySet<string> | null, noDe: boolean, slots: number[], before: FrenchToken[], end: number"
+        let:
+          noun: "nouns === null ? null : calqueObject(ctx.text, end, nouns, noDe)"
+          alternatives: "natives.flatMap((native) => [...new Set(slots.map((slot) => calqueVerbForms(native)[slot]))].slice(0, 1))"
+        when: "!(nouns && !noun)"
+        return: >-
+          wordFinding(ctx, m.index, m[0], alternatives, "stylePhrasing", "review_msg_style_phrasing", {
+            start: before.at(-1)?.start ?? m.index,
+            end: noun?.end ?? end,
+          })
+      # "Il complète le formulaire" -> "remplit", "rencontrer les normes" -> "respecter". "une
+      # version complète du formulaire", "la coupe des salaires": a noun or adjective. A subject
+      # pronoun, an auxiliary or the clause start makes it a verb. "complète": je, il or an
+      # imperative; the subject picks the native form.
+      verbCalque:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          typed: m[0]
+          known: CALQUE_FORMS.get(typed.toLowerCase())!
+          before: tokensBefore(ctx.text, m.index, 3)
+          subject: 'before.find((t) => !CLITICS.has(t.w) && t.w !== "ne" && t.w !== "n''")'
+          end: m.index + typed.length
+          sentenceStart: "!before.length && SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))"
+          person: 'subject?.w === "je" || subject?.w === "j''" || sentenceStart ? 1 : subject?.w === "tu" ? 2 : 3'
+          narrowed: known.slots.filter((slot) => slot === person || slot >= 12)
+          slots: "known.slots.includes(1) && known.slots.length > 1 && narrowed.length ? narrowed : known.slots"
+        when:
+          - "!capitalizedName(ctx.text, m.index, typed)"
+          - >-
+            !(isVerbHomograph(typed.toLowerCase()) &&
+              before.length > 0 &&
+              before[0].w !== "ne" &&
+              before[0].w !== "n'" &&
+              !SUBJECT_PRONOUNS.has(subject?.w ?? "") &&
+              !CALQUE_AUXILIARIES.has(subject?.w ?? ""))
+        return: >-
+          CALQUE_ENTRIES.filter((entry) => entry.lemma === known.lemma)
+            .map((entry) => calqueFinding(ctx, m, entry.natives, entry.nouns, entry.noDe, slots, before, end))
+            .find((found) => found !== null) ?? null
+      # "Il va au coiffeur" -> "chez le coiffeur": one goes to a person's place with "chez".
+      goToTrade:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          word: m[0].toLowerCase()
+          before: tokensBefore(ctx.text, m.index, 3)
+          after: tokensAfter(ctx.text, m.index, 3)
+          article: 'word === "à" ? after[1] : null'
+          trade: 'word === "à" ? after[2] : after[1]'
+          end: "article ? article.end : m.index + m[0].length"
+        when:
+          - before.some((t, i) => ALLER_FORMS.has(t.w) && before.slice(0, i).every((b) => CALQUE_ADVERBS.has(b.w)))
+          - '!(word === "à" && article?.w !== "la")'
+          - "!(!trade || !TRADES.has(trade.w))"
+        return: >-
+          wordFinding(ctx, m.index, ctx.text.slice(m.index, end),
+            [word === "au" ? "chez le" : word === "aux" ? "chez les" : "chez la"], "stylePhrasing", "review_msg_style_phrasing",
+            { start: before.at(-1)!.start, end: trade.end })
+      # "Adressez-vous auprès du guichet" -> "au guichet": one addresses oneself "à" someone.
+      addressedTo:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          before: tokensBefore(ctx.text, m.index, 3)
+          verb: before.find((t) => !(CALQUE_ADVERBS.has(t.w) || /^(?:directement|immédiatement|vous|nous|toi|moi)$/.test(t.w)))
+          next: tokensAfter(ctx.text, m.index + m[0].length, 1)[0]
+          fix: 'ADDRESSED_FIX[next?.w ?? ""]'
+        when:
+          - "!(!verb || !/^adress/.test(verb.w))"
+          - "!!fix"
+        return: 'wordFinding(ctx, m.index, ctx.text.slice(m.index, next.end), [fix], "stylePhrasing", "review_msg_style_phrasing", { start: verb.start, end: next.end })'
+      # "Merci pour m'avoir aidé" -> "de m'avoir aidé": thanks take "de" before an infinitive. "un
+      # combat sans merci pour sauver son honneur": the idiom, not thanks. "merci pour le dîner":
+      # an article, not a pronoun, before a noun spelled like a verb.
+      thanksFor:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          before: tokensBefore(ctx.text, m.index, 4)
+          thanks: before.findIndex((t) => t.w === "merci" || /^remerci/.test(t.w))
+          after: tokensAfter(ctx.text, m.index + m[0].length, 4)
+          i: "CLITICS.has(after[0]?.w) ? (CLITICS.has(after[1]?.w) ? 2 : 1) : 0"
+          verb: after[i]
+          first: after[0]
+        when:
+          - before[thanks + 1]?.w !== "sans"
+          - "!(thanks < 0 || !before.slice(0, thanks).every((t) => /^(?:beaucoup|encore|infiniment|vous|te|tous|bien)$/.test(t.w)))"
+          - '!(!verb || !verbReadings(verb.w).some((r) => r.slot === "I"))'
+          - "!(i > 0 && /^l/.test(after[i - 1].w) && isVerbHomograph(verb.w))"
+        return: >-
+          wordFinding(ctx, m.index, ctx.text.slice(m.index, first.start), [/^[aeiouyhéèêâîôû]/i.test(first.w) ? "d'" : "de "],
+            "stylePhrasing", "review_msg_style_phrasing", { start: before[thanks].start, end: verb.end })
+      # "Au final, il a gagné" -> "Finalement"; "au final de la sonate" names the finale.
+      inTheEnd:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          au: tokensBefore(ctx.text, m.index, 1)[0]
+          next: tokensAfter(ctx.text, m.index + m[0].length, 1)[0]
+        when: '!(au?.w !== "au" || au.end + 1 !== m.index || /^d/.test(next?.w ?? ""))'
+        return: >-
+          wordFinding(ctx, au.start, ctx.text.slice(au.start, m.index + m[0].length), ["finalement", "en fin de compte"],
+            "stylePhrasing", "review_msg_style_phrasing")
+      # "Il monte en haut." -> "Il monte."; "monter en haut de la tour" names where.
+      upHigh:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          pair: tokensBefore(ctx.text, m.index, 2)
+          en: pair[0]
+          verb: pair[1]
+          next: tokensAfter(ctx.text, m.index + m[0].length, 1)[0]
+          end: m.index + m[0].length
+        when: '!(en?.w !== "en" || !MONTER.has(verb?.w ?? "") || /^d/.test(next?.w ?? ""))'
+        return: 'wordFinding(ctx, verb.end, ctx.text.slice(verb.end, end), [""], "stylePhrasing", "review_msg_style_phrasing", { start: verb.start, end })'
     frames:
       # "un bon dix minutes": the English word order; French puts "bon" after the number.
       - regex: "(?<target>un{{S}}bon{{S}}(?<count>\\p{L}+(?:-\\p{L}+)*|\\d+){{S}}(?<unit>minutes|heures|secondes|semaines|journées|années|jours|mois|ans)){{E}}"
-        fixer: goodNumber
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          found: 'wordFinding(ctx, start, target, [`${count} ${FEMININE_UNITS.has(unit.toLowerCase()) ? "bonnes" : "bons"} ${unit}`], frame.ruleId, frame.messageKey)'
+        when: '/^\d+$/.test(count) || count.toLowerCase().split("-").every((w) => STYLE_NUMBER_WORDS.has(w))'
+        return: "found && { ...found, range: { start, end } }"
       # "41 MB": French writes bytes as octets.
       - regex: "(?<=\\d[ \\u00A0]?)(?<target>[KkMGT]B)(?![\\p{L}\\p{N}_])"
         flags: dgu
-        fixer: byteUnits
+        let:
+          unit: BYTE_UNITS[m[0]]
+        when: "!!unit"
+        return: finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [unit])
       # A word: a verb calque or a word that opens a style phrase ("au", "auprès", "pour",
       # "final", "haut").
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_-])"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: styleWord
+        let:
+          word: m[0].toLowerCase()
+        when: m.index >= ctx.from
+        return: >-
+          CALQUE_FORMS.has(word)
+            ? verbCalque(ctx, m)
+            : word === "au" || word === "aux" || word === "à"
+              ? goToTrade(ctx, m)
+              : word === "auprès"
+                ? addressedTo(ctx, m)
+                : word === "pour"
+                  ? thanksFor(ctx, m)
+                  : word === "final"
+                    ? inTheEnd(ctx, m)
+                    : word === "haut"
+                      ? upHigh(ctx, m)
+                      : null
       # "Je me rappelle de ce jour" -> "Je me rappelle ce jour": "se rappeler" takes a direct
       # object.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])rappel(?:le|les|lent|ons|ez|ais|ait|aient|é|ée|és|ées|er)(?![\\p{L}\\p{M}\\p{N}_-])"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: rememberOf
+        let:
+          before: tokensBefore(ctx.text, m.index, 1)[0]
+          after: tokensAfter(ctx.text, m.index + m[0].length, 4)
+          i: "CALQUE_ADVERBS.has(after[0]?.w) ? (CALQUE_ADVERBS.has(after[1]?.w) ? 2 : 1) : 0"
+          de: after[i]
+          next: after[i + 1]
+          start: >-
+            (de.w === "de" && REMEMBER_POSSESSIVES.has(next.w)) || (de.w === "du" && !verbReadings(next.w).some((r) => r.slot === "I"))
+              ? de.start
+              : -1
+        when:
+          - m.index >= ctx.from
+          - "!(!before || !REMEMBER_REFLEXIVE.has(before.w))"
+          - "!(!de || !next)"
+          - start >= 0
+        return: >-
+          wordFinding(ctx, start, ctx.text.slice(start, next.start), [de.w === "de" ? "" : "le "], frame.ruleId, frame.messageKey, {
+            start: before.start,
+            end: next.end,
+          })
       # "Y a un problème", "si y a pas le choix", "qu'y a": spoken French leaves out "il" (and
-      # "ne"); written French says "il y a", "s'il n'y a pas", "qu'il y a".
+      # "ne"); written French says "il y a", "s'il n'y a pas", "qu'il y a". "Y a -t-il": an
+      # inversion; "Le recensement, y a dénombré": "y" and a compound tense. "y a vraiment
+      # personne": the negation word may follow an adverb. "y a plus intéressant" compares:
+      # "plus" leaves both readings.
       - regex: "(?:(?<=(?<!\\p{L})[qQ]u['’])|{{WORD_START}})[yY](?=[ \\t]+(?:en[ \\t]+)?a{{WORD_END}})"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: spokenYa
-      # "C'est la voiture à moi" -> "ma voiture": after "c'est" or "ce sont", the possessive.
+        let:
+          before: tokensBefore(ctx.text, m.index, 1)[0]
+          opener: "before && Y_A_OPENERS.has(before.w) ? before : null"
+          after: tokensAfter(ctx.text, m.index + 1, 4)
+          k: 'after[0]?.w === "en" ? 1 : 0'
+          verb: after[k]
+          next: 'after[k + 1]?.w ?? ""'
+          word: 'CALQUE_ADVERBS.has(next) && !Y_NEGATIVES.has(next) ? (after[k + 2]?.w ?? "") : next'
+          nots: 'word === "plus" ? ["n''", ""] : Y_NEGATIVES.has(word) ? ["n''"] : [""]'
+          start: opener?.start ?? m.index
+        when:
+          - m.index >= ctx.from
+          - "!(before && !opener)"
+          - '!(!before && !/(?:^|[.!?…,;:(\n])[\s\u00a0]*$/u.test(ctx.text.slice(0, m.index)))'
+          - '!(verb?.w !== "a" || verb.hyphen)'
+          - "!/^[ \\t]*-/.test(ctx.text.slice(verb.end, verb.end + 3))"
+          - '!(next !== "eu" && verbReadings(next).some((r) => r.slot === "Q"))'
+        return: >-
+          wordFinding(ctx, start, ctx.text.slice(start, m.index + 1),
+            nots.map((not) =>
+              opener?.w === "si"
+                ? `s'il ${not}y`
+                : opener?.w === "qu'"
+                  ? `qu'il ${not}y`
+                  : opener
+                    ? `${ctx.text.slice(opener.start, m.index).trimEnd()} il ${not}y`
+                    : `il ${not}y`),
+            frame.ruleId, frame.messageKey, { start, end: verb.end })
+      # "C'est la voiture à moi" -> "ma voiture": after "c'est" or "ce sont", the possessive. "à
+      # lui seul", "à moi-même": the pronoun is not the owner. "la lettre à lui adressée": the
+      # pronoun goes with the participle after it. "l'amie" -> "mon amie": before a vowel the
+      # possessive has its masculine form.
       - regex: "{{WORD_START}}(?<det>le|la|les|l['’])[ \\t]*(?<noun>\\p{L}+)[ \\t]+à[ \\t]+(?<who>moi|toi|lui|elle|nous|vous|eux|elles)(?![\\p{L}\\p{M}\\p{N}_'’])"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: ownerAfterNoun
+        let:
+          before: tokensBefore(ctx.text, m.index, 3).map((t) => t.w)
+          end: m.index + m[0].length
+          next: tokensAfter(ctx.text, end, 1)[0]
+          article: det.toLowerCase().replace("’", "'")
+          word: noun.toLowerCase()
+          owners: STRESSED_OWNERS[who.toLowerCase()]
+        when:
+          - m.index >= ctx.from
+          - >-
+            !(!/^(?:est|sont|était|étaient)$/.test(before[0] ?? "") ||
+              !["c'", "ce"].includes(before[before[1] === "ne" || before[1] === "n'" ? 2 : 1]))
+          - "!/^(?:-|[ \\t]+(?:seule?s?|même|aussi|tout|toute|tous|toutes|de|d['’])(?![\\p{L}]))/u.test(ctx.text.slice(end, end + 8))"
+          - '!(next && verbReadings(next.w).some((r) => r.slot === "Q"))'
+          - "!(!isInflectedNoun(word) && !nounGender(word))"
+        return: 'wordFinding(ctx, m.index, m[0], [`${article === "les" ? owners[2] : article === "la" ? owners[1] : owners[0]} ${noun}`], frame.ruleId, frame.messageKey)'
   - id: fr.bareNoun
     checks: [frenchNounGender]
     style: match
