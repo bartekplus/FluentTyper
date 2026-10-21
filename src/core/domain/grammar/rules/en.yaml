@@ -12410,11 +12410,9 @@ rules:
         }
       AS_TO_SINGULAR: { are: is, were: was, "aren't": "isn't", "weren't": "wasn't" }
       AS_SINGULAR_DO_HAVE: { have: has, do: does, "haven't": "hasn't", "don't": "doesn't" }
+      # The verb or auxiliary for a singular or a plural subject (also of an inverted question).
       AS_SINGULAR_OF: { are: is, were: was, have: has, do: does }
       AS_PLURAL_OF: { is: are, was: were, has: have, does: do }
-      # The auxiliary of an inverted question for a singular or a plural subject.
-      AS_SINGULAR_AUX: { do: does, have: has, are: is, were: was }
-      AS_PLURAL_AUX: { does: do, has: have, is: are, was: were }
     defs:
       # Adjectives that name a group as a noun: "the public", "the rich", "the elderly".
       AS_GROUP_ADJECTIVES: >-
@@ -13023,7 +13021,7 @@ rules:
           # "Do the zip file installation steps work…": the noun phrase goes on.
           after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
           # "Do your parents…" vs "Does your father…": the noun's number decides.
-          fix: 'number.number === "plural" ? AS_PLURAL_AUX[a] : AS_SINGULAR_AUX[a]'
+          fix: 'number.number === "plural" ? AS_PLURAL_OF[a] : AS_SINGULAR_OF[a]'
         when:
           - enAfterBreak(ctx, m.index) || /^(?:what|where|when|why|how|who|which)$/.test(before)
           # A plural collective ("the teams") takes a plural verb like any plural.
@@ -15397,8 +15395,6 @@ rules:
     maps:
       CA_TO_SINGULAR:
         { are: is, "aren't": "isn't", have: has, "haven't": "hasn't", do: does, "don't": "doesn't" }
-      CA_THIRD_AUX:
-        { have: has, do: does, are: is, "haven't": "hasn't", "don't": "doesn't", "aren't": "isn't" }
     defs:
       # Not "and": "The cups and the plate that sit there are clean" coordinates the subject.
       CA_CLAUSE_CUE: /^(?:whether|when|if|that|because|since|while|where|but|so)$/
@@ -15824,7 +15820,7 @@ rules:
         owner: aux
         let:
           before: enWordBefore(ctx, m.index)
-          fix: CA_THIRD_AUX[caNormal(aux)]
+          fix: CA_TO_SINGULAR[caNormal(aux)]
           # The verb after the subject fits the auxiliary.
           read: englishWordInfo(next)
           stem: caNormal(aux).replace("n't", "")

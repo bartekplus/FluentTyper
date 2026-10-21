@@ -214,12 +214,16 @@ function grouped(entries: ReviewDetectorEntry[]): ReviewDetectorEntry[] {
     else {
       const parts = entries.slice(i, end);
       const rules = [...new Set(parts.flatMap((part) => part.rules))];
-      out.push({
+      const entry: ReviewDetectorEntry = {
         rules,
         detect: (ctx) => parts.flatMap((part) => part.detect(ctx)),
         lang: parts[0].lang,
         source: parts[0].source,
-      });
+      };
+      // The group is cacheable only when each of its rules is.
+      out.push(
+        REVIEW_RULES.slice(i, end).every((rule) => rule.cacheable) ? cacheable(entry) : entry,
+      );
     }
     i = end;
   }
