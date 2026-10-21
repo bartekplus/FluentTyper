@@ -219,17 +219,43 @@ export type ReviewDetectorEntry = {
 const PHRASE_WINDOW = 96;
 const WORD_CHAR = /[\p{L}\p{N}_'’]/u;
 // Characters that glue a word into a mention, path, file or dotted name.
-const TECHNICAL_GLUE = /[@#/\\_=$]/;
+// The same characters as /[@#/\\_=$]/, by code.
+const isTechnicalGlueAt = (text: string, index: number) => {
+  const code = text.charCodeAt(index);
+  return (
+    code === 64 ||
+    code === 35 ||
+    code === 47 ||
+    code === 92 ||
+    code === 95 ||
+    code === 61 ||
+    code === 36
+  );
+};
+
+/**
+ * WORD_CHAR.test(text[index] ?? ""): an ASCII character is read by its code, without the
+ * regex. Outside the text, charCodeAt gives NaN and the result is false.
+ */
+function isWordCharAt(text: string, index: number): boolean {
+  const code = text.charCodeAt(index);
+  if (!(code >= 128)) {
+    if (code >= 97) return code <= 122;
+    if (code >= 65) return code <= 90 || code === 95;
+    return code >= 48 ? code <= 57 : code === 39;
+  }
+  return WORD_CHAR.test(text[index]);
+}
 
 /** True when [start, end) is glued to a technical token in `text` ("@i", "src/dont", "teh.com"). */
 function isGluedToTechnical(text: string, start: number, end: number): boolean {
+  if (isTechnicalGlueAt(text, start - 1) || isTechnicalGlueAt(text, end)) return true;
   const before = text[start - 1] ?? "";
   const after = text[end] ?? "";
-  if (TECHNICAL_GLUE.test(before) || TECHNICAL_GLUE.test(after)) return true;
   if (before === MASK_CHAR || after === MASK_CHAR) return true;
   // A period is a sentence end unless a word character continues the token.
-  if (before === "." && WORD_CHAR.test(text[start - 2] ?? "")) return true;
-  return after === "." && WORD_CHAR.test(text[end + 1] ?? "");
+  if (before === "." && isWordCharAt(text, start - 2)) return true;
+  return after === "." && isWordCharAt(text, end + 1);
 }
 
 /** Word starts and ends of ASCII-letter words ([A-Za-z]+) owned by the chunk. */
@@ -242,7 +268,7 @@ function asciiWords(ctx: DetectContext, lookback = 0): TextRange[] {
     const start = match.index;
     const end = start + match[0].length;
     // Letters glued to other word characters are part of a longer token ("teh2").
-    if (WORD_CHAR.test(ctx.text[start - 1] ?? "") || WORD_CHAR.test(ctx.text[end] ?? "")) {
+    if (isWordCharAt(ctx.text, start - 1) || isWordCharAt(ctx.text, end)) {
       continue;
     }
     words.push({ start, end });
@@ -472,7 +498,7 @@ function namesMark(text: string, index: number): boolean {
   if (before === index - 1) return false;
   let wordStart = before + 1;
   while (wordStart > 0 && /\p{L}/u.test(text[wordStart - 1])) wordStart -= 1;
-  if (WORD_CHAR.test(text[wordStart - 1] ?? "")) return false;
+  if (isWordCharAt(text, wordStart - 1)) return false;
   return MARK_NAMING_WORDS.has(text.slice(wordStart, before + 1).toLowerCase());
 }
 
@@ -584,7 +610,7 @@ function spellingFindings(match: RegExpExecArray, ctx: DetectContext): RawFindin
   const start = match.index;
   const end = start + match[0].length;
   // Letters glued to other word characters are part of a longer token ("teh2").
-  if (WORD_CHAR.test(ctx.text[start - 1] ?? "") || WORD_CHAR.test(ctx.text[end] ?? "")) return [];
+  if (isWordCharAt(ctx.text, start - 1) || isWordCharAt(ctx.text, end)) return [];
   const findings: RawFinding[] = [];
   if (isGluedToTechnical(ctx.text, start, end)) return findings;
   // "--dont-ask", "dont-care", "alot-lib": a hyphen after the word makes it
