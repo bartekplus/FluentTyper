@@ -52,7 +52,7 @@ The file order is `common`, `en`, `es`, `fr`, `hr`, `el`, `sv`, `pl`, `de`, `pt_
 | Compile the rule files                   | `bun run compile:grammar`         |
 | Compile again even when no input changed | `bun run compile:grammar --force` |
 
-The modules that the compiler writes from the rule files are not in git (`.gitignore`). `bun install` writes them (postinstall), and `bun run check`, `lint`, `typecheck`, `test` and `build` compile first. The compile writes only when its inputs changed or an output is missing (`review/rules/.inputs` holds the hash of the inputs and the list of outputs). The generated modules are not formatted. oxlint skips the files that `.gitignore` names, so the `lint` script names the generated modules on the command line. The lexicon data modules (`*Lexicon.generated.ts` and the others that `bun run generate:lexicons` writes) stay in git.
+The modules that the compiler writes from the rule files are not in git (`.gitignore`). `bun install` writes them (postinstall), and `bun run check`, `lint`, `typecheck`, `test` and `build` compile first. A `bun test` run compiles first too (`tests/bun-test-preload.ts`). The compile writes only when its inputs changed or an output is missing (`review/rules/.inputs` holds the hash of the inputs and the list of outputs). The generated modules are not formatted. oxlint skips the files that `.gitignore` names, so the `lint` script names the generated modules on the command line. The lexicon data modules (`*Lexicon.generated.ts` and the others that `bun run generate:lexicons` writes) stay in git.
 
 ## Checks
 
