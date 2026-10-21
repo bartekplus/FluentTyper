@@ -41,7 +41,7 @@ interface SupportedReviewMetadata {
  * `bulk: "eligible"` means the rule's fix is deterministic and batch-approved for
  * "Fix all".
  */
-export type ReviewRuleMetadata =
+type ReviewRuleMetadata =
   | (SupportedReviewMetadata & { kind: ReviewKind })
   | {
       review: "excluded";

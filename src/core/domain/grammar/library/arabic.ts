@@ -4,9 +4,6 @@ import { reviewData } from "../review/reviewLanguageData";
 import { graphWords, WordGraph } from "../review/wordGraph";
 import type * as Lexicon from "../review/arabic/lexicon.generated";
 
-export { digitValue, invalidIsoDate } from "../review/isoDates";
-export { contextYear, daysInMonth, weekdayOf, yearsFor } from "../review/reviewClock";
-
 /** A finding without its rule id: the rule file adds the id of its frame. */
 export type ArabicFinding = Omit<RawFinding, "ruleId">;
 

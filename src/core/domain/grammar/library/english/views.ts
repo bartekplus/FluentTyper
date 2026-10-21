@@ -6,7 +6,7 @@ import type { DetectContext, RawFinding } from "../../review/reviewDetectors";
 type Detector = (ctx: DetectContext) => RawFinding[];
 
 /** A same-length substitution: the text at `at` reads as `text` in the view. */
-export type ViewSwap = readonly [at: number, text: string];
+type ViewSwap = readonly [at: number, text: string];
 
 /**
  * Runs `detect` over a window of the text with `swaps` applied, owning [start, end). Offsets

@@ -9,9 +9,9 @@
 // Types of the generated rule modules and of def signatures.
 export type { DetectContext, RawFinding } from "./review/reviewDetectors";
 export type { FrameRef, MatchResult } from "./engine/reviewRules";
-export type { FixResult } from "./review/english/idioms5";
+export type { FixResult } from "./library/english/frames";
 export type { TextRange } from "./review/types";
-export type { GrammarContext, GrammarEdit, GrammarEventType } from "./types";
+export type { GrammarContext, GrammarEdit } from "./types";
 export type { LiveRuleOptions } from "./engine/liveRules";
 
 export * from "./library/text";

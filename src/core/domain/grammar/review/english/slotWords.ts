@@ -3,11 +3,7 @@ import {
   englishWordInfo,
   type EnglishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
-import { caseLike, detectAll } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { quotedMention } from "../../library/english/words";
-
-export { caseLike };
+import type { DetectContext } from "../reviewDetectors";
 
 // Shared word-slot helpers for the lexicon-driven grammar frames: a small tokenizer over the
 // masked text and closed word classes the generated lexicon has no part of speech for.
@@ -206,46 +202,7 @@ export function adverb(word: string): boolean {
   );
 }
 
-/** Lowercase, or all caps in an all-caps stretch; never a user-dictionary word. */
-export function plain(ctx: DetectContext, token: string): boolean {
-  return token === token.toLowerCase() && !ctx.dictionary.has(token.toLowerCase());
-}
-
 export const evidence = (ctx: DetectContext, start: number, end: number) => ({
   start: Math.max(0, start - 96),
   end: Math.min(ctx.text.length, end + 40),
 });
-
-/** The rule and message of a slot finding. */
-export type SlotRule = Pick<RawFinding, "ruleId" | "messageKey">;
-
-/** Replaces the `group` of `m` with `replacement`, in the case the user typed. */
-export function pushSlot(
-  ctx: DetectContext,
-  findings: RawFinding[],
-  rule: SlotRule,
-  m: RegExpExecArray,
-  replacement: string,
-  group = "target",
-): void {
-  const [start, end] = m.indices!.groups![group];
-  findings.push({
-    ...rule,
-    range: { start, end },
-    alternatives: [caseLike(ctx.source.slice(start, end), replacement)],
-    context: evidence(ctx, m.index, end),
-  });
-}
-
-/**
- * English only; findings inside a quoted or parenthesized example are dropped, and only
- * findings that start in the chunk are kept.
- */
-export const english =
-  (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
-  (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US"
-      ? []
-      : detectAll(ctx, detectors).filter(
-          (f) => f.range.start >= ctx.from && f.range.start < ctx.to && !quotedMention(ctx, f),
-        );

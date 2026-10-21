@@ -110,7 +110,7 @@ export function yearsFor(month: number, day: number, context?: number): number[]
  * A four-digit year, as the date detectors read it. `contextYear` reads the same pattern, so a
  * year that a detector accepts in a date is also a year for a date with no year near it.
  */
-export const YEAR_DIGITS = "[0-9]{4}";
+const YEAR_DIGITS = "[0-9]{4}";
 
 const YEAR = new RegExp(
   `(?<![\\p{L}\\p{N}.,/-])${YEAR_DIGITS}(?![\\p{L}\\p{N}]|[.,/-][0-9])`,

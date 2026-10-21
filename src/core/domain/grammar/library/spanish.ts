@@ -5,12 +5,8 @@ export type {
   Token as SpanishToken,
   Tokens as SpanishTokens,
 } from "../review/spanish/common";
-export type { Agreement as SpanishAgreement } from "../review/spanish/lexicon";
-export type {
-  Determiner as SpanishDeterminer,
-  Gender as SpanishGender,
-  Noun as SpanishNoun,
-} from "../review/spanish/nouns";
+
+export type { Determiner as SpanishDeterminer } from "../review/spanish/nouns";
 export {
   around as esAround,
   attributeOf as esAttributeOf,
@@ -36,7 +32,6 @@ export {
 } from "../review/spanish/common";
 export {
   ACCENTED_NOMINAL as ES_ACCENTED_NOMINAL,
-  accentLast as esAccentLast,
   attribute as esAttribute,
   finiteVerb as esFiniteVerb,
   genderedForm as esGenderedForm,
@@ -44,7 +39,6 @@ export {
   isGerund as esIsGerund,
   isInvariantEntry as esIsInvariantEntry,
   isNoun as esIsNoun,
-  isNounEntry as esIsNounEntry,
   isVerb as esIsVerb,
   NOUN_ENDING as ES_NOUN_ENDING,
   nounForm as esNounForm,

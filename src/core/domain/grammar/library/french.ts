@@ -3,24 +3,8 @@ import { verbReadings, type VerbReading, type VerbSlot } from "../review/french/
 import type { Token as FrenchToken } from "../review/french/frenchTokens";
 import type { RawFinding } from "../review/reviewDetectors";
 
-export { finding } from "../review/finding";
-export { invalidIsoDate } from "../review/isoDates";
-export {
-  skipComplements,
-  skipCoordinated,
-  skipNounPhrase,
-  skipPostnominal,
-  verbAfterRelative,
-} from "../review/clauseReader";
-export type { ClauseProfile, ClauseToken } from "../review/clauseReader";
 export { accentedNoun, hAspire } from "./french/words";
 export { firstNameGender } from "../review/french/firstNames";
-export { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../review/reviewClock";
-export {
-  applyWordCase,
-  carryCase,
-  detectWordCase,
-} from "../implementations/helpers/GenericRuleShared";
 export {
   CLITICS,
   PREPOSITIONS,
@@ -40,10 +24,8 @@ export {
   TU,
   VOUS,
   adjectiveReadings,
-  authoredGenderable,
   compoundsStartingWith,
   conjugate,
-  endingGender,
   finitePersons,
   genderable,
   inflect,
@@ -56,7 +38,6 @@ export {
   nounGender,
   pastParticiple,
   pluralSingulars,
-  suffixGender,
   verbReadings,
 } from "../review/french/frenchLexicon";
 
@@ -148,5 +129,4 @@ export type {
   Gender as FrenchGender,
   Inflection,
   VerbReading,
-  VerbSlot,
 } from "../review/french/frenchLexicon";

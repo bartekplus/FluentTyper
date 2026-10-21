@@ -38,14 +38,11 @@ export {
   CLOSING_PADDING_CHARS,
   closesAbbreviation,
   keepsOwnCasing,
-  periodEndsSentence,
-  SENTENCE_CLOSERS,
-  SENTENCE_OPENERS,
   SENTENCE_OPENING_MARKS,
   startsSentence,
   TRAILING_PUNCTUATION_REGEX,
 } from "./typing/sentences";
-export type { AbbreviationOptions } from "./typing/sentences";
+
 export {
   execFrom,
   matchingOpenIndex,

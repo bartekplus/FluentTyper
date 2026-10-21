@@ -12,7 +12,7 @@ import {
   plain,
 } from "./lexicon";
 
-export type Gender = "m" | "f";
+type Gender = "m" | "f";
 
 // Determiner paradigms: masculine singular, feminine singular, masculine plural, feminine plural.
 const PARADIGMS = [
@@ -170,7 +170,7 @@ export function pluralOf(word: string): string | null {
   return /[dljnry]$/u.test(word) ? `${word}es` : `${word}s`;
 }
 
-export type Noun = {
+type Noun = {
   plural: boolean;
   gender: Gender | null;
   /** -o/-a pairs ("niño", "española"): the form shows the gender. */

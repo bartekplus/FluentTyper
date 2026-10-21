@@ -19,7 +19,7 @@ const CLOSE_BEFORE = /[\s.,;:!?…)\]}>\-–—/"'“”„«»‹›‘’]/u;
 type Open = { at: number; kind: "double" | "single" | "typographic"; nested: boolean };
 
 /** One mark to change: where it is, its new text, and the pair it is in ([at, at] for none). */
-export type QuoteEdit = [at: number, replacement: string, context: [number, number]];
+type QuoteEdit = [at: number, replacement: string, context: [number, number]];
 
 // A line longer than SEGMENT splits at whitespace near each multiple of SEGMENT, so a scan reads
 // a bounded context, and every chunk and proof window sees the same segments. A cut applies only

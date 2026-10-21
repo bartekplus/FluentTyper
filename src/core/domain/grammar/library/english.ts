@@ -16,18 +16,15 @@ export {
   adverb as enAdverb,
   afterBreak as enAfterBreak,
   clauseAfter as enClauseAfter,
-  english as enEnglish,
   evidence as enEvidence,
   frontedObjectBefore as enFrontedObjectBefore,
   info as enInfo,
   nounOnly as enNounOnly,
   objectGapBefore as enObjectGapBefore,
-  plain as enPlain,
-  pushSlot as enPushSlot,
   tokensAfter as enTokensAfter,
   wordBefore as enWordBefore,
 } from "../review/english/slotWords";
-export type { SlotRule as EnSlotRule, Token as EnToken } from "../review/english/slotWords";
+export type { Token as EnToken } from "../review/english/slotWords";
 
 // Noun number and mass nouns (library/english/nouns.ts).
 export {
@@ -43,10 +40,7 @@ export { COLLECTIVE as EN_COLLECTIVE, opensClause as enOpensClause } from "./eng
 export { nounVerb as enNounVerb, participle as enParticiple } from "./english/verbs";
 
 // Dotted tokens of prose and quoted mentions (library/english/words.ts).
-export {
-  PROSE_DOTTED_TOKEN as EN_PROSE_DOTTED_TOKEN,
-  quotedMention as enQuotedMention,
-} from "./english/words";
+export { quotedMention as enQuotedMention } from "./english/words";
 
 // The casing of a fix like the typed words (library/english/words.ts).
 export { recase as enRecase } from "./english/words";
@@ -89,7 +83,7 @@ export {
   weekdaysFor as enWeekdaysFor,
   yearsFor as enYearsFor,
 } from "../review/reviewClock";
-export { enTable, useEnglishTables } from "./english/tables";
+export { enTable } from "./english/tables";
 // Group 5 (remaining, fixedPhrases, grammarStyle2, idioms1, confusions1, confusions2,
 // compoundForms, lexical): the listed nouns of the lexicon and the irregular verb table.
 export { englishListedWithoutPlural as enListedWithoutPlural } from "../implementations/helpers/EnglishLexicon";
@@ -110,7 +104,6 @@ export type { BlockHit as EnBlockHit, BlockToken as EnBlockToken } from "./engli
 export {
   clauseClosesAt as enClauseClosesAt,
   clauseOpensAt as enClauseOpensAt,
-  clauseWordsAfter as enClauseWordsAfter,
   clauseWordsBefore as enClauseWordsBefore,
   wordsAround as enWordsAround,
 } from "./english/clauseWords";
@@ -120,12 +113,8 @@ export type {
 } from "./english/clauseWords";
 export { gluedAfter as enGluedAfter } from "../review/phraseTemplates";
 // Group 5: views, and the findings of a frame rule by its id (library/english/views.ts).
-export {
-  inView as enInView,
-  ruleFindings as enRuleFindings,
-  useRuleDetectors as enUseRuleDetectors,
-} from "./english/views";
-export type { ViewSwap as EnViewSwap } from "./english/views";
+export { inView as enInView, ruleFindings as enRuleFindings } from "./english/views";
+
 // Group 5: a read through a cache that a rule file keeps (library/english/cache.ts).
 export { readThrough as enReadThrough } from "./english/cache";
 // Group 3 (grammarStyle1, articles, confusionSlots, everydaySlots, wordFormSlots, punctuation,

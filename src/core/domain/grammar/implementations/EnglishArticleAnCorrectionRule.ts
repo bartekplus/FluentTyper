@@ -2,12 +2,7 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export {
-  ARTICLE_REGEX,
-  correctArticle,
-  isArticleContext,
-  SENTENCE_START_REGEX,
-} from "../review/rules/common.generated";
+export { ARTICLE_REGEX } from "../review/rules/common.generated";
 
 export class EnglishArticleAnCorrectionRule implements GrammarRule {
   readonly id = "englishArticleAnCorrection" as const;

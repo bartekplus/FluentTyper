@@ -467,7 +467,7 @@ export function genderable(word: string): boolean {
 
 /** The gender a noun's ending gives it, if any. A plural ("fourmis") takes no gender from an
  * ending in s. */
-export function suffixGender(word: string): Gender | null {
+function suffixGender(word: string): Gender | null {
   if (SUFFIX_EXCEPTIONS.has(word)) return SUFFIX_EXCEPTIONS.get(word)!;
   const match = SUFFIX_GENDER.find(
     ([ending]) => word.endsWith(ending) && word.length > ending.length + 1,

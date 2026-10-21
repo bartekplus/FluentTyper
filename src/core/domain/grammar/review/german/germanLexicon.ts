@@ -13,7 +13,7 @@ const data = () => reviewData<typeof Lexicon & typeof Gender & typeof Usage>("de
  * a word unless capitalized), a noun or a finite verb form ("griff", "stelle"), or a noun or an
  * infinitive ("kosten", "fällen"). Null: not a noun, or also an adjective, adverb or other word.
  */
-export type GermanNounReading = "noun" | "finite" | "infinitive";
+type GermanNounReading = "noun" | "finite" | "infinitive";
 
 // Nouns the bundled dictionary lacks, in their lowercase forms (authored).
 const EXTRA_NOUNS = "mühe träne weile eile zeit";
@@ -226,7 +226,7 @@ export function germanAdjectiveNoun(word: string): boolean {
 
 let otherNouns: Set<string> | undefined;
 /** A lowercase noun form that is also an adverb, preposition or numeral ("angst", "morgen"). */
-export function germanOtherNoun(word: string): boolean {
+function germanOtherNoun(word: string): boolean {
   otherNouns ??= frontDecoded(data().OTHER_NOUNS);
   return otherNouns.has(word.normalize("NFC"));
 }

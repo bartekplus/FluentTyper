@@ -1,2 +1,2 @@
 // The canonical casing frame of grammar/rules/common.yaml (rule phraseTables) and its words.
-export { canonicalCasing, CASING_WORDS, hasCanonicalCasing } from "./rules/common.generated";
+export { CASING_WORDS } from "./rules/common.generated";

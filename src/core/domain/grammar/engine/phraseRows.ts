@@ -51,7 +51,7 @@ function secondKey(form: string): string | null {
 // The word after one run of spaces. ASCII only: case-insensitive matching folds a few other
 // letters onto ASCII ones (U+212A Kelvin sign ~ k), so those text words skip no row.
 const NEXT_WORD = /[ \t\u00a0]{1,8}([\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*)/uy;
-export function nextWordKey(text: string, end: number): string | null {
+function nextWordKey(text: string, end: number): string | null {
   NEXT_WORD.lastIndex = end;
   const word = NEXT_WORD.exec(text)?.[1];
   if (word === undefined) return "";
@@ -60,7 +60,7 @@ export function nextWordKey(text: string, end: number): string | null {
 
 // French elided articles and pronouns stay attached: "l'addresse", "d'apeller".
 const ELIDED = "(?:[cdjlmnst]|qu|jusqu|lorsqu|puisqu)['’]";
-export const FRENCH_ELIDED = new RegExp(`^${ELIDED}(?=\\p{L})`, "iu");
+const FRENCH_ELIDED = new RegExp(`^${ELIDED}(?=\\p{L})`, "iu");
 
 // Word boundaries are checked once per position, not compiled into every row: a
 // Unicode property class costs about a millisecond per regex to build in V8.
@@ -80,8 +80,8 @@ WORD_STARTS.set(
   new RegExp(`(?<![.])(?:(?<=(?<![\\p{L}\\p{M}])[وف]\\p{M}*)|(?<!${EDGE}))`, "uy"),
 );
 /** "و" or "ف" with its harakat before a word of two letters or more: "وَقال". */
-export const ARABIC_PREFIX = /^[وف]\p{M}*(?=\p{L}\p{M}*\p{L})/u;
-export const startsWord = (text: string, at: number, lang: string) => {
+const ARABIC_PREFIX = /^[وف]\p{M}*(?=\p{L}\p{M}*\p{L})/u;
+const startsWord = (text: string, at: number, lang: string) => {
   const regex = WORD_STARTS.get(lang === "fr" || lang === "ar" ? lang : "en")!;
   regex.lastIndex = at;
   return regex.test(text);
@@ -128,7 +128,7 @@ export function addRows(
 }
 
 /** A row typed at `at`: its words, then (for a bounded row) no word continuing them. */
-export function matchPhrase(text: string, phrase: PhraseEntry, at: number): RegExpExecArray | null {
+function matchPhrase(text: string, phrase: PhraseEntry, at: number): RegExpExecArray | null {
   const body = (phrase.body ??= new RegExp(phrase.source, "iuy"));
   body.lastIndex = at;
   const match = body.exec(text);

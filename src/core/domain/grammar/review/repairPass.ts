@@ -45,7 +45,7 @@ export function selectRepairs(diagnostics: readonly ReviewDiagnostic[]): ReviewD
   });
 }
 
-export interface RepairShadow {
+interface RepairShadow {
   repairs: readonly ReviewDiagnostic[];
   /** Every repair's edits, in positions of the original text. */
   edits: ReviewEdit[];
@@ -131,7 +131,7 @@ export interface ShadowFinding {
  * edit changes a repaired word: "cant" -> "can"); empty when the fix changes
  * other words only and stands next to the repairs.
  */
-export interface Composite {
+interface Composite {
   finding: RawFinding;
   repairs: ReviewDiagnostic[];
 }

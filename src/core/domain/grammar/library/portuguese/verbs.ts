@@ -277,7 +277,7 @@ for (const row of [
 }
 
 /** -er/-ir stems with an irregular subjunctive (fazer, ter, ver, vir, pôr and their compounds). */
-export const PT_IRREGULAR_STEM =
+const PT_IRREGULAR_STEM =
   /(?:faz|diz|traz|sab|cab|pod|quer|perd|val|hav|jaz|praz|ped|med|ouv)$|^(?:man|con|ob|de|re|entre|a|abs|sus)?t$|^(?:pre|re|inter|con|pro|ad|sobre)?v$|^(?:re)?l$|^cr$|^s$/;
 
 const ENDINGS: Record<
@@ -356,7 +356,7 @@ function presentOf(stem: string, conjugation: Conjugation, person: PtPerson): st
 }
 
 /** The stem of the first person present of an -er/-ir verb: "conhec" -> "conheç", "sent" -> "sint". */
-export function ptFirstPersonStem(stem: string, conjugation: "er" | "ir"): string {
+function ptFirstPersonStem(stem: string, conjugation: "er" | "ir"): string {
   let first = stem;
   if (conjugation === "ir") {
     // -ir verbs raise a last stem "e" to "i": sentir -> sinto, seguir -> sigo, preferir -> prefiro;
@@ -416,7 +416,7 @@ function firstPersons(): Map<string, Array<["er" | "ir", string]>> {
 }
 
 /** A reading of a form as a regular form of an everyday verb: its verb, tense and persons. */
-export type PtVerbReading = {
+type PtVerbReading = {
   conjugation: Conjugation;
   stem: string;
   tense: Tense;

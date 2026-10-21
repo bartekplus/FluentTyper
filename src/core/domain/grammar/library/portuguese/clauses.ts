@@ -83,7 +83,7 @@ const TOKEN = /[\p{L}]+(?:-[\p{L}]+)*|[^\s\p{L}]/uy;
 
 /** The verb of a clause: its offsets and text, the person of the subject before it (null: no
  * subject), whether a noun is that subject, and the lowercase word after the verb. */
-export type PtClauseVerb = {
+type PtClauseVerb = {
   start: number;
   end: number;
   word: string;

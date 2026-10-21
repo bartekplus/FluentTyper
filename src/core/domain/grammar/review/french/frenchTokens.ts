@@ -5,7 +5,6 @@ import {
 } from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { MatchFixer, MatchResult } from "../../engine/reviewRules";
 import { finding } from "../finding";
 
 /** Text before a sentence start: the text start or sentence punctuation, then spaces. */
@@ -121,15 +120,6 @@ export const CLITICS = new Set([
   "y",
   "en",
 ]);
-
-/**
- * The fixer of an owned frame of grammar/rules/fr.yaml (`scan: owned`, `lookback: 1`). The scan
- * starts one character before the chunk; a match that starts there is not owned.
- */
-export const inChunk =
-  (fix: (ctx: DetectContext, m: RegExpExecArray) => MatchResult): MatchFixer =>
-  (m, ctx) =>
-    m.index < ctx.from ? null : fix(ctx, m);
 
 /**
  * A finding on one word unless the user's dictionary holds it, its casing is unusual (a name,

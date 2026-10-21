@@ -2,12 +2,7 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export {
-  isNounMight,
-  MODAL_OF_REGEX,
-  modalHaveWord,
-  OF_IDIOMS,
-} from "../review/rules/common.generated";
+export { MODAL_OF_REGEX } from "../review/rules/common.generated";
 
 export class EnglishModalOfCorrectionRule implements GrammarRule {
   readonly id = "englishModalOfCorrection" as const;

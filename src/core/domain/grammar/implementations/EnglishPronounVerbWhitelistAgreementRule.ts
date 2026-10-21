@@ -2,14 +2,7 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export {
-  AGREEMENT_CORRECTIONS,
-  AGREEMENT_REGEX,
-  correctPronounVerb,
-  isObjectYou,
-  isVariableI,
-  PREVIOUS_WORD,
-} from "../review/rules/common.generated";
+export { AGREEMENT_CORRECTIONS, AGREEMENT_REGEX } from "../review/rules/common.generated";
 
 export class EnglishPronounVerbWhitelistAgreementRule implements GrammarRule {
   readonly id = "englishPronounVerbWhitelistAgreement" as const;

@@ -29,7 +29,7 @@ export function clauseWordsBefore(text: string, index: number, max: number): Cla
 }
 
 /** Up to `max` words after `index` on the same clause. */
-export function clauseWordsAfter(text: string, index: number, max: number): ClauseWord[] {
+function clauseWordsAfter(text: string, index: number, max: number): ClauseWord[] {
   const found: ClauseWord[] = [];
   for (let at = index; found.length < max;) {
     const match = WORD_AFTER.exec(text.slice(at, at + 48));

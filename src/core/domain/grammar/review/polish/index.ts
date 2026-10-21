@@ -3,4 +3,3 @@
 import { REVIEW_DETECTORS } from "../reviewDetectors";
 
 export const POLISH_DETECTORS = REVIEW_DETECTORS.filter((entry) => entry.source === "pl");
-export { SPLIT_WORDS as POLISH_SPLIT_WORDS } from "./compounds";

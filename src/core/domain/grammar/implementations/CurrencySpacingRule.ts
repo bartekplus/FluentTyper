@@ -2,8 +2,6 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export { CURRENCY_MARKERS } from "../review/rules/common.generated";
-
 export class CurrencySpacingRule implements GrammarRule {
   readonly id = "currencySpacing" as const;
   private readonly rule = liveRule(this.id);

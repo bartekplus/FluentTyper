@@ -1,7 +1,8 @@
 import type { CatalogRuleId } from "../ruleCatalog";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { quotedSpan } from "../review/exampleCues";
-import { recase, type Fix, type FixResult } from "../review/english/idioms5";
+import type { Fix, FixResult } from "../library/english/frames";
+import { recase } from "../library/english/words";
 import { likeTyped } from "../review/german/shared";
 import { findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "../review/polish/shared";
 import { CLAUSE_BEFORE, pushFinding } from "../review/portuguese/confusions";
@@ -15,7 +16,6 @@ import {
   hasUserOrCasedWord,
   isLang,
   opensSentence,
-  type PhraseTemplate,
   WORD_START,
 } from "../review/phraseTemplates";
 import type { DetectContext, RawFinding } from "../review/reviewDetectors";
@@ -432,29 +432,4 @@ export function detectFrames(
     for (const m of matchesOf(ctx, frame)) find(ctx, m, frame, findings);
   }
   return findings;
-}
-
-/**
- * Phrase templates of a hand-written detector, run as template frames: the `target` group gets
- * the replacement in its casing (an empty one only warns).
- */
-export function detectPhraseTemplates(
-  ctx: DetectContext,
-  templates: readonly PhraseTemplate[],
-  ruleId: RawFinding["ruleId"],
-): RawFinding[] {
-  const frames = templates.map((template): RunFrame => ({
-    pattern: template.pattern,
-    fix: template.replacement,
-    ruleId,
-    messageKey: template.messageKey,
-    owner: "target",
-    scan: "frame",
-    frame: {
-      pattern: template.pattern,
-      literals: [],
-      ...(template.clauseStart ? { clauseStart: true as const } : {}),
-    } as CompiledFrame,
-  }));
-  return detectFrames(ctx, "template", frames);
 }

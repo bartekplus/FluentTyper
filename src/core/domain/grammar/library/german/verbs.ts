@@ -38,7 +38,7 @@ const PARADIGMS = [
   "komme kommst kommt kommen kommt kommen|kam kamst kam kamen kamt kamen",
 ];
 /** A listed verb form: its paradigm line, its tense and its person slot. */
-export type GermanVerbForm = { line: string[][]; tense: number; slot: GermanSlot };
+type GermanVerbForm = { line: string[][]; tense: number; slot: GermanSlot };
 const FORMS = new Map<string, GermanVerbForm[]>();
 for (const paradigm of PARADIGMS) {
   const line = paradigm.split("|").map((tense) => tense.split(" "));

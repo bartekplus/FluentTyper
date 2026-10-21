@@ -2,8 +2,6 @@
 import { liveRule } from "../engine/liveRules";
 import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export { ALOT_REGEX, correctAlot } from "../review/rules/common.generated";
-
 export class EnglishAlotCorrectionRule implements GrammarRule {
   readonly id = "englishAlotCorrection" as const;
   private readonly rule = liveRule(this.id);

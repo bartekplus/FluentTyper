@@ -21,16 +21,8 @@ export {
 } from "../review/phraseTemplates";
 export { finding } from "../review/finding";
 export { graphemeEnd, overlapsSortedRanges, withTextApostrophes } from "../review/textRanges";
-export {
-  applyWordCase,
-  carryCase,
-  detectWordCase,
-  isLowercaseLetter,
-  isTechnicalToken,
-  lastNonSpaceBefore,
-  memoize,
-} from "../implementations/helpers/GenericRuleShared";
-export { lastNonBlankBefore, opensClause } from "../implementations/helpers/EnglishRuleShared";
+export { carryCase, memoize } from "../implementations/helpers/GenericRuleShared";
+export { lastNonBlankBefore } from "../implementations/helpers/EnglishRuleShared";
 export { MASK_CHAR } from "../review/types";
 export { digitValue, invalidIsoDate } from "../review/isoDates";
 export { phraseRows } from "./common/engine";
@@ -53,7 +45,6 @@ export {
 } from "../implementations/helpers/EnglishCountability";
 export { englishWordInfo, hasVerbForm } from "../implementations/helpers/EnglishLexicon";
 export { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
-export { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
 export { englishInflect, englishLemma } from "../implementations/helpers/EnglishInflection";
 export {
   groupRange,
@@ -72,5 +63,23 @@ export {
   tokenEndBefore,
   tokenStartBefore,
 } from "./common/tokens";
-export { dateSide, dayCount, recentPast } from "../review/reviewClock";
-export { quoteMarkEdits, type QuoteEdit } from "./common/quotes";
+export {
+  contextYear,
+  dateSide,
+  dayCount,
+  daysInMonth,
+  nearestDayOn,
+  recentPast,
+  weekdayOf,
+  yearsFor,
+} from "../review/reviewClock";
+export {
+  clauseTokensAfter,
+  skipComplements,
+  skipCoordinated,
+  skipNounPhrase,
+  skipPostnominal,
+  verbAfterRelative,
+} from "../review/clauseReader";
+export type { ClauseProfile, ClauseToken } from "../review/clauseReader";
+export { quoteMarkEdits } from "./common/quotes";

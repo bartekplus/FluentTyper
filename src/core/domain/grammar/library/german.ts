@@ -9,7 +9,6 @@ export {
   germanMayBeNoun,
   germanNounOverAdjective,
   germanNounReading,
-  germanOtherNoun,
   germanPastInfinitives,
   germanTwoGenders,
   germanVerbLike,
@@ -30,11 +29,7 @@ export {
   weekdayOf as deWeekdayOf,
   yearsFor as deYearsFor,
 } from "../review/reviewClock";
-export type {
-  GermanGender,
-  GermanGenderReading,
-  GermanNounReading,
-} from "../review/german/germanLexicon";
+export type { GermanGenderReading } from "../review/german/germanLexicon";
 export {
   germanAuxiliary,
   germanFiniteInfinitive,
@@ -45,7 +40,7 @@ export {
   germanPluralNoun,
   germanVerbForms,
 } from "./german/verbs";
-export type { GermanSlot, GermanVerbForm } from "./german/verbs";
+export type { GermanSlot } from "./german/verbs";
 export {
   germanAdjectiveEnding,
   germanCaseFits,
