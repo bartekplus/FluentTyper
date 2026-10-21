@@ -2,7 +2,14 @@
 // The code of grammar/rules/pl.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import type {
+  DetectContext,
+  FrameRef,
+  MatchResult,
+  PlReadWord,
+  PlWord,
+  RawFinding,
+} from "../../library";
 import {
   PL_ALL_CASES,
   PL_FEMININE,
@@ -41,6 +48,7 @@ import {
   plVirileAdjective,
   plVirileLemma,
   plWeekdayOf,
+  plWords,
   plYearsFor,
   tagsAnd,
   tagsCases,
@@ -177,6 +185,73 @@ export const DEGREE_IRREGULAR_ADVERBS: ReadonlySet<string> = new Set([
   "wcześniej",
   "dłużej",
   "krócej",
+]);
+
+export const CLAUSE_JOINS: ReadonlySet<string> = new Set([
+  "i",
+  "a",
+  "oraz",
+  "lub",
+  "albo",
+  "bądź",
+  "ani",
+  "czy",
+  "ale",
+  "lecz",
+  "zaś",
+  "więc",
+  "bo",
+  "że",
+  "iż",
+  "żeby",
+  "aby",
+  "by",
+  "gdy",
+  "kiedy",
+  "jeśli",
+  "jeżeli",
+  "gdyby",
+  "choć",
+  "chociaż",
+  "jak",
+  "jakby",
+  "niż",
+  "co",
+  "kto",
+  "gdzie",
+  "dokąd",
+  "skąd",
+  "dlaczego",
+  "czemu",
+  "ile",
+  "zanim",
+  "dopóki",
+  "odkąd",
+  "póki",
+  "skoro",
+  "ponieważ",
+  "albowiem",
+  "niech",
+  "to",
+  "tylko",
+  "jednak",
+  "natomiast",
+  "toteż",
+  "czyli",
+  "mianowicie",
+  "ni",
+]);
+
+export const CLAUSE_FIXED: ReadonlySet<string> = new Set([
+  "począwszy",
+  "skończywszy",
+  "zacząwszy",
+  "wyjąwszy",
+  "pominąwszy",
+  "wyłączając",
+  "włączając",
+  "wliczając",
+  "chcąc",
 ]);
 
 export const TYPO_ADVERBIAL: ReadonlySet<string> = new Set([
@@ -461,6 +536,22 @@ export const SILENT_SHORT: Readonly<Record<string, string>> = {
   mu: "mu",
   em: "m",
   m: "m",
+};
+
+export const CLAUSE_POWIN_GENDER: Readonly<Record<string, string>> = {
+  powinien: "ł",
+  powinna: "ła",
+  powinno: "ło",
+  powinni: "li",
+  powinny: "ły",
+};
+
+export const CLAUSE_PREDICATE_ENDING: Readonly<Record<string, string>> = {
+  ł: "y",
+  ła: "a",
+  ło: "e",
+  li: "",
+  ły: "e",
 };
 
 export const STYLE_OR_MORE_CASE: Readonly<Record<string, string>> = {
@@ -1486,6 +1577,448 @@ export const CONJUNCTION_ENDINGS = [
   [/liście$/u, "li", "ście"],
   [/łyście$/u, "ły", "ście"],
 ] as readonly (readonly [RegExp, string, string])[];
+
+// pl.yaml rule pl.clauses def CLAUSE_RELATIVE
+export const CLAUSE_RELATIVE = /^któr/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_CONTRAST
+export const CLAUSE_CONTRAST = /^(?:a|więc|lecz)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_COORDINATE
+export const CLAUSE_COORDINATE = /^(?:i|oraz|lub|albo|bądź|ani|ni|a|zaś)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_FUTURE
+export const CLAUSE_FUTURE = /^będ(?:ę|ziesz|zie|ziemy|ziecie|ą)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_PAST
+export const CLAUSE_PAST = /(?:ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_INFINITIVE
+export const CLAUSE_INFINITIVE = /[ćc]$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_MODAL
+export const CLAUSE_MODAL = /^(?:musi|musia|mogł|mógł|mogl|chcia|chcie|mia|mie)/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_CERTAIN
+export const CLAUSE_CERTAIN =
+  /(?:ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$|^(?:jest|są|będ|powin|można|trzeba|należ|może$)|(?:ano|iono|[iyuę]to)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_AFTER_VERB
+export const CLAUSE_AFTER_VERB =
+  /^(?:już|jeszcze|bardzo|tylko|nadal|wciąż|zawsze|też|także|również|długo|się|nie|tam|tu|tutaj|wtedy|wówczas|naprawdę|zbyt|całkiem|zupełnie|ostatnio|mi|mu|jej|im|nam|wam|ci)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_SUBJECT_OF
+export const CLAUSE_SUBJECT_OF = {
+  ł: PL_MASCULINE,
+  ła: PL_FEMININE,
+  ło: PL_NEUTER,
+  li: PL_VIRILE,
+  ły: tagsOr(PL_FEMININE, PL_NEUTER),
+} as Readonly<Record<string, number>>;
+
+// pl.yaml rule pl.clauses def CLAUSE_PREDICATIVE
+export const CLAUSE_PREDICATIVE = /^(?:można|trzeba|należy|należało|należałoby|wypada|wypadało)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_INFINITIVE_FORM
+export const CLAUSE_INFINITIVE_FORM = /(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_ASIDE
+export const CLAUSE_ASIDE =
+  /^(?:krótko|szczerze|ściśle|ogólnie|prawdę|inaczej|nawiasem|delikatnie|otwarcie|uczciwie|obiektywnie|generalnie|praktycznie|łagodnie|oględnie|kolokwialnie|potocznie|formalnie)$/u;
+
+// pl.yaml rule pl.clauses def CLAUSE_CONDITIONAL
+export const CLAUSE_CONDITIONAL =
+  /^(?:jeśli|jeżeli|jeśliby|jeżeliby|gdy|gdyby|kiedy|skoro|ponieważ|chociaż|choć)$/u;
+
+// pl.yaml rule pl.clauses def clauseJoins
+export function clauseJoins(word: string) {
+  return (
+    CLAUSE_JOINS.has(word) || /^(?:któr|jak|czyj|ilu|(?:gdy|że|a)?by(?:m|ś|śmy|ście)$)/u.test(word)
+  );
+}
+
+// pl.yaml rule pl.clauses def clauseGenderOf
+export function clauseGenderOf(word: string) {
+  return /^powin/u.test(word)
+    ? (CLAUSE_POWIN_GENDER[word.replace(/(?:śmy|ście|em|eś|m|ś)$/u, "")] ?? "")
+    : (/(ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$/u.exec(word)?.[1] ?? "");
+}
+
+// pl.yaml rule pl.clauses def clauseSameNumber
+export function clauseSameNumber(future: string, past: string) {
+  return /^będ(?:ę|ziesz|zie)$/u.test(future) === !/^l|^ły/u.test(clauseGenderOf(past));
+}
+
+// pl.yaml rule pl.clauses def clauseCompound
+export function clauseCompound(list: readonly PlWord[], a: number, b: number, relative: boolean) {
+  const first = list[a].lower;
+  const second = list[b].lower;
+  const pair = [first, second];
+  return pair.some((w) => /^(?:trzeba|można)$/u.test(w))
+    ? pair.some((w) => CLAUSE_FUTURE.test(w) || /^był/u.test(w))
+    : CLAUSE_FUTURE.test(first) && CLAUSE_PAST.test(second)
+      ? clauseSameNumber(first, second) &&
+        (CLAUSE_MODAL.test(second) ||
+          !list.slice(a + 1, b).some((w) => CLAUSE_INFINITIVE.test(w.lower)))
+      : CLAUSE_PAST.test(first) && CLAUSE_FUTURE.test(second)
+        ? b === a + 1 && clauseSameNumber(second, first)
+        : pair.some((w) => /^powin/u.test(w))
+          ? pair.some((w) => /^by(?:ł|li)/u.test(w)) &&
+            clauseGenderOf(first) === clauseGenderOf(second)
+          : !relative &&
+            pair.some((w) => /^by(?:ł|li)/u.test(w)) &&
+            pair.every((w) => CLAUSE_PAST.test(w)) &&
+            clauseGenderOf(first) === clauseGenderOf(second);
+}
+
+// pl.yaml rule pl.clauses def clauseVerbAt
+export function clauseVerbAt(list: readonly PlWord[], i: number) {
+  if (i > 0 && /^\p{Lu}/u.test(list[i].text)) return false;
+  const word = list[i].lower;
+  if (list[i - 1]?.lower === "to" && /^(?:znaczy|jest)$/u.test(word)) return false;
+  if (/^(?:chybił|trafił)$/u.test(word)) return false;
+  const next = list[i + 1]?.lower ?? "";
+  if (word === "prze" && /^(?:siebie|ze|zemnie)$|y$|a$|e$/u.test(next)) return false;
+  return word === "może"
+    ? CLAUSE_INFINITIVE.test(next)
+    : CLAUSE_PREDICATIVE.test(word) || plFiniteVerb(word) || plImpersonalVerb(word)
+      ? true
+      : !plAmbiguousVerb(word) || clauseJoins(word)
+        ? false
+        : (CLAUSE_PAST.test(word) && CLAUSE_INFINITIVE_FORM.test(next) && !plNounTags(next)) ||
+          /^(?:ja|ty|on|ona|ono|my|wy|oni|one)$/u.test(list[i - 1]?.lower ?? "") ||
+          (CLAUSE_PAST.test(word) && clausePastInContext(list, i));
+}
+
+// pl.yaml rule pl.clauses def clausePastInContext
+export function clausePastInContext(list: readonly PlWord[], i: number) {
+  const word = list[i].lower;
+  const gender = clauseGenderOf(word);
+  const next = list[i + 1]?.lower;
+  if (!(gender !== "" && next !== undefined)) return false;
+  const isBe = /^by(?:ł|li)/u.test(word);
+  const stem = word.slice(0, word.length - gender.length);
+  if (!(isBe || plListedVerb(gender === "ł" ? stem + "ła" : stem + "ł"))) return false;
+  return CLAUSE_AFTER_VERB.test(next)
+    ? gender !== "ło" || isBe
+    : clausePastBySubject(list, i, gender, next, isBe);
+}
+
+// pl.yaml rule pl.clauses def clausePastBySubject
+export function clausePastBySubject(
+  list: readonly PlWord[],
+  i: number,
+  gender: string,
+  next: string,
+  isBe: boolean,
+) {
+  const plural = gender === "li" || gender === "ły";
+  const prev = list[i - 1] ? plNounTags(list[i - 1].lower) : 0;
+  return plOnlyNoun(prev) &&
+    tagsAnd(prev, plCases(plural ? "Np" : "Ns")) &&
+    tagsAnd(prev, CLAUSE_SUBJECT_OF[gender])
+    ? gender !== "ły" || !tagsAnd(prev, PL_VIRILE)
+    : isBe &&
+        list.slice(0, i).some((w) => CLAUSE_RELATIVE.test(w.lower)) &&
+        clauseBePredicate(list, i, gender, next);
+}
+
+// pl.yaml rule pl.clauses def clauseBePredicate
+export function clauseBePredicate(
+  list: readonly PlWord[],
+  i: number,
+  gender: string,
+  next: string,
+) {
+  const adjective = plAdjectiveOf(next);
+  const after = list[i + 2] ? plNounTags(list[i + 2].lower) : 0;
+  return (
+    adjective !== null &&
+    !plNounTags(next) &&
+    !tagsAnd(after, PL_ALL_CASES) &&
+    adjective.ending === CLAUSE_PREDICATE_ENDING[gender]
+  );
+}
+
+// pl.yaml rule pl.clauses def clauseAdverbialParticiple
+export function clauseAdverbialParticiple(word: string) {
+  return CLAUSE_FIXED.has(word) || plNounTags(word) || plAdjectiveOf(word)
+    ? false
+    : /ąc$/u.test(word)
+      ? word.length >= 4
+      : /[wł]szy$/u.test(word) &&
+        word.length >= 7 &&
+        !/^naj|pierwszy$/u.test(word) &&
+        !plHasAdjective(word.slice(0, -3) + "y");
+}
+
+// pl.yaml rule pl.clauses def clauseCommaBefore
+export function clauseCommaBefore(
+  ctx: DetectContext,
+  list: readonly PlWord[],
+  at: number,
+  segment: readonly [number, number],
+  messageKey: RawFinding["messageKey"],
+  choose: boolean,
+) {
+  return {
+    ...plFindingAt(ctx, list[at - 1].end, list[at].start, [", "], "polishMissingComma", messageKey),
+    ...(choose ? { requiresChoice: true as const } : {}),
+    context: { start: segment[0], end: segment[1] },
+  };
+}
+
+// pl.yaml rule pl.clauses def clauseWarning
+export function clauseWarning(
+  ctx: DetectContext,
+  word: PlWord,
+  segment: readonly [number, number],
+  messageKey: RawFinding["messageKey"],
+) {
+  return {
+    ...plFindingAt(ctx, word.start, word.end, [], "polishMissingComma", messageKey),
+    context: { start: segment[0], end: segment[1] },
+  };
+}
+
+// pl.yaml rule pl.clauses def clauseIsVerb
+export function clauseIsVerb(w: PlReadWord) {
+  return w.verb || plPastByShape(w.lower);
+}
+
+// pl.yaml rule pl.clauses def clauseVerbBefore
+export function clauseVerbBefore(list: readonly PlReadWord[], j: number): number {
+  return j < 0 || clauseIsVerb(list[j]) ? j : clauseVerbBefore(list, j - 1);
+}
+
+// pl.yaml rule pl.clauses def clauseParticiples
+export function clauseParticiples(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+) {
+  return list.flatMap((p, i) => clauseParticipleAt(ctx, list, segment, p, i));
+}
+
+// pl.yaml rule pl.clauses def clauseParticipleAt
+export function clauseParticipleAt(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  p: PlReadWord,
+  i: number,
+) {
+  if (!(p.participle && !plUserOrNamed(ctx, p.text))) return [];
+  const prev = list[i - 1];
+  const next = list[i + 1];
+  return /^(?:mówiąc|biorąc)$/u.test(p.lower) && prev && CLAUSE_ASIDE.test(prev.lower)
+    ? list[i - 2] && next
+      ? [
+          {
+            ...plFindingAt(
+              ctx,
+              list[i - 2].end,
+              next.start,
+              [", " + ctx.source.slice(prev.start, p.end) + ", "],
+              "polishMissingComma",
+              "review_msg_pl_participle_comma",
+            ),
+            context: { start: segment[0], end: segment[1] },
+          },
+        ]
+      : []
+    : !next
+      ? []
+      : clauseParticipleComma(ctx, list, segment, i, prev);
+}
+
+// pl.yaml rule pl.clauses def clauseParticipleComma
+export function clauseParticipleComma(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  i: number,
+  prev: PlReadWord,
+) {
+  const verbBefore = clauseVerbBefore(list, i - 1);
+  const verbAfter = list.findIndex((w, j) => j > i + 1 && clauseIsVerb(w));
+  const opened = prev && clauseJoins(prev.lower);
+  return verbAfter > 0 &&
+    (verbBefore < 0 || opened) &&
+    !list
+      .slice(i + 1, verbAfter)
+      .some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))
+    ? [clauseWarning(ctx, list[i], segment, "review_msg_pl_participle_comma")]
+    : verbBefore >= 0 &&
+        !opened &&
+        !list
+          .slice(verbBefore + 1, i)
+          .some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))
+      ? [
+          clauseCommaBefore(
+            ctx,
+            list,
+            prev.lower === "nie" && i - 1 > verbBefore ? i - 1 : i,
+            segment,
+            "review_msg_pl_participle_comma",
+            false,
+          ),
+        ]
+      : [];
+}
+
+// pl.yaml rule pl.clauses def clauseSkipObjects
+export function clauseSkipObjects(list: readonly PlReadWord[], at: number, limit: number): number {
+  return at < limit && /^(?:się|nie|sobie|to|tego|ją|go|je)$/u.test(list[at]?.lower ?? "")
+    ? clauseSkipObjects(list, at + 1, limit)
+    : at;
+}
+
+// pl.yaml rule pl.clauses def clausePurposeOpeners
+export function clausePurposeOpeners(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+) {
+  const first = /^(?:ale|a|i|lecz|więc|zatem)$/u.test(list[0].lower) ? 1 : 0;
+  if (!/^(?:aby|żeby|ażeby|by)$/u.test(list[first]?.lower ?? "")) return [];
+  const before = ctx.text.slice(Math.max(0, segment[0] - 8), segment[0]);
+  if (segment[0] > 0 && !/(?:^|[.!?…,;:]["”’»)]*|\n)[ \t ]*$/u.test(before)) return [];
+  const at = clauseSkipObjects(list, first + 1, first + 3);
+  const infinitive = list[at];
+  if (!infinitive || !CLAUSE_INFINITIVE_FORM.test(infinitive.lower) || plNounTags(infinitive.lower))
+    return [];
+  const verb = list.findIndex((w, j) => j > at && w.verb);
+  if (!(verb >= 0)) return [];
+  if (
+    list
+      .slice(at + 1, verb)
+      .some(
+        (w) =>
+          w.participle ||
+          (clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower) && w.lower !== "to"),
+      )
+  )
+    return [];
+  return [clauseWarning(ctx, list[verb], segment, "review_msg_pl_run_on")];
+}
+
+// pl.yaml rule pl.clauses def clauseSkipAdjectives
+export function clauseSkipAdjectives(list: readonly PlReadWord[], k: number): number {
+  return k < list.length && plAdjectiveOf(list[k].lower) && !plNounTags(list[k].lower)
+    ? clauseSkipAdjectives(list, k + 1)
+    : k;
+}
+
+// pl.yaml rule pl.clauses def clauseCorrelativeTo
+export function clauseCorrelativeTo(list: readonly PlReadWord[], verb: number, at: number) {
+  if (!(list[at].lower === "to" && at > verb + 1)) return false;
+  const first = /^(?:a|i|ale|lecz)$/u.test(list[0].lower) ? 1 : 0;
+  if (!(CLAUSE_CONDITIONAL.test(list[first].lower) && first < verb)) return false;
+  if (
+    list
+      .slice(first + 1, verb)
+      .some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))
+  )
+    return false;
+  const k = clauseSkipAdjectives(list, at + 1);
+  const tags = list[k] ? plNounTags(list[k].lower) : 0;
+  return !(plOnlyNoun(tags) && tagsAnd(tags, PL_NEUTER) && tagsAnd(tags, plCases("Ns As")));
+}
+
+// pl.yaml rule pl.clauses def clauseRunOns
+export function clauseRunOns(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  afterComma: boolean,
+) {
+  return clauseRunOnFrom(
+    ctx,
+    list,
+    segment,
+    afterComma,
+    list.flatMap((w, i) => (w.verb ? [i] : [])),
+    1,
+  );
+}
+
+// pl.yaml rule pl.clauses def clauseRunOnFrom
+export function clauseRunOnFrom(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  afterComma: boolean,
+  verbs: readonly number[],
+  k: number,
+): RawFinding[] {
+  return k >= verbs.length
+    ? []
+    : (clauseRunOnPair(ctx, list, segment, afterComma, verbs, k) ??
+        clauseRunOnFrom(ctx, list, segment, afterComma, verbs, k + 1));
+}
+
+// pl.yaml rule pl.clauses def clauseRunOnPair
+export function clauseRunOnPair(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  afterComma: boolean,
+  verbs: readonly number[],
+  k: number,
+): RawFinding[] | null {
+  const a = verbs[k - 1];
+  const b = verbs[k];
+  const relative =
+    afterComma &&
+    list.slice(0, Math.min(2, a)).some((w) => CLAUSE_RELATIVE.test(w.lower)) &&
+    !list.slice(0, a).some((w) => clauseJoins(w.lower) && !CLAUSE_RELATIVE.test(w.lower));
+  if (clauseCompound(list, a, b, relative)) return null;
+  if (
+    /^jak (?:się )?(?:okazało|widać|wiadomo)$/u.test(
+      list
+        .slice(0, a + 1)
+        .map((w) => w.lower)
+        .join(" "),
+    )
+  )
+    return null;
+  const between = list.slice(a + 1, b).flatMap((w, j) => (clauseJoins(w.lower) ? [a + 1 + j] : []));
+  const linking = between.filter((j) => !CLAUSE_COORDINATE.test(list[j].lower));
+  return list.slice(0, b).some((w) => w.participle)
+    ? []
+    : linking.length === 1 && clauseCorrelativeTo(list, a, linking[0])
+      ? [clauseCommaBefore(ctx, list, linking[0], segment, "review_msg_pl_run_on", true)]
+      : !CLAUSE_CERTAIN.test(list[a].lower) && !CLAUSE_CERTAIN.test(list[b].lower)
+        ? null
+        : between.length === 1 && CLAUSE_CONTRAST.test(list[between[0]].lower)
+          ? list.slice(0, between[0]).some((w) => /^(?:po)?między$/u.test(w.lower))
+            ? null
+            : [clauseCommaBefore(ctx, list, between[0], segment, "review_msg_pl_run_on", false)]
+          : between.length
+            ? null
+            : clauseRunOnEnd(ctx, list, segment, a, b, relative);
+}
+
+// pl.yaml rule pl.clauses def clauseRunOnEnd
+export function clauseRunOnEnd(
+  ctx: DetectContext,
+  list: readonly PlReadWord[],
+  segment: readonly [number, number],
+  a: number,
+  b: number,
+  relative: boolean,
+) {
+  const start = list[b - 1].lower === "nie" && b - 1 > a ? b - 1 : b;
+  const last = list[start - 1].lower;
+  return relative &&
+    (start - 1 === a ||
+      CLAUSE_INFINITIVE.test(last) ||
+      tagsAnd(plNounTags(last), PL_ALL_CASES) ||
+      plAdjectiveOf(last) !== null)
+    ? [clauseCommaBefore(ctx, list, start, segment, "review_msg_pl_run_on", true)]
+    : [clauseWarning(ctx, list[b], segment, "review_msg_pl_run_on")];
+}
 
 // pl.yaml rule pl.style def orMoreAdjective
 export function orMoreAdjective(tokens: RegExpExecArray[], i: number) {
@@ -3378,6 +3911,24 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "polishCaseAgreement",
       "review_msg_pl_imperative",
     );
+  },
+  // pl.yaml rule pl.clauses frame 1
+  "@pl.clauses/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const end = m.index + m[0].length;
+    if (end <= ctx.from || namedExampleBefore(ctx.text, m.index)) return null;
+    const base = plWords(m[0], m.index);
+    if (!(base.length >= 3)) return null;
+    const list = base.map((w, i) => ({
+      ...w,
+      verb: clauseVerbAt(base, i),
+      participle: clauseAdverbialParticiple(w.lower),
+    }));
+    const segment = [m.index, end] as const;
+    return [
+      ...clauseParticiples(ctx, list, segment),
+      ...clausePurposeOpeners(ctx, list, segment),
+      ...clauseRunOns(ctx, list, segment, ctx.text[m.index - 1] === ","),
+    ].filter((finding) => finding.range.start >= ctx.from && finding.range.start < ctx.to);
   },
   // pl.yaml rule pl.style frame 1
   "@pl.style/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

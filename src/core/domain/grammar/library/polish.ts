@@ -51,3 +51,5 @@ export {
 } from "../review/reviewClock";
 export { invalidIsoDate as plInvalidIsoDate } from "../review/isoDates";
 export { tagsAnd, tagsCases, tagsOr, tagsWithout } from "./polish/tags";
+export type { PlReadWord, PlWord } from "./polish/words";
+export { plWords } from "./polish/words";

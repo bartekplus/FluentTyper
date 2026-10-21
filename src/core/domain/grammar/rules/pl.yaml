@@ -2638,6 +2638,364 @@ rules:
     checks: [polishMissingComma]
     style: match
     message: review_msg_pl_missing_comma
+    sets:
+      # Words that join two clauses or open one: verbs with one of these between them are fine.
+      CLAUSE_JOINS:
+        [
+          i,
+          a,
+          oraz,
+          lub,
+          albo,
+          bądź,
+          ani,
+          czy,
+          ale,
+          lecz,
+          zaś,
+          więc,
+          bo,
+          że,
+          iż,
+          żeby,
+          aby,
+          by,
+          gdy,
+          kiedy,
+          jeśli,
+          jeżeli,
+          gdyby,
+          choć,
+          chociaż,
+          jak,
+          jakby,
+          niż,
+          co,
+          kto,
+          gdzie,
+          dokąd,
+          skąd,
+          dlaczego,
+          czemu,
+          ile,
+          zanim,
+          dopóki,
+          odkąd,
+          póki,
+          skoro,
+          ponieważ,
+          albowiem,
+          niech,
+          to,
+          tylko,
+          jednak,
+          natomiast,
+          toteż,
+          czyli,
+          mianowicie,
+          ni,
+        ]
+      # Participles that work as prepositions ("począwszy od", "wyłączając") or in "chcąc nie chcąc".
+      CLAUSE_FIXED:
+        [
+          począwszy,
+          skończywszy,
+          zacząwszy,
+          wyjąwszy,
+          pominąwszy,
+          wyłączając,
+          włączając,
+          wliczając,
+          chcąc,
+        ]
+    maps:
+      # A form of "powinien" and the gender and number of its past forms.
+      CLAUSE_POWIN_GENDER: { powinien: ł, powinna: ła, powinno: ło, powinni: li, powinny: ły }
+      # The adjective ending that agrees with a form of "być" before it ("była nudna").
+      CLAUSE_PREDICATE_ENDING: { ł: y, ła: a, ło: e, li: "", ły: e }
+    defs:
+      # A relative pronoun, after a comma and a preposition or not ("dom, w którym").
+      CLAUSE_RELATIVE: /^któr/u
+      # Conjunctions that join two clauses after a comma ("…, a Jurek pisał", "…, więc poszedł").
+      CLAUSE_CONTRAST: /^(?:a|więc|lecz)$/u
+      # Conjunctions that may also join two parts of one phrase ("ważną i tajemniczą miną").
+      CLAUSE_COORDINATE: /^(?:i|oraz|lub|albo|bądź|ani|ni|a|zaś)$/u
+      CLAUSE_FUTURE: /^będ(?:ę|ziesz|zie|ziemy|ziecie|ą)$/u
+      CLAUSE_PAST: /(?:ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$/u
+      CLAUSE_INFINITIVE: /[ćc]$/u
+      CLAUSE_MODAL: /^(?:musi|musia|mogł|mógł|mogl|chcia|chcie|mia|mie)/u
+      # A form no noun or adjective shares: the past, "jest", "będzie", "powinien", "można".
+      CLAUSE_CERTAIN: /(?:ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$|^(?:jest|są|będ|powin|można|trzeba|należ|może$)|(?:ano|iono|[iyuę]to)$/u
+      # Words after a past form that no adjective of the same spelling takes ("trwały już").
+      CLAUSE_AFTER_VERB: /^(?:już|jeszcze|bardzo|tylko|nadal|wciąż|zawsze|też|także|również|długo|się|nie|tam|tu|tutaj|wtedy|wówczas|naprawdę|zbyt|całkiem|zupełnie|ostatnio|mi|mu|jej|im|nam|wam|ci)$/u
+      # The nominative a past form's gender and number agree with: "ła" a feminine singular.
+      CLAUSE_SUBJECT_OF: >-
+        ({ ł: PL_MASCULINE, ła: PL_FEMININE, ło: PL_NEUTER, li: PL_VIRILE, ły: tagsOr(PL_FEMININE, PL_NEUTER) }) as
+        Readonly<Record<string, number>>
+      # Impersonal predicates: "można", "trzeba", "należy zrobić".
+      CLAUSE_PREDICATIVE: /^(?:można|trzeba|należy|należało|należałoby|wypada|wypadało)$/u
+      # An infinitive form: "zrobić", "móc", "pomóc", "biec".
+      CLAUSE_INFINITIVE_FORM: /(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u
+      # Adverbs that open a parenthetical "mówiąc" or "biorąc" ("krótko mówiąc").
+      CLAUSE_ASIDE: /^(?:krótko|szczerze|ściśle|ogólnie|prawdę|inaczej|nawiasem|delikatnie|otwarcie|uczciwie|obiektywnie|generalnie|praktycznie|łagodnie|oględnie|kolokwialnie|potocznie|formalnie)$/u
+      # Conjunctions opening a clause that a correlative "to" answers.
+      CLAUSE_CONDITIONAL: /^(?:jeśli|jeżeli|jeśliby|jeżeliby|gdy|gdyby|kiedy|skoro|ponieważ|chociaż|choć)$/u
+      clauseJoins:
+        args: "word: string"
+        return: CLAUSE_JOINS.has(word) || /^(?:któr|jak|czyj|ilu|(?:gdy|że|a)?by(?:m|ś|śmy|ście)$)/u.test(word)
+      # A past form's (or "powinien"'s) gender and number: "ł", "ła", "ło", "li" or "ły".
+      clauseGenderOf:
+        args: "word: string"
+        return: >-
+          /^powin/u.test(word) ? (CLAUSE_POWIN_GENDER[word.replace(/(?:śmy|ście|em|eś|m|ś)$/u, "")] ?? "")
+          : /(ł|ła|ło|li|ły)(?:em|am|eś|aś|śmy|ście|by\p{L}*)?$/u.exec(word)?.[1] ?? ""
+      # "będzie" goes with a singular past form, "będą" with a plural one.
+      clauseSameNumber:
+        args: "future: string, past: string"
+        return: "/^będ(?:ę|ziesz|zie)$/u.test(future) === !/^l|^ły/u.test(clauseGenderOf(past))"
+      # "będzie (długo) robił", "robił będzie", "powinien był", "byłby zrobił", "wyobrażałem sobie
+      # był": one verb in two words. "będą popierać przegrywały" is two. "trzeba będzie", "można
+      # było". "będą umrzeć musieli": a modal takes the infinitive between; "będzie pomagali" is
+      # two. "powinien był", "powinna była"; not "powinien było". The old pluperfect "zrobił był"
+      # agrees; in a relative clause the next "był" opens the main clause ("Książka, którą
+      # czytałem była nudna").
+      clauseCompound:
+        args: "list: readonly PlWord[], a: number, b: number, relative: boolean"
+        let:
+          first: list[a].lower
+          second: list[b].lower
+          pair: "[first, second]"
+        return: >-
+          pair.some((w) => /^(?:trzeba|można)$/u.test(w)) ? pair.some((w) => CLAUSE_FUTURE.test(w) || /^był/u.test(w))
+          : CLAUSE_FUTURE.test(first) && CLAUSE_PAST.test(second)
+          ? clauseSameNumber(first, second) && (CLAUSE_MODAL.test(second) || !list.slice(a + 1, b).some((w) => CLAUSE_INFINITIVE.test(w.lower)))
+          : CLAUSE_PAST.test(first) && CLAUSE_FUTURE.test(second) ? b === a + 1 && clauseSameNumber(second, first)
+          : pair.some((w) => /^powin/u.test(w)) ? pair.some((w) => /^by(?:ł|li)/u.test(w)) && clauseGenderOf(first) === clauseGenderOf(second)
+          : !relative && pair.some((w) => /^by(?:ł|li)/u.test(w)) && pair.every((w) => CLAUSE_PAST.test(w)) &&
+          clauseGenderOf(first) === clauseGenderOf(second)
+      # The finite verb (or the predicative "można", "trzeba") of a clause stands at `i`. A capital
+      # inside the sentence starts a name ("w Osunie"). "to znaczy", "to jest" (that is) and "na
+      # chybił trafił" link; they are no predicate. "prze siebie", "prze piękny": a typo for
+      # "przed", "przez" or "prze-", not "przeć". "może" is also "maybe", unless an infinitive
+      # follows ("może być"). "miał" (also coal dust): a verb before an infinitive or after a
+      # personal pronoun.
+      clauseVerbAt:
+        args: "list: readonly PlWord[], i: number"
+        let:
+          word: list[i].lower
+          next: list[i + 1]?.lower ?? ""
+        when:
+          - '!(i > 0 && /^\p{Lu}/u.test(list[i].text))'
+          - '!(list[i - 1]?.lower === "to" && /^(?:znaczy|jest)$/u.test(word))'
+          - "!/^(?:chybił|trafił)$/u.test(word)"
+          - '!(word === "prze" && /^(?:siebie|ze|zemnie)$|y$|a$|e$/u.test(next))'
+        return: >-
+          word === "może" ? CLAUSE_INFINITIVE.test(next)
+          : CLAUSE_PREDICATIVE.test(word) || plFiniteVerb(word) || plImpersonalVerb(word) ? true
+          : !plAmbiguousVerb(word) || clauseJoins(word) ? false
+          : (CLAUSE_PAST.test(word) && CLAUSE_INFINITIVE_FORM.test(next) && !plNounTags(next)) ||
+          /^(?:ja|ty|on|ona|ono|my|wy|oni|one)$/u.test(list[i - 1]?.lower ?? "") ||
+          (CLAUSE_PAST.test(word) && clausePastInContext(list, i))
+        else: "false"
+      # A past form that is also an adjective ("trwały", "była") reads as the verb before an adverb
+      # ("trwały już"), after its nominative subject ("żniwa trwały"), or, as "być", before an
+      # agreeing predicate adjective that ends the phrase ("była nudna."). It stands beside its
+      # masculine form ("trwały", "trwał"; "woli" has no "woł"). "-ło" is also an adverb ("śmiało
+      # się obracał").
+      clausePastInContext:
+        args: "list: readonly PlWord[], i: number"
+        let:
+          word: list[i].lower
+          gender: clauseGenderOf(word)
+          next: list[i + 1]?.lower
+          isBe: /^by(?:ł|li)/u.test(word)
+          stem: word.slice(0, word.length - gender.length)
+        when:
+          - gender !== "" && next !== undefined
+          - 'isBe || plListedVerb(gender === "ł" ? stem + "ła" : stem + "ł")'
+        return: >-
+          CLAUSE_AFTER_VERB.test(next) ? gender !== "ło" || isBe
+          : clausePastBySubject(list, i, gender, next, isBe)
+        else: "false"
+      # The past form after its subject, or "być" closing a relative clause's main clause before a
+      # predicate adjective ("którą czytałem była nudna").
+      clausePastBySubject:
+        args: "list: readonly PlWord[], i: number, gender: string, next: string, isBe: boolean"
+        let:
+          plural: gender === "li" || gender === "ły"
+          prev: "list[i - 1] ? plNounTags(list[i - 1].lower) : 0"
+        return: >-
+          plOnlyNoun(prev) && tagsAnd(prev, plCases(plural ? "Np" : "Ns")) && tagsAnd(prev, CLAUSE_SUBJECT_OF[gender])
+          ? gender !== "ły" || !tagsAnd(prev, PL_VIRILE)
+          : isBe && list.slice(0, i).some((w) => CLAUSE_RELATIVE.test(w.lower)) && clauseBePredicate(list, i, gender, next)
+      clauseBePredicate:
+        args: "list: readonly PlWord[], i: number, gender: string, next: string"
+        let:
+          adjective: plAdjectiveOf(next)
+          after: "list[i + 2] ? plNounTags(list[i + 2].lower) : 0"
+        return: >-
+          adjective !== null && !plNounTags(next) && !tagsAnd(after, PL_ALL_CASES) &&
+          adjective.ending === CLAUSE_PREDICATE_ENDING[gender]
+      # An adverbial participle: "idąc", "mając"; "zrobiwszy", "przyszedłszy". Not a comparative
+      # ("nowszy", "ciekawszy") or "pierwszy".
+      clauseAdverbialParticiple:
+        args: "word: string"
+        return: >-
+          CLAUSE_FIXED.has(word) || plNounTags(word) || plAdjectiveOf(word) ? false
+          : /ąc$/u.test(word) ? word.length >= 4
+          : /[wł]szy$/u.test(word) && word.length >= 7 && !/^naj|pierwszy$/u.test(word) &&
+          !plHasAdjective(word.slice(0, -3) + "y")
+      # Insert ", " in the gap before the word at `at` (a fix of the spaces between it and the word
+      # before).
+      clauseCommaBefore:
+        args: 'ctx: DetectContext, list: readonly PlWord[], at: number, segment: readonly [number, number], messageKey: RawFinding["messageKey"], choose: boolean'
+        return: >-
+          ({ ...plFindingAt(ctx, list[at - 1].end, list[at].start, [", "], "polishMissingComma", messageKey),
+          ...(choose ? { requiresChoice: true as const } : {}), context: { start: segment[0], end: segment[1] } })
+      clauseWarning:
+        args: 'ctx: DetectContext, word: PlWord, segment: readonly [number, number], messageKey: RawFinding["messageKey"]'
+        return: >-
+          ({ ...plFindingAt(ctx, word.start, word.end, [], "polishMissingComma", messageKey),
+          context: { start: segment[0], end: segment[1] } })
+      # A past form the lexicon does not list counts here ("ubawił hrabiego, opowiadając").
+      clauseIsVerb:
+        args: "w: PlReadWord"
+        return: w.verb || plPastByShape(w.lower)
+      # The last clause verb at or before `j`, or -1.
+      clauseVerbBefore:
+        args: "list: readonly PlReadWord[], j: number"
+        type: number
+        return: "j < 0 || clauseIsVerb(list[j]) ? j : clauseVerbBefore(list, j - 1)"
+      clauseParticiples:
+        args: "ctx: DetectContext, list: readonly PlReadWord[], segment: readonly [number, number]"
+        return: list.flatMap((p, i) => clauseParticipleAt(ctx, list, segment, p, i))
+      # "krótko mówiąc", "szczerze mówiąc": a parenthetical, set off on both sides. At the start
+      # ("Szczerze mówiąc nie wiem") the comma frames already ask for its comma. One participle
+      # word alone ("jadł stojąc") is left alone.
+      clauseParticipleAt:
+        args: "ctx: DetectContext, list: readonly PlReadWord[], segment: readonly [number, number], p: PlReadWord, i: number"
+        let:
+          prev: list[i - 1]
+          next: list[i + 1]
+        when: p.participle && !plUserOrNamed(ctx, p.text)
+        return: >-
+          /^(?:mówiąc|biorąc)$/u.test(p.lower) && prev && CLAUSE_ASIDE.test(prev.lower)
+          ? (list[i - 2] && next ? [{ ...plFindingAt(ctx, list[i - 2].end, next.start,
+          [", " + ctx.source.slice(prev.start, p.end) + ", "], "polishMissingComma", "review_msg_pl_participle_comma"),
+          context: { start: segment[0], end: segment[1] } }] : [])
+          : !next ? [] : clauseParticipleComma(ctx, list, segment, i, prev)
+        else: "[]"
+      # "Zrobiwszy zakupy wróciła", "że mając czas zapomniał": the phrase needs its closing comma
+      # before the main clause. "Szedł powoli rozglądając się" -> "Szedł powoli, rozglądając się".
+      clauseParticipleComma:
+        args: "ctx: DetectContext, list: readonly PlReadWord[], segment: readonly [number, number], i: number, prev: PlReadWord"
+        let:
+          verbBefore: clauseVerbBefore(list, i - 1)
+          verbAfter: list.findIndex((w, j) => j > i + 1 && clauseIsVerb(w))
+          opened: prev && clauseJoins(prev.lower)
+        return: >-
+          verbAfter > 0 && (verbBefore < 0 || opened) &&
+          !list.slice(i + 1, verbAfter).some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))
+          ? [clauseWarning(ctx, list[i], segment, "review_msg_pl_participle_comma")]
+          : verbBefore >= 0 && !opened &&
+          !list.slice(verbBefore + 1, i).some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))
+          ? [clauseCommaBefore(ctx, list, prev.lower === "nie" && i - 1 > verbBefore ? i - 1 : i, segment,
+          "review_msg_pl_participle_comma", false)]
+          : []
+      # The words after a purpose conjunction that its infinitive may follow ("aby się nie spóźnić").
+      clauseSkipObjects:
+        args: "list: readonly PlReadWord[], at: number, limit: number"
+        type: number
+        return: 'at < limit && /^(?:się|nie|sobie|to|tego|ją|go|je)$/u.test(list[at]?.lower ?? "") ? clauseSkipObjects(list, at + 1, limit) : at'
+      # "Aby zdać egzamin student musi się uczyć": a purpose phrase opening the sentence ends with
+      # a comma before the main clause. Warns at the main clause's verb.
+      clausePurposeOpeners:
+        args: "ctx: DetectContext, list: readonly PlReadWord[], segment: readonly [number, number]"
+        let:
+          first: "/^(?:ale|a|i|lecz|więc|zatem)$/u.test(list[0].lower) ? 1 : 0"
+          before: ctx.text.slice(Math.max(0, segment[0] - 8), segment[0])
+          at: clauseSkipObjects(list, first + 1, first + 3)
+          infinitive: list[at]
+          verb: list.findIndex((w, j) => j > at && w.verb)
+        when:
+          - '/^(?:aby|żeby|ażeby|by)$/u.test(list[first]?.lower ?? "")'
+          - '!(segment[0] > 0 && !/(?:^|[.!?…,;:]["”’»)]*|\n)[ \t ]*$/u.test(before))'
+          - "!(!infinitive || !CLAUSE_INFINITIVE_FORM.test(infinitive.lower) || plNounTags(infinitive.lower))"
+          - verb >= 0
+          - '!list.slice(at + 1, verb).some((w) => w.participle || (clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower) && w.lower !== "to"))'
+        return: '[clauseWarning(ctx, list[verb], segment, "review_msg_pl_run_on")]'
+        else: "[]"
+      # The adjectives from `k` on (no noun reading).
+      clauseSkipAdjectives:
+        args: "list: readonly PlReadWord[], k: number"
+        type: number
+        return: "k < list.length && plAdjectiveOf(list[k].lower) && !plNounTags(list[k].lower) ? clauseSkipAdjectives(list, k + 1) : k"
+      # The "to" at `at` answers a conditional clause opening the segment, not a pronoun: not right
+      # after the verb ("Jeśli zrobisz to dobrze") and not before a neuter noun ("to zdjęcie").
+      clauseCorrelativeTo:
+        args: "list: readonly PlReadWord[], verb: number, at: number"
+        let:
+          first: "/^(?:a|i|ale|lecz)$/u.test(list[0].lower) ? 1 : 0"
+          k: clauseSkipAdjectives(list, at + 1)
+          tags: "list[k] ? plNounTags(list[k].lower) : 0"
+        when:
+          - list[at].lower === "to" && at > verb + 1
+          - CLAUSE_CONDITIONAL.test(list[first].lower) && first < verb
+          - "!list.slice(first + 1, verb).some((w) => clauseJoins(w.lower) && !CLAUSE_COORDINATE.test(w.lower))"
+        return: '!(plOnlyNoun(tags) && tagsAnd(tags, PL_NEUTER) && tagsAnd(tags, plCases("Ns As")))'
+        else: "false"
+      clauseRunOns:
+        args: "ctx: DetectContext, list: readonly PlReadWord[], segment: readonly [number, number], afterComma: boolean"
+        return: "clauseRunOnFrom(ctx, list, segment, afterComma, list.flatMap((w, i) => (w.verb ? [i] : [])), 1)"
+      # The first run-on from the verb pair `k` on: two clause verbs with no comma or conjunction
+      # between them.
+      clauseRunOnFrom:
+        args: "ctx: DetectContext, list: readonly PlReadWord[], segment: readonly [number, number], afterComma: boolean, verbs: readonly number[], k: number"
+        type: RawFinding[]
+        return: >-
+          k >= verbs.length ? [] : clauseRunOnPair(ctx, list, segment, afterComma, verbs, k) ??
+          clauseRunOnFrom(ctx, list, segment, afterComma, verbs, k + 1)
+      # The findings of one verb pair, or null to read the next pair. "…, który popieram
+      # przegrywają": the relative clause closes before the second verb. "Jak się okazało pociąg
+      # odjechał": the aside's own comma frame asks for it. "Jeżeli pada deszcz to rano są
+      # kałuże": "to" answering a conditional opener. Two present forms may hide a noun or an
+      # adjective ("bawię się muszą nóżką"). "Marek czytał a Jurek pisał": a contrasting "a"
+      # between clauses takes a comma; not "między domem a szkołą".
+      clauseRunOnPair:
+        args: "ctx: DetectContext, list: readonly PlReadWord[], segment: readonly [number, number], afterComma: boolean, verbs: readonly number[], k: number"
+        type: RawFinding[] | null
+        let:
+          a: verbs[k - 1]
+          b: verbs[k]
+          relative: >-
+            afterComma && list.slice(0, Math.min(2, a)).some((w) => CLAUSE_RELATIVE.test(w.lower)) &&
+            !list.slice(0, a).some((w) => clauseJoins(w.lower) && !CLAUSE_RELATIVE.test(w.lower))
+          between: "list.slice(a + 1, b).flatMap((w, j) => (clauseJoins(w.lower) ? [a + 1 + j] : []))"
+          linking: between.filter((j) => !CLAUSE_COORDINATE.test(list[j].lower))
+        when:
+          - "!clauseCompound(list, a, b, relative)"
+          - '!/^jak (?:się )?(?:okazało|widać|wiadomo)$/u.test(list.slice(0, a + 1).map((w) => w.lower).join(" "))'
+        return: >-
+          list.slice(0, b).some((w) => w.participle) ? []
+          : linking.length === 1 && clauseCorrelativeTo(list, a, linking[0])
+          ? [clauseCommaBefore(ctx, list, linking[0], segment, "review_msg_pl_run_on", true)]
+          : !CLAUSE_CERTAIN.test(list[a].lower) && !CLAUSE_CERTAIN.test(list[b].lower) ? null
+          : between.length === 1 && CLAUSE_CONTRAST.test(list[between[0]].lower)
+          ? (list.slice(0, between[0]).some((w) => /^(?:po)?między$/u.test(w.lower)) ? null
+          : [clauseCommaBefore(ctx, list, between[0], segment, "review_msg_pl_run_on", false)])
+          : between.length ? null : clauseRunOnEnd(ctx, list, segment, a, b, relative)
+      # The comma goes before the second verb (or its "nie") where the word before ends the
+      # relative clause for sure: its verb, an infinitive, a noun or an adjective.
+      clauseRunOnEnd:
+        args: "ctx: DetectContext, list: readonly PlReadWord[], segment: readonly [number, number], a: number, b: number, relative: boolean"
+        let:
+          start: 'list[b - 1].lower === "nie" && b - 1 > a ? b - 1 : b'
+          last: list[start - 1].lower
+        return: >-
+          relative && (start - 1 === a || CLAUSE_INFINITIVE.test(last) || tagsAnd(plNounTags(last), PL_ALL_CASES) ||
+          plAdjectiveOf(last) !== null)
+          ? [clauseCommaBefore(ctx, list, start, segment, "review_msg_pl_run_on", true)]
+          : [clauseWarning(ctx, list[b], segment, "review_msg_pl_run_on")]
     frames:
       # A stretch of one sentence with no punctuation inside (a spaced " - " is a dash). The scan
       # starts 400 characters before the chunk; the fixer reads the clause boundaries from its verbs.
@@ -2645,7 +3003,20 @@ rules:
         scan: owned
         lookback: 400
         flags: gu
-        fixer: clauses
+        let:
+          end: m.index + m[0].length
+          base: plWords(m[0], m.index)
+          list: >-
+            base.map((w, i) => ({ ...w, verb: clauseVerbAt(base, i), participle:
+            clauseAdverbialParticiple(w.lower) }))
+          segment: "[m.index, end] as const"
+        when:
+          - "!(end <= ctx.from || namedExampleBefore(ctx.text, m.index))"
+          - base.length >= 3
+        return: >-
+          [...clauseParticiples(ctx, list, segment), ...clausePurposeOpeners(ctx, list, segment),
+          ...clauseRunOns(ctx, list, segment, ctx.text[m.index - 1] === ",")]
+          .filter((finding) => finding.range.start >= ctx.from && finding.range.start < ctx.to)
   # Pleonasms and wordy officialese (optional `stylePhrasing`) that need a guard.
   - id: pl.style
     checks: [stylePhrasing]

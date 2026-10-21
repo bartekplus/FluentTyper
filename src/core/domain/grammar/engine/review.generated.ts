@@ -22113,7 +22113,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:[^,;:.!?\\u2026()[\\]{}\"\\u201E\\u201D\\u201C\\u00AB\\u00BB\\u201A\\u2018\\u2019'\\u2014\\u2013\\n-]|(?<=\\S)-|-(?=\\S))+",
     literals: [],
-    fixer: "pl:clauses",
+    fixer: "pl:@pl.clauses/1",
     flags: "gu",
     scan: "owned",
     lookback: 400,
