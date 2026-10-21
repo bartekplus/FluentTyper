@@ -9405,7 +9405,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=\\p{L})(?<det>a|an|the|my|your|his|our|their|its|another|every|no|any|first|this|that|(?:after|before|during|since|of|from|with|about|for|in|on)[ \\t\\u00a0]{1,8}her)[ \\t\\u00a0]{1,8}(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<target>w(?:arm[ \\t\\u00a0]{1,8}up|ork[ \\t\\u00a0]{1,8}around|ork[ \\t\\u00a0]{1,8}out|rite[ \\t\\u00a0]{1,8}up|rite[ \\t\\u00a0]{1,8}down|rite[ \\t\\u00a0]{1,8}off|ake[ \\t\\u00a0]{1,8}up)|m(?:ock[ \\t\\u00a0]{1,8}up|ix[ \\t\\u00a0]{1,8}up|ake[ \\t\\u00a0]{1,8}over|elt[ \\t\\u00a0]{1,8}down)|s(?:it[ \\t\\u00a0]{1,8}up|tart[ \\t\\u00a0]{1,8}up|ign[ \\t\\u00a0]{1,8}up|ell[ \\t\\u00a0]{1,8}out|hut[ \\t\\u00a0]{1,8}down|et[ \\t\\u00a0]{1,8}back|tand[ \\t\\u00a0]{1,8}up|low[ \\t\\u00a0]{1,8}down|end[ \\t\\u00a0]{1,8}off|hoot[ \\t\\u00a0]{1,8}out|tand[ \\t\\u00a0]{1,8}off)|p(?:ush[ \\t\\u00a0]{1,8}up|ull[ \\t\\u00a0]{1,8}up|rint[ \\t\\u00a0]{1,8}out|ush[ \\t\\u00a0]{1,8}back|ick[ \\t\\u00a0]{1,8}up|ay[ \\t\\u00a0]{1,8}off|ay[ \\t\\u00a0]{1,8}out)|c(?:hin[ \\t\\u00a0]{1,8}up|heck[ \\t\\u00a0]{1,8}up|atch[ \\t\\u00a0]{1,8}up|lean[ \\t\\u00a0]{1,8}up|ut[ \\t\\u00a0]{1,8}off|ome[ \\t\\u00a0]{1,8}back|arry[ \\t\\u00a0]{1,8}over|over[ \\t\\u00a0]{1,8}up|lose[ \\t\\u00a0]{1,8}up|ount[ \\t\\u00a0]{1,8}down|atch[ \\t\\u00a0]{1,8}all)|b(?:reak[ \\t\\u00a0]{1,8}up|uy[ \\t\\u00a0]{1,8}back|reak[ \\t\\u00a0]{1,8}down|reak[ \\t\\u00a0]{1,8}out|low[ \\t\\u00a0]{1,8}out|ail[ \\t\\u00a0]{1,8}out|lack[ \\t\\u00a0]{1,8}out|urn[ \\t\\u00a0]{1,8}out|ack[ \\t\\u00a0]{1,8}up)|k(?:nock[ \\t\\u00a0]{1,8}out|ick[ \\t\\u00a0]{1,8}off)|t(?:ake[ \\t\\u00a0]{1,8}down|ake[ \\t\\u00a0]{1,8}over|ake[ \\t\\u00a0]{1,8}off|ake[ \\t\\u00a0]{1,8}away|une[ \\t\\u00a0]{1,8}up|ouch[ \\t\\u00a0]{1,8}down|rade[ \\t\\u00a0]{1,8}off|ake[ \\t\\u00a0]{1,8}out|urn[ \\t\\u00a0]{1,8}around|oss[ \\t\\u00a0]{1,8}up)|f(?:lash[ \\t\\u00a0]{1,8}back|ollow[ \\t\\u00a0]{1,8}up)|r(?:oll[ \\t\\u00a0]{1,8}out|ound[ \\t\\u00a0]{1,8}up|ip[ \\t\\u00a0]{1,8}off)|l(?:og[ \\t\\u00a0]{1,8}out|ay[ \\t\\u00a0]{1,8}out|ay[ \\t\\u00a0]{1,8}off|ock[ \\t\\u00a0]{1,8}down|et[ \\t\\u00a0]{1,8}down|ift[ \\t\\u00a0]{1,8}off|ock[ \\t\\u00a0]{1,8}out|eft[ \\t\\u00a0]{1,8}over)|h(?:ook[ \\t\\u00a0]{1,8}up|ang[ \\t\\u00a0]{1,8}over|old[ \\t\\u00a0]{1,8}up|ow[ \\t\\u00a0]{1,8}to)|g(?:et[ \\t\\u00a0]{1,8}together|ive[ \\t\\u00a0]{1,8}away|et[ \\t\\u00a0]{1,8}away)|d(?:o[ \\t\\u00a0]{1,8}over|rive[ \\t\\u00a0]{1,8}through)|add[ \\t\\u00a0]{1,8}on|o(?:pt[ \\t\\u00a0]{1,8}in|pt[ \\t\\u00a0]{1,8}out))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:compoundPhrasalNoun",
+    fixer: "en:@en.compoundForms/1",
     check: "englishContextualCompounds",
   }),
   frame({
@@ -9480,7 +9480,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "throughs",
       "toss",
     ],
-    fixer: "en:compoundPhrasalPlural",
+    fixer: "en:@en.compoundForms/2",
     check: "englishContextualCompounds",
   }),
   frame({
@@ -9560,21 +9560,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "factor",
       "family",
     ],
-    fixer: "en:compoundNumberUnit",
+    fixer: "en:@en.compoundForms/3",
     check: "englishContextualCompounds",
   }),
   frame({
     pattern:
       "(?=[\\p{L}\\p{N}]+-(?:year|month|week|day)[ \\t\\u00a0]{1,8}old)(?<![\\p{N}.,/])(?<target>(?<n>[0-9]+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|half|single|multi)-(?<unit>year|month|week|day)[ \\t\\u00a0]{1,8}(?<old>old)(?<olds>s)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["year", "month", "week", "day"],
-    fixer: "en:compoundAgeOnly",
+    fixer: "en:@en.compoundForms/4",
     check: "englishContextualCompounds",
   }),
   frame({
     pattern:
       "(?=may[ \\t\\u00a0]{1,8}be)(?:(?<=(?:^|[.!?(\\n])[ \\t\\u00a0\"“]{0,8})(?<target>may[ \\t\\u00a0]{1,8}be)(?=[ \\t\\u00a0]{1,8}(?:I|we|you|he|she|they|there|his|her|my|your|our|their|someone|somebody|something|this|that|it['’]s|not)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=\\b(?:is|are|was|were|it['’]s|this['’]s|that['’]s)[ \\t\\u00a0]{1,8})(?<target2>may[ \\t\\u00a0]{1,8}be)(?=[ \\t\\u00a0]{1,8}(?:the|a|an|some|just|because|not|it|this|that|too|very|so|more|less|still|also|only|even|better|worse)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<target3>may[ \\t\\u00a0]{1,8}be)(?=[ \\t\\u00a0]{1,8}(?:could|can|should|would|will)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["may", "may", "may"],
-    fixer: "en:compoundMayBe",
+    fixer: "en:@en.compoundForms/5",
     check: "englishContextualCompounds",
     owner: "none",
   }),
@@ -9582,34 +9582,34 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<verb>sign|signs|signed|signing|log|logs|logged|logging)[ \\t\\u00a0]{1,8}into)(?=[ \\t\\u00a0]{1,8}(?:your|my|his|her|our|their|the|an?)[ \\t\\u00a0]{1,8}(?:[\\p{L}-]+[ \\t\\u00a0]{1,8})?(?:accounts?|profiles?|apps?|sites?|website|portal|system|computer|e-?mail|server|dashboard|meeting|session|network|device)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["into"],
-    fixer: "en:compoundSignInto",
+    fixer: "en:@en.compoundForms/6",
     check: "englishContextualCompounds",
   }),
   frame({
     pattern:
       "(?=\\p{L}+[ \\t\\u00a0]{1,8}(?:born|speaking|based))(?<target>(?<place>\\p{L}{3,})[ \\t\\u00a0]{1,8}(?<kind>born|speaking|based))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["born", "speaking", "based"],
-    fixer: "en:compoundOrigin",
+    fixer: "en:@en.compoundForms/7",
     check: "englishContextualCompounds",
   }),
   frame({
     pattern: "(?<=\\()(?<target>may[ \\t\\u00a0]{1,8}be)(?=\\))",
     literals: ["may"],
-    fixer: "en:compoundParenMaybe",
+    fixer: "en:@en.compoundForms/8",
     check: "englishContextualCompounds",
   }),
   frame({
     pattern:
       "(?=on[ \\t\\u00a0]{1,8}going)(?:(?<=\\b(?:an|the|their|our|his|her|its|my|your|this|that|any|usual|an[ \\t\\u00a0]{1,8})[ \\t\\u00a0]{1,8})|(?<=(?:^|[.!?\\n])[ \\t\\u00a0]{0,8}))(?<target>on[ \\t\\u00a0]{1,8}going)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["going"],
-    fixer: "en:compoundOnGoing",
+    fixer: "en:@en.compoundForms/9",
     check: "englishContextualCompounds",
   }),
   frame({
     pattern:
       "(?=(?:any|some)[ \\t\\u00a0]{1,8}one)(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can|could|will|would|has|have|is|was|if|when|and|but)[ \\t\\u00a0]{1,8})[ \\t\\u00a0]{0,8})(?<target>(?<q>any|some)[ \\t\\u00a0]{1,8}one)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["any", "some"],
-    fixer: "en:compoundAnyOne",
+    fixer: "en:@en.compoundForms/10",
     check: "englishContextualCompounds",
   }),
   frame({
@@ -9692,7 +9692,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "dived",
       "dive",
     ],
-    fixer: "en:compoundVerb",
+    fixer: "en:@en.compoundForms/11",
     check: "englishClosedCompounds",
   }),
   frame({
@@ -9735,21 +9735,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "long",
       "mail",
     ],
-    fixer: "en:compoundNounModifier",
+    fixer: "en:@en.compoundForms/12",
     check: "englishClosedCompounds",
   }),
   frame({
     pattern:
       "(?<det>a|an|the|my|your|his|her|our|their|its|this|these|those|some|any|every|each|another|very|more|most|best|(?!(?:let|it|that|there|what|he|she|who|here|where)['’]s)\\p{L}+['’]s)[ \\t\\u00a0]{1,8}(?<target>[^\\s\\S]|m(?:ulti[ \\t\\u00a0]{1,8}million[ \\t\\u00a0]{1,8}dollar|onth[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}month|illion[ \\t\\u00a0]{1,8}dollar|any[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}many|ind[ \\t\\u00a0]{1,8}blowing|uch[ \\t\\u00a0]{1,8}needed|om[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}pop|iddle[ \\t\\u00a0]{1,8}aged)|e(?:asy[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}understand|asy[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}install|asy[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}follow|asy[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}learn|ye[ \\t\\u00a0]{1,8}catching|asy[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}read|asy[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}use|ven[ \\t\\u00a0]{1,8}handed|nd[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}end)|p(?:erson[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}person|oint[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}point|eer[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}peer|art[ \\t\\u00a0]{1,8}time|ost[ \\t\\u00a0]{1,8}it)|s(?:tate[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}art|econd[ \\t\\u00a0]{1,8}largest|econd[ \\t\\u00a0]{1,8}biggest|econd[ \\t\\u00a0]{1,8}highest|imple[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}use|tep[ \\t\\u00a0]{1,8}by[ \\t\\u00a0]{1,8}step|traight[ \\t\\u00a0]{1,8}up|hort[ \\t\\u00a0]{1,8}lived|econd[ \\t\\u00a0]{1,8}best|econd[ \\t\\u00a0]{1,8}hand|mall[ \\t\\u00a0]{1,8}scale|hort[ \\t\\u00a0]{1,8}range|hort[ \\t\\u00a0]{1,8}term|ingle[ \\t\\u00a0]{1,8}use|o[ \\t\\u00a0]{1,8}called)|l(?:ong[ \\t\\u00a0]{1,8}established|ife[ \\t\\u00a0]{1,8}threatening|ong[ \\t\\u00a0]{1,8}standing|ife[ \\t\\u00a0]{1,8}changing|ong[ \\t\\u00a0]{1,8}distance|ong[ \\t\\u00a0]{1,8}awaited|ong[ \\t\\u00a0]{1,8}lasting|ife[ \\t\\u00a0]{1,8}saving|ast[ \\t\\u00a0]{1,8}minute|arge[ \\t\\u00a0]{1,8}scale|eft[ \\t\\u00a0]{1,8}handed|ong[ \\t\\u00a0]{1,8}lived|ong[ \\t\\u00a0]{1,8}range|ast[ \\t\\u00a0]{1,8}ditch|ong[ \\t\\u00a0]{1,8}term|ow[ \\t\\u00a0]{1,8}level|ife[ \\t\\u00a0]{1,8}long|ow[ \\t\\u00a0]{1,8}cost|ow[ \\t\\u00a0]{1,8}risk|ow[ \\t\\u00a0]{1,8}end)|a(?:ll[ \\t\\u00a0]{1,8}encompassing|bove[ \\t\\u00a0]{1,8}mentioned|ward[ \\t\\u00a0]{1,8}winning|ll[ \\t\\u00a0]{1,8}inclusive|ll[ \\t\\u00a0]{1,8}powerful|ll[ \\t\\u00a0]{1,8}knowing|ll[ \\t\\u00a0]{1,8}natural|ll[ \\t\\u00a0]{1,8}seeing|ll[ \\t\\u00a0]{1,8}in[ \\t\\u00a0]{1,8}one|bout[ \\t\\u00a0]{1,8}face|ll[ \\t\\u00a0]{1,8}time|ll[ \\t\\u00a0]{1,8}new)|d(?:ifficult[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}use|o[ \\t\\u00a0]{1,8}it[ \\t\\u00a0]{1,8}yourself|rive[ \\t\\u00a0]{1,8}through|oor[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}door|ual[ \\t\\u00a0]{1,8}purpose|own[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}out|ay[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}day|uty[ \\t\\u00a0]{1,8}free|o[ \\t\\u00a0]{1,8}or[ \\t\\u00a0]{1,8}die|rive[ \\t\\u00a0]{1,8}way)|w(?:ell[ \\t\\u00a0]{1,8}established|ell[ \\t\\u00a0]{1,8}meaning|all[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}wall|orld[ \\t\\u00a0]{1,8}class|ell[ \\t\\u00a0]{1,8}known)|r(?:ecord[ \\t\\u00a0]{1,8}breaking|ags[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}riches|eady[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}use|ight[ \\t\\u00a0]{1,8}handed|eal[ \\t\\u00a0]{1,8}time|ead[ \\t\\u00a0]{1,8}only)|n(?:ot[ \\t\\u00a0]{1,8}for[ \\t\\u00a0]{1,8}profit|ever[ \\t\\u00a0]{1,8}ending|ew[ \\t\\u00a0]{1,8}look|o[ \\t\\u00a0]{1,8}go)|t(?:ime[ \\t\\u00a0]{1,8}consuming|hird[ \\t\\u00a0]{1,8}largest|hird[ \\t\\u00a0]{1,8}biggest|ailor[ \\t\\u00a0]{1,8}made|hird[ \\t\\u00a0]{1,8}best|op[ \\t\\u00a0]{1,8}notch|ax[ \\t\\u00a0]{1,8}free)|b(?:illion[ \\t\\u00a0]{1,8}dollar|ack[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}back|est[ \\t\\u00a0]{1,8}selling|rand[ \\t\\u00a0]{1,8}new|rick[ \\t\\u00a0]{1,8}red|ug[ \\t\\u00a0]{1,8}eyed)|f(?:ourth[ \\t\\u00a0]{1,8}largest|ifth[ \\t\\u00a0]{1,8}largest|ace[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}face|ast[ \\t\\u00a0]{1,8}growing|ly[ \\t\\u00a0]{1,8}by[ \\t\\u00a0]{1,8}night|ar[ \\t\\u00a0]{1,8}reaching|irst[ \\t\\u00a0]{1,8}class|or[ \\t\\u00a0]{1,8}profit|ull[ \\t\\u00a0]{1,8}scale|irst[ \\t\\u00a0]{1,8}hand|ollow[ \\t\\u00a0]{1,8}on|ull[ \\t\\u00a0]{1,8}time)|o(?:ut[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}way|ut[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}box|ff[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}shelf|ne[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}kind|ld[ \\t\\u00a0]{1,8}fashioned|ut[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}place|ne[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}many|pen[ \\t\\u00a0]{1,8}source|ut[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}body|ne[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}one|pen[ \\t\\u00a0]{1,8}ended|ut[ \\t\\u00a0]{1,8}going|n[ \\t\\u00a0]{1,8}board|ver[ \\t\\u00a0]{1,8}use|ne[ \\t\\u00a0]{1,8}off)|c(?:oast[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}coast|ard[ \\t\\u00a0]{1,8}carrying|ut[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}paste|ooling[ \\t\\u00a0]{1,8}off|ut[ \\t\\u00a0]{1,8}throat|atch[ \\t\\u00a0]{1,8}all|heck[ \\t\\u00a0]{1,8}box)|u(?:ser[ \\t\\u00a0]{1,8}friendly|nder[ \\t\\u00a0]{1,8}cover|p[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}date)|year[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}year|h(?:ead[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}head|ard[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}find|igh[ \\t\\u00a0]{1,8}quality|and[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}hand|ard[ \\t\\u00a0]{1,8}working|ard[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}use|igh[ \\t\\u00a0]{1,8}level|eavy[ \\t\\u00a0]{1,8}duty|igh[ \\t\\u00a0]{1,8}speed|igh[ \\t\\u00a0]{1,8}risk|ome[ \\t\\u00a0]{1,8}work|igh[ \\t\\u00a0]{1,8}end|ands[ \\t\\u00a0]{1,8}on)|g(?:o[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}market|ood[ \\t\\u00a0]{1,8}looking|o[ \\t\\u00a0]{1,8}to)|ill[ \\t\\u00a0]{1,8}advised|k(?:now[ \\t\\u00a0]{1,8}it[ \\t\\u00a0]{1,8}all|nife[ \\t\\u00a0]{1,8}edge)|zero[ \\t\\u00a0]{1,8}day)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:compoundArticleModifier",
+    fixer: "en:@en.compoundForms/13",
     check: "englishClosedCompounds",
   }),
   frame({
     pattern:
       "(?<target>(?<prefix>quasi|mid|pre|post|anti)[ \\t\\u00a0]{1,8}(?<word>[\\p{L}\\p{N}]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["quasi", "mid", "pre", "post", "anti"],
-    fixer: "en:compoundPrefixed",
+    fixer: "en:@en.compoundForms/14",
     check: "englishClosedCompounds",
   }),
   frame({
@@ -9787,7 +9787,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "spouses",
       "champion",
     ],
-    fixer: "en:compoundExPartner",
+    fixer: "en:@en.compoundForms/15",
     check: "englishClosedCompounds",
   }),
   frame({

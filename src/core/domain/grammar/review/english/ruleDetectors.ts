@@ -2,7 +2,6 @@
 // languages and order.
 import { mergePredicates, type FindingsFilter, type Fixer } from "../../engine/reviewRules";
 import * as apostrophes from "./apostrophes";
-import * as compoundForms from "./compoundForms";
 import * as properNames from "./properNames";
 import * as plainStyle from "./plainStyle";
 import * as passiveVoice from "./passiveVoice";
@@ -102,7 +101,6 @@ export const FIXERS = mergePredicates<Fixer>(
   usageTables.FIXERS,
   typography.FIXERS,
   dates.FIXERS,
-  compoundForms.FIXERS,
   punctuation.FIXERS,
   confusionSlots.FIXERS,
   apostrophes.FIXERS,

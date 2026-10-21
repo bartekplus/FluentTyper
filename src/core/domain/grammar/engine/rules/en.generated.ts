@@ -6,12 +6,14 @@ import type { DetectContext, FrameRef, MatchResult, RawFinding } from "../../lib
 import {
   EN_VERB_FORMS,
   applyWordCase,
+  carryCase,
   caseLike,
   detectWordCase,
   enBefore,
   enListedNoun,
   enListedWithoutPlural,
   enNextWord,
+  englishInflect,
   englishInitialSound,
   englishNounForms,
   englishWordInfo,
@@ -634,6 +636,189 @@ export const POSSESSIVE_MODALS: ReadonlySet<string> = new Set([
   "might",
 ]);
 
+export const COMPOUND_NOUN_HEADS: ReadonlySet<string> = new Set([
+  "drive",
+  "left",
+  "hold",
+  "count",
+  "touch",
+  "close",
+  "set",
+  "sign",
+  "check",
+  "work",
+  "stand",
+  "cut",
+  "round",
+  "lift",
+  "push",
+]);
+
+export const COMPOUND_ARTICLE_HEADS: ReadonlySet<string> = new Set(["back", "chin"]);
+
+export const COMPOUND_HYPHENED_MODIFIERS: ReadonlySet<string> = new Set([
+  "end to end",
+  "day to day",
+  "month to month",
+  "year to year",
+  "step by step",
+  "door to door",
+  "face to face",
+  "head to head",
+  "back to back",
+  "peer to peer",
+  "person to person",
+  "point to point",
+  "one to one",
+  "one to many",
+  "many to many",
+  "up to date",
+  "state of the art",
+  "straight up",
+  "for profit",
+  "not for profit",
+  "much needed",
+  "long awaited",
+  "long established",
+  "long standing",
+  "long lasting",
+  "short lived",
+  "long lived",
+  "life changing",
+  "life saving",
+  "life threatening",
+  "time consuming",
+  "mind blowing",
+  "eye catching",
+  "record breaking",
+  "award winning",
+  "best selling",
+  "fast growing",
+  "never ending",
+  "so called",
+  "all knowing",
+  "all seeing",
+  "all powerful",
+  "all inclusive",
+  "all encompassing",
+  "all natural",
+  "all new",
+  "go to",
+  "go to market",
+  "easy to use",
+  "easy to understand",
+  "easy to read",
+  "easy to learn",
+  "easy to install",
+  "easy to follow",
+  "simple to use",
+  "hard to find",
+  "hard to use",
+  "difficult to use",
+  "ready to use",
+  "all time",
+  "million dollar",
+  "billion dollar",
+  "multi million dollar",
+  "second largest",
+  "third largest",
+  "fourth largest",
+  "fifth largest",
+  "second biggest",
+  "third biggest",
+  "second highest",
+  "second best",
+  "third best",
+  "out of the way",
+  "out of the box",
+  "out of place",
+  "off the shelf",
+  "one of a kind",
+  "last minute",
+  "long term",
+  "short term",
+  "well known",
+  "high quality",
+  "low cost",
+  "real time",
+  "open source",
+  "first class",
+  "second hand",
+  "full scale",
+  "large scale",
+  "small scale",
+  "world class",
+  "top notch",
+  "high level",
+  "low level",
+  "high end",
+  "low end",
+  "old fashioned",
+  "user friendly",
+  "above mentioned",
+  "tailor made",
+  "even handed",
+  "read only",
+  "ill advised",
+  "well meaning",
+  "well established",
+  "brand new",
+  "first hand",
+  "duty free",
+  "tax free",
+  "heavy duty",
+  "cut throat",
+  "do or die",
+  "wall to wall",
+  "coast to coast",
+  "out of body",
+  "rags to riches",
+  "mom and pop",
+  "hand to hand",
+  "fly by night",
+  "card carrying",
+  "cooling off",
+  "cut and paste",
+  "bug eyed",
+  "dual purpose",
+  "knife edge",
+  "follow on",
+  "new look",
+  "down and out",
+  "brick red",
+  "full time",
+  "part time",
+  "open ended",
+  "hard working",
+  "good looking",
+  "middle aged",
+  "left handed",
+  "right handed",
+  "long distance",
+  "long range",
+  "short range",
+  "high speed",
+  "high risk",
+  "low risk",
+  "last ditch",
+  "far reaching",
+  "single use",
+]);
+
+export const COMPOUND_HYPHENED_NOUNS: ReadonlySet<string> = new Set([
+  "all in one",
+  "one off",
+  "catch all",
+  "know it all",
+  "do it yourself",
+  "drive through",
+  "about face",
+  "post it",
+  "zero day",
+  "no go",
+  "hands on",
+]);
+
 export const FIXED_CONFORM: Readonly<Record<string, string>> = {
   conform: "confirm",
   conforms: "confirms",
@@ -648,6 +833,141 @@ export const FIXED_RAISE: Readonly<Record<string, string>> = {
   arise: "raise",
   arises: "raises",
   arising: "raising",
+};
+
+export const COMPOUND_PHRASAL_NOUNS: Readonly<Record<string, readonly string[]>> = {
+  "warm up": ["warm-up"],
+  "mock up": ["mock-up"],
+  "sit up": ["sit-up"],
+  "push up": ["push-up"],
+  "pull up": ["pull-up"],
+  "chin up": ["chin-up"],
+  "start up": ["startup", "start-up"],
+  "break up": ["breakup", "break-up"],
+  "knock out": ["knockout", "knock-out"],
+  "kick off": ["kickoff", "kick-off"],
+  "take down": ["takedown", "take-down"],
+  "take over": ["takeover", "take-over"],
+  "take off": ["takeoff", "take-off"],
+  "take away": ["takeaway"],
+  "buy back": ["buyback"],
+  "flash back": ["flashback"],
+  "work around": ["workaround"],
+  "work out": ["workout"],
+  "roll out": ["rollout", "roll-out"],
+  "sign up": ["sign-up"],
+  "log out": ["logout"],
+  "check up": ["checkup"],
+  "lay out": ["layout"],
+  "lay off": ["layoff"],
+  "print out": ["printout"],
+  "sell out": ["sellout"],
+  "lock down": ["lockdown"],
+  "shut down": ["shutdown"],
+  "break down": ["breakdown"],
+  "break out": ["breakout", "break-out"],
+  "set back": ["setback"],
+  "push back": ["pushback"],
+  "follow up": ["follow-up"],
+  "catch up": ["catch-up"],
+  "clean up": ["cleanup"],
+  "cut off": ["cutoff"],
+  "pick up": ["pickup"],
+  "write up": ["write-up"],
+  "write down": ["write-down"],
+  "write off": ["write-off"],
+  "hook up": ["hookup"],
+  "mix up": ["mix-up"],
+  "round up": ["roundup"],
+  "tune up": ["tune-up"],
+  "wake up": ["wake-up"],
+  "stand up": ["stand-up"],
+  "get together": ["get-together"],
+  "make over": ["makeover"],
+  "do over": ["do-over"],
+  "blow out": ["blowout"],
+  "come back": ["comeback"],
+  "hang over": ["hangover"],
+  "pay off": ["payoff"],
+  "pay out": ["payout"],
+  "give away": ["giveaway"],
+  "get away": ["getaway"],
+  "carry over": ["carryover"],
+  "cover up": ["cover-up"],
+  "close up": ["close-up"],
+  "hold up": ["holdup", "hold-up"],
+  "let down": ["letdown"],
+  "melt down": ["meltdown"],
+  "touch down": ["touchdown"],
+  "count down": ["countdown"],
+  "slow down": ["slowdown"],
+  "trade off": ["trade-off"],
+  "add on": ["add-on"],
+  "send off": ["send-off"],
+  "rip off": ["rip-off"],
+  "bail out": ["bailout"],
+  "black out": ["blackout"],
+  "burn out": ["burnout"],
+  "lift off": ["liftoff"],
+  "lock out": ["lockout"],
+  "shoot out": ["shootout"],
+  "stand off": ["standoff"],
+  "take out": ["takeout"],
+  "turn around": ["turnaround"],
+  "drive through": ["drive-through"],
+  "back up": ["backup"],
+  "left over": ["leftover"],
+  "how to": ["how-to"],
+  "opt in": ["opt-in"],
+  "opt out": ["opt-out"],
+  "catch all": ["catch-all"],
+  "toss up": ["toss-up"],
+};
+
+export const COMPOUND_VERBS: Readonly<Record<string, string>> = {
+  "peer review": "peer-review",
+  "day trade": "day-trade",
+  "role play": "role-play",
+  "roller skate": "roller-skate",
+  "strong arm": "strong-arm",
+  "dead lift": "deadlift",
+  "guilt trip": "guilt-trip",
+  "daisy chain": "daisy-chain",
+  "green light": "green-light",
+  "fund raise": "fundraise",
+  "problem solve": "problem-solve",
+  "hand write": "handwrite",
+  "hand deliver": "hand-deliver",
+  "hand stitch": "hand-stitch",
+  "hand craft": "handcraft",
+  "hand pick": "handpick",
+  "fine tune": "fine-tune",
+  "cross check": "cross-check",
+  "spot check": "spot-check",
+  "fact check": "fact-check",
+  "kick start": "kick-start",
+  "jump start": "jump-start",
+  "force feed": "force-feed",
+  "spoon feed": "spoon-feed",
+  "drop ship": "drop-ship",
+  "sleep walk": "sleepwalk",
+  "day dream": "daydream",
+  "guest edit": "guest-edit",
+  "test drive": "test-drive",
+  "back fill": "backfill",
+  "baby sit": "babysit",
+  "sky dive": "skydive",
+  "deep fry": "deep-fry",
+  "stir fry": "stir-fry",
+  "cherry pick": "cherry-pick",
+  "mass produce": "mass-produce",
+  "short change": "shortchange",
+  "sweet talk": "sweet-talk",
+  "spell check": "spell-check",
+  "brain storm": "brainstorm",
+  "bench press": "bench-press",
+  "pressure wash": "pressure-wash",
+  "power wash": "power-wash",
 };
 
 // en.yaml rule en.fixedPhrases def fixedFound
@@ -1192,6 +1512,202 @@ export function lexNounInfo(word: string) {
     : listed
       ? { info: null, plural: listed === "plural" }
       : null;
+}
+
+// en.yaml rule en.compoundForms def compoundInfo
+export function compoundInfo(word: string | undefined) {
+  return word ? englishWordInfo(word.toLowerCase()) : null;
+}
+
+// en.yaml rule en.compoundForms def compoundNextWord
+export function compoundNextWord(ctx: DetectContext, end: number) {
+  return (
+    /^[ \t\u00a0]{1,8}(["“]?[\p{L}\p{N}][\p{L}\p{N}'’-]*)/u.exec(
+      ctx.text.slice(end, end + 48),
+    )?.[1] ?? ""
+  );
+}
+
+// en.yaml rule en.compoundForms def COMPOUND_OBJECT
+export const COMPOUND_OBJECT =
+  /^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|some|any|every|each|all|no|one|two|three|other|another|more|less)$/i;
+
+// en.yaml rule en.compoundForms def compoundTitled
+export function compoundTitled(typed: string) {
+  return /\s\p{Lu}/u.test(typed);
+}
+
+// en.yaml rule en.compoundForms def compoundHyphenate
+export function compoundHyphenate(typed: string) {
+  return typed.toLowerCase().split(/\s+/).join("-");
+}
+
+// en.yaml rule en.compoundForms def compoundFound
+export function compoundFound(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  alternatives: readonly string[],
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+): RawFinding | null {
+  const range = group(m, "target");
+  const typed = ctx.text.slice(range[0], range[1]);
+  if (!(!hasUserOrCasedWord(ctx, typed) && !compoundTitled(typed))) return null;
+  const cased = alternatives.map((alt) => carryCase(typed, alt));
+  if (cased.includes(typed)) return null;
+  return finding(ruleId, messageKey, range[0], range[1], cased, {
+    ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+    context: {
+      start: Math.max(0, m.index - 24),
+      end: Math.min(ctx.text.length, m.index + m[0].length + 24),
+    },
+  });
+}
+
+// en.yaml rule en.compoundForms def compoundContextual
+export function compoundContextual(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  alternatives: readonly string[],
+) {
+  return compoundFound(ctx, m, alternatives, "englishContextualCompounds", "review_msg_compounds");
+}
+
+// en.yaml rule en.compoundForms def compoundClosed
+export function compoundClosed(ctx: DetectContext, m: RegExpExecArray, fix: string) {
+  return compoundFound(ctx, m, [fix], "englishClosedCompounds", "review_msg_closed_compound");
+}
+
+// en.yaml rule en.compoundForms def COMPOUND_PREMODIFIER
+export const COMPOUND_PREMODIFIER =
+  /^(?:first|second|third|final|last|next|quick|big|small|major|minor|huge|brief|daily|weekly|monthly|annual|usual|regular|complete|full|proper|good|great|real|official|early|late|short|long|new|old|initial|informal|formal|official|massive|total)$/i;
+
+// en.yaml rule en.compoundForms def COMPOUND_VERB_FORMS
+export const COMPOUND_VERB_FORMS = new Map(
+  Object.entries(COMPOUND_VERBS).flatMap(([typed, joined]) => compoundVerbForms(typed, joined)),
+);
+
+// en.yaml rule en.compoundForms def compoundVerbForms
+export function compoundVerbForms(
+  typed: string,
+  joined: string,
+): (readonly [string, readonly [string, string]])[] {
+  const parts = typed.split(" ");
+  const first = parts[0];
+  const second = parts[1];
+  const sep = joined.includes("-") ? "-" : "";
+  return [
+    [typed, [joined, "base"]],
+    ...(second === "light"
+      ? [[`${first} lighted`, [`${first}${sep}lighted`, "past"]] as const]
+      : []),
+    ...(["third", "past", "ing"] as const).flatMap((form) =>
+      [englishInflect(second, form)].flatMap((inflected) =>
+        inflected ? [[`${first} ${inflected}`, [`${first}${sep}${inflected}`, form]] as const] : [],
+      ),
+    ),
+  ];
+}
+
+// en.yaml rule en.compoundForms def COMPOUND_TO_OBJECT
+export const COMPOUND_TO_OBJECT =
+  /^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|everything|something|anything|someone|everyone|today|tomorrow|now|again|yet|before|online|myself|yourself|himself|herself|ourselves|themselves)$/i;
+
+// en.yaml rule en.compoundForms def COMPOUND_ARTICLE_MODIFIERS
+export const COMPOUND_ARTICLE_MODIFIERS = {
+  ...Object.fromEntries(
+    [...COMPOUND_HYPHENED_MODIFIERS].map((key) => [key, key.replaceAll(" ", "-")]),
+  ),
+  "life long": "lifelong",
+  "under cover": "undercover",
+  "out going": "outgoing",
+  "on board": "onboard",
+} as Readonly<Record<string, string>>;
+
+// en.yaml rule en.compoundForms def COMPOUND_ARTICLE_NOUNS
+export const COMPOUND_ARTICLE_NOUNS = {
+  ...Object.fromEntries([...COMPOUND_HYPHENED_NOUNS].map((key) => [key, key.replaceAll(" ", "-")])),
+  "home work": "homework",
+  "drive way": "driveway",
+  "check box": "checkbox",
+  "over use": "overuse",
+} as Readonly<Record<string, string>>;
+
+// en.yaml rule en.compoundForms def COMPOUND_NOT_NOUN
+export const COMPOUND_NOT_NOUN =
+  /^(?:of|to|in|on|at|for|from|with|by|and|or|but|is|are|was|were|be|been|has|have|had|will|would|can|could|may|might|must|shall|should|it|this|that|there|then|than|as|so|very|too|now|here|again|also|not|before|after|the|a|an|zone|zones|frame|frames|line|lines|limit|limits|slot|slots|stamp|stamps|span|travel)$/i;
+
+// en.yaml rule en.compoundForms def compoundNounNext
+export function compoundNounNext(next: string) {
+  if (!(
+    !!next &&
+    !COMPOUND_NOT_NOUN.test(next) &&
+    !COMPOUND_OBJECT.test(next) &&
+    !/^\p{N}/u.test(next)
+  ))
+    return false;
+  const entry = compoundInfo(next);
+  return /^["“'‘]/u.test(next) || !entry || entry.noun || entry.plural || entry.adjective;
+}
+
+// en.yaml rule en.compoundForms def compoundStrictNoun
+export function compoundStrictNoun(next: string) {
+  if (!(compoundNounNext(next) && /^\p{Ll}/u.test(next))) return false;
+  const entry = compoundInfo(next);
+  return entry
+    ? (entry.noun || entry.plural) && !entry.adverb && !(entry.adjective && !entry.plural)
+    : /^[a-z]{6,}$/.test(next);
+}
+
+// en.yaml rule en.compoundForms def COMPOUND_PREFIX_WORDS
+export const COMPOUND_PREFIX_WORDS = {
+  quasi: /^[a-z]{4,}$/,
+  mid: /^(?:1[0-9]{3}s?|20[0-9]{2}s?|[0-9]{2}s|twenties|thirties|forties|fifties|sixties|seventies|eighties|nineties|teens|century|season|week|month|year|morning|afternoon|evening|sentence|air|flight|game|range|size|level|term|life|career|race|summer|winter|spring|autumn|fall|january|february|march|april|may|june|july|august|september|october|november|december)$/i,
+  pre: /^(?:1[0-9]{3}|20[0-9]{2})s?$/,
+  post: /^(?:1[0-9]{3}|20[0-9]{2})s?$/,
+  anti: /^\p{Lu}\p{Ll}{3,}$/u,
+} as Readonly<Record<string, RegExp>>;
+
+// en.yaml rule en.compoundForms def COMPOUND_NOT_A_HEAD
+export const COMPOUND_NOT_A_HEAD =
+  /^(?:ago|old|olds|later|earlier|before|after|of|and|or|to|in|on|at|for|from|with|by|per|each|is|was|are|were|left|long|away|late|early|off|behind|ahead|apart|tall|high|wide|deep|thick|away|younger|older|more|less|than|time|times|out|into|over|back|down|up|running|straight|old|this|that|the|a|an|it|he|she|we|they|you|i|there|here|now|then|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred|thousand)$/i;
+
+// en.yaml rule en.compoundForms def COMPOUND_STEP_KIN
+export const COMPOUND_STEP_KIN =
+  /^(?:daughters?|sons?|mothers?|fathers?|sisters?|brothers?|child|children|kids?|parents?|dads?|moms?|mums?|siblings?)$/i;
+
+// en.yaml rule en.compoundForms def compoundCountUnit
+export function compoundCountUnit(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  n: string,
+  unit: string,
+  next: string | undefined,
+  before: string,
+) {
+  const determined = /(?:\b(?:a|an|my|your|his|her|our|their|its)|['’]s)[ \t\u00a0]+$/i.test(
+    before,
+  );
+  if (/^(?:1|one)$/i.test(n) && !determined) return false;
+  const article = /\b(?:a|an)[ \t\u00a0]+$/i.test(before);
+  if (!(!!next && !COMPOUND_NOT_A_HEAD.test(next) && (compoundNounNext(next) || article)))
+    return false;
+  if (unit === "step" && COMPOUND_STEP_KIN.test(next ?? "")) return false;
+  if (
+    /^[0-9,]{4,}$/.test(n) &&
+    !/\b(?:a|an|the)[ \t\u00a0]+(?:(?:over|under|nearly|almost|about)[ \t\u00a0]+)?$/i.test(
+      ctx.text.slice(Math.max(0, m.index - 16), m.index),
+    )
+  )
+    return false;
+  if (/^\p{Lu}/u.test(next ?? "") && compoundInfo(next) === null) return false;
+  return true;
+}
+
+// en.yaml rule en.compoundForms def compoundKnownNoun
+export function compoundKnownNoun(word: string) {
+  const known = compoundInfo(word);
+  return !!known && (known.noun || known.plural) && !known.adverb;
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -1775,6 +2291,220 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       requiresChoice: true,
       context: lexContext(ctx, m.index, m.index + m[0].length),
     };
+  },
+  // en.yaml rule en.compoundForms frame 1
+  "@en.compoundForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const adj = m.groups!.adj;
+    const target = m.groups!.target;
+    const key = target.toLowerCase().split(/\s+/).join(" ");
+    const head = key.split(" ")[0];
+    const fixes = COMPOUND_PHRASAL_NOUNS[key];
+    if (!fixes) return null;
+    if (/^(?:this|that)$/i.test(det) && !adj) return null;
+    const entry = compoundInfo(adj);
+    if (!(
+      !adj ||
+      COMPOUND_PREMODIFIER.test(adj) ||
+      (!!entry && entry.adjective && !entry.noun && !entry.plural)
+    ))
+      return null;
+    const following = compoundNextWord(ctx, m.index + m[0].length);
+    if (COMPOUND_OBJECT.test(following)) return null;
+    if (!((!COMPOUND_NOUN_HEADS.has(head) && key !== "break out") || compoundStrictNoun(following)))
+      return null;
+    if (!(!COMPOUND_ARTICLE_HEADS.has(head) || /^(?:an?|the)$/i.test(det))) return null;
+    return compoundContextual(ctx, m, fixes);
+  },
+  // en.yaml rule en.compoundForms frame 2
+  "@en.compoundForms/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const words = target.toLowerCase().split(/\s+/);
+    const singular = COMPOUND_PHRASAL_NOUNS[`${words[0]} ${words[1].slice(0, -1)}`];
+    if (!singular) return null;
+    return compoundContextual(
+      ctx,
+      m,
+      singular.map((fix) => `${fix}s`),
+    );
+  },
+  // en.yaml rule en.compoundForms frame 3
+  "@en.compoundForms/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    const unit = m.groups!.unit;
+    const old = m.groups!.old;
+    const olds = m.groups!.olds;
+    const hold = m.groups!.hold;
+    const holds = m.groups!.holds;
+    const next = m.groups!.next;
+    if (/^\p{Lu}/u.test(unit)) return null;
+    const aged = old ?? hold;
+    const plural = olds ?? holds;
+    const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+    if (
+      !(aged
+        ? plural || compoundNounNext(next ?? "")
+        : compoundCountUnit(ctx, m, n, unit, next, before))
+    )
+      return null;
+    const range = group(m, "target");
+    const typed = ctx.text.slice(range[0], range[1]);
+    if (hasUserOrCasedWord(ctx, typed.replace(/[0-9,.]+/g, ""))) return null;
+    return {
+      ruleId: "englishContextualCompounds",
+      messageKey: "review_msg_compounds",
+      range: { start: range[0], end: range[1] },
+      alternatives: [aged ? `${n}-${unit}-old${plural ?? ""}` : `${n}-${unit}`],
+      context: { start: Math.max(0, range[0] - 24), end: Math.min(ctx.text.length, range[1] + 24) },
+    };
+  },
+  // en.yaml rule en.compoundForms frame 4
+  "@en.compoundForms/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    const unit = m.groups!.unit;
+    const olds = m.groups!.olds;
+    if (!(olds || compoundNounNext(compoundNextWord(ctx, m.index + m[0].length)))) return null;
+    return compoundContextual(ctx, m, [`${n}-${unit}-old${olds ?? ""}`]);
+  },
+  // en.yaml rule en.compoundForms frame 5
+  "@en.compoundForms/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const target2 = m.groups!.target2;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    const name = target ? "target" : target2 ? "target2" : "target3";
+    const range = group(m, name);
+    const typed = ctx.text.slice(range[0], range[1]);
+    if (hasUserOrCasedWord(ctx, typed)) return null;
+    return {
+      ruleId: "englishContextualCompounds",
+      messageKey: "review_msg_compounds",
+      range: { start: range[0], end: range[1] },
+      alternatives: [carryCase(typed, "maybe")],
+      context: { start: Math.max(0, range[0] - 24), end: Math.min(ctx.text.length, range[1] + 24) },
+    };
+  },
+  // en.yaml rule en.compoundForms frame 6
+  "@en.compoundForms/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    return compoundContextual(ctx, m, [`${verb} in to`]);
+  },
+  // en.yaml rule en.compoundForms frame 7
+  "@en.compoundForms/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const place = m.groups!.place;
+    const kind = m.groups!.kind;
+    if (!(/^\p{Lu}/u.test(place) || (kind.toLowerCase() === "based" && compoundInfo(place)?.noun)))
+      return null;
+    if (!compoundStrictNoun(compoundNextWord(ctx, m.index + m[0].length))) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
+    if (!(!/^\s*$/.test(before) && !/[.!?]\s*$/.test(before))) return null;
+    return compoundClosed(ctx, m, `${place}-${kind.toLowerCase()}`);
+  },
+  // en.yaml rule en.compoundForms frame 8
+  "@en.compoundForms/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return compoundContextual(ctx, m, ["maybe"]);
+  },
+  // en.yaml rule en.compoundForms frame 9
+  "@en.compoundForms/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!compoundNounNext(compoundNextWord(ctx, m.index + m[0].length))) return null;
+    return compoundContextual(ctx, m, ["ongoing"]);
+  },
+  // en.yaml rule en.compoundForms frame 10
+  "@en.compoundForms/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const q = m.groups!.q;
+    const verb = m.groups!.verb;
+    const entry = compoundInfo(verb);
+    if (!(entry && verb !== "of" && entry.verbs.length)) return null;
+    if (entry.noun && !entry.verbs.some((v) => v.form === "third" || v.form === "base"))
+      return null;
+    if (entry.verbs.every((v) => v.form === "ing")) return null;
+    return compoundContextual(ctx, m, [`${q.toLowerCase()}one`]);
+  },
+  // en.yaml rule en.compoundForms frame 11
+  "@en.compoundForms/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const modal = m.groups!.modal;
+    const asked = m.groups!.asked;
+    const subject = m.groups!.subject;
+    const have = m.groups!.have;
+    const be = m.groups!.be;
+    const target = m.groups!.target;
+    const entry = COMPOUND_VERB_FORMS.get(target.toLowerCase().split(/\s+/).join(" "));
+    if (!entry) return null;
+    const third = /^(?:he|she)$/i.test(subject ?? "");
+    const ok =
+      modal || asked
+        ? entry[1] === "base"
+        : subject
+          ? entry[1] === "past" || entry[1] === (third ? "third" : "base")
+          : have
+            ? entry[1] === "past"
+            : be
+              ? entry[1] === "ing"
+              : false;
+    if (!ok) return null;
+    const following = compoundNextWord(ctx, m.index + m[0].length);
+    if (
+      /^to$/i.test(modal ?? "") &&
+      !COMPOUND_TO_OBJECT.test(following) &&
+      !/^\p{N}/u.test(following)
+    )
+      return null;
+    if (
+      subject &&
+      entry[1] !== "past" &&
+      following &&
+      !COMPOUND_TO_OBJECT.test(following) &&
+      compoundKnownNoun(following)
+    )
+      return null;
+    return compoundClosed(ctx, m, entry[0]);
+  },
+  // en.yaml rule en.compoundForms frame 12
+  "@en.compoundForms/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const following = compoundNextWord(ctx, m.index + m[0].length);
+    if (!compoundNounNext(following)) return null;
+    if (/^read/i.test(target) && compoundInfo(following)?.verbs.length) return null;
+    if (compoundTitled(target)) return null;
+    return compoundClosed(ctx, m, compoundHyphenate(target));
+  },
+  // en.yaml rule en.compoundForms frame 13
+  "@en.compoundForms/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const target = m.groups!.target;
+    const key = target.toLowerCase().split(/\s+/).join(" ");
+    const following = compoundNextWord(ctx, m.index + m[0].length);
+    const noun = COMPOUND_ARTICLE_NOUNS[key];
+    const listed =
+      /^(?:easy|simple|hard|difficult)/i.test(key) && ctx.text[m.index + m[0].length] === ",";
+    if (!(noun ? !COMPOUND_OBJECT.test(following) : compoundNounNext(following) || listed))
+      return null;
+    if (!noun && compoundInfo(following)?.verbs.some((v) => v.form === "third")) return null;
+    if (noun && /^(?:very|more|most|best)$/i.test(det) && key !== "hands on") return null;
+    if (key === "all time" && !compoundNounNext(following)) return null;
+    if (compoundTitled(target)) return null;
+    return compoundClosed(ctx, m, noun ?? COMPOUND_ARTICLE_MODIFIERS[key]);
+  },
+  // en.yaml rule en.compoundForms frame 14
+  "@en.compoundForms/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const prefix = m.groups!.prefix;
+    const word = m.groups!.word;
+    const lower = prefix.toLowerCase();
+    if (!COMPOUND_PREFIX_WORDS[lower]?.test(word)) return null;
+    if (hasUserOrCasedWord(ctx, `${lower} ${/^\p{Lu}/u.test(word) ? "" : word}`)) return null;
+    const range = group(m, "target");
+    return {
+      ruleId: "englishClosedCompounds",
+      messageKey: "review_msg_closed_compound",
+      range: { start: range[0], end: range[1] },
+      alternatives: [`${target.slice(0, lower.length)}-${word}`],
+      context: { start: Math.max(0, m.index - 24), end: Math.min(ctx.text.length, range[1] + 24) },
+    };
+  },
+  // en.yaml rule en.compoundForms frame 15
+  "@en.compoundForms/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return compoundClosed(ctx, m, compoundHyphenate(target));
   },
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {

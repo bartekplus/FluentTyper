@@ -3280,6 +3280,455 @@ rules:
     checks: [englishClosedCompounds, englishContextualCompounds]
     style: match
     message: review_msg_compounds
+    # Open, closed and hyphenated compounds: rows for forms that are never right written apart,
+    # and slot frames for the ones that are a phrase in one position and a compound in another.
+    sets:
+      # First words that are also everyday nouns ("a sign in front", "the work out of the way",
+      # "your back up straight"): these need a noun after the particle ("the sign up form").
+      COMPOUND_NOUN_HEADS:
+        [
+          drive,
+          left,
+          hold,
+          count,
+          touch,
+          close,
+          set,
+          sign,
+          check,
+          work,
+          stand,
+          cut,
+          round,
+          lift,
+          push,
+        ]
+      # "a chin up", "the back up": these also read as a body part with an adverb after a
+      # possessive ("keep your chin up"), so only an article may come before them.
+      COMPOUND_ARTICLE_HEADS: [back, chin]
+      # Modifiers after an article or possessive that take a hyphen: "the end to end trip",
+      # "your go to person".
+      COMPOUND_HYPHENED_MODIFIERS:
+        - "end to end"
+        - "day to day"
+        - "month to month"
+        - "year to year"
+        - "step by step"
+        - "door to door"
+        - "face to face"
+        - "head to head"
+        - "back to back"
+        - "peer to peer"
+        - "person to person"
+        - "point to point"
+        - "one to one"
+        - "one to many"
+        - "many to many"
+        - "up to date"
+        - "state of the art"
+        - "straight up"
+        - "for profit"
+        - "not for profit"
+        - "much needed"
+        - "long awaited"
+        - "long established"
+        - "long standing"
+        - "long lasting"
+        - "short lived"
+        - "long lived"
+        - "life changing"
+        - "life saving"
+        - "life threatening"
+        - "time consuming"
+        - "mind blowing"
+        - "eye catching"
+        - "record breaking"
+        - "award winning"
+        - "best selling"
+        - "fast growing"
+        - "never ending"
+        - "so called"
+        - "all knowing"
+        - "all seeing"
+        - "all powerful"
+        - "all inclusive"
+        - "all encompassing"
+        - "all natural"
+        - "all new"
+        - "go to"
+        - "go to market"
+        - "easy to use"
+        - "easy to understand"
+        - "easy to read"
+        - "easy to learn"
+        - "easy to install"
+        - "easy to follow"
+        - "simple to use"
+        - "hard to find"
+        - "hard to use"
+        - "difficult to use"
+        - "ready to use"
+        - "all time"
+        - "million dollar"
+        - "billion dollar"
+        - "multi million dollar"
+        - "second largest"
+        - "third largest"
+        - "fourth largest"
+        - "fifth largest"
+        - "second biggest"
+        - "third biggest"
+        - "second highest"
+        - "second best"
+        - "third best"
+        - "out of the way"
+        - "out of the box"
+        - "out of place"
+        - "off the shelf"
+        - "one of a kind"
+        - "last minute"
+        - "long term"
+        - "short term"
+        - "well known"
+        - "high quality"
+        - "low cost"
+        - "real time"
+        - "open source"
+        - "first class"
+        - "second hand"
+        - "full scale"
+        - "large scale"
+        - "small scale"
+        - "world class"
+        - "top notch"
+        - "high level"
+        - "low level"
+        - "high end"
+        - "low end"
+        - "old fashioned"
+        - "user friendly"
+        - "above mentioned"
+        - "tailor made"
+        - "even handed"
+        - "read only"
+        - "ill advised"
+        - "well meaning"
+        - "well established"
+        - "brand new"
+        - "first hand"
+        - "duty free"
+        - "tax free"
+        - "heavy duty"
+        - "cut throat"
+        - "do or die"
+        - "wall to wall"
+        - "coast to coast"
+        - "out of body"
+        - "rags to riches"
+        - "mom and pop"
+        - "hand to hand"
+        - "fly by night"
+        - "card carrying"
+        - "cooling off"
+        - "cut and paste"
+        - "bug eyed"
+        - "dual purpose"
+        - "knife edge"
+        - "follow on"
+        - "new look"
+        - "down and out"
+        - "brick red"
+        - "full time"
+        - "part time"
+        - "open ended"
+        - "hard working"
+        - "good looking"
+        - "middle aged"
+        - "left handed"
+        - "right handed"
+        - "long distance"
+        - "long range"
+        - "short range"
+        - "high speed"
+        - "high risk"
+        - "low risk"
+        - "last ditch"
+        - "far reaching"
+        - "single use"
+      # Compound nouns that may also close the phrase: "a one off", "a know it all".
+      COMPOUND_HYPHENED_NOUNS:
+        - "all in one"
+        - "one off"
+        - "catch all"
+        - "know it all"
+        - "do it yourself"
+        - "drive through"
+        - "about face"
+        - "post it"
+        - "zero day"
+        - "no go"
+        - "hands on"
+    maps:
+      # Phrasal verbs whose noun is joined or hyphenated: "a warm up" is "a warm-up". A word
+      # after the particle that opens a noun phrase makes it a preposition: "the walk through
+      # the park".
+      COMPOUND_PHRASAL_NOUNS:
+        "warm up": ["warm-up"]
+        "mock up": ["mock-up"]
+        "sit up": ["sit-up"]
+        "push up": ["push-up"]
+        "pull up": ["pull-up"]
+        "chin up": ["chin-up"]
+        "start up": ["startup", "start-up"]
+        "break up": ["breakup", "break-up"]
+        "knock out": ["knockout", "knock-out"]
+        "kick off": ["kickoff", "kick-off"]
+        "take down": ["takedown", "take-down"]
+        "take over": ["takeover", "take-over"]
+        "take off": ["takeoff", "take-off"]
+        "take away": ["takeaway"]
+        "buy back": ["buyback"]
+        "flash back": ["flashback"]
+        "work around": ["workaround"]
+        "work out": ["workout"]
+        "roll out": ["rollout", "roll-out"]
+        "sign up": ["sign-up"]
+        "log out": ["logout"]
+        "check up": ["checkup"]
+        "lay out": ["layout"]
+        "lay off": ["layoff"]
+        "print out": ["printout"]
+        "sell out": ["sellout"]
+        "lock down": ["lockdown"]
+        "shut down": ["shutdown"]
+        "break down": ["breakdown"]
+        "break out": ["breakout", "break-out"]
+        "set back": ["setback"]
+        "push back": ["pushback"]
+        "follow up": ["follow-up"]
+        "catch up": ["catch-up"]
+        "clean up": ["cleanup"]
+        "cut off": ["cutoff"]
+        "pick up": ["pickup"]
+        "write up": ["write-up"]
+        "write down": ["write-down"]
+        "write off": ["write-off"]
+        "hook up": ["hookup"]
+        "mix up": ["mix-up"]
+        "round up": ["roundup"]
+        "tune up": ["tune-up"]
+        "wake up": ["wake-up"]
+        "stand up": ["stand-up"]
+        "get together": ["get-together"]
+        "make over": ["makeover"]
+        "do over": ["do-over"]
+        "blow out": ["blowout"]
+        "come back": ["comeback"]
+        "hang over": ["hangover"]
+        "pay off": ["payoff"]
+        "pay out": ["payout"]
+        "give away": ["giveaway"]
+        "get away": ["getaway"]
+        "carry over": ["carryover"]
+        "cover up": ["cover-up"]
+        "close up": ["close-up"]
+        "hold up": ["holdup", "hold-up"]
+        "let down": ["letdown"]
+        "melt down": ["meltdown"]
+        "touch down": ["touchdown"]
+        "count down": ["countdown"]
+        "slow down": ["slowdown"]
+        "trade off": ["trade-off"]
+        "add on": ["add-on"]
+        "send off": ["send-off"]
+        "rip off": ["rip-off"]
+        "bail out": ["bailout"]
+        "black out": ["blackout"]
+        "burn out": ["burnout"]
+        "lift off": ["liftoff"]
+        "lock out": ["lockout"]
+        "shoot out": ["shootout"]
+        "stand off": ["standoff"]
+        "take out": ["takeout"]
+        "turn around": ["turnaround"]
+        "drive through": ["drive-through"]
+        "back up": ["backup"]
+        "left over": ["leftover"]
+        "how to": ["how-to"]
+        "opt in": ["opt-in"]
+        "opt out": ["opt-out"]
+        "catch all": ["catch-all"]
+        "toss up": ["toss-up"]
+      # Compound verbs written open in a verb slot: "we will peer review it" -> "peer-review".
+      COMPOUND_VERBS:
+        "peer review": "peer-review"
+        "day trade": "day-trade"
+        "role play": "role-play"
+        "roller skate": "roller-skate"
+        "strong arm": "strong-arm"
+        "dead lift": "deadlift"
+        "guilt trip": "guilt-trip"
+        "daisy chain": "daisy-chain"
+        "green light": "green-light"
+        "fund raise": "fundraise"
+        "problem solve": "problem-solve"
+        "hand write": "handwrite"
+        "hand deliver": "hand-deliver"
+        "hand stitch": "hand-stitch"
+        "hand craft": "handcraft"
+        "hand pick": "handpick"
+        "fine tune": "fine-tune"
+        "cross check": "cross-check"
+        "spot check": "spot-check"
+        "fact check": "fact-check"
+        "kick start": "kick-start"
+        "jump start": "jump-start"
+        "force feed": "force-feed"
+        "spoon feed": "spoon-feed"
+        "drop ship": "drop-ship"
+        "sleep walk": "sleepwalk"
+        "day dream": "daydream"
+        "guest edit": "guest-edit"
+        "test drive": "test-drive"
+        "back fill": "backfill"
+        "baby sit": "babysit"
+        "sky dive": "skydive"
+        "deep fry": "deep-fry"
+        "stir fry": "stir-fry"
+        "cherry pick": "cherry-pick"
+        "mass produce": "mass-produce"
+        "short change": "shortchange"
+        "sweet talk": "sweet-talk"
+        "spell check": "spell-check"
+        "brain storm": "brainstorm"
+        "bench press": "bench-press"
+        "pressure wash": "pressure-wash"
+        "power wash": "power-wash"
+    defs:
+      compoundInfo:
+        args: "word: string | undefined"
+        return: "word ? englishWordInfo(word.toLowerCase()) : null"
+      compoundNextWord:
+        args: "ctx: DetectContext, end: number"
+        return: '/^[ \t\u00a0]{1,8}(["“]?[\p{L}\p{N}][\p{L}\p{N}''’-]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? ""'
+      # A determiner, possessive or object pronoun after a particle makes it a preposition with
+      # its own object: "the walk through the park", "a hand over his mouth".
+      COMPOUND_OBJECT: "/^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|some|any|every|each|all|no|one|two|three|other|another|more|less)$/i"
+      # "Prime Time Wrestling", "Part Time Lord": a capital after the first word is a title.
+      compoundTitled:
+        args: "typed: string"
+        return: '/\s\p{Lu}/u.test(typed)'
+      compoundHyphenate:
+        args: "typed: string"
+        return: 'typed.toLowerCase().split(/\s+/).join("-")'
+      # A finding on the target group; each alternative carries the typed case.
+      compoundFound:
+        args: >-
+          ctx: DetectContext, m: RegExpExecArray, alternatives: readonly string[],
+          ruleId: RawFinding["ruleId"], messageKey: RawFinding["messageKey"]
+        type: "RawFinding | null"
+        let:
+          range: group(m, "target")
+          typed: ctx.text.slice(range[0], range[1])
+          cased: alternatives.map((alt) => carryCase(typed, alt))
+        when:
+          - "!hasUserOrCasedWord(ctx, typed) && !compoundTitled(typed)"
+          - "!cased.includes(typed)"
+        return: >-
+          finding(ruleId, messageKey, range[0], range[1], cased, {
+            ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+            context: { start: Math.max(0, m.index - 24), end: Math.min(ctx.text.length, m.index + m[0].length + 24) } })
+      compoundContextual:
+        args: "ctx: DetectContext, m: RegExpExecArray, alternatives: readonly string[]"
+        return: compoundFound(ctx, m, alternatives, "englishContextualCompounds", "review_msg_compounds")
+      compoundClosed:
+        args: "ctx: DetectContext, m: RegExpExecArray, fix: string"
+        return: compoundFound(ctx, m, [fix], "englishClosedCompounds", "review_msg_closed_compound")
+      COMPOUND_PREMODIFIER: "/^(?:first|second|third|final|last|next|quick|big|small|major|minor|huge|brief|daily|weekly|monthly|annual|usual|regular|complete|full|proper|good|great|real|official|early|late|short|long|new|old|initial|informal|formal|official|massive|total)$/i"
+      # Every form of every compound verb: typed lowercase "a b" -> [joined, form].
+      COMPOUND_VERB_FORMS: >-
+        new Map(Object.entries(COMPOUND_VERBS).flatMap(([typed, joined]) => compoundVerbForms(typed, joined)))
+      compoundVerbForms:
+        args: "typed: string, joined: string"
+        type: "(readonly [string, readonly [string, string]])[]"
+        let:
+          parts: typed.split(" ")
+          first: parts[0]
+          second: parts[1]
+          sep: 'joined.includes("-") ? "-" : ""'
+        # "green lighted" beside the irregular "green lit".
+        return: >-
+          [[typed, [joined, "base"]],
+            ...(second === "light" ? [[`${first} lighted`, [`${first}${sep}lighted`, "past"]] as const] : []),
+            ...(["third", "past", "ing"] as const).flatMap((form) =>
+              [englishInflect(second, form)].flatMap((inflected) =>
+                inflected ? [[`${first} ${inflected}`, [`${first}${sep}${inflected}`, form]] as const] : []))]
+      # Words after "to" that make the compound a verb with an object: "to peer review your work".
+      COMPOUND_TO_OBJECT: "/^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|me|him|us|them|it|you|everything|something|anything|someone|everyone|today|tomorrow|now|again|yet|before|online|myself|yourself|himself|herself|ourselves|themselves)$/i"
+      COMPOUND_ARTICLE_MODIFIERS: >-
+        ({ ...Object.fromEntries([...COMPOUND_HYPHENED_MODIFIERS].map((key) => [key, key.replaceAll(" ", "-")])),
+          "life long": "lifelong", "under cover": "undercover", "out going": "outgoing", "on board": "onboard" }) as Readonly<Record<string, string>>
+      COMPOUND_ARTICLE_NOUNS: >-
+        ({ ...Object.fromEntries([...COMPOUND_HYPHENED_NOUNS].map((key) => [key, key.replaceAll(" ", "-")])),
+          "home work": "homework", "drive way": "driveway", "check box": "checkbox", "over use": "overuse" }) as Readonly<Record<string, string>>
+      COMPOUND_NOT_NOUN: "/^(?:of|to|in|on|at|for|from|with|by|and|or|but|is|are|was|were|be|been|has|have|had|will|would|can|could|may|might|must|shall|should|it|this|that|there|then|than|as|so|very|too|now|here|again|also|not|before|after|the|a|an|zone|zones|frame|frames|line|lines|limit|limits|slot|slots|stamp|stamps|span|travel)$/i"
+      # A noun or adjective (or an unknown word) heads the phrase after a modifier.
+      compoundNounNext:
+        args: "next: string"
+        let:
+          entry: compoundInfo(next)
+        when: '!!next && !COMPOUND_NOT_NOUN.test(next) && !COMPOUND_OBJECT.test(next) && !/^\p{N}/u.test(next)'
+        return: '/^["“''‘]/u.test(next) || !entry || entry.noun || entry.plural || entry.adjective'
+        else: "false"
+      # A lowercase noun, not an adverb or adjective ("the sign up form", "a stand up
+      # comedian"); a long word the lexicon leaves out counts as a noun.
+      compoundStrictNoun:
+        args: "next: string"
+        let:
+          entry: compoundInfo(next)
+        when: compoundNounNext(next) && /^\p{Ll}/u.test(next)
+        return: "entry ? (entry.noun || entry.plural) && !entry.adverb && !(entry.adjective && !entry.plural) : /^[a-z]{6,}$/.test(next)"
+        else: "false"
+      # Prefixes that are hyphenated before their word: "quasi judicial", "mid thirties", "pre 1995".
+      COMPOUND_PREFIX_WORDS: >-
+        ({
+          quasi: /^[a-z]{4,}$/,
+          mid: /^(?:1[0-9]{3}s?|20[0-9]{2}s?|[0-9]{2}s|twenties|thirties|forties|fifties|sixties|seventies|eighties|nineties|teens|century|season|week|month|year|morning|afternoon|evening|sentence|air|flight|game|range|size|level|term|life|career|race|summer|winter|spring|autumn|fall|january|february|march|april|may|june|july|august|september|october|november|december)$/i,
+          pre: /^(?:1[0-9]{3}|20[0-9]{2})s?$/,
+          post: /^(?:1[0-9]{3}|20[0-9]{2})s?$/,
+          anti: /^\p{Lu}\p{Ll}{3,}$/u,
+        }) as Readonly<Record<string, RegExp>>
+      # Numbers and units joined before a noun: "a 10 page report", "a two year old car".
+      COMPOUND_NOT_A_HEAD: "/^(?:ago|old|olds|later|earlier|before|after|of|and|or|to|in|on|at|for|from|with|by|per|each|is|was|are|were|left|long|away|late|early|off|behind|ahead|apart|tall|high|wide|deep|thick|away|younger|older|more|less|than|time|times|out|into|over|back|down|up|running|straight|old|this|that|the|a|an|it|he|she|we|they|you|i|there|here|now|then|one|two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred|thousand)$/i"
+      COMPOUND_STEP_KIN: "/^(?:daughters?|sons?|mothers?|fathers?|sisters?|brothers?|child|children|kids?|parents?|dads?|moms?|mums?|siblings?)$/i"
+      # A count and its unit before a noun. "one hour" is a duration far more often than a
+      # modifier, unless "a" or a possessive owns it ("Tom's one hour workout"; "the 1 person
+      # rowing" counts). After "a", a count + unit is always a modifier, even before an -ing
+      # word ("a 35 hour working week").
+      compoundCountUnit:
+        args: "ctx: DetectContext, m: RegExpExecArray, n: string, unit: string, next: string | undefined, before: string"
+        let:
+          determined: '/(?:\b(?:a|an|my|your|his|her|our|their|its)|[''’]s)[ \t\u00a0]+$/i.test(before)'
+          article: '/\b(?:a|an)[ \t\u00a0]+$/i.test(before)'
+        when:
+          - "!(/^(?:1|one)$/i.test(n) && !determined)"
+          - "!!next && !COMPOUND_NOT_A_HEAD.test(next) && (compoundNounNext(next) || article)"
+          # "my 2 step daughters": a count of stepchildren, not a two-step one.
+          - '!(unit === "step" && COMPOUND_STEP_KIN.test(next ?? ""))'
+          # "exceeded 100,000 page edits", "over 100,000 day trip passengers": a large count
+          # needs "a" or "the" to be a modifier ("an over 5,000 year history").
+          - >-
+            !(/^[0-9,]{4,}$/.test(n)
+              && !/\b(?:a|an|the)[ \t\u00a0]+(?:(?:over|under|nearly|almost|about)[ \t\u00a0]+)?$/i.test(
+                ctx.text.slice(Math.max(0, m.index - 16), m.index)))
+          - '!(/^\p{Lu}/u.test(next ?? "") && compoundInfo(next) === null)'
+        return: "true"
+        else: "false"
+      compoundKnownNoun:
+        args: "word: string"
+        let:
+          known: compoundInfo(word)
+        return: "!!known && (known.noun || known.plural) && !known.adverb"
     frames:
       # Phrasal verbs whose noun is joined or hyphenated: "a warm up" is "a warm-up". A word
       # after the particle that opens a noun phrase makes it a preposition: "the walk through
@@ -3287,71 +3736,191 @@ rules:
       # alternations never run.
       - regex: "(?=\\p{L})(?<det>{{COMPOUNDFORMS_ARTICLE}}|(?:after|before|during|since|of|from|with|about|for|in|on){{S}}her){{S}}(?:(?<adj>[a-z]+){{S}})?(?<target>{{COMPOUNDFORMS_PHRASAL_KEYS}}){{E}}"
         check: englishContextualCompounds
-        fixer: compoundPhrasalNoun
+        let:
+          key: target.toLowerCase().split(/\s+/).join(" ")
+          head: key.split(" ")[0]
+          fixes: COMPOUND_PHRASAL_NOUNS[key]
+          # An adjective, ordinal or number between: "a quick warm up", "our first informal
+          # get together". A noun reading ("the baby wake up") could be the subject: only
+          # plain adjectives.
+          entry: compoundInfo(adj)
+          following: compoundNextWord(ctx, m.index + m[0].length)
+        when:
+          - fixes
+          # "this" and "that" stand alone as pronouns: "let this warm up".
+          - "!(/^(?:this|that)$/i.test(det) && !adj)"
+          - "!adj || COMPOUND_PREMODIFIER.test(adj) || (!!entry && entry.adjective && !entry.noun && !entry.plural)"
+          - "!COMPOUND_OBJECT.test(following)"
+          # "a break out of jail": "break out" takes its noun only as a modifier.
+          - (!COMPOUND_NOUN_HEADS.has(head) && key !== "break out") || compoundStrictNoun(following)
+          - "!COMPOUND_ARTICLE_HEADS.has(head) || /^(?:an?|the)$/i.test(det)"
+        return: compoundContextual(ctx, m, fixes)
       # Plurals have no verb reading: "two warm ups", "the kick offs".
       - regex: "(?=\\p{L})(?<target>warm{{S}}ups|mock{{S}}ups|sit{{S}}ups|push{{S}}(?:ups|backs)|pull{{S}}ups|chin{{S}}ups|start{{S}}ups|break{{S}}(?:ups|downs|outs)|knock{{S}}outs|kick{{S}}offs|take{{S}}(?:downs|overs|offs|aways|outs)|buy{{S}}backs|flash{{S}}backs|work{{S}}(?:arounds|outs)|roll{{S}}outs|sign{{S}}ups|log{{S}}outs|check{{S}}ups|lay{{S}}(?:outs|offs)|print{{S}}outs|sell{{S}}outs|lock{{S}}(?:downs|outs)|shut{{S}}downs|set{{S}}backs|follow{{S}}ups|clean{{S}}ups|cut{{S}}offs|pick{{S}}ups|write{{S}}(?:ups|downs|offs)|hook{{S}}ups|mix{{S}}ups|round{{S}}ups|tune{{S}}ups|wake{{S}}ups|stand{{S}}(?:ups|offs)|get{{S}}(?:togethers|aways)|make{{S}}overs|do{{S}}overs|blow{{S}}outs|come{{S}}backs|hang{{S}}overs|pay{{S}}(?:offs|outs)|give{{S}}aways|carry{{S}}overs|cover{{S}}ups|close{{S}}ups|hold{{S}}ups|let{{S}}downs|melt{{S}}downs|touch{{S}}downs|count{{S}}downs|slow{{S}}downs|trade{{S}}offs|add{{S}}ons|send{{S}}offs|rip{{S}}offs|bail{{S}}outs|black{{S}}outs|burn{{S}}outs|lift{{S}}offs|shoot{{S}}outs|turn{{S}}arounds|drive{{S}}throughs|toss{{S}}ups){{E}}"
         check: englishContextualCompounds
-        fixer: compoundPhrasalPlural
+        let:
+          words: target.toLowerCase().split(/\s+/)
+          singular: COMPOUND_PHRASAL_NOUNS[`${words[0]} ${words[1].slice(0, -1)}`]
+        when: singular
+        return: "compoundContextual(ctx, m, singular.map((fix) => `${fix}s`))"
       # Numbers and units joined before a noun: "a 10 page report", "a two year old car".
       - regex: "(?<![\\p{N}.,/])(?<target>{{COMPOUNDFORMS_NUMBER}}{{S}}(?<unit>{{COMPOUNDFORMS_UNITS}})(?:{{S}}(?<old>old)(?<olds>s)?|-(?<hold>old)(?<holds>s)?)?)(?={{S}}(?<next>[\\p{L}\\p{N}]+)|[ \\t\\u00a0]*(?<end>[.,;:!?)]|$))"
         check: englishContextualCompounds
-        fixer: compoundNumberUnit
+        let:
+          aged: old ?? hold
+          plural: olds ?? holds
+          before: ctx.text.slice(Math.max(0, m.index - 16), m.index)
+          range: group(m, "target")
+          typed: ctx.text.slice(range[0], range[1])
+        when:
+          # "the Seven Mile Beach", "2018 Year-End": a capitalized unit is part of a name.
+          - '!/^\p{Lu}/u.test(unit)'
+          # "a two year old car", "the two year olds"; "is two years old" has a plural unit.
+          # "a 3 day course": the older digit frame shares plain numbers with its units; the
+          # same edit from both is shown once.
+          - 'aged ? plural || compoundNounNext(next ?? "") : compoundCountUnit(ctx, m, n, unit, next, before)'
+          - '!hasUserOrCasedWord(ctx, typed.replace(/[0-9,.]+/g, ""))'
+        return: >-
+          ({ ruleId: "englishContextualCompounds", messageKey: "review_msg_compounds",
+            range: { start: range[0], end: range[1] },
+            alternatives: [aged ? `${n}-${unit}-old${plural ?? ""}` : `${n}-${unit}`],
+            context: { start: Math.max(0, range[0] - 24), end: Math.min(ctx.text.length, range[1] + 24) } })
       # "a two-year old reindeer": the hyphen stops one word short.
       # The lookahead shows the scan its fixed "-year" (and the other units): it runs only there.
       - regex: "(?=[\\p{L}\\p{N}]+-(?:year|month|week|day){{S}}old)(?<![\\p{N}.,/])(?<target>(?<n>[0-9]+|{{COMPOUNDFORMS_NUMBER_WORDS}})-(?<unit>year|month|week|day){{S}}(?<old>old)(?<olds>s)?){{E}}"
         check: englishContextualCompounds
-        fixer: compoundAgeOnly
+        when: olds || compoundNounNext(compoundNextWord(ctx, m.index + m[0].length))
+        return: 'compoundContextual(ctx, m, [`${n}-${unit}-old${olds ?? ""}`])'
       # "May be I am wrong" opens with the adverb "maybe"; "it may be" is the verb.
       - regex: "(?=may{{S}}be)(?:(?<=(?:^|[.!?(\\n])[ \\t\\u00a0\"“]{0,8})(?<target>may{{S}}be)(?={{S}}(?:I|we|you|he|she|they|there|his|her|my|your|our|their|someone|somebody|something|this|that|it['’]s|not){{E}})|(?<=\\b(?:is|are|was|were|it['’]s|this['’]s|that['’]s){{S}})(?<target2>may{{S}}be)(?={{S}}(?:the|a|an|some|just|because|not|it|this|that|too|very|so|more|less|still|also|only|even|better|worse){{E}})|(?<target3>may{{S}}be)(?={{S}}(?:could|can|should|would|will){{E}}))"
         check: englishContextualCompounds
         owner: none
-        fixer: compoundMayBe
+        # The match owns its finding where it starts. The month opens a sentence too: "May
+        # be the warmest month" has no subject after it.
+        let:
+          name: 'target ? "target" : target2 ? "target2" : "target3"'
+          range: group(m, name)
+          typed: ctx.text.slice(range[0], range[1])
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - "!hasUserOrCasedWord(ctx, typed)"
+        return: >-
+          ({ ruleId: "englishContextualCompounds", messageKey: "review_msg_compounds",
+            range: { start: range[0], end: range[1] },
+            alternatives: [carryCase(typed, "maybe")],
+            context: { start: Math.max(0, range[0] - 24), end: Math.min(ctx.text.length, range[1] + 24) } })
       # "sign into your account" is "sign in to"; "signed into law" is the verb with "into".
       - regex: "(?<target>(?<verb>sign|signs|signed|signing|log|logs|logged|logging){{S}}into)(?={{S}}(?:your|my|his|her|our|their|the|an?){{S}}(?:[\\p{L}-]+{{S}})?(?:accounts?|profiles?|apps?|sites?|website|portal|system|computer|e-?mail|server|dashboard|meeting|session|network|device){{E}})"
         check: englishContextualCompounds
-        fixer: compoundSignInto
+        return: "compoundContextual(ctx, m, [`${verb} in to`])"
       # "an American born scientist", "English speaking people".
       # The lookahead shows the scan its fixed words: it runs only before them.
       - regex: "(?=\\p{L}+{{S}}(?:born|speaking|based))(?<target>(?<place>\\p{L}{3,}){{S}}(?<kind>born|speaking|based)){{E}}"
         check: englishContextualCompounds
-        fixer: compoundOrigin
+        # "oil based paint" needs a noun before "based"; born and speaking need a name.
+        # "When Paris based its…": the place must lead a noun phrase, mid-sentence.
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 3), m.index)
+        when:
+          - '/^\p{Lu}/u.test(place) || (kind.toLowerCase() === "based" && compoundInfo(place)?.noun)'
+          - compoundStrictNoun(compoundNextWord(ctx, m.index + m[0].length))
+          - '!/^\s*$/.test(before) && !/[.!?]\s*$/.test(before)'
+        return: "compoundClosed(ctx, m, `${place}-${kind.toLowerCase()}`)"
       # "I paid (may be) too much."
       - regex: "(?<=\\()(?<target>may{{S}}be)(?=\\))"
         check: englishContextualCompounds
-        fixer: compoundParenMaybe
+        return: compoundContextual(ctx, m, ["maybe"])
       # The frames below open with a lookahead on their words: the clause lookbehinds after it
       # then run only where the words are, not at every position (JavaScriptCore's regex
       # interpreter would try them all).
       # "an on going problem", "on going maintenance" at a sentence start; "keep on going" stays.
       - regex: "(?=on{{S}}going)(?:(?<=\\b(?:an|the|their|our|his|her|its|my|your|this|that|any|usual|an{{S}}){{S}})|(?<=(?:^|[.!?\\n])[ \\t\\u00a0]{0,8}))(?<target>on{{S}}going){{E}}"
         check: englishContextualCompounds
-        fixer: compoundOnGoing
+        when: compoundNounNext(compoundNextWord(ctx, m.index + m[0].length))
+        return: compoundContextual(ctx, m, ["ongoing"])
       # "Does any one need help?": the pronoun before a verb, not "any one of them".
       - regex: "(?=(?:any|some){{S}}one)(?<=(?:^|[.!?;\\n]|\\b(?:does|did|do|can|could|will|would|has|have|is|was|if|when|and|but){{S}})[ \\t\\u00a0]{0,8})(?<target>(?<q>any|some){{S}}one){{S}}(?<verb>[a-z]+){{E}}"
         check: englishContextualCompounds
-        fixer: compoundAnyOne
+        let:
+          entry: compoundInfo(verb)
+        when:
+          - entry && verb !== "of" && entry.verbs.length
+          - '!(entry.noun && !entry.verbs.some((v) => v.form === "third" || v.form === "base"))'
+          # "any one person": a noun-only word after it is the numeral.
+          - '!entry.verbs.every((v) => v.form === "ing")'
+        return: "compoundContextual(ctx, m, [`${q.toLowerCase()}one`])"
       # Compound verbs written open in a verb slot: "we will peer review it" -> "peer-review".
       - regex: "(?=\\p{L}){{COMPOUNDFORMS_SLOT}}{{S}}{{COMPOUNDFORMS_ADVERB}}(?<target>{{COMPOUNDFORMS_VERB_KEYS}}){{E}}"
         check: englishClosedCompounds
-        fixer: compoundVerb
+        let:
+          entry: COMPOUND_VERB_FORMS.get(target.toLowerCase().split(/\s+/).join(" "))
+          third: '/^(?:he|she)$/i.test(subject ?? "")'
+          ok: >-
+            modal || asked ? entry[1] === "base"
+            : subject ? entry[1] === "past" || entry[1] === (third ? "third" : "base")
+            : have ? entry[1] === "past" : be ? entry[1] === "ing" : false
+          following: compoundNextWord(ctx, m.index + m[0].length)
+        when:
+          - entry
+          - ok
+          - '!(/^to$/i.test(modal ?? "") && !COMPOUND_TO_OBJECT.test(following) && !/^\p{N}/u.test(following))'
+          # "I peer review comments": a noun after the subject's compound is a noun phrase.
+          - >-
+            !(subject && entry[1] !== "past" && following && !COMPOUND_TO_OBJECT.test(following)
+              && compoundKnownNoun(following))
+        return: compoundClosed(ctx, m, entry[0])
       # Modifiers hyphenated before a noun; a noun must follow (or a determiner precede).
       - regex: "(?=\\p{L})(?<target>{{COMPOUNDFORMS_MODIFIER_KEYS}}){{E}}"
         check: englishClosedCompounds
-        fixer: compoundNounModifier
+        let:
+          following: compoundNextWord(ctx, m.index + m[0].length)
+        when:
+          - compoundNounNext(following)
+          # "I read only the first page": a verb reading after "read only"; "raise your right
+          # hand high" keeps the hand.
+          - "!(/^read/i.test(target) && compoundInfo(following)?.verbs.length)"
+          - "!compoundTitled(target)"
+        return: compoundClosed(ctx, m, compoundHyphenate(target))
       # Modifiers after an article or possessive: "the end to end trip", "your go to person".
       # The modifiers are grouped by their first letter, so the regex tries fewer of them. The
       # first branch "[^\s\S]" matches nothing: it keeps the scan on the whole text. Without it,
       # the scan runs near each "on", "so", "no" or "do" (also inside words), which costs more.
       - regex: "(?<det>{{COMPOUNDFORMS_DETERMINER}}){{S}}(?<target>[^\\s\\S]|m(?:ulti{{S}}million{{S}}dollar|onth{{S}}to{{S}}month|illion{{S}}dollar|any{{S}}to{{S}}many|ind{{S}}blowing|uch{{S}}needed|om{{S}}and{{S}}pop|iddle{{S}}aged)|e(?:asy{{S}}to{{S}}understand|asy{{S}}to{{S}}install|asy{{S}}to{{S}}follow|asy{{S}}to{{S}}learn|ye{{S}}catching|asy{{S}}to{{S}}read|asy{{S}}to{{S}}use|ven{{S}}handed|nd{{S}}to{{S}}end)|p(?:erson{{S}}to{{S}}person|oint{{S}}to{{S}}point|eer{{S}}to{{S}}peer|art{{S}}time|ost{{S}}it)|s(?:tate{{S}}of{{S}}the{{S}}art|econd{{S}}largest|econd{{S}}biggest|econd{{S}}highest|imple{{S}}to{{S}}use|tep{{S}}by{{S}}step|traight{{S}}up|hort{{S}}lived|econd{{S}}best|econd{{S}}hand|mall{{S}}scale|hort{{S}}range|hort{{S}}term|ingle{{S}}use|o{{S}}called)|l(?:ong{{S}}established|ife{{S}}threatening|ong{{S}}standing|ife{{S}}changing|ong{{S}}distance|ong{{S}}awaited|ong{{S}}lasting|ife{{S}}saving|ast{{S}}minute|arge{{S}}scale|eft{{S}}handed|ong{{S}}lived|ong{{S}}range|ast{{S}}ditch|ong{{S}}term|ow{{S}}level|ife{{S}}long|ow{{S}}cost|ow{{S}}risk|ow{{S}}end)|a(?:ll{{S}}encompassing|bove{{S}}mentioned|ward{{S}}winning|ll{{S}}inclusive|ll{{S}}powerful|ll{{S}}knowing|ll{{S}}natural|ll{{S}}seeing|ll{{S}}in{{S}}one|bout{{S}}face|ll{{S}}time|ll{{S}}new)|d(?:ifficult{{S}}to{{S}}use|o{{S}}it{{S}}yourself|rive{{S}}through|oor{{S}}to{{S}}door|ual{{S}}purpose|own{{S}}and{{S}}out|ay{{S}}to{{S}}day|uty{{S}}free|o{{S}}or{{S}}die|rive{{S}}way)|w(?:ell{{S}}established|ell{{S}}meaning|all{{S}}to{{S}}wall|orld{{S}}class|ell{{S}}known)|r(?:ecord{{S}}breaking|ags{{S}}to{{S}}riches|eady{{S}}to{{S}}use|ight{{S}}handed|eal{{S}}time|ead{{S}}only)|n(?:ot{{S}}for{{S}}profit|ever{{S}}ending|ew{{S}}look|o{{S}}go)|t(?:ime{{S}}consuming|hird{{S}}largest|hird{{S}}biggest|ailor{{S}}made|hird{{S}}best|op{{S}}notch|ax{{S}}free)|b(?:illion{{S}}dollar|ack{{S}}to{{S}}back|est{{S}}selling|rand{{S}}new|rick{{S}}red|ug{{S}}eyed)|f(?:ourth{{S}}largest|ifth{{S}}largest|ace{{S}}to{{S}}face|ast{{S}}growing|ly{{S}}by{{S}}night|ar{{S}}reaching|irst{{S}}class|or{{S}}profit|ull{{S}}scale|irst{{S}}hand|ollow{{S}}on|ull{{S}}time)|o(?:ut{{S}}of{{S}}the{{S}}way|ut{{S}}of{{S}}the{{S}}box|ff{{S}}the{{S}}shelf|ne{{S}}of{{S}}a{{S}}kind|ld{{S}}fashioned|ut{{S}}of{{S}}place|ne{{S}}to{{S}}many|pen{{S}}source|ut{{S}}of{{S}}body|ne{{S}}to{{S}}one|pen{{S}}ended|ut{{S}}going|n{{S}}board|ver{{S}}use|ne{{S}}off)|c(?:oast{{S}}to{{S}}coast|ard{{S}}carrying|ut{{S}}and{{S}}paste|ooling{{S}}off|ut{{S}}throat|atch{{S}}all|heck{{S}}box)|u(?:ser{{S}}friendly|nder{{S}}cover|p{{S}}to{{S}}date)|year{{S}}to{{S}}year|h(?:ead{{S}}to{{S}}head|ard{{S}}to{{S}}find|igh{{S}}quality|and{{S}}to{{S}}hand|ard{{S}}working|ard{{S}}to{{S}}use|igh{{S}}level|eavy{{S}}duty|igh{{S}}speed|igh{{S}}risk|ome{{S}}work|igh{{S}}end|ands{{S}}on)|g(?:o{{S}}to{{S}}market|ood{{S}}looking|o{{S}}to)|ill{{S}}advised|k(?:now{{S}}it{{S}}all|nife{{S}}edge)|zero{{S}}day){{E}}"
         check: englishClosedCompounds
-        fixer: compoundArticleModifier
+        let:
+          key: target.toLowerCase().split(/\s+/).join(" ")
+          following: compoundNextWord(ctx, m.index + m[0].length)
+          noun: COMPOUND_ARTICLE_NOUNS[key]
+          # "so called because", "the state of the art.": a modifier needs its noun. "an
+          # easy to use, friendly tool": a comma between two modifiers.
+          listed: '/^(?:easy|simple|hard|difficult)/i.test(key) && ctx.text[m.index + m[0].length] === ","'
+        when:
+          - "noun ? !COMPOUND_OBJECT.test(following) : compoundNounNext(following) || listed"
+          # "the state of the art deals with": a verb may follow the noun phrase instead.
+          - '!(!noun && compoundInfo(following)?.verbs.some((v) => v.form === "third"))'
+          # "very hands on" is the adjective; "very" before another compound noun is not.
+          - '!(noun && /^(?:very|more|most|best)$/i.test(det) && key !== "hands on")'
+          # "the all time" after "of" is "of all time"; "all the hands on deck" names hands.
+          - '!(key === "all time" && !compoundNounNext(following))'
+          - "!compoundTitled(target)"
+        return: compoundClosed(ctx, m, noun ?? COMPOUND_ARTICLE_MODIFIERS[key])
       # Prefixes that are hyphenated before their word: "quasi judicial", "mid thirties", "pre 1995".
       - regex: "(?<target>(?<prefix>quasi|mid|pre|post|anti){{S}}(?<word>[\\p{L}\\p{N}]+)){{E}}"
         check: englishClosedCompounds
-        fixer: compoundPrefixed
+        let:
+          lower: prefix.toLowerCase()
+          range: group(m, "target")
+        when:
+          - COMPOUND_PREFIX_WORDS[lower]?.test(word)
+          - '!hasUserOrCasedWord(ctx, `${lower} ${/^\p{Lu}/u.test(word) ? "" : word}`)'
+        return: >-
+          ({ ruleId: "englishClosedCompounds", messageKey: "review_msg_closed_compound",
+            range: { start: range[0], end: range[1] },
+            alternatives: [`${target.slice(0, lower.length)}-${word}`],
+            context: { start: Math.max(0, m.index - 24), end: Math.min(ctx.text.length, range[1] + 24) } })
       - regex: "(?<target>ex{{S}}(?:{{COMPOUNDFORMS_EX_PEOPLE}})){{E}}"
         check: englishClosedCompounds
-        fixer: compoundExPartner
+        return: compoundClosed(ctx, m, compoundHyphenate(target))
   - id: en.dates
     checks: [englishDateConsistency]
     style: match
