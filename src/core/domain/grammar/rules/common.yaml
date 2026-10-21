@@ -6513,7 +6513,7 @@ rules:
         type: RawFinding[]
         return: "[...ownedMatches(ctx, new RegExp(CASING_WORDS))].flatMap((m) => canonicalCasingAt(m, ctx) ?? [])"
     frames:
-      # Each ASCII word: an explicit name in its canonical casing (review/canonicalCasing.ts).
+      # Each ASCII word: an explicit name in its canonical casing (the CANONICAL map above).
       - regex: "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])"
         scan: owned
         flags: gu
