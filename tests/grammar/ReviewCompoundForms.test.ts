@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
-import { COMPOUNDS } from "../../src/core/domain/grammar/review/english/compoundForms";
+import { table } from "../../src/core/domain/grammar/review/english/tables";
+
+const COMPOUNDS = table("compoundForms.compounds");
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import { scan as reviewScan, ALL_RULES } from "./reviewHarness";
 
-// english/compoundForms.ts: compound rows and slot frames. All sentences are our own.
+// en.yaml table compoundForms.compounds: compound rows and slot frames. All sentences are our own.
 const OWN = new Set(["englishClosedCompounds", "englishContextualCompounds"]);
 function scan(text: string): ReviewDiagnostic[] {
   return reviewScan(text, { enabledRules: ALL_RULES }).filter((d) => OWN.has(d.ruleId));

@@ -67,242 +67,30 @@ fragments:
 sets:
   # Never a pronoun: the genitive article, ein-words and possessives with a short ending, and the
   # preposition-article contractions.
-  ARTICLES:
-    [
-      des,
-      ein,
-      eine,
-      einen,
-      einem,
-      kein,
-      keine,
-      keinen,
-      keinem,
-      keinerlei,
-      mein,
-      meine,
-      meinen,
-      meinem,
-      dein,
-      deine,
-      deinen,
-      deinem,
-      sein,
-      seine,
-      seinen,
-      seinem,
-      ihre,
-      ihren,
-      ihrem,
-      unser,
-      unsere,
-      unseren,
-      unserem,
-      euer,
-      eure,
-      euren,
-      eurem,
-      am,
-      im,
-      zum,
-      zur,
-      beim,
-      vom,
-      ins,
-      ans,
-      aufs,
-      ums,
-      durchs,
-      fürs,
-      übers,
-      unters,
-      vors,
-      hinterm,
-      überm,
-      unterm,
-    ]
+  ARTICLES: >-
+    des ein eine einen einem kein keine keinen keinem keinerlei mein meine meinen meinem dein deine
+    deinen deinem sein seine seinen seinem ihre ihren ihrem unser unsere unseren unserem euer eure
+    euren eurem am im zum zur beim vom ins ans aufs ums durchs fürs übers unters vors hinterm überm
+    unterm
   # Articles and demonstratives that also stand alone as pronouns ("die kosten viel").
-  DEMONSTRATIVES:
-    [
-      der,
-      die,
-      das,
-      den,
-      dem,
-      dies,
-      diese,
-      dieser,
-      diesen,
-      diesem,
-      dieses,
-      jene,
-      jener,
-      jenen,
-      jenem,
-      jenes,
-      welche,
-      welcher,
-      welchen,
-      welchem,
-      welches,
-      solche,
-      solcher,
-      solchen,
-      solchem,
-      solches,
-    ]
-  PREPOSITIONS:
-    [
-      in,
-      an,
-      auf,
-      aus,
-      bei,
-      mit,
-      nach,
-      von,
-      vor,
-      zu,
-      für,
-      gegen,
-      ohne,
-      durch,
-      um,
-      über,
-      unter,
-      hinter,
-      neben,
-      zwischen,
-      seit,
-      wegen,
-      trotz,
-      während,
-      statt,
-      anstatt,
-      per,
-      pro,
-      laut,
-      gemäß,
-      dank,
-      samt,
-      bis,
-      ab,
-      außer,
-      innerhalb,
-      außerhalb,
-      oberhalb,
-      unterhalb,
-      mittels,
-      entlang,
-    ]
+  DEMONSTRATIVES: >-
+    der die das den dem dies diese dieser diesen diesem dieses jene jener jenen jenem jenes welche
+    welcher welchen welchem welches solche solcher solchen solchem solches
+  PREPOSITIONS: >-
+    in an auf aus bei mit nach von vor zu für gegen ohne durch um über unter hinter neben zwischen
+    seit wegen trotz während statt anstatt per pro laut gemäß dank samt bis ab außer innerhalb
+    außerhalb oberhalb unterhalb mittels entlang
   # Verbs that close a clause with a bare infinitive or a participle ("kannst du das ändern",
   # "diese habe ergeben").
-  VERB_GOVERNORS:
-    [
-      kann,
-      kannst,
-      können,
-      könnt,
-      konnte,
-      konnten,
-      könnte,
-      könnten,
-      muss,
-      musst,
-      müssen,
-      müsst,
-      musste,
-      mussten,
-      müsste,
-      müssten,
-      soll,
-      sollst,
-      sollen,
-      sollt,
-      sollte,
-      sollten,
-      will,
-      willst,
-      wollen,
-      wollt,
-      wollte,
-      wollten,
-      darf,
-      darfst,
-      dürfen,
-      dürft,
-      durfte,
-      durften,
-      dürfte,
-      dürften,
-      mag,
-      möchte,
-      möchtest,
-      möchten,
-      werde,
-      wirst,
-      wird,
-      werden,
-      werdet,
-      würde,
-      würdest,
-      würden,
-      wurde,
-      wurden,
-      worden,
-      lass,
-      lasse,
-      lässt,
-      lassen,
-      ließ,
-      tu,
-      tue,
-      tut,
-      tun,
-      brauchst,
-      braucht,
-      brauchen,
-      habe,
-      hast,
-      hat,
-      haben,
-      habt,
-      hatte,
-      hatten,
-      hätte,
-      hätten,
-      bin,
-      bist,
-      ist,
-      sind,
-      seid,
-      war,
-      waren,
-      wäre,
-      wären,
-      sei,
-      konntest,
-      könntest,
-      könntet,
-      solltest,
-      solltet,
-      müsstest,
-      müsstet,
-      musstest,
-      wolltest,
-      wolltet,
-      dürftest,
-      dürftet,
-      durftest,
-      magst,
-      mögt,
-      mögen,
-      mochte,
-      mochten,
-      möchtet,
-      würdet,
-      wurdest,
-    ]
+  VERB_GOVERNORS: >-
+    kann kannst können könnt konnte konnten könnte könnten muss musst müssen müsst musste mussten
+    müsste müssten soll sollst sollen sollt sollte sollten will willst wollen wollt wollte wollten
+    darf darfst dürfen dürft durfte durften dürfte dürften mag möchte möchtest möchten werde wirst
+    wird werden werdet würde würdest würden wurde wurden worden lass lasse lässt lassen ließ tu tue
+    tut tun brauchst braucht brauchen habe hast hat haben habt hatte hatten hätte hätten bin bist
+    ist sind seid war waren wäre wären sei konntest könntest könntet solltest solltet müsstest
+    müsstet musstest wolltest wolltet dürftest dürftet durftest magst mögt mögen mochte mochten
+    möchtet würdet wurdest
   # Personal and reflexive pronouns.
   PRONOUNS: [ich, du, er, sie, es, wir, ihr, man, sich, mich, dich, uns, euch, mir, dir]
 defs:
@@ -372,14 +160,10 @@ defs:
       replacements: "[fixed].flat().filter((r) => r !== typed)"
     when: replacements.length > 0
     return: >-
-      remember(IDIOM_FINDINGS, {
-        ruleId: "germanNounCasing",
-        messageKey: frame.messageKey,
-        range: { start: span[0], end: span[1] },
-        alternatives: replacements,
+      remember(IDIOM_FINDINGS, finding("germanNounCasing", frame.messageKey, span[0], span[1], replacements, {
         ...(replacements.length > 1 ? { requiresChoice: true as const } : {}),
         context: { start: Math.max(0, span[0] - 40), end: Math.min(ctx.text.length, span[1] + 40) },
-      })
+      }))
   # "die erste, die zweite und …", "die erste, das Gebiet umfassende …": an ordinal before a
   # relative pronoun of its gender is a noun unless an enumeration, an attribute or a noun earlier
   # in the sentence ("Von den Zügen ist der erste, der …") follows or comes before.
@@ -411,270 +195,47 @@ rules:
     sets:
       # Particles of separable verbs; "um" and "mit" are left out ("um zu gehen" is "in order to
       # go"), and "zu" ("zu zu muten") needs the joined verb to be known like the others.
-      COMPOUND_PARTICLES:
-        [
-          ab,
-          an,
-          auf,
-          aus,
-          bei,
-          ein,
-          fest,
-          fort,
-          her,
-          herab,
-          heran,
-          herauf,
-          heraus,
-          herbei,
-          herein,
-          herüber,
-          herum,
-          herunter,
-          hervor,
-          hin,
-          hinab,
-          hinauf,
-          hinaus,
-          hinein,
-          hinüber,
-          hinunter,
-          hinweg,
-          los,
-          nach,
-          nieder,
-          vor,
-          voran,
-          voraus,
-          vorbei,
-          vorüber,
-          weg,
-          weiter,
-          wieder,
-          zurück,
-          zusammen,
-          zu,
-          bereit,
-          statt,
-          teil,
-          kennen,
-          fertig,
-          frei,
-          zufrieden,
-          wohl,
-          hoch,
-          dar,
-          empor,
-          entgegen,
-          unter,
-          zurecht,
-        ]
+      COMPOUND_PARTICLES: >-
+        ab an auf aus bei ein fest fort her herab heran herauf heraus herbei herein herüber herum
+        herunter hervor hin hinab hinauf hinaus hinein hinüber hinunter hinweg los nach nieder vor
+        voran voraus vorbei vorüber weg weiter wieder zurück zusammen zu bereit statt teil kennen
+        fertig frei zufrieden wohl hoch dar empor entgegen unter zurecht
       # Adverbs ending in -t, unlike the finite verbs whose particle comes next ("fängt an zu").
-      NOT_FINITE:
-        [
-          nicht,
-          jetzt,
-          erst,
-          oft,
-          fast,
-          meist,
-          zuletzt,
-          sonst,
-          selbst,
-          gut,
-          recht,
-          weit,
-          halt,
-          damit,
-          dort,
-          mit,
-          seit,
-          womit,
-          somit,
-          leicht,
-          vielleicht,
-          direkt,
-          exakt,
-        ]
+      NOT_FINITE: >-
+        nicht jetzt erst oft fast meist zuletzt sonst selbst gut recht weit halt damit dort mit seit
+        womit somit leicht vielleicht direkt exakt
       # Words that make the particle part of another phrase: "den weg", "gerade aus", "da nach",
       # "immer hin", "außen vor", "all zu".
-      NOT_PARTICLE_AFTER:
-        [
-          der,
-          die,
-          das,
-          den,
-          dem,
-          des,
-          ein,
-          eine,
-          einen,
-          einem,
-          einer,
-          eines,
-          kein,
-          keine,
-          keinen,
-          keinem,
-          mein,
-          meinen,
-          meinem,
-          dein,
-          deinen,
-          deinem,
-          sein,
-          seinen,
-          seinem,
-          ihren,
-          ihrem,
-          unseren,
-          unserem,
-          gerade,
-          da,
-          hier,
-          wo,
-          dort,
-          all,
-          immer,
-          außen,
-          bergauf,
-          bergab,
-        ]
+      NOT_PARTICLE_AFTER: >-
+        der die das den dem des ein eine einen einem einer eines kein keine keinen keinem mein
+        meinen meinem dein deinen deinem sein seinen seinem ihren ihrem unseren unserem gerade da
+        hier wo dort all immer außen bergauf bergab
       # Particles no main verb leaves right before a zu-infinitive ("Er fängt an zu laufen", "Sie
       # hat vor zu gehen" do), so they open the infinitive with no comma: "kein Grund los zu
       # brüllen", "Ist es gut unter zu gehen?".
-      CLAUSE_PARTICLES:
-        [
-          herab,
-          heran,
-          herauf,
-          heraus,
-          herbei,
-          herein,
-          herüber,
-          herum,
-          herunter,
-          hervor,
-          hinab,
-          hinauf,
-          hinaus,
-          hinein,
-          hinüber,
-          hinunter,
-          hinweg,
-          los,
-          unter,
-          nieder,
-          empor,
-          zurecht,
-          zu,
-        ]
+      CLAUSE_PARTICLES: >-
+        herab heran herauf heraus herbei herein herüber herum herunter hervor hinab hinauf hinaus
+        hinein hinüber hinunter hinweg los unter nieder empor zurecht zu
       # Forms of "sein", which takes no particle ("ist kein Grund los zu brüllen").
       COMPOUND_COPULAS: [ist, sind, war, waren, bin, bist, seid, wäre, wären, sei]
       # Verbs that take a noun after "zum" or "beim" as a fixed phrase ("zum Ausdruck bringen",
       # "beim Wort nehmen", "zum Opfer fallen").
-      COMPOUND_LIGHT_VERBS:
-        [
-          bringen,
-          kommen,
-          stellen,
-          nehmen,
-          machen,
-          haben,
-          werden,
-          fallen,
-          führen,
-          gelangen,
-          setzen,
-          ziehen,
-          rufen,
-          zwingen,
-          bewegen,
-          dienen,
-          geben,
-          halten,
-          nennen,
-          treiben,
-          reichen,
-          schicken,
-        ]
+      COMPOUND_LIGHT_VERBS: >-
+        bringen kommen stellen nehmen machen haben werden fallen führen gelangen setzen ziehen rufen
+        zwingen bewegen dienen geben halten nennen treiben reichen schicken
       # Full verbs that take a bare infinitive of their own ("Wir fahren zum Hafen angeln", "Sie
       # lernt beim Meister kochen").
-      COMPOUND_BARE_VERBS:
-        [
-          gehen,
-          fahren,
-          kommen,
-          laufen,
-          lassen,
-          sehen,
-          hören,
-          fühlen,
-          spüren,
-          bleiben,
-          lernen,
-          lehren,
-          helfen,
-          schicken,
-          legen,
-          sein,
-        ]
+      COMPOUND_BARE_VERBS: >-
+        gehen fahren kommen laufen lassen sehen hören fühlen spüren bleiben lernen lehren helfen
+        schicken legen sein
       # Adjectives that take no ending ("ein lila Kleid", "eine super Idee") or that make a fixed
       # phrase with a noun ("ein wenig Zeit", "ein gut Stück"), and adverbs that the dictionary
       # also lists as adjectives ("Die erst Mitte Mai gefundene …").
-      PAIR_UNINFLECTED:
-        [
-          lila,
-          rosa,
-          pink,
-          beige,
-          orange,
-          oliv,
-          super,
-          klasse,
-          prima,
-          spitze,
-          extra,
-          top,
-          mega,
-          okay,
-          live,
-          online,
-          offline,
-          cool,
-          fair,
-          gratis,
-          egal,
-          pleite,
-          schuld,
-          quitt,
-          wenig,
-          viel,
-          mehr,
-          genug,
-          ganz,
-          gut,
-          klein,
-          halt,
-          solch,
-          welch,
-          manch,
-          paar,
-          bisschen,
-          recht,
-          echt,
-          voll,
-          erst,
-          sicher,
-          natürlich,
-          wirklich,
-          ziemlich,
-          bestimmt,
-          eben,
-          kaum,
-          fast,
-          gleich,
-        ]
+      PAIR_UNINFLECTED: >-
+        lila rosa pink beige orange oliv super klasse prima spitze extra top mega okay live online
+        offline cool fair gratis egal pleite schuld quitt wenig viel mehr genug ganz gut klein halt
+        solch welch manch paar bisschen recht echt voll erst sicher natürlich wirklich ziemlich
+        bestimmt eben kaum fast gleich
     maps:
       EMAIL_FORMS: { Emails: E-Mails, E-Mailadresse: E-Mail-Adresse }
     defs:
@@ -690,8 +251,9 @@ rules:
           span: m.indices!.groups!.target
         when: "!!replacement && replacement !== typed && !ctx.dictionary.has(typed.toLowerCase())"
         return: >-
-          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
-          alternatives: [deLikeTyped(typed, replacement)], context: { start: Math.max(0, span[0] - 40), end: span[1] + 20 } })
+          finding("germanCompounds", "review_msg_closed_compound", span[0], span[1], [deLikeTyped(typed, replacement)], {
+            context: { start: Math.max(0, span[0] - 40), end: span[1] + 20 },
+          })
       # "-adresse" → "-Adresse", "s" stays.
       emailRest:
         args: "rest: string | undefined"
@@ -839,8 +401,9 @@ rules:
           - "!ctx.dictionary.has(first) && !ctx.dictionary.has(low)"
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: m.index, end: stop },
-          alternatives: [first[0].toUpperCase() + first.slice(1) + low], context: { start: Math.max(0, m.index - 40), end: stop + 20 } })
+          finding("germanCompounds", "review_msg_closed_compound", m.index, stop, [first[0].toUpperCase() + first.slice(1) + low], {
+            context: { start: Math.max(0, m.index - 40), end: stop + 20 },
+          })
       # A word of the chunk: the compound it opens, split by a space. Both parts German nouns or
       # opening parts ("Joint Venture", "Game Boys" stay English). "Abfahrts", "Regenerierungs": a
       # word with this linking -s stands in no other place, so the compound needs no lookup
@@ -887,8 +450,9 @@ rules:
             : noun || fused || germanAdjective(low) || PAIR_STEMS.test(low) || pairLinked(low)
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: m.index, end: stop },
-          alternatives: [first + second.toLowerCase()], context: { start: Math.max(0, m.index - 40), end: stop + 20 } })
+          finding("germanCompounds", "review_msg_closed_compound", m.index, stop, [first + second.toLowerCase()], {
+            context: { start: Math.max(0, m.index - 40), end: stop + 20 },
+          })
     frames:
       # "Ich bin ihm über den weggelaufen", "aus dem weggehen": "über den Weg laufen", "aus dem
       # Weg gehen" split the noun from the verb.
@@ -1141,9 +705,10 @@ rules:
         args: 'start: number, end: number, alternatives: string[], key: RawFinding["messageKey"]'
         type: RawFinding
         return: >-
-          ({ ruleId: "germanDates", messageKey: key, range: { start, end }, alternatives,
-          ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanDates", key, start, end, alternatives, {
+            ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # The weekday the date has, or the nearest date with the weekday typed: only the weekday and
       # the day change, so the range ends after the day.
       weekdayFix:
@@ -1251,451 +816,85 @@ rules:
       return: "findings.filter((f) => !NOUN_FINDINGS.has(f) || !nounEnds.has(blankStart(ctx.text, f.range.start)))"
     sets:
       # Determiners that are as often a whole noun phrase: "keiner macht", "alle liefen".
-      NC_QUANTIFIERS:
-        [
-          alle,
-          allen,
-          aller,
-          alles,
-          viele,
-          vielen,
-          vieler,
-          einige,
-          einigen,
-          einiger,
-          mehrere,
-          mehreren,
-          beide,
-          beiden,
-          wenige,
-          wenigen,
-          andere,
-          anderen,
-          meisten,
-          manche,
-          mancher,
-          manchen,
-          manchem,
-          manches,
-          jede,
-          jeder,
-          jeden,
-          jedem,
-          jedes,
-          einer,
-          eines,
-          keiner,
-          keines,
-          meiner,
-          meines,
-          deiner,
-          deines,
-          seiner,
-          seines,
-          ihrer,
-          ihres,
-          unserer,
-          unseres,
-          eurer,
-          eures,
-          ihr,
-        ]
-      NC_NUMBERS:
-        [
-          zwei,
-          drei,
-          vier,
-          fünf,
-          sechs,
-          sieben,
-          acht,
-          neun,
-          zehn,
-          elf,
-          zwölf,
-          zwanzig,
-          dreißig,
-          hundert,
-          tausend,
-        ]
+      NC_QUANTIFIERS: >-
+        alle allen aller alles viele vielen vieler einige einigen einiger mehrere mehreren beide
+        beiden wenige wenigen andere anderen meisten manche mancher manchen manchem manches jede
+        jeder jeden jedem jedes einer eines keiner keines meiner meines deiner deines seiner seines
+        ihrer ihres unserer unseres eurer eures ihr
+      NC_NUMBERS: >-
+        zwei drei vier fünf sechs sieben acht neun zehn elf zwölf zwanzig dreißig hundert tausend
       # Lowercase words with an adjective ending that are not adjectives.
-      NC_NOT_ADJECTIVES:
-        [
-          gerne,
-          alleine,
-          lange,
-          heute,
-          ohne,
-          ferne,
-          nahe,
-          gestern,
-          morgen,
-          oben,
-          unten,
-          außen,
-          innen,
-          hinten,
-          vorne,
-          zusammen,
-          trotzdem,
-          seitdem,
-          außerdem,
-          ebenso,
-          eben,
-          wieder,
-          immer,
-          nimmer,
-          sondern,
-          aber,
-          oder,
-          weder,
-          später,
-          früher,
-          näher,
-          weiter,
-          selten,
-          offen,
-          gegen,
-          neben,
-          unter,
-          hinter,
-          über,
-          wider,
-          bisschen,
-          ihnen,
-          denen,
-          deren,
-          dessen,
-          wessen,
-          habe,
-          hatte,
-          hätte,
-          werde,
-          wurde,
-          würde,
-          wäre,
-          sei,
-          könne,
-          müsse,
-          solle,
-          wolle,
-          dürfe,
-          möge,
-          wisse,
-          gebe,
-          hier,
-          eher,
-          gerade,
-        ]
+      NC_NOT_ADJECTIVES: >-
+        gerne alleine lange heute ohne ferne nahe gestern morgen oben unten außen innen hinten vorne
+        zusammen trotzdem seitdem außerdem ebenso eben wieder immer nimmer sondern aber oder weder
+        später früher näher weiter selten offen gegen neben unter hinter über wider bisschen ihnen
+        denen deren dessen wessen habe hatte hätte werde wurde würde wäre sei könne müsse solle
+        wolle dürfe möge wisse gebe hier eher gerade
       # The finite verb after a sentence-initial noun phrase ("Der zugriff wurde …").
-      NC_AUXILIARIES:
-        [
-          ist,
-          sind,
-          war,
-          waren,
-          wird,
-          werden,
-          wurde,
-          wurden,
-          hat,
-          haben,
-          hatte,
-          hatten,
-          kann,
-          können,
-          konnte,
-          konnten,
-          muss,
-          müssen,
-          musste,
-          mussten,
-          soll,
-          sollen,
-          sollte,
-          sollten,
-          will,
-          wollen,
-          wollte,
-          wollten,
-          darf,
-          dürfen,
-          durfte,
-          durften,
-          mag,
-          möchte,
-          möchten,
-          würde,
-          würden,
-          wäre,
-          wären,
-          sei,
-          seien,
-          hätte,
-          hätten,
-          bleibt,
-          blieb,
-          gibt,
-          gab,
-        ]
+      NC_AUXILIARIES: >-
+        ist sind war waren wird werden wurde wurden hat haben hatte hatten kann können konnte
+        konnten muss müssen musste mussten soll sollen sollte sollten will wollen wollte wollten
+        darf dürfen durfte durften mag möchte möchten würde würden wäre wären sei seien hätte hätten
+        bleibt blieb gibt gab
       NC_COORDINATORS: [und, oder, sowie, bzw]
       # Genitive determiners after a noun ("der angriff des Gegners"); "der", "meiner" are also
       # datives ("Diese stellen meiner Frau Wein").
       NC_GENITIVES: [des, eines, meines, deines, seines, unseres, eures, dieses, jenes]
       NC_DEGREE_WORDS: [wirklich, sehr, ganz, ziemlich, besonders, äußerst, echt, total, so, recht]
-      NC_CLAUSE_LINKS:
-        [
-          und,
-          oder,
-          aber,
-          denn,
-          doch,
-          sondern,
-          dass,
-          weil,
-          ob,
-          wenn,
-          als,
-          obwohl,
-          damit,
-          bevor,
-          nachdem,
-          während,
-          bis,
-          falls,
-          sobald,
-          solange,
-          da,
-          wie,
-          wo,
-          was,
-          wer,
-          sodass,
-        ]
+      NC_CLAUSE_LINKS: >-
+        und oder aber denn doch sondern dass weil ob wenn als obwohl damit bevor nachdem während bis
+        falls sobald solange da wie wo was wer sodass
       # Genitive or dative determiners after a noun ("die Grenzen meiner Sprache").
-      NC_GENITIVE_LIKE:
-        [
-          von,
-          vom,
-          der,
-          des,
-          dieser,
-          dieses,
-          jener,
-          jenes,
-          meiner,
-          meines,
-          deiner,
-          deines,
-          seiner,
-          seines,
-          ihrer,
-          ihres,
-          unserer,
-          unseres,
-          eurer,
-          eures,
-          einer,
-          eines,
-        ]
+      NC_GENITIVE_LIKE: >-
+        von vom der des dieser dieses jener jenes meiner meines deiner deines seiner seines ihrer
+        ihres unserer unseres eurer eures einer eines
       # Nouns that end a clause as the particle of a separable verb: "er steht kopf", "sie gibt
       # nichts preis", "das findet statt", "er hält stand".
-      NC_VERB_PARTICLE_NOUNS:
-        [kopf, preis, statt, stand, eis, haus, hof, maß, not, acht, kehrt, hohn]
+      NC_VERB_PARTICLE_NOUNS: >-
+        kopf preis statt stand eis haus hof maß not acht kehrt hohn
       # Object pronouns before a demonstrative that is the article of an object ("mir die treue").
-      NC_OBJECT_PRONOUNS:
-        [mir, dir, ihm, ihr, uns, euch, ihnen, sich, sie, es, er, wir, ich, du, man]
+      NC_OBJECT_PRONOUNS: >-
+        mir dir ihm ihr uns euch ihnen sich sie es er wir ich du man
       NC_HABEN: [habe, hast, hat, haben, habt, hatte, hattest, hatten, hattet, hätte, hätten]
       NC_SECOND_EXCEPTIONS: [halt, stand, statt, teil, preis, acht]
       # Lowercase words the dictionary lists only as nouns that are also adverbs ("wir sind zuhause").
       NC_BARE_EXCEPTIONS: [zuhause, topp]
       NC_VERB_PARTICLES: [los, ab, an, auf, aus, ein, mit, vor, weg, zu, zurück, hin, her, fest]
       # Frequent German function words that are no noun, adjective or verb form.
-      NC_FUNCTION_WORDS:
-        [
-          nicht,
-          auch,
-          noch,
-          schon,
-          nur,
-          viel,
-          wenig,
-          mehr,
-          genug,
-          etwas,
-          nichts,
-          kein,
-          gern,
-          gerne,
-          bitte,
-          immer,
-          wieder,
-          dann,
-          jetzt,
-          heute,
-          hier,
-          da,
-          dort,
-          ja,
-          doch,
-          mal,
-          gerade,
-          nie,
-          oft,
-          ihm,
-          ihnen,
-          ihn,
-          uns,
-          euch,
-          selbst,
-          bloß,
-          eben,
-          halt,
-          wohl,
-          kaum,
-          fast,
-          sogar,
-          gar,
-          ganz,
-          endlich,
-          bereits,
-          meist,
-          erst,
-          zuerst,
-        ]
+      NC_FUNCTION_WORDS: >-
+        nicht auch noch schon nur viel wenig mehr genug etwas nichts kein gern gerne bitte immer
+        wieder dann jetzt heute hier da dort ja doch mal gerade nie oft ihm ihnen ihn uns euch
+        selbst bloß eben halt wohl kaum fast sogar gar ganz endlich bereits meist erst zuerst
       NC_MAIN_CLAUSE_LINKS: [und, oder, aber, denn, doch, sondern]
-      NC_SUBORDINATORS:
-        [dass, weil, wenn, ob, obwohl, damit, nachdem, bevor, falls, sobald, solange, sodass]
-      NC_WH_WORDS:
-        [
-          wie,
-          wo,
-          was,
-          wer,
-          wen,
-          wem,
-          wann,
-          warum,
-          weshalb,
-          wieso,
-          weswegen,
-          wohin,
-          woher,
-          womit,
-          wodurch,
-          worauf,
-          woran,
-          worüber,
-          wofür,
-        ]
+      NC_SUBORDINATORS: >-
+        dass weil wenn ob obwohl damit nachdem bevor falls sobald solange sodass
+      NC_WH_WORDS: >-
+        wie wo was wer wen wem wann warum weshalb wieso weswegen wohin woher womit wodurch worauf
+        woran worüber wofür
       # Words in the noun-or-adjective list that are function words or particles here: "sein",
       # "ein", "unter", "weiß" (knows), "fern" (sieht fern), "klein" (sieht klein aus).
-      NC_EITHER_EXCEPTIONS:
-        [weiß, fern, fest, frei, klein, groß, dicht, nah, nahe, hoch, tief, weit]
+      NC_EITHER_EXCEPTIONS: >-
+        weiß fern fest frei klein groß dicht nah nahe hoch tief weit
       # Comparatives used as adverbs before a particle or adjective ("lieber fern").
       NC_ADVERB_COMPARATIVES: [lieber, eher, besser, mehr, weniger, länger, weiter, öfter]
       # Lowercase is standard or allowed: "am besten", "die meisten", "alles andere", "etwas
       # mehr", "ohne weiteres", "bei weitem".
-      NOMINAL_LOWERCASE_OK:
-        [
-          anderen,
-          andere,
-          anderes,
-          einen,
-          einzige,
-          einzigen,
-          meisten,
-          wenigsten,
-          mindesten,
-          ganzen,
-          beiden,
-          weiteres,
-          mehr,
-          weniger,
-          viele,
-          vieles,
-          einiges,
-          solches,
-          folgendes,
-          mögliche,
-          dasselbe,
-          denselben,
-          demselben,
-          letzten,
-          nächsten,
-          ersten,
-          selben,
-          selbigen,
-          gleichen,
-        ]
+      NOMINAL_LOWERCASE_OK: >-
+        anderen andere anderes einen einzige einzigen meisten wenigsten mindesten ganzen beiden
+        weiteres mehr weniger viele vieles einiges solches folgendes mögliche dasselbe denselben
+        demselben letzten nächsten ersten selben selbigen gleichen
       # Words in -es that are determiners or pronouns, not adjectives.
-      NOMINAL_NOT_NEUTER:
-        [
-          alles,
-          etwas,
-          nichts,
-          dieses,
-          jenes,
-          welches,
-          manches,
-          solches,
-          folgendes,
-          vieles,
-          weniges,
-          anderes,
-          einiges,
-          beides,
-          jedes,
-          keines,
-          meines,
-          deines,
-          seines,
-          ihres,
-          unseres,
-          eures,
-          eines,
-          dasselbe,
-        ]
-      NOMINAL_DEGREE:
-        [sehr, ganz, wirklich, total, allzu, besonders, ziemlich, richtig, echt, so, recht, selbst]
+      NOMINAL_NOT_NEUTER: >-
+        alles etwas nichts dieses jenes welches manches solches folgendes vieles weniges anderes
+        einiges beides jedes keines meines deines seines ihres unseres eures eines dasselbe
+      NOMINAL_DEGREE: >-
+        sehr ganz wirklich total allzu besonders ziemlich richtig echt so recht selbst
       # Words before a name or a title: "heißt Fröhlich", "und Ehrlich".
-      NAME_CUES:
-        [
-          heißt,
-          heiße,
-          heißen,
-          hieß,
-          hießen,
-          nennt,
-          nannte,
-          genannt,
-          namens,
-          titel,
-          und,
-          oder,
-          sowie,
-          bzw,
-          von,
-        ]
+      NAME_CUES: >-
+        heißt heiße heißen hieß hießen nennt nannte genannt namens titel und oder sowie bzw von
       CAPITAL_PARTICLES: [aus, vor, an, ab, zu]
-      CAPITAL_SUBORDINATORS:
-        [
-          weil,
-          dass,
-          wenn,
-          während,
-          ob,
-          als,
-          obwohl,
-          damit,
-          bevor,
-          nachdem,
-          sobald,
-          falls,
-          da,
-          seit,
-          seitdem,
-        ]
+      CAPITAL_SUBORDINATORS: >-
+        weil dass wenn während ob als obwohl damit bevor nachdem sobald falls da seit seitdem
       # Names of two adjectives and a noun, each adjective capitalized.
       NAME_TRIPLES:
         [
@@ -1707,48 +906,14 @@ rules:
         ]
       # Adjective and noun pairs that are no names, so the adjective stays lowercase inside a
       # sentence: "grüner Tee", "künstliche Intelligenz", "mit freundlichen Grüßen".
-      LOWER_PAIRS:
-        [
-          grün:Tee,
-          schwarz:Tee,
-          klein:Einmaleins,
-          groß:Einmaleins,
-          olympisch:Feuer,
-          linear:Algebra,
-          analytisch:Geometrie,
-          englisch:Rasen,
-          künstlich:Intelligenz,
-          sozial:Netzwerk,
-          sozial:Netzwerke,
-          sozial:Medien,
-          erneuerbar:Energien,
-          erneuerbar:Energie,
-          öffentlich:Dienst,
-          mittler:Reife,
-          rot:Faden,
-          kalt:Buffet,
-          höher:Gewalt,
-          freundlich:Grüße,
-          freundlich:Grüßen,
-          herzlich:Grüße,
-          herzlich:Grüßen,
-          lieb:Grüße,
-          lieb:Grüßen,
-          best:Grüße,
-          best:Grüßen,
-          neu:Jahr,
-          recht:Winkel,
-          spitz:Winkel,
-          stumpf:Winkel,
-          offen:Tür,
-          elektrisch:Feld,
-          elektrisch:Feldstärke,
-          elektrisch:Strom,
-          magnetisch:Feld,
-          mittler:Bildungsabschluss,
-          mittler:Bildungsabschlüsse,
-          gesund:Menschenverstand,
-        ]
+      LOWER_PAIRS: >-
+        grün:Tee schwarz:Tee klein:Einmaleins groß:Einmaleins olympisch:Feuer linear:Algebra
+        analytisch:Geometrie englisch:Rasen künstlich:Intelligenz sozial:Netzwerk sozial:Netzwerke
+        sozial:Medien erneuerbar:Energien erneuerbar:Energie öffentlich:Dienst mittler:Reife
+        rot:Faden kalt:Buffet höher:Gewalt freundlich:Grüße freundlich:Grüßen herzlich:Grüße
+        herzlich:Grüßen lieb:Grüße lieb:Grüßen best:Grüße best:Grüßen neu:Jahr recht:Winkel
+        spitz:Winkel stumpf:Winkel offen:Tür elektrisch:Feld elektrisch:Feldstärke elektrisch:Strom
+        magnetisch:Feld mittler:Bildungsabschluss mittler:Bildungsabschlüsse gesund:Menschenverstand
     maps:
       # Stems of irregular comparatives and superlatives: "beste", "besseres", "höchste", "nächste".
       NOMINAL_IRREGULAR: { be: gut, besser: gut, höch: hoch, näch: nah }
@@ -1793,8 +958,9 @@ rules:
           word: '/^\p{L}+/u.exec(ctx.text.slice(start))?.[0] ?? ""'
         when: '/^\p{Ll}/u.test(word) && !ctx.dictionary.has(word) && !namedExampleBefore(ctx.text, start)'
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_name_case", range: { start, end: start + 1 },
-          alternatives: [word[0].toUpperCase()], context })
+          finding("germanNounCasing", "review_msg_german_name_case", start, start + 1, [word[0].toUpperCase()], {
+            context,
+          })
       capitalStemVerb:
         args: "stem: string"
         return: stem.length >= 2 && (germanInfinitive(`${stem}en`) || germanInfinitive(`${stem}n`))
@@ -1898,8 +1064,9 @@ rules:
             (nextNoun === "infinitive" && name === "target" && !governedBefore(before, before.length)))
           - "!namedExampleBefore(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_noun_case", range: { start, end: start + 1 },
-          alternatives: [typed[0].toUpperCase()], context: { start: m.index, end } })
+          finding("germanNounCasing", "review_msg_german_noun_case", start, start + 1, [typed[0].toUpperCase()], {
+            context: { start: m.index, end },
+          })
       NC_NOMINALIZING: '/(?<![\p{L}\p{N}])(?:beim|zum|vom|ins)[ \t]+$/iu'
       # "ein klopfen erfüllte den Raum", "kein zurückweichen.": an infinitive after a neuter
       # ein-word, before the clause's end, its verb or a preposition, is a noun; not before "zu",
@@ -2367,9 +1534,9 @@ rules:
             : !(reading !== "noun" && (ncAttributive(next) || !ncNounReadingHolds(reading, typed, found.kind, before, found.at, after)))
           - "!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index)"
         return: >-
-          remember(NOUN_FINDINGS, { ruleId: "germanNounCasing", messageKey: "review_msg_german_noun_case",
-          range: { start: m.index, end: m.index + 1 }, alternatives: [typed[0].toUpperCase()],
-          context: { start: Math.max(0, m.index - 40), end } })
+          remember(NOUN_FINDINGS, finding("germanNounCasing", "review_msg_german_noun_case", m.index, m.index + 1, [typed[0].toUpperCase()], {
+            context: { start: Math.max(0, m.index - 40), end },
+          }))
       # A strong neuter adjective with no determiner and no noun after it is a noun: "Was gibt es
       # neues?", "Wir wagen neues.", "um schlimmeres zu verhindern". Each lowercase word in -es.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Ll}{2,}es(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
@@ -2400,8 +1567,9 @@ rules:
           - nextReading !== "noun" && nextReading !== "finite"
           - "!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_noun_case", range: { start: m.index, end: m.index + 1 },
-          alternatives: [typed[0].toUpperCase()], context: { start: Math.max(0, m.index - 40), end } })
+          finding("germanNounCasing", "review_msg_german_noun_case", m.index, m.index + 1, [typed[0].toUpperCase()], {
+            context: { start: Math.max(0, m.index - 40), end },
+          })
       # Adjectives used as nouns are capitalized: "im Freien", "zum Guten", "aufs Neue". Only where
       # no noun follows that the adjective could belong to ("im freien Feld" stays). Contractions:
       # "im klaren", "zum besseren", "ins reine", "aufs neue", "vom schlimmsten".
@@ -2502,8 +1670,9 @@ rules:
           - '!(/(?:isch|deutsch)$/.test(low) && next !== "vor")'
           - "!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_not_noun", range: { start: m.index, end: m.index + 1 },
-          alternatives: [typed[0].toLowerCase()], context: { start: Math.max(0, m.index - 40), end } })
+          finding("germanNounCasing", "review_msg_german_not_noun", m.index, m.index + 1, [typed[0].toLowerCase()], {
+            context: { start: Math.max(0, m.index - 40), end },
+          })
       # A finite verb capitalized after its subject pronoun: "Ich Koche heute.", "Wir Treffen uns
       # später.", "weil ich Arbeite,". The scan reads only the subject pronouns.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])(?:[iI][cC][hH]|[dD][uU]|[eE][rR]|[sS][iI][eE]|[eE][sS]|[wW][iI][rR])(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
@@ -2529,8 +1698,9 @@ rules:
           - "!(VERB_GOVERNORS.has(next) || (/en$/.test(low) && germanAdjective(low.slice(0, -2))))"
           - "!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_not_noun", range: { start, end: start + 1 },
-          alternatives: [typed[0].toLowerCase()], context: { start: m.index, end: start + typed.length } })
+          finding("germanNounCasing", "review_msg_german_not_noun", start, start + 1, [typed[0].toLowerCase()], {
+            context: { start: m.index, end: start + typed.length },
+          })
       # Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
       # Schuld", "im Ernst", "zum Dank") and a noun that is an adverb or adjective in it ("mir ist
       # es recht", "nach links", "ernst nehmen"). "das importieren der Klassen", "beim erstellen
@@ -3070,8 +2240,9 @@ rules:
           - '!(!lemma || start === 0 || /(?:^|[.!?:\n„“"»«])[ \t]*$/.test(before))'
           - "!ctx.dictionary.has(adj.toLowerCase()) && !namedExampleBefore(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_adjective_lowercase", range: { start, end: start + 1 },
-          alternatives: [adj[0].toLowerCase()], context: { start, end: m.index + m[0].length } })
+          finding("germanNounCasing", "review_msg_german_adjective_lowercase", start, start + 1, [adj[0].toLowerCase()], {
+            context: { start, end: m.index + m[0].length },
+          })
       # "Reich deutscher Nation": the genitive closes the name.
       - regex: "Reich(?:es|s)?{{S}}(?<target>deutscher){{S}}Nation{{E}}"
         flags: dgu
@@ -3096,14 +2267,15 @@ rules:
           - NAME_ALWAYS.has(pair) || NAME_DEFINITE.test(before)
           - "!ctx.dictionary.has(adj) && !namedExampleBefore(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_name_case", range: { start, end: start + 1 },
-          alternatives: [adj[0].toUpperCase()], context: { start: m.index, end: m.indices!.groups!.noun[1] } })
+          finding("germanNounCasing", "review_msg_german_name_case", start, start + 1, [adj[0].toUpperCase()], {
+            context: { start: m.index, end: m.indices!.groups!.noun[1] },
+          })
       # "Hallo Liebe Katja" → liebe: after a greeting the adjective is lowercase.
       - regex: "(?<=(?:^|\\n)[ \\t]{0,8}{{GREETING_WORDS}}[ \\t]{1,4})(?<adj>Lieb(?:e|er|es))(?=[ \\t]+\\p{Lu})"
         scan: owned
         flags: gu
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_idiom_case", range: { start: m.index, end: m.index + 1 }, alternatives: ["l"], context: { start: m.index, end: m.index + m[0].length } })
+          finding("germanNounCasing", "review_msg_german_idiom_case", m.index, m.index + 1, ["l"], { context: { start: m.index, end: m.index + m[0].length } })
       # A verb in -en right before a lowercase "sie": "Kommen sie bitte herein!" (the polite
       # imperative).
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>\\p{L}+en)[ \\t]+(?<sie>sie)(?![\\p{L}\\p{M}\\p{N}_-])"
@@ -3122,7 +2294,7 @@ rules:
           - >-
             politeOpens(before.at(-1)) || (/^(?:bitte|so|und|oder|aber|dann|jetzt|nun|doch|also)$/i.test(prior) && politeOpens(before.at(-2)))
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_polite_sie", range: { start, end: start + 1 }, alternatives: ["S"], context: { start: m.index, end: start + 3 } })
+          finding("germanNounCasing", "review_msg_german_polite_sie", start, start + 1, ["S"], { context: { start: m.index, end: start + 3 } })
   - id: de.prepositionCase
     checks: [germanPrepositionCase]
     style: match
@@ -3133,8 +2305,8 @@ rules:
       PREP_QUANTIFIER_STEMS: [all, and, viel, wenig, einig, beid, mehrer, sämtlich, ganz, jed]
       # ein-words take no ending in the masculine and neuter nominative ("ein", "mein", "unser").
       PREP_EIN_WORDS: [ein, kein, mein, dein, sein, ihr, unser, euer]
-      PREP_STEMS:
-        [ein, kein, mein, dein, sein, ihr, unser, eur, euer, dies, jen, jed, welch, solch, all]
+      PREP_STEMS: >-
+        ein kein mein dein sein ihr unser eur euer dies jen jed welch solch all
     maps:
       # The case each preposition governs.
       PREP_CASES:
@@ -3417,8 +2589,10 @@ rules:
         let:
           span: m.indices!.groups!.target
         return: >-
-          ({ ruleId: "germanPrepositionCase", messageKey: "review_msg_german_preposition_case", range: { start: span[0], end: span[1] },
-          alternatives: fix.replacements, context: { start: m.index, end: span[1] }, ...(fix.choice ? { requiresChoice: true as const } : {}) })
+          finding("germanPrepositionCase", "review_msg_german_preposition_case", span[0], span[1], fix.replacements, {
+            context: { start: m.index, end: span[1] },
+            ...(fix.choice ? { requiresChoice: true as const } : {}),
+          })
     frames:
       # The case a preposition governs, read from the article after it: "mit eine Freundin"
       # (dative: einer), "wegen dem Regen" (genitive: des Regens), "für deiner Mutter"
@@ -3561,51 +2735,12 @@ rules:
     message: review_msg_contextual_grammar
     sets:
       # Adjectives that comment on a "dass" clause after them: "Schön, dass du da bist".
-      THAT_ADJECTIVES:
-        [
-          gut,
-          schön,
-          super,
-          toll,
-          schade,
-          klasse,
-          prima,
-          wichtig,
-          komisch,
-          seltsam,
-          klar,
-          logisch,
-          merkwürdig,
-          erstaunlich,
-          interessant,
-          traurig,
-          spannend,
-          praktisch,
-          blöd,
-          ärgerlich,
-        ]
+      THAT_ADJECTIVES: >-
+        gut schön super toll schade klasse prima wichtig komisch seltsam klar logisch merkwürdig
+        erstaunlich interessant traurig spannend praktisch blöd ärgerlich
       # Adverbs after "da" + preposition that show the pronominal adverb: "da nach nicht" (danach).
-      DA_ADVERBS:
-        [
-          nicht,
-          auch,
-          noch,
-          schon,
-          gar,
-          kaum,
-          nie,
-          nur,
-          immer,
-          sofort,
-          bitte,
-          doch,
-          ja,
-          selbst,
-          wohl,
-          eben,
-          erst,
-          bald,
-        ]
+      DA_ADVERBS: >-
+        nicht auch noch schon gar kaum nie nur immer sofort bitte doch ja selbst wohl eben erst bald
     maps:
       SEIN_FOR:
         {
@@ -4528,284 +3663,44 @@ rules:
     sets:
       # Adjective lemmas that also work as adverbs before a noun phrase ("ein völlig Fremder", "die
       # erst Mitte der 1920er erschienene"), and invariable ones.
-      ADJ_ADVERBIAL:
-        [
-          erst,
-          ganz,
-          gleich,
-          sehr,
-          recht,
-          fast,
-          viel,
-          wenig,
-          mehr,
-          weniger,
-          genug,
-          eben,
-          allein,
-          halb,
-          besonders,
-          ziemlich,
-          völlig,
-          ausgerechnet,
-          lila,
-          rosa,
-          prima,
-          super,
-          klasse,
-          sexy,
-          beige,
-          orange,
-          extra,
-          genügend,
-          maximal,
-          minimal,
-          hauptsächlich,
-        ]
+      ADJ_ADVERBIAL: >-
+        erst ganz gleich sehr recht fast viel wenig mehr weniger genug eben allein halb besonders
+        ziemlich völlig ausgerechnet lila rosa prima super klasse sexy beige orange extra genügend
+        maximal minimal hauptsächlich
       # Adjectives that often open a compound noun ("Rotwein", "Süßwasser", "Neuwagen"), and
       # superlative stems that only stand in one ("Mindestlohn", "Höchstform"): written apart
       # before a noun, the compound is offered too.
-      ADJ_COMPOUND_FIRST:
-        [
-          rot,
-          blau,
-          grün,
-          gelb,
-          schwarz,
-          grau,
-          braun,
-          bunt,
-          süß,
-          sauer,
-          bitter,
-          mager,
-          trocken,
-          weich,
-          hart,
-          frisch,
-          alt,
-          neu,
-          falsch,
-          klein,
-          groß,
-          hoch,
-          tief,
-          kurz,
-          voll,
-          leer,
-          fein,
-          echt,
-          mehrfach,
-          doppelt,
-          universal,
-          exklusiv,
-          alternativ,
-          brachial,
-          schwarzweiß,
-          best,
-          mindest,
-          höchst,
-          kleinst,
-          größt,
-          national,
-          zentral,
-          parallel,
-          rund,
-          warm,
-          kalt,
-          schwer,
-          frei,
-          direkt,
-          dunkel,
-          hell,
-          privat,
-          fertig,
-          nackt,
-          geheim,
-          negativ,
-          positiv,
-          komplett,
-          original,
-          gesamt,
-          total,
-          extrem,
-          flüssig,
-          fest,
-          eigen,
-          digital,
-          fremd,
-          passiv,
-          aktiv,
-          primär,
-          spezial,
-          normal,
-          initiativ,
-          pauschal,
-          regional,
-        ]
+      ADJ_COMPOUND_FIRST: >-
+        rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich hart frisch
+        alt neu falsch klein groß hoch tief kurz voll leer fein echt mehrfach doppelt universal
+        exklusiv alternativ brachial schwarzweiß best mindest höchst kleinst größt national zentral
+        parallel rund warm kalt schwer frei direkt dunkel hell privat fertig nackt geheim negativ
+        positiv komplett original gesamt total extrem flüssig fest eigen digital fremd passiv aktiv
+        primär spezial normal initiativ pauschal regional
       # The colour, taste and texture ones and the stems are no adverbs either, so they are checked
       # with no article before them ("trinkt rot Wein").
-      ADJ_COMPOUND_ALONE:
-        [
-          rot,
-          blau,
-          grün,
-          gelb,
-          schwarz,
-          grau,
-          braun,
-          bunt,
-          süß,
-          sauer,
-          bitter,
-          mager,
-          trocken,
-          weich,
-          brachial,
-          universal,
-          schwarzweiß,
-          best,
-          mindest,
-          höchst,
-          kleinst,
-          größt,
-          digital,
-          fremd,
-          gesamt,
-          flüssig,
-          passiv,
-          initiativ,
-          spezial,
-        ]
+      ADJ_COMPOUND_ALONE: >-
+        rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich brachial
+        universal schwarzweiß best mindest höchst kleinst größt digital fremd gesamt flüssig passiv
+        initiativ spezial
       # Adjectives that are also clause adverbs ("hat das sicher Potenzial").
-      ADJ_CLAUSE_ADVERBS:
-        [
-          sicher,
-          bestimmt,
-          wirklich,
-          echt,
-          total,
-          ganz,
-          voll,
-          komplett,
-          extrem,
-          direkt,
-          einfach,
-          gern,
-          oft,
-          selten,
-          gleich,
-          sofort,
-          kaum,
-          natürlich,
-          klar,
-          leicht,
-          schwer,
-          genau,
-          eigentlich,
-          ziemlich,
-          richtig,
-          absolut,
-          fast,
-          wahrscheinlich,
-          vielleicht,
-          tatsächlich,
-          ernsthaft,
-          ständig,
-          häufig,
-          frei,
-        ]
+      ADJ_CLAUSE_ADVERBS: >-
+        sicher bestimmt wirklich echt total ganz voll komplett extrem direkt einfach gern oft selten
+        gleich sofort kaum natürlich klar leicht schwer genau eigentlich ziemlich richtig absolut
+        fast wahrscheinlich vielleicht tatsächlich ernsthaft ständig häufig frei
       # Words the adjective filter accepts that are articles, prepositions or fixed in idioms.
-      ADJ_NOT_ADJECTIVES:
-        [
-          ein,
-          eine,
-          einer,
-          unter,
-          ober,
-          laut,
-          eigen,
-          inner,
-          äußer,
-          hinter,
-          vorder,
-          mittler,
-          weiß,
-          weiss,
-        ]
+      ADJ_NOT_ADJECTIVES: >-
+        ein eine einer unter ober laut eigen inner äußer hinter vorder mittler weiß weiss
       # Inflected words that are no adjective here: quantifiers, ordinals, pronouns; lemmas in -e
       # and colloquial invariable ones ("Das war spitze", "Das ist blöde").
-      ADJ_NOT_PREDICATIVE:
-        [
-          viele,
-          vielen,
-          wenige,
-          wenigen,
-          alle,
-          allen,
-          beide,
-          beiden,
-          einige,
-          einigen,
-          andere,
-          anderen,
-          manche,
-          erste,
-          ersten,
-          zweite,
-          dritte,
-          letzte,
-          letzten,
-          nächste,
-          nächsten,
-          meine,
-          deine,
-          seine,
-          ihre,
-          unsere,
-          eure,
-          keine,
-          gleiche,
-          gleichen,
-          selbe,
-          selben,
-          spitze,
-          klasse,
-          blöde,
-          irre,
-          öde,
-          feige,
-          träge,
-          rege,
-          trübe,
-          bange,
-          lose,
-          leise,
-          müde,
-          böse,
-        ]
-      ADJ_EMPTY_SUBJECT:
-        [
-          es,
-          hier,
-          dort,
-          dann,
-          danach,
-          nun,
-          jetzt,
-          heute,
-          morgen,
-          dabei,
-          dadurch,
-          damit,
-          zudem,
-          außerdem,
-          zuerst,
-          anschließend,
-          künftig,
-          bald,
-          oft,
-        ]
+      ADJ_NOT_PREDICATIVE: >-
+        viele vielen wenige wenigen alle allen beide beiden einige einigen andere anderen manche
+        erste ersten zweite dritte letzte letzten nächste nächsten meine deine seine ihre unsere
+        eure keine gleiche gleichen selbe selben spitze klasse blöde irre öde feige träge rege trübe
+        bange lose leise müde böse
+      ADJ_EMPTY_SUBJECT: >-
+        es hier dort dann danach nun jetzt heute morgen dabei dadurch damit zudem außerdem zuerst
+        anschließend künftig bald oft
     maps:
       # Determiner → the ending its adjective takes when the noun is singular.
       ADJ_ENDINGS:
@@ -4943,8 +3838,10 @@ rules:
         args: "m: RegExpExecArray, span: [number, number], fixes: string[]"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: span[0], end: span[1] },
-          alternatives: fixes, context: { start: m.index, end: span[1] }, ...(fixes.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", span[0], span[1], fixes, {
+            context: { start: m.index, end: span[1] },
+            ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # "Sie trinken lieber rot Wein", "kauft alt Gold": no article, a word that is no adverb.
       # "schwarz sehen", "rot sehen": a colour after the verb.
       adjectiveNoArticle:
@@ -4960,8 +3857,9 @@ rules:
           (ADJ_COMPOUND_ALONE.has(adj) || known) && !/^(?:seh|sieh|sah)/.test(low) && !noun.includes("-") &&
           /^\p{Ll}/u.test(m.groups!.det) && !ctx.dictionary.has(adj) && !ctx.dictionary.has(noun.toLowerCase())
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
-          alternatives: [glued], context: { start: m.index, end: span[1] } })
+          finding("germanAdjectiveForms", "review_msg_closed_compound", span[0], span[1], [glued], {
+            context: { start: m.index, end: span[1] },
+          })
       # An adjective with no ending after a determiner or a preposition. "aus weiß Gold": "weiß"
       # (knows) only where it joins the noun. "letzte", "erster": already inflected. "im
       # liebevoll Oma-Haus genannten Hof": an extended attribute before its noun; not a participle
@@ -4997,8 +3895,9 @@ rules:
           - "!(isPreposition && deTokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() === adj)"
         return: >-
           (listedJoin || (stemOnly && !adj.endsWith("e"))) && !noun.includes("-")
-          ? { ruleId: "germanAdjectiveForms", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
-          alternatives: [adj[0].toUpperCase() + compound.slice(1)], context: { start: m.index, end: span[1] } }
+          ? finding("germanAdjectiveForms", "review_msg_closed_compound", span[0], span[1], [adj[0].toUpperCase() + compound.slice(1)], {
+            context: { start: m.index, end: span[1] },
+          })
           : ADJ_ADVERBIAL.has(adj) || adjNominalized(noun) || !adjNounKnown(noun) || adj.endsWith("e") ? null
           : isPreposition ? adjectiveAfterPreposition(m, low, adj, noun, after, joinedNoun, glued, span)
           : adjectiveAfterArticle(ctx, m, det, low, adj, noun, joinedNoun, glued, span)
@@ -5116,8 +4015,7 @@ rules:
           - "!/[ns]$/.test(noun) || PREPOSITIONS.has(first) || ADJ_EMPTY_SUBJECT.has(first)"
           - "!ctx.dictionary.has(adj) && !namedExampleBefore(ctx.text, span[0])"
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: span[0], end: span[1] },
-          alternatives: [`${stem}e ${noun}`] })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", span[0], span[1], [`${stem}e ${noun}`])
       # The strong ending after an article that already shows the case: "im mentalem Lexikon"
       # (mentalen).
       - regex: "{{WG}}(?<det>[dD]em|[iI]m|[zZ]um|[vV]om|[bB]eim|[aA]m|[eE]inem|[mM]einem|[dD]einem|[sS]einem|[iI]hrem|[uU]nserem|[eE]urem|[dD]iesem|[jJ]edem|[kK]einem|[dD]es|[eE]ines|[mM]eines|[dD]eines|[sS]eines|[iI]hres|[uU]nseres|[eE]ures|[dD]ieses|[jJ]edes|[kK]eines){{S}}(?<target>\\p{Ll}+(?:em|es))(?={{S}}{{CAP_NOUN}}{{E}})"
@@ -5132,9 +4030,9 @@ rules:
           - germanAdjective(stem) || germanAdjective(`${stem}e`) || germanAdjective(stem.replace(/(.)([lr])$/, "$1e$2"))
           - "!ctx.dictionary.has(target)"
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.target[1] - 2, end: m.indices!.groups!.target[1] }, alternatives: ["en"],
-          context: { start: m.index, end: m.indices!.groups!.target[1] } })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", m.indices!.groups!.target[1] - 2, m.indices!.groups!.target[1], ["en"], {
+            context: { start: m.index, end: m.indices!.groups!.target[1] },
+          })
       # Letter salutations: "Lieber Herr Müller", "Liebe Frau Weber", "Sehr geehrte Damen und
       # Herren" take the title's gender ("Liebe Herr" → Lieber). At a line start, or after a
       # greeting.
@@ -5148,7 +4046,7 @@ rules:
           - wanted !== adj
           - '!/(?<!\p{L})(?:als|wie)(?!\p{L})/u.test(line)'
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: m.index, end: m.index + adj.length }, alternatives: [wanted], context: { start: m.index, end: m.index + adj.length + title.length + 1 } })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", m.index, m.index + adj.length, [wanted], { context: { start: m.index, end: m.index + adj.length + title.length + 1 } })
       # A predicative adjective takes no ending: "Er war schnelle." (schnell), "Die sind
       # schlauen."
       - regex: "{{WG}}(?:{{COPULA_FORMS}})(?:{{S}}(?:{{DEGREE_ADVERBS}}))*{{S}}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])"
@@ -5162,9 +4060,9 @@ rules:
           - germanNounReading(target) === null
           - lemma
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_predicative",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [lemma],
-          context: { start: m.index, end: m.indices!.groups!.target[1] } })
+          finding("germanAdjectiveForms", "review_msg_german_predicative", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [lemma], {
+            context: { start: m.index, end: m.indices!.groups!.target[1] },
+          })
       # "Er ist schnelle als ich" → schneller: an ending before "als" where the comparative
       # belongs.
       - regex: "{{WG}}(?<prior>\\p{L}+){{S}}(?<target>\\p{Ll}{3,}?e)(?={{S}}als{{E}})"
@@ -5180,9 +4078,9 @@ rules:
           # A vowel that may take an umlaut in the comparative ("größer") is left out.
           - '!(!lemma || /[aou](?![u])/.test(lemma.replace(/[ae]u/g, "")))'
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_predicative",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${lemma}er`],
-          context: { start: m.index, end: m.indices!.groups!.target[1] + 4 } })
+          finding("germanAdjectiveForms", "review_msg_german_predicative", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [`${lemma}er`], {
+            context: { start: m.index, end: m.indices!.groups!.target[1] + 4 },
+          })
       # "Beamter" declines like an adjective and has no feminine "die Beamte": "der Beamte",
       # "ein Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
       - regex: "{{WG}}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:{{S}}\\p{Ll}+(?:e|en|er|es|em))?{{S}}(?<target>\\p{L}*[Bb]eamte[rn]?){{E}}"
@@ -5194,9 +4092,10 @@ rules:
           alternatives: endings.map((e) => stem + e)
         when: "!(endings.includes(target.slice(stem.length)) || ctx.dictionary.has(target.toLowerCase()))"
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives,
-          context: { start: m.index, end: m.indices!.groups!.target[1] }, ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", m.indices!.groups!.target[0], m.indices!.groups!.target[1], alternatives, {
+            context: { start: m.index, end: m.indices!.groups!.target[1] },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
   - id: de.articleGender
     checks: [germanArticleGender]
     style: match
@@ -5205,159 +4104,27 @@ rules:
       # Subject pronouns of a masculine object ("Ich habe ein Tisch reserviert").
       ART_SUBJECTS: [ich, du, er, wir, man]
       # Words after the object that keep the clause open: a participle, an infinitive, an adverb.
-      ART_OBJECT_FOLLOWERS:
-        [
-          heute,
-          morgen,
-          gestern,
-          allerdings,
-          auch,
-          noch,
-          schon,
-          nicht,
-          gern,
-          gerne,
-          bereits,
-          mal,
-          wieder,
-          jetzt,
-          sofort,
-          dort,
-          hier,
-          da,
-          nie,
-          immer,
-          bitte,
-          doch,
-          endlich,
-          erst,
-          zu,
-        ]
+      ART_OBJECT_FOLLOWERS: >-
+        heute morgen gestern allerdings auch noch schon nicht gern gerne bereits mal wieder jetzt
+        sofort dort hier da nie immer bitte doch endlich erst zu
       ART_SUBJECT_PRONOUNS: [ich, du, er, sie, es, wir, ihr, man]
-      ART_SUBORDINATORS:
-        [dass, weil, wenn, ob, als, obwohl, damit, nachdem, bevor, falls, da, sobald]
-      ART_MODALS:
-        [
-          kann,
-          kannst,
-          können,
-          könnt,
-          will,
-          willst,
-          wollen,
-          wollt,
-          muss,
-          musst,
-          müssen,
-          müsst,
-          soll,
-          sollst,
-          sollen,
-          sollt,
-          möchte,
-          möchtest,
-          möchten,
-          darf,
-          darfst,
-          dürfen,
-          werde,
-          wirst,
-          wird,
-          werden,
-          würde,
-          würden,
-        ]
-      ART_POSTPOSITIONS:
-        [nach, zufolge, gegenüber, entgegen, zuliebe, entsprechend, gemäß, nahe, halber, wegen]
-      ART_MEASURES:
-        [
-          mal,
-          stück,
-          weile,
-          jahr,
-          tag,
-          woche,
-          monat,
-          stunde,
-          minute,
-          sekunde,
-          moment,
-          augenblick,
-          abend,
-          morgen,
-          nachmittag,
-          nacht,
-          wochenende,
-          leben,
-          zeit,
-          ende,
-          stockwerk,
-          viertelstunde,
-          halbjahr,
-        ]
+      ART_SUBORDINATORS: >-
+        dass weil wenn ob als obwohl damit nachdem bevor falls da sobald
+      ART_MODALS: >-
+        kann kannst können könnt will willst wollen wollt muss musst müssen müsst soll sollst sollen
+        sollt möchte möchtest möchten darf darfst dürfen werde wirst wird werden würde würden
+      ART_POSTPOSITIONS: >-
+        nach zufolge gegenüber entgegen zuliebe entsprechend gemäß nahe halber wegen
+      ART_MEASURES: >-
+        mal stück weile jahr tag woche monat stunde minute sekunde moment augenblick abend morgen
+        nachmittag nacht wochenende leben zeit ende stockwerk viertelstunde halbjahr
       # Verbs after which a bare noun phrase is the subject or object: "es gibt", "ist", "hat".
-      ART_BARE_AFTER:
-        [
-          ist,
-          sind,
-          war,
-          waren,
-          gibt,
-          gab,
-          hat,
-          habe,
-          haben,
-          hatte,
-          hatten,
-          wird,
-          werden,
-          bietet,
-          bieten,
-          braucht,
-          brauchen,
-          suche,
-          suchen,
-          wünsche,
-          wünschen,
-          wurde,
-          wurden,
-          kann,
-          können,
-          konnte,
-          konnten,
-          soll,
-          sollen,
-          sollte,
-          sollten,
-          muss,
-          müssen,
-          musste,
-          mussten,
-          will,
-          wollen,
-          wollte,
-          wollten,
-          darf,
-          dürfen,
-          wäre,
-          wären,
-        ]
-      ART_TIME_SPANS:
-        [
-          Tag,
-          Jahr,
-          Woche,
-          Monat,
-          Sommer,
-          Winter,
-          Herbst,
-          Frühling,
-          Abend,
-          Morgen,
-          Nacht,
-          Wochenende,
-          Leben,
-        ]
+      ART_BARE_AFTER: >-
+        ist sind war waren gibt gab hat habe haben hatte hatten wird werden bietet bieten braucht
+        brauchen suche suchen wünsche wünschen wurde wurden kann können konnte konnten soll sollen
+        sollte sollten muss müssen musste mussten will wollen wollte wollten darf dürfen wäre wären
+      ART_TIME_SPANS: >-
+        Tag Jahr Woche Monat Sommer Winter Herbst Frühling Abend Morgen Nacht Wochenende Leben
     maps:
       ART_RELATIVE_FOR: { m: der, f: die, n: das }
       ART_WRONG_RELATIVE: { m: [die, das], f: [das], n: [der, die] }
@@ -5570,8 +4337,9 @@ rules:
             : germanDeterminerFits(typed, first) !== false)
           - '!(modsText && !modsText.split(/[ \t ]+/).every((a) => ART_DEGREE_WORD.test(a) || artIsAdjective(a)))'
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_closed_compound", range: { start: m.indices!.groups!.noun[0], end },
-          alternatives: [first + second.toLowerCase()], context: { start: m.index, end } })
+          finding("germanArticleGender", "review_msg_closed_compound", m.indices!.groups!.noun[0], end, [first + second.toLowerCase()], {
+            context: { start: m.index, end },
+          })
       # An adjective used as a noun keeps the adjective's ending after its article: "der
       # Angestellte" (not "Angestellter"), "ein Abgeordneter" or "eine Abgeordnete" (not "ein
       # Abgeordnete"). Any gender fits a person, so the article's own readings decide. Only "-er"
@@ -5618,8 +4386,10 @@ rules:
           - '!(/^\p{Lu}/u.test(next) || ctx.dictionary.has(low))'
           - '!(next === "zu" || /^(?:\p{Ll}+nd|\p{Ll}*ge\p{Ll}+t)(?:e|en|er|es|em)$/u.test(next))'
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_adjective_ending", range: { start: m.indices!.groups!.det[0], end: nounEnd },
-          alternatives: fixes, context: { start: m.index, end: nounEnd }, ...(fixes.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanArticleGender", "review_msg_german_adjective_ending", m.indices!.groups!.det[0], nounEnd, fixes, {
+            context: { start: m.index, end: nounEnd },
+            ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # An article phrase whose noun has a gender. "am Bande", "im Walde": the old dative -e of a
       # masculine or neuter noun (a stem of two genders counts too). "zum Zeitung lesen": a verb
       # phrase made a noun, which the compound check joins. "die Naturschutz und Umweltthemen": the
@@ -5679,10 +4449,9 @@ rules:
             !/(?<!\p{L})(?:nach|und)[ \t]+$/u.test(ctx.text.slice(Math.max(0, m.index - 12), m.index - prior.length - 1))
         return: >-
           bareEin && inflected.every((a) => artEndingOf(a) === "er")
-          ? { ruleId: "germanArticleGender", messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.mods[0] + modsText.length - modsText.trimStart().length, end },
-          alternatives: [adjectives.map((a) => ART_DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, "es")).join(" ")],
-          context: { start: m.index, end: nounEnd } }
+          ? finding("germanArticleGender", "review_msg_german_adjective_ending", m.indices!.groups!.mods[0] + modsText.length - modsText.trimStart().length, end, [adjectives.map((a) => ART_DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, "es")).join(" ")], {
+            context: { start: m.index, end: nounEnd },
+          })
           : !wrongCase && typedReadings.some(([g, c]) => germanCaseFits(head, reading, g, c))
           ? articleObjectFix(ctx, m, parsed, typed, head, reading, adjectives, nounEnd, detStart, end)
           : articleGenderFix(ctx, m, parsed, typed, head, reading, adjectives, typedReadings, before, prior, nounEnd, detStart, end)
@@ -5698,12 +4467,16 @@ rules:
           recipient: "verbFix ? null : artIndirectObject(ctx, m.index, nounEnd, parsed, typed, head, reading, adjectives)"
           object: "verbFix || recipient ? null : artObjectCase(ctx, m.index, nounEnd, parsed, typed, reading, adjectives)"
         return: >-
-          verbFix ? { ruleId: "germanArticleGender", messageKey: "review_msg_german_verb_case", range: { start: detStart, end },
-          alternatives: verbFix, context: { start: m.index, end: nounEnd }, ...(verbFix.length > 1 ? { requiresChoice: true as const } : {}) }
-          : recipient ? { ruleId: "germanArticleGender", messageKey: "review_msg_german_verb_case", range: { start: detStart, end },
-          alternatives: [recipient], context: { start: m.index, end: nounEnd } }
-          : object ? { ruleId: "germanArticleGender", messageKey: "review_msg_german_object_case", range: { start: detStart, end },
-          alternatives: [object], context: { start: m.index, end: nounEnd } }
+          verbFix ? finding("germanArticleGender", "review_msg_german_verb_case", detStart, end, verbFix, {
+            context: { start: m.index, end: nounEnd },
+            ...(verbFix.length > 1 ? { requiresChoice: true as const } : {}),
+          })
+          : recipient ? finding("germanArticleGender", "review_msg_german_verb_case", detStart, end, [recipient], {
+            context: { start: m.index, end: nounEnd },
+          })
+          : object ? finding("germanArticleGender", "review_msg_german_object_case", detStart, end, [object], {
+            context: { start: m.index, end: nounEnd },
+          })
           : null
       # The article (and its adjectives) of the noun's gender, in the typed article's cases,
       # narrowed by the preposition or the sentence start. "der", "die", "diese" are also pronouns:
@@ -5749,8 +4522,10 @@ rules:
           - combos.every(([c, g]) => germanCaseFits(head, reading, g, c) && germanDeterminerFor(parsed, g, c, typed) !== null)
           - fixes.length > 0 && fixes.length <= 3
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_article_gender", range: { start: detStart, end },
-          alternatives: fixes, context: { start: m.index, end: nounEnd }, ...(fixes.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanArticleGender", "review_msg_german_article_gender", detStart, end, fixes, {
+            context: { start: m.index, end: nounEnd },
+            ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # The ending the determiner fixes: "der" → "er", "dem" → "em"; for "ein", "des" the noun's
       # gender decides ("ein Haus als solches", "kein Mensch als solcher").
       artSolchEnding:
@@ -5841,9 +4616,10 @@ rules:
           - '!(/^\p{Lu}/u.test(next) && !BOUNDARY.test(next))'
           - allowed.length > 0 && !allowed.includes(typedEnding)
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.adj[0], end: m.indices!.groups!.adj[1] }, alternatives: allowed.map((e) => stem + e),
-          context: { start: m.index, end: m.indices!.groups!.noun[1] }, ...(allowed.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanArticleGender", "review_msg_german_adjective_ending", m.indices!.groups!.adj[0], m.indices!.groups!.adj[1], allowed.map((e) => stem + e), {
+            context: { start: m.index, end: m.indices!.groups!.noun[1] },
+            ...(allowed.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # "das Haus als solches", "dem Menschen als solchem": "als solch-" after a noun takes the
       # strong ending of the noun's case, gender and number, which its determiner shows.
       - regex: "{{WG}}(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:{{S}}\\p{Ll}{2,30}(?:e|en|er|es|em))?{{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}){{S}}als{{S}}(?<target>solch(?:e|er|es|em|en)){{E}}"
@@ -5863,8 +4639,9 @@ rules:
           - '!(/^\p{Lu}/u.test(next) || ctx.dictionary.has(target.toLowerCase()))'
           - "!(!ending || target === `solch${ending}`)"
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_als_solch", range: { start: span[0], end: span[1] },
-          alternatives: [`solch${ending}`], context: { start: m.index, end: span[1] } })
+          finding("germanArticleGender", "review_msg_german_als_solch", span[0], span[1], [`solch${ending}`], {
+            context: { start: m.index, end: span[1] },
+          })
       # Verbs whose object is a genitive: "es bedarf eines Beweises", "wir gedenken der Opfer",
       # and reflexive ones: "sich der Stimme enthalten", "sich eines Erfolgs rühmen".
       - regex: "{{WG}}(?:(?:{{GENITIVE_VERBS}})(?:{{S}}es)?|(?:{{GENITIVE_REFLEXIVES}}){{S}}(?:sich|mich|dich|uns|euch)){{S}}(?<target>{{DATIVE_DET}}){{S}}(?<rest>(?:\\p{Ll}+{{S}}){0,2}\\p{Lu}\\p{Ll}+){{E}}|{{WG}}(?:sich|mich|dich|uns|euch){{S}}(?<t2>{{DATIVE_DET}}){{S}}(?<rest2>(?:\\p{Ll}+{{S}}){0,2}\\p{Lu}\\p{Ll}+)(?={{S}}(?:{{GENITIVE_PARTICIPLES}}){{E}})"
@@ -5890,8 +4667,9 @@ rules:
             !/^[^.!?;,\n]{0,60}(?<!\p{L})zu[ \t]+\p{Ll}|^[^.!?;,\n]{0,60}\p{Ll}zu\p{Ll}{3,}en(?!\p{L})/u.test(ctx.text.slice(end, end + 80))
           - "!(!fixed || ctx.dictionary.has(typedDet.toLowerCase()))"
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_genitive_verb", range: { start: span[0], end: genitive ? end : span[1] },
-          alternatives: [genitive ? `${article}${between}${genitive}` : article], context: { start: m.index, end } })
+          finding("germanArticleGender", "review_msg_german_genitive_verb", span[0], genitive ? end : span[1], [genitive ? `${article}${between}${genitive}` : article], {
+            context: { start: m.index, end },
+          })
       # "Wir machen uns auf dem Weg": setting out takes the accusative ("auf den Weg"); not "Ich
       # habe mich auf dem Weg verlaufen" or "Wir machten uns auf dem Heimweg Gedanken", where
       # the way is where it happens.
@@ -5903,8 +4681,9 @@ rules:
           span: m.indices!.groups!.target
         when: '!(!after && !/(?<!\p{L})mach(?:e|st|t|en|te|test|ten|tet)?(?!\p{L})/iu.test(clause))'
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_preposition_case", range: { start: span[0], end: span[1] },
-          alternatives: ["den"], context: { start: m.index, end: m.index + m[0].length } })
+          finding("germanArticleGender", "review_msg_german_preposition_case", span[0], span[1], ["den"], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # "das Auto, der da steht" → das: a relative pronoun right after its noun and a comma, as
       # the subject or object of its clause, takes the noun's gender. Only a pronoun that no
       # case of the noun's gender spells is flagged ("die Frau, der ich half" is a dative).
@@ -5942,44 +4721,18 @@ rules:
           - '!(verb && !BOUNDARY.test(after[1] ?? ""))'
           - "!ctx.dictionary.has(noun.toLowerCase())"
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_relative_pronoun", range: { start: span[0], end: span[1] },
-          alternatives: [ART_RELATIVE_FOR[reading.gender]], context: { start: m.index, end: span[1] + next.length + 1 } })
+          finding("germanArticleGender", "review_msg_german_relative_pronoun", span[0], span[1], [ART_RELATIVE_FOR[reading.gender]], {
+            context: { start: m.index, end: span[1] + next.length + 1 },
+          })
   - id: de.suspendedHyphen
     checks: [germanSuspendedHyphen]
     style: match
     message: review_msg_german_suspended_hyphen
     sets:
       # Words that open a compound as a modifier: particles and adjective stems.
-      SUSPENDED_PARTICLES:
-        [
-          vor,
-          nach,
-          ober,
-          unter,
-          ein,
-          aus,
-          an,
-          ab,
-          in,
-          im,
-          ex,
-          auf,
-          zu,
-          hin,
-          her,
-          rück,
-          vorder,
-          hinter,
-          über,
-          inner,
-          außer,
-          innen,
-          außen,
-          nah,
-          fern,
-          hoch,
-          tief,
-        ]
+      SUSPENDED_PARTICLES: >-
+        vor nach ober unter ein aus an ab in im ex auf zu hin her rück vorder hinter über inner
+        außer innen außen nah fern hoch tief
     defs:
       # Singular finite verbs after a subject: "wurde", "ist", "hat".
       SUSPENDED_SINGULAR_VERBS: /^(?:ist|war|wird|wurde|hat|hatte|kann|muss|soll|darf|bleibt|gilt|steht|liegt|geht|kommt)$/
@@ -6071,17 +4824,17 @@ rules:
           - '!(capital && !sure && !linking && germanNounReading(low) === "noun")'
           - "sure || suspendedJoins(capital ? target : low, second, capital)"
         return: >-
-          ({ ruleId: "germanSuspendedHyphen", messageKey: "review_msg_german_suspended_hyphen",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${target}-`],
-          context: { start: m.index, end: m.index + m[0].length } })
+          finding("germanSuspendedHyphen", "review_msg_german_suspended_hyphen", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [`${target}-`], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # "hin und her gerissen": torn between two choices, the participle of "hin- und
       # herreißen".
       - regex: "{{WG}}(?<target>(?<hin>[Hh]in){{S}}und{{S}}her{{S}}gerissen){{E}}"
         flags: dgu
         return: >-
-          ({ ruleId: "germanSuspendedHyphen", messageKey: "review_msg_german_suspended_hyphen",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${hin}- und hergerissen`],
-          context: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] } })
+          finding("germanSuspendedHyphen", "review_msg_german_suspended_hyphen", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [`${hin}- und hergerissen`], {
+            context: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+          })
   - id: de.abbreviations
     checks: [germanAbbreviations, germanAbbreviationSpacing]
     style: match
@@ -6183,8 +4936,9 @@ rules:
         args: "start: number, end: number, replacement: string"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanQuotes", messageKey: "review_msg_german_quotes", range: { start, end }, alternatives: [replacement],
-          context: { start: Math.max(0, start - 40), end: end + 40 } })
+          finding("germanQuotes", "review_msg_german_quotes", start, end, [replacement], {
+            context: { start: Math.max(0, start - 40), end: end + 40 },
+          })
       # The marks that change the count of open „ for the next marks of a paragraph.
       QUOTE_MARK: /“|”|,,|''|"/
       # The count of open „ after `chars`; a line break closes them all.
@@ -6322,8 +5076,9 @@ rules:
           - "!between.includes(same)"
           - '!(ctx.text[open] === "(" && /[:;=-]/.test(ctx.text[open - 1] ?? ""))'
         return: >-
-          ({ ruleId: "germanQuotes", messageKey: "review_msg_german_inner_spacing", range: { start, end }, alternatives: [""],
-          context: { start: Math.max(0, start - 20), end: end + 20 } })
+          finding("germanQuotes", "review_msg_german_inner_spacing", start, end, [""], {
+            context: { start: Math.max(0, start - 20), end: end + 20 },
+          })
   - id: de.straightQuotes
     checks: [germanStraightQuotes]
     style: match
@@ -6365,629 +5120,110 @@ rules:
       return: "findings.filter((f) => !seen.has(f.range.end) && !!seen.add(f.range.end))"
     sets:
       # Conjunctions that always open a subordinate clause.
-      COMMA_SUBORDINATORS:
-        [
-          dass,
-          weil,
-          obwohl,
-          obgleich,
-          obschon,
-          wenngleich,
-          nachdem,
-          sobald,
-          sofern,
-          falls,
-          indem,
-          sodass,
-          bevor,
-          wohingegen,
-          ob,
-          wenn,
-          sondern,
-        ]
+      COMMA_SUBORDINATORS: >-
+        dass weil obwohl obgleich obschon wenngleich nachdem sobald sofern falls indem sodass bevor
+        wohingegen ob wenn sondern
       # Words that join with the conjunction after them, or set it off before themselves.
-      COMMA_JOINED:
-        [
-          und,
-          oder,
-          sowie,
-          bzw,
-          beziehungsweise,
-          aber,
-          sondern,
-          denn,
-          doch,
-          jedoch,
-          als,
-          so,
-          ohne,
-          statt,
-          anstatt,
-          außer,
-          kaum,
-          bis,
-          auf,
-          je,
-          nur,
-          auch,
-          selbst,
-          sogar,
-          gerade,
-          eben,
-          schon,
-          besonders,
-          insbesondere,
-          allem,
-          zwar,
-          zumal,
-          nicht,
-          einfach,
-          allein,
-          bloß,
-          lediglich,
-          umso,
-          desto,
-          erst,
-          egal,
-          gleich,
-          dann,
-          immer,
-          jedes,
-          halt,
-          also,
-          wie,
-          ja,
-          etwa,
-          vielleicht,
-          teils,
-          ob,
-          weil,
-          dass,
-          wenn,
-          außer,
-          nämlich,
-          speziell,
-          vornehmlich,
-          hauptsächlich,
-          vermutlich,
-          wahrscheinlich,
-          sonst,
-          zum,
-          rund,
-          recht,
-          noch,
-          kurz,
-          lang,
-          lange,
-          gleich,
-          bald,
-          unmittelbar,
-          direkt,
-          knapp,
-          beispiel,
-          spätestens,
-          frühestens,
-          sofort,
-          nachdem,
-        ]
+      COMMA_JOINED: >-
+        und oder sowie bzw beziehungsweise aber sondern denn doch jedoch als so ohne statt anstatt
+        außer kaum bis auf je nur auch selbst sogar gerade eben schon besonders insbesondere allem
+        zwar zumal nicht einfach allein bloß lediglich umso desto erst egal gleich dann immer jedes
+        halt also wie ja etwa vielleicht teils ob weil dass wenn nämlich speziell vornehmlich
+        hauptsächlich vermutlich wahrscheinlich sonst zum rund recht noch kurz lang lange bald
+        unmittelbar direkt knapp beispiel spätestens frühestens sofort nachdem
       # "wenn möglich", "falls nötig": a shortened clause, set off or not.
-      COMMA_ELLIPTICAL:
-        [möglich, nötig, notwendig, erforderlich, gewünscht, ja, nein, nicht, überhaupt]
+      COMMA_ELLIPTICAL: >-
+        möglich nötig notwendig erforderlich gewünscht ja nein nicht überhaupt
       # Infinitive groups after these take a comma in either order.
       COMMA_INFINITIVE_LEADS: [um, ohne, statt, anstatt]
       # Verbs that take "um" as their preposition: "es geht um", "er bat um", "sich um etwas
       # kümmern"; and "um" for an amount: "um zwei Tage verschieben".
-      COMMA_UM_VERBS:
-        [
-          geht,
-          ging,
-          gehen,
-          ginge,
-          handelt,
-          handelte,
-          handeln,
-          handle,
-          bitte,
-          bittet,
-          bat,
-          baten,
-          bitten,
-          kämpfen,
-          kämpft,
-          kämpfte,
-          sorgen,
-          sorgt,
-          sorgte,
-          kümmern,
-          kümmert,
-          kümmerte,
-          streiten,
-          streitet,
-          bewerben,
-          bewirbt,
-          bewarb,
-          werben,
-          wirbt,
-          warb,
-          drehte,
-          dreht,
-          drehen,
-          bemühen,
-          bemüht,
-          bemühte,
-          beneiden,
-          beneidet,
-          verzögern,
-          verschieben,
-          erhöhen,
-          senken,
-          verlängern,
-          verkürzen,
-          steigern,
-          reduzieren,
-          verringern,
-          vergrößern,
-          verkleinern,
-          anheben,
-        ]
+      COMMA_UM_VERBS: >-
+        geht ging gehen ginge handelt handelte handeln handle bitte bittet bat baten bitten kämpfen
+        kämpft kämpfte sorgen sorgt sorgte kümmern kümmert kümmerte streiten streitet bewerben
+        bewirbt bewarb werben wirbt warb drehte dreht drehen bemühen bemüht bemühte beneiden
+        beneidet verzögern verschieben erhöhen senken verlängern verkürzen steigern reduzieren
+        verringern vergrößern verkleinern anheben
       COMMA_IMPERSONAL_UM: [geht, ging, gehen, ginge, handelt, handelte, handeln, handle]
       # Verbs that report an opinion or knowledge before a clause without "dass": "ich glaube, …".
-      COMMA_OPINIONS:
-        [
-          glaube,
-          glaub,
-          glauben,
-          glaubt,
-          denke,
-          denk,
-          denken,
-          denkt,
-          dachte,
-          dachten,
-          hoffe,
-          hoff,
-          hoffen,
-          hofft,
-          finde,
-          find,
-          finden,
-          findet,
-          befürchte,
-          befürchten,
-          befürchtet,
-          fürchte,
-          fürchten,
-          vermute,
-          vermuten,
-          vermutet,
-          schätze,
-          schätzen,
-          wette,
-          wetten,
-          weiß,
-          wissen,
-          wisst,
-          behauptet,
-          behaupten,
-          meine,
-          meinen,
-          meint,
-        ]
+      COMMA_OPINIONS: >-
+        glaube glaub glauben glaubt denke denk denken denkt dachte dachten hoffe hoff hoffen hofft
+        finde find finden findet befürchte befürchten befürchtet fürchte fürchten vermute vermuten
+        vermutet schätze schätzen wette wetten weiß wissen wisst behauptet behaupten meine meinen
+        meint
       COMMA_SUBJECTS: [ich, wir, ihr, sie, er, man, du]
       COMMA_SINGULAR_SUBJECTS: [ich, du, er, es, man]
       # Asking for an opinion: "Meinst du, das klappt?"
-      COMMA_OPINION_QUESTIONS:
-        [
-          glaubst,
-          glaubt,
-          glauben,
-          meinst,
-          meint,
-          meinen,
-          denkst,
-          denkt,
-          denken,
-          findest,
-          findet,
-          finden,
-        ]
+      COMMA_OPINION_QUESTIONS: >-
+        glaubst glaubt glauben meinst meint meinen denkst denkt denken findest findet finden
       COMMA_QUESTION_SUBJECTS: [du, ihr, Sie]
       # Fillers between the verb and its clause: "ich glaube übrigens, …", "ich denke mal, …".
       COMMA_FILLERS: [mal, übrigens, ja, schon, auch, eher, persönlich, halt, eigentlich, doch]
       # Finite verbs that show a main clause has begun.
-      COMMA_FINITE:
-        [
-          ist,
-          sind,
-          war,
-          waren,
-          wird,
-          werden,
-          wurde,
-          wurden,
-          hat,
-          haben,
-          hatte,
-          hatten,
-          kann,
-          können,
-          konnte,
-          konnten,
-          muss,
-          müssen,
-          musste,
-          mussten,
-          soll,
-          sollen,
-          sollte,
-          sollten,
-          will,
-          wollen,
-          wollte,
-          wollten,
-          darf,
-          dürfen,
-          durfte,
-          mag,
-          möchte,
-          möchten,
-          würde,
-          würden,
-          wäre,
-          wären,
-          sei,
-          seien,
-          gibt,
-          gab,
-          geht,
-          ging,
-          gehen,
-          kommt,
-          kam,
-          kommen,
-          gefällt,
-          gefallen,
-          braucht,
-          brauchen,
-          macht,
-          steht,
-          liegt,
-          läuft,
-          funktioniert,
-          klappt,
-          bleibt,
-          passt,
-          stimmt,
-          reicht,
-          hilft,
-          fehlt,
-          fehlen,
-        ]
+      COMMA_FINITE: >-
+        ist sind war waren wird werden wurde wurden hat haben hatte hatten kann können konnte
+        konnten muss müssen musste mussten soll sollen sollte sollten will wollen wollte wollten
+        darf dürfen durfte mag möchte möchten würde würden wäre wären sei seien gibt gab geht ging
+        gehen kommt kam kommen gefällt gefallen braucht brauchen macht steht liegt läuft
+        funktioniert klappt bleibt passt stimmt reicht hilft fehlt fehlen
       # Verbs of asking and knowing before an indirect w-question: "er fragt, wie …".
-      COMMA_ASKING:
-        [
-          weiß,
-          weißt,
-          wisst,
-          wissen,
-          wusste,
-          wussten,
-          fragt,
-          fragte,
-          fragten,
-          frage,
-          fragen,
-          erkundigte,
-          erkundigt,
-          verstehe,
-          verstehst,
-          versteht,
-          verstanden,
-          überlege,
-          überlegt,
-          überlegen,
-        ]
-      COMMA_W_WORDS:
-        [
-          was,
-          wer,
-          wen,
-          wem,
-          wie,
-          wo,
-          wann,
-          warum,
-          wieso,
-          weshalb,
-          weswegen,
-          woran,
-          wohin,
-          woher,
-          womit,
-          wofür,
-          worüber,
-          wovon,
-          wozu,
-        ]
+      COMMA_ASKING: >-
+        weiß weißt wisst wissen wusste wussten fragt fragte fragten frage fragen erkundigte
+        erkundigt verstehe verstehst versteht verstanden überlege überlegt überlegen
+      COMMA_W_WORDS: >-
+        was wer wen wem wie wo wann warum wieso weshalb weswegen woran wohin woher womit wofür
+        worüber wovon wozu
       # Words that may stand between the asking verb and the question: "weiß nicht mehr, wie".
-      COMMA_ASK_FILLERS:
-        [
-          nicht,
-          noch,
-          auch,
-          gar,
-          genau,
-          schon,
-          mal,
-          selbst,
-          mehr,
-          nie,
-          ich,
-          du,
-          er,
-          sie,
-          es,
-          wir,
-          ihr,
-          man,
-          mich,
-          dich,
-          sich,
-          uns,
-          euch,
-          mir,
-          dir,
-          ihm,
-          ihnen,
-          jetzt,
-          nun,
-          ja,
-          leider,
-          wirklich,
-          überhaupt,
-        ]
+      COMMA_ASK_FILLERS: >-
+        nicht noch auch gar genau schon mal selbst mehr nie ich du er sie es wir ihr man mich dich
+        sich uns euch mir dir ihm ihnen jetzt nun ja leider wirklich überhaupt
       COMMA_OBJECT_PRONOUNS: [mich, dich, sich, uns, euch, mir, dir, ihm, ihn, es]
       # Prepositions that open an indirect question with "was", "wem" or "wen": "an was", "mit wem".
-      COMMA_QUESTION_PREPOSITIONS:
-        [an, auf, für, mit, von, über, um, zu, bei, aus, nach, gegen, durch]
+      COMMA_QUESTION_PREPOSITIONS: >-
+        an auf für mit von über um zu bei aus nach gegen durch
       # Verbs an adjective before an indirect question or "wie" clause is the predicate of.
       COMMA_PREDICATE_VERBS: [ist, war, wäre, sei, sind, waren, bleibt, finde, findet, fand, finden]
       # Words that make "Adjektiv wie …" a comparison.
       COMMA_COMPARING: [so, genauso, ebenso, zu, doppelt, halb, fast, gleich]
       # Capitalized words that open a clause without being its subject.
-      COMMA_NOT_SUBJECTS:
-        [
-          wenn,
-          was,
-          wer,
-          wie,
-          wo,
-          wann,
-          warum,
-          als,
-          dass,
-          weil,
-          ob,
-          und,
-          aber,
-          doch,
-          denn,
-          so,
-          da,
-          dann,
-          dort,
-          hier,
-          heute,
-          jetzt,
-          nun,
-          auch,
-          nur,
-          noch,
-          schon,
-          bitte,
-          danke,
-          ja,
-          nein,
-          vielleicht,
-          leider,
-          außerdem,
-          alle,
-          daher,
-          deshalb,
-          deswegen,
-          damals,
-          trotzdem,
-          gestern,
-          morgen,
-          also,
-          zuerst,
-          später,
-          viele,
-          einige,
-          manche,
-          beide,
-          jeder,
-          jede,
-          jedes,
-          keiner,
-          niemand,
-          jemand,
-        ]
+      COMMA_NOT_SUBJECTS: >-
+        wenn was wer wie wo wann warum als dass weil ob und aber doch denn so da dann dort hier
+        heute jetzt nun auch nur noch schon bitte danke ja nein vielleicht leider außerdem alle
+        daher deshalb deswegen damals trotzdem gestern morgen also zuerst später viele einige manche
+        beide jeder jede jedes keiner niemand jemand
       COMMA_IRREGULAR: [sein, tun, haben, werden, wissen]
       # Words that announce an infinitive group the clause's verb governs: "Es geht darum, …", "Es
       # kommt darauf an, …", "Ich denke nicht daran, …".
       COMMA_CORRELATES: [darum, daran, darauf, dazu, davon, darüber, darin, davor]
       # Particles that close the main clause after the correlate ("kommt darauf an"), when they
       # make a verb with one of the clause's verbs.
-      COMMA_CORRELATE_PARTICLES:
-        [an, ab, hin, aus, auf, ein, vor, nach, mit, zu, fest, hinaus, zurück]
+      COMMA_CORRELATE_PARTICLES: >-
+        an ab hin aus auf ein vor nach mit zu fest hinaus zurück
       # Verbs before an adjective or participle that an infinitive group the "es" stands for
       # completes: "Er ist es gewohnt, …", "Es macht mich traurig, …", "Es fällt mir schwer, …".
-      COMMA_ES_LINKS:
-        [
-          ist,
-          war,
-          wäre,
-          sei,
-          sind,
-          waren,
-          bin,
-          bist,
-          seid,
-          wird,
-          wurde,
-          würde,
-          macht,
-          machte,
-          fällt,
-          fiel,
-          habe,
-          hast,
-          hat,
-          haben,
-          hatte,
-          hatten,
-        ]
+      COMMA_ES_LINKS: >-
+        ist war wäre sei sind waren bin bist seid wird wurde würde macht machte fällt fiel habe hast
+        hat haben hatte hatten
       # Verbs whose object "es" is the infinitive group: "Er liebt es, lange zu schlafen".
-      COMMA_ES_OBJECT_VERBS:
-        [
-          liebe,
-          liebst,
-          liebt,
-          lieben,
-          liebte,
-          hasse,
-          hasst,
-          hassen,
-          hasste,
-          genieße,
-          genießt,
-          genießen,
-          genoss,
-          vermeide,
-          vermeidet,
-          vermeiden,
-          vermied,
-          bevorzuge,
-          bevorzugt,
-          bevorzugen,
-        ]
+      COMMA_ES_OBJECT_VERBS: >-
+        liebe liebst liebt lieben liebte hasse hasst hassen hasste genieße genießt genießen genoss
+        vermeide vermeidet vermeiden vermied bevorzuge bevorzugt bevorzugen
       # A copula after "es" ("Es ist schwer(,) das zu sagen") leaves the comma optional.
       COMMA_CLAUSE_COPULAS: [ist, war, wäre, sei, sind, waren, bin, bist, seid, wird, wurde, würde]
       # Words between the verb and the adjective: "Es war Frauen damals nicht möglich".
-      COMMA_ES_FILLERS:
-        [
-          es,
-          mich,
-          dich,
-          ihn,
-          ihm,
-          ihr,
-          uns,
-          euch,
-          ihnen,
-          mir,
-          dir,
-          sich,
-          nicht,
-          nie,
-          immer,
-          noch,
-          schon,
-          auch,
-          damals,
-          heute,
-          jetzt,
-          oft,
-          wirklich,
-          gar,
-          so,
-          sehr,
-          ganz,
-          echt,
-          ziemlich,
-          recht,
-          doch,
-          ja,
-          eben,
-          eigentlich,
-          wohl,
-          einfach,
-        ]
+      COMMA_ES_FILLERS: >-
+        es mich dich ihn ihm ihr uns euch ihnen mir dir sich nicht nie immer noch schon auch damals
+        heute jetzt oft wirklich gar so sehr ganz echt ziemlich recht doch ja eben eigentlich wohl
+        einfach
       # Degree words that modify the next adjective, which would be the group's ("gut möglich").
       COMMA_ES_DEGREE: [gut, ganz, sehr, so, recht, ziemlich, echt, viel, wenig, zu]
       # What may open a relative clause right after its pronoun, but no article's noun phrase: a
       # preposition, a personal pronoun or an adverb ("der im Keller steht", "die ich kenne").
-      COMMA_RELATIVE_OPENERS:
-        [
-          im,
-          in,
-          am,
-          an,
-          auf,
-          aus,
-          bei,
-          beim,
-          mit,
-          nach,
-          von,
-          vom,
-          zu,
-          zum,
-          zur,
-          für,
-          über,
-          unter,
-          vor,
-          hinter,
-          neben,
-          seit,
-          gegen,
-          durch,
-          ohne,
-          ich,
-          du,
-          er,
-          sie,
-          es,
-          wir,
-          ihr,
-          man,
-          mich,
-          dich,
-          ihn,
-          uns,
-          euch,
-          mir,
-          dir,
-          ihm,
-          ihnen,
-          sich,
-          nicht,
-          schon,
-          gestern,
-          heute,
-          morgen,
-          immer,
-          oft,
-          nie,
-          gerade,
-          jetzt,
-          hier,
-          dort,
-          damals,
-          noch,
-          auch,
-          bereits,
-          wirklich,
-          kaum,
-          selten,
-          da,
-          nebenan,
-          drüben,
-          oben,
-          unten,
-        ]
+      COMMA_RELATIVE_OPENERS: >-
+        im in am an auf aus bei beim mit nach von vom zu zum zur für über unter vor hinter neben
+        seit gegen durch ohne ich du er sie es wir ihr man mich dich ihn uns euch mir dir ihm ihnen
+        sich nicht schon gestern heute morgen immer oft nie gerade jetzt hier dort damals noch auch
+        bereits wirklich kaum selten da nebenan drüben oben unten
     maps:
       # Pairs that take the comma before their first word: "…, auch wenn", "…, ohne dass".
       COMMA_PAIRS:
@@ -7038,8 +5274,9 @@ rules:
         args: "ctx: DetectContext, wordStart: number, word: string, at: number"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start: wordStart, end: wordStart + word.length },
-          alternatives: [`${word},`], context: { start: Math.max(0, wordStart - 40), end: Math.min(ctx.text.length, at + 40) } })
+          finding("germanCommas", "review_msg_german_comma", wordStart, wordStart + word.length, [`${word},`], {
+            context: { start: Math.max(0, wordStart - 40), end: Math.min(ctx.text.length, at + 40) },
+          })
       # A finite verb form: listed, or a regular third person ("lernt") of a known verb; not a
       # participle ("übereilt", "garantiert").
       commaFiniteWord:
@@ -7512,9 +5749,9 @@ rules:
         args: "ctx: DetectContext, start: number, end: number, alternative: string"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start, end },
-          alternatives: [alternative],
-          context: { start: Math.max(0, start - 40), end: Math.min(ctx.text.length, end + 40) } })
+          finding("germanCommas", "review_msg_german_comma", start, end, [alternative], {
+            context: { start: Math.max(0, start - 40), end: Math.min(ctx.text.length, end + 40) },
+          })
     frames:
       # A salutation alone on its line: "Sehr geehrte Frau Weber", "Liebe Anna!" take a comma.
       - regex: "(?<=(?:^|\\n)[ \\t]{0,8})(?:Sehr[ \\t]{1,4}geehrte[r]?|Liebe[r]?)[ \\t]{1,4}(?:Herr|Frau|Damen[ \\t]{1,4}und[ \\t]{1,4}Herren|Kolleginnen[ \\t]{1,4}und[ \\t]{1,4}Kollegen|\\p{Lu}\\p{Ll}+)(?:[ \\t]{1,4}(?:Dr\\.|Prof\\.|\\p{Lu}[\\p{Ll}-]+)){0,3}!?(?=[ \\t]*(?:\\n|$))"
@@ -7528,7 +5765,7 @@ rules:
         when: >-
           !(named && /^(?:Grüße|Gruß|Grüßen|Wünsche|Wünschen)$/.test(named))
         return: >-
-          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start, end }, alternatives: [`${word.replace(/!$/, "")},`], context: { start: m.index, end } })
+          finding("germanCommas", "review_msg_german_comma", start, end, [`${word.replace(/!$/, "")},`], { context: { start: m.index, end } })
       # Paired words ("teils lustig, teils traurig", "halb …, halb …", "einerseits …,
       # andererseits", "je …, desto", "So weit, so gut"): the word that takes the comma after
       # it. The gate first checks the paired word after it, so the long lookbehinds run only
@@ -7582,191 +5819,36 @@ rules:
     message: review_msg_german_verb_agreement
     sets:
       # Imperatives that a "du" may follow: "Sei du still", "Lies du vor".
-      VERB_IMPERATIVES:
-        [
-          sei,
-          hab,
-          habe,
-          werd,
-          werde,
-          tu,
-          tue,
-          lauf,
-          laufe,
-          fahr,
-          fahre,
-          gib,
-          nimm,
-          sieh,
-          lies,
-          sprich,
-          hilf,
-          iss,
-          schlaf,
-          schlafe,
-          trag,
-          trage,
-          halt,
-          halte,
-          lass,
-          lasse,
-          geh,
-          gehe,
-          komm,
-          komme,
-          wisse,
-        ]
+      VERB_IMPERATIVES: >-
+        sei hab habe werd werde tu tue lauf laufe fahr fahre gib nimm sieh lies sprich hilf iss
+        schlaf schlafe trag trage halt halte lass lasse geh gehe komm komme wisse
       # "sie", "es" and "ihr" may also be objects ("Ihr habe ich …").
       VERB_OBJECT_TOO: [sie, es, ihr]
       VERB_SUBJECTS: [ich, du, er, sie, es, man, wir, ihr, Sie]
       # Words that open a sentence before its verb: "Was macht du?", "Dann sagt du es".
-      VERB_OPENERS:
-        [
-          was,
-          wie,
-          wo,
-          wann,
-          warum,
-          wieso,
-          weshalb,
-          wohin,
-          woher,
-          womit,
-          wozu,
-          worüber,
-          dann,
-          da,
-          jetzt,
-          nun,
-          so,
-          also,
-          heute,
-          morgen,
-          gestern,
-          damals,
-          danach,
-          trotzdem,
-          deshalb,
-        ]
+      VERB_OPENERS: >-
+        was wie wo wann warum wieso weshalb wohin woher womit wozu worüber dann da jetzt nun so also
+        heute morgen gestern damals danach trotzdem deshalb
       # Words that open a new clause or link two: the repeat may belong to it ("Es ist, wie es ist").
-      VERB_CLAUSE_LINKS:
-        [
-          und,
-          oder,
-          aber,
-          sondern,
-          denn,
-          sowie,
-          bzw,
-          wie,
-          was,
-          wer,
-          wo,
-          wann,
-          warum,
-          wieso,
-          weshalb,
-          dass,
-          ob,
-          weil,
-          wenn,
-          falls,
-          obwohl,
-          je,
-          desto,
-          umso,
-          der,
-          die,
-          das,
-          dem,
-          den,
-          denen,
-          dessen,
-          deren,
-          welche,
-          welcher,
-        ]
-      VERB_SUBORDINATORS:
-        [
-          dass,
-          ob,
-          weil,
-          wenn,
-          falls,
-          obwohl,
-          warum,
-          wieso,
-          weshalb,
-          wie,
-          was,
-          wer,
-          wo,
-          wann,
-          nachdem,
-          bevor,
-          sobald,
-        ]
+      VERB_CLAUSE_LINKS: >-
+        und oder aber sondern denn sowie bzw wie was wer wo wann warum wieso weshalb dass ob weil
+        wenn falls obwohl je desto umso der die das dem den denen dessen deren welche welcher
+      VERB_SUBORDINATORS: >-
+        dass ob weil wenn falls obwohl warum wieso weshalb wie was wer wo wann nachdem bevor sobald
       # Infinitives that follow their own finite form: "Sie werden Ärzte werden", "das kann sein".
-      VERB_SELF_GOVERNED:
-        [sein, haben, werden, können, müssen, wollen, sollen, dürfen, mögen, lassen, wissen]
-      VERB_LINKS:
-        [
-          und,
-          oder,
-          aber,
-          sondern,
-          denn,
-          sowie,
-          bzw,
-          wie,
-          was,
-          wer,
-          wo,
-          wann,
-          warum,
-          wieso,
-          weshalb,
-          dass,
-          ob,
-          weil,
-          wenn,
-          falls,
-          obwohl,
-          je,
-          desto,
-          umso,
-          nachdem,
-          bevor,
-          sobald,
-          damit,
-          als,
-        ]
+      VERB_SELF_GOVERNED: >-
+        sein haben werden können müssen wollen sollen dürfen mögen lassen wissen
+      VERB_LINKS: >-
+        und oder aber sondern denn sowie bzw wie was wer wo wann warum wieso weshalb dass ob weil
+        wenn falls obwohl je desto umso nachdem bevor sobald damit als
       VERB_NOT_BETWEEN: [ich, du, er, sie, es, wir, ihr, man, und, oder]
       # Bare stems that are no ich-form with its "-e" dropped often enough to doubt ("Seh ich auch
       # so", "Geb dir recht"), so they count as imperatives at a sentence start.
       VERB_BARE_ONLY: [sprech, les, ess, vergess, werf, brech, mess, stehl, fress, sterb]
       # Words that follow an imperative but no dropped "ich" form at once: "Les dir das durch".
-      VERB_AFTER_BARE:
-        [
-          dir,
-          mir,
-          dich,
-          mich,
-          uns,
-          euch,
-          doch,
-          bitte,
-          endlich,
-          weniger,
-          mehr,
-          lieber,
-          ruhig,
-          einfach,
-          schnell,
-          langsam,
-          leiser,
-          lauter,
-        ]
+      VERB_AFTER_BARE: >-
+        dir mir dich mich uns euch doch bitte endlich weniger mehr lieber ruhig einfach schnell
+        langsam leiser lauter
       # Words that open a sentence before an imperative: "Bitte gib …", "Dann bewirb dich".
       VERB_IMPERATIVE_OPENERS: [bitte, dann, nun, jetzt, also, und, einfach]
     maps:
@@ -7832,8 +5914,10 @@ rules:
         let:
           cased: fits.map((f) => deLikeTyped(typed, f))
         return: >-
-          ({ ruleId: "germanVerbAgreement", messageKey: "review_msg_german_verb_agreement", range: { start, end: start + typed.length },
-          alternatives: cased, context: { start: context[0], end: context[1] }, ...(cased.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanVerbAgreement", "review_msg_german_verb_agreement", start, start + typed.length, cased, {
+            context: { start: context[0], end: context[1] },
+            ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # Whether the token at i opens the sentence (no token, a stop or a quote mark).
       verbOpensAt:
         args: "before: string[], i: number"
@@ -7971,8 +6055,9 @@ rules:
           - "!ctx.dictionary.has(verb) && !deEnglishLine(ctx.text, m.index)"
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanVerbAgreement", messageKey: "review_msg_german_modal_infinitive", range: { start: m.index, end: m.index + verb.length },
-          alternatives: [infinitive], context: { start: Math.max(0, m.index - 40), end: m.index + verb.length } })
+          finding("germanVerbAgreement", "review_msg_german_modal_infinitive", m.index, m.index + verb.length, [infinitive], {
+            context: { start: Math.max(0, m.index - 40), end: m.index + verb.length },
+          })
       # A subordinate clause with a pronoun subject and an auxiliary at its end: "weil du
       # gelogen hat" (hast), "als wir gekündigt wurde" (wurden). Only lowercase words that are
       # no subject pronoun or finite verb between them, so no other clause or subject
@@ -8065,58 +6150,16 @@ rules:
     style: match
     message: review_msg_question_mark
     sets:
-      Q_W_WORDS:
-        [
-          wer,
-          wen,
-          wem,
-          wessen,
-          was,
-          wann,
-          wo,
-          wohin,
-          woher,
-          warum,
-          wieso,
-          weshalb,
-          weswegen,
-          wie,
-          welche,
-          welcher,
-          welchen,
-          welchem,
-          welches,
-          womit,
-          wofür,
-          woran,
-          worauf,
-          worüber,
-          wovon,
-          wozu,
-          inwiefern,
-        ]
+      Q_W_WORDS: >-
+        wer wen wem wessen was wann wo wohin woher warum wieso weshalb weswegen wie welche welcher
+        welchen welchem welches womit wofür woran worauf worüber wovon wozu inwiefern
       # A preposition before the w-word: "Ab wann", "Mit wem", "An welchem Tag".
       Q_W_PREPOSITIONS: [ab, bis, seit, mit, von, an, auf, für, in, aus, bei, nach, zu, um, über]
       # Words that may stand between the w-word and its verb: "Wie viel kostet das".
       Q_DEGREES: [viel, viele, lange, oft, spät, alt, groß, weit, hoch, teuer, schnell, sehr]
       # A sentence that is only a w-word and particles: "Warum eigentlich nicht."
-      Q_PARTICLES:
-        [
-          denn,
-          eigentlich,
-          nicht,
-          überhaupt,
-          endlich,
-          bloß,
-          nur,
-          schon,
-          noch,
-          genau,
-          dann,
-          jetzt,
-          nun,
-          so,
-        ]
+      Q_PARTICLES: >-
+        denn eigentlich nicht überhaupt endlich bloß nur schon noch genau dann jetzt nun so
       Q_OPENERS: [Und, Aber, Oder, Na, Also]
       # Particles of statements and exclamations: "Kann ich jedenfalls behaupten.", "Hat er doch".
       Q_STATEMENT: [doch, ja, jedenfalls, halt, eben, wohl]
@@ -8228,8 +6271,9 @@ rules:
             exclaimed ? exclaimedQuestion(sentence, words) : QUESTION_ASKS.test(sentence.trimStart()) || tagged ||
             (!/[,;:"„“”«»()]/.test(sentence) && words.length >= 2 && !/(?:^|\s)\p{L}$/u.test(sentence) && isQuestion(words))
         return: >-
-          ({ ruleId: "germanQuestionMarks", messageKey: "review_msg_question_mark", range: { start: at, end: at + 1 },
-          alternatives: ["?"], context: { start, end: at + 1 } })
+          finding("germanQuestionMarks", "review_msg_question_mark", at, at + 1, ["?"], {
+            context: { start, end: at + 1 },
+          })
       # Quoted speech that a verb of asking reports, closed without a question mark: '"Wohin
       # gehst du", fragte sie.' → '"Wohin gehst du?"'.
       - regex: "(?<=\\p{L})\\.?(?<quote>[\"\\u201C\\u201D\\u00AB\\u00BB])(?=,?[ \\t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \\t]+\\p{Ll}+)?[ \\t]+wissen)(?!\\p{L}))"
@@ -8241,8 +6285,9 @@ rules:
           - '/["„»«“]/.test(line) && !deEnglishLine(ctx.text, m.index)'
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanQuestionMarks", messageKey: "review_msg_question_mark", range: { start: m.index, end: m.index + m[0].length },
-          alternatives: [`?${quote}`], context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 } })
+          finding("germanQuestionMarks", "review_msg_question_mark", m.index, m.index + m[0].length, [`?${quote}`], {
+            context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 },
+          })
   - id: de.numbers
     checks: [germanNumbers]
     style: match
@@ -8278,8 +6323,9 @@ rules:
         args: "start: number, end: number, alternatives: string[]"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanNumbers", messageKey: "review_msg_german_numbers", range: { start, end }, alternatives,
-          context: { start: Math.max(0, start - 30), end: end + 30 } })
+          finding("germanNumbers", "review_msg_german_numbers", start, end, alternatives, {
+            context: { start: Math.max(0, start - 30), end: end + 30 },
+          })
       # The finding for the group `name` of m, unless it is already right or the writer's word.
       numberFix:
         args: "ctx: DetectContext, m: RegExpExecArray, name: string, alternatives: string[] | null"
@@ -8401,52 +6447,17 @@ rules:
           - "(a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)) > Number(a)"
           - "!(RANGE_CODE.test(before) || RANGE_SCORE.test(before))"
         return: >-
-          ({ ruleId: "emdashShortcut", messageKey: "review_msg_range_dash",
-          range: { start: m.index + a.length, end: m.index + a.length + dash.length }, alternatives: ["–"],
-          context: { start: m.index, end: m.index + m[0].length } })
+          finding("emdashShortcut", "review_msg_range_dash", m.index + a.length, m.index + a.length + dash.length, ["–"], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
   - id: de.typography
     checks: [germanTypography]
     style: match
     message: review_msg_typographic_symbol
     sets:
-      CHEMICAL_ELEMENTS:
-        [
-          H,
-          He,
-          Li,
-          Be,
-          B,
-          C,
-          N,
-          O,
-          F,
-          Ne,
-          Na,
-          Mg,
-          Al,
-          Si,
-          P,
-          S,
-          Cl,
-          Ar,
-          K,
-          Ca,
-          Mn,
-          Fe,
-          Co,
-          Ni,
-          Cu,
-          Zn,
-          Br,
-          Ag,
-          Sn,
-          I,
-          Ba,
-          Pt,
-          Au,
-          Hg,
-          Pb,
-        ]
+      CHEMICAL_ELEMENTS: >-
+        H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Mn Fe Co Ni Cu Zn Br Ag Sn I Ba Pt Au Hg
+        Pb
       # One element with a count only as a gas.
       CHEMICAL_GASES: [H2, O2, N2, O3, Cl2, H², O², N², O³]
     maps:
@@ -8465,8 +6476,10 @@ rules:
           - '!/(?<![\p{L}\p{N}.,])0$/u.test(ctx.text.slice(Math.max(0, m.index - 2), m.index))'
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanTypography", messageKey: "review_msg_typographic_symbol", range: { start: m.index, end: m.index + 1 },
-          alternatives: ["×", "·"], requiresChoice: true, context: { start: Math.max(0, m.index - 20), end: m.index + 20 } })
+          finding("germanTypography", "review_msg_typographic_symbol", m.index, m.index + 1, ["×", "·"], {
+            requiresChoice: true,
+            context: { start: Math.max(0, m.index - 20), end: m.index + 20 },
+          })
       # A chemical formula takes subscript counts: "CO2", "H2O", "CO²" → "CO₂", "H₂O" (opt-in).
       - regex: "(?<![\\p{L}\\p{N}_])(?:[A-Z][a-z]?[0-9\\u00B2\\u00B3]*){1,6}(?![\\p{L}\\p{N}_])"
         scan: owned
@@ -8480,10 +6493,9 @@ rules:
           - 'symbols.length === 1 ? CHEMICAL_GASES.has(formula) : symbols.some((s) => s === "H" || s === "O")'
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanTypography", messageKey: "review_msg_typographic_symbol",
-          range: { start: m.index, end: m.index + formula.length },
-          alternatives: [formula.replace(/[0-9²³]/g, (d) => SUBSCRIPTS[d] ?? String.fromCharCode(0x2080 + Number(d)))],
-          context: { start: Math.max(0, m.index - 20), end: m.index + formula.length + 20 } })
+          finding("germanTypography", "review_msg_typographic_symbol", m.index, m.index + formula.length, [formula.replace(/[0-9²³]/g, (d) => SUBSCRIPTS[d] ?? String.fromCharCode(0x2080 + Number(d)))], {
+            context: { start: Math.max(0, m.index - 20), end: m.index + formula.length + 20 },
+          })
       # A long number groups its thousands with a point: "250000 Besucher" → "250.000"
       # (opt-in).
       - regex: "(?<![\\p{L}\\p{N}.,:/#+_-])[1-9]\\d{4,}(?![\\p{L}\\p{N}.,:/_-])"
@@ -8500,8 +6512,7 @@ rules:
             !(digits.length === 5 && !/^[ \t]*(?:[.,;!?)]|[ \t]\p{Ll}|[ \t]?(?:[€$%£]|[kMGT]?B\b|km|kg|Euro|Dollar|Franken))/u.test(after))
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanTypography", messageKey: "review_msg_german_thousands", range: { start: m.index, end },
-          alternatives: [digits.replace(/\B(?=(?:\d{3})+$)/g, ".")] })
+          finding("germanTypography", "review_msg_german_thousands", m.index, end, [digits.replace(/\B(?=(?:\d{3})+$)/g, ".")])
   - id: de.decadeCentury
     checks: [stylePhrasing]
     style: match
@@ -8512,9 +6523,9 @@ rules:
       - regex: "{{WG}}(?:(?<target>(?<decade>(?:1[0-9]|20)\\d0er(?:-|{{S}})Jahren?){{S}}des{{S}}(?:vorigen|letzten|vergangenen|\\d{1,2}\\.|neunzehnten|zwanzigsten|einundzwanzigsten){{S}}Jahrhunderts)){{E}}"
         flags: dgu
         return: >-
-          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
-          alternatives: [decade, target.slice(2)], requiresChoice: true })
+          finding("stylePhrasing", "review_msg_style_phrasing", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [decade, target.slice(2)], {
+            requiresChoice: true,
+          })
   - id: de.colloquial
     checks: [germanColloquial]
     style: match
@@ -8632,17 +6643,19 @@ rules:
           - "!ctx.dictionary.has(typed.toLowerCase()) && !namedExampleBefore(ctx.text, start)"
           - "!deEnglishLine(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start, end }, alternatives,
-          context: { start: Math.max(0, start - 40), end: end + 20 } })
+          finding("germanColloquial", "review_msg_german_colloquial", start, end, alternatives, {
+            context: { start: Math.max(0, start - 40), end: end + 20 },
+          })
       # A spoken measure at m, read from 64 characters before the chunk; null outside it.
       measure:
         args: "m: RegExpExecArray, ctx: DetectContext, alternatives: string[]"
         type: RawFinding | null
         when: "!(m.index < ctx.from || namedExampleBefore(ctx.text, m.index))"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + m[0].length },
-          alternatives, context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanColloquial", "review_msg_german_colloquial", m.index, m.index + m[0].length, alternatives, {
+            context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # A verb form: an infinitive, a 1st singular or past form, a present form in -t or -st.
       herVerbForm:
         args: "word: string"
@@ -8704,9 +6717,9 @@ rules:
           # The clause opens with it: a question or an indirect question after a comma.
           - '!(m.index > 0 && !/(?:^|[,;:\n„"]\s*|[.!?]\s+)$/.test(before))'
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + m[0].length },
-          alternatives: [deLikeTyped(prep, /^[aeiouü]/.test(low) ? `wor${low}` : `wo${low}`)],
-          context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 } })
+          finding("germanColloquial", "review_msg_german_colloquial", m.index, m.index + m[0].length, [deLikeTyped(prep, /^[aeiouü]/.test(low) ? `wor${low}` : `wo${low}`)], {
+            context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+          })
       # "Sinn machen" copies the English phrase; German says "Sinn ergeben". The phrase table
       # holds the adjacent forms; this frame takes the verb a few words before "Sinn" ("Das
       # macht für mich wenig Sinn", "Macht es vielleicht Sinn") and "Sinn zu machen". The scan
@@ -8727,8 +6740,9 @@ rules:
           - '!/^[ \t]+(?:des|der|eines|einer)(?![\p{L}])|(?<![\p{L}])aus[ \t]*$/u.test(rest)'
           - "!namedExampleBefore(ctx.text, start) && !deEnglishLine(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start, end: start + typed.length },
-          alternatives: [deLikeTyped(typed, ERGEBEN[typed.toLowerCase()])], context: { start: m.index, end: m.index + m[0].length } })
+          finding("germanColloquial", "review_msg_german_colloquial", start, start + typed.length, [deLikeTyped(typed, ERGEBEN[typed.toLowerCase()])], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # Clipped words of speech and their written forms ("Mathe", "Infos", "Kuli").
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#.-])(?:Mathe|Info|Infos|Uni|Unis|Abi|Kuli|Kulis|Limo|Deo|Klo|Reli)(?![\\p{L}\\p{M}\\p{N}_@/#-])"
         scan: owned
@@ -8744,8 +6758,9 @@ rules:
           - "!ctx.dictionary.has(word.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
           - "!deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + word.length },
-          alternatives: [...CLIPPED[word]], context: { start: Math.max(0, m.index - 40), end: m.index + word.length + 20 } })
+          finding("germanColloquial", "review_msg_german_colloquial", m.index, m.index + word.length, [...CLIPPED[word]], {
+            context: { start: Math.max(0, m.index - 40), end: m.index + word.length + 20 },
+          })
       # Spoken names of a measured quantity and of arithmetic, and their written forms: "die
       # Voltzahl" (elektrische Spannung), "5 Kilo" (Kilogramm), "plus rechnen" (addieren),
       # "schneller als 50 Kilometer" (Kilometer pro Stunde: a speed, not a distance). These
@@ -8812,9 +6827,10 @@ rules:
           - "!ctx.dictionary.has(low) && !namedExampleBefore(ctx.text, m.index)"
           - "!deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + word.length },
-          alternatives, context: { start: Math.max(0, m.index - 40), end: m.index + word.length },
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanColloquial", "review_msg_german_colloquial", m.index, m.index + word.length, alternatives, {
+            context: { start: Math.max(0, m.index - 40), end: m.index + word.length },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
   - id: de.recommended
     checks: [germanRecommendedSpelling]
     style: match
@@ -8832,17 +6848,9 @@ rules:
           wohl temperiert,
         ]
       # The joined pairs the Duden writes apart ("tief betrübt").
-      APART_PAIRS:
-        [
-          tiefbetrübt,
-          tiefhängend,
-          hochkompliziert,
-          vielbeschäftigt,
-          nichtrostend,
-          freistehend,
-          rotlackiert,
-          neubekehrt,
-        ]
+      APART_PAIRS: >-
+        tiefbetrübt tiefhängend hochkompliziert vielbeschäftigt nichtrostend freistehend rotlackiert
+        neubekehrt
     defs:
       # The Greek "ph" and its German "f", in each casing.
       PH_SPELLINGS: >-
@@ -8860,9 +6868,9 @@ rules:
           - replacement !== typed && !ctx.dictionary.has(typed.toLowerCase())
           - "!namedExampleBefore(ctx.text, span[0])"
         return: >-
-          ({ ruleId: "germanRecommendedSpelling", messageKey: "review_msg_german_recommended_spelling",
-          range: { start: span[0], end: span[1] }, alternatives: [replacement],
-          context: { start: Math.max(0, span[0] - 30), end: span[1] + 30 } })
+          finding("germanRecommendedSpelling", "review_msg_german_recommended_spelling", span[0], span[1], [replacement], {
+            context: { start: Math.max(0, span[0] - 30), end: span[1] + 30 },
+          })
     frames:
       # "Geographie", "Paragraph", "Photographin", "Mikrophon", "Phantasie", "Delphin": a Greek
       # ph German now writes f. "Graph" and "Graphen" (graphene) alone, "Phonetik",
@@ -9003,8 +7011,9 @@ rules:
           typed: ctx.text.slice(start, end)
         when: "!ctx.dictionary.has(typed.toLowerCase()) && !namedExampleBefore(ctx.text, start)"
         return: >-
-          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing", range: { start, end },
-          alternatives: [fix], context: { start, end } })
+          finding("stylePhrasing", "review_msg_style_phrasing", start, end, [fix], {
+            context: { start, end },
+          })
     frames:
       # An adjective that the noun already says ("eine runde Kugel", "die toten Leichen", "eine
       # weibliche Ärztin": a feminine person noun says it already).
@@ -9057,20 +7066,8 @@ rules:
         must: [have]
     sets:
       # Written as one word, these are wrong too; "Plugin", "Popup", "Setup" and "Startup" are in use.
-      PHRASAL_JOINED_WRONG:
-        [
-          checkin,
-          checkout,
-          makeup,
-          standup,
-          drivein,
-          pushup,
-          comingout,
-          followup,
-          kickoff,
-          breakeven,
-          musthave,
-        ]
+      PHRASAL_JOINED_WRONG: >-
+        checkin checkout makeup standup drivein pushup comingout followup kickoff breakeven musthave
     frames:
       # A capital first part (a German noun), then the particle: apart, with a hyphen, or joined.
       - regex: "{{WG}}(?<target>(?<verb>[C]heck|[M]ake|[S]tand|[B]urn|[P]op|[A]dd|[P]lug|[L]og|[D]rive|[B]uy|[K]ick|[F]ollow|[P]ush|[C]oming|[R]oll|[S]et|[S]it|[W]arm|[C]ool|[S]tart|[T]ake|[P]ick|[W]alk|[K]nock|[T]each|[B]reak|[M]ust)(?<sep>[ \\t]+|-)?(?<particle>[iI]n|[oO]ut|[uU]p|[oO]n|[oO]ff|[dD]own|[eE]ven|[hH]ave)(?<plural>s)?)(?![\\p{L}\\p{N}-])(?![ \\t]+\\p{Lu})"
@@ -9087,7 +7084,7 @@ rules:
           - "!ctx.dictionary.has(target.toLowerCase()) && !deEnglishLine(ctx.text, span[0])"
           - "!namedExampleBefore(ctx.text, span[0])"
         return: >-
-          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] }, alternatives: [`${verb}-${particle.toLowerCase()}${plural ?? ""}`], context: { start: span[0], end: span[1] } })
+          finding("germanCompounds", "review_msg_closed_compound", span[0], span[1], [`${verb}-${particle.toLowerCase()}${plural ?? ""}`], { context: { start: span[0], end: span[1] } })
   - id: de.joinedVerbs
     checks: [germanJoinedVerbs]
     style: match

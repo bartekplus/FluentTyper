@@ -1,9 +1,8 @@
 import { expect, test, describe, beforeEach } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 // Test rules use made-up ids, so each one is cast to GrammarRuleId.
 import type { GrammarRule, GrammarRuleId } from "../../src/core/domain/grammar/types";
-import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
-import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/implementations/DuplicatePunctuationCollapseRule";
 import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
 function recordingRule(id: string, log: string[]): GrammarRule {
@@ -209,8 +208,8 @@ describe("GrammarRuleEngine", () => {
   });
 
   test("collapses long comma run after typing comma at trailing-space boundary", () => {
-    engine.registerRule(new CommaPeriodSpacingRule(true));
-    engine.registerRule(new DuplicatePunctuationCollapseRule());
+    engine.registerRule(liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true }));
+    engine.registerRule(liveRule("duplicatePunctuationCollapse"));
 
     const result = engine.process("insertChar", {
       beforeCursor: "This is,,,,,,,,,,,, ,",
@@ -229,8 +228,8 @@ describe("GrammarRuleEngine", () => {
   });
 
   test("collapses rapid comma burst and removes preceding space before comma", () => {
-    engine.registerRule(new CommaPeriodSpacingRule(true));
-    engine.registerRule(new DuplicatePunctuationCollapseRule());
+    engine.registerRule(liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true }));
+    engine.registerRule(liveRule("duplicatePunctuationCollapse"));
 
     const result = engine.process("wordBoundary", {
       beforeCursor: "What the fewer ,,,,,,,,,, ",
@@ -249,7 +248,7 @@ describe("GrammarRuleEngine", () => {
   });
 
   test("does not emit comma spacing edit for repeated comma bursts", () => {
-    engine.registerRule(new CommaPeriodSpacingRule(true));
+    engine.registerRule(liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true }));
 
     const result = engine.process("insertChar", {
       beforeCursor: "What the fewer ,,,,,,,,,,",
@@ -261,8 +260,8 @@ describe("GrammarRuleEngine", () => {
   });
 
   test("zero-width filler-separated comma bursts are owned by duplicate collapse", () => {
-    engine.registerRule(new CommaPeriodSpacingRule(true));
-    engine.registerRule(new DuplicatePunctuationCollapseRule());
+    engine.registerRule(liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true }));
+    engine.registerRule(liveRule("duplicatePunctuationCollapse"));
 
     for (const filler of ZERO_WIDTH_FILLER_CHARS) {
       const result = engine.process("insertChar", {
@@ -286,7 +285,7 @@ describe("GrammarRuleEngine", () => {
 describe("GrammarRuleEngine code contexts", () => {
   test("runs only code-safe rules in code editor fields and Markdown code", () => {
     const engine = new GrammarRuleEngine();
-    engine.registerRule(new CommaPeriodSpacingRule(true));
+    engine.registerRule(liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true }));
     const prose = { beforeCursor: "Hello ,", afterCursor: "" };
 
     expect(engine.process("insertChar", prose)).toHaveLength(1);

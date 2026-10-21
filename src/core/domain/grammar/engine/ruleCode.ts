@@ -8,7 +8,7 @@ import type { FrameStyle } from "./types";
 /** One step of a body: a binding, or a condition that ends the body when it fails. */
 export type CodeStep =
   | { readonly kind: "let"; readonly name: string; readonly source: string }
-  | { readonly kind: "when"; readonly source: string };
+  | { readonly kind: "when"; readonly source: string; readonly negated?: string };
 
 /**
  * What a function of a rule file is: the fix of a frame, the filter of a rule's findings, the
@@ -82,7 +82,7 @@ export interface BodySpec {
 
 /** The helpers a rule file, or one of its rules, defines for its expressions. */
 export interface CodeSections {
-  readonly sets?: Readonly<Record<string, readonly string[]>>;
+  readonly sets?: Readonly<Record<string, readonly string[] | string>>;
   readonly maps?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
   readonly defs?: Readonly<Record<string, DefSpec>>;
 }
@@ -167,7 +167,7 @@ function body(
       reads.add(name);
       if (!scope.has(name) && !known(name)) errors.push(`${at}: unknown name "${name}"`);
     }
-    return { text, refs: checked.refs };
+    return { text, refs: checked.refs, negated: checked.negated };
   };
   const lets: { name: string; source: string }[] = [];
   for (const [name, source] of Object.entries(spec.let ?? {})) {
@@ -187,24 +187,22 @@ function body(
     const at = `${where} when ${i + 1}`;
     if (typeof source !== "string") {
       errors.push(`${at}: give an expression`);
-      return { source: "true", after: -1 };
+      return { step: { kind: "when" as const, source: "true" }, after: -1 };
     }
-    const { text, refs } = check(source, at);
+    const { text, refs, negated } = check(source, at);
     // The last binding the condition reads, or the place of the condition above it.
     let after = previous;
     lets.forEach((binding, j) => {
       if (refs.has(binding.name)) after = Math.max(after, j);
     });
     previous = after;
-    return { source: text, after };
+    return { step: { kind: "when" as const, source: text, negated }, after };
   });
   const steps: CodeStep[] = [];
-  for (const when of whens)
-    if (when.after === -1) steps.push({ kind: "when", source: when.source });
+  for (const when of whens) if (when.after === -1) steps.push(when.step);
   lets.forEach((binding, j) => {
     steps.push({ kind: "let", ...binding });
-    for (const when of whens)
-      if (when.after === j) steps.push({ kind: "when", source: when.source });
+    for (const when of whens) if (when.after === j) steps.push(when.step);
   });
   const text = check(result, `${where} return`).text;
   return { steps, result: text, reads, free: [...reads].filter((name) => !scope.has(name)) };
@@ -240,8 +238,9 @@ export function fileCode(
     for (const [key, words] of Object.entries(section.sets ?? {})) {
       const at = `${where} set ${key}`;
       claim(key, at);
-      if (!Array.isArray(words) || !words.every((word) => typeof word === "string"))
-        errors.push(`${at}: give a list of strings`);
+      if (typeof words === "string") sets[key] = words.split(/\s+/).filter(Boolean);
+      else if (!Array.isArray(words) || !words.every((word) => typeof word === "string"))
+        errors.push(`${at}: give a list of strings, or the words in one string`);
       else sets[key] = [...words];
     }
     for (const [key, value] of Object.entries(section.maps ?? {})) {

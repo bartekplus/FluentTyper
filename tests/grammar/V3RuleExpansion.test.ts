@@ -1,20 +1,10 @@
 import { describe, expect, test } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { context, edit } from "./grammarTestUtils";
-import { DoubleSpaceToPeriodRule } from "../../src/core/domain/grammar/implementations/DoubleSpaceToPeriodRule";
-import { EllipsisShortcutRule } from "../../src/core/domain/grammar/implementations/EllipsisShortcutRule";
-import { EmdashShortcutRule } from "../../src/core/domain/grammar/implementations/EmdashShortcutRule";
-import { SmartQuoteNormalizationRule } from "../../src/core/domain/grammar/implementations/SmartQuoteNormalizationRule";
-import { DuplicatePunctuationCollapseRule } from "../../src/core/domain/grammar/implementations/DuplicatePunctuationCollapseRule";
-import { EnglishModalOfCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishModalOfCorrectionRule";
-import { EnglishYourWelcomeCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishYourWelcomeCorrectionRule";
-import { EnglishTheirThereBeVerbRule } from "../../src/core/domain/grammar/implementations/EnglishTheirThereBeVerbRule";
-import { EnglishArticleAnCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishArticleAnCorrectionRule";
-import { EnglishAlotCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishAlotCorrectionRule";
-import { EnglishPronounVerbWhitelistAgreementRule } from "../../src/core/domain/grammar/implementations/EnglishPronounVerbWhitelistAgreementRule";
 
 describe("V3 rule expansion", () => {
   test("DoubleSpaceToPeriodRule applies conservatively", () => {
-    const rule = new DoubleSpaceToPeriodRule();
+    const rule = liveRule("doubleSpaceToPeriod");
     expect(rule.apply(context("Hello  ", { inputAction: "insert" }))).toEqual(edit(". ", 2));
 
     expect(rule.apply(context("Hello.  ", { inputAction: "insert" }))).toBeNull();
@@ -23,14 +13,14 @@ describe("V3 rule expansion", () => {
   });
 
   test("EllipsisShortcutRule replaces triple dot and skips URL-like text", () => {
-    const rule = new EllipsisShortcutRule();
+    const rule = liveRule("ellipsisShortcut");
     expect(rule.apply(context("Wait...", { inputAction: "insert" }))).toEqual(edit("…", 3));
 
     expect(rule.apply(context("https://example.com...", { inputAction: "insert" }))).toBeNull();
   });
 
   test("EmdashShortcutRule replaces trailing double hyphen with guardrails", () => {
-    const rule = new EmdashShortcutRule();
+    const rule = liveRule("emdashShortcut");
     expect(rule.apply(context("word--", { inputAction: "insert" }))).toEqual(edit("—", 2));
 
     expect(rule.apply(context(" --", { inputAction: "insert" }))).toBeNull();
@@ -38,7 +28,7 @@ describe("V3 rule expansion", () => {
   });
 
   test("SmartQuoteNormalizationRule converts straight quotes in prose contexts", () => {
-    const rule = new SmartQuoteNormalizationRule();
+    const rule = liveRule("smartQuoteNormalization");
 
     expect(rule.apply(context('"', { inputAction: "insert" }))).toEqual(edit("“", 1));
 
@@ -63,7 +53,7 @@ describe("V3 rule expansion", () => {
   });
 
   test("DuplicatePunctuationCollapseRule collapses accidental duplicates", () => {
-    const rule = new DuplicatePunctuationCollapseRule();
+    const rule = liveRule("duplicatePunctuationCollapse");
 
     expect(rule.apply(context("Hello,,", { inputAction: "insert" }))).toEqual(edit(",", 2));
 
@@ -112,7 +102,7 @@ describe("V3 rule expansion", () => {
   });
 
   test("EnglishModalOfCorrectionRule normalizes could of style phrases", () => {
-    const rule = new EnglishModalOfCorrectionRule();
+    const rule = liveRule("englishModalOfCorrection");
 
     // The following word disambiguates: "must of course" is valid English.
     expect(rule.apply(context("could of ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
@@ -130,7 +120,7 @@ describe("V3 rule expansion", () => {
   });
 
   test("EnglishYourWelcomeCorrectionRule normalizes phrase", () => {
-    const rule = new EnglishYourWelcomeCorrectionRule();
+    const rule = liveRule("englishYourWelcomeCorrection");
 
     expect(rule.apply(context("your welcome!", { lang: "en_US", inputAction: "insert" }))).toEqual(
       edit("you're welcome!", "your welcome!".length),
@@ -138,7 +128,7 @@ describe("V3 rule expansion", () => {
   });
 
   test("EnglishTheirThereBeVerbRule normalizes there/their mismatch", () => {
-    const rule = new EnglishTheirThereBeVerbRule();
+    const rule = liveRule("englishTheirThereBeVerb");
 
     expect(rule.apply(context("their is ", { lang: "en_US", inputAction: "insert" }))).toEqual(
       edit("there is ", "their is ".length),
@@ -148,7 +138,7 @@ describe("V3 rule expansion", () => {
   });
 
   test("EnglishAlotCorrectionRule corrects typo and respects user dictionary", () => {
-    const rule = new EnglishAlotCorrectionRule();
+    const rule = liveRule("englishAlotCorrection");
     const hints = { lang: "en_US", inputAction: "insert" } as const;
 
     expect(rule.apply(context("alot ", { ...hints, userDictionary: ["alot"] }))).toBeNull();
@@ -158,7 +148,7 @@ describe("V3 rule expansion", () => {
   });
 
   test("EnglishArticleAnCorrectionRule corrects the article", () => {
-    const rule = new EnglishArticleAnCorrectionRule();
+    const rule = liveRule("englishArticleAnCorrection");
     const hints = { lang: "en_US", inputAction: "insert" } as const;
 
     expect(rule.apply(context("a error ", hints))).toEqual(edit("an error ", "a error ".length));
@@ -168,7 +158,7 @@ describe("V3 rule expansion", () => {
   });
 
   test("EnglishPronounVerbWhitelistAgreementRule applies strict whitelist", () => {
-    const rule = new EnglishPronounVerbWhitelistAgreementRule();
+    const rule = liveRule("englishPronounVerbWhitelistAgreement");
 
     expect(rule.apply(context("I is ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
     expect(rule.apply(context("I is wrong ", { lang: "en_US", inputAction: "insert" }))).toEqual(

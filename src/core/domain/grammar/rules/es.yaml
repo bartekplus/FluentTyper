@@ -28,65 +28,13 @@ fragments:
 # several checks use. The names start with "es" or "ES_": a rule file shares its names with
 # common.yaml and the rule library.
 sets:
-  ES_HABER_FORMS:
-    [
-      he,
-      has,
-      ha,
-      hemos,
-      habéis,
-      han,
-      había,
-      habías,
-      habíamos,
-      habíais,
-      habían,
-      hube,
-      hubo,
-      habré,
-      habrás,
-      habrá,
-      habremos,
-      habrán,
-      habría,
-      habrías,
-      habríamos,
-      habrían,
-      haya,
-      hayas,
-      hayamos,
-      hayan,
-      hubiera,
-      hubieras,
-      hubiéramos,
-      hubieran,
-      hubiese,
-      haber,
-      habiendo,
-    ]
-  ES_IR_FORMS:
-    [
-      voy,
-      vas,
-      va,
-      vamos,
-      vais,
-      van,
-      iba,
-      ibas,
-      íbamos,
-      iban,
-      fui,
-      fuiste,
-      fuimos,
-      fueron,
-      vaya,
-      vayas,
-      vayamos,
-      vayan,
-      ir,
-      yendo,
-    ]
+  ES_HABER_FORMS: >-
+    he has ha hemos habéis han había habías habíamos habíais habían hube hubo habré habrás habrá
+    habremos habrán habría habrías habríamos habrían haya hayas hayamos hayan hubiera hubieras
+    hubiéramos hubieran hubiese haber habiendo
+  ES_IR_FORMS: >-
+    voy vas va vamos vais van iba ibas íbamos iban fui fuiste fuimos fueron vaya vayas vayamos vayan
+    ir yendo
 
 defs:
   # A finding that replaces [start, end) with each alternative.
@@ -157,160 +105,48 @@ rules:
       ES_ESTAR_PLACE_MANNER: [bien, mal, aquí, ahí, allí, allá, acá]
       ES_ESTAR_DEGREE: [muy, tan, bastante, demasiado, medio, casi]
       # Prepositions an "estar" phrase takes; "a", "para" and "por" start pronoun phrases too often.
-      ES_ESTAR_PREPOSITIONS:
-        [en, con, sin, bajo, sobre, entre, junto, dentro, detrás, delante, encima]
+      ES_ESTAR_PREPOSITIONS: >-
+        en con sin bajo sobre entre junto dentro detrás delante encima
       # "esta en realidad", "esta sin duda": a pronoun and a parenthetical, not a location.
-      ES_ESTAR_PARENTHETICAL:
-        [
-          realidad,
-          cambio,
-          particular,
-          concreto,
-          general,
-          especial,
-          principio,
-          efecto,
-          definitiva,
-          resumen,
-          cuanto,
-          parte,
-          todo,
-          duda,
-          embargo,
-        ]
+      ES_ESTAR_PARENTHETICAL: >-
+        realidad cambio particular concreto general especial principio efecto definitiva resumen
+        cuanto parte todo duda embargo
       # "está de acuerdo", "está de moda": fixed "estar de" phrases.
-      ES_ESTAR_DE:
-        [
-          acuerdo,
-          vacaciones,
-          moda,
-          pie,
-          viaje,
-          broma,
-          baja,
-          luto,
-          más,
-          sobra,
-          paso,
-          vuelta,
-          camino,
-          servicio,
-          guardia,
-          parto,
-          suerte,
-          buenas,
-          malas,
-          fiesta,
-          rodillas,
-          espaldas,
-        ]
+      ES_ESTAR_DE: >-
+        acuerdo vacaciones moda pie viaje broma baja luto más sobra paso vuelta camino servicio
+        guardia parto suerte buenas malas fiesta rodillas espaldas
       # Quantifiers and "solo" read as masculine adjectives but start a pronoun's phrase: "esta mucho
       # más moderna", "esta solo es".
-      ES_ESTAR_QUANTIFIERS:
-        [mucho, poco, tanto, otro, cuanto, uno, ninguno, alguno, mismo, todo, solo]
+      ES_ESTAR_QUANTIFIERS: >-
+        mucho poco tanto otro cuanto uno ninguno alguno mismo todo solo
       # Participles that are also everyday nouns the dictionary does not list as such.
-      ES_PARTICIPLE_NOUNS:
-        [
-          subida,
-          bajada,
-          bebida,
-          entrada,
-          llegada,
-          mirada,
-          parada,
-          jugada,
-          caída,
-          herida,
-          medida,
-          venida,
-          ida,
-          salida,
-          comida,
-          llamada,
-          partida,
-          vuelta,
-          propuesta,
-          respuesta,
-          puesta,
-          vista,
-        ]
+      ES_PARTICIPLE_NOUNS: >-
+        subida bajada bebida entrada llegada mirada parada jugada caída herida medida venida ida
+        salida comida llamada partida vuelta propuesta respuesta puesta vista
       # After these a verb is likely: the subject, a time adverb or "no" sits right before it.
-      ES_ESTAR_BEFORE_VERB:
-        [
-          "no",
-          ya,
-          ahora,
-          todavía,
-          aún,
-          siempre,
-          también,
-          tampoco,
-          nunca,
-          hoy,
-          ayer,
-          aquí,
-          ahí,
-          allí,
-          que,
-          él,
-          ella,
-          usted,
-          uno,
-        ]
+      ES_ESTAR_BEFORE_VERB: >-
+        no ya ahora todavía aún siempre también tampoco nunca hoy ayer aquí ahí allí que él ella
+        usted uno
       ES_ESTAR_TIME: [siempre, todavía, ya, aún, ahora, también, hoy, nunca]
       # "esta los domingos abre": a time phrase after the pronoun.
-      ES_ESTAR_TIME_NOUNS:
-        [
-          domingos,
-          lunes,
-          martes,
-          miércoles,
-          jueves,
-          viernes,
-          sábados,
-          semana,
-          semanas,
-          mañanas,
-          tardes,
-          noches,
-          días,
-          veces,
-          vez,
-          año,
-          años,
-          mes,
-          meses,
-        ]
+      ES_ESTAR_TIME_NOUNS: >-
+        domingos lunes martes miércoles jueves viernes sábados semana semanas mañanas tardes noches
+        días veces vez año años mes meses
       # After these a participle closing its clause is the attribute of "está".
       ES_ESTAR_RELATIVES: ["y", e, pero, cual, cuales, quien, quienes, donde, cuando]
       ES_ESTAR_INTERROGATIVES: [dónde, adónde, cómo, quién, quiénes, cuándo]
-      ES_ESTAR_COUNTS:
-        [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, veinte, treinta, cien, mil]
+      ES_ESTAR_COUNTS: >-
+        dos tres cuatro cinco seis siete ocho nueve diez veinte treinta cien mil
       ES_ESTAR_SUBJECTS_2: [tú, vos]
       # Words a demonstrative never comes before: "Esta cada día más cansada" is "está".
       ES_ESTAR_NOT_DETERMINED: [cada, afuera, encima, arriba, apenas]
-      ES_ESTAR_HABER:
-        [he, has, ha, hemos, habéis, han, hay, había, habías, habían, hubo, haya, hayan]
+      ES_ESTAR_HABER: >-
+        he has ha hemos habéis han hay había habías habían hubo haya hayan
       # "que esté", "cuando esté", "tal vez esté": subjunctive triggers right before "este".
       ES_SUBJUNCTIVE_TRIGGERS: [que, cuando, aunque, mientras, ojalá, quizá, quizás]
       # Adverbs and the like that end like feminine nouns: "no está nada mal", "está fuera".
-      ES_NOT_AFTER_DEMONSTRATIVE:
-        [
-          nada,
-          cada,
-          nunca,
-          ahora,
-          fuera,
-          afuera,
-          cerca,
-          encima,
-          arriba,
-          contra,
-          mañana,
-          media,
-          toda,
-          apenas,
-        ]
+      ES_NOT_AFTER_DEMONSTRATIVE: >-
+        nada cada nunca ahora fuera afuera cerca encima arriba contra mañana media toda apenas
     defs:
       # "sé dónde está", "si supiéramos cómo está": verbs that introduce an indirect question.
       ES_ESTAR_ASKING: /^(?:s[ée]|sab\p{L}*|sup\p{L}*|pregunt\p{L}*|ver|veamos|dime|dinos|explica\p{L}*)$/u
@@ -703,413 +539,75 @@ rules:
     # ES_INTERROGATIVE, ES_PLAIN_RELATIVE and the cases of esMonosyllable.
     sets:
       # The accented question words.
-      ES_ASKED_FORMS:
-        [
-          qué,
-          cómo,
-          dónde,
-          adónde,
-          cuándo,
-          quién,
-          quiénes,
-          cuál,
-          cuáles,
-          cuánto,
-          cuánta,
-          cuántos,
-          cuántas,
-          cuán,
-        ]
+      ES_ASKED_FORMS: >-
+        qué cómo dónde adónde cuándo quién quiénes cuál cuáles cuánto cuánta cuántos cuántas cuán
       # Words a question may open with before its question word: "¿Y de qué…?", "¿Pero cómo…?".
       ES_QUESTION_LEAD: ["y", e, o, u, pero, pues, entonces, bueno, ah, oye]
       ES_ADVERBIALS: [bien, mal, tarde, pronto, aquí, allí, ahí, siempre, nunca]
       # Nouns a question asks about after a preposition: "hasta qué punto", "de qué manera".
-      ES_QUESTION_NOUNS:
-        [
-          punto,
-          forma,
-          manera,
-          modo,
-          hora,
-          color,
-          momento,
-          medida,
-          tipo,
-          clase,
-          edad,
-          precio,
-          tamaño,
-          frecuencia,
-          razón,
-          motivo,
-          lado,
-          parte,
-        ]
-      ES_DIA_SUBJECTS:
-        [yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes]
+      ES_QUESTION_NOUNS: >-
+        punto forma manera modo hora color momento medida tipo clase edad precio tamaño frecuencia
+        razón motivo lado parte
+      ES_DIA_SUBJECTS: >-
+        yo tú él ella usted nosotros nosotras vosotros vosotras ellos ellas ustedes
       # Irregular finite verbs and adverbs the dictionary also lists as nouns.
-      ES_DIA_FINITE:
-        [
-          es,
-          son,
-          era,
-          fue,
-          fui,
-          vino,
-          dije,
-          dijo,
-          hizo,
-          puso,
-          tuvo,
-          estuvo,
-          quiso,
-          supo,
-          pudo,
-          trajo,
-          anduvo,
-          ve,
-          ven,
-          eres,
-          soy,
-          somos,
-          sois,
-          estás,
-          da,
-          dan,
-          haz,
-          pon,
-          sal,
-          ten,
-          di,
-          va,
-          van,
-          ha,
-          han,
-          hay,
-        ]
-      ES_DIA_NOT_NOUNS:
-        [
-          sí,
-          "no",
-          bien,
-          mal,
-          mañana,
-          tarde,
-          hoy,
-          ayer,
-          noche,
-          siempre,
-          nunca,
-          igual,
-          tal,
-          solo,
-          sola,
-          así,
-          esto,
-          eso,
-          aquello,
-          ese,
-          esa,
-          qué,
-          cómo,
-          dónde,
-          cuándo,
-          quién,
-          cuál,
-          cuánto,
-        ]
+      ES_DIA_FINITE: >-
+        es son era fue fui vino dije dijo hizo puso tuvo estuvo quiso supo pudo trajo anduvo ve ven
+        eres soy somos sois estás da dan haz pon sal ten di va van ha han hay
+      ES_DIA_NOT_NOUNS: >-
+        sí no bien mal mañana tarde hoy ayer noche siempre nunca igual tal solo sola así esto eso
+        aquello ese esa qué cómo dónde cuándo quién cuál cuánto
       # Gerunds whose missing object "qué" asks for: "¿Qué estás haciendo?". Any other progressive
       # right after "¿Que" reads as an echo: "¿Que estás temblando?" (you say you are…?).
-      ES_ASKED_GERUNDS:
-        [
-          haciendo,
-          diciendo,
-          pensando,
-          buscando,
-          mirando,
-          viendo,
-          leyendo,
-          comiendo,
-          bebiendo,
-          escribiendo,
-          esperando,
-          tramando,
-          planeando,
-          preparando,
-          cocinando,
-          escuchando,
-          insinuando,
-          sugiriendo,
-          intentando,
-          tomando,
-          estudiando,
-          contando,
-          pidiendo,
-          vendiendo,
-          comprando,
-          ocultando,
-          escondiendo,
-          pasando,
-          ocurriendo,
-          sucediendo,
-          aprendiendo,
-          celebrando,
-          proponiendo,
-        ]
-      ES_DIA_QUANTITY:
-        [
-          mucho,
-          mucha,
-          muchos,
-          muchas,
-          poco,
-          poca,
-          pocos,
-          pocas,
-          varios,
-          varias,
-          algunos,
-          algunas,
-          algún,
-          alguna,
-          ningún,
-          ninguna,
-          tantos,
-          tantas,
-          bastantes,
-          demasiados,
-          demasiadas,
-          dos,
-          tres,
-          cuatro,
-          cinco,
-          cien,
-          mil,
-        ]
+      ES_ASKED_GERUNDS: >-
+        haciendo diciendo pensando buscando mirando viendo leyendo comiendo bebiendo escribiendo
+        esperando tramando planeando preparando cocinando escuchando insinuando sugiriendo
+        intentando tomando estudiando contando pidiendo vendiendo comprando ocultando escondiendo
+        pasando ocurriendo sucediendo aprendiendo celebrando proponiendo
+      ES_DIA_QUANTITY: >-
+        mucho mucha muchos muchas poco poca pocos pocas varios varias algunos algunas algún alguna
+        ningún ninguna tantos tantas bastantes demasiados demasiadas dos tres cuatro cinco cien mil
       ES_EXISTS: [hay, había, habrá, hubo, habría]
-      ES_PLACE_START:
-        [
-          en,
-          a,
-          al,
-          dentro,
-          detrás,
-          debajo,
-          encima,
-          fuera,
-          delante,
-          tras,
-          bajo,
-          sobre,
-          aquí,
-          allí,
-          ahí,
-          allá,
-        ]
-      ES_AFTER_EVENT:
-        [
-          aquí,
-          allí,
-          ahí,
-          allá,
-          ahora,
-          hoy,
-          ayer,
-          entonces,
-          realmente,
-          exactamente,
-          después,
-          antes,
-          luego,
-        ]
+      ES_PLACE_START: >-
+        en a al dentro detrás debajo encima fuera delante tras bajo sobre aquí allí ahí allá
+      ES_AFTER_EVENT: >-
+        aquí allí ahí allá ahora hoy ayer entonces realmente exactamente después antes luego
       ES_AFTER_DEED: [para, con, ahora, hoy, mañana, aquí, allí, ahí, después, luego]
       # Words that can follow a possessive "mi" inside its noun phrase.
-      ES_BEFORE_NOUN:
-        [
-          mejor,
-          peor,
-          mayor,
-          menor,
-          primer,
-          primera,
-          último,
-          última,
-          único,
-          única,
-          propio,
-          propia,
-          gran,
-          buen,
-          querido,
-          querida,
-          pobre,
-          viejo,
-          vieja,
-          nuevo,
-          nueva,
-          otro,
-          otra,
-        ]
+      ES_BEFORE_NOUN: >-
+        mejor peor mayor menor primer primera último última único única propio propia gran buen
+        querido querida pobre viejo vieja nuevo nueva otro otra
       ES_DIA_NUMBERS: [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, cien, mil]
       # Verb forms no possessive goes before, though the dictionary lists "es" (the letter) and
       # "fue" as nouns; "mi era", "mi vino" and "mi son" are nouns too.
-      ES_ONLY_VERBS:
-        [
-          es,
-          fue,
-          fui,
-          dijo,
-          hizo,
-          puso,
-          tuvo,
-          estuvo,
-          quiso,
-          supo,
-          pudo,
-          trajo,
-          eres,
-          soy,
-          somos,
-          estás,
-          va,
-          van,
-          ha,
-          han,
-          hay,
-          parece,
-          parecen,
-          resulta,
-          resultan,
-        ]
+      ES_ONLY_VERBS: >-
+        es fue fui dijo hizo puso tuvo estuvo quiso supo pudo trajo eres soy somos estás va van ha
+        han hay parece parecen resulta resultan
       ES_ONE_OFF: [también, tampoco, nunca, jamás, mismo, misma]
       # Finite verbs too common to need the lexicon: "el fue" can only be "él fue".
-      ES_COMMON_VERBS:
-        [
-          es,
-          era,
-          fue,
-          está,
-          estaba,
-          estuvo,
-          tiene,
-          tenía,
-          tuvo,
-          dijo,
-          dice,
-          hizo,
-          hace,
-          sabe,
-          sabía,
-          quiere,
-          quería,
-          quiso,
-          puede,
-          podía,
-          pudo,
-          iba,
-          ha,
-          había,
-          será,
-          sería,
-        ]
+      ES_COMMON_VERBS: >-
+        es era fue está estaba estuvo tiene tenía tuvo dijo dice hizo hace sabe sabía quiere quería
+        quiso puede podía pudo iba ha había será sería
       ES_DIA_PRONOUNS: [yo, tú, ella, usted, nosotros, nosotras, vosotros, ellos, ellas, ti, mí, él]
       ES_PLAIN_SI_PREV: [que, pues, eso, claro, ahora, creo]
-      ES_TEA:
-        [
-          verde,
-          negro,
-          rojo,
-          blanco,
-          chino,
-          japonés,
-          inglés,
-          frío,
-          caliente,
-          helado,
-          con,
-          "y",
-          de,
-          del,
-        ]
+      ES_TEA: >-
+        verde negro rojo blanco chino japonés inglés frío caliente helado con y de del
       # Bare objects "dar" takes in set phrases: "dé cuenta", "dé voz", "dé las gracias".
-      ES_GIVEN:
-        [
-          cuenta,
-          voz,
-          gracias,
-          permiso,
-          asentimiento,
-          golpecitos,
-          crédito,
-          importancia,
-          consentimiento,
-          aprobación,
-          apoyo,
-          bendición,
-        ]
+      ES_GIVEN: >-
+        cuenta voz gracias permiso asentimiento golpecitos crédito importancia consentimiento
+        aprobación apoyo bendición
       # What "dar" gives with an article: "que Dios dé una respuesta", "que dé un alarido".
       ES_GIVEN_WITH_ARTICLE: [respuesta, alarido, abrazo, beso, consejo]
       # Subjects that may stand between the subjunctive trigger and "dé".
-      ES_SUBJECT_FILLERS:
-        [él, ella, usted, alguien, nadie, dios, uno, cada, mismo, ahora, "no", nunca, ya]
+      ES_SUBJECT_FILLERS: >-
+        él ella usted alguien nadie dios uno cada mismo ahora no nunca ya
       # What follows an answer's "Sí,": "Sí, me gusta", "Sí, pero…", "Sí, claro".
-      ES_ANSWER_AFTER:
-        [
-          pero,
-          claro,
-          gracias,
-          señor,
-          señora,
-          vale,
-          bueno,
-          ya,
-          también,
-          me,
-          te,
-          nos,
-          lo,
-          la,
-          le,
-          es,
-          son,
-          está,
-          hay,
-          tengo,
-          quiero,
-          puedo,
-          creo,
-          exacto,
-          correcto,
-          perfecto,
-          efectivamente,
-          desde,
-          seguro,
-        ]
-      ES_IRREGULAR_PAST:
-        [
-          hice,
-          hizo,
-          fui,
-          fue,
-          fuimos,
-          fueron,
-          tuve,
-          tuvo,
-          dije,
-          dijo,
-          puse,
-          puso,
-          vine,
-          vino,
-          estuve,
-          estuvo,
-          pude,
-          pudo,
-          quise,
-          quiso,
-          supe,
-          supo,
-        ]
+      ES_ANSWER_AFTER: >-
+        pero claro gracias señor señora vale bueno ya también me te nos lo la le es son está hay
+        tengo quiero puedo creo exacto correcto perfecto efectivamente desde seguro
+      ES_IRREGULAR_PAST: >-
+        hice hizo fui fue fuimos fueron tuve tuvo dije dijo puse puso vine vino estuve estuvo pude
+        pudo quise quiso supe supo
       # Relatives written as question words after their antecedent: "nada qué hacer" -> "que".
       ES_QUANTITY_ANTECEDENTS: [nada, algo, nadie, alguien, mucho, poco, bastante]
       # Masculine adjectives that follow a subject "él": "él solo", "él mismo", "él propio".
@@ -2023,324 +1521,64 @@ rules:
     # (creó, the preterite), "no sabia" (sabía, the imperfect).
     sets:
       # Determiners that are never clitics: "el termino", "su numero", "dos practicas".
-      ES_VA_DETERMINERS:
-        [
-          el,
-          un,
-          una,
-          unos,
-          unas,
-          del,
-          al,
-          mi,
-          mis,
-          tus,
-          su,
-          sus,
-          cada,
-          nuestro,
-          nuestra,
-          nuestros,
-          nuestras,
-          dos,
-          tres,
-          cuatro,
-          cinco,
-          varios,
-          varias,
-          muchas,
-          muchos,
-          pocas,
-          pocos,
-          otra,
-          otro,
-          otras,
-          otros,
-          toda,
-          todo,
-          cuyo,
-          cuya,
-          cuyos,
-          cuyas,
-        ]
+      ES_VA_DETERMINERS: >-
+        el un una unos unas del al mi mis tus su sus cada nuestro nuestra nuestros nuestras dos tres
+        cuatro cinco varios varias muchas muchos pocas pocos otra otro otras otros toda todo cuyo
+        cuya cuyos cuyas
       ES_VA_DEGREE: [muy, más, tan, bastante]
       # Demonstratives are also subject pronouns ("este opera"): only after a preposition.
-      ES_VA_DEMONSTRATIVES:
-        [este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas]
-      ES_VA_TENER:
-        [tengo, tienes, tiene, tenemos, tienen, tenía, tenías, teníamos, tenían, tuve, tuvo]
+      ES_VA_DEMONSTRATIVES: >-
+        este esta estos estas ese esa esos esas aquel aquella aquellos aquellas
+      ES_VA_TENER: >-
+        tengo tienes tiene tenemos tienen tenía tenías teníamos tenían tuve tuvo
       # Before these, an imperfect or conditional verb: "no sabía", "se hacía", "yo tenía".
       ES_VA_BEFORE_VERB: [me, te, se, le, les, nos, os, "no", yo, él, ella, usted, lo]
       # "-o" words that are conjunctions, adverbs or quantifiers before a verb ("no sé cómo").
-      ES_VA_FUNCTION_WORDS:
-        [
-          como,
-          cuando,
-          donde,
-          pero,
-          todo,
-          mucho,
-          poco,
-          solo,
-          tanto,
-          otro,
-          mismo,
-          uno,
-          ninguno,
-          alguno,
-          cuanto,
-          luego,
-          tampoco,
-          sino,
-          demasiado,
-          medio,
-          esto,
-          eso,
-          aquello,
-        ]
+      ES_VA_FUNCTION_WORDS: >-
+        como cuando donde pero todo mucho poco solo tanto otro mismo uno ninguno alguno cuanto luego
+        tampoco sino demasiado medio esto eso aquello
       # Words after which "la"/"las" is a clitic: "Ella la practica de vez en cuando".
-      ES_NOT_BEFORE_ARTICLE:
-        [
-          yo,
-          tú,
-          él,
-          ella,
-          usted,
-          nosotros,
-          nosotras,
-          vosotros,
-          vosotras,
-          ellos,
-          ellas,
-          ustedes,
-          "no",
-          ya,
-          también,
-          tampoco,
-          nunca,
-          siempre,
-          que,
-          quien,
-          se,
-          me,
-          te,
-          nos,
-          os,
-        ]
+      ES_NOT_BEFORE_ARTICLE: >-
+        yo tú él ella usted nosotros nosotras vosotros vosotras ellos ellas ustedes no ya también
+        tampoco nunca siempre que quien se me te nos os
       ES_VA_ADVERBS: ["no", nunca, ya, también, siempre, jamás]
       # What follows a verb but not a noun or adjective ("trabajo en un banco", "canto hoy"); "de"
       # and "a" follow both ("repleto de", "junto a").
       ES_VA_ARTICLES: [el, la, los, las, un, una, unos, unas]
-      ES_AFTER_VERB:
-        [
-          el,
-          la,
-          los,
-          las,
-          un,
-          una,
-          hoy,
-          ayer,
-          anoche,
-          mucho,
-          poco,
-          bien,
-          mal,
-          tarde,
-          pronto,
-          en,
-          con,
-          por,
-          para,
-          sin,
-          hasta,
-          desde,
-        ]
-      ES_VA_SUBJECT_DETERMINERS:
-        [el, la, un, una, mi, tu, su, este, esta, ese, esa, aquel, aquella, nuestro, nuestra]
-      ES_VA_CLOSED:
-        [
-          al,
-          del,
-          lo,
-          yo,
-          tú,
-          él,
-          ella,
-          usted,
-          nosotros,
-          ellos,
-          ellas,
-          ustedes,
-          "no",
-          ya,
-          hoy,
-          ayer,
-          anoche,
-          mañana,
-          aquí,
-          allí,
-          así,
-          también,
-          tampoco,
-          muy,
-          más,
-          menos,
-          siempre,
-          nunca,
-          entonces,
-          luego,
-          después,
-          antes,
-          ahora,
-          todavía,
-          aún,
-        ]
+      ES_AFTER_VERB: >-
+        el la los las un una hoy ayer anoche mucho poco bien mal tarde pronto en con por para sin
+        hasta desde
+      ES_VA_SUBJECT_DETERMINERS: >-
+        el la un una mi tu su este esta ese esa aquel aquella nuestro nuestra
+      ES_VA_CLOSED: >-
+        al del lo yo tú él ella usted nosotros ellos ellas ustedes no ya hoy ayer anoche mañana aquí
+        allí así también tampoco muy más menos siempre nunca entonces luego después antes ahora
+        todavía aún
       # "Esta semana no puedo", "El año pasado trabajo…": a time phrase, not a subject.
-      ES_VA_TIME:
-        [
-          semana,
-          año,
-          mes,
-          día,
-          tarde,
-          noche,
-          mañana,
-          vez,
-          momento,
-          rato,
-          verano,
-          invierno,
-          otoño,
-          primavera,
-          lunes,
-          martes,
-          miércoles,
-          jueves,
-          viernes,
-          sábado,
-          domingo,
-          fin,
-        ]
+      ES_VA_TIME: >-
+        semana año mes día tarde noche mañana vez momento rato verano invierno otoño primavera lunes
+        martes miércoles jueves viernes sábado domingo fin
       # Words that call for the past subjunctive: "si cantara mañana", "como si lo supiera".
       ES_FUTURE_BLOCKERS: [si, que, ojalá, aunque, como, cuando, quizá, quizás, tal]
-      ES_DIRECTIONS:
-        [
-          abajo,
-          arriba,
-          adelante,
-          atrás,
-          afuera,
-          adentro,
-          allá,
-          acá,
-          aquí,
-          allí,
-          delante,
-          donde,
-          dónde,
-        ]
+      ES_DIRECTIONS: >-
+        abajo arriba adelante atrás afuera adentro allá acá aquí allí delante donde dónde
       ES_WEATHER: [calor, frío, sol, viento, fresco, bueno, malo, buen, mal]
-      ES_VA_AMOUNTS:
-        [mucho, muchos, tanto, tantos, poco, pocos, demasiado, casi, unos, unas, más, una, un]
-      ES_VA_TIME_NOUNS:
-        [
-          tiempo,
-          años,
-          días,
-          meses,
-          semanas,
-          horas,
-          minutos,
-          rato,
-          siglos,
-          año,
-          día,
-          mes,
-          semana,
-          hora,
-          minuto,
-        ]
-      ES_OBJECT_CLITICS: [lo, la, los, las, le, les, me, te, se, nos, os]
+      ES_VA_AMOUNTS: >-
+        mucho muchos tanto tantos poco pocos demasiado casi unos unas más una un
+      ES_VA_TIME_NOUNS: >-
+        tiempo años días meses semanas horas minutos rato siglos año día mes semana hora minuto
       ES_DEGREE_BEFORE: [muy, tan, poco, más, menos, bastante, demasiado, ya]
       ES_LINKS: [es, era, fue, está, estaba, estuvo, parece, parecía, puso, quedó, quedaba, sea]
       ES_VA_LEADING: [otra, otro, otras, otros, misma, mismo, tercera, segunda, primera, cierta]
-      ES_SUBJECT_OR_NO:
-        [
-          yo,
-          tú,
-          él,
-          ella,
-          usted,
-          ellos,
-          ellas,
-          ustedes,
-          eso,
-          esto,
-          estos,
-          esos,
-          aquellos,
-          "no",
-          ya,
-          nunca,
-          también,
-          tampoco,
-        ]
+      ES_SUBJECT_OR_NO: >-
+        yo tú él ella usted ellos ellas ustedes eso esto estos esos aquellos no ya nunca también
+        tampoco
       ES_VERAS_NEXT: [el, la, los, las, un, una, lo, que, qué, cómo, cuándo, si]
-      ES_VA_NUMBERS:
-        [
-          dos,
-          tres,
-          cuatro,
-          cinco,
-          seis,
-          siete,
-          ocho,
-          nueve,
-          diez,
-          once,
-          doce,
-          quince,
-          veinte,
-          treinta,
-          cien,
-          mil,
-        ]
-      ES_BEFORE_HIATUS_NOUN:
-        [
-          del,
-          al,
-          menudo,
-          tremendo,
-          gran,
-          buen,
-          qué,
-          vaya,
-          mucho,
-          poco,
-          tanto,
-          más,
-          menos,
-          muy,
-          ni,
-          hace,
-          hacía,
-          hizo,
-          hará,
-          tengo,
-          tienes,
-          tiene,
-          tenemos,
-          tienen,
-          tenía,
-          tenían,
-          hay,
-          había,
-          paso,
-          pasa,
-          pasé,
-          pasamos,
-        ]
+      ES_VA_NUMBERS: >-
+        dos tres cuatro cinco seis siete ocho nueve diez once doce quince veinte treinta cien mil
+      ES_BEFORE_HIATUS_NOUN: >-
+        del al menudo tremendo gran buen qué vaya mucho poco tanto más menos muy ni hace hacía hizo
+        hará tengo tienes tiene tenemos tienen tenía tenían hay había paso pasa pasé pasamos
     maps:
       # The accented future endings.
       ES_FUTURE_ACCENTS: { a: á, as: ás, an: án, e: é }
@@ -2781,7 +2019,7 @@ rules:
                 ? "hacía"
                 : ES_DIRECTIONS.has(next) || numeral
                   ? null
-                  : ES_OBJECT_CLITICS.has(prev)
+                  : ES_CLITICS.has(prev)
                     ? "hacía"
                     : ES_DETERMINERS.has(next)
                       ? null
@@ -2878,41 +2116,12 @@ rules:
     sets:
       # "el ingles", "curso de ingles": the language; "las ingles" (the groin) is plural.
       ES_BEFORE_LANGUAGE: [el, del, al, mi, tu, su, un, en, "y", o, buen, mal, nuestro, vuestro]
-      ES_LANGUAGE_NOUNS:
-        [
-          curso,
-          cursos,
-          clase,
-          clases,
-          profesor,
-          profesora,
-          profesores,
-          examen,
-          nivel,
-          libro,
-          libros,
-          alumnos,
-          alumnas,
-          academia,
-          traducción,
-          diccionario,
-        ]
+      ES_LANGUAGE_NOUNS: >-
+        curso cursos clase clases profesor profesora profesores examen nivel libro libros alumnos
+        alumnas academia traducción diccionario
       # What a conditional "sería" goes on with and the adjective "seria" does not.
-      ES_AFTER_SERIA:
-        [
-          lo,
-          un,
-          una,
-          mejor,
-          peor,
-          posible,
-          imposible,
-          necesario,
-          necesaria,
-          conveniente,
-          preferible,
-          suficiente,
-        ]
+      ES_AFTER_SERIA: >-
+        lo un una mejor peor posible imposible necesario necesaria conveniente preferible suficiente
     defs:
       # Past subjunctives look like other tenses: "para que hablaran", "para que viniese".
       ES_PAST_SUBJUNCTIVE: /(?:ra|ras|ra|ramos|rais|ran|se|ses|semos|seis|sen)$/u
@@ -3053,170 +2262,31 @@ rules:
     # pasado" (año), "ha echo" (hecho), "a ver estudiado" (haber). The typed word is a real word,
     # so each check names the neighbour that rules its reading out.
     sets:
-      ES_CONFUSION_NUMBERS:
-        [
-          un,
-          una,
-          uno,
-          dos,
-          tres,
-          cuatro,
-          cinco,
-          seis,
-          siete,
-          ocho,
-          nueve,
-          diez,
-          once,
-          doce,
-          quince,
-          veinte,
-          treinta,
-          cuarenta,
-          cincuenta,
-          sesenta,
-          setenta,
-          ochenta,
-          noventa,
-          cien,
-          ciento,
-          mil,
-        ]
-      ES_CONFUSION_MODALS:
-        [
-          puede,
-          pueden,
-          podía,
-          podían,
-          podrá,
-          podrán,
-          podría,
-          podrían,
-          debe,
-          deben,
-          debía,
-          debían,
-          debería,
-          deberían,
-          suele,
-          suelen,
-          solía,
-          solían,
-        ]
+      ES_CONFUSION_NUMBERS: >-
+        un una uno dos tres cuatro cinco seis siete ocho nueve diez once doce quince veinte treinta
+        cuarenta cincuenta sesenta setenta ochenta noventa cien ciento mil
+      ES_CONFUSION_MODALS: >-
+        puede pueden podía podían podrá podrán podría podrían debe deben debía debían debería
+        deberían suele suelen solía solían
       # Words a perfect "he" follows but the conjunction "e" never does: "te e dicho", "ya e ido".
-      ES_BEFORE_HE:
-        [
-          yo,
-          me,
-          te,
-          le,
-          les,
-          lo,
-          la,
-          los,
-          las,
-          nos,
-          os,
-          se,
-          "no",
-          ya,
-          siempre,
-          nunca,
-          jamás,
-          también,
-          tampoco,
-          todavía,
-        ]
+      ES_BEFORE_HE: >-
+        yo me te le les lo la los las nos os se no ya siempre nunca jamás también tampoco todavía
       # Words around a letter "e" or a variable "e": "la letra e", "el apartado e del", "con e
       # mayúscula", "donde e es la carga", "a, b, c, d, e".
-      ES_LETTER_BEFORE:
-        [
-          la,
-          una,
-          letra,
-          vocal,
-          constante,
-          número,
-          variable,
-          donde,
-          si,
-          con,
-          sin,
-          apartado,
-          inciso,
-          punto,
-        ]
-      ES_LETTER_AFTER:
-        [
-          de,
-          del,
-          es,
-          son,
-          vale,
-          mayúscula,
-          minúscula,
-          mayúsculas,
-          minúsculas,
-          final,
-          inicial,
-          abierta,
-          cerrada,
-          tónica,
-          átona,
-        ]
+      ES_LETTER_BEFORE: >-
+        la una letra vocal constante número variable donde si con sin apartado inciso punto
+      ES_LETTER_AFTER: >-
+        de del es son vale mayúscula minúscula mayúsculas minúsculas final inicial abierta cerrada
+        tónica átona
       # Adjectives "tan" is the degree of: "está tan mal", "es tan bueno".
       ES_TAN_ADVERBS: [bien, mal, lejos, cerca, pronto, tarde]
-      ES_SER_ESTAR:
-        [
-          es,
-          era,
-          fue,
-          son,
-          eran,
-          fueron,
-          sea,
-          está,
-          estaba,
-          estuvo,
-          están,
-          estaban,
-          estoy,
-          estás,
-          estamos,
-          soy,
-          eres,
-          somos,
-          parece,
-          parecía,
-          resulta,
-          resultó,
-        ]
+      ES_SER_ESTAR: >-
+        es era fue son eran fueron sea está estaba estuvo están estaban estoy estás estamos soy eres
+        somos parece parecía resulta resultó
       # Words a lone "d", "n" or "l" may stand before when it lost a letter: "d esta", "n este".
-      ES_LEAD_DETERMINERS:
-        [
-          el,
-          la,
-          los,
-          las,
-          un,
-          una,
-          este,
-          esta,
-          estos,
-          estas,
-          ese,
-          esa,
-          esos,
-          esas,
-          aquel,
-          aquella,
-          mi,
-          mis,
-          su,
-          sus,
-          tu,
-          tus,
-        ]
+      ES_LEAD_DETERMINERS: >-
+        el la los las un una este esta estos estas ese esa esos esas aquel aquella mi mis su sus tu
+        tus
     maps:
       # Existential "haber" has no plural.
       ES_PLURAL_HABER:
@@ -3757,128 +2827,25 @@ rules:
       ES_EXISTENTIAL: [había, hubo, habrá, haya, hubiera, hubiese, habría, haber, habiendo]
       ES_ESTAR: [estoy, estás, está, estamos, estáis, están, estaba, estabas, estábamos, estaban]
       ES_PERFECT: [he, has, ha, hemos, habéis, han, había, habías, habíamos, habían]
-      ES_QUANTIFIER_AFTER:
-        [
-          todos,
-          todas,
-          ambos,
-          ambas,
-          dos,
-          tres,
-          cuatro,
-          cinco,
-          seis,
-          siete,
-          ocho,
-          nueve,
-          diez,
-          cien,
-          mil,
-          varios,
-          varias,
-        ]
-      ES_BEFORE_AUXILIARY:
-        [
-          él,
-          ella,
-          usted,
-          ello,
-          me,
-          te,
-          se,
-          nos,
-          os,
-          le,
-          les,
-          lo,
-          la,
-          "no",
-          ya,
-          siempre,
-          nunca,
-          también,
-          todavía,
-        ]
+      ES_QUANTIFIER_AFTER: >-
+        todos todas ambos ambas dos tres cuatro cinco seis siete ocho nueve diez cien mil varios
+        varias
+      ES_BEFORE_AUXILIARY: >-
+        él ella usted ello me te se nos os le les lo la no ya siempre nunca también todavía
       # Verbs and phrases that take "de que" (queísmo when it is missing) and those that refuse it.
-      ES_DAR:
-        [
-          di,
-          diste,
-          dio,
-          dimos,
-          disteis,
-          dieron,
-          doy,
-          das,
-          da,
-          damos,
-          dan,
-          daba,
-          dabas,
-          dábamos,
-          daban,
-          dado,
-          dar,
-          darse,
-          darme,
-          darte,
-          darnos,
-          dé,
-          des,
-          den,
-          diera,
-          dieras,
-          dieran,
-          daría,
-          darás,
-          dará,
-        ]
+      ES_DAR: >-
+        di diste dio dimos disteis dieron doy das da damos dan daba dabas dábamos daban dado dar
+        darse darme darte darnos dé des den diera dieras dieran daría darás dará
       ES_REFLEXIVE: [me, te, se, nos, os]
       ES_IMPERSONAL: [posible, fácil, probable, necesario, importante, seguro, cierto, difícil]
       # Irregular verb forms that are also nouns: "le vino", "le traje", "les dije".
       ES_VERB_NOUNS: [vino, traje, dije, puse, tuve, hice, vine, fui, cupo]
       ES_HABER_DE: [he, has, ha, hemos, habéis, han, había, habían, habrá, habrán]
       # Words after a modal that are no verb form, though they look like one: "no me gusta nada".
-      ES_NOT_GOVERNED:
-        [
-          nada,
-          cada,
-          toda,
-          nunca,
-          siempre,
-          ahora,
-          entre,
-          sobre,
-          bajo,
-          este,
-          esta,
-          ese,
-          esa,
-          aquella,
-          otra,
-          otro,
-          cerca,
-          fuera,
-          dentro,
-          arriba,
-          abajo,
-          delante,
-          detrás,
-          antes,
-          mientras,
-          tarde,
-          pronto,
-          alguna,
-          ninguna,
-          mucha,
-          poca,
-          demasiada,
-          tanta,
-          cuanta,
-          media,
-          mitad,
-          que,
-        ]
+      ES_NOT_GOVERNED: >-
+        nada cada toda nunca siempre ahora entre sobre bajo este esta ese esa aquella otra otro
+        cerca fuera dentro arriba abajo delante detrás antes mientras tarde pronto alguna ninguna
+        mucha poca demasiada tanta cuanta media mitad que
       # Subordinators after which "puede"/"quiere" stand alone: "cuando puede, intenta escapar".
       ES_ALONE_AFTER: [cuando, como, si, donde, quien, quienes, mientras, según]
       ES_VF_DEGREE: [muy, más, menos, tan, bastante, demasiado]
@@ -4376,7 +3343,7 @@ rules:
           - "!(esKeepsTyped(ctx, m[1]) || ctx.dictionary.has(word) || namedExampleBefore(ctx.text, m.index))"
         return: >-
           esFinding("spanishConfusions", "review_msg_closed_compound", m.index, m.index + m[0].length,
-          [esCarryCase(m[1], esJoinPrefix(prefix, word))], { bulkBlock: "context-dependent" })
+          [carryCase(m[1], esJoinPrefix(prefix, word))], { bulkBlock: "context-dependent" })
   - id: es.splitCompounds
     checks: [spanishConfusions]
     group: spanishConfusions
@@ -4385,8 +3352,8 @@ rules:
     sets:
       # Masculine determiners: "un saca corchos" can only be a compound noun, since "saca" (the verb)
       # takes no article and "la saca" (the sack) no masculine one.
-      ES_MASCULINE_DETERMINERS:
-        [el, un, del, al, este, ese, aquel, los, unos, estos, esos, aquellos]
+      ES_MASCULINE_DETERMINERS: >-
+        el un del al este ese aquel los unos estos esos aquellos
     defs:
       # Verbs "mal" fuses with into a new meaning; "mal vive" (lives badly) stays apart.
       ES_MAL_VERBS: /^(?:interpret|gast|trat|cri|vend|her|entend|entiend|acostumbr)\p{L}+$/u
@@ -4473,11 +3440,7 @@ rules:
           - m.index >= ctx.from && m[1] === m[2] && !ctx.dictionary.has(m[0].toLowerCase())
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: "spanishConfusions",
-            messageKey: "review_msg_closed_compound",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [`${m[1]}${m[2]}`],
+          finding("spanishConfusions", "review_msg_closed_compound", m.index, m.index + m[0].length, [`${m[1]}${m[2]}`], {
             bulkBlock: "context-dependent",
           })
   - id: es.porque
@@ -4489,31 +3452,17 @@ rules:
     # question word (why) and preposition + relative. The frame around each picks the spelling: a
     # determiner makes the noun ("el porqué"), a verb of knowing the question ("no sé por qué").
     sets:
-      ES_SINGULAR_DETS:
-        [el, un, del, al, su, este, ese, aquel, ningún, algún, otro, mi, tu, nuestro, vuestro, cuyo]
+      ES_SINGULAR_DETS: >-
+        el un del al su este ese aquel ningún algún otro mi tu nuestro vuestro cuyo
       ES_PLURAL_DETS: [los, unos, sus, estos, esos, aquellos, mis, tus, nuestros, vuestros]
       # "Dime porque lo has hecho": a command to tell why.
       ES_TELL: [dime, dinos, decirme, decirnos, explícame, explícanos, explicarme, explicarnos]
-      ES_NEED:
-        [
-          hay,
-          había,
-          habrá,
-          habría,
-          tengo,
-          tienes,
-          tiene,
-          tenemos,
-          tenéis,
-          tienen,
-          tenía,
-          tenías,
-          tenían,
-        ]
+      ES_NEED: >-
+        hay había habrá habría tengo tienes tiene tenemos tenéis tienen tenía tenías tenían
       ES_REASON: [razón, razones, motivo, motivos, causa, causas]
       # Function words a loose verb reading would count: "no", "me", "una".
-      ES_PORQUE_CLOSED:
-        ["no", me, te, se, le, les, lo, la, los, las, nos, os, un, una, el, ya, muy, más]
+      ES_PORQUE_CLOSED: >-
+        no me te se le les lo la los las nos os un una el ya muy más
       # Nouns that ask why: "la pregunta es por qué", "no tengo idea de por qué".
       ES_ASKING_NOUNS: [pregunta, cuestión, duda, idea, misterio, incógnita]
     defs:
@@ -4724,63 +3673,15 @@ rules:
       # may mean "even" and "según" a clause ("y hasta escanea", "según informa la radio").
       ES_GOVERNING: [del, al, de, en, con, por, sin, desde, sobre, entre, hacia, contra, tras]
       # Adverbs and nouns that look like verb forms after a preposition: "de cerca", "desde hace".
-      ES_NOT_FINITE_HERE:
-        [
-          hace,
-          cerca,
-          acerca,
-          fuera,
-          dentro,
-          arriba,
-          abajo,
-          delante,
-          detrás,
-          antes,
-          encima,
-          debajo,
-          afuera,
-          adentro,
-          este,
-          atrás,
-          adelante,
-          nada,
-          toda,
-          cada,
-          media,
-          mitad,
-          sobre,
-          bajo,
-          entre,
-          tarde,
-          pronto,
-          mientras,
-        ]
+      ES_NOT_FINITE_HERE: >-
+        hace cerca acerca fuera dentro arriba abajo delante detrás antes encima debajo afuera
+        adentro este atrás adelante nada toda cada media mitad sobre bajo entre tarde pronto
+        mientras
       # "haber" forms that are only the auxiliary: the third person singular ("ha", "había") may be
       # existential or the preposition "a".
-      ES_AUXILIARY_ONLY:
-        [
-          he,
-          has,
-          hemos,
-          habéis,
-          han,
-          habías,
-          habíamos,
-          habíais,
-          habían,
-          habrás,
-          habremos,
-          habréis,
-          habrán,
-          hayas,
-          hayamos,
-          hayáis,
-          hayan,
-          hubieras,
-          hubiéramos,
-          hubierais,
-          hubieran,
-        ]
+      ES_AUXILIARY_ONLY: >-
+        he has hemos habéis han habías habíamos habíais habían habrás habremos habréis habrán hayas
+        hayamos hayáis hayan hubieras hubiéramos hubierais hubieran
     maps:
       ES_STRESS: { a: á, e: é }
     defs:
@@ -4980,39 +3881,9 @@ rules:
     sets:
       # Words that take "ala" (wing) without an article: "ala delta", "ala derecha".
       ES_WING: [delta, derecha, izquierda, norte, sur, este, oeste, oriental, occidental]
-      ES_WING_DETERMINERS:
-        [
-          el,
-          un,
-          del,
-          al,
-          su,
-          sus,
-          mi,
-          mis,
-          tu,
-          tus,
-          este,
-          ese,
-          aquel,
-          otra,
-          otras,
-          cada,
-          las,
-          unas,
-          estas,
-          esas,
-          aquellas,
-          nuestra,
-          nuestras,
-          vuestra,
-          vuestras,
-          sin,
-          con,
-          en,
-          de,
-          por,
-        ]
+      ES_WING_DETERMINERS: >-
+        el un del al su sus mi mis tu tus este ese aquel otra otras cada las unas estas esas
+        aquellas nuestra nuestras vuestra vuestras sin con en de por
       # Short imperatives that take their pronouns at the end: "dame", "hazlo", "ponte".
       ES_SHORT_IMPERATIVES: [da, di, haz, pon, sal, ten, ven, ve, sé]
     defs:
@@ -5311,14 +4182,10 @@ rules:
           near: nearestDayOn(years[0], monthIndex, Number(day), typed)
         when: years.length && !weekdays.includes(typed)
         return: >-
-          ({
-            ruleId: "spanishTypography" as const,
-            messageKey: "review_msg_weekday_no_year" as const,
-            range: { start: m.index, end: dayStart + day.length },
-            alternatives: [
-              ...weekdays.map((w) => `${esCarryCase(weekday, ES_WEEKDAY_LIST[w])}${m[2]}${day}`),
+          finding("spanishTypography", "review_msg_weekday_no_year", m.index, dayStart + day.length, [
+              ...weekdays.map((w) => `${carryCase(weekday, ES_WEEKDAY_LIST[w])}${m[2]}${day}`),
               ...(near === null ? [] : [`${weekday}${m[2]}${near}`]),
-            ],
+            ], {
             requiresChoice: true as const,
             context: { start: m.index, end: m.index + m[0].length },
           })
@@ -5354,14 +4221,10 @@ rules:
             weekday && yearNumber && dayNumber >= 1 && dayNumber <= daysInMonth(monthIndex, yearNumber) &&
             ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))] !== weekday.toLowerCase() &&
             !namedExampleBefore(ctx.text, m.index)
-              ? {
-                  ruleId: "spanishTypography" as const,
-                  messageKey: "review_msg_spanish_date" as const,
-                  range: { start: m.index, end: m.index + weekday.length },
-                  alternatives: [esCarryCase(weekday, ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))])],
-                  context: { start: m.index, end: m.index + m[0].length },
-                  bulkBlock: "ambiguous" as const,
-                }
+              ? finding("spanishTypography", "review_msg_spanish_date", m.index, m.index + weekday.length, [carryCase(weekday, ES_WEEKDAY_LIST[weekdayOf(yearNumber, monthIndex, Number(day))])], {
+                context: { start: m.index, end: m.index + m[0].length },
+                bulkBlock: "ambiguous" as const,
+              })
               : null,
             weekday && !year && dayNumber >= 1 && dayNumber <= daysInMonth(monthIndex) && !namedExampleBefore(ctx.text, m.index)
               ? esWeekdayNoYear(ctx, m, dayStart, monthIndex)
@@ -5724,168 +4587,32 @@ rules:
       # Greetings that may close a sentence: "Os deseo buenos días, amigos".
       ES_CLOSING_GREETINGS: [días, día, tardes, noches]
       # Words that open the clause after the person addressed: "Hola amigo, cómo estás".
-      ES_CLAUSE_OPENERS:
-        [
-          cómo,
-          como,
-          qué,
-          que,
-          dónde,
-          donde,
-          cuándo,
-          cuando,
-          quién,
-          quien,
-          cuál,
-          te,
-          me,
-          os,
-          nos,
-          le,
-          les,
-          ya,
-          hoy,
-        ]
-      ES_ADDRESSED:
-        [
-          amigo,
-          amiga,
-          amigos,
-          amigas,
-          chico,
-          chica,
-          chicos,
-          chicas,
-          guapo,
-          guapa,
-          guapos,
-          guapas,
-          cariño,
-          querido,
-          querida,
-          queridos,
-          queridas,
-          señor,
-          señora,
-          señores,
-          señoras,
-          señorita,
-          jefe,
-          jefa,
-          compañero,
-          compañera,
-          compañeros,
-          compañeras,
-          hermano,
-          hermana,
-          tío,
-          tía,
-          mamá,
-          papá,
-          abuelo,
-          abuela,
-          hijo,
-          hija,
-          niños,
-          niñas,
-          estimado,
-          estimada,
-          estimados,
-          estimadas,
-          colega,
-          colegas,
-          preciosa,
-          precioso,
-          amor,
-          cielo,
-          vecino,
-          vecina,
-          vecinos,
-          chaval,
-          chavales,
-          muchachos,
-          muchachas,
-          gente,
-          familia,
-          equipo,
-        ]
+      ES_CLAUSE_OPENERS: >-
+        cómo como qué que dónde donde cuándo cuando quién quien cuál te me os nos le les ya hoy
+      ES_ADDRESSED: >-
+        amigo amiga amigos amigas chico chica chicos chicas guapo guapa guapos guapas cariño querido
+        querida queridos queridas señor señora señores señoras señorita jefe jefa compañero
+        compañera compañeros compañeras hermano hermana tío tía mamá papá abuelo abuela hijo hija
+        niños niñas estimado estimada estimados estimadas colega colegas preciosa precioso amor
+        cielo vecino vecina vecinos chaval chavales muchachos muchachas gente familia equipo
       ES_NEGATIONS: ["no", nunca, jamás, tampoco, ni]
       # "No hace sino llorar", "nadie sino él", "no tiene otra salida sino esperar": "sino" means
       # "except" here and takes no comma.
-      ES_EXCEPTIVE:
-        [nadie, nada, ningún, ninguna, ninguno, otro, otra, otros, otras, más, menos, cosa]
+      ES_EXCEPTIVE: >-
+        nadie nada ningún ninguna ninguno otro otra otros otras más menos cosa
       # Finite verbs the dictionary also lists as nouns.
       ES_COMMON_FINITE: [es, son, era, eran, fue, fueron, ha, han, va, van, da, dan, ve, ven, hay]
       # Determiners of a subject a comma may not cut from its verb; "mi"/"tu" open vocatives ("Mi
       # amor, está lista la cena"). The es.commas frame lists these words.
-      ES_SUBJECT_DETERMINERS:
-        [
-          el,
-          la,
-          los,
-          las,
-          este,
-          esta,
-          estos,
-          estas,
-          ese,
-          esa,
-          esos,
-          esas,
-          aquel,
-          aquella,
-          aquellos,
-          aquellas,
-          nuestro,
-          nuestra,
-          nuestros,
-          nuestras,
-          su,
-          sus,
-        ]
+      ES_SUBJECT_DETERMINERS: >-
+        el la los las este esta estos estas ese esa esos esas aquel aquella aquellos aquellas
+        nuestro nuestra nuestros nuestras su sus
       # Nouns that open a sentence as an adverbial or a remark, comma and all: "La verdad, no lo sé",
       # "El lunes, llegaron todos", "La mayoría, se fue".
-      ES_NOT_SUBJECT_NOUNS:
-        [
-          verdad,
-          semana,
-          semanas,
-          año,
-          años,
-          mes,
-          meses,
-          día,
-          días,
-          tarde,
-          tardes,
-          noche,
-          noches,
-          mañana,
-          mañanas,
-          vez,
-          veces,
-          momento,
-          rato,
-          verano,
-          invierno,
-          otoño,
-          primavera,
-          lunes,
-          martes,
-          miércoles,
-          jueves,
-          viernes,
-          sábado,
-          sábados,
-          domingo,
-          domingos,
-          fin,
-          principio,
-          final,
-          mayoría,
-          mitad,
-          resto,
-        ]
+      ES_NOT_SUBJECT_NOUNS: >-
+        verdad semana semanas año años mes meses día días tarde tardes noche noches mañana mañanas
+        vez veces momento rato verano invierno otoño primavera lunes martes miércoles jueves viernes
+        sábado sábados domingo domingos fin principio final mayoría mitad resto
       ES_SINGULAR_COPULA: [es, está, era, estaba, fue, será, ha, va, tiene]
       ES_PLURAL_COPULA: [son, están, eran, estaban, fueron, serán, han, van, tienen]
     defs:
@@ -6147,11 +4874,7 @@ rules:
           - '!/\.\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))'
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_space_after_mark",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [`${m[0].trim()} `],
+          finding("commaPeriodSpacing", "review_msg_space_after_mark", m.index, m.index + m[0].length, [`${m[0].trim()} `], {
             context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
             bulkBlock: "context-dependent",
           })
@@ -6166,11 +4889,7 @@ rules:
           word: /\S*$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))![0]
         when: "!(namedExampleBefore(ctx.text, m.index) || /[&#=/]/u.test(word))"
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: m[0].startsWith(";") ? "review_msg_space_after_mark" : "review_msg_space_before_mark",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0].startsWith(";") ? "; " : m[0].trim()],
+          finding("commaPeriodSpacing", m[0].startsWith(";") ? "review_msg_space_after_mark" : "review_msg_space_before_mark", m.index, m.index + m[0].length, [m[0].startsWith(";") ? "; " : m[0].trim()], {
             context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
             bulkBlock: "context-dependent",
           })
@@ -6196,24 +4915,16 @@ rules:
         return: >-
           [
             lead && open >= ctx.from && open < ctx.to
-              ? {
-                  ruleId: "commaPeriodSpacing" as const,
-                  messageKey: "review_msg_space_after_opening_mark" as const,
-                  range: { start: open, end: open + 1 + lead },
-                  alternatives: ['"'],
-                  context: { start: open, end: close + 1 },
-                  bulkBlock: "context-dependent" as const,
-                }
+              ? finding("commaPeriodSpacing", "review_msg_space_after_opening_mark", open, open + 1 + lead, ['"'], {
+                context: { start: open, end: close + 1 },
+                bulkBlock: "context-dependent" as const,
+              })
               : null,
             trail && close >= ctx.from && close < ctx.to
-              ? {
-                  ruleId: "commaPeriodSpacing" as const,
-                  messageKey: "review_msg_space_before_mark" as const,
-                  range: { start: close - trail, end: close + 1 },
-                  alternatives: ['"'],
-                  context: { start: open, end: close + 1 },
-                  bulkBlock: "context-dependent" as const,
-                }
+              ? finding("commaPeriodSpacing", "review_msg_space_before_mark", close - trail, close + 1, ['"'], {
+                context: { start: open, end: close + 1 },
+                bulkBlock: "context-dependent" as const,
+              })
               : null,
           ].filter((finding) => finding !== null)
         else: "[]"
@@ -6321,12 +5032,7 @@ rules:
         # "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma.
         when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
         return: >-
-          ({
-            ruleId: "spanishTypographyStyle",
-            messageKey: "review_msg_spanish_decimal",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
-          })
+          finding("spanishTypographyStyle", "review_msg_spanish_decimal", m.index, m.index + m[0].length, [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))])
       # "1.4 kg", "9349.5", "1 999 349.56": a decimal point before a unit, after four digits or
       # closing a group spaced by thousands. "a las 9.30", "versión 2.5" and "3.2.1" stay.
       - regex: "(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}{{UNIT_AFTER}}))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})"
@@ -6336,12 +5042,7 @@ rules:
         # "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma.
         when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
         return: >-
-          ({
-            ruleId: "spanishTypographyStyle",
-            messageKey: "review_msg_spanish_decimal",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
-          })
+          finding("spanishTypographyStyle", "review_msg_spanish_decimal", m.index, m.index + m[0].length, [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))])
       # "30 km2", "por m3": a unit's exponent is a superscript.
       - regex: "(?<=(?:\\d[ \\t\\u00a0]?|\\bpor[ \\t]|\\/))(?:km|cm|mm|dm|m)[23](?![\\p{L}\\p{N}])"
         flags: gu
@@ -6351,12 +5052,7 @@ rules:
           start: m.index + m[0].length - 1
         when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
         return: >-
-          ({
-            ruleId: "spanishTypographyStyle",
-            messageKey: "review_msg_typographic_symbol",
-            range: { start, end: start + 1 },
-            alternatives: [m[0].endsWith("2") ? "²" : "³"],
-          })
+          finding("spanishTypographyStyle", "review_msg_typographic_symbol", start, start + 1, [m[0].endsWith("2") ? "²" : "³"])
         message: review_msg_typographic_symbol
   - id: es.agreement
     checks: [spanishAgreement]
@@ -6372,297 +5068,58 @@ rules:
       # Determiners that may stand alone as a subject before a verb ("este cuenta", "otros dicen"),
       # the clitic pronouns ("la cuentas"), and "el"/"tu" for an unaccented "él"/"tú".
       ES_CLITIC_ARTICLES: [la, las, los]
-      ES_STANDALONE:
-        [
-          el,
-          tu,
-          este,
-          esta,
-          estos,
-          estas,
-          ese,
-          esa,
-          esos,
-          esas,
-          aquel,
-          aquella,
-          aquellos,
-          aquellas,
-          otro,
-          otra,
-          otros,
-          otras,
-          mucho,
-          mucha,
-          muchos,
-          muchas,
-          poco,
-          poca,
-          pocos,
-          pocas,
-          demasiado,
-          demasiada,
-          demasiados,
-          demasiadas,
-          tanto,
-          tanta,
-          tantos,
-          tantas,
-          cuanto,
-          cuanta,
-          cuantos,
-          cuantas,
-          cuánto,
-          cuánta,
-          cuántos,
-          cuántas,
-        ]
+      ES_STANDALONE: >-
+        el tu este esta estos estas ese esa esos esas aquel aquella aquellos aquellas otro otra
+        otros otras mucho mucha muchos muchas poco poca pocos pocas demasiado demasiada demasiados
+        demasiadas tanto tanta tantos tantas cuanto cuanta cuantos cuantas cuánto cuánta cuántos
+        cuántas
       # Plural pronouns that drop a repeated verb: "unos piden problemas y otros oportunidades".
       ES_ELLIPTIC: [unos, unas, otros, otras, algunos, algunas, muchos, muchas, pocos, pocas]
-      ES_ADJECTIVE_BLOCKERS:
-        [
-          este,
-          esta,
-          estos,
-          estas,
-          ese,
-          esa,
-          esos,
-          esas,
-          aquel,
-          aquella,
-          aquellos,
-          aquellas,
-          otros,
-          otras,
-          algunos,
-          algunas,
-          muchos,
-          muchas,
-          pocos,
-          pocas,
-          mucho,
-          poco,
-          demasiado,
-        ]
+      ES_ADJECTIVE_BLOCKERS: >-
+        este esta estos estas ese esa esos esas aquel aquella aquellos aquellas otros otras algunos
+        algunas muchos muchas pocos pocas mucho poco demasiado
       # "el agua", "un hacha", "algún arma": a stressed a- feminine noun takes these.
       ES_BEFORE_STRESSED_A: [el, un, algún, ningún, del, al]
       ES_AG_QUANTIFIERS: [todos, todas, ambos, ambas]
       # Words before a clitic that are no verb: "uno las mira", "si no las ve".
-      ES_SUBJECT_WORDS:
-        [
-          yo,
-          tú,
-          él,
-          ella,
-          usted,
-          nosotros,
-          nosotras,
-          vosotros,
-          vosotras,
-          ellos,
-          ellas,
-          ustedes,
-          "no",
-          ya,
-          nunca,
-          también,
-          tampoco,
-          siempre,
-          que,
-          quien,
-          si,
-          como,
-          cuando,
-          donde,
-        ]
-      ES_DEFINITE_GROUP:
-        [
-          los,
-          las,
-          estos,
-          estas,
-          esos,
-          esas,
-          aquellos,
-          aquellas,
-          sus,
-          mis,
-          tus,
-          nuestros,
-          nuestras,
-          vuestros,
-          vuestras,
-        ]
+      ES_SUBJECT_WORDS: >-
+        yo tú él ella usted nosotros nosotras vosotros vosotras ellos ellas ustedes no ya nunca
+        también tampoco siempre que quien si como cuando donde
+      ES_DEFINITE_GROUP: >-
+        los las estos estas esos esas aquellos aquellas sus mis tus nuestros nuestras vuestros
+        vuestras
       ES_FEMININE_BEFORE: [la, una, esta, esa, aquella, nuestra, vuestra, otra]
       ES_MASCULINE_BEFORE: [el, un, este, ese, aquel, nuestro, vuestro, otro, del, al]
       # Adjectives that also work as adverbs: "tomó la curva más rápido", "lo dijo más claro".
-      ES_ADVERBIAL:
-        [
-          rápido,
-          lento,
-          claro,
-          alto,
-          bajo,
-          fuerte,
-          duro,
-          directo,
-          fijo,
-          seguro,
-          barato,
-          caro,
-          recto,
-          derecho,
-          limpio,
-          justo,
-          hondo,
-          ligero,
-          despacio,
-          temprano,
-          tarde,
-          pronto,
-          mismo,
-        ]
+      ES_ADVERBIAL: >-
+        rápido lento claro alto bajo fuerte duro directo fijo seguro barato caro recto derecho
+        limpio justo hondo ligero despacio temprano tarde pronto mismo
       # Words between a noun and its adjective: "una torre bien alta", "una casa muy bonita".
       ES_ADJECTIVE_DEGREE: [muy, tan, bien, bastante, demasiado, más, menos, poco]
       # -o/-a words that work as adverbs or prepositions after a noun: "la casa junto al río", "las
       # chicas solo quieren", "la mesa medio rota", "la reunión debido a la lluvia".
-      ES_NOT_POSTPONED:
-        [
-          junto,
-          debido,
-          dado,
-          puesto,
-          solo,
-          mismo,
-          medio,
-          todo,
-          tanto,
-          cuanto,
-          demasiado,
-          poco,
-          mucho,
-          bastante,
-          recién,
-          contrario,
-          relativo,
-          tocante,
-          referente,
-          rumbo,
-          comparado,
-          visto,
-        ]
+      ES_NOT_POSTPONED: >-
+        junto debido dado puesto solo mismo medio todo tanto cuanto demasiado poco mucho bastante
+        recién contrario relativo tocante referente rumbo comparado visto
       # Nouns in -ble that are no adjectives.
       ES_NOUNS_IN_BLE: [mueble, muebles, inmueble, inmuebles, cable, cables, roble, robles, sable]
       # Nouns a bare noun or an adverbial may follow: "la mayoría niños", "una vez dormida".
-      ES_NOT_HEADS:
-        [
-          vez,
-          rato,
-          momento,
-          mayoría,
-          minoría,
-          mitad,
-          resto,
-          parte,
-          grupo,
-          montón,
-          multitud,
-          cantidad,
-          número,
-          serie,
-          conjunto,
-          totalidad,
-          tanto,
-          poco,
-        ]
+      ES_NOT_HEADS: >-
+        vez rato momento mayoría minoría mitad resto parte grupo montón multitud cantidad número
+        serie conjunto totalidad tanto poco
       # "dar por hecho", "dar por sentado": the participle agrees with the object after it.
-      ES_DAR_POR_FORMS:
-        [
-          doy,
-          das,
-          da,
-          damos,
-          dais,
-          dan,
-          di,
-          diste,
-          dio,
-          dimos,
-          disteis,
-          dieron,
-          daba,
-          dabas,
-          dábamos,
-          daban,
-          daré,
-          darás,
-          dará,
-          daremos,
-          darán,
-          daría,
-          darías,
-          daríamos,
-          darían,
-          dé,
-          des,
-          demos,
-          den,
-          diera,
-          dieran,
-          dado,
-          dando,
-          dar,
-          darlo,
-        ]
+      ES_DAR_POR_FORMS: >-
+        doy das da damos dais dan di diste dio dimos disteis dieron daba dabas dábamos daban daré
+        darás dará daremos darán daría darías daríamos darían dé des demos den diera dieran dado
+        dando dar darlo
       # Nouns that also work as adverbs of time: "Haz eso mañana", "Termina esto hoy".
       ES_TIME_ADVERBS: [mañana, tarde, noche, hoy, ayer, anoche, siempre, ahora]
       # Adjectives with one form for both genders that often stand before the noun.
-      ES_GENDERLESS_BEFORE:
-        [
-          gran,
-          grandes,
-          principal,
-          principales,
-          mejor,
-          mejores,
-          peor,
-          peores,
-          mayor,
-          mayores,
-          menor,
-          menores,
-          suave,
-          suaves,
-          fuerte,
-          fuertes,
-          breve,
-          breves,
-          enorme,
-          enormes,
-          simple,
-          simples,
-          importante,
-          importantes,
-          excelente,
-          excelentes,
-          interesante,
-          interesantes,
-          increíble,
-          increíbles,
-          posible,
-          posibles,
-          útil,
-          útiles,
-          difícil,
-          difíciles,
-          fácil,
-          fáciles,
-          feliz,
-          felices,
-          triste,
-          tristes,
-        ]
+      ES_GENDERLESS_BEFORE: >-
+        gran grandes principal principales mejor mejores peor peores mayor mayores menor menores
+        suave suaves fuerte fuertes breve breves enorme enormes simple simples importante
+        importantes excelente excelentes interesante interesantes increíble increíbles posible
+        posibles útil útiles difícil difíciles fácil fáciles feliz felices triste tristes
       # Masculine singulars shortened before the noun: "buen día", "primer paso".
       ES_SHORTENED: [buen, mal, primer, tercer]
       ES_DEGREE_WORDS: [mucho, poco, demasiado, tanto, cuanto, cuánto]
@@ -7379,395 +5836,65 @@ rules:
     sets:
       # "La casa es bonito", "Ellos son bella", "Su madre estaba casado": an adjective after a
       # copula agrees with the subject opening the clause.
-      ES_VG_COPULA:
-        [
-          es,
-          era,
-          fue,
-          será,
-          sería,
-          sea,
-          está,
-          estaba,
-          estuvo,
-          estará,
-          estaría,
-          esté,
-          parece,
-          parecía,
-          resulta,
-          resultó,
-          queda,
-          quedó,
-          son,
-          eran,
-          fueron,
-          serán,
-          serían,
-          sean,
-          están,
-          estaban,
-          estuvieron,
-          estarán,
-          estarían,
-          estén,
-          parecen,
-          parecían,
-          resultan,
-          resultaron,
-          quedan,
-          quedaron,
-        ]
+      ES_VG_COPULA: >-
+        es era fue será sería sea está estaba estuvo estará estaría esté parece parecía resulta
+        resultó queda quedó son eran fueron serán serían sean están estaban estuvieron estarán
+        estarían estén parecen parecían resultan resultaron quedan quedaron
       ES_PERFECT_AUX: [ha, han, había, habían, habrá, habrán, habría, habrían, haya, hayan]
       ES_VG_DEGREE: [muy, tan, bastante, demasiado, más, menos, siempre, ya, bien, mal, casi]
       # Adjectives that lead a noun phrase of their own: "La vida es puro teatro", "es otro mundo".
-      ES_VG_LEADING:
-        [
-          otro,
-          otra,
-          otros,
-          otras,
-          mismo,
-          misma,
-          mismos,
-          mismas,
-          primero,
-          primera,
-          último,
-          última,
-          mucho,
-          mucha,
-          muchos,
-          muchas,
-          poco,
-          poca,
-          pocos,
-          pocas,
-          todo,
-          toda,
-          todos,
-          todas,
-          tanto,
-          tanta,
-          cierto,
-          cierta,
-          alguno,
-          alguna,
-          ninguno,
-          ninguna,
-          uno,
-          una,
-          solo,
-          sola,
-          medio,
-          media,
-          puro,
-          pura,
-          justo,
-        ]
+      ES_VG_LEADING: >-
+        otro otra otros otras mismo misma mismos mismas primero primera último última mucho mucha
+        muchos muchas poco poca pocos pocas todo toda todos todas tanto tanta cierto cierta alguno
+        alguna ninguno ninguna uno una solo sola medio media puro pura justo
       ES_SINGULAR_PRONOUNS: [él, ella, usted]
       ES_PLURAL_PRONOUNS: [ellos, ellas, ustedes]
       # Words that may stand between a subject and its verb: "Los niños no se lo dan".
-      ES_BETWEEN:
-        [
-          "no",
-          se,
-          me,
-          te,
-          le,
-          les,
-          lo,
-          la,
-          los,
-          las,
-          nos,
-          os,
-          ya,
-          también,
-          tampoco,
-          nunca,
-          jamás,
-          siempre,
-          ahora,
-          todavía,
-          aún,
-          hoy,
-          ayer,
-        ]
+      ES_BETWEEN: >-
+        no se me te le les lo la los las nos os ya también tampoco nunca jamás siempre ahora todavía
+        aún hoy ayer
       # Words after which a clause starts.
       ES_VG_CLAUSE_OPENERS: [que, pero, cuando, si, porque, aunque, mientras, donde]
       # Noun phrases that are times, not subjects ("Los domingos abre"), and collectives that take
       # either number ("La mayoría votaron").
-      ES_NOT_SUBJECTS:
-        [
-          semana,
-          semanas,
-          año,
-          años,
-          mes,
-          meses,
-          día,
-          días,
-          tarde,
-          tardes,
-          noche,
-          noches,
-          mañana,
-          mañanas,
-          vez,
-          veces,
-          momento,
-          momentos,
-          rato,
-          ratos,
-          verano,
-          veranos,
-          invierno,
-          inviernos,
-          lunes,
-          martes,
-          miércoles,
-          jueves,
-          viernes,
-          sábado,
-          sábados,
-          domingo,
-          domingos,
-          mayoría,
-          mitad,
-          resto,
-          parte,
-          cantidad,
-          número,
-          grupo,
-          serie,
-          conjunto,
-          montón,
-          multitud,
-          infinidad,
-          totalidad,
-          minoría,
-          docena,
-          centenar,
-          verdad,
-          par,
-          clase,
-          tipo,
-          especie,
-        ]
+      ES_NOT_SUBJECTS: >-
+        semana semanas año años mes meses día días tarde tardes noche noches mañana mañanas vez
+        veces momento momentos rato ratos verano veranos invierno inviernos lunes martes miércoles
+        jueves viernes sábado sábados domingo domingos mayoría mitad resto parte cantidad número
+        grupo serie conjunto montón multitud infinidad totalidad minoría docena centenar verdad par
+        clase tipo especie
       ES_VG_SER: [es, son, era, eran, fue, fueron, será, serán, sería, serían, sea, sean]
-      ES_VG_CLOSED_WORDS:
-        [
-          yo,
-          tú,
-          él,
-          ella,
-          usted,
-          nosotros,
-          nosotras,
-          vosotros,
-          vosotras,
-          ellos,
-          ellas,
-          ustedes,
-          "no",
-          ya,
-          hoy,
-          ayer,
-          mañana,
-          aquí,
-          allí,
-          así,
-          también,
-          tampoco,
-          muy,
-          más,
-          menos,
-          siempre,
-          nunca,
-          entonces,
-          luego,
-          después,
-          antes,
-          ahora,
-          todavía,
-          aún,
-          quien,
-          quienes,
-          cual,
-          cuales,
-          donde,
-          cuando,
-          como,
-          qué,
-          quién,
-          cómo,
-          dónde,
-          cuándo,
-          cuál,
-          todo,
-          todos,
-          todas,
-          nada,
-          nadie,
-          algo,
-          alguien,
-          eso,
-          esto,
-          aquello,
-          ambos,
-          varios,
-        ]
+      ES_VG_CLOSED_WORDS: >-
+        yo tú él ella usted nosotros nosotras vosotros vosotras ellos ellas ustedes no ya hoy ayer
+        mañana aquí allí así también tampoco muy más menos siempre nunca entonces luego después
+        antes ahora todavía aún quien quienes cual cuales donde cuando como qué quién cómo dónde
+        cuándo cuál todo todos todas nada nadie algo alguien eso esto aquello ambos varios
       ES_FIRST_SINGULAR: [soy, estoy, voy, doy, he, sé]
-      ES_VG_NOT_VERBS:
-        [
-          solo,
-          sola,
-          mismo,
-          misma,
-          mismos,
-          mismas,
-          también,
-          tampoco,
-          todo,
-          todos,
-          todas,
-          ahora,
-          siempre,
-          nunca,
-          antes,
-          después,
-          aquí,
-          allí,
-          bien,
-          mal,
-          más,
-          menos,
-          tanto,
-          apenas,
-          casi,
-        ]
-      ES_SPANISH_ADVERBS:
-        [
-          "no",
-          ya,
-          también,
-          nunca,
-          siempre,
-          aquí,
-          allí,
-          ahí,
-          hoy,
-          ayer,
-          todavía,
-          aún,
-          muy,
-          bien,
-          mal,
-          pronto,
-          tarde,
-        ]
+      ES_VG_NOT_VERBS: >-
+        solo sola mismo misma mismos mismas también tampoco todo todos todas ahora siempre nunca
+        antes después aquí allí bien mal más menos tanto apenas casi
+      ES_SPANISH_ADVERBS: >-
+        no ya también nunca siempre aquí allí ahí hoy ayer todavía aún muy bien mal pronto tarde
       # "Son documentado", "Estamos cansado", "Han sido cantado": a plural copula before a singular
       # participle.
-      ES_VG_PLURAL_COPULA:
-        [
-          son,
-          eran,
-          fueron,
-          serán,
-          serían,
-          sean,
-          somos,
-          éramos,
-          fuimos,
-          seremos,
-          están,
-          estaban,
-          estuvieron,
-          estarán,
-          estarían,
-          estén,
-          estamos,
-          estábamos,
-          estuvimos,
-        ]
+      ES_VG_PLURAL_COPULA: >-
+        son eran fueron serán serían sean somos éramos fuimos seremos están estaban estuvieron
+        estarán estarían estén estamos estábamos estuvimos
       # "Somos consciente", "Debemos estar atento": a plural subject's "ser"/"estar" before a
       # singular adjective. Participles are esCopulaParticiple's.
-      ES_FIRST_PLURAL_COPULA:
-        [
-          somos,
-          seamos,
-          éramos,
-          fuimos,
-          seremos,
-          seríamos,
-          estamos,
-          estemos,
-          estábamos,
-          estuvimos,
-          estaremos,
-          estaríamos,
-        ]
+      ES_FIRST_PLURAL_COPULA: >-
+        somos seamos éramos fuimos seremos seríamos estamos estemos estábamos estuvimos estaremos
+        estaríamos
       # Singular words after a plural copula that are no adjective of the subject: "somos solo dos",
       # "estamos mejor", "somos tanto".
-      ES_NOT_PLURAL_ATTRIBUTES:
-        [
-          solo,
-          sola,
-          mismo,
-          misma,
-          medio,
-          media,
-          todo,
-          toda,
-          tanto,
-          tanta,
-          poco,
-          poca,
-          mucho,
-          mucha,
-          mejor,
-          peor,
-          uno,
-          una,
-          cada,
-        ]
-      ES_PROFESSIONS:
-        [
-          médico,
-          abogado,
-          ingeniero,
-          arquitecto,
-          maestro,
-          técnico,
-          ministro,
-          secretario,
-          cocinero,
-          camarero,
-          enfermero,
-          psicólogo,
-          biólogo,
-          químico,
-          físico,
-          político,
-          diputado,
-          juez,
-          notario,
-          veterinario,
-          farmacéutico,
-          informático,
-          fontanero,
-          carpintero,
-          mecánico,
-          funcionario,
-          empleado,
-          ayudante,
-          músico,
-          bombero,
-          policía,
-          soldado,
-          piloto,
-        ]
+      ES_NOT_PLURAL_ATTRIBUTES: >-
+        solo sola mismo misma medio media todo toda tanto tanta poco poca mucho mucha mejor peor uno
+        una cada
+      ES_PROFESSIONS: >-
+        médico abogado ingeniero arquitecto maestro técnico ministro secretario cocinero camarero
+        enfermero psicólogo biólogo químico físico político diputado juez notario veterinario
+        farmacéutico informático fontanero carpintero mecánico funcionario empleado ayudante músico
+        bombero policía soldado piloto
     defs:
       ES_VG_ESTAR: /^(?:est\p{L}+|qued\p{L}+)$/u
       # The form of a paired adjective for a gender and number: "bonito" -> "bonitas".
@@ -8327,44 +6454,10 @@ rules:
     # before a doubled pronoun.
     sets:
       # What the impersonal "haber" introduces: a quantity or a plural noun phrase.
-      ES_HABER_QUANTITY:
-        [
-          muchos,
-          muchas,
-          varios,
-          varias,
-          algunos,
-          algunas,
-          unos,
-          unas,
-          pocos,
-          pocas,
-          demasiados,
-          demasiadas,
-          tantos,
-          tantas,
-          más,
-          menos,
-          dos,
-          tres,
-          cuatro,
-          cinco,
-          seis,
-          siete,
-          ocho,
-          nueve,
-          diez,
-          cien,
-          mil,
-          miles,
-          cientos,
-          millones,
-          otros,
-          otras,
-          nuevos,
-          nuevas,
-          grandes,
-        ]
+      ES_HABER_QUANTITY: >-
+        muchos muchas varios varias algunos algunas unos unas pocos pocas demasiados demasiadas
+        tantos tantas más menos dos tres cuatro cinco seis siete ocho nueve diez cien mil miles
+        cientos millones otros otras nuevos nuevas grandes
       ES_DATIVE: [me, te, le, les, nos, os]
     maps:
       # The es.clauseAgreement frame lists these words.
@@ -8456,90 +6549,28 @@ rules:
     # "consciente". The first finding wins.
     sets:
       # Mass nouns an amount may still measure loosely ("millones de dinero" is clumsy, not plural).
-      ES_MASS:
-        [
-          dinero,
-          gente,
-          agua,
-          tiempo,
-          información,
-          trabajo,
-          comida,
-          ropa,
-          música,
-          arena,
-          leche,
-          aire,
-          basura,
-          energía,
-          sangre,
-          carne,
-          madera,
-          gasolina,
-          petróleo,
-          vino,
-          cerveza,
-          azúcar,
-          sal,
-          harina,
-          público,
-          personal,
-          ganado,
-          polvo,
-        ]
+      ES_MASS: >-
+        dinero gente agua tiempo información trabajo comida ropa música arena leche aire basura
+        energía sangre carne madera gasolina petróleo vino cerveza azúcar sal harina público
+        personal ganado polvo
       # Nouns of amount that count a plural: "miles de personas", "decenas de veces".
       ES_FR_AMOUNTS: [miles, millones, cientos, centenares, decenas, docenas, billones, millares]
       ES_SINGULAR_COPULA_FORMS: [soy, eres, estoy, estás]
       ES_FR_DEGREE: [muy, tan, bastante, demasiado, más, menos, tremendamente, realmente]
-      ES_FR_PLURAL_DETERMINERS:
-        [los, las, estos, estas, esos, esas, aquellos, aquellas, mis, tus, sus]
+      ES_FR_PLURAL_DETERMINERS: >-
+        los las estos estas esos esas aquellos aquellas mis tus sus
       ES_PREPOSITIONS_BEFORE_LO: [de, por, en, con, para, sin, desde, hasta, sobre, entre]
       # Feminine nouns with a stressed first "a": "el área", but "la misma área".
       ES_STRESSED_A: [área, agua, alma, arma, aula, águila, hambre, hacha, hada, ala, ancla, arca]
       # Copulas whose participle agrees with a subject placed after it: "queda garantizada la
       # entrega".
-      ES_FR_COPULAS:
-        [
-          queda,
-          quedan,
-          quedó,
-          quedaron,
-          quedaba,
-          quedaban,
-          está,
-          están,
-          estaba,
-          estaban,
-          estuvo,
-          estuvieron,
-          resulta,
-          resultan,
-          resultó,
-          resultaron,
-        ]
+      ES_FR_COPULAS: >-
+        queda quedan quedó quedaron quedaba quedaban está están estaba estaban estuvo estuvieron
+        resulta resultan resultó resultaron
       # "tener" + participle + object: "tenía prevista la reunión" (the participle agrees with it).
-      ES_FR_TENER:
-        [
-          tengo,
-          tienes,
-          tiene,
-          tenemos,
-          tienen,
-          tenía,
-          tenías,
-          teníamos,
-          tenían,
-          tuve,
-          tuvo,
-          tuvimos,
-          tuvieron,
-          tendrá,
-          tendrán,
-          tendría,
-          tendrían,
-          tenga,
-          tengan,
-        ]
+      ES_FR_TENER: >-
+        tengo tienes tiene tenemos tienen tenía tenías teníamos tenían tuve tuvo tuvimos tuvieron
+        tendrá tendrán tendría tendrían tenga tengan
     maps:
       # The feminine article of a masculine one before a noun with a stressed first "a".
       ES_FEMININE_ARTICLE: { el: la, un: una, del: de la, al: a la }
@@ -8827,11 +6858,7 @@ rules:
       esQuoteMark:
         args: "start: number, replacement: string, pairEnd: number"
         return: >-
-          ({
-            ruleId: "spanishQuotes" as const,
-            messageKey: "review_msg_spanish_quotes" as const,
-            range: { start, end: start + 1 },
-            alternatives: [replacement],
+          finding("spanishQuotes", "review_msg_spanish_quotes", start, start + 1, [replacement], {
             context: { start: Math.max(0, start - 1), end: pairEnd },
           })
       # The straight pair of match `m` gets the marks `open` and `close`.

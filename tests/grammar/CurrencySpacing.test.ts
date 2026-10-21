@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
-import { CurrencySpacingRule } from "../../src/core/domain/grammar/implementations/CurrencySpacingRule";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
 import { SuggestionGrammarCoordinator } from "../../src/adapters/chrome/content-script/suggestions/SuggestionGrammarCoordinator";
 import { proseContext, typeText } from "./grammarTestUtils";
 
 const NBSP = " ";
-const rule = new CurrencySpacingRule();
+const rule = liveRule("currencySpacing");
 const DEFAULTS: string[] = DEFAULT_CURRENT_GRAMMAR_RULES;
 const DEFAULTS_WITHOUT_RULE = DEFAULTS.filter((id) => id !== "currencySpacing");
 

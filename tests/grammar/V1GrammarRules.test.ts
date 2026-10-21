@@ -1,21 +1,12 @@
 import { describe, expect, test } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { context, edit, typeText } from "./grammarTestUtils";
-import { CapitalizeSentenceStartRule } from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
-import { CapitalizeAfterLineBreakRule } from "../../src/core/domain/grammar/implementations/CapitalizeAfterLineBreakRule";
-import { CommaPeriodSpacingRule } from "../../src/core/domain/grammar/implementations/CommaPeriodSpacingRule";
-import { OpeningBracketSpacingRule } from "../../src/core/domain/grammar/implementations/OpeningBracketSpacingRule";
-import { ClosingBracketSpacingRule } from "../../src/core/domain/grammar/implementations/ClosingBracketSpacingRule";
-import { SlashContextSpacingRule } from "../../src/core/domain/grammar/implementations/SlashContextSpacingRule";
-import { MathOperatorSpacingRule } from "../../src/core/domain/grammar/implementations/MathOperatorSpacingRule";
-import { TechnicalTokenCompactionRule } from "../../src/core/domain/grammar/implementations/TechnicalTokenCompactionRule";
-import { CollapseRepeatedSpacesRule } from "../../src/core/domain/grammar/implementations/CollapseRepeatedSpacesRule";
-import { TrimSpaceBeforeLineBreakRule } from "../../src/core/domain/grammar/implementations/TrimSpaceBeforeLineBreakRule";
 import { ZERO_WIDTH_FILLER_CHARS } from "../../src/core/domain/spacingRules";
 
 describe("V1 grammar rules", () => {
   describe("CapitalizeSentenceStartRule", () => {
     test("capitalizes sequence start and sentence start after punctuation", () => {
-      const rule = new CapitalizeSentenceStartRule();
+      const rule = liveRule("capitalizeSentenceStart");
 
       expect(rule.apply(context("hello "))).toEqual(edit("Hello ", 6));
 
@@ -25,25 +16,25 @@ describe("V1 grammar rules", () => {
     });
 
     test("supports optional closing quotes/brackets after sentence punctuation", () => {
-      const rule = new CapitalizeSentenceStartRule();
+      const rule = liveRule("capitalizeSentenceStart");
       expect(rule.apply(context('Hello." world '))).toEqual(edit("World ", 6));
     });
 
     test("waits for the word boundary", () => {
-      const rule = new CapitalizeSentenceStartRule();
+      const rule = liveRule("capitalizeSentenceStart");
       expect(rule.apply(context("h"))).toBeNull();
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("hello  "))).toBeNull();
     });
 
     test("does not capitalize without sentence boundary gap", () => {
-      const rule = new CapitalizeSentenceStartRule();
+      const rule = liveRule("capitalizeSentenceStart");
       expect(rule.apply(context("Hello.w "))).toBeNull();
       expect(rule.apply(context("Hello, w "))).toBeNull();
     });
 
     test("leaves technical tokens alone", () => {
-      const rule = new CapitalizeSentenceStartRule();
+      const rule = liveRule("capitalizeSentenceStart");
       for (const token of ["user.save()", "node.js", "google.com", "@john.doe", "src/index.ts"]) {
         expect(rule.apply(context(`${token} `))).toBeNull();
         expect(rule.apply(context(`Done. ${token} `))).toBeNull();
@@ -51,7 +42,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("capitalizes Unicode letters", () => {
-      const rule = new CapitalizeSentenceStartRule();
+      const rule = liveRule("capitalizeSentenceStart");
       expect(rule.apply(context("ż "))?.replacement).toBe("Ż ");
       expect(rule.apply(context("Cześć. ć "))?.replacement).toBe("Ć ");
       expect(rule.apply(context("Привет. п "))?.replacement).toBe("П ");
@@ -60,7 +51,7 @@ describe("V1 grammar rules", () => {
 
   describe("CapitalizeAfterLineBreakRule", () => {
     test("capitalizes a completed word after one or more line breaks", () => {
-      const rule = new CapitalizeAfterLineBreakRule();
+      const rule = liveRule("capitalizeAfterLineBreak");
 
       expect(rule.apply(context("Hello\nworld "))).toEqual(edit("World ", 6));
 
@@ -68,7 +59,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("does not capitalize without line break context or before the word is complete", () => {
-      const rule = new CapitalizeAfterLineBreakRule();
+      const rule = liveRule("capitalizeAfterLineBreak");
       expect(rule.apply(context("Hello w "))).toBeNull();
       expect(rule.apply(context("Hello\nW "))).toBeNull();
       // "i" may still become "iPhone".
@@ -79,7 +70,7 @@ describe("V1 grammar rules", () => {
 
   describe("CommaPeriodSpacingRule", () => {
     test("normalizes comma/period spacing with regular spaces", () => {
-      const rule = new CommaPeriodSpacingRule(true);
+      const rule = liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true });
       const prose = { inputAction: "insert" as const };
       // A period is never spaced by the rule: "Hello." may be "Hello.world".
       expect(rule.apply(context("Hello."))).toBeNull();
@@ -107,7 +98,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("respects insertSpaceAfterAutocomplete=false", () => {
-      const noInsertRule = new CommaPeriodSpacingRule(false);
+      const noInsertRule = liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: false });
 
       expect(noInsertRule.apply(context("Hello,"))).toBeNull();
       expect(noInsertRule.apply(context("Hello . ", { inputAction: "insert" }))).toEqual(
@@ -117,7 +108,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("only completes deferred numeric punctuation for direct prose typing", () => {
-      const rule = new CommaPeriodSpacingRule(true);
+      const rule = liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true });
       const prose = {
         lang: "en_US",
         inputAction: "insert" as const,
@@ -138,7 +129,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("only defers numeric punctuation where the repair can complete it", () => {
-      const rule = new CommaPeriodSpacingRule(true);
+      const rule = liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true });
       const prose = {
         lang: "en_US",
         inputAction: "insert" as const,
@@ -159,7 +150,7 @@ describe("V1 grammar rules", () => {
 
     test("every deferred comma is repaired once prose resumes (typed char by char)", () => {
       const type = (input: string, lang: string): string => {
-        const rule = new CommaPeriodSpacingRule(true);
+        const rule = liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true });
         let text = "";
         for (const char of input) {
           text += char;
@@ -195,12 +186,12 @@ describe("V1 grammar rules", () => {
     });
 
     test("closes a quote tight after a comma", () => {
-      const rule = new CommaPeriodSpacingRule(true);
+      const rule = liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true });
       expect(rule.apply(context('"Hi, "'))).toEqual(edit('"', 2));
     });
 
     test("treats zero-width fillers as ignorable separators for duplicate commas", () => {
-      const rule = new CommaPeriodSpacingRule(true);
+      const rule = liveRule("commaPeriodSpacing", { insertSpaceAfterAutocomplete: true });
 
       for (const filler of ZERO_WIDTH_FILLER_CHARS) {
         expect(rule.apply(context(`Hello,${filler},`))).toBeNull();
@@ -213,7 +204,7 @@ describe("V1 grammar rules", () => {
 
   describe("OpeningBracketSpacingRule", () => {
     test("keeps a bracket typed against a word attached", () => {
-      const rule = new OpeningBracketSpacingRule();
+      const rule = liveRule("openingBracketSpacing");
 
       expect(rule.apply(context("item("))).toBeNull();
 
@@ -226,7 +217,7 @@ describe("V1 grammar rules", () => {
 
   describe("ClosingBracketSpacingRule", () => {
     test("removes inner pre-close spaces and adds prose trailing space", () => {
-      const rule = new ClosingBracketSpacingRule(true);
+      const rule = liveRule("closingBracketSpacing", { insertSpaceAfterAutocomplete: true });
 
       expect(rule.apply(context("foo(bar() )"))).toEqual(edit(")", 2));
 
@@ -236,7 +227,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("supports no trailing-space mode", () => {
-      const noInsert = new ClosingBracketSpacingRule(false);
+      const noInsert = liveRule("closingBracketSpacing", { insertSpaceAfterAutocomplete: false });
 
       expect(noInsert.apply(context("Hello (world)"))).toBeNull();
     });
@@ -244,7 +235,7 @@ describe("V1 grammar rules", () => {
 
   describe("SlashContextSpacingRule", () => {
     test("compacts protocol spacing and applies operator spacing only in operator context", () => {
-      const rule = new SlashContextSpacingRule(true);
+      const rule = liveRule("slashContextSpacing", { insertSpaceAfterAutocomplete: true });
 
       expect(rule.apply(context("https: /"))).toEqual(edit("/", 2));
 
@@ -257,7 +248,7 @@ describe("V1 grammar rules", () => {
 
   describe("MathOperatorSpacingRule", () => {
     test("normalizes compact math/operator forms in safe contexts", () => {
-      const rule = new MathOperatorSpacingRule();
+      const rule = liveRule("mathOperatorSpacing");
 
       expect(rule.apply(context("x=y"))).toEqual(edit("x = y", 3));
 
@@ -267,13 +258,13 @@ describe("V1 grammar rules", () => {
     });
 
     test("does not alter comparator chains or prose-like compact tokens", () => {
-      const rule = new MathOperatorSpacingRule();
+      const rule = liveRule("mathOperatorSpacing");
       expect(rule.apply(context("x==y"))).toBeNull();
       expect(rule.apply(context("foo+b"))).toBeNull();
     });
 
     test("leaves HTML attributes inside an open tag alone", () => {
-      const rule = new MathOperatorSpacingRule();
+      const rule = liveRule("mathOperatorSpacing");
       expect(rule.apply(context('<span title="'))).toBeNull();
       expect(rule.apply(context('<img src="a.png" alt="'))).toBeNull();
       expect(rule.apply(context("Use <td colspan=2"))).toBeNull();
@@ -285,7 +276,7 @@ describe("V1 grammar rules", () => {
 
   describe("TechnicalTokenCompactionRule", () => {
     test("compacts time/ratio spacing but never a digit-period-digit sentence", () => {
-      const rule = new TechnicalTokenCompactionRule();
+      const rule = liveRule("technicalTokenCompaction");
 
       // "We sold 12. 5 were returned" is a sentence boundary, not a decimal.
       expect(rule.apply(context("3. 1"))).toBeNull();
@@ -294,7 +285,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("preserves spacing after dotted words without language-specific detection", () => {
-      const rule = new TechnicalTokenCompactionRule();
+      const rule = liveRule("technicalTokenCompaction");
       expect(rule.apply(context("Hello. w"))).toBeNull();
       expect(rule.apply(context("old_word. X"))).toBeNull();
       expect(rule.apply(context("Read on. Duplicate. W"))).toBeNull();
@@ -310,7 +301,7 @@ describe("V1 grammar rules", () => {
 
   describe("CollapseRepeatedSpacesRule", () => {
     test("collapses repeated trailing spaces outside indentation context", () => {
-      const rule = new CollapseRepeatedSpacesRule();
+      const rule = liveRule("collapseRepeatedSpaces");
 
       expect(rule.apply(context("hello  "))).toEqual(edit(" ", 2));
 
@@ -323,7 +314,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("preserves indentation-like leading spaces", () => {
-      const rule = new CollapseRepeatedSpacesRule();
+      const rule = liveRule("collapseRepeatedSpaces");
       expect(rule.apply(context("\n  "))).toBeNull();
       expect(rule.apply(context(" "))).toBeNull();
     });
@@ -331,7 +322,7 @@ describe("V1 grammar rules", () => {
 
   describe("TrimSpaceBeforeLineBreakRule", () => {
     test("trims spaces before newline", () => {
-      const rule = new TrimSpaceBeforeLineBreakRule();
+      const rule = liveRule("trimSpaceBeforeLineBreak");
 
       expect(rule.apply(context("Hello \n"))).toEqual(edit("\n", 2));
 
@@ -339,7 +330,7 @@ describe("V1 grammar rules", () => {
     });
 
     test("does not edit when no trailing spaces precede newline", () => {
-      const rule = new TrimSpaceBeforeLineBreakRule();
+      const rule = liveRule("trimSpaceBeforeLineBreak");
       expect(rule.apply(context("Hello\n"))).toBeNull();
       expect(rule.apply(context("Hello"))).toBeNull();
     });

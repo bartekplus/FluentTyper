@@ -9,7 +9,7 @@ import { REVIEW_DATA_LANGUAGES, reviewData, type ReviewLanguageData } from "./re
  * Same row format and matching as the English tables; a row is only here when
  * its typed form is never correct in that language, or is narrowed to a frame
  * where it cannot be. Merged words that are always two are in `compounds` or in
- * `multilingualLexicon.ts` (`englishAlotCorrection`).
+ * the `englishAlotCorrection` code of grammar/rules/common.yaml.
  */
 export interface LanguagePhraseTables {
   /** Misspelled words (`englishPhraseCorrections`). */

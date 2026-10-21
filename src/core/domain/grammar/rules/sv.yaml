@@ -10,153 +10,23 @@ fragments:
 
 # The code of the rules' expressions (`let`, `when`, `return`): sets and defs.
 sets:
-  SV_ORDINAL_BEFORE:
-    [
-      den,
-      det,
-      på,
-      i,
-      för,
-      till,
-      sin,
-      sitt,
-      sina,
-      min,
-      mitt,
-      din,
-      ditt,
-      hans,
-      hennes,
-      deras,
-      dess,
-      vår,
-      vårt,
-      er,
-      ert,
-      varje,
-      kom,
-      slutade,
-      hamnade,
-    ]
+  SV_ORDINAL_BEFORE: >-
+    den det på i för till sin sitt sina min mitt din ditt hans hennes deras dess vår vårt er ert
+    varje kom slutade hamnade
   # After these the -s is a plural ("två PCs"), before these the word ends its phrase.
-  SV_PLURAL_BEFORE:
-    [
-      två,
-      tre,
-      fyra,
-      fem,
-      sex,
-      flera,
-      många,
-      alla,
-      några,
-      olika,
-      dessa,
-      de,
-      inga,
-      få,
-      fler,
-      våra,
-      era,
-      deras,
-    ]
-  SV_NOT_NOUNS:
-    [
-      för,
-      och,
-      som,
-      i,
-      på,
-      med,
-      till,
-      av,
-      är,
-      var,
-      har,
-      hade,
-      kan,
-      ska,
-      skulle,
-      eller,
-      men,
-      från,
-      att,
-      om,
-      under,
-      efter,
-      inte,
-      blir,
-      blev,
-      finns,
-      kommer,
-      måste,
-      vid,
-      mot,
-      utan,
-      så,
-      när,
-      då,
-      där,
-      hos,
-      än,
-      samt,
-    ]
-  SV_CLAUSE_OPENERS:
-    [
-      att,
-      och,
-      men,
-      när,
-      om,
-      eftersom,
-      då,
-      så,
-      medan,
-      innan,
-      tills,
-      fast,
-      fastän,
-      ifall,
-      därför,
-      hur,
-      varför,
-      var,
-      vad,
-      sedan,
-    ]
+  SV_PLURAL_BEFORE: >-
+    två tre fyra fem sex flera många alla några olika dessa de inga få fler våra era deras
+  SV_NOT_NOUNS: >-
+    för och som i på med till av är var har hade kan ska skulle eller men från att om under efter
+    inte blir blev finns kommer måste vid mot utan så när då där hos än samt
+  SV_CLAUSE_OPENERS: >-
+    att och men när om eftersom då så medan innan tills fast fastän ifall därför hur varför var vad
+    sedan
   # "gav en till mamma", "en till varje": till is the preposition before a person, a pronoun or
   # a quantifier.
-  SV_PERSONS:
-    [
-      mamma,
-      pappa,
-      mormor,
-      morfar,
-      farmor,
-      farfar,
-      bror,
-      syster,
-      kompis,
-      vän,
-      chef,
-      granne,
-      kollega,
-      lärare,
-      barn,
-      honom,
-      henne,
-      dem,
-      dom,
-      oss,
-      er,
-      mig,
-      dig,
-      sig,
-      varje,
-      alla,
-      var,
-      varandra,
-    ]
+  SV_PERSONS: >-
+    mamma pappa mormor morfar farmor farfar bror syster kompis vän chef granne kollega lärare barn
+    honom henne dem dom oss er mig dig sig varje alla var varandra
 defs:
   SV_ORDINAL_NOUNS: '/^[ \t\u00a0]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u'
   # "Mars" is also the planet and "Maj" a first name: only in a date.
@@ -198,11 +68,7 @@ rules:
           - "!(svCapitalized(before) && !svAtSentenceStart(ctx.text, m.index - before.length - 1))"
           - SV_ORDINAL_BEFORE.has(before.toLowerCase()) || SV_ORDINAL_NOUNS.test(ctx.text.slice(end, end + 24))
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end },
-            alternatives: [`${m[1]}:${m[2]}`],
+          finding(frame.ruleId, frame.messageKey, m.index, end, [`${m[1]}:${m[2]}`], {
             context: { start: m.index, end },
           })
       # "APIs fördelar": an acronym's genitive -s follows a colon (API:s).
@@ -220,11 +86,7 @@ rules:
           - '!(SV_PLURAL_BEFORE.has(before) || /\d[ \t\u00a0]+$/u.test(ctx.text.slice(m.index - 4, m.index)))'
           - "!ctx.dictionary.has(m[0].toLowerCase())"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end },
-            alternatives: [`${m[1]}:s`],
+          finding(frame.ruleId, frame.messageKey, m.index, end, [`${m[1]}:s`], {
             context: { start: m.index, end: end + 1 + next.length },
           })
       # "idag är det Måndag": Swedish weekdays and months are common nouns.
@@ -246,11 +108,7 @@ rules:
             /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3)))
           - "!ctx.dictionary.has(word.toLowerCase())"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + 1 },
-            alternatives: [word[0].toLowerCase()],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + 1, [word[0].toLowerCase()], {
             context: { start: m.index, end },
           })
   - id: sv.agreement
@@ -286,29 +144,18 @@ rules:
           - articleGender !== adjectiveGender
         return: >-
           gender === articleGender
-            ? {
-                ruleId: frame.ruleId,
-                messageKey: frame.messageKey,
-                range: {
-                  start: m.index + target.length + gap1.length,
-                  end: m.index + target.length + gap1.length + adjective.length,
-                },
-                alternatives: [form.other],
-                context: { start: m.index, end },
-              }
-            : {
-                ruleId: frame.ruleId,
-                messageKey: frame.messageKey,
-                range: { start: m.index, end: m.index + target.length },
-                alternatives: [
+            ? finding(frame.ruleId, frame.messageKey, m.index + target.length + gap1.length, m.index + target.length + gap1.length + adjective.length, [form.other], {
+              context: { start: m.index, end },
+            })
+            : finding(frame.ruleId, frame.messageKey, m.index, m.index + target.length, [
                   target === target.toUpperCase() && target.length > 1
                     ? fixed.toUpperCase()
                     : target[0] === "E"
                       ? "E" + fixed.slice(1)
                       : fixed,
-                ],
-                context: { start: m.index, end },
-              }
+                ], {
+              context: { start: m.index, end },
+            })
   - id: sv.mellanTillDeDem
     checks: [englishPhraseCorrections]
     style: match
@@ -323,14 +170,10 @@ rules:
           between: ctx.text.slice(m.index + target.length, span[0])
         when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: span[1] },
-            alternatives: [
+          finding(frame.ruleId, frame.messageKey, m.index, span[1], [
               target + between + (till === till.toUpperCase() ? "OCH" : "och"),
               (target[0] === "M" ? "Från" : "från") + between + till,
-            ],
+            ], {
             requiresChoice: true,
             context: { start: m.index, end: m.index + m[0].length },
           })
@@ -347,11 +190,7 @@ rules:
             SV_CLAUSE_OPENERS.has(svWordBefore(ctx.text, m.index).toLowerCase())
           - "!ctx.dictionary.has(target.toLowerCase())"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + target.length },
-            alternatives: [target === "DEM" ? "DE" : target[0] + "e"],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + target.length, [target === "DEM" ? "DE" : target[0] + "e"], {
             context: { start: m.index, end: m.index + m[0].length },
           })
       # "med de." -> "med dem.": after a preposition the object form is "dem". Only "de" ending
@@ -364,11 +203,7 @@ rules:
           start: m.index + m[0].length - target.length
         when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start, end: start + target.length },
-            alternatives: [target === "DE" ? "DEM" : "dem"],
+          finding(frame.ruleId, frame.messageKey, start, start + target.length, [target === "DE" ? "DEM" : "dem"], {
             context: { start: m.index, end: start + target.length },
           })
   - id: sv.enTillSpeechComma
@@ -389,11 +224,7 @@ rules:
           - '!(gender ? gender !== target.toLowerCase() : !/a$/u.test(noun) || target !== "en")'
           - "!ctx.dictionary.has(noun)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [`${target}${gap1}${noun} till`],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [`${target}${gap1}${noun} till`], {
             context: { start: m.index, end: m.index + m[0].length },
           })
       # "Det var finfint sade Johan." -> "finfint, sade Johan": quoted speech is set off from
@@ -413,11 +244,7 @@ rules:
           # A fronted subordinate clause ("När han kom hem frågade hon") is followed by V2.
           - '!/^[\s"”»''(–-]*(?:när|om|eftersom|innan|medan|sedan|då|fast|fastän|ifall|tills|därför|för att)(?!\p{L})/iu.test(clause)'
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + target.length },
-            alternatives: [", "],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + target.length, [", "], {
             context: { start: m.index - Math.min(clause.length, 24), end: m.index + m[0].length },
           })
 

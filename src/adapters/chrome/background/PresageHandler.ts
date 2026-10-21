@@ -1,4 +1,4 @@
-import { correctWhitelistedTypo } from "@core/domain/grammar/implementations/EnglishTypoWhitelistCorrectionRule";
+import { correctWhitelistedTypo } from "@core/domain/grammar/review/rules/common.generated";
 import { reviewDictionaryLanguage } from "@core/domain/lang";
 import { isAcceptedEnglishDialectWord } from "@core/domain/grammar/review/english/dialects";
 import { SUPPORTED_LANGUAGES, TEXT_EXPANDER_LANG } from "@core/domain/lang";

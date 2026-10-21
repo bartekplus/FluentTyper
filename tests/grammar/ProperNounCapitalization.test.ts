@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
-import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { createLiveRules } from "../../src/core/domain/grammar/engine/liveRules";
 import { DEFAULT_CURRENT_GRAMMAR_RULES } from "../../src/core/domain/grammar/ruleCatalog";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
 import { typeText } from "./grammarTestUtils";
@@ -145,7 +145,7 @@ describe("English proper noun capitalization", () => {
   test("only looks at the text near the cursor in long documents", () => {
     const long = `${"word ".repeat(20_000)}see you on monday `;
     const engine = new GrammarRuleEngine();
-    for (const item of createGrammarRuleCatalogRuntime({
+    for (const item of createLiveRules({
       insertSpaceAfterAutocomplete: true,
     })) {
       engine.registerRule(item);

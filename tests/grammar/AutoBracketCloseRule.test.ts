@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import type { GrammarContext } from "../../src/core/domain/grammar/types";
-import { AutoBracketCloseRule } from "../../src/core/domain/grammar/implementations/AutoBracketCloseRule";
 import {
   applyGrammarEditToContext,
   mergeSequentialGrammarEdits,
@@ -12,7 +12,7 @@ function context(beforeCursor: string, afterCursor = ""): GrammarContext {
 }
 
 describe("AutoBracketCloseRule", () => {
-  const rule = new AutoBracketCloseRule();
+  const rule = liveRule("autoBracketClose");
 
   describe("auto-close", () => {
     test.each([
@@ -222,7 +222,7 @@ describe("applyGrammarEditToContext with cursorOffset", () => {
 describe("GrammarRuleEngine integration with AutoBracketCloseRule", () => {
   function makeEngine(): GrammarRuleEngine {
     const engine = new GrammarRuleEngine();
-    engine.registerRule(new AutoBracketCloseRule());
+    engine.registerRule(liveRule("autoBracketClose"));
     return engine;
   }
 
@@ -293,7 +293,7 @@ describe("typing through the engine", () => {
   // Mirrors the content script: a space is a wordBoundary, anything else insertChar.
   function type(input: string): string {
     const engine = new GrammarRuleEngine();
-    engine.registerRule(new AutoBracketCloseRule());
+    engine.registerRule(liveRule("autoBracketClose"));
     let ctx: GrammarContext = {
       beforeCursor: "",
       afterCursor: "",

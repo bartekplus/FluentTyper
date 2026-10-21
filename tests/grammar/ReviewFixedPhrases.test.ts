@@ -2,11 +2,7 @@ import { expect, test } from "bun:test";
 import { REVIEW_SUPPORTED_RULE_IDS } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { review } from "./grammarTestUtils";
-import {
-  COMPOUNDS,
-  PHRASES,
-  STYLE,
-} from "../../src/core/domain/grammar/review/english/fixedPhrases";
+import { table } from "../../src/core/domain/grammar/review/english/tables";
 import {
   CLOSED_COMPOUNDS,
   PHRASE_CORRECTIONS,
@@ -15,6 +11,10 @@ import {
 } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
+
+const PHRASES = table("fixedPhrases.phrases");
+const COMPOUNDS = table("fixedPhrases.compounds");
+const STYLE = table("fixedPhrases.style");
 
 const OWN: CatalogRuleId[] = [
   "englishPhraseCorrections",

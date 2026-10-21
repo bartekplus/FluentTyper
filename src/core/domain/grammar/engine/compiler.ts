@@ -1,7 +1,7 @@
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../lang";
-import { isTokenPredicate } from "./predicates";
+import { ptConjugate } from "../library/portuguese/verbs";
+import { scanStarts } from "./prefixes";
 import { parseRows, type PhraseRow } from "./rows";
-import { tokenKey } from "./tokenizer";
 import {
   fileCode,
   functionCode,
@@ -23,25 +23,13 @@ import {
   WORD_END,
   WORD_START,
 } from "../review/phraseTemplates";
-import type {
-  CheckSpec,
-  CompiledFrame,
-  CompiledMatcher,
-  CompiledPattern,
-  CompiledRule,
-  RuleFile,
-  RuleSpec,
-  TokenMatcherSpec,
-} from "./types";
+import type { CheckSpec, CompiledFrame, CompiledRule, RuleFile, RuleSpec } from "./types";
 
 /*
  * Validates the declarative rule files and compiles them. Pure: scripts/compile-grammar-rules.ts
  * runs it at build time and writes the result to the *.generated.ts modules; tests run it to
  * prove the generated modules are current. Every problem is collected and thrown at once.
  */
-
-export { parseRows };
-export type { PhraseRow };
 
 /** The order of rule files: shared rules first, then one file per language. */
 export const RULE_FILES = [
@@ -62,42 +50,14 @@ const NAMED_LANGUAGES = SUPPORTED_PREDICTION_LANGUAGE_KEYS.filter(
   (lang) => lang !== TEXT_EXPANDER_LANG,
 );
 const PHRASE_KINDS = ["words", "phrases", "compounds", "style"] as const;
-const TOKEN_TYPES = new Set(["word", "number", "punct", "symbol", "protected"]);
-const CASINGS = new Set(["lower", "upper", "title", "mixed", "none"]);
-const MATCHER_KEYS = new Set<keyof TokenMatcherSpec>([
-  "lower",
-  "surface",
-  "type",
-  "regex",
-  "negateRegex",
-  "casing",
-  "spaceBefore",
-  "spaceAfter",
-  "exactWhitespaceBefore",
-  "matchRef",
-  "isSentenceStart",
-  "isSentenceEnd",
-  "prevTokenNotLower",
-  "nextTokenNotLower",
-  "predicate",
-]);
 const RULE_KEYS = new Set<keyof RuleSpec>([
   "id",
   "checks",
   "lang",
-  "includeLangs",
-  "excludeLangs",
   "modes",
   "stage",
-  "predicate",
   "cacheable",
-  "pattern",
-  "replacements",
-  "target",
-  "preserveCase",
   "message",
-  "crossLines",
-  "bulkBlock",
   "frames",
   "style",
   "filter",
@@ -114,7 +74,6 @@ const RULE_KEYS = new Set<keyof RuleSpec>([
 const FRAME_KEYS = new Set([
   "regex",
   "fix",
-  "fixer",
   "let",
   "when",
   "return",
@@ -141,6 +100,18 @@ const FRAME_KEYS = new Set([
   "lang",
 ]);
 const SCANS = new Set(["frame", "owned", "text", "polish"]);
+const FILE_KEYS = new Set<keyof RuleFile>([
+  "lang",
+  "checks",
+  "exclusive",
+  "rules",
+  "phrases",
+  "tables",
+  "fragments",
+  "sets",
+  "maps",
+  "defs",
+]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
   E: WORD_END,
@@ -196,7 +167,7 @@ const CHECK_KEYS = new Set<keyof CheckSpec>([
   "text",
   "example",
 ]);
-const UI_LANGUAGES = ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"];
+export const UI_LANGUAGES = ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"];
 
 interface CatalogEntryOut {
   id: string;
@@ -221,11 +192,10 @@ export type ReviewMetadataOut =
     }
   | { review: "excluded"; category: string; reason: string };
 
-/** A live check: its named implementation, or the live patterns of its rules. */
+/** A live check: "<file>:@<rule id>", the code of its typing rule. */
 interface LiveRuleOut {
   check: string;
-  predicate?: string;
-  patterns: number[];
+  predicate: string;
 }
 
 /** A check's settings example: [before, after]; after null for a warning. */
@@ -246,8 +216,6 @@ export interface CompiledRuleSet {
   rules: CompiledRule[];
   /** Typing checks in priority order. */
   live: LiveRuleOut[];
-  reviewPatterns: PatternSetOut;
-  livePatterns: PatternSetOut;
   frames: CompiledFrame[];
   /** Two-letter language -> phrase table kind -> rows. */
   phrases: Record<string, Partial<Record<(typeof PHRASE_KINDS)[number], PhraseRow[]>>>;
@@ -257,85 +225,44 @@ export interface CompiledRuleSet {
   code: Record<string, FileCode>;
 }
 
-interface PatternSetOut {
-  patterns: CompiledPattern[];
-  anchors: Record<string, number[]>;
-  structural: number[];
-}
-
 /** The two-letter code of a rule file language ("pt_BR" -> "pt"); undefined for "*". */
 const code = (lang: string) => (lang === "*" ? undefined : lang.slice(0, 2));
-const list = <T>(value: T | readonly T[] | undefined): T[] | undefined =>
-  value === undefined ? undefined : ([] as T[]).concat(value as T);
 
-function compileMatcher(
-  spec: TokenMatcherSpec,
-  j: number,
-  where: string,
-  errors: string[],
-): CompiledMatcher {
-  for (const key of Object.keys(spec))
-    if (!MATCHER_KEYS.has(key as keyof TokenMatcherSpec))
-      errors.push(`${where}: unknown pattern field "${key}"`);
-  const out: CompiledMatcher = {};
-  const lower = list(spec.lower);
-  if (lower) out.lower = lower.map((literal) => tokenKey(String(literal)));
-  const surface = list(spec.surface);
-  if (surface) out.surface = surface.map(String);
-  const type = list(spec.type);
-  if (type) {
-    for (const t of type) if (!TOKEN_TYPES.has(t)) errors.push(`${where}: unknown type "${t}"`);
-    out.type = type;
-  }
-  const casing = list(spec.casing);
-  if (casing) {
-    for (const c of casing) if (!CASINGS.has(c)) errors.push(`${where}: unknown casing "${c}"`);
-    out.casing = casing;
-  }
-  for (const key of ["regex", "negateRegex"] as const) {
-    const source = spec[key];
-    if (source === undefined) continue;
-    try {
-      new RegExp(source, "u");
-      out[key] = source;
-    } catch (error) {
-      errors.push(`${where}: ${key} does not compile: ${String(error)}`);
-    }
-  }
-  for (const key of ["spaceBefore", "spaceAfter", "isSentenceStart", "isSentenceEnd"] as const) {
-    const value = spec[key];
-    if (value === undefined) continue;
-    if (typeof value !== "boolean") errors.push(`${where}: ${key} must be true or false`);
-    out[key] = value;
-  }
-  if (spec.exactWhitespaceBefore !== undefined)
-    out.exactWhitespaceBefore = spec.exactWhitespaceBefore;
-  if (spec.matchRef !== undefined) {
-    if (!Number.isInteger(spec.matchRef) || spec.matchRef < 1 || spec.matchRef >= j)
-      errors.push(`${where}: matchRef must name an earlier element (1-${j - 1})`);
-    out.matchRef = spec.matchRef;
-  }
-  if (spec.prevTokenNotLower) out.prevTokenNotLower = spec.prevTokenNotLower.map(tokenKey);
-  if (spec.nextTokenNotLower) out.nextTokenNotLower = spec.nextTokenNotLower.map(tokenKey);
-  if (spec.predicate !== undefined) {
-    if (!isTokenPredicate(spec.predicate))
-      errors.push(`${where}: unknown token predicate "${spec.predicate}"`);
-    out.predicate = spec.predicate;
-  }
-  return out;
-}
-
-/** The element whose literals select the rule best (its shortest literal is longest), or -1. */
-function chooseAnchor(elements: readonly CompiledMatcher[]): number {
-  let anchor = -1;
-  let best = 0;
-  elements.forEach((element, j) => {
-    const literals = element.lower ?? element.surface?.map(tokenKey);
-    if (!literals?.length) return;
-    const shortest = Math.min(...literals.map((literal) => literal.length));
-    if (shortest > best) [anchor, best] = [j, shortest];
-  });
-  return anchor;
+/**
+ * Portuguese phrase rows: "~fazer uso de = ~usar; ~recorrer a" gives one row for each form of
+ * ptConjugate, in its slot order ("faço uso de = uso; recorro a", ...); a typed form comes once.
+ */
+function conjugatedRows(text: string, lang: string, where: string, errors: string[]): string {
+  return text
+    .split("\n")
+    .flatMap((line) => {
+      if (!line.startsWith("~")) return [line];
+      const at = line.indexOf(" = ");
+      const [verb, ...rest] = line.slice(1, at).split(" ");
+      const fixes = line.slice(at + 3).split("; ");
+      if (lang !== "pt" || at < 0 || line.includes(" | ") || fixes.some((f) => f[0] !== "~")) {
+        errors.push(`${where}: row "${line}": "~" needs Portuguese, one typed form and "~" fixes`);
+        return [];
+      }
+      try {
+        const forms = ptConjugate(verb);
+        const fixForms = fixes.map((fix) => {
+          const [fixVerb, ...fixRest] = fix.slice(1).split(" ");
+          return ptConjugate(fixVerb).map((form) => [form, ...fixRest].join(" "));
+        });
+        const seen = new Set<string>();
+        return forms.flatMap((form, slot) => {
+          const typed = [form, ...rest].join(" ");
+          if (seen.has(typed)) return [];
+          seen.add(typed);
+          return [`${typed} = ${fixForms.map((fix) => fix[slot]).join("; ")}`];
+        });
+      } catch (error) {
+        errors.push(`${where}: row "${line}": ${(error as Error).message}`);
+        return [];
+      }
+    })
+    .join("\n");
 }
 
 function checkLanguages(
@@ -372,8 +299,13 @@ export function compileRuleFiles(
   const phraseTableKinds: Record<string, string[]> = {};
 
   for (const [name, file] of files) {
-    for (const check of file.checks ?? []) {
-      const where = `${name}.yaml check ${check.id}`;
+    for (const key of Object.keys(file))
+      if (!FILE_KEYS.has(key as keyof RuleFile))
+        errors.push(`${name}.yaml: unknown field "${key}"`);
+    for (const spec of file.checks ?? []) {
+      const where = `${name}.yaml check ${spec.id}`;
+      if (!Array.isArray(spec.modes)) errors.push(`${where}: "modes" lists no mode`);
+      const check = { ...spec, modes: spec.modes ?? [] };
       for (const key of Object.keys(check))
         if (!CHECK_KEYS.has(key as keyof CheckSpec))
           errors.push(`${where}: unknown field "${key}"`);
@@ -423,13 +355,28 @@ export function compileRuleFiles(
             continue;
           }
           const k = kind as (typeof PHRASE_KINDS)[number];
-          phrases[lang][k] = parseRows(file.phrases[k]!, `${name}.yaml phrases.${k}`, errors);
+          const where = `${name}.yaml phrases.${k}`;
+          const rows = conjugatedRows(file.phrases[k]!, lang, where, errors);
+          phrases[lang][k] = parseRows(rows, where, errors);
         }
         phraseTableKinds[lang] = PHRASE_KINDS.filter((kind) => phrases[lang][kind]);
       }
     }
-    for (const [table, rows] of Object.entries(file.tables ?? {}))
-      tables[`${name}.${table}`] = parseRows(rows, `${name}.yaml tables.${table}`, errors);
+    // review/english/tables.ts pools the "<module>.<kind>" tables of a kind: a typed form that
+    // a pool has two times is a dead row.
+    const typedIn = new Map<string, string>();
+    for (const [table, rows] of Object.entries(file.tables ?? {})) {
+      const where = `${name}.yaml tables.${table}`;
+      const pool = table.replace(/^[^.]+(?=\.(?:phrases|compounds|style)$)/, "*");
+      for (const [typed, fix] of (tables[`${name}.${table}`] = parseRows(rows, where, errors)))
+        for (const form of [typed].flat()) {
+          const key = `${pool} ${form.toLowerCase()}`;
+          if ([fix].flat().includes(form)) errors.push(`${where}: row "${form}" fixes to itself`);
+          if (typedIn.has(key))
+            errors.push(`${where}: "${form}" is also a row of ${typedIn.get(key)}`);
+          else typedIn.set(key, where);
+        }
+    }
   }
 
   const reviewMetadata: Record<string, ReviewMetadataOut> = {};
@@ -495,11 +442,8 @@ export function compileRuleFiles(
   const ruleIds = new Set<string>();
   const frameNames = new Set<string>();
   const rules: CompiledRule[] = [];
-  const reviewPatterns: PatternSetOut = { patterns: [], anchors: {}, structural: [] };
-  const livePatterns: PatternSetOut = { patterns: [], anchors: {}, structural: [] };
   const frames: CompiledFrame[] = [];
   const livePredicates = new Map<string, string>();
-  const liveByCheck = new Map<string, number[]>();
 
   for (const { name, file, spec } of ordered) {
     const where = `${name}.yaml rule ${spec.id}`;
@@ -507,10 +451,12 @@ export function compileRuleFiles(
       if (!RULE_KEYS.has(key as keyof RuleSpec)) errors.push(`${where}: unknown field "${key}"`);
     if (ruleIds.has(spec.id)) errors.push(`${where}: duplicate rule id`);
     ruleIds.add(spec.id);
-    if (!spec.checks?.length) errors.push(`${where}: "checks" names no check`);
+    if (!spec.checks?.length) {
+      errors.push(`${where}: "checks" names no check`);
+      continue;
+    }
     for (const id of spec.checks ?? [])
       if (!checks.has(id)) errors.push(`${where}: unknown check "${id}"`);
-    const check = checks.get(spec.checks?.[0]);
     const modes = spec.modes ?? ["review"];
     const lang = code(spec.lang ?? file.lang);
     const expand = (source: string, at: string) =>
@@ -520,10 +466,8 @@ export function compileRuleFiles(
     };
     // A rule's own code (`let`, `when`, `return`) is its predicate: the detector of a Review rule
     // (after the frames of a frame rule) or the `apply` of a typing rule.
-    let predicate = spec.predicate;
+    let predicate: string | undefined;
     if (spec.return !== undefined || spec.let !== undefined || spec.when !== undefined) {
-      if (spec.predicate !== undefined)
-        errors.push(`${where}: give "predicate" or a "return" expression, not both`);
       const live = modes.includes("live");
       if (live && !spec.triggers?.length)
         errors.push(`${where}: a typing rule with code needs "triggers"`);
@@ -558,13 +502,9 @@ export function compileRuleFiles(
       );
       filter = `${name}:@${spec.id}/filter`;
     }
-    // A frame rule may also name a predicate: it runs after the frames.
-    if (
-      [spec.pattern, spec.frames ?? predicate, spec.findings].filter((k) => k !== undefined)
-        .length !== 1 ||
-      (spec.pattern !== undefined && predicate !== undefined)
-    )
-      errors.push(`${where}: give exactly one of "predicate", "pattern", "frames" and "findings"`);
+    // A frame rule may also have code: it runs after the frames.
+    if ([spec.frames ?? predicate, spec.findings].filter((k) => k !== undefined).length !== 1)
+      errors.push(`${where}: give exactly one of "frames", "findings" and a "return" expression`);
 
     if (spec.findings !== undefined) {
       if (!["style", "terminology", "quotation"].includes(spec.findings))
@@ -591,7 +531,7 @@ export function compileRuleFiles(
         id: spec.id,
         checks: [...spec.checks],
         ...(lang ? { lang } : {}),
-        predicate: predicate.includes(":") ? predicate : `${name}:${predicate}`,
+        predicate,
         ...(spec.cacheable ? { cacheable: true as const } : {}),
         ...(spec.group === undefined ? {} : { group: spec.group }),
         source: name,
@@ -604,8 +544,8 @@ export function compileRuleFiles(
         const at = `${where} frame ${j + 1}`;
         for (const key of Object.keys(entry))
           if (!FRAME_KEYS.has(key)) errors.push(`${at}: unknown frame field "${key}"`);
-        if ([entry.fix, entry.fixer, entry.return].filter((v) => v !== undefined).length !== 1)
-          errors.push(`${at}: give exactly one of "fix" and "fixer", or a "return" expression`);
+        if ((entry.fix === undefined) === (entry.return === undefined))
+          errors.push(`${at}: give exactly one of "fix" and a "return" expression`);
         if (entry.return === undefined && (entry.let !== undefined || entry.when !== undefined))
           errors.push(`${at}: "let" and "when" need "return"`);
         const match = spec.style === "match";
@@ -663,7 +603,7 @@ export function compileRuleFiles(
           errors.push(`${at}: "targetOnly" needs style "carry"`);
         if (entry.check !== undefined && !spec.checks.includes(entry.check))
           errors.push(`${at}: check "${entry.check}" is not a check of the rule`);
-        for (const word of entry.cue ?? [])
+        for (const word of entry.cue || [])
           if (!/^\p{Ll}+$/u.test(word)) errors.push(`${at}: cue "${word}" is not a lowercase word`);
         if (entry.gateFlags !== undefined && entry.gate === undefined)
           errors.push(`${at}: "gateFlags" needs "gate"`);
@@ -714,19 +654,28 @@ export function compileRuleFiles(
                 pattern,
               });
         addCode(fixCode);
-        const fixer = fixCode ? key : entry.fixer;
+        const literals = requiredLiterals(pattern);
+        // A slot frame without "cue" runs only near one of its literals, when each is a word.
+        const cue =
+          entry.cue ??
+          (spec.style === "slot" &&
+            literals.length > 0 &&
+            literals.every((word) => /^\p{Ll}+$/u.test(word)) &&
+            literals);
         frames.push({
           pattern,
-          literals: requiredLiterals(pattern),
+          literals,
+          // The start positions of a frame scan (comma and swap frames run a Polish scan).
+          ...(scan === "frame" && spec.style !== "comma" && spec.style !== "swap"
+            ? scanStarts(spec.style === "cased" ? `${WORD_START}${pattern}` : pattern)
+            : {}),
           ...(entry.fix === undefined ? {} : { fix: entry.fix }),
-          ...(fixer === undefined
-            ? {}
-            : { fixer: fixer.includes(":") ? fixer : `${name}:${fixer}` }),
+          ...(fixCode ? { fixer: `${name}:${key}` } : {}),
           ...(entry.raw ? { raw: true as const } : {}),
           ...(entry.message === undefined ? {} : { message: entry.message }),
           ...(entry.clauseStart ? { clauseStart: true as const } : {}),
           ...(entry.check === undefined ? {} : { check: entry.check }),
-          ...(entry.cue === undefined ? {} : { cue: [...entry.cue] }),
+          ...(cue ? { cue: [...cue] } : {}),
           ...(entry.wordStart === false ? { wordStart: false as const } : {}),
           ...(entry.verbatim ? { verbatim: true as const } : {}),
           ...(entry.lowercase ? { lowercase: true as const } : {}),
@@ -750,9 +699,7 @@ export function compileRuleFiles(
         checks: [...spec.checks],
         ...(lang ? { lang } : {}),
         frames: indexes,
-        ...(predicate === undefined
-          ? {}
-          : { predicate: predicate.includes(":") ? predicate : `${name}:${predicate}` }),
+        ...(predicate === undefined ? {} : { predicate }),
         message: spec.message!,
         ...(spec.style && spec.style !== "frame" ? { style: spec.style } : {}),
         ...(filter === undefined
@@ -764,80 +711,18 @@ export function compileRuleFiles(
       });
       continue;
     }
-    if (spec.pattern === undefined) continue;
-
-    const elements = spec.pattern.map((element, j) =>
-      compileMatcher(element, j + 1, `${where} element ${j + 1}`, errors),
-    );
-    const target = spec.target ?? ([1, elements.length] as const);
-    if (target[0] < 1 || target[1] > elements.length || target[0] > target[1])
-      errors.push(`${where}: target [${target.join(", ")}] is outside the pattern`);
-    if (!spec.replacements?.length) errors.push(`${where}: a pattern needs "replacements"`);
-    if (modes.includes("review") && spec.message === undefined)
-      errors.push(`${where}: a Review pattern needs "message"`);
-    if (modes.includes("live") && !check?.safeToFix)
-      errors.push(`${where}: a live pattern needs a check with safeToFix`);
-    if (modes.includes("live") && !check?.modes.includes("live"))
-      errors.push(`${where}: a live pattern needs a check with mode "live"`);
-    const anchor = chooseAnchor(elements);
-    const base = {
-      rule: spec.id,
-      check: spec.checks[0],
-      langs: lang ? [lang] : (spec.includeLangs ?? []).map((l) => l.slice(0, 2)),
-      excludeLangs: (spec.excludeLangs ?? []).map((l) => l.slice(0, 2)),
-      live: modes.includes("live"),
-      review: modes.includes("review"),
-      safeToFix: check?.safeToFix ?? false,
-      elements,
-      anchor,
-      replacements: [...(spec.replacements ?? [])],
-      target: [target[0], target[1]] as const,
-      preserveCase: spec.preserveCase ?? true,
-      message: spec.message ?? "",
-      crossLines: spec.crossLines ?? false,
-      ...(spec.bulkBlock ? { bulkBlock: spec.bulkBlock } : {}),
-    };
-    for (const [set, wanted] of [
-      [reviewPatterns, base.review],
-      [livePatterns, base.live],
-    ] as const) {
-      if (!wanted) continue;
-      const index = set.patterns.length;
-      set.patterns.push({ index, ...base });
-      if (anchor < 0) set.structural.push(index);
-      else
-        for (const literal of new Set(
-          elements[anchor].lower ?? elements[anchor].surface!.map(tokenKey),
-        ))
-          (set.anchors[literal] ??= []).push(index);
-      if (set === livePatterns) {
-        const forCheck = liveByCheck.get(base.check) ?? [];
-        forCheck.push(index);
-        liveByCheck.set(base.check, forCheck);
-      }
-      if (set === reviewPatterns)
-        rules.push({
-          id: spec.id,
-          checks: [...spec.checks],
-          ...(lang ? { lang } : {}),
-          pattern: index,
-          source: name,
-        });
-    }
   }
 
   // Typing checks in priority order (stable: catalog order on ties).
   const live: LiveRuleOut[] = catalog
     .filter((entry) => entry.typing !== false)
     .sort((a, b) => a.priority - b.priority)
-    .map((entry) => ({
-      check: entry.id,
-      ...(livePredicates.has(entry.id) ? { predicate: livePredicates.get(entry.id) } : {}),
-      patterns: liveByCheck.get(entry.id) ?? [],
-    }));
-  for (const rule of live)
-    if (!rule.predicate && rule.patterns.length === 0)
-      errors.push(`live check ${rule.check} has no live rule`);
+    .flatMap((entry) => {
+      const predicate = livePredicates.get(entry.id);
+      if (predicate) return [{ check: entry.id, predicate }];
+      errors.push(`live check ${entry.id} has no live rule`);
+      return [];
+    });
   for (const [id] of livePredicates)
     if (!checks.get(id)?.modes.includes("live"))
       errors.push(`check ${id}: a live predicate needs mode "live"`);
@@ -852,8 +737,6 @@ export function compileRuleFiles(
     phraseTableKinds,
     rules,
     live,
-    reviewPatterns,
-    livePatterns,
     frames,
     phrases,
     tables,

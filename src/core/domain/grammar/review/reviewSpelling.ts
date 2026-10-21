@@ -1,4 +1,4 @@
-import { startsSentence } from "../implementations/CapitalizeSentenceStartRule";
+import { startsSentence } from "../library/typing/sentences";
 import { englishNounForms } from "../implementations/helpers/EnglishNounNumber";
 import { lastNonBlankBefore } from "../implementations/helpers/EnglishRuleShared";
 import { CONTAINER_PREFIX_REGEX } from "../implementations/helpers/ProtectedSpanShared";

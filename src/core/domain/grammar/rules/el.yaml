@@ -11,146 +11,25 @@ fragments:
 sets:
   EL_ARTICLES: [ο, η, οι, το, τα, τον, την, τη, του, της, των, τους, τις]
   # Negating "δε" cannot stand right before a conjunction: there it is cited or adversative.
-  EL_CONJUNCTIONS:
-    [οταν, οτι, αν, εαν, η, ενω, επειδη, αφου, οπως, ωστε, οποτε, αλλα, ομως, ουτε, ειτε, οσο, ως]
+  EL_CONJUNCTIONS: >-
+    οταν οτι αν εαν η ενω επειδη αφου οπως ωστε οποτε αλλα ομως ουτε ειτε οσο ως
   # Masculine accusatives, unaccented: their article is always "τον". Nouns of common gender
   # (ο/η πρόεδρος) and forms that are also neuter words or adjectives ("ήλιο" helium, "φίλο
   # κράτος") are not in the list.
-  EL_MASCULINE:
-    [
-      λογο,
-      χρονο,
-      δρομο,
-      κοσμο,
-      νομο,
-      ρολο,
-      στοχο,
-      τροπο,
-      τοπο,
-      φοβο,
-      πονο,
-      ουρανο,
-      καιρο,
-      σκοπο,
-      κινδυνο,
-      ανθρωπο,
-      ανεμο,
-      υπνο,
-      θανατο,
-      πολεμο,
-      λαο,
-      θεο,
-      γαμο,
-      κηπο,
-      τοιχο,
-      δημο,
-      οροφο,
-      μισθο,
-      χωρο,
-      ποταμο,
-      φορο,
-      ογκο,
-      κυκλο,
-      τυπο,
-      ορο,
-      κλαδο,
-      θορυβο,
-      στρατο,
-      δασκαλο,
-      καταλογο,
-      διαλογο,
-      ελεγχο,
-      συλλογο,
-      γιο,
-      ανιψιο,
-      εχθρο,
-      στιχο,
-      ηχο,
-      λοφο,
-      βραχο,
-      καμπο,
-      λυκο,
-      ταυρο,
-      σκυλο,
-      χορο,
-      γυρο,
-      ναο,
-      ταφο,
-      θρονο,
-      στολο,
-      φακελο,
-      νου,
-      βασιλια,
-      παππου,
-      αιωνα,
-      αγωνα,
-      αντρα,
-      πατερα,
-      μηνα,
-      αερα,
-      κανονα,
-      χαρακτηρα,
-      τομεα,
-      χειμωνα,
-      γειτονα,
-      ηρωα,
-      πινακα,
-      αξονα,
-      πυρηνα,
-      μαθητη,
-      καθηγητη,
-      πελατη,
-      επιβατη,
-      εργατη,
-      χαρτη,
-      πολιτη,
-      αθλητη,
-      ιδιοκτητη,
-      δεικτη,
-      υπολογιστη,
-      διακοπτη,
-      ανταγωνιστη,
-    ]
+  EL_MASCULINE: >-
+    λογο χρονο δρομο κοσμο νομο ρολο στοχο τροπο τοπο φοβο πονο ουρανο καιρο σκοπο κινδυνο ανθρωπο
+    ανεμο υπνο θανατο πολεμο λαο θεο γαμο κηπο τοιχο δημο οροφο μισθο χωρο ποταμο φορο ογκο κυκλο
+    τυπο ορο κλαδο θορυβο στρατο δασκαλο καταλογο διαλογο ελεγχο συλλογο γιο ανιψιο εχθρο στιχο ηχο
+    λοφο βραχο καμπο λυκο ταυρο σκυλο χορο γυρο ναο ταφο θρονο στολο φακελο νου βασιλια παππου αιωνα
+    αγωνα αντρα πατερα μηνα αερα κανονα χαρακτηρα τομεα χειμωνα γειτονα ηρωα πινακα αξονα πυρηνα
+    μαθητη καθηγητη πελατη επιβατη εργατη χαρτη πολιτη αθλητη ιδιοκτητη δεικτη υπολογιστη διακοπτη
+    ανταγωνιστη
   # Words that can also be an adjective or a noun ("Αντίθετα αποτελέσματα", "Τέλος εποχής")
   # need a clause right after them: an article, a pronoun or a particle.
   EL_AMBIGUOUS: [αντιθετα, τελος, ναι, οχι, επιπλεον]
-  EL_CLAUSE_OPENERS:
-    [
-      ο,
-      η,
-      οι,
-      το,
-      τα,
-      τον,
-      την,
-      τη,
-      του,
-      της,
-      των,
-      τους,
-      τις,
-      θα,
-      να,
-      δεν,
-      δε,
-      μην,
-      μη,
-      ας,
-      εγω,
-      εσυ,
-      αυτος,
-      αυτη,
-      αυτο,
-      εμεις,
-      εσεις,
-      αυτοι,
-      αυτες,
-      αυτα,
-      καθε,
-      ολοι,
-      ολα,
-      ολες,
-    ]
+  EL_CLAUSE_OPENERS: >-
+    ο η οι το τα τον την τη του της των τους τις θα να δεν δε μην μη ας εγω εσυ αυτος αυτη αυτο
+    εμεις εσεις αυτοι αυτες αυτα καθε ολοι ολα ολες
   # Words in -ω that are not verbs: adverbs, numerals, pronouns.
   EL_NOT_VERBS: [εδω, πισω, πανω, κατω, εξω, μεσω, ανω, οκτω, οχτω, εγω, λογω, ηχω]
 defs:
@@ -184,11 +63,7 @@ defs:
     let:
       end: m.index + m.groups!.target.length
     return: >-
-      ({
-        ruleId: frame.ruleId,
-        messageKey: frame.messageKey,
-        range: { start, end },
-        alternatives: [alternative],
+      finding(frame.ruleId, frame.messageKey, start, end, [alternative], {
         context: { start, end: end + m.groups!.gap.length + m.groups!.next.length },
       })
 
@@ -287,11 +162,7 @@ rules:
           - start >= ctx.from && start < ctx.to && !EL_NOT_VERBS.has(bareGreek(target))
           - "!ctx.dictionary.has(target.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: start + target.length - 1, end: start + target.length },
-            alternatives: [target.endsWith("ώ") ? "εί" : "ει"],
+          finding(frame.ruleId, frame.messageKey, start + target.length - 1, start + target.length, [target.endsWith("ώ") ? "εί" : "ει"], {
             context: { start: m.index, end: start + target.length },
           })
   - id: el.questionAccent
@@ -315,11 +186,7 @@ rules:
           - EL_SENTENCE_START.test(before) || (from === 0 && EL_AT_START.test(before))
           - rest && ";;?".includes(rest[0])
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end },
-            alternatives: [word.replace(/υ$/u, "ύ").replace(/ω(?=ς$)/u, "ώ")],
+          finding(frame.ruleId, frame.messageKey, m.index, end, [word.replace(/υ$/u, "ύ").replace(/ω(?=ς$)/u, "ώ")], {
             context: { start: m.index, end: end + rest.index + 1 },
           })
   - id: el.formalKai
@@ -365,12 +232,7 @@ rules:
         # The first mark of "!!" or "…." is the one mark to keep.
         when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0][0]],
-          })
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [m[0][0]])
       - regex: "(?<target>\\u2026\\.(?!\\.))"
         scan: owned
         flags: gu
@@ -378,12 +240,7 @@ rules:
         # The first mark of "!!" or "…." is the one mark to keep.
         when: "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [m[0][0]],
-          })
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [m[0][0]])
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

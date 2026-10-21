@@ -1,6 +1,10 @@
 // The Spanish token window, the closed word classes and the token finding of the Spanish rules
 // of grammar/rules/es.yaml. The rule library (library/spanish.ts) exports them.
-import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
+import {
+  applyWordCase,
+  carryCase,
+  detectWordCase,
+} from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { attribute, isNoun, isVerb, nounForm } from "./lexicon";
@@ -71,15 +75,6 @@ function readTokens(ctx: DetectContext): Token[] {
     last = end;
   }
   return tokens;
-}
-
-/** The typed word's casing on a replacement: "Esta" -> "Está", "ESTA" -> "ESTÁ". */
-export function carryCase(typed: string, replacement: string): string {
-  const kind = detectWordCase(typed);
-  if (kind === "upper" && typed.length > 1) return replacement.toUpperCase();
-  if (kind === "title" || (kind === "upper" && typed.length === 1))
-    return replacement[0].toUpperCase() + replacement.slice(1);
-  return replacement;
 }
 
 /** "eSTA" or a user-dictionary word: the writer's own spelling. */
