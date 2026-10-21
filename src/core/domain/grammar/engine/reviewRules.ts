@@ -7,7 +7,6 @@ import { detectFrames, prepareFrames } from "./frameStyles";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
 import { RULE_DETECTORS, RULE_FILTERS, RULE_FIXERS } from "../review/rules/index.generated";
-import { primeFrameLiterals, WORD_START } from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
 import { tokenKey } from "./tokenizer";
 import type { CompiledFrame } from "./types";
@@ -124,7 +123,6 @@ function frameRuleDetector(id: string): Detector {
   const ruleId = rule.checks[0] as CatalogRuleId;
   const messageKey = rule.message as ReviewMessageKey;
   const compiled = rule.frames.map((index) => REVIEW_FRAMES[index]);
-  for (const { pattern, literals } of compiled) primeFrameLiterals(pattern, [...literals]);
   const filter = rule.filter === undefined ? undefined : named(RULE_FILTERS, rule.filter);
   if (rule.filter !== undefined && !filter)
     throw new Error(`Grammar rule ${id}: no filter "${rule.filter}"`);
@@ -135,10 +133,6 @@ function frameRuleDetector(id: string): Detector {
     return found;
   };
   const style = rule.style ?? "frame";
-  // A cased frame runs behind WORD_START: its literals are the same.
-  if (style === "cased")
-    for (const { pattern, literals } of compiled)
-      primeFrameLiterals(`${WORD_START}${pattern}`, [...literals]);
   const frames = prepareFrames(style, compiled, ruleId, messageKey, (frame) =>
     fixOf(frame.fix, frame.fixer),
   );

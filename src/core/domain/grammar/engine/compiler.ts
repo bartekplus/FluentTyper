@@ -1,5 +1,6 @@
 import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../lang";
 import { isTokenPredicate } from "./predicates";
+import { scanStarts } from "./prefixes";
 import { parseRows, type PhraseRow } from "./rows";
 import { tokenKey } from "./tokenizer";
 import {
@@ -718,6 +719,10 @@ export function compileRuleFiles(
         frames.push({
           pattern,
           literals: requiredLiterals(pattern),
+          // The start positions of a frame scan (comma and swap frames run a Polish scan).
+          ...(scan === "frame" && spec.style !== "comma" && spec.style !== "swap"
+            ? scanStarts(spec.style === "cased" ? `${WORD_START}${pattern}` : pattern)
+            : {}),
           ...(entry.fix === undefined ? {} : { fix: entry.fix }),
           ...(fixer === undefined
             ? {}

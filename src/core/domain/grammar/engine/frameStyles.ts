@@ -364,7 +364,7 @@ function matchesOf(ctx: DetectContext, frame: RunFrame): Iterable<RegExpExecArra
     case "polish":
       return owned(ctx, frame.pattern as RegExp);
     default:
-      return frameScan(ctx, frame.pattern, frame.owner);
+      return frameScan(ctx, frame.pattern, frame.owner, frame.frame);
   }
 }
 

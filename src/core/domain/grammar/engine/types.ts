@@ -1,3 +1,4 @@
+import type { LiteralAnchor } from "./prefixes";
 import type { BodySpec, CodeSections, DefSpec } from "./ruleCode";
 /**
  * The declarative grammar rule format (src/core/domain/grammar/rules/*.yaml) and its
@@ -331,6 +332,12 @@ export interface CompiledFrame {
   pattern: string;
   /** Lowercase literals of which every match consumes one (requiredLiterals). */
   literals: readonly string[];
+  /** A frame scan's start positions (prefixes.ts scanStarts): the prefixes of every match. */
+  prefixes?: readonly string[];
+  /** Without prefixes: an anchor that every match holds near its start. */
+  anchor?: LiteralAnchor;
+  /** A later anchor of every match: a start with no occurrence of it in reach is skipped. */
+  later?: LiteralAnchor;
   fix?: string | readonly string[];
   /** "<file>:<name>" of a named fix function. */
   fixer?: string;

@@ -3,7 +3,7 @@ import {
   carryCase,
   detectWordCase,
 } from "../implementations/helpers/GenericRuleShared";
-import { laterAnchor, literalAnchor, startPrefixes, type LiteralAnchor } from "../engine/prefixes";
+import type { CompiledFrame } from "../engine/types";
 import { namedExampleBefore } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -154,84 +154,10 @@ export const FRAME_AUDIT = { all: false };
 const BROKEN_SCANS = new WeakSet<DetectContext>();
 /** True when a frame did not compile since the last call: the caller reports its rules. */
 export const takeFrameFailure = (ctx: DetectContext) => BROKEN_SCANS.delete(ctx);
-// A RegExp builds its source again at each read; a frame reads it one time.
-const READ_PATTERNS = new WeakMap<RegExp, string | null>();
 // A regex mid-scan in an unfinished generator; a nested scan of it gets its own copy.
 const SCANNING = new WeakSet<RegExp>();
 // The sticky copy of a frame regex: it runs only at the frame's start positions.
 const STICKY = new WeakMap<RegExp, RegExp>();
-// The start prefixes of a frame source (null: a match may start anywhere).
-const PREFIXES = new Map<string, readonly string[] | null>();
-// A prefix holds only characters whose case-insensitive matches String#toLowerCase mirrors:
-// printable ASCII, the right single quote (no case) and the LITERAL_LETTER ranges. It ends
-// before any other character.
-const PREFIX_CHAR =
-  /[ -~\u2019\u00c0-\u00d6\u00d8-\u00de\u00e0-\u00f6\u00f8-\u012f\u0132-\u017e\u0180-\u024f]/;
-
-/** The prefixes, each cut before its first character outside PREFIX_CHAR; null if one empties. */
-function safePrefixes(raw: readonly string[] | null): readonly string[] | null {
-  const safe = raw?.map((prefix) => {
-    let end = 0;
-    while (end < prefix.length && PREFIX_CHAR.test(prefix[end])) end++;
-    return prefix.slice(0, end);
-  });
-  return !safe || safe.includes("") ? null : [...new Set(safe)];
-}
-
-/**
- * `source` with each class of one letter in its two cases ("[dD]") written as the lowercase
- * letter. The prefix parser reads a class as any character; the prefixes and the text they are
- * found in are lowercase, so the letter gives the same start positions, and fewer of them.
- */
-function foldCaseClasses(source: string): string {
-  let out = "";
-  for (let i = 0; i < source.length; i++) {
-    const char = source[i];
-    if (char === "\\") {
-      out += source.slice(i, i + 2);
-      i++;
-    } else if (char === "[") {
-      // Skip the class as the prefix parser does: escapes inside it may hold "]".
-      let end = i + 1;
-      if (source[end] === "^") end++;
-      if (source[end] === "]") end++;
-      while (end < source.length && source[end] !== "]") end += source[end] === "\\" ? 2 : 1;
-      const [a, b] = [source[i + 1], source[i + 2]];
-      const pair =
-        end === i + 3 &&
-        a !== b &&
-        a.toLowerCase() === b.toLowerCase() &&
-        a.toLowerCase().length === 1 &&
-        PREFIX_CHAR.test(a) &&
-        PREFIX_CHAR.test(b);
-      out += pair ? a.toLowerCase() : source.slice(i, end + 1);
-      i = end;
-    } else out += char;
-  }
-  return out;
-}
-
-function framePrefixes(source: string): readonly string[] | null {
-  let found = PREFIXES.get(source);
-  if (found === undefined)
-    PREFIXES.set(source, (found = safePrefixes(startPrefixes(foldCaseClasses(source)))));
-  return found;
-}
-
-// The literal anchor of a frame source without start prefixes (null: none).
-const ANCHORS = new Map<string, LiteralAnchor | null>();
-
-function frameAnchor(source: string): LiteralAnchor | null {
-  let found = ANCHORS.get(source);
-  if (found === undefined) {
-    const anchor = literalAnchor(foldCaseClasses(source));
-    const prefixes = anchor && safePrefixes(anchor.prefixes);
-    found = anchor && prefixes ? { prefixes: [...prefixes], spaces: anchor.spaces } : null;
-    ANCHORS.set(source, found);
-  }
-  return found;
-}
-
 const isSpaceCode = (code: number) =>
   code === 32 || (code >= 9 && code <= 13) || (code > 127 && /\s/.test(String.fromCharCode(code)));
 
@@ -249,23 +175,6 @@ function windowStart(text: string, q: number, spaces: number, low: number): numb
     } else i--;
   }
   return low;
-}
-
-// The later anchor of a frame source (safe prefixes only; null: none).
-const LATER = new Map<string, LiteralAnchor | null>();
-
-function frameLater(source: string): LiteralAnchor | null {
-  let found = LATER.get(source);
-  if (found === undefined) {
-    const anchor = laterAnchor(foldCaseClasses(source));
-    const prefixes = anchor && safePrefixes(anchor.prefixes);
-    found =
-      anchor && prefixes && prefixes.every((prefix) => prefix.length >= 4)
-        ? { prefixes: [...prefixes], spaces: anchor.spaces }
-        : null;
-    LATER.set(source, found);
-  }
-  return found;
 }
 
 /**
@@ -297,12 +206,10 @@ const FEW_STARTS = 8;
 /** The start positions from which some occurrence of the frame's later anchor is in reach. */
 function laterFiltered(
   ctx: DetectContext,
-  source: string,
+  anchor: LiteralAnchor | undefined,
   starts: ArrayLike<number>,
 ): ArrayLike<number> {
-  if (starts.length < FEW_STARTS) return starts;
-  const anchor = frameLater(source);
-  if (anchor === null) return starts;
+  if (starts.length < FEW_STARTS || anchor === undefined) return starts;
   const [occurrences, windows] = anchorWindows(ctx, anchor);
   const kept: number[] = [];
   let j = 0;
@@ -446,10 +353,6 @@ export function requiredLiterals(source: string): string[] {
   const top = best(required(groups[0]));
   return shortest(top) >= 3 ? top : [];
 }
-const LITERALS = new Map<string, string[]>();
-/** Gives the literals of a frame compiled ahead of time (grammar/rules/*.yaml). */
-export const primeFrameLiterals = (source: string, literals: string[]) =>
-  LITERALS.set(source, literals);
 // The text a frame scan can match in, lowercased.
 const SCANNED = new WeakMap<
   DetectContext,
@@ -590,16 +493,13 @@ const NO_WORD_START = ".-_'@/#\\";
  */
 function frameStarts(
   ctx: DetectContext,
-  source: string | null,
+  info: ScanInfo,
   framed: boolean,
 ): ArrayLike<number> | null {
-  if (source === null) return null;
   if (!scannedText(ctx).aligned) return null;
-  const prefixes = framePrefixes(source);
-  if (prefixes === null) {
-    const anchor = frameAnchor(source);
-    return anchor === null ? null : anchoredStarts(ctx, anchor, framed);
-  }
+  const { prefixes, anchor } = info;
+  if (prefixes === undefined)
+    return anchor === undefined ? null : anchoredStarts(ctx, anchor, framed);
   if (prefixes.length === 1) return prefixStarts(ctx, prefixes[0], framed);
   // Frames with the same prefixes share the merged list in a chunk.
   const scanned = scannedText(ctx);
@@ -625,9 +525,7 @@ function mergedStarts(
   return starts.sort();
 }
 
-function mayMatch(ctx: DetectContext, source: string): boolean {
-  let literals = LITERALS.get(source);
-  if (literals === undefined) LITERALS.set(source, (literals = requiredLiterals(source)));
+function mayMatch(ctx: DetectContext, literals: readonly string[]): boolean {
   if (literals.length === 0) return true;
   const { lower, grams, found } = scannedText(ctx);
   for (const literal of literals) {
@@ -641,6 +539,9 @@ function mayMatch(ctx: DetectContext, source: string): boolean {
 }
 
 const NO_MATCHES: readonly RegExpExecArray[] = [];
+/** What a frame scan reads of its compiled frame: the prefilter literals and start positions. */
+export type ScanInfo = Pick<CompiledFrame, "literals" | "prefixes" | "anchor" | "later">;
+type LiteralAnchor = NonNullable<CompiledFrame["anchor"]>;
 
 /**
  * One English frame scan. A string pattern gets WORD_START and the `gidu` flags.
@@ -651,18 +552,17 @@ const NO_MATCHES: readonly RegExpExecArray[] = [];
  * Reads from-384 (the example guard's 128 behind a match) through scanText:
  * changes must also audit NativeReviewCache's read contract.
  * The matches are a list when the frame has start positions (no generator step per match),
- * else the lazy scan.
+ * else the lazy scan. `info` holds what the compiler found in the pattern.
  */
 export function frameScan(
   ctx: DetectContext,
   pattern: string | RegExp,
-  owner: string | ((match: RegExpExecArray) => number) | null = "target",
+  owner: string | ((match: RegExpExecArray) => number) | null,
+  info: ScanInfo,
 ): Iterable<RegExpExecArray> {
+  if (!FRAME_AUDIT.all && !mayMatch(ctx, info.literals)) return NO_MATCHES;
   let regex: RegExp;
-  let source: string | null;
   if (typeof pattern === "string") {
-    source = pattern;
-    if (!FRAME_AUDIT.all && !mayMatch(ctx, pattern)) return NO_MATCHES;
     let compiled = COMPILED.get(pattern);
     if (!compiled) {
       // A broken frame skips only itself: the other frames of its detector still run.
@@ -675,20 +575,11 @@ export function frameScan(
       COMPILED.set(pattern, compiled);
     }
     regex = compiled;
-  } else {
-    let read = READ_PATTERNS.get(pattern);
-    if (read === undefined) {
-      read = pattern.flags.includes("v") ? null : pattern.source;
-      READ_PATTERNS.set(pattern, read);
-    }
-    if (read !== null && !FRAME_AUDIT.all && !mayMatch(ctx, read)) return NO_MATCHES;
-    regex = pattern;
-    source = read;
-  }
-  const starts = frameStarts(ctx, source, typeof pattern === "string");
+  } else regex = pattern;
+  const starts = frameStarts(ctx, info, typeof pattern === "string");
   return starts === null
     ? globalMatches(ctx, regex, owner)
-    : stickyMatches(ctx, regex, laterFiltered(ctx, source!, starts), owner);
+    : stickyMatches(ctx, regex, laterFiltered(ctx, info.later, starts), owner);
 }
 
 /** The global scan of frameScan, from 256 characters before the chunk. */

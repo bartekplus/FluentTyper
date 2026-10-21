@@ -1,5 +1,6 @@
 // The lowercase prefixes with which every match of a regex starts. A frame scan then runs its
-// regex only where one of them stands in the text, not at every character (frameScan).
+// regex only where one of them stands in the text, not at every character (frameScan). Only
+// the compiler runs this module: each compiled frame holds its results (scanStarts).
 
 /** One node of the parsed regex: a run of alternatives, a sequence, or an atom. */
 type Node =
@@ -407,4 +408,86 @@ function anchorsIn(
     if (runs === null || runs === Infinity) return;
     spaces += runs;
   }
+}
+
+// ------------------------------------------------------------------ frame start positions
+
+// A prefix holds only characters whose case-insensitive matches String#toLowerCase mirrors:
+// printable ASCII, the right single quote (no case) and the LITERAL_LETTER ranges of
+// requiredLiterals. It ends before any other character.
+const PREFIX_CHAR = /[ -~’À-ÖØ-Þà-öø-įĲ-žƀ-ɏ]/;
+
+/** The prefixes, each cut before its first character outside PREFIX_CHAR; null if one empties. */
+function safePrefixes(raw: readonly string[] | null): string[] | null {
+  const safe = raw?.map((prefix) => {
+    let end = 0;
+    while (end < prefix.length && PREFIX_CHAR.test(prefix[end])) end++;
+    return prefix.slice(0, end);
+  });
+  return !safe || safe.includes("") ? null : [...new Set(safe)];
+}
+
+/**
+ * `source` with each class of one letter in its two cases ("[dD]") written as the lowercase
+ * letter. The prefix parser reads a class as any character; the prefixes and the text they are
+ * found in are lowercase, so the letter gives the same start positions, and fewer of them.
+ */
+function foldCaseClasses(source: string): string {
+  let out = "";
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    if (char === "\\") {
+      out += source.slice(i, i + 2);
+      i++;
+    } else if (char === "[") {
+      // Skip the class as the prefix parser does: escapes inside it may hold "]".
+      let end = i + 1;
+      if (source[end] === "^") end++;
+      if (source[end] === "]") end++;
+      while (end < source.length && source[end] !== "]") end += source[end] === "\\" ? 2 : 1;
+      const [a, b] = [source[i + 1], source[i + 2]];
+      const pair =
+        end === i + 3 &&
+        a !== b &&
+        a.toLowerCase() === b.toLowerCase() &&
+        a.toLowerCase().length === 1 &&
+        PREFIX_CHAR.test(a) &&
+        PREFIX_CHAR.test(b);
+      out += pair ? a.toLowerCase() : source.slice(i, end + 1);
+      i = end;
+    } else out += char;
+  }
+  return out;
+}
+
+/**
+ * Where a frame scan of `source` may start, for the compiler to write into the frame: the start
+ * prefixes, or else a literal anchor, and then a later anchor whose prefixes have 4 letters or
+ * more. No field: a match may start anywhere.
+ */
+export function scanStarts(source: string): {
+  prefixes?: string[];
+  anchor?: LiteralAnchor;
+  later?: LiteralAnchor;
+} {
+  const folded = foldCaseClasses(source);
+  const prefixes = safePrefixes(startPrefixes(folded));
+  let anchor: LiteralAnchor | null = null;
+  if (prefixes === null) {
+    const found = literalAnchor(folded);
+    const safe = found && safePrefixes(found.prefixes);
+    anchor = found && safe ? { prefixes: safe, spaces: found.spaces } : null;
+    if (anchor === null) return {};
+  }
+  const found = laterAnchor(folded);
+  const safe = found && safePrefixes(found.prefixes);
+  const later =
+    found && safe && safe.every((prefix) => prefix.length >= 4)
+      ? { prefixes: safe, spaces: found.spaces }
+      : null;
+  return {
+    ...(prefixes ? { prefixes } : {}),
+    ...(anchor ? { anchor } : {}),
+    ...(later ? { later } : {}),
+  };
 }

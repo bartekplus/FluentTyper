@@ -1,6 +1,20 @@
 import { expect, test } from "bun:test";
-import { frameScan } from "../../src/core/domain/grammar/review/phraseTemplates";
+import { scanStarts } from "../../src/core/domain/grammar/engine/prefixes";
+import { frameScan, requiredLiterals } from "../../src/core/domain/grammar/review/phraseTemplates";
 import type { DetectContext } from "../../src/core/domain/grammar/review/reviewDetectors";
+
+// A frame scan with what the compiler writes into a frame: its literals and start positions.
+const scanOf = (
+  context: DetectContext,
+  pattern: string | RegExp,
+  owner: Parameters<typeof frameScan>[2] = "target",
+) => {
+  const source = typeof pattern === "string" ? pattern : pattern.source;
+  return frameScan(context, pattern, owner, {
+    literals: requiredLiterals(source),
+    ...scanStarts(source),
+  });
+};
 
 const text = "We saw it. They saw it. You saw it.";
 const ctx = {
@@ -14,7 +28,7 @@ const ctx = {
   insertSpaceAfterAutocomplete: true,
 } as DetectContext;
 const PATTERN = "(?<target>saw)";
-const starts = () => [...frameScan(ctx, PATTERN)].map((m) => m.index);
+const starts = () => [...scanOf(ctx, PATTERN)].map((m) => m.index);
 
 test("a cached string pattern scans the same on every call", () => {
   expect(starts()).toEqual([3, 16, 28]);
@@ -23,7 +37,7 @@ test("a cached string pattern scans the same on every call", () => {
 
 test("a nested scan of the same pattern does not disturb the outer scan", () => {
   const outer: number[] = [];
-  for (const m of frameScan(ctx, PATTERN)) {
+  for (const m of scanOf(ctx, PATTERN)) {
     outer.push(m.index);
     expect(starts()).toEqual([3, 16, 28]);
   }
@@ -31,15 +45,15 @@ test("a nested scan of the same pattern does not disturb the outer scan", () => 
 });
 
 test("an abandoned scan leaves the pattern usable", () => {
-  for (const m of frameScan(ctx, PATTERN)) if (m) break;
-  const open = frameScan(ctx, PATTERN)[Symbol.iterator]();
+  for (const m of scanOf(ctx, PATTERN)) if (m) break;
+  const open = scanOf(ctx, PATTERN)[Symbol.iterator]();
   open.next();
   expect(starts()).toEqual([3, 16, 28]);
 });
 
 test("trailing context after the owner can open the next frame", () => {
   // Each frame owns a word and reads the next one: "saw it", then "it. They".
-  const owners = [...frameScan(ctx, "(?<target>\\p{L}+)[ .]+(?<next>\\p{L}+)")].map(
+  const owners = [...scanOf(ctx, "(?<target>\\p{L}+)[ .]+(?<next>\\p{L}+)")].map(
     (m) => m.groups!.target,
   );
   expect(owners).toEqual(["We", "saw", "it", "They", "saw", "it", "You", "saw"]);
@@ -55,7 +69,7 @@ test("the literal prefilter keeps every match of case-sensitive and accented fra
       to: value.length,
     });
     return (pattern: RegExp) =>
-      [...frameScan(ctxOf(source) as DetectContext, pattern, null)].map((m) => m[0]);
+      [...scanOf(ctxOf(source) as DetectContext, pattern, null)].map((m) => m[0]);
   };
   // Case-sensitive: "Straße" is a literal run; the scan finds it, and only with its case.
   expect(at("Die Straße ist lang.")(/Straße/gu)).toEqual(["Straße"]);
@@ -76,7 +90,7 @@ test("İ, ſ, K, Å and ẞ keep the literal prefilter and the start positions o
     let calls = 0;
     const exec = regex.exec.bind(regex);
     regex.exec = (value) => (calls++, exec(value));
-    const found = [...frameScan(ctxOf(text), regex)].map((m) => m.index);
+    const found = [...scanOf(ctxOf(text), regex)].map((m) => m.index);
     return { found, calls };
   };
   for (const letter of ["İ", "ſ", "K", "Å", "ẞ"]) {
@@ -89,7 +103,7 @@ test("İ, ſ, K, Å and ẞ keep the literal prefilter and the start positions o
 test("frames match across İ, ſ, K, Å and ẞ", () => {
   const at = (value: string, pattern: string | RegExp) =>
     [
-      ...frameScan(
+      ...scanOf(
         { ...ctx, source: value, text: value, scanText: value, to: value.length },
         pattern,
         null,
@@ -106,7 +120,7 @@ test("frames match across İ, ſ, K, Å and ẞ", () => {
 test("a frame may open on a contraction clitic glued to its host word", () => {
   const scan = (value: string, pattern: string, lang = "en_US") =>
     [
-      ...frameScan(
+      ...scanOf(
         { ...ctx, source: value, text: value, scanText: value, to: value.length, lang },
         pattern,
       ),
