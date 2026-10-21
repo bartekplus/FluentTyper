@@ -41,7 +41,6 @@ import * as confusions2 from "./confusions2";
 import * as fixedPhrases from "./fixedPhrases";
 import * as grammarStyle1 from "./grammarStyle1";
 import * as grammarStyle2 from "./grammarStyle2";
-import * as idioms1 from "./idioms1";
 import * as idioms2 from "./idioms2";
 import * as idioms3 from "./idioms3";
 import * as idioms4 from "./idioms4";
@@ -75,7 +74,6 @@ export const FIXERS = mergePredicates<Fixer>(
   slipFrames.FIXERS,
   neighbourTypos.FIXERS,
   clashFrames.FIXERS,
-  idioms1.FIXERS,
   idioms2.FIXERS,
   idioms4.FIXERS,
   agreementFrames.FIXERS,

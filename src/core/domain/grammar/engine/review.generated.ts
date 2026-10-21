@@ -6602,7 +6602,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:go|goes|went|going|gone)[ \\t\\u00a0]{1,8}ahead[ \\t\\u00a0]{1,8}(?<target>an)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ahead"],
-    fixer: "en:goAheadAnd",
+    fixer: "en:@en.idiomPhrases1/5",
   }),
   frame({
     pattern:
@@ -6656,7 +6656,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:the|a|an|this|that|its|their|his|her|our|my|your|no|can|could|will|would|may|might|must|should|shall|to|did|does|do|not|n['’]t)[ \\t\\u00a0]{1,8})(?<!(?<![a-z'’])(?:the|a|an|this|that|its|their|his|her|our|my|your|no)[ \\t\\u00a0]{1,8}[a-z]+[ \\t\\u00a0]{1,8})(?<target>cause)[ \\t\\u00a0]{1,8}it[ \\t\\u00a0]{1,8}is(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["cause"],
-    fixer: "en:causeItIs",
+    fixer: "en:@en.idiomPhrases1/14",
   }),
   frame({
     pattern:
@@ -6674,7 +6674,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<aux>do|does|did)n['’]t[ \\t\\u00a0]{1,8}can)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["can"],
-    fixer: "en:doNotCan",
+    fixer: "en:@en.idiomPhrases1/17",
   }),
   frame({
     pattern:
@@ -6710,13 +6710,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:the|a|this|that|its|your|my|our|their|his|her|turn|turned|turns|switch|switched|toggle|toggled|set)[ \\t\\u00a0]{1,8})(?<target>(?<word>kind|sort)[ \\t\\u00a0]{1,8}off)(?=[ \\t\\u00a0]{1,8}[a-z])",
     literals: ["kind", "sort"],
-    fixer: "en:kindOfOff",
+    fixer: "en:@en.idiomPhrases1/23",
   }),
   frame({
     pattern:
       "(?<target>kind[ \\t\\u00a0]{1,8}if)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["kind"],
-    fixer: "en:kindIf",
+    fixer: "en:@en.idiomPhrases1/24",
   }),
   frame({
     pattern:
@@ -6739,7 +6739,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<verb>arrive|arrives|arrived|arriving)[ \\t\\u00a0]{1,8})(?=(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["arrive", "arrives", "arrived", "arriving"],
-    fixer: "en:arriveOnDay",
+    fixer: "en:@en.idiomStyle1/2",
   }),
   frame({
     pattern:

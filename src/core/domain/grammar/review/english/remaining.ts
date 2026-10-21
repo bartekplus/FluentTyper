@@ -18,7 +18,6 @@ import type { MatchFixer } from "../../engine/reviewRules";
 import { opensClause } from "./grammarStyle2";
 import { confusedWords } from "./confusions1";
 import { fixedPhrases } from "./fixedPhrases";
-import { FIXERS as IDIOM_FIXERS_1 } from "./idioms1";
 import { frameRuleDetector } from "../../engine/reviewRules";
 
 // ---------------------------------------------------------------- frame fixes
@@ -206,7 +205,7 @@ function quotedPhrase(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | nu
 }
 
 // The fixed-preposition frames ("inspired from") that a named example before them also hides.
-const idiomPhrases1 = frameRuleDetector("en.idiomPhrases1", { en: IDIOM_FIXERS_1 });
+const idiomPhrases1 = frameRuleDetector("en.idiomPhrases1", {});
 const phrasesAndFrames = (view: DetectContext) => [
   ...phraseCorrections(view),
   ...idiomPhrases1(view),

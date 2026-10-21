@@ -297,6 +297,9 @@ rules:
   - id: en.idiomPhrases1
     checks: [englishPhraseCorrections]
     message: review_msg_phrase_correction
+    sets:
+      # "kind if possible" is a condition, not "kind of".
+      KIND_IF_CONDITIONS: [possible, necessary, needed, required, appropriate, available]
     frames:
       # "a little of practice": a bare noun after "a little of".
       - regex: "(?<target>a{{S}}little{{S}}of){{S}}(?!{{PARTITIVE}}{{E}})[a-z]+{{E}}(?!['’])"
@@ -308,7 +311,7 @@ rules:
       - regex: "(?:after|for|in){{S}}(?<target>while){{COMPLETE}}"
         fix: "a while"
       - regex: "(?:go|goes|went|going|gone){{S}}ahead{{S}}(?<target>an){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: goAheadAnd
+        return: 'hasVerbForm(verb, "base") ? "and" : null'
       - regex: "(?<target>an){{S}}in{{S}}(?!(?:with|at|to|for|on|into|among|groups?|crowd|joke|jokes|house|depth|person|store|game|app){{E}})[a-z]"
         fix: "and"
       - regex: "{{notAfter:one}}another{{S}}(?<target>an{{S}})(?=[a-z])"
@@ -326,13 +329,18 @@ rules:
       - regex: "beware{{S}}(?<target>about|with{{S}}regard{{S}}to|regarding|concerning|against|for|with|among|between){{E}}"
         fix: "of"
       - regex: "{{notAfter:{{POSSESSOR}}|can|could|will|would|may|might|must|should|shall|to|did|does|do|not|n['’]t}}(?<!(?<![a-z'’])(?:{{POSSESSOR}}){{S}}[a-z]+{{S}})(?<target>cause){{S}}it{{S}}is{{E}}"
-        fixer: causeItIs
+        # A plain adjective before it ("so cause it is") keeps the noun.
+        let:
+          before: '/([a-z]+)\s+$/i.exec(m.input.slice(Math.max(0, m.index - 40), m.index))'
+          info: before && englishWordInfo(before[1].toLowerCase())
+        return: 'info?.adjective && !info.adverb && !info.noun && !info.verbs.length ? null : "because"'
       - regex: "{{notAfter:most|more|least|less}}curious{{S}}(?<target>on|of){{E}}"
         fix: "about"
       - regex: "(?:(?:do|does|did)n['’]t|(?:do|does|did){{S}}not){{S}}(?<target>wan){{E}}"
         fix: "want"
       - regex: "(?<target>(?<aux>do|does|did)n['’]t{{S}}can){{S}}(?<verb>[a-z]+){{E}}"
-        fixer: doNotCan
+        return: >-
+          hasVerbForm(verb, "base") ? (aux.toLowerCase() === "did" ? "couldn't" : "can't") : null
       - regex: "(?<target>during){{S}}ages{{E}}(?![ \\t]*:|{{S}}(?:of{{S}})?[0-9])"
         fix: "for"
       - regex: "(?=in)(?<={{CLAUSE}}|(?:(?<![a-z'’])(?:is|are|am|was|were|be|been|being|already|still|now|currently|while)|[a-z]['’](?:s|re|m)){{S}})(?<target>in){{S}}route{{S}}to{{E}}"
@@ -344,9 +352,15 @@ rules:
       - regex: "(?=at{{S}}the{{S}}first)(?<=(?<![a-z])why{{E}}[^.!?\\n]{1,80})(?<target>at){{S}}the{{S}}first{{S}}place{{E}}"
         fix: "in"
       - regex: "{{notAfter:the|a|this|that|its|your|my|our|their|his|her|turn|turned|turns|switch|switched|toggle|toggled|set}}(?<target>(?<word>kind|sort){{S}}off)(?={{S}}[a-z])"
-        fixer: kindOfOff
+        return: "`${word.toLowerCase()} of`"
       - regex: "(?<target>kind{{S}}if){{S}}(?<next>[a-z]+){{E}}"
-        fixer: kindIf
+        let:
+          following: next.toLowerCase()
+          info: englishWordInfo(following)
+          adjective: 'info?.adjective || info?.verbs.some((v) => v.form === "participle")'
+        return: >-
+          following === "a" || following === "an" || (adjective && !KIND_IF_CONDITIONS.has(following))
+          ? "kind of" : null
       - regex: "inspired{{S}}(?<target>from){{E}}(?!{{S}}(?:an?{{S}}(?:early|young)|the{{S}}(?:start|beginning|outset)|day{{S}}one|birth|childhood|then|now){{E}})"
         fix: "by"
   - id: en.idiomCompounds1
@@ -365,7 +379,7 @@ rules:
         fix: "cliché"
       # "arrive Monday" is common American usage; "arrive on Monday" is the neutral form.
       - regex: "(?<target>(?<verb>arrive|arrives|arrived|arriving){{S}})(?=(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun){{E}})"
-        fixer: arriveOnDay
+        return: "`${verb} on `"
   - id: en.idiomPhrases2
     checks: [englishPhraseCorrections]
     message: review_msg_phrase_correction

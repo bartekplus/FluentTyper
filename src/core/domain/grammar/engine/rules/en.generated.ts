@@ -3,10 +3,59 @@
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import { englishWordInfo, hasVerbForm } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const KIND_IF_CONDITIONS: ReadonlySet<string> = new Set([
+  "possible",
+  "necessary",
+  "needed",
+  "required",
+  "appropriate",
+  "available",
+]);
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // en.yaml rule en.idiomPhrases1 frame 5
+  "@en.idiomPhrases1/5": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    return hasVerbForm(verb, "base") ? "and" : null;
+  },
+  // en.yaml rule en.idiomPhrases1 frame 14
+  "@en.idiomPhrases1/14": (m: RegExpExecArray): string | readonly string[] | null => {
+    const before = /([a-z]+)\s+$/i.exec(m.input.slice(Math.max(0, m.index - 40), m.index));
+    const info = before && englishWordInfo(before[1].toLowerCase());
+    return info?.adjective && !info.adverb && !info.noun && !info.verbs.length ? null : "because";
+  },
+  // en.yaml rule en.idiomPhrases1 frame 17
+  "@en.idiomPhrases1/17": (m: RegExpExecArray): string | readonly string[] | null => {
+    const aux = m.groups!.aux;
+    const verb = m.groups!.verb;
+    return hasVerbForm(verb, "base") ? (aux.toLowerCase() === "did" ? "couldn't" : "can't") : null;
+  },
+  // en.yaml rule en.idiomPhrases1 frame 23
+  "@en.idiomPhrases1/23": (m: RegExpExecArray): string | readonly string[] | null => {
+    const word = m.groups!.word;
+    return `${word.toLowerCase()} of`;
+  },
+  // en.yaml rule en.idiomPhrases1 frame 24
+  "@en.idiomPhrases1/24": (m: RegExpExecArray): string | readonly string[] | null => {
+    const next = m.groups!.next;
+    const following = next.toLowerCase();
+    const info = englishWordInfo(following);
+    const adjective = info?.adjective || info?.verbs.some((v) => v.form === "participle");
+    return following === "a" ||
+      following === "an" ||
+      (adjective && !KIND_IF_CONDITIONS.has(following))
+      ? "kind of"
+      : null;
+  },
+  // en.yaml rule en.idiomStyle1 frame 2
+  "@en.idiomStyle1/2": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    return `${verb} on `;
+  },
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
