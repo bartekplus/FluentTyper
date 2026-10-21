@@ -57,13 +57,42 @@ const ADJECTIVE_ENDING = /(?:al|ic|ive|ous|ful|less|ary|ish|ian)$/;
 // Endings that only form nouns (with the noun-only reading checked): priority, developer.
 const DERIVED_NOUN = /(?:tion|sion|ness|ity|ance|ence|ship|ism|ment|[^e]er|or|ist)$/;
 
-/** The word right before `start` (spaces only between) and where it starts; "" for none. */
+const isLetter = (code: number) => (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+const isBlank = (code: number) => code === 32 || code === 9 || code === 0xa0;
+// A character that continues a token: no word starts right after it.
+const GLUED_END = /[\p{L}\p{N}_'’@/#\\.-]$/u;
+
+/**
+ * The word right before `start` (spaces only between) and where it starts; "" for none. The word
+ * is ASCII letters, maybe with an apostrophe and up to two lowercase letters ("don't", "we'd");
+ * 1 to 8 spaces follow it, and it starts in the 48 characters before `start`. A backward read: a
+ * regex anchored at the end of the slice tries each start in it.
+ */
 function previousWord(ctx: DetectContext, start: number): [string, number] {
+  const text = ctx.text;
   const from = Math.max(0, start - 48);
-  const m = /(?<![\p{L}\p{N}_'’@/#\\.-])([A-Za-z]+(?:['’][a-z]{0,2})?)[ \t\u00a0]{1,8}$/u.exec(
-    ctx.text.slice(from, start),
-  );
-  return m ? [m[1], from + m.index] : ["", start];
+  let end = start;
+  while (end > from && isBlank(text.charCodeAt(end - 1))) end--;
+  if (end === start || start - end > 8) return ["", start];
+  // The start of the letters that end at `at`, when no token character stands before them.
+  const wordStart = (at: number) => {
+    let s = at;
+    while (s > from && isLetter(text.charCodeAt(s - 1))) s--;
+    return s < at && (s === from || !GLUED_END.test(text.slice(Math.max(from, s - 2), s))) ? s : -1;
+  };
+  let found = wordStart(end);
+  // An apostrophe and 0 to 2 lowercase letters before the spaces; the leftmost start wins.
+  for (let tail = 0; tail <= 2 && end - tail - 1 > from; tail++) {
+    if (tail > 0) {
+      const code = text.charCodeAt(end - tail);
+      if (code < 97 || code > 122) break;
+    }
+    const mark = text.charCodeAt(end - tail - 1);
+    if (mark !== 39 && mark !== 0x2019) continue;
+    const s = wordStart(end - tail - 1);
+    if (s >= 0 && (found < 0 || s < found)) found = s;
+  }
+  return found < 0 ? ["", start] : [text.slice(found, end), found];
 }
 
 /** A content word an adjective or participle could modify. */
