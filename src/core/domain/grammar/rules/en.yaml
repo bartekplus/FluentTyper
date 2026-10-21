@@ -2230,7 +2230,7 @@ rules:
       - regex: "{{ISO_DATE}}"
         flags: gdu
         owner: none
-        fixer: common:invalidIsoDate
+        return: isoDateWarning(m, ctx, frame)
   - id: en.usageFrames
     checks: [stylePhrasing]
     style: match

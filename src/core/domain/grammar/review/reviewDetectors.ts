@@ -17,11 +17,6 @@ import {
   PREDICATES as ENGLISH,
 } from "./english/ruleDetectors";
 import {
-  FILTERS as GERMAN_FILTERS,
-  FIXERS as GERMAN_FIXERS,
-  PREDICATES as GERMAN,
-} from "./german/ruleDetectors";
-import {
   FILTERS as PORTUGUESE_FILTERS,
   FIXERS as PORTUGUESE_FIXERS,
   PREDICATES as PORTUGUESE,
@@ -139,20 +134,17 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
   {
     common: CORE_PREDICATES,
     en: ENGLISH,
-    de: GERMAN,
     pt_BR: PORTUGUESE,
     fr: FRENCH,
   },
   {
     common: CORE_FIXERS,
     en: ENGLISH_FIXERS,
-    de: GERMAN_FIXERS,
     pt_BR: PORTUGUESE_FIXERS,
     fr: FRENCH_FIXERS,
   },
   {
     en: ENGLISH_FILTERS,
-    de: GERMAN_FILTERS,
     pt_BR: PORTUGUESE_FILTERS,
     fr: FRENCH_FILTERS,
   },

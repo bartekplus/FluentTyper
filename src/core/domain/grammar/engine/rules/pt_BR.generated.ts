@@ -5,6 +5,7 @@ import type { LiveCode } from "../liveRules";
 import type {
   ClauseToken,
   DetectContext,
+  FrameRef,
   MatchResult,
   PtNoun,
   PtPerson,
@@ -60,6 +61,7 @@ import {
   weekdayOf,
   yearsFor,
 } from "../../library";
+import { isoDateWarning } from "./common.generated";
 
 export const TIME_NOUNS: ReadonlySet<string> = new Set([
   "ano",
@@ -3270,6 +3272,10 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     )
       return null;
     return invalidDate(m);
+  },
+  // pt_BR.yaml rule pt_BR.isoDates frame 1
+  "@pt_BR.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return isoDateWarning(m, ctx, frame);
   },
   // pt_BR.yaml rule pt_BR.commas frame 1
   "@pt_BR.commas/1": (m: RegExpExecArray): MatchResult => {

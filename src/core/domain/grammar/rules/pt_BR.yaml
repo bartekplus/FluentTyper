@@ -1758,7 +1758,7 @@ rules:
       - regex: "{{ISO_DATE}}"
         flags: gdu
         owner: none
-        fixer: common:invalidIsoDate
+        return: isoDateWarning(m, ctx, frame)
   - id: pt_BR.commas
     checks: [portugueseCommas]
     style: match
