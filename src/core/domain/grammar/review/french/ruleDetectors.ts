@@ -3,14 +3,12 @@
 import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
 import * as adjectives from "./adjectives";
 import * as agreement from "./agreement";
-import * as verbForms from "./verbForms";
 
 export const PREDICATES = mergePredicates();
 
 /** The named frame fixes of grammar/rules/fr.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
   adjectives.FIXERS,
-  verbForms.FIXERS,
   agreement.FIXERS,
 );
 

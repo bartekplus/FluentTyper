@@ -1,5 +1,5 @@
 // The rule library (library.ts): the French lexicon and French word helpers.
-import type { VerbReading, VerbSlot } from "../review/french/frenchLexicon";
+import { verbReadings, type VerbReading, type VerbSlot } from "../review/french/frenchLexicon";
 import type { Token as FrenchToken } from "../review/french/frenchTokens";
 import type { RawFinding } from "../review/reviewDetectors";
 
@@ -104,6 +104,13 @@ export type WordFix = (alternatives: string[]) => RawFinding | null;
 /** The persons of a verb slot that are also in `persons` (0 for a slot that is no finite form). */
 export const maskPersons = (slot: VerbSlot, persons: number): number =>
   typeof slot === "number" ? slot & persons : 0;
+
+/** The persons a word can agree with as a finite form of the verb `lemma` (0 when none). */
+export const lemmaPersons = (word: string, lemma: string): number =>
+  verbReadings(word).reduce(
+    (mask, r) => (r.lemma === lemma && typeof r.slot === "number" ? mask | r.slot : mask),
+    0,
+  );
 
 /** The first person of a mask of persons (JE before TU before IL ...). */
 export const lowestPerson = (mask: number): number => mask & -mask;

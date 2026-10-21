@@ -18108,7 +18108,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_-])\\p{L}+(?:er|é|ez|re|ir|oir)(?![\\p{L}\\p{M}\\p{N}_-])",
     literals: [],
-    fixer: "fr:verbCandidate",
+    fixer: "fr:@fr.verbForms/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18117,7 +18117,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?:suis|es|est|sommes|êtes|sont|étais|était|étions|étiez|étaient|serai|seras|sera|serons|serez|seront|serais|serait|serions|seriez|seraient|fus|fut|furent|été)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:finiteAfterEtre",
+    fixer: "fr:@fr.verbForms/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18126,7 +18126,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?:avoir|ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\\p{L}\\p{M}\\p{N}_'’])",
     literals: [],
-    fixer: "fr:finiteAfterAvoir",
+    fixer: "fr:@fr.verbForms/3",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18134,7 +18134,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])\\p{Ll}{2,}es?(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:accentlessParticiple",
+    fixer: "fr:@fr.verbForms/4",
     flags: "gu",
     scan: "owned",
     lookback: 1,
