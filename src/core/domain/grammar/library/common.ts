@@ -2,6 +2,7 @@
 // a match and the findings built from them, and the English lexicon that the shared English
 // rules of common.yaml read.
 export { namedExampleBefore, quotedSpan, CUE_AND_QUOTE } from "../review/exampleCues";
+export type { MeasurementLocalePolicy } from "../measurement/contracts";
 export {
   around,
   caseLike,
@@ -54,3 +55,20 @@ export { englishWordInfo, hasVerbForm } from "../implementations/helpers/English
 export { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
 export { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
 export { englishInflect, englishLemma } from "../implementations/helpers/EnglishInflection";
+export {
+  groupRange,
+  isGluedToTechnical,
+  isWhitespaceAt,
+  isWordCharAt,
+  lastIndexInChunk,
+  lowerCodeAt,
+  ownedByChunk,
+  phraseMatch,
+  previousTokensStart,
+  resumeScan,
+  skipBackWhile,
+  skipForwardWhile,
+  tokenEndAfter,
+  tokenEndBefore,
+  tokenStartBefore,
+} from "./common/tokens";

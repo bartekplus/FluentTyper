@@ -10,14 +10,21 @@ import type {
   GrammarEdit,
   LiveRuleOptions,
   MatchResult,
+  MeasurementLocalePolicy,
   RawFinding,
+  TextRange,
 } from "../../library";
 import {
+  CLOSING_CHARS,
+  CLOSING_PADDING_CHARS,
   COMPLETE,
+  CUE_AND_QUOTE,
   ENGLISH_MASS_NOUNS,
+  MASK_CHAR,
   MASS_WITH_COUNT_SENSE,
   NBSP,
   NNBSP,
+  PSEUDO_CLEFT_BEFORE,
   PUNCTUATION_EQUIVALENTS,
   SENTENCE_OPENING_MARKS,
   SPACE_CHARS,
@@ -29,6 +36,7 @@ import {
   around,
   atClauseStart,
   caseLike,
+  closesAbbreviation,
   detectWordCase,
   englishInflect,
   englishInitialSound,
@@ -42,12 +50,15 @@ import {
   finding,
   found,
   getLastToken,
+  graphemeEnd,
   group,
+  groupRange,
   hasCountPrefix,
   hasUserOrCasedWord,
   hasVerbForm,
   invalidIsoDate,
   isEnglishFunctionWord,
+  isGluedToTechnical,
   isGreekQuestionMark,
   isInsideProtectedSpan,
   isLang,
@@ -55,22 +66,32 @@ import {
   isPartOfTechnicalToken,
   isTechnicalToken,
   isUniquePast,
+  isWhitespaceAt,
   isWordChar,
+  isWordCharAt,
   keepsOwnCasing,
   knownEnglishNounNumber,
+  lastIndexInChunk,
+  lastNonBlankBefore,
   lastNonSpaceBefore,
+  lowerCodeAt,
   matchTrailingEnglishPhrase,
   matchingOpenIndex,
+  memoize,
   namedExampleBefore,
   nextLowerWord,
   normalizeWordSet,
   opensClause,
   opensSentence,
+  overlapsSortedRanges,
+  ownedByChunk,
   ownedMatches,
   parseMeasurementExpression,
+  phraseMatch,
   phraseRows,
   plainToken,
   pluralNoun,
+  previousTokensStart,
   previousWord,
   quotedSpan,
   readMemo,
@@ -78,12 +99,18 @@ import {
   resolveEnglishBoundaryContext,
   resolveMeasurementLocale,
   resolveTypographyProfile,
+  resumeScan,
   runStart,
   shouldSkipGenericReplacement,
   simplePastOnly,
+  skipBackWhile,
+  skipForwardWhile,
   splitTrailingSpaces,
   startsSentence,
   storeMemo,
+  tokenEndAfter,
+  tokenEndBefore,
+  tokenStartBefore,
   typingEdit,
   usesFrenchPunctuationSpacing,
   withTextApostrophes,
@@ -1373,6 +1400,35 @@ export const NOT_A_VERB: ReadonlySet<string> = new Set([
   "lead",
 ]);
 
+export const INFINITIVE_TO_VERBS: ReadonlySet<string> = new Set([
+  "need",
+  "needs",
+  "needed",
+  "have",
+  "has",
+  "had",
+  "want",
+  "wants",
+  "wanted",
+  "going",
+  "got",
+  "ought",
+  "able",
+  "used",
+  "try",
+  "tries",
+  "tried",
+  "trying",
+  "plan",
+  "plans",
+  "planned",
+  "hope",
+  "hopes",
+  "hoped",
+  "decide",
+  "decided",
+]);
+
 export const DO_OBJECT_NOUNS: ReadonlySet<string> = new Set([
   "bears",
   "beats",
@@ -1483,6 +1539,150 @@ export const FEELING_VERBS: ReadonlySet<string> = new Set([
   "irritate",
   "offend",
   "stress",
+]);
+
+export const MARK_NAMING_WORDS: ReadonlySet<string> = new Set([
+  "press",
+  "presses",
+  "pressed",
+  "pressing",
+  "type",
+  "types",
+  "typed",
+  "typing",
+  "hit",
+  "hits",
+  "tap",
+  "taps",
+  "enter",
+  "enters",
+  "use",
+  "uses",
+  "key",
+  "keys",
+  "add",
+  "adds",
+  "insert",
+  "inserts",
+  "put",
+  "puts",
+  "remove",
+  "removes",
+  "delete",
+  "deletes",
+  "the",
+  "a",
+  "an",
+  "character",
+  "char",
+  "symbol",
+  "sign",
+  "dot",
+  "mark",
+  "punctuation",
+  "pulsa ? para ver la ayuda",
+  "pulsa",
+  "pulse",
+  "presiona",
+  "presione",
+  "escribe",
+  "escriba",
+  "teclea",
+  "teclee",
+  "usa",
+  "tecla",
+  "signo",
+  "símbolo",
+  "carácter",
+  "inserta",
+  "inserte",
+  "añade",
+  "añada",
+  "appuyez",
+  "appuie",
+  "tapez",
+  "tape",
+  "saisissez",
+  "saisis",
+  "utilisez",
+  "touche",
+  "caractère",
+  "symbole",
+  "signe",
+  "insérez",
+  "ajoutez",
+  "drücke",
+  "drücken",
+  "drück",
+  "tippe",
+  "tippen",
+  "gib",
+  "verwende",
+  "verwenden",
+  "taste",
+  "zeichen",
+  "füge",
+  "pressione",
+  "aperte",
+  "digite",
+  "tecle",
+  "caractere",
+  "sinal",
+  "insira",
+  "adicione",
+  "naciśnij",
+  "wciśnij",
+  "wpisz",
+  "użyj",
+  "klawisz",
+  "znak",
+  "wstaw",
+  "dodaj",
+  "tryck",
+  "skriv",
+  "använd",
+  "tangenten",
+  "tecknet",
+  "tecken",
+  "symbolen",
+  "pritisni",
+  "pritisnite",
+  "upiši",
+  "upišite",
+  "koristi",
+  "koristite",
+  "tipku",
+  "simbol",
+  "πατήστε",
+  "πάτα",
+  "πληκτρολογήστε",
+  "γράψτε",
+  "πλήκτρο",
+  "σύμβολο",
+  "χαρακτήρα",
+  "اضغط",
+  "اكتب",
+  "رمز",
+]);
+
+export const THEIR_THERE_VERBS: ReadonlySet<string> = new Set(["is", "are", "was", "were"]);
+
+export const YOU_SUBJECT_BEFORE: ReadonlySet<string> = new Set([
+  "if",
+  "when",
+  "whenever",
+  "because",
+  "while",
+  "although",
+  "though",
+  "unless",
+  "whether",
+  "since",
+  "until",
+  "once",
+  "where",
+  "wherever",
+  "that",
 ]);
 
 export const AGREEMENT_COLLECTIVE: ReadonlySet<string> = new Set([
@@ -1890,6 +2090,13 @@ export const OTHER_FORM: Readonly<Record<string, string>> = {
   seems: "seem",
   sound: "sounds",
   sounds: "sound",
+};
+
+export const UNIT_CASE: Readonly<Record<string, string>> = {
+  KG: "kg",
+  Kg: "kg",
+  KM: "km",
+  Km: "km",
 };
 
 // common.yaml def firstPerStart
@@ -3815,6 +4022,54 @@ export function massNoun(m: RegExpExecArray, ctx: DetectContext): RawFinding | n
   };
 }
 
+// common.yaml rule repeatedWords.en def INFINITIVE_GAP
+export const INFINITIVE_GAP = /\b(?:what|whatever|which|who|whom|that|as|where|when|how)\b/i;
+
+// common.yaml rule repeatedWords.en def doubledTo
+export function doubledTo(before: string, after: string) {
+  const sentence = before.slice(
+    Math.max(
+      before.lastIndexOf("."),
+      before.lastIndexOf("!"),
+      before.lastIndexOf("?"),
+      before.lastIndexOf("\n"),
+    ) + 1,
+  );
+  const verb = /(\p{L}+)[ \t\u00a0]+$/u.exec(sentence);
+  return (
+    /^[ \t\u00a0]*(?:(?:the|a|an|my|your|his|her|its|our|their)\b|\p{Lu}|\p{N})/u.test(after) ||
+    (!!verb &&
+      INFINITIVE_TO_VERBS.has(verb[1].toLowerCase()) &&
+      !INFINITIVE_GAP.test(sentence.slice(0, verb.index)))
+  );
+}
+
+// common.yaml rule repeatedWords.en def repeatedWordFinding
+export function repeatedWordFinding(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const start = m.index;
+  const end = m.index + m[0].length;
+  const context = { start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 2) };
+  const before = ctx.text.slice(context.start, start);
+  const word = m[1].toLowerCase();
+  if (!(!ctx.dictionary.has(word) && !isGluedToTechnical(ctx.text, start, end))) return null;
+  if (!(!m[0].includes("\n") || /\p{L}[^\n]*[ \t\u00a0]$/u.test(before))) return null;
+  if (!(before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() !== word)) return null;
+  if (CUE_AND_QUOTE.test(before)) return null;
+  if (!(word !== "to" || doubledTo(before, ctx.text.slice(end, end + 16)))) return null;
+  if (/^(?:is|was)$/.test(word) && isLang(ctx, "en") && PSEUDO_CLEFT_BEFORE.test(before))
+    return null;
+  const second = m[0].slice(-m[1].length);
+  if (/^\p{Ll}/u.test(m[1]) && /^\p{Lu}/u.test(second)) return null;
+  if (word.length === 1 && /(?:^|\s)\p{L}[ \t\u00a0]+$/u.test(before)) return null;
+  return {
+    ruleId: "englishRepeatedWords",
+    messageKey: "review_msg_repeated_words",
+    range: { start, end },
+    alternatives: [ctx.source.slice(start, start + m[1].length)],
+    context,
+  };
+}
+
 // common.yaml rule auxiliaryForms def STARTS_WITH_AUXILIARY
 export const STARTS_WITH_AUXILIARY =
   /^(?:(?:what|when|where|why|how|who)[ \t ]{1,8})?(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)?|could(?:n['’]t)?|will|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|may|might|must(?:n['’]t)?)(?![A-Za-z])/i;
@@ -4389,6 +4644,266 @@ export const PLACE_END =
 export const OWN_OBJECT_BEFORE =
   /(?:\b(?:of|for|about|with|from|into|onto|at|by|against|between|among|without|toward|towards|under|through|during|despite|to|on|in)|ing|\bto[ \t ]+[a-z]+|\b(?:create|creates|created|make|makes|made|have|has|had|get|gets|got|build|builds|built|find|found|choose|chose|bring|brought|use|uses|used|pay|paid|run|runs|ran|do|does|did|manage|managed|keep|keeps|kept|set|sets|write|wrote|host|hosted|provide|provides|provided|become|became|define|defined|pick|picks|picked|want|wants|wanted|need|needs|needed|take|takes|took|brings|like|likes|prefer|prefers|love|loves)|\b(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|lost))[ \t ]+$/i;
 
+// common.yaml rule capitalizeStarts def MARK_QUOTES
+export const MARK_QUOTES = /^["'“”‘’`«»„‚‹›]$/u;
+
+// common.yaml rule capitalizeStarts def sentenceEndBefore
+export function sentenceEndBefore(text: string, wordStart: number) {
+  const closer = lastNonSpaceBefore(text, wordStart);
+  const mark = skipClosers(text, closer);
+  return { mark, closed: mark !== closer };
+}
+
+// common.yaml rule capitalizeStarts def skipClosers
+export function skipClosers(text: string, i: number): number {
+  return i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i]))
+    ? skipClosers(text, i - 1)
+    : i;
+}
+
+// common.yaml rule capitalizeStarts def namesMark
+export function namesMark(text: string, index: number) {
+  const before = lastNonBlankBefore(text, index);
+  const after = skipForwardWhile(text, index + 1, /^[ \t\u00a0]$/u);
+  const wordStart = skipBackWhile(text, before + 1, /\p{L}/u);
+  return (
+    (MARK_QUOTES.test(text[before] ?? "") && MARK_QUOTES.test(text[after] ?? "")) ||
+    (before !== index - 1 &&
+      !isWordCharAt(text, wordStart - 1) &&
+      MARK_NAMING_WORDS.has(text.slice(wordStart, before + 1).toLowerCase()))
+  );
+}
+
+// common.yaml rule capitalizeStarts def lineBreakBefore
+export function lineBreakBefore(text: string, wordStart: number) {
+  const i = lastNonSpaceBefore(text, wordStart);
+  return i >= 0 && text[i] === "\n" ? i : null;
+}
+
+// common.yaml rule capitalizeStarts def previousLineEndsParagraphOrSentence
+export function previousLineEndsParagraphOrSentence(text: string, lineBreak: number, lang: string) {
+  const previousStart = text.lastIndexOf("\n", lineBreak - 1) + 1;
+  const previous = text.slice(previousStart, lineBreak).trim();
+  const lineEnd = previousStart + text.slice(previousStart, lineBreak).trimEnd().length - 1;
+  return (
+    previous === "" ||
+    (!previous.endsWith(MASK_CHAR) &&
+      !(text[lineEnd] === "." && closesAbbreviation(text, lineEnd, lang)) &&
+      (/[.!?؟]["'”’“»«)\]]*$/u.test(previous) ||
+        isGreekQuestionMark(previous.replace(/["'”’“»«)\]]+$/u, "").slice(-1), lang)))
+  );
+}
+
+// common.yaml rule capitalizeStarts def capitalizeSentenceStart
+export function capitalizeSentenceStart(
+  ctx: DetectContext,
+  word: { wordStart: number; range: TextRange; upper: string; wordEnd: number },
+): RawFinding | null {
+  const end = sentenceEndBefore(ctx.text, word.wordStart);
+  if (overlapsSortedRanges(ctx.exampleRanges ?? [], { start: end.mark, end: end.mark + 1 }))
+    return null;
+  const mark = ctx.text[end.mark];
+  if (end.closed && mark !== ".") return null;
+  if (
+    end.mark >= 0 &&
+    namesMark(ctx.text, end.mark) &&
+    !(mark !== "." && usesFrenchPunctuationSpacing(ctx.lang))
+  )
+    return null;
+  const previous = previousTokensStart(ctx.text, word.wordStart, 1);
+  const evidence = /[\p{L}\p{N}]/u.test(ctx.text.slice(previous, word.wordStart))
+    ? previous
+    : previousTokensStart(ctx.text, word.wordStart, 2);
+  return {
+    ruleId: "capitalizeSentenceStart",
+    messageKey: "review_msg_sentence_start",
+    range: word.range,
+    alternatives: [word.upper],
+    context: { start: evidence, end: word.wordEnd },
+    bulkBlock: end.closed ? "context-dependent" : undefined,
+  };
+}
+
+// common.yaml rule capitalizeStarts def capitalizeAfterLineBreak
+export function capitalizeAfterLineBreak(
+  ctx: DetectContext,
+  word: { wordStart: number; range: TextRange; upper: string; wordEnd: number },
+): RawFinding | null {
+  const lineBreak = lineBreakBefore(ctx.text, word.wordStart);
+  if (!(lineBreak !== null && previousLineEndsParagraphOrSentence(ctx.text, lineBreak, ctx.lang)))
+    return null;
+  return {
+    ruleId: "capitalizeAfterLineBreak",
+    messageKey: "review_msg_line_start",
+    range: word.range,
+    alternatives: [word.upper],
+    context: { start: lineBreak, end: word.wordEnd },
+  };
+}
+
+// common.yaml rule pronounI def IDENTIFIER_BEFORE
+export const IDENTIFIER_BEFORE = /\b(?:each|every|the|a|index|variable|counter|iterator|loop)\s+$/i;
+
+// common.yaml rule pronounI def FORMULA_BEFORE
+export const FORMULA_BEFORE =
+  /(?:\b(?:of|by|to|from|let|plus|minus|equals|for all)|[+×*=<>÷^−]|(?:^|[^\p{L}])\p{L},[ \t\u00A0]+(?:and|or))[ \t\u00A0]+$/iu;
+
+// common.yaml rule pronounI def PRONOUN_VERB_AFTER
+export const PRONOUN_VERB_AFTER =
+  /^[ \t\u00a0]+(?:can|could|will|would|shall|should|may|might|must|am|was|have|had|do|did|don['’]t|didn['’]t|can['’]t|think|know|want|need|guess|hope|feel|mean|said|got|went|love|like)(?![\p{L}])/iu;
+
+// common.yaml rule pronounI def FORMULA_AFTER
+export const FORMULA_AFTER =
+  /^[ \t\u00A0]+(?:times|squared|and[ \t\u00A0]+[jkn])(?![\p{L}\p{N}])|^[ \t\u00A0]+\p{L}+,[ \t\u00A0]+ii(?![\p{L}\p{N}])/iu;
+
+// common.yaml rule pronounI def NUMERAL_BEFORE
+export const NUMERAL_BEFORE =
+  /\b(?:part|chapter|section|appendix|volume|vol|book|act|phase|step|stage|level|type|class|article|annex|item|figure|fig|table|option|case|grade|war|page|no)\s+$/i;
+
+// common.yaml rule spellingWords def NO_WORDS
+export const NO_WORDS = new Set<string>();
+
+// common.yaml rule spellingWords def couldBeSpellingFinding
+export const couldBeSpellingFinding = memoize(
+  (word) =>
+    correctWhitelistedTypo(word, NO_WORDS) !== null ||
+    word === "IM" ||
+    normalizeContractionToken(word, "") !== null ||
+    normalizeContractionInContext(word, "", " be") !== null ||
+    ALOT_REGEX.test(word),
+  4096,
+);
+
+// common.yaml rule spellingWords def GERMAN_BEFORE_IM
+export const GERMAN_BEFORE_IM =
+  /(?:^|[^\p{L}])(?:dir|mir|dich|mich|sich|uns|euch|ihm|ist|sind|waren|wir|ich|und|oder|nur|auch|noch|schon|sie|er|liegt|steht|lebt|wohnt|bin|bist|haben|wird|werden|nicht|dann|hier|heute|jetzt|gestern|alles|das|der)[ \t\u00a0]+$/iu;
+
+// common.yaml rule spellingWords def germanIm
+export function germanIm(word: string, before: string, after: string) {
+  if (!(word === "im")) return false;
+  const noun = /^[ \t\u00a0]+(\p{Lu}\p{Ll}+)/u.exec(after)?.[1];
+  if (!noun) return false;
+  return (
+    GERMAN_BEFORE_IM.test(before) ||
+    /[äöüß]|sch|(?:ung|heit|keit|schaft|chen|lein|tum|nis|ismus)$/iu.test(noun)
+  );
+}
+
+// common.yaml rule spellingWords def DETERMINER_BEFORE
+export const DETERMINER_BEFORE =
+  /\b(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|each|every|no)\s+$/i;
+
+// common.yaml rule spellingWords def spellingFindings
+export function spellingFindings(m: RegExpExecArray, ctx: DetectContext): RawFinding[] {
+  if (!(ctx.lang === "en_US")) return [];
+  if (!couldBeSpellingFinding(m[0])) return [];
+  const start = m.index;
+  const end = m.index + m[0].length;
+  if (!(!isWordCharAt(ctx.text, start - 1) && !isWordCharAt(ctx.text, end))) return [];
+  if (isGluedToTechnical(ctx.text, start, end)) return [];
+  if (ctx.text[end] === "-" && ctx.text[end + 1] !== "-") return [];
+  const glued = ctx.text[start - 1] === "-" ? ("ambiguous" as const) : undefined;
+  const word = ctx.text.slice(start, end);
+  const typo = correctWhitelistedTypo(word, ctx.dictionary);
+  return typo
+    ? [
+        {
+          ruleId: "englishTypoWhitelistCorrection",
+          messageKey: "review_msg_typo",
+          range: { start, end },
+          alternatives: [typo],
+          dictionaryWord: word,
+          bulkBlock: glued,
+        },
+      ]
+    : contractionFindings(ctx, word, start, end, glued);
+}
+
+// common.yaml rule spellingWords def contractionFindings
+export function contractionFindings(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  glued: "ambiguous" | undefined,
+): RawFinding[] {
+  const before = ctx.text.slice(Math.max(0, start - 96), start);
+  const shoutedIm =
+    word === "IM" &&
+    ctx.text.slice(start, end + 24) !== ctx.text.slice(start, end + 24).toUpperCase() &&
+    /(?:^|[.!?:;"“\n]|\b(?:and|but|although|because|that|if|think))[ \t]*$/i.test(before) &&
+    /^[ \t]+(?:not|very|really|sure|glad|sorry|happy|curious|trying|afraid|interested|tired|busy|ready|late|looking|thinking|still|just)\b/.test(
+      ctx.text.slice(end, end + 24),
+    );
+  const contraction = ctx.dictionary.has(word.toLowerCase())
+    ? null
+    : shoutedIm
+      ? "I'm"
+      : normalizeContractionToken(word, before);
+  const pronounForm = /^i(?:m|ve)$/i.test(word);
+  const name =
+    pronounForm &&
+    /^I[a-z]/.test(word) &&
+    !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
+    /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4));
+  return contraction &&
+    !name &&
+    !(pronounForm && DETERMINER_BEFORE.test(before)) &&
+    !germanIm(word, before, ctx.text.slice(end, end + 40))
+    ? [
+        {
+          ruleId: "englishContractionNormalization",
+          messageKey: "review_msg_contraction",
+          range: { start, end },
+          alternatives: [contraction],
+          context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
+          bulkBlock: pronounForm ? "ambiguous" : glued,
+        },
+      ]
+    : contextFindings(ctx, word, start, end, before, glued);
+}
+
+// common.yaml rule spellingWords def contextFindings
+export function contextFindings(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  before: string,
+  glued: "ambiguous" | undefined,
+): RawFinding[] {
+  const after = ctx.text.slice(end, end + 40);
+  const inContext = ctx.dictionary.has(word.toLowerCase())
+    ? null
+    : normalizeContractionInContext(word, before, after);
+  return inContext
+    ? [
+        {
+          ruleId: "englishContractionNormalization",
+          messageKey: "review_msg_contraction",
+          range: { start, end },
+          alternatives: [inContext],
+          context: {
+            start: previousTokensStart(ctx.text, start, 1),
+            end: end + (/^[ \t]+\p{L}+(?:[ \t]+\p{L}+)?/u.exec(after)?.[0].length ?? 0),
+          },
+          bulkBlock: "context-dependent",
+        },
+      ]
+    : ALOT_REGEX.test(word) && !ctx.dictionary.has("alot")
+      ? [
+          {
+            ruleId: "englishAlotCorrection",
+            messageKey: "review_msg_alot",
+            range: { start, end },
+            alternatives: [correctAlot(word)],
+            dictionaryWord: word,
+            bulkBlock: glued,
+          },
+        ]
+      : [];
+}
+
 // common.yaml rule spelling def spellingFrameRegexes
 export function spellingFrameRegexes() {
   return [SPLIT_DE, SPLIT_FR, SPLIT_ES, SPLIT_PT, SPLIT_PL, SPLIT_SV, SPLIT_HR, FRENCH_ELISIONS]
@@ -4474,6 +4989,22 @@ export function markedApostrophe(
     context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
     bulkBlock: certain ? undefined : "context-dependent",
   };
+}
+
+// common.yaml rule modalOf def modalOfLastWord
+export function modalOfLastWord(text: string, start: number) {
+  const e = tokenEndBefore(text, start);
+  return e >= 2 && lowerCodeAt(text, e - 1) === 0x66 && lowerCodeAt(text, e - 2) === 0x6f;
+}
+
+// common.yaml rule yourWelcome def yourWelcomeLastWord
+export function yourWelcomeLastWord(text: string, start: number, end: number) {
+  return end - start === 7 && text.slice(start, end).toLowerCase() === "welcome";
+}
+
+// common.yaml rule theirThere def theirThereLastWord
+export function theirThereLastWord(text: string, start: number, end: number) {
+  return end - start <= 4 && THEIR_THERE_VERBS.has(text.slice(start, end).toLowerCase());
 }
 
 // common.yaml rule pronounVerbFrames def clauseVerb
@@ -4637,6 +5168,25 @@ export function pronounCorrection(
             : undefined;
 }
 
+// common.yaml rule pronounVerb def pronounVerbLastWord
+export function pronounVerbLastWord(text: string, _start: number, end: number) {
+  const e = tokenEndBefore(text, tokenStartBefore(text, end));
+  if (!(e >= 2)) return false;
+  const last = lowerCodeAt(text, e - 1);
+  const previous = lowerCodeAt(text, e - 2);
+  return last === 0x73
+    ? previous === 0x69 || previous === 0x61
+    : last === 0x65 && previous === 0x72;
+}
+
+// common.yaml rule pronounVerb def OBJECT_IT_BEFORE
+export const OBJECT_IT_BEFORE =
+  /(?:\b(?:behind|beside|besides|below|beneath|under|underneath|above|over|around|within|inside|outside|against|among|beyond|near|with|without|on|in|at|from|to|for|of|by|about)|\b[a-z]{2,}ing)[ \t\u00a0]+$/i;
+
+// common.yaml rule pronounVerb def OBJECT_GAP_YOU
+export const OBJECT_GAP_YOU =
+  /\b([a-z]+)[ \t\u00a0]+(?:that[ \t\u00a0]+)?(?:I|we|they|he|she)[ \t\u00a0]+(?:(?:did|had|have|first|last|never)[ \t\u00a0]+)?[a-z]+[ \t\u00a0]+$/;
+
 // common.yaml rule subjectAgreement def LINKING
 export const LINKING = /^(?:look|seem|sound|feel|appear)s?$/;
 
@@ -4681,6 +5231,188 @@ export function singularExistential(
     `${lead.slice(0, verbAt)}${applyWordCase(past ? "was" : "is", kase)}${lead.slice(verbAt + typed.length)}${article} ${noun}`,
     `${lead}${applyWordCase(englishNounForms(noun)?.plural ?? `${noun}s`, detectWordCase(noun))}`,
   ];
+}
+
+// common.yaml rule articleAn def articleAnLastWord
+export function articleAnLastWord(text: string, start: number) {
+  const e = tokenEndBefore(text, start);
+  if (!(e >= 1)) return false;
+  const last = text[e - 1];
+  return (
+    last === "a" ||
+    last === "A" ||
+    (last === "n" && e >= 2 && (text[e - 2] === "a" || text[e - 2] === "A"))
+  );
+}
+
+// common.yaml rule ordinal def isAllCapsContext
+export function isAllCapsContext(text: string, start: number, end: number) {
+  const before = /(\p{L}+)[^\p{L}\n]*$/u.exec(text.slice(Math.max(0, start - 24), start))?.[1];
+  const after = /^[^\p{L}\n]*(\p{L}+)/u.exec(text.slice(end, end + 24))?.[1];
+  return [before, after].some((word) => !!word && word.length > 1 && word === word.toUpperCase());
+}
+
+// common.yaml rule properNouns def couldEndNameWord
+export const couldEndNameWord = memoize((word) => couldEndProperName(word, ""), 4096);
+
+// common.yaml rule commaPeriodSpacing def STANDALONE_MARK_FOLLOWER
+export const STANDALONE_MARK_FOLLOWER = /^[ \t\u00A0]+["'“‘«„([¿¡]?[\p{Ll}\p{Lo}]/u;
+
+// common.yaml rule repeatedSpaces def ALIGNED
+export const ALIGNED = new WeakMap<DetectContext, Map<number, boolean>>();
+
+// common.yaml rule repeatedSpaces def alignedLine
+export function alignedLine(text: string, lineStart: number, at: number) {
+  const lineBreak = text.indexOf("\n", at);
+  const line = text.slice(lineStart, lineBreak < 0 ? text.length : lineBreak);
+  const gaps = line.match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu);
+  const trimmed = line.trim();
+  return (
+    (gaps?.length ?? 0) > 1 ||
+    (trimmed.length > 1 && trimmed.startsWith("|") && trimmed.endsWith("|"))
+  );
+}
+
+// common.yaml rule repeatedSpaces def alignedInChunk
+export function alignedInChunk(ctx: DetectContext, lineStart: number, at: number) {
+  const lines = ALIGNED.get(ctx) ?? ALIGNED.set(ctx, new Map<number, boolean>()).get(ctx)!;
+  return (
+    lines.get(lineStart) ??
+    lines.set(lineStart, alignedLine(ctx.text, lineStart, at)).get(lineStart)!
+  );
+}
+
+// common.yaml rule measurement def unitParse
+export function unitParse(ruleId: string, value: string, locale: MeasurementLocalePolicy) {
+  return ruleId === "currencySpacing"
+    ? parseMeasurementExpression(value, locale, (text, start) =>
+        CURRENCY_MARKERS.has(text.slice(start)),
+      )
+    : (parseMeasurementExpression(value, locale) ??
+        parseMeasurementExpression(value, locale, (text, start) =>
+          Object.hasOwn(UNIT_CASE, text.slice(start)),
+        ));
+}
+
+// common.yaml rule measurement def proseListPrefix
+export function proseListPrefix(
+  ruleId: string,
+  prose: string,
+  locale: MeasurementLocalePolicy,
+): string {
+  if (isProsePrefix(prose)) return prose;
+  const item = /(?:^|[ \t])(?:(?<n>[^\s]+)[ \t\u00a0\u202f])?(?<last>[^\s]+),[ \t]+$/du.exec(prose);
+  const cut = !item
+    ? -1
+    : unitParse(ruleId, item.groups!.last, locale)?.start === 0
+      ? item.indices!.groups!.last[0]
+      : item.groups!.n && unitParse(ruleId, item.groups!.n + item.groups!.last, locale)?.start === 0
+        ? item.indices!.groups!.n[0]
+        : -1;
+  return cut < 0 ? prose : proseListPrefix(ruleId, prose.slice(0, cut), locale);
+}
+
+// common.yaml rule measurement def unitToken
+export function unitToken(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  frame: FrameRef,
+): RawFinding | null {
+  const cut = m.index < ctx.from ? skipBackWhile(ctx.text, ctx.from, /[^\s\uFFFC]/u) : 0;
+  if (m.index < ctx.from && m.index > cut && resumeScan(frame, cut)) return null;
+  if (!/\p{Nd}[^\p{Nd}\s.,]/u.test(m[0])) return null;
+  const ruleId = frame.ruleId;
+  const units = ruleId === "measurementUnitFormatting";
+  const locale = resolveMeasurementLocale(ctx.lang);
+  if (!locale) return null;
+  const bare = m[0].replace(/[.,;:!?)\]]+$/u, "");
+  const tokenEnd = m.index + bare.length;
+  const windowStart = Math.max(0, tokenEnd - 160);
+  const prefix = ctx.text.slice(windowStart, tokenEnd);
+  const parsed = unitParse(ruleId, prefix, locale);
+  if (!parsed) return null;
+  const unit = prefix.slice(parsed.numberEnd);
+  if (units && /^([A-Z]|[dg])$/.test(unit)) return null;
+  if (
+    units &&
+    ((ctx.lang === "pt_BR" &&
+      (/^(?:h|min)$/.test(unit) ||
+        (unit === "km" && prefix.slice(parsed.start, parsed.numberEnd) === "0"))) ||
+      (ctx.lang === "fr_FR" && unit === "h"))
+  )
+    return null;
+  if (
+    units &&
+    ((unit === "m" && /^[ \t]+(?:[a-z]{2,}s|[A-Z]{2,}s)\b/.test(ctx.text.slice(tokenEnd))) ||
+      (unit === "s" && /\b\p{Lu}[\p{L}-]*[ \t]+$/u.test(prefix.slice(0, parsed.start))))
+  )
+    return null;
+  const prose = proseListPrefix(ruleId, prefix.slice(0, parsed.start), locale);
+  if (!isProsePrefix(prose)) return null;
+  const start = windowStart + parsed.start;
+  if (!ownedByChunk(ctx, start)) return null;
+  const numberEnd = windowStart + parsed.numberEnd;
+  const lowercase = Object.hasOwn(UNIT_CASE, unit) ? UNIT_CASE[unit] : undefined;
+  if (
+    lowercase &&
+    (/\p{Lu}{2}[ \t]+$/u.test(ctx.text.slice(Math.max(0, start - 24), start)) ||
+      /^[ \t]+\p{Lu}{2}/u.test(ctx.text.slice(tokenEnd, tokenEnd + 24)))
+  )
+    return null;
+  return {
+    ruleId,
+    messageKey:
+      ruleId === "currencySpacing"
+        ? "review_msg_currency_spacing"
+        : lowercase
+          ? "review_msg_measurement_unit_case"
+          : "review_msg_measurement_spacing",
+    range: { start, end: tokenEnd },
+    alternatives: [
+      `${ctx.source.slice(start, numberEnd)}${locale.separator}${lowercase ?? ctx.source.slice(numberEnd, tokenEnd)}`,
+    ],
+    context: { start: windowStart, end: tokenEnd },
+  };
+}
+
+// common.yaml rule measurement.de def GERMAN_BYTES
+export const GERMAN_BYTES = /^(?:[kKMGT]B|[KMGT]iB)$/;
+
+// common.yaml rule measurement.de def germanUnitFinding
+export function germanUnitFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  alternatives: string[],
+  key: RawFinding["messageKey"],
+): RawFinding | null {
+  if (!(m.index >= ctx.from && m.index < ctx.to && !namedExampleBefore(ctx.text, m.index)))
+    return null;
+  const end = m.index + m[0].length;
+  return {
+    ruleId: key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
+    messageKey: key,
+    range: { start: m.index, end },
+    alternatives,
+    requiresChoice: alternatives.length > 1 || undefined,
+    context: { start: Math.max(0, m.index - 30), end: end + 30 },
+  };
+}
+
+// common.yaml rule measurement.de def germanGluedUnit
+export function germanGluedUnit(m: RegExpExecArray, ctx: DetectContext, frame: FrameRef) {
+  const n = m.groups!.n;
+  const unit = m.groups!.unit;
+  const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index + 200);
+  if (unit === "$" && line.split("$").length > 2) return null;
+  const currency = unit === "$" || unit === "£";
+  if (!(currency || GERMAN_BYTES.test(unit))) return null;
+  if (!((currency ? "currencySpacing" : "measurementUnitFormatting") === frame.ruleId)) return null;
+  return germanUnitFinding(
+    ctx,
+    m,
+    [`${n}\u00a0${unit}`],
+    currency ? "review_msg_currency_spacing" : "review_msg_measurement_spacing",
+  );
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -5290,6 +6022,46 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // common.yaml rule countability frame 11
   "@countability/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return massNoun(m, ctx);
+  },
+  // common.yaml rule repeatedWords.en frame 1
+  "@repeatedWords.en/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.de frame 1
+  "@repeatedWords.de/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.fr frame 1
+  "@repeatedWords.fr/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.es frame 1
+  "@repeatedWords.es/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.pt frame 1
+  "@repeatedWords.pt/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.pl frame 1
+  "@repeatedWords.pl/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.sv frame 1
+  "@repeatedWords.sv/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.hr frame 1
+  "@repeatedWords.hr/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.el frame 1
+  "@repeatedWords.el/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
+  },
+  // common.yaml rule repeatedWords.ar frame 1
+  "@repeatedWords.ar/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return repeatedWordFinding(m, ctx);
   },
   // common.yaml rule auxiliaryForms frame 1
   "@auxiliaryForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -6226,6 +6998,98 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@wordConfusions/27": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return degreeFix(ctx, m, frame.ruleId, "review_msg_were_where", "where");
   },
+  // common.yaml rule capitalizeStarts frame 1
+  "@capitalizeStarts/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index === 0 || isWhitespaceAt(ctx.text, m.index - 1))) return null;
+    const letterIndex = m.index + (SENTENCE_OPENING_MARKS.has(m[0][0]) ? 1 : 0);
+    const code = ctx.text.charCodeAt(letterIndex);
+    if (!(code < 128 ? code >= 97 && code <= 122 : isLowercaseLetter(ctx.text[letterIndex] ?? "")))
+      return null;
+    const sentence = startsSentence(ctx.text, m.index, ctx.lang);
+    if (!(sentence || lineBreakBefore(ctx.text, m.index) !== null)) return null;
+    const letterEnd = graphemeEnd(ctx.text, letterIndex);
+    const letter = ctx.source.slice(letterIndex, letterEnd);
+    const bare = m[0].replace(TRAILING_PUNCTUATION_REGEX, "");
+    if (!(!isTechnicalToken(bare) && !keepsOwnCasing(bare))) return null;
+    if (bare.length === 1 && /^[ \t]*[=<>≤≥≠+−·×÷]/u.test(ctx.text.slice(m.index + 1))) return null;
+    const upper = letter.toUpperCase();
+    if (!(upper !== letter)) return null;
+    const word = {
+      wordStart: m.index,
+      range: { start: letterIndex, end: letterEnd },
+      upper,
+      wordEnd: m.index + bare.length,
+    };
+    return sentence ? capitalizeSentenceStart(ctx, word) : capitalizeAfterLineBreak(ctx, word);
+  },
+  // common.yaml rule pronounI frame 1
+  "@pronounI/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = m.index;
+    const before = ctx.text[start - 1] ?? "";
+    if (!(!/[@#/\\.=$\-[]/.test(before) && before !== MASK_CHAR)) return null;
+    const near = ctx.text.slice(Math.max(0, start - 24), start);
+    if (IDENTIFIER_BEFORE.test(near)) return null;
+    const rest = ctx.text.slice(start + 1, start + 1 + 40);
+    if (FORMULA_BEFORE.test(near) && !PRONOUN_VERB_AFTER.test(rest)) return null;
+    if (FORMULA_AFTER.test(rest)) return null;
+    if (
+      /\b(?:short|long)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start)) &&
+      /^[ \t\u00A0]+sounds?\b/i.test(rest)
+    )
+      return null;
+    const contraction = /^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest);
+    if (!(contraction || !(before === "(" && !/^[ \t\u00a0]/.test(rest)))) return null;
+    const mark = !contraction && /^[,;!?]/.test(rest);
+    const period = !contraction && !mark && /^\.(?:\s|$)/u.test(rest);
+    if (!(!period || !/^\.\s+e\./i.test(rest))) return null;
+    if (!(
+      !period || ctx.text.slice(ctx.text.lastIndexOf("\n", start - 1) + 1, start).trim() !== ""
+    ))
+      return null;
+    if (!(!period || !NUMERAL_BEFORE.test(near))) return null;
+    const other = !contraction && !mark && !period;
+    const next = other ? /^[ \t\u00A0]+(\S+)/.exec(rest) : null;
+    if (!(
+      !other ||
+      next !== null ||
+      (/^\s*$/.test(rest) &&
+        /\b(?:than|and|as)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 12), start)))
+    ))
+      return null;
+    const following = next ? next[1].replace(TRAILING_PUNCTUATION_REGEX, "") : "";
+    if (!(
+      !next ||
+      (/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) &&
+        !NON_PRONOUN_FOLLOWERS.has(following.toLowerCase()))
+    ))
+      return null;
+    const contextEnd =
+      start +
+      1 +
+      (contraction
+        ? /^['’]\w+/.exec(rest)![0].length
+        : mark || period
+          ? 1
+          : next
+            ? next[0].length
+            : 0);
+    const sentenceEnd = period || (other && !next);
+    return finding(
+      "englishPronounICapitalization",
+      "review_msg_pronoun_i",
+      start,
+      start + 1,
+      ["I"],
+      {
+        context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
+        bulkBlock: sentenceEnd ? "context-dependent" : undefined,
+      },
+    );
+  },
+  // common.yaml rule spellingWords frame 1
+  "@spellingWords/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return spellingFindings(m, ctx);
+  },
   // common.yaml rule spelling frame 1
   "@spelling/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return splitWord(m, ctx, frame, SPLIT_DE);
@@ -6301,6 +7165,59 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@spelling/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return markedApostrophe(m, ctx, frame, m[1], false);
   },
+  // common.yaml rule modalOf frame 1
+  "@modalOf/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, MODAL_OF_REGEX, 3, modalOfLastWord);
+    if (!hit) return null;
+    if (OF_IDIOMS.has(hit.match[2].toLowerCase())) return null;
+    if (isNounMight(hit.match[1], ctx.text.slice(Math.max(0, hit.start - 24), hit.start)))
+      return null;
+    const modal = groupRange(hit.match, 1);
+    const ofStart = skipForwardWhile(ctx.text, modal.end, /\s/);
+    if (!(ctx.text.slice(ofStart, ofStart + 2).toLowerCase() === "of")) return null;
+    return {
+      ruleId: "englishModalOfCorrection",
+      messageKey: "review_msg_modal_of",
+      range: { start: hit.start, end: ofStart + 2 },
+      alternatives: [
+        `${ctx.source.slice(hit.start, ofStart)}${modalHaveWord(hit.match[1], ctx.text.slice(ofStart, ofStart + 2))}`,
+      ],
+      context: { start: hit.start, end: hit.end },
+    };
+  },
+  // common.yaml rule yourWelcome frame 1
+  "@yourWelcome/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, YOUR_WELCOME_REGEX, 2, yourWelcomeLastWord);
+    if (!hit) return null;
+    if (!(hit.end >= ctx.text.length || /^[.!?\r\n]/.test(ctx.text[hit.end]))) return null;
+    if (!opensClause(ctx.text, hit.start)) return null;
+    const phrase = hit.match[0];
+    const firstToken = phrase.split(/\s+/)[0];
+    const fixed = correctYourWelcome(firstToken);
+    const gap = phrase.slice(firstToken.length, phrase.length - "welcome".length);
+    return {
+      ruleId: "englishYourWelcomeCorrection",
+      messageKey: "review_msg_your_welcome",
+      range: { start: hit.start, end: hit.end },
+      alternatives: [`${fixed[0]}${gap}${fixed[1]}`],
+      context: {
+        start: Math.max(0, lastNonBlankBefore(ctx.text, hit.start)),
+        end: Math.min(ctx.text.length, hit.end + 1),
+      },
+    };
+  },
+  // common.yaml rule theirThere frame 1
+  "@theirThere/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, THEIR_THERE_BE_REGEX, 2, theirThereLastWord);
+    if (!hit) return null;
+    const phrase = hit.match[0];
+    const their = phrase.split(/\s+/)[0];
+    const fixed = correctTheirBeVerb(their, hit.match[1]);
+    const gap = phrase.slice(their.length, phrase.length - hit.match[1].length);
+    return finding("englishTheirThereBeVerb", "review_msg_their_there", hit.start, hit.end, [
+      `${fixed[0]}${gap}${fixed[1]}`,
+    ]);
+  },
   // common.yaml rule pronounVerbFrames frame 1
   "@pronounVerbFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const subject = m.groups!.subject;
@@ -6334,6 +7251,58 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
         end: Math.min(ctx.text.length, m.index + m[0].length + 2),
       },
       bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule pronounVerb frame 1
+  "@pronounVerb/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, AGREEMENT_REGEX, 3, pronounVerbLastWord);
+    if (!hit) return null;
+    const phrase = hit.match[1];
+    const corrected = AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "));
+    if (!corrected) return null;
+    const fixed = correctPronounVerb(phrase, corrected);
+    const typed = phrase.split(/\s+/);
+    const phraseRange = groupRange(hit.match, 1);
+    if (!(
+      typed[0] !== "i" ||
+      (!NON_PRONOUN_FOLLOWERS.has(typed[1].toLowerCase()) &&
+        !isVariableI(ctx.text, phraseRange.start))
+    ))
+      return null;
+    const lookback = ctx.text.slice(Math.max(0, phraseRange.start - 48), phraseRange.start);
+    if (typed[0].toLowerCase() === "it" && OBJECT_IT_BEFORE.test(lookback)) return null;
+    if (
+      typed[0] === "I" &&
+      /\b(?:a|an|the|set|ideal|matrix|phase|stage|type|part)[ \t\u00a0]+$/i.test(lookback)
+    )
+      return null;
+    const you = typed[0].toLowerCase() === "you";
+    if (!(!you || !isObjectYou(ctx.text, phraseRange.start))) return null;
+    if (!(
+      !you ||
+      !(OBJECT_GAP_YOU.test(lookback) && englishWordInfo(OBJECT_GAP_YOU.exec(lookback)![1])?.noun)
+    ))
+      return null;
+    const previous = PREVIOUS_WORD.exec(
+      ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start),
+    )?.[1].toLowerCase();
+    const before = ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start);
+    if (
+      /\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
+      (!you && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before))
+    )
+      return null;
+    const gap = phrase.slice(typed[0].length, phrase.length - typed[1].length);
+    return {
+      ruleId: "englishPronounVerbWhitelistAgreement",
+      messageKey: "review_msg_pronoun_verb",
+      range: phraseRange,
+      alternatives: [`${fixed[0] === "i" ? "I" : fixed[0]}${gap}${fixed[1]}`],
+      context: { start: previousTokensStart(ctx.text, phraseRange.start, 1), end: hit.end },
+      bulkBlock:
+        you && !opensClause(ctx.text, phraseRange.start) && !YOU_SUBJECT_BEFORE.has(previous ?? "")
+          ? "context-dependent"
+          : undefined,
     };
   },
   // common.yaml rule subjectAgreement frame 1
@@ -6652,6 +7621,119 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       },
     };
   },
+  // common.yaml rule articleAn frame 1
+  "@articleAn/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const hit = phraseMatch(ctx, m, ARTICLE_REGEX, 2, articleAnLastWord);
+    if (!hit) return null;
+    const article = hit.match[1];
+    const word = hit.match[2];
+    if (/^(?:an?|the)$/i.test(word)) return null;
+    const corrected = correctArticle(article, word, ctx.dictionary);
+    if (!corrected) return null;
+    const lineStart = lastIndexInChunk(ctx, "\n", hit.start - 1) + 1;
+    const sliceStart = Math.max(lineStart, hit.start - 400);
+    const beforeArticle = `${sliceStart > lineStart ? "x " : ""}${ctx.text.slice(sliceStart, hit.start)}`;
+    if (!(article[0] !== "A" || SENTENCE_START_REGEX.test(beforeArticle))) return null;
+    if (!isArticleContext(beforeArticle)) return null;
+    const articleRange = groupRange(hit.match, 1);
+    return {
+      ruleId: "englishArticleAnCorrection",
+      messageKey: "review_msg_article",
+      range: { start: articleRange.start, end: hit.end },
+      alternatives: [`${corrected}${ctx.source.slice(articleRange.end, hit.end)}`],
+      context: { start: Math.max(0, hit.start - 24), end: hit.end },
+    };
+  },
+  // common.yaml rule ordinal frame 1
+  "@ordinal/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = m.index;
+    const end = m.index + m[0].length;
+    const digits = m[1];
+    const suffix = m[2];
+    const expected = ordinalSuffix(digits);
+    if (!(suffix !== expected && !isGluedToTechnical(ctx.text, start, end))) return null;
+    return suffix !== suffix.toLowerCase()
+      ? suffix.toLowerCase() !== expected ||
+        isAllCapsContext(ctx.text, start, end) ||
+        overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
+        ? null
+        : {
+            ruleId: "englishOrdinalSuffix",
+            messageKey: "review_msg_ordinal_case",
+            context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
+            range: { start, end },
+            alternatives: [`${digits}${expected}`],
+            bulkBlock: "context-dependent",
+          }
+      : suffix === "rd" ||
+          (suffix === "st" &&
+            !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
+              ctx.text.slice(Math.max(0, start - 24), start),
+            )) ||
+          overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
+        ? null
+        : finding(
+            "englishOrdinalSuffix",
+            "review_msg_ordinal",
+            start,
+            end,
+            [`${digits}${expected}`],
+            {
+              context: { start: Math.max(0, start - 24), end },
+            },
+          );
+  },
+  // common.yaml rule properNouns frame 1
+  "@properNouns/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(ctx.lang === "en_US")) return null;
+    const wordEnd = m.index + m[0].length;
+    const code = m[0].charCodeAt(0);
+    if (
+      !(code >= 48 && code <= 57
+        ? couldEndProperName(m[0], ctx.text.slice(Math.max(0, m.index - 12), m.index))
+        : couldEndNameWord(m[0]))
+    )
+      return null;
+    const windowStart = Math.max(0, wordEnd - 160);
+    const core = ctx.text.slice(windowStart, wordEnd);
+    const name =
+      findProperName(core) ??
+      (isMonthInContext(
+        m[0],
+        ctx.text.slice(Math.max(0, m.index - 48), m.index),
+        ctx.text.slice(wordEnd, wordEnd + 24),
+      )
+        ? {
+            start: core.length - m[0].length,
+            end: core.length,
+            canonical: m[0][0].toUpperCase() + m[0].slice(1),
+            contextual: true,
+          }
+        : null);
+    if (!name) return null;
+    const start = windowStart + name.start;
+    if (!(ownedByChunk(ctx, start) && !isGluedToTechnical(ctx.text, start, wordEnd))) return null;
+    const end = windowStart + name.end;
+    const replaced = properNameReplacement(
+      ctx.text.slice(start, end),
+      name.canonical,
+      ctx.dictionary,
+    );
+    if (!(replaced !== null)) return null;
+    return finding(
+      "englishProperNounCapitalization",
+      "review_msg_proper_noun",
+      start,
+      end,
+      [replaced],
+      {
+        context: name.contextual
+          ? { start: Math.max(0, start - 16), end: wordEnd + 16 }
+          : undefined,
+        bulkBlock: name.contextual ? "context-dependent" : undefined,
+      },
+    );
+  },
   // common.yaml rule properNouns.de frame 1
   "@properNouns.de/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     const typed = m[0];
@@ -6670,6 +7752,278 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       range: { start: m.index, end: m.index + 1 },
       alternatives: [typed[0].toUpperCase()],
       context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 1
+  "@commaPeriodSpacing/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const end = m.index + m[0].length;
+    const mark = ctx.source[end];
+    const moveSpace =
+      ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3));
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: mark === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
+      range: { start: m.index, end: end + 1 },
+      alternatives: [moveSpace ? `${mark} ` : mark],
+      context: { start: m.index - 1, end: end + (moveSpace ? 2 : 1) },
+      bulkBlock: mark === "؛" ? "context-dependent" : undefined,
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 2
+  "@commaPeriodSpacing/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m[1] === "." || !usesFrenchPunctuationSpacing(ctx.lang))) return null;
+    if (!(!/[;\u037E]/.test(m[1]) || isGreekQuestionMark(m[1], ctx.lang))) return null;
+    const end = m.index + m[0].length;
+    if (STANDALONE_MARK_FOLLOWER.test(ctx.text.slice(end, end + 8)) && namesMark(ctx.text, end - 1))
+      return null;
+    return finding("commaPeriodSpacing", "review_msg_space_before_mark", m.index, end, [m[1]], {
+      context: { start: m.index - 1, end },
+      bulkBlock: /[.?!]/.test(m[1]) ? undefined : "context-dependent",
+    });
+  },
+  // common.yaml rule commaPeriodSpacing frame 3
+  "@commaPeriodSpacing/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_opening_mark",
+      range: { start: m.index - 1, end: m.index + m[0].length },
+      alternatives: [ctx.source[m.index - 1]],
+      context: { start: m.index - 1, end: m.index + m[0].length + 1 },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 4
+  "@commaPeriodSpacing/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const end = m.index + m[0].length;
+    const wordFollows = end < ctx.text.length && !/\s/.test(ctx.text[end]);
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_wide_comma",
+      range: { start: m.index, end },
+      alternatives: [wordFollows ? ", " : ","],
+      context: { start: m.index - 1, end: end + 1 },
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 5
+  "@commaPeriodSpacing/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const sign = m.index + m[0].length - 1;
+    const tokenStart = tokenStartBefore(ctx.text, m.index);
+    const tokenEnd = ctx.text.slice(sign).search(/\s|$/) + sign;
+    if (/[\uFFFC@#/\\_=:;<>{}[\]$&+]/u.test(ctx.text.slice(tokenStart, tokenEnd))) return null;
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_mark",
+      range: { start: sign, end: sign + 1 },
+      alternatives: ["% "],
+      context: { start: tokenStart, end: tokenEnd },
+    };
+  },
+  // common.yaml rule commaPeriodSpacing frame 6
+  "@commaPeriodSpacing/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!ctx.insertSpaceAfterAutocomplete) return null;
+    const tokenStart = tokenStartBefore(ctx.text, m.index);
+    const tokenEnd = tokenEndAfter(ctx.text, m.index);
+    const token = ctx.text.slice(tokenStart, tokenEnd);
+    if ((token.match(/[,،]/g)?.length ?? 0) > 1 || /[\uFFFC@#/\\_=.:;]/u.test(token)) return null;
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_comma",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [`${ctx.source[m.index]} `],
+      context: { start: tokenStart, end: tokenEnd },
+    };
+  },
+  // common.yaml rule repeatedSpaces frame 1
+  "@repeatedSpaces/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (alignedInChunk(ctx, lastIndexInChunk(ctx, "\n", m.index) + 1, m.index)) return null;
+    return finding(
+      "collapseRepeatedSpaces",
+      "review_msg_repeated_spaces",
+      m.index,
+      m.index + m[0].length,
+      [ctx.source[m.index]],
+    );
+  },
+  // common.yaml rule duplicatePunctuation frame 1
+  "@duplicatePunctuation/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = m.index;
+    if (isGluedToTechnical(ctx.text, start, start)) return null;
+    const end = m.index + m[0].length;
+    const polishQuote =
+      isLang(ctx, "pl") &&
+      m[0] === ",," &&
+      /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+      /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|''|’’)/u.test(
+        ctx.text.slice(end, end + 210),
+      );
+    return finding("duplicatePunctuationCollapse", "review_msg_duplicate_punctuation", start, end, [
+      polishQuote ? "„" : m[1],
+    ]);
+  },
+  // common.yaml rule duplicatePunctuation frame 2
+  "@duplicatePunctuation/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (
+      isLang(ctx, "de") &&
+      /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+    )
+      return null;
+    return /^\s+\p{Ll}/u.test(ctx.text.slice(m.index + 2, m.index + 12))
+      ? {
+          ruleId: "duplicatePunctuationCollapse",
+          messageKey: "review_msg_ellipsis_length",
+          range: { start: m.index, end: m.index + 2 },
+          alternatives: ["..."],
+        }
+      : {
+          ruleId: "duplicatePunctuationCollapse",
+          messageKey: "review_msg_duplicate_punctuation",
+          range: { start: m.index, end: m.index + 2 },
+          alternatives: [".", "..."],
+          requiresChoice: true,
+        };
+  },
+  // common.yaml rule duplicatePunctuation frame 3
+  "@duplicatePunctuation/3": (m: RegExpExecArray): MatchResult => {
+    return {
+      ruleId: "duplicatePunctuationCollapse",
+      messageKey: "review_msg_ellipsis_length",
+      range: { start: m.index, end: m.index + 2 },
+      alternatives: ["...", "."],
+      requiresChoice: true,
+    };
+  },
+  // common.yaml rule duplicatePunctuation frame 4
+  "@duplicatePunctuation/4": (m: RegExpExecArray): MatchResult => {
+    return {
+      ruleId: "duplicatePunctuationCollapse",
+      messageKey: "review_msg_ellipsis_length",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: ["..."],
+      bulkBlock: m[0].length === 4 ? "context-dependent" : undefined,
+    };
+  },
+  // common.yaml rule quoteSpacing frame 1
+  "@quoteSpacing/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pair = resolveTypographyProfile(ctx.lang).double;
+    const directional = pair[0] !== pair[1];
+    const marks = directional ? `"${pair[0]}${pair[1]}` : `"${pair[0]}`;
+    const start = m.index;
+    const mark = m[0];
+    if (!(
+      (/[\p{L}\p{N}]/u.test(ctx.scanText[start - 1] ?? "") && marks.includes(mark)) ||
+      (directional && mark === pair[1] && /[.,!?]/.test(ctx.scanText[start - 1] ?? ""))
+    ))
+      return null;
+    const straight = !directional || mark === '"';
+    if (straight && /\p{N}/u.test(ctx.text[start - 1])) return null;
+    if (straight && ctx.lang.startsWith("en") && quotedContraction(ctx.text, start)) return null;
+    const spaceBefore = ` ${ctx.source[start]}`;
+    const spaceAfter = `${ctx.source[start]} `;
+    const paragraphStart = straight ? lastIndexInChunk(ctx, "\n\n", start) : -1;
+    const opened =
+      ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start).split(mark).length % 2 ===
+      0;
+    return finding(
+      "quoteSpacing",
+      "review_msg_quote_spacing",
+      start,
+      start + 1,
+      straight
+        ? opened
+          ? [spaceAfter, spaceBefore]
+          : [spaceBefore, spaceAfter]
+        : [mark === pair[0] ? spaceBefore : spaceAfter],
+      { context: { start: Math.max(0, start - 1), end: start + 2 } },
+    );
+  },
+  // common.yaml rule primeSymbols frame 1
+  "@primeSymbols/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (m[1] === "′" && m[3] === "″") return null;
+    const end = m.index + m[0].length;
+    return {
+      ruleId: "primeSymbols",
+      messageKey: "review_msg_prime_symbols",
+      range: { start: m.index, end },
+      alternatives: [`′${ctx.source.slice(m.index + 1, end - 1)}″`],
+      context: { start: Math.max(0, m.index - 8), end: Math.min(ctx.text.length, end + 1) },
+    };
+  },
+  // common.yaml rule primeSymbols frame 2
+  "@primeSymbols/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return finding("primeSymbols", "review_msg_prime_symbols", m.index, m.index + 1, ["′"], {
+      context: { start: Math.max(0, m.index - 8), end: Math.min(ctx.text.length, m.index + 2) },
+    });
+  },
+  // common.yaml rule typedDashes frame 1
+  "@typedDashes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(ctx.text.slice(ctx.text.lastIndexOf("\n", m.index - 1) + 1, m.index).trim() !== ""))
+      return null;
+    const end = m.index + m[0].length;
+    const before = ctx.text[m.index - 1] ?? "";
+    const after = ctx.text[end] ?? "";
+    if (/\s/.test(before) && /[\p{L}\p{N}]/u.test(after)) return null;
+    return finding(
+      "emdashShortcut",
+      "review_msg_typed_dash",
+      m.index,
+      end,
+      m[0].length === 3
+        ? ["—"]
+        : /\p{N}/u.test(before) && /\p{N}/u.test(after)
+          ? ["–"]
+          : isLang(ctx, "en")
+            ? ["—", "–"]
+            : ["–", "—"],
+      { context: { start: Math.max(0, m.index - 1), end: Math.min(ctx.text.length, end + 1) } },
+    );
+  },
+  // common.yaml rule measurement frame 1
+  "@measurement/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return unitToken(m, ctx, frame);
+  },
+  // common.yaml rule measurement frame 2
+  "@measurement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
+    return {
+      ruleId: "measurementUnitFormatting",
+      messageKey: "review_msg_kelvin_degree",
+      range: { start: m.index, end: m.index + 2 },
+      alternatives: [/\p{N}/u.test(ctx.text[m.index - 1]) ? `${separator}K` : "K"],
+      context: { start: Math.max(0, m.index - 1), end: m.index + 2 },
+    };
+  },
+  // common.yaml rule measurement.de frame 1
+  "@measurement.de/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return germanGluedUnit(m, ctx, frame);
+  },
+  // common.yaml rule measurement.de frame 2
+  "@measurement.de/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    return germanUnitFinding(ctx, m, [`${n}°`, `${n} °C`], "review_msg_measurement_spacing");
+  },
+  // common.yaml rule currency frame 1
+  "@currency/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return unitToken(m, ctx, frame);
+  },
+  // common.yaml rule currency.de frame 1
+  "@currency.de/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return germanGluedUnit(m, ctx, frame);
+  },
+  // common.yaml rule currencyPlacement frame 1
+  "@currencyPlacement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(ctx.lang === "en_US")) return null;
+    const end = m.index + m[0].length;
+    const lineStart = ctx.text.lastIndexOf("\n", m.index) + 1;
+    const lineBreak = ctx.text.indexOf("\n", end);
+    const lineEnd = lineBreak < 0 ? ctx.text.length : lineBreak;
+    if (m[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd))) return null;
+    return {
+      ruleId: "currencySpacing",
+      messageKey: "review_msg_currency_placement",
+      range: { start: m.index, end },
+      alternatives: [m[4] ? `${m[4]}¢` : `${m[3]}${m[1]}${m[2] ?? ""}`],
+      context: { start: lineStart, end: lineEnd },
       bulkBlock: "context-dependent",
     };
   },

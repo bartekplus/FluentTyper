@@ -8795,11 +8795,95 @@ rules:
     lang: en
     style: match
     message: review_msg_repeated_words
+    sets:
+      # Verbs whose "to" opens an infinitive: "We need to to leave" doubles the marker.
+      INFINITIVE_TO_VERBS:
+        [
+          need,
+          needs,
+          needed,
+          have,
+          has,
+          had,
+          want,
+          wants,
+          wanted,
+          going,
+          got,
+          ought,
+          able,
+          used,
+          try,
+          tries,
+          tried,
+          trying,
+          plan,
+          plans,
+          planned,
+          hope,
+          hopes,
+          hoped,
+          decide,
+          decided,
+        ]
+    defs:
+      # Words that leave a gap for an elided infinitive: "whatever you need to to finish".
+      INFINITIVE_GAP: /\b(?:what|whatever|which|who|whom|that|as|where|when|how)\b/i
+      # "to to" is also a stranded preposition before an infinitive ("the team I wrote to to
+      # complain") or an elided one ("do what you have to to win"). Repair it only before a
+      # determiner, number or name ("sent to to the team"), or after an infinitive verb with no
+      # gap before it ("I have to to go").
+      doubledTo:
+        args: "before: string, after: string"
+        let:
+          sentence: >-
+            before.slice(
+              Math.max(before.lastIndexOf("."), before.lastIndexOf("!"), before.lastIndexOf("?"), before.lastIndexOf("\n")) + 1)
+          verb: '/(\p{L}+)[ \t\u00a0]+$/u.exec(sentence)'
+        return: >-
+          /^[ \t\u00a0]*(?:(?:the|a|an|my|your|his|her|its|our|their)\b|\p{Lu}|\p{N})/u.test(after) ||
+          (!!verb &&
+            INFINITIVE_TO_VERBS.has(verb[1].toLowerCase()) &&
+            !INFINITIVE_GAP.test(sentence.slice(0, verb.index)))
+      # A doubled word of the language (one repeatedWords rule per language). Across a line
+      # break only a wrapped prose line counts: a line holding just the word ("the\nthe report")
+      # may be a list item or a heading. A run gets one repair, including when a later pair
+      # belongs to another chunk. A named, quoted example is evidence, not prose to repair;
+      # normal quotations still run. "What it is is a mess": a pseudo-cleft's clause ends on the
+      # first verb. "the The Beatles album": a capitalized repeat after a lowercase word opens a
+      # name; "P A O L A A N": a spelled-out run of single letters.
+      repeatedWordFinding:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          start: m.index
+          end: m.index + m[0].length
+          context: "({ start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 2) })"
+          before: ctx.text.slice(context.start, start)
+          word: m[1].toLowerCase()
+          second: m[0].slice(-m[1].length)
+        when:
+          - "!ctx.dictionary.has(word) && !isGluedToTechnical(ctx.text, start, end)"
+          - '!m[0].includes("\n") || /\p{L}[^\n]*[ \t\u00a0]$/u.test(before)'
+          - before.match(/(\p{L}+)[ \t\u00a0]{1,8}$/u)?.[1].toLowerCase() !== word
+          - "!CUE_AND_QUOTE.test(before)"
+          - word !== "to" || doubledTo(before, ctx.text.slice(end, end + 16))
+          - '!(/^(?:is|was)$/.test(word) && isLang(ctx, "en") && PSEUDO_CLEFT_BEFORE.test(before))'
+          - "!(/^\\p{Ll}/u.test(m[1]) && /^\\p{Lu}/u.test(second))"
+          - '!(word.length === 1 && /(?:^|\s)\p{L}[ \t\u00a0]+$/u.test(before))'
+        return: >-
+          ({
+            ruleId: "englishRepeatedWords",
+            messageKey: "review_msg_repeated_words",
+            range: { start, end },
+            alternatives: [ctx.source.slice(start, start + m[1].length)],
+            context,
+          })
     frames:
       - regex: "{{REPEAT_BEFORE}}(?<target>the|an|a|is|are|was|were|be|am|in|on|at|for|with|from|of|to|and|or|but|nor|as|by|into|onto|about|than|this|these|those|its|your|our|their|would|should|could|has|been){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: repeatedWords.de
     checks: [englishRepeatedWords]
     lang: de
@@ -8809,7 +8893,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>ein|eine|einen|einem|einer|eines|im|mit|von|für|auf|bei|aus|nach|zum|zur|dass|weil|ist|sind|hat|wird|über|unter|durch|ohne|gegen){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   # "un un": "en acheter un un jour" is a pronoun and an article.
   - id: repeatedWords.fr
     checks: [englishRepeatedWords]
@@ -8820,7 +8904,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>le|les|une|des|du|au|aux|dans|pour|avec|sur|et|mais|est|sont|par|ce|cette|ces|sans|je|tu|il|ils|on|à|mon|ma|mes|ton|ta|tes|son|sa|ses){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: repeatedWords.es
     checks: [englishRepeatedWords]
     lang: es
@@ -8830,7 +8914,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>el|los|las|un|una|en|con|del|al|y|pero|por|sin|sobre|entre|desde|hasta|este|esta|estos|estas){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: repeatedWords.pt
     checks: [englishRepeatedWords]
     lang: pt
@@ -8840,7 +8924,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>os|um|uma|em|com|do|da|dos|das|no|na|e|mas|por|pelo|pela|sem|sobre|entre|este|esta|isto|isso){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: repeatedWords.pl
     checks: [englishRepeatedWords]
     lang: pl
@@ -8850,7 +8934,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>się|na|do|od|dla|przez|że|i|oraz|ale|lub|w|z|o|po|jest|są){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: repeatedWords.sv
     checks: [englishRepeatedWords]
     lang: sv
@@ -8860,7 +8944,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>att|ett|på|till|med|av|och|men|eller|är|vid|från|under|över|utan){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: repeatedWords.hr
     checks: [englishRepeatedWords]
     lang: hr
@@ -8870,7 +8954,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>na|za|od|iz|do|i|ali|ili|u|s|sa|o|po|pri|kod|prema){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: repeatedWords.el
     checks: [englishRepeatedWords]
     lang: el
@@ -8880,7 +8964,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>στο|στη|στην|στον|στα|από|για|ένα|μια|αλλά|στις|στους|προς|χωρίς){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: repeatedWords.ar
     checks: [englishRepeatedWords]
     lang: ar
@@ -8890,7 +8974,7 @@ rules:
       - regex: "{{REPEAT_BEFORE}}(?<target>في|على|إلى|عن|مع|هذا|هذه|ثم){{REPEAT_GAP}}"
         scan: owned
         flags: giu
-        fixer: repeatedWord
+        return: repeatedWordFinding(m, ctx)
   - id: auxiliaryForms
     checks: [englishAuxiliaryBaseVerb]
     style: match
@@ -10516,23 +10600,344 @@ rules:
     checks: [capitalizeSentenceStart, capitalizeAfterLineBreak]
     style: match
     message: review_msg_sentence_start
+    sets:
+      # Words that name the key or symbol right after them: "press . to repeat", also in the
+      # other Review languages: "pulsa ? para ver la ayuda".
+      MARK_NAMING_WORDS:
+        [
+          press,
+          presses,
+          pressed,
+          pressing,
+          type,
+          types,
+          typed,
+          typing,
+          hit,
+          hits,
+          tap,
+          taps,
+          enter,
+          enters,
+          use,
+          uses,
+          key,
+          keys,
+          add,
+          adds,
+          insert,
+          inserts,
+          put,
+          puts,
+          remove,
+          removes,
+          delete,
+          deletes,
+          the,
+          a,
+          an,
+          character,
+          char,
+          symbol,
+          sign,
+          dot,
+          mark,
+          punctuation,
+          "pulsa ? para ver la ayuda",
+          pulsa,
+          pulse,
+          presiona,
+          presione,
+          escribe,
+          escriba,
+          teclea,
+          teclee,
+          usa,
+          tecla,
+          signo,
+          símbolo,
+          carácter,
+          inserta,
+          inserte,
+          añade,
+          añada,
+          appuyez,
+          appuie,
+          tapez,
+          tape,
+          saisissez,
+          saisis,
+          utilisez,
+          touche,
+          caractère,
+          symbole,
+          signe,
+          insérez,
+          ajoutez,
+          drücke,
+          drücken,
+          drück,
+          tippe,
+          tippen,
+          gib,
+          verwende,
+          verwenden,
+          taste,
+          zeichen,
+          füge,
+          pressione,
+          aperte,
+          digite,
+          tecle,
+          caractere,
+          sinal,
+          insira,
+          adicione,
+          naciśnij,
+          wciśnij,
+          wpisz,
+          użyj,
+          klawisz,
+          znak,
+          wstaw,
+          dodaj,
+          tryck,
+          skriv,
+          använd,
+          tangenten,
+          tecknet,
+          tecken,
+          symbolen,
+          pritisni,
+          pritisnite,
+          upiši,
+          upišite,
+          koristi,
+          koristite,
+          tipku,
+          simbol,
+          πατήστε,
+          πάτα,
+          πληκτρολογήστε,
+          γράψτε,
+          πλήκτρο,
+          σύμβολο,
+          χαρακτήρα,
+          اضغط,
+          اكتب,
+          رمز,
+        ]
+    defs:
+      MARK_QUOTES: /^["'“”‘’`«»„‚‹›]$/u
+      # The sentence mark startsSentence read before `wordStart` (its index), and whether
+      # closing quotes or brackets stand between it and the word ("Stop!” she").
+      sentenceEndBefore:
+        args: "text: string, wordStart: number"
+        let:
+          closer: lastNonSpaceBefore(text, wordStart)
+          mark: skipClosers(text, closer)
+        return: "({ mark, closed: mark !== closer })"
+      skipClosers:
+        args: "text: string, i: number"
+        type: number
+        return: "i >= 0 && (CLOSING_CHARS.has(text[i]) || CLOSING_PADDING_CHARS.has(text[i])) ? skipClosers(text, i - 1) : i"
+      # True when the mark at `index` is named, not ending a sentence: it stands alone after a
+      # word that names keys or symbols ("press . to repeat", "Type ? for help"), or it is
+      # wrapped in quotes or backticks ("type '.' to repeat"). "It was late . we left" is a
+      # stray space: only a naming word makes it a symbol.
+      namesMark:
+        args: "text: string, index: number"
+        let:
+          before: lastNonBlankBefore(text, index)
+          after: skipForwardWhile(text, index + 1, /^[ \t\u00a0]$/u)
+          wordStart: skipBackWhile(text, before + 1, /\p{L}/u)
+        return: >-
+          (MARK_QUOTES.test(text[before] ?? "") && MARK_QUOTES.test(text[after] ?? "")) ||
+          (before !== index - 1 &&
+            !isWordCharAt(text, wordStart - 1) &&
+            MARK_NAMING_WORDS.has(text.slice(wordStart, before + 1).toLowerCase()))
+      # Index of the newline that starts the line `wordStart` is the first word of, or null.
+      lineBreakBefore:
+        args: "text: string, wordStart: number"
+        let:
+          i: lastNonSpaceBefore(text, wordStart)
+        return: 'i >= 0 && text[i] === "\n" ? i : null'
+      # Line starts are only flagged where the previous line closes a sentence or a paragraph:
+      # continuation lines of hard-wrapped text stay lowercase. "siehe z. B.\nfolgendes": a
+      # wrapped line may end on an abbreviation.
+      previousLineEndsParagraphOrSentence:
+        args: "text: string, lineBreak: number, lang: string"
+        let:
+          previousStart: text.lastIndexOf("\n", lineBreak - 1) + 1
+          previous: text.slice(previousStart, lineBreak).trim()
+          lineEnd: previousStart + text.slice(previousStart, lineBreak).trimEnd().length - 1
+        return: >-
+          previous === "" ||
+          (!previous.endsWith(MASK_CHAR) &&
+            !(text[lineEnd] === "." && closesAbbreviation(text, lineEnd, lang)) &&
+            (/[.!?؟]["'”’“»«)\]]*$/u.test(previous) ||
+              isGreekQuestionMark(previous.replace(/["'”’“»«)\]]+$/u, "").slice(-1), lang)))
+      # A lowercase word that starts a sentence. The mark AND the word it closes decide it:
+      # "etc." or, when the mark stands alone, the word before it ("approx .", "etc .").
+      capitalizeSentenceStart:
+        args: >-
+          ctx: DetectContext, word: { wordStart: number; range: TextRange; upper: string; wordEnd: number }
+        type: RawFinding | null
+        let:
+          end: sentenceEndBefore(ctx.text, word.wordStart)
+          mark: ctx.text[end.mark]
+          previous: previousTokensStart(ctx.text, word.wordStart, 1)
+          evidence: >-
+            /[\p{L}\p{N}]/u.test(ctx.text.slice(previous, word.wordStart))
+              ? previous
+              : previousTokensStart(ctx.text, word.wordStart, 2)
+        when:
+          - "!overlapsSortedRanges(ctx.exampleRanges ?? [], { start: end.mark, end: end.mark + 1 })"
+          # "“Stop!” she shouted", "(really?) and": a quoted or bracketed "!" or "?" before a
+          # lowercase word ends the quotation, not the sentence.
+          - '!(end.closed && mark !== ".")'
+          # "press . to repeat", "type ? for help": a named mark is a symbol, not a sentence
+          # end. French spaces "?" and "!" on purpose.
+          - >-
+            !(end.mark >= 0 &&
+              namesMark(ctx.text, end.mark) &&
+              !(mark !== "." && usesFrenchPunctuationSpacing(ctx.lang)))
+        # 'He said "stop." she left': the quotation may end inside the sentence.
+        return: >-
+          ({
+            ruleId: "capitalizeSentenceStart",
+            messageKey: "review_msg_sentence_start",
+            range: word.range,
+            alternatives: [word.upper],
+            context: { start: evidence, end: word.wordEnd },
+            bulkBlock: end.closed ? "context-dependent" : undefined,
+          })
+      # A lowercase word that starts a line after a closed sentence or paragraph.
+      capitalizeAfterLineBreak:
+        args: >-
+          ctx: DetectContext, word: { wordStart: number; range: TextRange; upper: string; wordEnd: number }
+        type: RawFinding | null
+        let:
+          lineBreak: lineBreakBefore(ctx.text, word.wordStart)
+        when: lineBreak !== null && previousLineEndsParagraphOrSentence(ctx.text, lineBreak, ctx.lang)
+        return: >-
+          ({
+            ruleId: "capitalizeAfterLineBreak",
+            messageKey: "review_msg_line_start",
+            range: word.range,
+            alternatives: [word.upper],
+            context: { start: lineBreak, end: word.wordEnd },
+          })
     frames:
       # Each token of the chunk; one scan gives the findings of both checks.
       - regex: "(?<target>[^\\s\\uFFFC]+)"
         scan: owned
         flags: gu
         anyCheck: true
-        fixer: capitalizeStart
+        # A lowercase word that starts a sentence, or one that starts a line after a closed
+        # sentence.
+        let:
+          letterIndex: "m.index + (SENTENCE_OPENING_MARKS.has(m[0][0]) ? 1 : 0)"
+          code: ctx.text.charCodeAt(letterIndex)
+          sentence: startsSentence(ctx.text, m.index, ctx.lang)
+          letterEnd: graphemeEnd(ctx.text, letterIndex)
+          letter: ctx.source.slice(letterIndex, letterEnd)
+          bare: m[0].replace(TRAILING_PUNCTUATION_REGEX, "")
+          upper: letter.toUpperCase()
+          word: >-
+            ({
+              wordStart: m.index,
+              range: { start: letterIndex, end: letterEnd },
+              upper,
+              wordEnd: m.index + bare.length,
+            })
+        when:
+          # A token must start after whitespace or at the text start.
+          - m.index === 0 || isWhitespaceAt(ctx.text, m.index - 1)
+          # ASCII by code: only "a"-"z" are lowercase letters there.
+          - 'code < 128 ? code >= 97 && code <= 122 : isLowercaseLetter(ctx.text[letterIndex] ?? "")'
+          # Only a sentence start or a line start gives a finding: test it before the word tests.
+          - sentence || lineBreakBefore(ctx.text, m.index) !== null
+          - "!isTechnicalToken(bare) && !keepsOwnCasing(bare)"
+          # "a = 2 · x² + 5": a variable before a relation or operator.
+          - '!(bare.length === 1 && /^[ \t]*[=<>≤≥≠+−·×÷]/u.test(ctx.text.slice(m.index + 1)))'
+          - upper !== letter
+        return: "sentence ? capitalizeSentenceStart(ctx, word) : capitalizeAfterLineBreak(ctx, word)"
   - id: pronounI
     checks: [englishPronounICapitalization]
     style: match
     message: review_msg_pronoun_i
+    defs:
+      # Words after which a lowercase "i" names something ("the variable i"): an identifier.
+      IDENTIFIER_BEFORE: /\b(?:each|every|the|a|index|variable|counter|iterator|loop)\s+$/i
+      # A preposition, an operator word or a symbol before "i" makes it a variable: "from 1 to
+      # i", "the square of i", "base + i", "let i be". The pronoun is never the object here.
+      FORMULA_BEFORE: >-
+        /(?:\b(?:of|by|to|from|let|plus|minus|equals|for all)|[+×*=<>÷^−]|(?:^|[^\p{L}])\p{L},[ \t\u00A0]+(?:and|or))[ \t\u00A0]+$/iu
+      PRONOUN_VERB_AFTER: >-
+        /^[ \t\u00a0]+(?:can|could|will|would|shall|should|may|might|must|am|was|have|had|do|did|don['’]t|didn['’]t|can['’]t|think|know|want|need|guess|hope|feel|mean|said|got|went|love|like)(?![\p{L}])/iu
+      # After "i": "i times R", "i squared", "i and j", or a list "i x, ii y".
+      FORMULA_AFTER: >-
+        /^[ \t\u00A0]+(?:times|squared|and[ \t\u00A0]+[jkn])(?![\p{L}\p{N}])|^[ \t\u00A0]+\p{L}+,[ \t\u00A0]+ii(?![\p{L}\p{N}])/iu
+      # Words naming a numbered part: "Part i.", "Appendix i." is the roman numeral.
+      NUMERAL_BEFORE: >-
+        /\b(?:part|chapter|section|appendix|volume|vol|book|act|phase|step|stage|level|type|class|article|annex|item|figure|fig|table|option|case|grade|war|page|no)\s+$/i
     frames:
       # "Hawai‘i": a letter and a left quote mark before it make it part of a word (the okina).
       - regex: "(?<![\\p{L}\\p{N}_'’]|\\p{L}‘)(?<target>i)(?![\\p{L}\\p{N}_])"
         scan: owned
         flags: gu
-        fixer: pronounI
+        let:
+          start: m.index
+          before: ctx.text[start - 1] ?? ""
+          near: ctx.text.slice(Math.max(0, start - 24), start)
+          rest: ctx.text.slice(start + 1, start + 1 + 40)
+          contraction: /^['’](?:m|ve|ll|d)(?![\p{L}\p{N}])/u.test(rest)
+          mark: "!contraction && /^[,;!?]/.test(rest)"
+          period: '!contraction && !mark && /^\.(?:\s|$)/u.test(rest)'
+          other: "!contraction && !mark && !period"
+          next: 'other ? /^[ \t\u00A0]+(\S+)/.exec(rest) : null'
+          following: 'next ? next[1].replace(TRAILING_PUNCTUATION_REGEX, "") : ""'
+          contextEnd: >-
+            start +
+            1 +
+            (contraction ? /^['’]\w+/.exec(rest)![0].length : mark || period ? 1 : next ? next[0].length : 0)
+          # "increment i." can still be a variable: one at a time.
+          sentenceEnd: period || (other && !next)
+        when:
+          - '!/[@#/\\.=$\-[]/.test(before) && before !== MASK_CHAR'
+          - "!IDENTIFIER_BEFORE.test(near)"
+          # "If we need to i can meet": a modal or verb after it makes it the subject again.
+          - "!(FORMULA_BEFORE.test(near) && !PRONOUN_VERB_AFTER.test(rest))"
+          - "!FORMULA_AFTER.test(rest)"
+          # The letter itself: "the short i sound" ("i sound tired" is the pronoun).
+          - >-
+            !(/\b(?:short|long)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 8), start)) &&
+              /^[ \t\u00A0]+sounds?\b/i.test(rest))
+          # "(i think)" is the pronoun; "(i)", "(i, ii)" and "f(i)" are not.
+          - 'contraction || !(before === "(" && !/^[ \t\u00a0]/.test(rest))'
+          # Unlike typing, what follows the period is here: not "i.e.", so "than i." ends a
+          # sentence. A roman numeral opening a list line or naming a part is not, nor is a
+          # spaced-out "i. e.".
+          - '!period || !/^\.\s+e\./i.test(rest)'
+          - '!period || ctx.text.slice(ctx.text.lastIndexOf("\n", start - 1) + 1, start).trim() !== ""'
+          - "!period || !NUMERAL_BEFORE.test(near)"
+          # Whitespace alone does not say pronoun or variable; the next word does. "stronger than
+          # i" closing the text is the pronoun.
+          - >-
+            !other ||
+            next !== null ||
+            (/^\s*$/.test(rest) && /\b(?:than|and|as)[ \t\u00A0]+$/i.test(ctx.text.slice(Math.max(0, start - 12), start)))
+          # Unlike typing, the next word is complete here: "i don't" is the pronoun too.
+          - >-
+            !next ||
+            (/^\p{L}+(?:['’]\p{L}+)?$/u.test(following) && !NON_PRONOUN_FOLLOWERS.has(following.toLowerCase()))
+        # The word before decided it as well as the one after.
+        return: >-
+          finding("englishPronounICapitalization", "review_msg_pronoun_i", start, start + 1, ["I"], {
+            context: { start: previousTokensStart(ctx.text, start, 1), end: contextEnd },
+            bulkBlock: sentenceEnd ? "context-dependent" : undefined,
+          })
   # The English word lists, for each ASCII word. One frame for each check, so that each check
   # can run alone.
   - id: spellingWords
@@ -10540,13 +10945,161 @@ rules:
     lang: en
     style: match
     message: review_msg_typo
+    defs:
+      NO_WORDS: new Set<string>()
+      # False when no check of spellingFindings can find `word`, in any context. Each check is
+      # run in the context that lets the most words through: no user dictionary, no text
+      # before, and a bare verb after. The text before and after only rejects words in these
+      # checks.
+      couldBeSpellingFinding: >-
+        memoize(
+          (word) =>
+            correctWhitelistedTypo(word, NO_WORDS) !== null ||
+            word === "IM" ||
+            normalizeContractionToken(word, "") !== null ||
+            normalizeContractionInContext(word, "", " be") !== null ||
+            ALOT_REGEX.test(word),
+          4096,
+        )
+      # German "im" (in dem) inside English text: "Heil dir im Siegerkranz", "lebt im Schloss".
+      # Before a capitalized noun, after a German word or before German noun spelling.
+      GERMAN_BEFORE_IM: >-
+        /(?:^|[^\p{L}])(?:dir|mir|dich|mich|sich|uns|euch|ihm|ist|sind|waren|wir|ich|und|oder|nur|auch|noch|schon|sie|er|liegt|steht|lebt|wohnt|bin|bist|haben|wird|werden|nicht|dann|hier|heute|jetzt|gestern|alles|das|der)[ \t\u00a0]+$/iu
+      germanIm:
+        args: "word: string, before: string, after: string"
+        let:
+          noun: '/^[ \t\u00a0]+(\p{Lu}\p{Ll}+)/u.exec(after)?.[1]'
+        when:
+          - word === "im"
+          - "!!noun"
+        return: >-
+          GERMAN_BEFORE_IM.test(before) ||
+          /[äöüß]|sch|(?:ung|heit|keit|schaft|chen|lein|tum|nis|ismus)$/iu.test(noun)
+        else: "false"
+      # Words after which "im"/"ive" is a noun or tag, not "I'm"/"I've".
+      DETERMINER_BEFORE: /\b(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|each|every|no)\s+$/i
+      # The spelling finding of one ASCII word: at most one. "--dont-ask", "dont-care",
+      # "alot-lib": a hyphen after the word makes it part of a longer name, and typing never
+      # reaches a word boundary there. A double hyphen is a dash ("I dont--really--care"): like
+      # a space. Typing still corrects the end of "x-teh" or "--dont", so review flags it, but
+      # only one at a time: a compound or an option name may be deliberate.
+      spellingFindings:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding[]
+        let:
+          start: m.index
+          end: m.index + m[0].length
+          glued: 'ctx.text[start - 1] === "-" ? ("ambiguous" as const) : undefined'
+          word: ctx.text.slice(start, end)
+          typo: correctWhitelistedTypo(word, ctx.dictionary)
+        when:
+          # These word lists are English.
+          - ctx.lang === "en_US"
+          # Most words are in no list: one cached answer for each word.
+          - couldBeSpellingFinding(m[0])
+          # Letters glued to other word characters are part of a longer token ("teh2").
+          - "!isWordCharAt(ctx.text, start - 1) && !isWordCharAt(ctx.text, end)"
+          - "!isGluedToTechnical(ctx.text, start, end)"
+          - '!(ctx.text[end] === "-" && ctx.text[end + 1] !== "-")'
+        return: >-
+          typo
+            ? [
+                {
+                  ruleId: "englishTypoWhitelistCorrection",
+                  messageKey: "review_msg_typo",
+                  range: { start, end },
+                  alternatives: [typo],
+                  dictionaryWord: word,
+                  bulkBlock: glued,
+                },
+              ]
+            : contractionFindings(ctx, word, start, end, glued)
+        else: "[]"
+      # "IM" is an acronym, except before a predicate: "IM not sure", "IM curious". "the im
+      # tag", "an ive file": after a determiner it is a word, not "I'm". "by Ive Mažuran":
+      # mid-sentence, a capitalized "Ive"/"Im" before a capitalized word is a name. The name
+      # guard reads the previous word on the line; "im"/"ive" can still be a tag, an
+      # abbreviation or a name: one at a time.
+      contractionFindings:
+        args: >-
+          ctx: DetectContext, word: string, start: number, end: number, glued: "ambiguous" | undefined
+        type: RawFinding[]
+        let:
+          before: ctx.text.slice(Math.max(0, start - 96), start)
+          shoutedIm: >-
+            word === "IM" &&
+            ctx.text.slice(start, end + 24) !== ctx.text.slice(start, end + 24).toUpperCase() &&
+            /(?:^|[.!?:;"“\n]|\b(?:and|but|although|because|that|if|think))[ \t]*$/i.test(before) &&
+            /^[ \t]+(?:not|very|really|sure|glad|sorry|happy|curious|trying|afraid|interested|tired|busy|ready|late|looking|thinking|still|just)\b/.test(
+              ctx.text.slice(end, end + 24))
+          contraction: >-
+            ctx.dictionary.has(word.toLowerCase()) ? null : shoutedIm ? "I'm" : normalizeContractionToken(word, before)
+          pronounForm: /^i(?:m|ve)$/i.test(word)
+          name: >-
+            pronounForm &&
+            /^I[a-z]/.test(word) &&
+            !/(?:^|[.!?:;"“\n])[ \t]*$/.test(before) &&
+            /^[ \t]+\p{Lu}\p{Ll}/u.test(ctx.text.slice(end, end + 4))
+        return: >-
+          contraction &&
+          !name &&
+          !(pronounForm && DETERMINER_BEFORE.test(before)) &&
+          !germanIm(word, before, ctx.text.slice(end, end + 40))
+            ? [
+                {
+                  ruleId: "englishContractionNormalization",
+                  messageKey: "review_msg_contraction",
+                  range: { start, end },
+                  alternatives: [contraction],
+                  context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
+                  bulkBlock: pronounForm ? "ambiguous" : glued,
+                },
+              ]
+            : contextFindings(ctx, word, start, end, before, glued)
+      # Unlike typing, the next word is here: "i cant go" is "can't", "the cant" is not.
+      contextFindings:
+        args: >-
+          ctx: DetectContext, word: string, start: number, end: number, before: string,
+          glued: "ambiguous" | undefined
+        type: RawFinding[]
+        let:
+          after: ctx.text.slice(end, end + 40)
+          inContext: >-
+            ctx.dictionary.has(word.toLowerCase()) ? null : normalizeContractionInContext(word, before, after)
+        return: >-
+          inContext
+            ? [
+                {
+                  ruleId: "englishContractionNormalization",
+                  messageKey: "review_msg_contraction",
+                  range: { start, end },
+                  alternatives: [inContext],
+                  context: {
+                    start: previousTokensStart(ctx.text, start, 1),
+                    end: end + (/^[ \t]+\p{L}+(?:[ \t]+\p{L}+)?/u.exec(after)?.[0].length ?? 0),
+                  },
+                  bulkBlock: "context-dependent",
+                },
+              ]
+            : ALOT_REGEX.test(word) && !ctx.dictionary.has("alot")
+              ? [
+                  {
+                    ruleId: "englishAlotCorrection",
+                    messageKey: "review_msg_alot",
+                    range: { start, end },
+                    alternatives: [correctAlot(word)],
+                    dictionaryWord: word,
+                    bulkBlock: glued,
+                  },
+                ]
+              : []
     frames:
       # Each word; one scan gives the findings of all three checks.
       - regex: "(?<target>[A-Za-z]+)"
         scan: owned
         flags: g
         anyCheck: true
-        fixer: spellingWord
+        return: spellingFindings(m, ctx)
   - id: spelling
     checks: [englishTypoWhitelistCorrection, englishContractionNormalization, englishAlotCorrection]
     style: match
@@ -10906,6 +11459,17 @@ rules:
     checks: [englishModalOfCorrection]
     style: match
     message: review_msg_modal_of
+    defs:
+      # A quick test of the word [start, end) of `text`, for each phrase pattern: true when the
+      # pattern can match a window that ends at `end`. It reads only what the pattern must find
+      # at the word or before it, so a false result skips the window and the regex
+      # (tests/grammar/ReviewPhraseLastWord.test.ts). "... of <word>": whitespace before the
+      # word, and "of" before the whitespace.
+      modalOfLastWord:
+        args: "text: string, start: number"
+        let:
+          e: tokenEndBefore(text, start)
+        return: e >= 2 && lowerCodeAt(text, e - 1) === 0x66 && lowerCodeAt(text, e - 2) === 0x6f
     frames:
       # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
       # runs the typing rule's end-anchored pattern on the tokens that end at the word.
@@ -10916,11 +11480,34 @@ rules:
         lookahead: 96
         # A finding starts in the chunk. Its first words gate the frame.
         gate: "(?:could|would|should|must|might)(?:n['’]t)?\\s+of"
-        fixer: modalOf
+        let:
+          hit: phraseMatch(ctx, m, MODAL_OF_REGEX, 3, modalOfLastWord)
+          modal: groupRange(hit.match, 1)
+          ofStart: skipForwardWhile(ctx.text, modal.end, /\s/)
+        when:
+          - "!!hit"
+          - "!OF_IDIOMS.has(hit.match[2].toLowerCase())"
+          - "!isNounMight(hit.match[1], ctx.text.slice(Math.max(0, hit.start - 24), hit.start))"
+          - 'ctx.text.slice(ofStart, ofStart + 2).toLowerCase() === "of"'
+        return: >-
+          ({
+            ruleId: "englishModalOfCorrection",
+            messageKey: "review_msg_modal_of",
+            range: { start: hit.start, end: ofStart + 2 },
+            alternatives: [
+              `${ctx.source.slice(hit.start, ofStart)}${modalHaveWord(hit.match[1], ctx.text.slice(ofStart, ofStart + 2))}`,
+            ],
+            context: { start: hit.start, end: hit.end },
+          })
   - id: yourWelcome
     checks: [englishYourWelcomeCorrection]
     style: match
     message: review_msg_your_welcome
+    defs:
+      # The word is "welcome".
+      yourWelcomeLastWord:
+        args: "text: string, start: number, end: number"
+        return: end - start === 7 && text.slice(start, end).toLowerCase() === "welcome"
     frames:
       # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
       # runs the typing rule's end-anchored pattern on the tokens that end at the word.
@@ -10931,11 +11518,41 @@ rules:
         lookahead: 96
         # A finding starts in the chunk. Its first words gate the frame.
         gate: "your\\s+welcome"
-        fixer: yourWelcome
+        let:
+          hit: phraseMatch(ctx, m, YOUR_WELCOME_REGEX, 2, yourWelcomeLastWord)
+          phrase: hit.match[0]
+          firstToken: phrase.split(/\s+/)[0]
+          fixed: correctYourWelcome(firstToken)
+          gap: phrase.slice(firstToken.length, phrase.length - "welcome".length)
+        when:
+          - "!!hit"
+          # "Your welcome email" is possessive: only the sentence-final phrase counts. The end of
+          # the whole text ends the sentence too; nothing is appended.
+          - 'hit.end >= ctx.text.length || /^[.!?\r\n]/.test(ctx.text[hit.end])'
+          # "Thank you all for your welcome." is possessive too: the reply opens its clause.
+          - opensClause(ctx.text, hit.start)
+        return: >-
+          ({
+            ruleId: "englishYourWelcomeCorrection",
+            messageKey: "review_msg_your_welcome",
+            range: { start: hit.start, end: hit.end },
+            alternatives: [`${fixed[0]}${gap}${fixed[1]}`],
+            context: {
+              start: Math.max(0, lastNonBlankBefore(ctx.text, hit.start)),
+              end: Math.min(ctx.text.length, hit.end + 1),
+            },
+          })
   - id: theirThere
     checks: [englishTheirThereBeVerb]
     style: match
     message: review_msg_their_there
+    sets:
+      THEIR_THERE_VERBS: [is, are, was, were]
+    defs:
+      # The word is "is", "are", "was" or "were".
+      theirThereLastWord:
+        args: "text: string, start: number, end: number"
+        return: end - start <= 4 && THEIR_THERE_VERBS.has(text.slice(start, end).toLowerCase())
     frames:
       # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
       # runs the typing rule's end-anchored pattern on the tokens that end at the word.
@@ -10946,7 +11563,17 @@ rules:
         lookahead: 96
         # A finding starts in the chunk. Its first words gate the frame.
         gate: "their\\s+(?:is|are|was|were)"
-        fixer: theirThere
+        let:
+          hit: phraseMatch(ctx, m, THEIR_THERE_BE_REGEX, 2, theirThereLastWord)
+          phrase: hit.match[0]
+          their: phrase.split(/\s+/)[0]
+          fixed: correctTheirBeVerb(their, hit.match[1])
+          gap: phrase.slice(their.length, phrase.length - hit.match[1].length)
+        when: "!!hit"
+        return: >-
+          finding("englishTheirThereBeVerb", "review_msg_their_there", hit.start, hit.end, [
+            `${fixed[0]}${gap}${fixed[1]}`,
+          ])
   # Additional finished-text coverage under the existing agreement identity.
   - id: pronounVerbFrames
     checks: [englishPronounVerbWhitelistAgreement]
@@ -11147,6 +11774,43 @@ rules:
     checks: [englishPronounVerbWhitelistAgreement]
     style: match
     message: review_msg_pronoun_verb
+    sets:
+      # Subordinators after which "you" opens a clause as its subject: "if you was".
+      YOU_SUBJECT_BEFORE:
+        [
+          if,
+          when,
+          whenever,
+          because,
+          while,
+          although,
+          though,
+          unless,
+          whether,
+          since,
+          until,
+          once,
+          where,
+          wherever,
+          that,
+        ]
+    defs:
+      # "is|has|was|are <token>": the token ends at the word end; "is", "as" or "re" before it.
+      pronounVerbLastWord:
+        args: "text: string, _start: number, end: number"
+        let:
+          e: tokenEndBefore(text, tokenStartBefore(text, end))
+          last: lowerCodeAt(text, e - 1)
+          previous: lowerCodeAt(text, e - 2)
+        when: e >= 2
+        return: "last === 0x73 ? previous === 0x69 || previous === 0x61 : last === 0x65 && previous === 0x72"
+        else: "false"
+      # A preposition or an -ing verb before "it": "it" is an object ("Behind it are …").
+      OBJECT_IT_BEFORE: >-
+        /(?:\b(?:behind|beside|besides|below|beneath|under|underneath|above|over|around|within|inside|outside|against|among|beyond|near|with|without|on|in|at|from|to|for|of|by|about)|\b[a-z]{2,}ing)[ \t\u00a0]+$/i
+      # "the day I called you was", "the time that we saw you was": a noun, a subject and a verb.
+      OBJECT_GAP_YOU: >-
+        /\b([a-z]+)[ \t\u00a0]+(?:that[ \t\u00a0]+)?(?:I|we|they|he|she)[ \t\u00a0]+(?:(?:did|had|have|first|last|never)[ \t\u00a0]+)?[a-z]+[ \t\u00a0]+$/
     frames:
       # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
       # runs the typing rule's end-anchored pattern on the tokens that end at the word.
@@ -11157,7 +11821,60 @@ rules:
         lookahead: 96
         # A finding starts in the chunk. Its first words gate the frame.
         gate: "(?:i\\s+is|i\\s+has|you\\s+was|(?:he|she|it)\\s+are)"
-        fixer: pronounVerb
+        let:
+          hit: phraseMatch(ctx, m, AGREEMENT_REGEX, 3, pronounVerbLastWord)
+          phrase: hit.match[1]
+          corrected: AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "))
+          fixed: correctPronounVerb(phrase, corrected)
+          typed: phrase.split(/\s+/)
+          phraseRange: groupRange(hit.match, 1)
+          lookback: ctx.text.slice(Math.max(0, phraseRange.start - 48), phraseRange.start)
+          you: typed[0].toLowerCase() === "you"
+          previous: >-
+            PREVIOUS_WORD.exec(ctx.text.slice(Math.max(0, phraseRange.start - 32), phraseRange.start))?.[1].toLowerCase()
+          before: ctx.text.slice(Math.max(0, phraseRange.start - 12), phraseRange.start)
+          gap: phrase.slice(typed[0].length, phrase.length - typed[1].length)
+        when:
+          - "!!hit"
+          - "!!corrected"
+          # A lowercase "i" before "is" is usually a variable ("if i is None"); the pronoun rule
+          # leaves it alone for the same reason. "i has" is too after a condition or determiner
+          # ("while i has items", "the i has").
+          - >-
+            typed[0] !== "i" ||
+            (!NON_PRONOUN_FOLLOWERS.has(typed[1].toLowerCase()) && !isVariableI(ctx.text, phraseRange.start))
+          # "Behind it are two towers", "Backing it are banks": "it" is the object of the word
+          # before.
+          - '!(typed[0].toLowerCase() === "it" && OBJECT_IT_BEFORE.test(lookback))'
+          # "the set I is", "an I is", "phase I is": a capital letter that names a thing.
+          - '!(typed[0] === "I" && /\b(?:a|an|the|set|ideal|matrix|phase|stage|type|part)[ \t\u00a0]+$/i.test(lookback))'
+          # "Everything I told you was", "Seeing you was", "the gift for you was": "you" is the
+          # object of the word before it, and "was" is right. "The day I called you was": "you"
+          # is the object inside a relative clause.
+          - "!you || !isObjectYou(ctx.text, phraseRange.start)"
+          - "!you || !(OBJECT_GAP_YOU.test(lookback) && englishWordInfo(OBJECT_GAP_YOU.exec(lookback)![1])?.noun)"
+          # "Sam and I is a band", "you as well as he are", "am I nuts": a coordinated or compared
+          # pronoun, or an inverted question, is not this verb's whole subject. "and you was
+          # right" still opens a clause.
+          - >-
+            !(/\b(?:as|than|am|is|are|was|were)[ \t\u00a0]+$/i.test(before) ||
+              (!you && /(?:\b(?:and|or|nor)|&)[ \t\u00a0]+$/i.test(before)))
+        # Only a clause start says subject for sure ("You was late.", "if you was there");
+        # anywhere else ("I heard you was sick") the word before may still take "you" as its
+        # object: one at a time. The pronoun "i" is always capitalized; the case rule would flag
+        # it anyway. The word before the pronoun decided it.
+        return: >-
+          ({
+            ruleId: "englishPronounVerbWhitelistAgreement",
+            messageKey: "review_msg_pronoun_verb",
+            range: phraseRange,
+            alternatives: [`${fixed[0] === "i" ? "I" : fixed[0]}${gap}${fixed[1]}`],
+            context: { start: previousTokensStart(ctx.text, phraseRange.start, 1), end: hit.end },
+            bulkBlock:
+              you && !opensClause(ctx.text, phraseRange.start) && !YOU_SUBJECT_BEFORE.has(previous ?? "")
+                ? "context-dependent"
+                : undefined,
+          })
   # Audited noun heads and predicates; no suffix or collective-number inference.
   - id: subjectAgreement
     checks: [englishSubjectVerbAgreement]
@@ -11564,6 +12281,16 @@ rules:
     checks: [englishArticleAnCorrection]
     style: match
     message: review_msg_article
+    defs:
+      # "a|an|A|An <word>": whitespace before the word, and "a", "A", "an" or "An" before it.
+      articleAnLastWord:
+        args: "text: string, start: number"
+        let:
+          e: tokenEndBefore(text, start)
+          last: text[e - 1]
+        when: e >= 1
+        return: 'last === "a" || last === "A" || (last === "n" && e >= 2 && (text[e - 2] === "a" || text[e - 2] === "A"))'
+        else: "false"
     frames:
       # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
       # runs the typing rule's end-anchored pattern on the tokens that end at the word.
@@ -11572,16 +12299,83 @@ rules:
         flags: g
         lookback: 96
         lookahead: 96
-        fixer: articleAn
+        let:
+          hit: phraseMatch(ctx, m, ARTICLE_REGEX, 2, articleAnLastWord)
+          article: hit.match[1]
+          word: hit.match[2]
+          # First the cheap word test: most articles are correct. All tests here are pure.
+          corrected: correctArticle(article, word, ctx.dictionary)
+          lineStart: lastIndexInChunk(ctx, "\n", hit.start - 1) + 1
+          sliceStart: Math.max(lineStart, hit.start - 400)
+          # A cut-off slice must not look like a line start to the sentence-start test.
+          beforeArticle: '`${sliceStart > lineStart ? "x " : ""}${ctx.text.slice(sliceStart, hit.start)}`'
+          articleRange: groupRange(hit.match, 1)
+        when:
+          - "!!hit"
+          # "a an apple": a doubled article; the determiner clash drops one instead.
+          - "!/^(?:an?|the)$/i.test(word)"
+          - "!!corrected"
+          - 'article[0] !== "A" || SENTENCE_START_REGEX.test(beforeArticle)'
+          - isArticleContext(beforeArticle)
+        return: >-
+          ({
+            ruleId: "englishArticleAnCorrection",
+            messageKey: "review_msg_article",
+            range: { start: articleRange.start, end: hit.end },
+            alternatives: [`${corrected}${ctx.source.slice(articleRange.end, hit.end)}`],
+            context: { start: Math.max(0, hit.start - 24), end: hit.end },
+          })
   - id: ordinal
     checks: [englishOrdinalSuffix]
     style: match
     message: review_msg_ordinal
+    defs:
+      # True when the word before or after [start, end) on its line is written in capitals
+      # ("THE 3RD ROUND").
+      isAllCapsContext:
+        args: "text: string, start: number, end: number"
+        let:
+          before: '/(\p{L}+)[^\p{L}\n]*$/u.exec(text.slice(Math.max(0, start - 24), start))?.[1]'
+          after: '/^[^\p{L}\n]*(\p{L}+)/u.exec(text.slice(end, end + 24))?.[1]'
+        return: "[before, after].some((word) => !!word && word.length > 1 && word === word.toUpperCase())"
     frames:
       - regex: "(?<=^|[\\s([])(?<target>\\d+)(st|nd|rd|th)(?![\\p{L}\\p{N}])"
         scan: owned
         flags: giu
-        fixer: ordinal
+        let:
+          start: m.index
+          end: m.index + m[0].length
+          digits: m[1]
+          suffix: m[2]
+          expected: ordinalSuffix(digits)
+        when: suffix !== expected && !isGluedToTechnical(ctx.text, start, end)
+        # "2ND" is "2nd" in a sentence; "42RD" (road) and all-caps headings are not. "rd" is also
+        # rod ("a 16rd chain"). "st" is also stone: only a named month disambiguates this new
+        # coverage.
+        return: >-
+          suffix !== suffix.toLowerCase()
+            ? suffix.toLowerCase() !== expected ||
+              isAllCapsContext(ctx.text, start, end) ||
+              overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
+              ? null
+              : {
+                  ruleId: "englishOrdinalSuffix",
+                  messageKey: "review_msg_ordinal_case",
+                  context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
+                  range: { start, end },
+                  alternatives: [`${digits}${expected}`],
+                  bulkBlock: "context-dependent",
+                }
+            : suffix === "rd" ||
+                (suffix === "st" &&
+                  !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
+                    ctx.text.slice(Math.max(0, start - 24), start),
+                  )) ||
+                overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
+              ? null
+              : finding("englishOrdinalSuffix", "review_msg_ordinal", start, end, [`${digits}${expected}`], {
+                  context: { start: Math.max(0, start - 24), end },
+                })
   - id: properNouns
     checks: [englishProperNounCapitalization]
     lang: en
@@ -11596,6 +12390,10 @@ rules:
             other.range.start <= f.range.start &&
             other.range.end >= f.range.end &&
             other.range.end - other.range.start > f.range.end - f.range.start))
+    defs:
+      # couldEndProperName reads the text before a word only for a day or a year, which starts
+      # with a digit. For other words the answer depends on the word only: it is cached.
+      couldEndNameWord: memoize((word) => couldEndProperName(word, ""), 4096)
     frames:
       # Word ends, digits included: "may 15" is decided at the end of "15". A name may
       # start up to 32 characters before the chunk and end 32 characters after it.
@@ -11604,7 +12402,45 @@ rules:
         flags: gu
         lookback: 32
         lookahead: 32
-        fixer: properNoun
+        # A proper name that ends at the word of the scan ("christmas", "new york", "in may,").
+        let:
+          wordEnd: m.index + m[0].length
+          code: m[0].charCodeAt(0)
+          windowStart: Math.max(0, wordEnd - 160)
+          core: ctx.text.slice(windowStart, wordEnd)
+          # Unlike typing, the words after it are here too: "in may," is the month.
+          name: >-
+            findProperName(core) ??
+            (isMonthInContext(
+              m[0],
+              ctx.text.slice(Math.max(0, m.index - 48), m.index),
+              ctx.text.slice(wordEnd, wordEnd + 24),
+            )
+              ? {
+                  start: core.length - m[0].length,
+                  end: core.length,
+                  canonical: m[0][0].toUpperCase() + m[0].slice(1),
+                  contextual: true,
+                }
+              : null)
+          start: windowStart + name.start
+          end: windowStart + name.end
+          replaced: properNameReplacement(ctx.text.slice(start, end), name.canonical, ctx.dictionary)
+        when:
+          - ctx.lang === "en_US"
+          - >-
+            code >= 48 && code <= 57
+              ? couldEndProperName(m[0], ctx.text.slice(Math.max(0, m.index - 12), m.index))
+              : couldEndNameWord(m[0])
+          - "!!name"
+          - ownedByChunk(ctx, start) && !isGluedToTechnical(ctx.text, start, wordEnd)
+          - replaced !== null
+        # may/march/august needed a date or a clause end next to them; that is evidence.
+        return: >-
+          finding("englishProperNounCapitalization", "review_msg_proper_noun", start, end, [replaced], {
+            context: name.contextual ? { start: Math.max(0, start - 16), end: wordEnd + 16 } : undefined,
+            bulkBlock: name.contextual ? "context-dependent" : undefined,
+          })
   - id: properNouns.de
     checks: [englishProperNounCapitalization]
     lang: de
@@ -11637,51 +12473,151 @@ rules:
     checks: [commaPeriodSpacing]
     style: match
     message: review_msg_space_before_comma
+    defs:
+      # Spaces and a lowercase word (after an optional opening mark) on the same line. Scripts
+      # without case (Arabic) have no capital to start a sentence with: any letter counts.
+      STANDALONE_MARK_FOLLOWER: /^[ \t\u00A0]+["'“‘«„([¿¡]?[\p{Ll}\p{Lo}]/u
     frames:
       # Space before a comma: "word , next".
       # "،" and "؛" are the Arabic comma and semicolon.
       - regex: "(?<=[\\p{L}\\p{N})\\]\"”’])(?<target>[ \\u00A0]+)(?=[,،؛](?![,،؛]))"
         scan: owned
         flags: gu
-        fixer: spaceBeforeComma
+        let:
+          end: m.index + m[0].length
+          mark: ctx.source[end]
+          # "word ,next": the space belongs after the comma.
+          moveSpace: ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3))
+        # Newer language extensions stay individual-only.
+        return: >-
+          ({
+            ruleId: "commaPeriodSpacing",
+            messageKey: mark === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
+            range: { start: m.index, end: end + 1 },
+            alternatives: [moveSpace ? `${mark} ` : mark],
+            context: { start: m.index - 1, end: end + (moveSpace ? 2 : 1) },
+            bulkBlock: mark === "؛" ? "context-dependent" : undefined,
+          })
       # Space before a sentence mark followed by whitespace or the end: "Hello . Next".
       # Greek writes its question mark as ";" (or U+037E); Arabic as "؟".
       - regex: "(?<=[\\p{L}\\p{N})\\]}\"”’»])[ \\u00A0]+(?<target>[.?!;\\u037E؟])(?=\\s|$)"
         scan: owned
         flags: gu
-        fixer: spaceBeforeMark
+        let:
+          end: m.index + m[0].length
+        when:
+          - m[1] === "." || !usesFrenchPunctuationSpacing(ctx.lang)
+          - "!/[;\\u037E]/.test(m[1]) || isGreekQuestionMark(m[1], ctx.lang)"
+          # "press . to repeat", "type ? for help": before a lowercase word, a named mark is a
+          # symbol, not a sentence end.
+          - "!(STANDALONE_MARK_FOLLOWER.test(ctx.text.slice(end, end + 8)) && namesMark(ctx.text, end - 1))"
+        return: >-
+          finding("commaPeriodSpacing", "review_msg_space_before_mark", m.index, end, [m[1]], {
+            context: { start: m.index - 1, end },
+            bulkBlock: /[.?!]/.test(m[1]) ? undefined : "context-dependent",
+          })
       # Spanish opening marks hug their sentence: "¿ Qué?" is "¿Qué?".
       - regex: "(?<=(?:^|[\\s([“\"«])[¿¡]+)(?<target>[ \\u00A0]+)(?=\\p{L})"
         scan: owned
         flags: gu
-        fixer: spaceAfterOpeningMark
+        return: >-
+          ({
+            ruleId: "commaPeriodSpacing",
+            messageKey: "review_msg_space_after_opening_mark",
+            range: { start: m.index - 1, end: m.index + m[0].length },
+            alternatives: [ctx.source[m.index - 1]],
+            context: { start: m.index - 1, end: m.index + m[0].length + 1 },
+            bulkBlock: "context-dependent",
+          })
       # A fullwidth "，" or ideographic "、" comma between words of an alphabetic
       # script ("red，green") is an input-method slip; CJK text keeps its own.
       - regex: "(?<=^|{{ALPHABETIC}})(?<target>[ \\u00A0]*[，、][ \\u00A0]*)(?={{ALPHABETIC}}|\\s|$)"
         scan: owned
         flags: gu
-        fixer: wideComma
+        let:
+          end: m.index + m[0].length
+          wordFollows: end < ctx.text.length && !/\s/.test(ctx.text[end])
+        return: >-
+          ({
+            ruleId: "commaPeriodSpacing",
+            messageKey: "review_msg_wide_comma",
+            range: { start: m.index, end },
+            alternatives: [wordFollows ? ", " : ","],
+            context: { start: m.index - 1, end: end + 1 },
+          })
       # "20%CPU" is "20% CPU". URL escapes ("%C3%A9", "%20Hello") have a letter or "%" before
       # the digits, and a token with code marks ("cpu=20%idle") is left alone.
       - regex: "(?<![\\p{L}\\p{N}_.,%])(?<target>\\p{Nd}+(?:[.,]\\p{Nd}+)?%)(?=\\p{L}{2,}(?![\\p{L}\\p{N}_]))"
         scan: owned
         flags: gu
-        fixer: spaceAfterPercent
+        let:
+          sign: m.index + m[0].length - 1
+          tokenStart: tokenStartBefore(ctx.text, m.index)
+          tokenEnd: ctx.text.slice(sign).search(/\s|$/) + sign
+        when: '!/[\uFFFC@#/\\_=:;<>{}[\]$&+]/u.test(ctx.text.slice(tokenStart, tokenEnd))'
+        return: >-
+          ({
+            ruleId: "commaPeriodSpacing",
+            messageKey: "review_msg_space_after_mark",
+            range: { start: sign, end: sign + 1 },
+            alternatives: ["% "],
+            context: { start: tokenStart, end: tokenEnd },
+          })
       # Missing space after a comma between words: "one,two". Only between words
       # of two or more letters, never in a comma-separated token ("a,b", "x,y,z").
       - regex: "(?<=\\p{L}{2})(?<target>[,،])(?=\\p{L}{2})"
         scan: owned
         flags: gu
-        fixer: spaceAfterComma
+        let:
+          tokenStart: tokenStartBefore(ctx.text, m.index)
+          tokenEnd: tokenEndAfter(ctx.text, m.index)
+          token: ctx.text.slice(tokenStart, tokenEnd)
+        when:
+          - ctx.insertSpaceAfterAutocomplete
+          - '!((token.match(/[,،]/g)?.length ?? 0) > 1 || /[\uFFFC@#/\\_=.:;]/u.test(token))'
+        return: >-
+          ({
+            ruleId: "commaPeriodSpacing",
+            messageKey: "review_msg_space_after_comma",
+            range: { start: m.index, end: m.index + 1 },
+            alternatives: [`${ctx.source[m.index]} `],
+            context: { start: tokenStart, end: tokenEnd },
+          })
   - id: repeatedSpaces
     checks: [collapseRepeatedSpaces]
     style: match
     message: review_msg_repeated_spaces
+    defs:
+      # The aligned lines of each chunk, by line start: each line is read once.
+      ALIGNED: new WeakMap<DetectContext, Map<number, boolean>>()
+      # Several wide gaps on one line are alignment (a plain-text table), not typos; so is the
+      # padding of a Markdown table row ("| a  | b |").
+      alignedLine:
+        args: "text: string, lineStart: number, at: number"
+        let:
+          lineBreak: text.indexOf("\n", at)
+          line: "text.slice(lineStart, lineBreak < 0 ? text.length : lineBreak)"
+          gaps: line.match(/(?<=\S)[ \u00A0]{2,}(?=\S)/gu)
+          trimmed: line.trim()
+        return: >-
+          (gaps?.length ?? 0) > 1 || (trimmed.length > 1 && trimmed.startsWith("|") && trimmed.endsWith("|"))
+      # alignedLine, read once per line start and chunk: a long line is measured once, not once
+      # per gap.
+      alignedInChunk:
+        args: "ctx: DetectContext, lineStart: number, at: number"
+        let:
+          lines: ALIGNED.get(ctx) ?? ALIGNED.set(ctx, new Map<number, boolean>()).get(ctx)!
+        return: lines.get(lineStart) ?? lines.set(lineStart, alignedLine(ctx.text, lineStart, at)).get(lineStart)!
     frames:
       - regex: "(?<=[^\\s])(?<target>[ \\u00A0]{2,})(?=[^\\s])"
         scan: owned
         flags: gu
-        fixer: repeatedSpaces
+        # Keep the first space: a no-break space placed on purpose stays.
+        when: "!alignedInChunk(ctx, lastIndexInChunk(ctx, \"\\n\", m.index) + 1, m.index)"
+        return: >-
+          finding("collapseRepeatedSpaces", "review_msg_repeated_spaces", m.index, m.index + m[0].length, [
+            ctx.source[m.index],
+          ])
   - id: duplicatePunctuation
     checks: [duplicatePunctuationCollapse]
     style: match
@@ -11691,26 +12627,71 @@ rules:
       - regex: "(?<target>[,;،؛])(?:[ \\u00A0]*\\1)+"
         scan: owned
         flags: gu
-        fixer: doubledMarks
+        let:
+          start: m.index
+          end: m.index + m[0].length
+          # Polish typists write ",," for the opening „ when a word and a closing quote follow.
+          polishQuote: >-
+            isLang(ctx, "pl") &&
+            m[0] === ",," &&
+            /^$|\s$/u.test(ctx.text.slice(Math.max(0, start - 1), start)) &&
+            /^[\p{L}\p{N}][^\n„]{0,200}?[\p{L}\p{N}.!?…](?:”|"|''|’’)/u.test(ctx.text.slice(end, end + 210))
+        when: "!isGluedToTechnical(ctx.text, start, start)"
+        return: >-
+          finding("duplicatePunctuationCollapse", "review_msg_duplicate_punctuation", start, end, [
+            polishQuote ? "„" : m[1],
+          ])
       # "word.." (never "..." or "../"): a doubled period or a short ellipsis that trails off.
       # Before a lowercase word the sentence goes on, so only the ellipsis fits; elsewhere
       # the writer chooses. Arabic writes ".." as a short ellipsis ("وهذا ما دعاني إلى..").
       - regex: "(?<=(?![\\p{Script=Arabic}])[\\p{L}\\p{N})\\]\"”’])(?<target>\\.\\.)(?=\\s|$)"
         scan: owned
         flags: gu
-        fixer: doubledPeriods
+        # German "am 30.11.." ends a sentence on a date: its own dot, then the period. Before a
+        # lowercase word the sentence goes on: only the ellipsis fits.
+        when: '!(isLang(ctx, "de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))'
+        return: >-
+          /^\s+\p{Ll}/u.test(ctx.text.slice(m.index + 2, m.index + 12))
+            ? {
+                ruleId: "duplicatePunctuationCollapse",
+                messageKey: "review_msg_ellipsis_length",
+                range: { start: m.index, end: m.index + 2 },
+                alternatives: ["..."],
+              }
+            : {
+                ruleId: "duplicatePunctuationCollapse",
+                messageKey: "review_msg_duplicate_punctuation",
+                range: { start: m.index, end: m.index + 2 },
+                alternatives: [".", "..."],
+                requiresChoice: true,
+              }
       # A line of two dots alone is a short ellipsis or a stray period.
       - regex: "(?<=^|\\n)(?<target>\\.\\.)(?=[ \\t]*(?:\\r?\\n|$))"
         scan: owned
         flags: gu
-        fixer: twoDotLine
+        return: >-
+          ({
+            ruleId: "duplicatePunctuationCollapse",
+            messageKey: "review_msg_ellipsis_length",
+            range: { start: m.index, end: m.index + 2 },
+            alternatives: ["...", "."],
+            requiresChoice: true,
+          })
       # An ellipsis has three dots: "So..... anyway". Digits
       # or a path around the run ("1....5", "..../"), dot leaders (10+) and a year still unknown
       # ("(1957-....)") are not one.
       - regex: "(?<![.\\p{N}-])(?<target>\\.{4,9})(?![.\\p{N}/\\\\])"
         scan: owned
         flags: gu
-        fixer: longEllipsis
+        # Four dots can be a sentence period plus an ellipsis: one at a time.
+        return: >-
+          ({
+            ruleId: "duplicatePunctuationCollapse",
+            messageKey: "review_msg_ellipsis_length",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: ["..."],
+            bulkBlock: m[0].length === 4 ? "context-dependent" : undefined,
+          })
   # "..." typed for an ellipsis.
   - id: ellipsis
     checks: [ellipsisShortcut]
@@ -11731,7 +12712,43 @@ rules:
       - regex: "(?<target>(?<=[\\p{L}\\p{N}])[\"“”„«»]|(?<=[.,!?])[”“»])(?=[\\p{L}\\p{N}])"
         scan: owned
         flags: gu
-        fixer: quoteSpacing
+        # A double quotation mark glued to words on both sides ('the "fast"way'): a space is
+        # missing outside it. The language's own opening and closing marks say which side; a
+        # straight or same-glyph mark (sv ”) is decided by how many marks the paragraph opened
+        # before it, and the other side is offered too. Inches and seconds ('5"x7"') are left
+        # alone; 'We"ll', 'Tom"s' is a contraction that the apostrophe check corrects.
+        let:
+          pair: resolveTypographyProfile(ctx.lang).double
+          directional: pair[0] !== pair[1]
+          marks: 'directional ? `"${pair[0]}${pair[1]}` : `"${pair[0]}`'
+          start: m.index
+          mark: m[0]
+          straight: '!directional || mark === ''"'''
+          spaceBefore: "` ${ctx.source[start]}`"
+          spaceAfter: "`${ctx.source[start]} `"
+          paragraphStart: "straight ? lastIndexInChunk(ctx, \"\\n\\n\", start) : -1"
+          opened: >-
+            ctx.text.slice(paragraphStart < 0 ? 0 : paragraphStart + 2, start).split(mark).length % 2 === 0
+        when:
+          # The frame finds the marks of every language: keep those of this one.
+          - >-
+            (/[\p{L}\p{N}]/u.test(ctx.scanText[start - 1] ?? "") && marks.includes(mark)) ||
+            (directional && mark === pair[1] && /[.,!?]/.test(ctx.scanText[start - 1] ?? ""))
+          - "!(straight && /\\p{N}/u.test(ctx.text[start - 1]))"
+          - '!(straight && ctx.lang.startsWith("en") && quotedContraction(ctx.text, start))'
+        return: >-
+          finding(
+            "quoteSpacing",
+            "review_msg_quote_spacing",
+            start,
+            start + 1,
+            straight
+              ? opened
+                ? [spaceAfter, spaceBefore]
+                : [spaceBefore, spaceAfter]
+              : [mark === pair[0] ? spaceBefore : spaceAfter],
+            { context: { start: Math.max(0, start - 1), end: start + 2 } },
+          )
   - id: primeSymbols
     checks: [primeSymbols]
     style: match
@@ -11742,12 +12759,26 @@ rules:
       - regex: "(?<=(?<![\\p{L}\\p{N}.,])\\d+[ \\u00a0]?)(?<target>['’‘′])([ \\u00a0]?\\d+(?:[.,]\\d+)?[ \\u00a0]?)([\"”“″])(?!\\p{N})"
         scan: owned
         flags: gu
-        fixer: primePair
+        # Optional typography: prime marks for feet, inches, minutes and seconds typed as quotes.
+        let:
+          end: m.index + m[0].length
+        when: '!(m[1] === "′" && m[3] === "″")'
+        return: >-
+          ({
+            ruleId: "primeSymbols",
+            messageKey: "review_msg_prime_symbols",
+            range: { start: m.index, end },
+            alternatives: [`′${ctx.source.slice(m.index + 1, end - 1)}″`],
+            context: { start: Math.max(0, m.index - 8), end: Math.min(ctx.text.length, end + 1) },
+          })
       # Degrees then minutes with no seconds after them ("48°51'N").
       - regex: "(?<=\\d°[ \\u00a0]?\\d+[ \\u00a0]?)(?<target>['’‘])(?![ \\u00a0]?\\d|\\p{L}{2})"
         scan: owned
         flags: gu
-        fixer: degreeMinute
+        return: >-
+          finding("primeSymbols", "review_msg_prime_symbols", m.index, m.index + 1, ["′"], {
+            context: { start: Math.max(0, m.index - 8), end: Math.min(ctx.text.length, m.index + 2) },
+          })
   - id: typedDashes
     checks: [emdashShortcut]
     style: match
@@ -11756,11 +12787,134 @@ rules:
       - regex: "(?<![-<!])(?<target>-{2,3})(?![->])"
         scan: owned
         flags: gu
-        fixer: typedDashes
+        # Optional typography: "--" and "---" typed for a dash. "---" is an em dash; "--" is an
+        # en dash between numbers ("10--20") and otherwise either dash, English preferring the em
+        # dash and the other languages the spaced en dash. Line-leading runs (rules, list
+        # markers, SQL comments, signatures), command options ("--force") and HTML comments are
+        # no dashes.
+        let:
+          end: m.index + m[0].length
+          before: ctx.text[m.index - 1] ?? ""
+          after: ctx.text[end] ?? ""
+        when:
+          - 'ctx.text.slice(ctx.text.lastIndexOf("\n", m.index - 1) + 1, m.index).trim() !== ""'
+          - '!(/\s/.test(before) && /[\p{L}\p{N}]/u.test(after))'
+        return: >-
+          finding(
+            "emdashShortcut",
+            "review_msg_typed_dash",
+            m.index,
+            end,
+            m[0].length === 3
+              ? ["—"]
+              : /\p{N}/u.test(before) && /\p{N}/u.test(after)
+                ? ["–"]
+                : isLang(ctx, "en")
+                  ? ["—", "–"]
+                  : ["–", "—"],
+            { context: { start: Math.max(0, m.index - 1), end: Math.min(ctx.text.length, end + 1) } },
+          )
   - id: measurement
     checks: [measurementUnitFormatting]
     style: match
     message: review_msg_measurement_spacing
+    maps:
+      # Units typed in the wrong case where the lowercase symbol is the only reading: "10KG",
+      # "25Km". "MB" (megabyte, not millibar) and "MS" (not ms) stay out: their case carries
+      # meaning.
+      UNIT_CASE: { KG: kg, Kg: kg, KM: km, Km: km }
+    defs:
+      # The measurement of the prose before a token: the currency symbols for currencySpacing,
+      # else the units (and the miscased units of UNIT_CASE).
+      unitParse:
+        args: "ruleId: string, value: string, locale: MeasurementLocalePolicy"
+        return: >-
+          ruleId === "currencySpacing"
+            ? parseMeasurementExpression(value, locale, (text, start) => CURRENCY_MARKERS.has(text.slice(start)))
+            : (parseMeasurementExpression(value, locale) ??
+              parseMeasurementExpression(value, locale, (text, start) => Object.hasOwn(UNIT_CASE, text.slice(start))))
+      # A prose list retains the evidence before its first measurement. Every preceding item
+      # must itself parse; identifiers and arithmetic still abstain. An item may be already
+      # spaced ("10 kg, 25km"), so accepting one finding keeps the rest.
+      proseListPrefix:
+        args: "ruleId: string, prose: string, locale: MeasurementLocalePolicy"
+        type: string
+        let:
+          item: '/(?:^|[ \t])(?:(?<n>[^\s]+)[ \t\u00a0\u202f])?(?<last>[^\s]+),[ \t]+$/du.exec(prose)'
+          cut: >-
+            !item
+              ? -1
+              : unitParse(ruleId, item.groups!.last, locale)?.start === 0
+                ? item.indices!.groups!.last[0]
+                : item.groups!.n && unitParse(ruleId, item.groups!.n + item.groups!.last, locale)?.start === 0
+                  ? item.indices!.groups!.n[0]
+                  : -1
+        when: "!isProsePrefix(prose)"
+        return: "cut < 0 ? prose : proseListPrefix(ruleId, prose.slice(0, cut), locale)"
+        else: prose
+      # A unit glued to its number ("10kg", "5$") in one token of the scan. The frame's check
+      # picks the units (measurementUnitFormatting) or the currency symbols (currencySpacing).
+      # The scan starts one character before the chunk: a token cut by the chunk start is read
+      # from its own start, and the scan goes back to it. Only a unit glued to its number is a
+      # finding; plain numbers skip the window parse, which dominates number-heavy text.
+      # Brazilian usage writes clock times and durations glued: "às 10h", "20min", and a new car
+      # is "0km"; French writes "14h" and "14h30" as often as "14 h", so hours stay as typed
+      # there. "100m users" counts millions; "Type 42s" and "the 1990s" are plurals, not
+      # seconds. "LOSE 10KG NOW": shouted text keeps its capitals.
+      unitToken:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef"
+        type: RawFinding | null
+        let:
+          cut: "m.index < ctx.from ? skipBackWhile(ctx.text, ctx.from, /[^\\s\\uFFFC]/u) : 0"
+          ruleId: frame.ruleId
+          units: ruleId === "measurementUnitFormatting"
+          locale: resolveMeasurementLocale(ctx.lang)
+          bare: m[0].replace(/[.,;:!?)\]]+$/u, "")
+          tokenEnd: m.index + bare.length
+          windowStart: Math.max(0, tokenEnd - 160)
+          prefix: ctx.text.slice(windowStart, tokenEnd)
+          parsed: unitParse(ruleId, prefix, locale)
+          unit: prefix.slice(parsed.numberEnd)
+          prose: proseListPrefix(ruleId, prefix.slice(0, parsed.start), locale)
+          start: windowStart + parsed.start
+          numberEnd: windowStart + parsed.numberEnd
+          lowercase: "Object.hasOwn(UNIT_CASE, unit) ? UNIT_CASE[unit] : undefined"
+        when:
+          - "!(m.index < ctx.from && m.index > cut && resumeScan(frame, cut))"
+          - '/\p{Nd}[^\p{Nd}\s.,]/u.test(m[0])'
+          - "!!locale"
+          - "!!parsed"
+          - "!(units && /^([A-Z]|[dg])$/.test(unit))"
+          - >-
+            !(units &&
+              ((ctx.lang === "pt_BR" &&
+                (/^(?:h|min)$/.test(unit) || (unit === "km" && prefix.slice(parsed.start, parsed.numberEnd) === "0"))) ||
+                (ctx.lang === "fr_FR" && unit === "h")))
+          - >-
+            !(units &&
+              ((unit === "m" && /^[ \t]+(?:[a-z]{2,}s|[A-Z]{2,}s)\b/.test(ctx.text.slice(tokenEnd))) ||
+                (unit === "s" && /\b\p{Lu}[\p{L}-]*[ \t]+$/u.test(prefix.slice(0, parsed.start)))))
+          - isProsePrefix(prose)
+          - ownedByChunk(ctx, start)
+          - >-
+            !(lowercase &&
+              (/\p{Lu}{2}[ \t]+$/u.test(ctx.text.slice(Math.max(0, start - 24), start)) ||
+                /^[ \t]+\p{Lu}{2}/u.test(ctx.text.slice(tokenEnd, tokenEnd + 24))))
+        return: >-
+          ({
+            ruleId,
+            messageKey:
+              ruleId === "currencySpacing"
+                ? "review_msg_currency_spacing"
+                : lowercase
+                  ? "review_msg_measurement_unit_case"
+                  : "review_msg_measurement_spacing",
+            range: { start, end: tokenEnd },
+            alternatives: [
+              `${ctx.source.slice(start, numberEnd)}${locale.separator}${lowercase ?? ctx.source.slice(numberEnd, tokenEnd)}`,
+            ],
+            context: { start: windowStart, end: tokenEnd },
+          })
     frames:
       # Tokens, then a digit test in the fixer: a "[^\s]*\d[^\s]*" pattern backtracks on long
       # tokens. The scan starts one character before the chunk: the fixer goes back to the
@@ -11770,12 +12924,22 @@ rules:
         flags: gu
         lookback: 1
         lookahead: 64
-        fixer: unitToken
+        return: unitToken(m, ctx, frame)
       # "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign.
       - regex: "(?<=^|[\\p{N}\\s(])°K(?![\\p{L}\\p{N}_])"
         scan: owned
         flags: gu
-        fixer: kelvinDegree
+        # "300°K" is "300 K": the kelvin is an absolute unit and takes no degree sign.
+        let:
+          separator: resolveMeasurementLocale(ctx.lang)?.separator ?? " "
+        return: >-
+          ({
+            ruleId: "measurementUnitFormatting",
+            messageKey: "review_msg_kelvin_degree",
+            range: { start: m.index, end: m.index + 2 },
+            alternatives: [/\p{N}/u.test(ctx.text[m.index - 1]) ? `${separator}K` : "K"],
+            context: { start: Math.max(0, m.index - 1), end: m.index + 2 },
+          })
   # German puts a space between a number and its byte unit: "5kB" → "5 kB". The shared check
   # does units and "€" (also "2.000kWh"), and "B" alone may be a bel. An angle takes no space
   # before its degree sign, and a temperature names its scale: "25 °" → "25°" or "25 °C"
@@ -11785,17 +12949,58 @@ rules:
     lang: de
     style: match
     message: review_msg_measurement_spacing
+    defs:
+      GERMAN_BYTES: /^(?:[kKMGT]B|[KMGT]iB)$/
+      # A finding of a German unit frame: the match, outside a named example.
+      germanUnitFinding:
+        args: >-
+          ctx: DetectContext, m: RegExpExecArray, alternatives: string[],
+          key: RawFinding["messageKey"]
+        type: RawFinding | null
+        let:
+          end: m.index + m[0].length
+        when: m.index >= ctx.from && m.index < ctx.to && !namedExampleBefore(ctx.text, m.index)
+        return: >-
+          ({
+            ruleId: key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
+            messageKey: key,
+            range: { start: m.index, end },
+            alternatives,
+            requiresChoice: alternatives.length > 1 || undefined,
+            context: { start: Math.max(0, m.index - 30), end: end + 30 },
+          })
+      # "75.000$" -> "75.000 $", "5kB" -> "5 kB". The frame's check picks the currency or the
+      # bytes. "$x = 5$": math or a shell line.
+      germanGluedUnit:
+        args: "m: RegExpExecArray, ctx: DetectContext, frame: FrameRef"
+        let:
+          n: m.groups!.n
+          unit: m.groups!.unit
+          line: ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index + 200)
+          currency: unit === "$" || unit === "£"
+        when:
+          - '!(unit === "$" && line.split("$").length > 2)'
+          - currency || GERMAN_BYTES.test(unit)
+          - '(currency ? "currencySpacing" : "measurementUnitFormatting") === frame.ruleId'
+        return: >-
+          germanUnitFinding(
+            ctx,
+            m,
+            [`${n}\u00a0${unit}`],
+            currency ? "review_msg_currency_spacing" : "review_msg_measurement_spacing",
+          )
     frames:
       - regex: "{{DE_GLUED_UNIT}}"
         scan: owned
         flags: gu
         lookback: 16
-        fixer: de:gluedUnit
+        return: germanGluedUnit(m, ctx, frame)
       - regex: "(?<![\\p{L}\\p{N}.,])(?<n>[-−]?\\d+(?:,\\d+)?)[ \\u00a0]°(?![CFK\\p{L}\\p{N}]|[ \\t\\u00a0]+(?:Celsius|Fahrenheit|Kelvin))"
         scan: owned
         flags: gu
         lookback: 16
-        fixer: de:spacedDegree
+        # "25 °" -> "25°" (an angle) or "25 °C" (a temperature).
+        return: germanUnitFinding(ctx, m, [`${n}°`, `${n} °C`], "review_msg_measurement_spacing")
   # English places the symbols in the currencyPlacement frame.
   - id: currency
     checks: [currencySpacing]
@@ -11808,7 +13013,7 @@ rules:
         flags: gu
         lookback: 1
         lookahead: 64
-        fixer: unitToken
+        return: unitToken(m, ctx, frame)
   # German puts a space between a number and its currency: "75.000$" → "75.000 $". The shared
   # check does "€", but not "$" and "£" after the number.
   - id: currency.de
@@ -11821,7 +13026,7 @@ rules:
         scan: owned
         flags: gu
         lookback: 16
-        fixer: de:gluedUnit
+        return: germanGluedUnit(m, ctx, frame)
   # English writes "$", "£" and "¥" before the amount and "¢" after it: "25$" is "$25".
   - id: currencyPlacement
     checks: [currencySpacing]
@@ -11832,7 +13037,25 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}$£¥¢.,_])(?:(?<target>\\d[\\d,]*(?:\\.\\d+)?)(st|nd|rd|th)?[ \\u00a0]*([$£¥])|¢(\\d+))(?![\\p{L}\\p{N}$£¥¢_])"
         scan: owned
         flags: gu
-        fixer: currencyPlacement
+        # A line with "$" before a name is math or a shell ("$x = 5$", "$HOME"). "my 20th$" is
+        # "my $20th".
+        let:
+          end: m.index + m[0].length
+          lineStart: ctx.text.lastIndexOf("\n", m.index) + 1
+          lineBreak: ctx.text.indexOf("\n", end)
+          lineEnd: "lineBreak < 0 ? ctx.text.length : lineBreak"
+        when:
+          - ctx.lang === "en_US"
+          - '!(m[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd)))'
+        return: >-
+          ({
+            ruleId: "currencySpacing",
+            messageKey: "review_msg_currency_placement",
+            range: { start: m.index, end },
+            alternatives: [m[4] ? `${m[4]}¢` : `${m[3]}${m[1]}${m[2] ?? ""}`],
+            context: { start: lineStart, end: lineEnd },
+            bulkBlock: "context-dependent",
+          })
   # Date and tense agreement runs after every language's own rules (stage 1). One rule for each
   # language: one frame per date shape, the preposition, the date (`date`), an optional suffix
   # ("12 marca 2028 r.", "… 2028 roku") and no letter or digit after it. The month names come
