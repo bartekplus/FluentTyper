@@ -40,9 +40,6 @@ import type {
  * prove the generated modules are current. Every problem is collected and thrown at once.
  */
 
-export { parseRows };
-export type { PhraseRow };
-
 /** The order of rule files: shared rules first, then one file per language. */
 export const RULE_FILES = [
   "common",
@@ -141,6 +138,18 @@ const FRAME_KEYS = new Set([
   "lang",
 ]);
 const SCANS = new Set(["frame", "owned", "text", "polish"]);
+const FILE_KEYS = new Set<keyof RuleFile>([
+  "lang",
+  "checks",
+  "exclusive",
+  "rules",
+  "phrases",
+  "tables",
+  "fragments",
+  "sets",
+  "maps",
+  "defs",
+]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
   S: SPACE,
   E: WORD_END,
@@ -372,8 +381,13 @@ export function compileRuleFiles(
   const phraseTableKinds: Record<string, string[]> = {};
 
   for (const [name, file] of files) {
-    for (const check of file.checks ?? []) {
-      const where = `${name}.yaml check ${check.id}`;
+    for (const key of Object.keys(file))
+      if (!FILE_KEYS.has(key as keyof RuleFile))
+        errors.push(`${name}.yaml: unknown field "${key}"`);
+    for (const spec of file.checks ?? []) {
+      const where = `${name}.yaml check ${spec.id}`;
+      if (!Array.isArray(spec.modes)) errors.push(`${where}: "modes" lists no mode`);
+      const check = { ...spec, modes: spec.modes ?? [] };
       for (const key of Object.keys(check))
         if (!CHECK_KEYS.has(key as keyof CheckSpec))
           errors.push(`${where}: unknown field "${key}"`);
@@ -507,7 +521,10 @@ export function compileRuleFiles(
       if (!RULE_KEYS.has(key as keyof RuleSpec)) errors.push(`${where}: unknown field "${key}"`);
     if (ruleIds.has(spec.id)) errors.push(`${where}: duplicate rule id`);
     ruleIds.add(spec.id);
-    if (!spec.checks?.length) errors.push(`${where}: "checks" names no check`);
+    if (!spec.checks?.length) {
+      errors.push(`${where}: "checks" names no check`);
+      continue;
+    }
     for (const id of spec.checks ?? [])
       if (!checks.has(id)) errors.push(`${where}: unknown check "${id}"`);
     const check = checks.get(spec.checks?.[0]);

@@ -6,7 +6,6 @@ import { parseArgs } from "node:util";
 import { LOCAL_AI_DOWNLOAD_ORIGINS } from "./src/core/domain/localAi/modelRegistry";
 import { REVIEW_LANGS as REVIEW_UI_LANGUAGES } from "./src/core/domain/grammar/review/reviewLocale";
 import type { explanationTable } from "./src/core/domain/grammar/review/reviewExplanations";
-import { mergedReviewData } from "./src/core/domain/grammar/review/reviewLanguageSources";
 import { REVIEW_DATA_LANGUAGES } from "./src/core/domain/grammar/review/reviewLanguageData";
 import {
   APP_BUNDLES,
@@ -14,7 +13,6 @@ import {
   LOCAL_AI_ORT_DIR,
   LOCAL_AI_ORT_FILES,
 } from "./scripts/check-local-ai-artifact";
-import { writeGrammarRuleModules } from "./scripts/grammarRules";
 
 type BuildMode = "production" | "development";
 
@@ -157,6 +155,9 @@ async function writeExplanationFiles(
  * contains any of it.
  */
 async function writeReviewDataFiles(context: BuildContext, background: string): Promise<void> {
+  // A dynamic import: the data comes from the modules that bundleExtension compiled first.
+  const { mergedReviewData } =
+    await import("./src/core/domain/grammar/review/reviewLanguageSources");
   const directory = path.join(context.buildDir, "review-data");
   await mkdir(directory, { recursive: true });
   for (const lang of REVIEW_DATA_LANGUAGES) {
@@ -289,9 +290,13 @@ async function assertReviewDetectionIsolation(
 }
 
 async function bundleExtension(context: BuildContext): Promise<void> {
-  // AOT: grammar/rules/*.yaml -> grammar/engine/*.generated.ts, before anything imports them.
-  for (const file of await writeGrammarRuleModules())
-    console.log(`Compiled grammar rules: ${path.relative(ROOT_DIR, file)}`);
+  // AOT: grammar/rules/*.yaml -> the generated grammar modules, before anything imports them.
+  const compile = Bun.spawnSync([process.execPath, "scripts/compile-grammar-rules.ts"], {
+    cwd: ROOT_DIR,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if (compile.exitCode !== 0) throw new Error("bun run compile:grammar failed");
   await rm(context.buildDir, { recursive: true, force: true });
   await mkdir(context.buildDir, { recursive: true });
 
@@ -364,18 +369,21 @@ function waitForAnyFileChange(paths: string[]): Promise<void> {
 async function runWatchMode(context: BuildContext): Promise<void> {
   console.log(`[watch] mode=${context.mode} platform=${context.platform} waiting for changes...`);
   const watchRoots = [SRC_DIR, PUBLIC_DIR, platformDir(context)];
+  // Each rebuild is a new process: this one keeps the modules it loaded (Review data, explanations).
+  const rebuild = [
+    process.execPath,
+    "build.ts",
+    ...process.argv.slice(2).filter((arg) => arg !== "--watch"),
+  ];
   while (true) {
     await waitForAnyFileChange(watchRoots);
-    const startedAt = Date.now();
     console.log("[watch] change detected, rebuilding...");
-    try {
-      await bundleExtension(context);
-      const durationMs = Date.now() - startedAt;
-      console.log(`[watch] rebuild complete in ${durationMs}ms`);
-    } catch (error) {
-      // Bun.build throws an AggregateError: print it whole to show the file and line.
-      console.error("[watch] rebuild failed:", error);
-    }
+    const { exitCode } = Bun.spawnSync(rebuild, {
+      cwd: ROOT_DIR,
+      stdout: "inherit",
+      stderr: "inherit",
+    });
+    if (exitCode !== 0) console.error("[watch] rebuild failed");
   }
 }
 

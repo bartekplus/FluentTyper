@@ -12,7 +12,20 @@ import {
 import { JSDOM } from "jsdom";
 import { simulateNativeEdit } from "./nativeEditingTestUtils";
 import { restoreReviewDay } from "./reviewTestClock";
-import { loadAllReviewData } from "../src/core/domain/grammar/review/reviewLanguageSources";
+
+// A test run without bun run test (an IDE, one file) compiles the rule files here: the test files
+// import the generated modules. Once per process: the hash check reads all the inputs.
+if (!process.env.FT_GRAMMAR_COMPILED) {
+  const compile = Bun.spawnSync([process.execPath, "scripts/compile-grammar-rules.ts"], {
+    cwd: `${import.meta.dir}/..`,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if (compile.exitCode !== 0) throw new Error("bun run compile:grammar failed");
+  process.env.FT_GRAMMAR_COMPILED = "1";
+}
+const { loadAllReviewData } =
+  await import("../src/core/domain/grammar/review/reviewLanguageSources");
 
 const dom = new JSDOM("<!doctype html><html><body></body></html>", {
   pretendToBeVisual: true,
