@@ -34,6 +34,8 @@ export {
   englishNounForms,
   hasCountPrefix,
 } from "../implementations/helpers/EnglishNounNumber";
-export { englishWordInfo } from "../implementations/helpers/EnglishLexicon";
+export { englishWordInfo, hasVerbForm } from "../implementations/helpers/EnglishLexicon";
 export { atClauseStart } from "./common/text";
 export { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
+export { isUniquePast, pluralNoun } from "./common/english";
+export { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";

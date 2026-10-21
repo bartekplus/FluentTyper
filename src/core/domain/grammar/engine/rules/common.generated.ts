@@ -18,6 +18,7 @@ import {
   atClauseStart,
   caseLike,
   detectWordCase,
+  englishInitialSound,
   englishNounForms,
   englishVerbForms,
   englishWordInfo,
@@ -26,14 +27,17 @@ import {
   group,
   hasCountPrefix,
   hasUserOrCasedWord,
+  hasVerbForm,
   invalidIsoDate,
   isLang,
+  isUniquePast,
   matchTrailingEnglishPhrase,
   namedExampleBefore,
   nextLowerWord,
   normalizeWordSet,
   ownedMatches,
   phraseRows,
+  pluralNoun,
   quotedSpan,
   replaceFrom,
   withTextApostrophes,
@@ -148,6 +152,38 @@ export const MASS_SINGULAR: Readonly<Record<string, string>> = {
   informations: "information",
   advices: "advice",
   equipments: "equipment",
+};
+
+export const SUBJECT_FORM: Readonly<Record<string, string>> = {
+  me: "I",
+  i: "I",
+  him: "he",
+  her: "she",
+  them: "they",
+  myself: "I",
+};
+
+export const PLURAL_VERB: Readonly<Record<string, string>> = {
+  am: "are",
+  is: "are",
+  was: "were",
+  has: "have",
+  does: "do",
+};
+
+export const OBJECT_FORM: Readonly<Record<string, string>> = {
+  i: "me",
+  he: "him",
+  she: "her",
+  we: "us",
+  they: "them",
+};
+
+export const INVERSION_CONTRACTED: Readonly<Record<string, string>> = {
+  re: "are",
+  ve: "have",
+  m: "am",
+  ll: "will",
 };
 
 export const SPLIT_DE: Readonly<Record<string, string>> = {
@@ -340,6 +376,14 @@ export function opensSubjectClause(ctx: DetectContext, index: number) {
     opensMainClause(ctx, index) ||
     CLAUSE_CUE_BEFORE.test(ctx.text.slice(Math.max(0, index - 96), index))
   );
+}
+
+// common.yaml def tightAround
+export function tightAround(ctx: DetectContext, m: RegExpExecArray) {
+  return {
+    start: Math.max(0, m.index - 32),
+    end: Math.min(ctx.text.length, m.index + m[0].length + 16),
+  };
 }
 
 // common.yaml def isoDateWarning
@@ -658,6 +702,212 @@ export function massNoun(m: RegExpExecArray, ctx: DetectContext): RawFinding | n
     alternatives: [corrected],
     context,
   };
+}
+
+// common.yaml rule pronounCase def finiteVerbForm
+export function finiteVerbForm(word: string) {
+  return (
+    /^(?:(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)(?:n['’]t)?|won['’]t|cannot|[a-z]{2,}ed)$/i.test(
+      word,
+    ) || isUniquePast(word)
+  );
+}
+
+// common.yaml rule pronounCase def subjectForm
+export function subjectForm(word: string) {
+  return SUBJECT_FORM[word.toLowerCase()] ?? word;
+}
+
+// common.yaml rule pronounCase def isFirstPerson
+export function isFirstPerson(word: string) {
+  return /^(?:me|i|myself)$/i.test(word);
+}
+
+// common.yaml rule pronounCase def objectForm
+export function objectForm(word: string) {
+  return applyWordCase(OBJECT_FORM[word.toLowerCase()] ?? word, detectWordCase(word));
+}
+
+// common.yaml rule pronounCase def PREPOSITION_BEFORE
+export const PREPOSITION_BEFORE =
+  /\b(?<prep>to|with|for|from|by|of|about|on|upon|in|into|at|among|between|against|without|under|over|through|toward|towards|behind|beside|before|after|like|than|around|near|beyond|via|unto|onto|within|regarding|concerning)[ \t ]+$/i;
+
+// common.yaml rule pronounCase def OF_NOUN
+export const OF_NOUN =
+  /(?:^|[^,;:(–—\s])[ \t ]*(?:the|a|an)[ \t ]{1,8}(?<noun>[a-z]+)[ \t ]{1,8}of[ \t ]+$/iu;
+
+// common.yaml rule pronounCase def PARTITIVE
+export const PARTITIVE =
+  /^(?:rest|majority|minority|remainder|bulk|most|half|number|total|whole|balance|sum|lot|couple|pair|group|handful|dozen|hundred|thousand|million|percent|portion|part|share|first|last|second|third|quarter|fraction|set|series|range|none|each|any|one|two|three|four|five|six|seven|eight|nine|ten)$/i;
+
+// common.yaml rule pronounCase def verbAfterAuxiliary
+export function verbAfterAuxiliary(aux: string, word: string): boolean {
+  if (!(word === word.toLowerCase())) return false;
+  const readings = englishWordInfo(word)?.verbs ?? [];
+  const base = readings.some((verb) => verb.form === "base");
+  return (
+    /^(?:be|been|being)$/.test(word) ||
+    (word.endsWith("ing")
+      ? readings.some((verb) => verb.form === "ing")
+      : (/^[a-z]{2,}ed$/.test(word) && !englishWordInfo(word)) ||
+        (!base && readings.some((verb) => verb.form === "participle")
+          ? !englishVerbForms(word)?.ambiguous.includes(word)
+          : base && /^(?:will|would|can|could|shall|should|may|might|must)$/i.test(aux)))
+  );
+}
+
+// common.yaml rule pronounCase def whomFiniteVerb
+export function whomFiniteVerb(word: string, ever: boolean, next: string): boolean {
+  if (!(word === word.toLowerCase())) return false;
+  const readings = englishWordInfo(word)?.verbs ?? [];
+  const forms = englishVerbForms(word);
+  const past =
+    (readings.some((verb) => verb.form === "past") &&
+      !readings.some((verb) => verb.form === "base") &&
+      !forms?.ambiguous.includes(word)) ||
+    (/^[a-z]{2,}ed$/.test(word) && !englishWordInfo(word));
+  return past || !ever
+    ? past
+    : readings.some((verb) => verb.form === "third") && !baseVerbNotNoun(next);
+}
+
+// common.yaml rule pronounCase def baseVerbNotNoun
+export function baseVerbNotNoun(word: string) {
+  const info = englishWordInfo(word);
+  return !!info?.verbs.some((verb) => verb.form === "base") && !info.noun;
+}
+
+// common.yaml rule pronounCase def caseObjectFinding
+export function caseObjectFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  range: readonly number[],
+  fix: string,
+  subject: boolean,
+): RawFinding | null {
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  return {
+    ruleId: "englishPronounCase",
+    messageKey: subject ? "review_msg_pronoun_subject_case" : "review_msg_pronoun_object_case",
+    range: { start: range[0], end: range[1] },
+    alternatives: [fix],
+    context: {
+      start: Math.max(0, range[0] - 32),
+      end: Math.min(ctx.text.length, m.index + m[0].length + 16),
+    },
+  };
+}
+
+// common.yaml rule pronounCase def casePairFinding
+export function casePairFinding(ctx: DetectContext, m: RegExpExecArray, a: string) {
+  const aSpan = group(m, "a");
+  const iSpan = group(m, "i");
+  const first = Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? objectForm(a) : a;
+  return caseObjectFinding(
+    ctx,
+    m,
+    [aSpan[0], iSpan[1]],
+    `${first}${ctx.source.slice(aSpan[1], iSpan[0])}${m[0] === m[0].toUpperCase() ? "ME" : "me"}`,
+    false,
+  );
+}
+
+// common.yaml rule pronounCase def OBJECT_NEXT
+export const OBJECT_NEXT =
+  /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)$/;
+
+// common.yaml rule pronounCase def CASE_OBJECT_PREPOSITION_WORD
+export const CASE_OBJECT_PREPOSITION_WORD =
+  /^(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)$/;
+
+// common.yaml rule sentenceStructure def wordEndsBefore
+export function wordEndsBefore(ctx: DetectContext, index: number, words: string) {
+  return new RegExp(`(?:^|[^\\p{L}\\p{N}_'’-])${words}[ \\t\\u00a0]{1,8}$`, "iu").test(
+    ctx.text.slice(Math.max(0, index - 40), index),
+  );
+}
+
+// common.yaml rule sentenceStructure def STRUCTURE_PREPOSITIONS
+export const STRUCTURE_PREPOSITIONS =
+  "(?:to|with|for|from|about|at|by|of|on|in|into|onto|upon|without|against|among|between|toward|towards|behind|beside|near|around|via)";
+
+// common.yaml rule sentenceStructure def META_NOUN
+export const META_NOUN =
+  /^(?:keyword|pronoun|word|determiner|possessive|variable|declaration|operator)$/i;
+
+// common.yaml rule sentenceStructure def NOT_PREDICATE
+export const NOT_PREDICATE = /^(?:just|likely|often|soon|together|alone|only|still|even|sure)$/;
+
+// common.yaml rule sentenceStructure def NOT_A_SUBJECT
+export const NOT_A_SUBJECT =
+  /^(?:the|a|an|my|your|his|her|our|their|its|good|ill|free|own|last|when|where|what|why|how|who|which|whose|whom)$/i;
+
+// common.yaml rule sentenceStructure def INVERSION_SUBJECTS
+export const INVERSION_SUBJECTS =
+  /^(?:i|you|he|she|it|we|they|everyone|everybody|others|nobody|someone|somebody|all|many|most)$/;
+
+// common.yaml rule sentenceStructure def INVERSION_AUX
+export const INVERSION_AUX =
+  /^(?:am|is|are|was|were|has|have|had|can|could|will|would|should|must|may|might|shall|do|does|did)$/i;
+
+// common.yaml rule sentenceStructure def INVERSION_SUBJECT_OF
+export const INVERSION_SUBJECT_OF = {
+  s: /^(?:he|she|it)$/i,
+  re: /^(?:you|we|they)$/i,
+  ve: /^(?:I|you|we|they)$/i,
+  m: /^I$/,
+  ll: /./,
+} as Readonly<Record<string, RegExp>>;
+
+// common.yaml rule sentenceStructure def doSupport
+export function doSupport(subject: string, verb: string, rest: string): [string, string] | null {
+  if (!(verb === verb.toLowerCase())) return null;
+  const verbs = englishWordInfo(verb)?.verbs ?? [];
+  const third = [...new Set(verbs.filter((r) => r.form === "third").map((r) => r.lemma))];
+  const past = [...new Set(verbs.filter((r) => r.form === "past").map((r) => r.lemma))];
+  const base = [...new Set(verbs.filter((r) => r.form === "base").map((r) => r.lemma))];
+  const singular = /^(?:he|she|it)$/i.test(subject);
+  return singular && third.length === 1
+    ? ["does", third[0]]
+    : past.length === 1 && (singular || !base.length)
+      ? ["did", past[0]]
+      : !singular &&
+          base.length === 1 &&
+          !past.length &&
+          !/^[ \t ]+(?:am|is|are|was|were|have|has|had|do|does|did|can|could|will|would|should|must|may|might)\b/i.test(
+            rest,
+          )
+        ? ["do", base[0]]
+        : null;
+}
+
+// common.yaml rule sentenceStructure def notOnlyFix
+export function notOnlyFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  who: string,
+  upper: boolean,
+  start: number,
+  end: number,
+): string | null {
+  const g = m.groups!;
+  const key = g.contraction ? g.contraction.slice(1).toLowerCase() : "";
+  if (!(!g.contraction || INVERSION_SUBJECT_OF[key].test(g.subject))) return null;
+  const support =
+    g.contraction || INVERSION_AUX.test(g.verb)
+      ? null
+      : doSupport(g.subject, g.verb, ctx.text.slice(end, end + 24));
+  if (!(!!g.contraction || INVERSION_AUX.test(g.verb) || !!support)) return null;
+  return g.contraction
+    ? `${upperIf(upper, key === "s" ? (/^[ \t ]+(?:been|got|gotten)\b/i.test(ctx.text.slice(end)) ? "has" : "is") : INVERSION_CONTRACTED[key])} ${who}`
+    : INVERSION_AUX.test(g.verb)
+      ? `${g.verb}${ctx.source.slice(start + g.subject.length, group(m, "verb")[0])}${who}`
+      : `${upperIf(upper, support![0])} ${who} ${upperIf(upper, support![1])}`;
+}
+
+// common.yaml rule sentenceStructure def upperIf
+export function upperIf(upper: boolean, word: string) {
+  return upper ? word.toUpperCase() : word;
 }
 
 // common.yaml rule wordConfusions def confusionFix
@@ -1000,6 +1250,584 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // common.yaml rule countability frame 11
   "@countability/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return massNoun(m, ctx);
+  },
+  // common.yaml rule pronounCase frame 1
+  "@pronounCase/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (![a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))) return null;
+    if (
+      [a, b].some((word) => /^myself$/i.test(word)) &&
+      /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index))
+    )
+      return null;
+    if (!(
+      finiteVerbForm(verb) ||
+      ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+        verb === verb.toLowerCase() &&
+        !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+    ))
+      return null;
+    const opener = /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 64), m.index),
+    );
+    if (
+      opener &&
+      (opener[1].trim().split(/\s+/).length > 4 ||
+        opener[1]
+          .toLowerCase()
+          .match(/[a-z]+/g)
+          ?.some(
+            (w) =>
+              finiteVerbForm(w) ||
+              englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"),
+          ))
+    )
+      return null;
+    if (isFirstPerson(a) && isFirstPerson(b)) return null;
+    if (/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const aSpan = group(m, "a");
+    const bSpan = group(m, "b");
+    const verbSpan = group(m, "verb");
+    const joint = ctx.source.slice(aSpan[1], bSpan[0]);
+    const pair =
+      isFirstPerson(a) || isFirstPerson(b)
+        ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
+        : `${subjectForm(a)}${joint}${subjectForm(b)}`;
+    const capped = /^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair;
+    const verbKey = verb.toLowerCase().replace(/n['’]t$/, "");
+    const plural = Object.hasOwn(PLURAL_VERB, verbKey);
+    const withVerb = plural
+      ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
+      : capped;
+    const rangeEnd = plural ? verbSpan[1] : bSpan[1];
+    const typed = ctx.source.slice(aSpan[0], rangeEnd);
+    const phrase = typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb;
+    if (!(phrase !== typed)) return null;
+    return finding(
+      "englishPronounCase",
+      "review_msg_pronoun_subject_case",
+      aSpan[0],
+      rangeEnd,
+      [phrase],
+      {
+        context: tightAround(ctx, m),
+      },
+    );
+  },
+  // common.yaml rule pronounCase frame 2
+  "@pronounCase/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (![a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))) return null;
+    if (
+      [a, b].some((word) => /^myself$/i.test(word)) &&
+      /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index))
+    )
+      return null;
+    if (!(
+      finiteVerbForm(verb) ||
+      ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+        verb === verb.toLowerCase() &&
+        !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+    ))
+      return null;
+    const opener = /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 64), m.index),
+    );
+    if (
+      opener &&
+      (opener[1].trim().split(/\s+/).length > 4 ||
+        opener[1]
+          .toLowerCase()
+          .match(/[a-z]+/g)
+          ?.some(
+            (w) =>
+              finiteVerbForm(w) ||
+              englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"),
+          ))
+    )
+      return null;
+    if (isFirstPerson(a) && isFirstPerson(b)) return null;
+    if (/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const aSpan = group(m, "a");
+    const bSpan = group(m, "b");
+    const verbSpan = group(m, "verb");
+    const joint = ctx.source.slice(aSpan[1], bSpan[0]);
+    const pair =
+      isFirstPerson(a) || isFirstPerson(b)
+        ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
+        : `${subjectForm(a)}${joint}${subjectForm(b)}`;
+    const capped = /^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair;
+    const verbKey = verb.toLowerCase().replace(/n['’]t$/, "");
+    const plural = Object.hasOwn(PLURAL_VERB, verbKey);
+    const withVerb = plural
+      ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
+      : capped;
+    const rangeEnd = plural ? verbSpan[1] : bSpan[1];
+    const typed = ctx.source.slice(aSpan[0], rangeEnd);
+    const phrase = typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb;
+    if (!(phrase !== typed)) return null;
+    return finding(
+      "englishPronounCase",
+      "review_msg_pronoun_subject_case",
+      aSpan[0],
+      rangeEnd,
+      [phrase],
+      {
+        context: tightAround(ctx, m),
+      },
+    );
+  },
+  // common.yaml rule pronounCase frame 3
+  "@pronounCase/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const a = m.groups!.a;
+    const conj = m.groups!.conj;
+    const b = m.groups!.b;
+    const verb = m.groups!.verb;
+    if (conj.toLowerCase() === "and" ? lead?.toLowerCase() !== "both" : /^both$/i.test(lead ?? ""))
+      return null;
+    if (conj.toLowerCase() !== "and" && /^(?:is|was|has|does)/i.test(verb)) return null;
+    if (
+      /^myself$/i.test(b) &&
+      /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index))
+    )
+      return null;
+    if (!(!/^(?:me|myself)$/i.test(a) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    const span = group(m, "b");
+    return {
+      ruleId: "englishPronounCase",
+      messageKey: "review_msg_pronoun_subject_case",
+      range: { start: span[0], end: span[1] },
+      alternatives: [isFirstPerson(b) ? "I" : applyWordCase(subjectForm(b), detectWordCase(b))],
+      context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, span[1] + 16) },
+    };
+  },
+  // common.yaml rule pronounCase frame 4
+  "@pronounCase/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const whom = m.groups!.whom;
+    const aux = m.groups!.aux;
+    const evidence = m.groups!.evidence;
+    const verb = m.groups!.verb;
+    const caps = m[0] === m[0].toUpperCase();
+    const proof = caps ? evidence?.toLowerCase() : evidence;
+    const lexical = caps ? verb?.toLowerCase() : verb;
+    const span = group(m, "whom");
+    const matchEnd = m.index + m[0].length;
+    const ever = whom.length > 4;
+    const before = ctx.text.slice(Math.max(0, span[0] - 48), span[0]);
+    const prep = ever ? undefined : PREPOSITION_BEFORE.exec(before)?.groups!.prep.toLowerCase();
+    const ofNoun = prep === "of" ? OF_NOUN.exec(before)?.groups!.noun : undefined;
+    const ofInfo = ofNoun ? englishWordInfo(ofNoun) : null;
+    if (
+      !(aux
+        ? (ever
+            ? !/^(?:I|you|he|she|we|they|it|there)$/i.test(proof)
+            : !/^(?:do|does|did)$/i.test(aux) && verbAfterAuxiliary(aux, proof)) &&
+          (prep === "of"
+            ? !!ofNoun && !PARTITIVE.test(ofNoun) && !(ofInfo && (!ofInfo.noun || ofInfo.adjective))
+            : !prep ||
+              (/^(?:has|have|had)$/i.test(aux) && proof !== "been") ||
+              (/^(?:will|would|can|could|shall|should|may|might|must)$/i.test(aux) &&
+                proof !== "be"))
+        : !prep &&
+          whomFiniteVerb(
+            lexical,
+            ever,
+            (/^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(matchEnd))?.[1] ?? "").toLowerCase(),
+          ))
+    )
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    return {
+      ruleId: "englishPronounCase",
+      messageKey: "review_msg_who_subject",
+      range: { start: span[0], end: span[1] },
+      alternatives: [
+        applyWordCase(whom.toLowerCase().replace("whom", "who"), detectWordCase(whom)),
+      ],
+      context: { start: Math.max(0, span[0] - 32), end: Math.min(ctx.text.length, matchEnd + 9) },
+    };
+  },
+  // common.yaml rule pronounCase frame 5
+  "@pronounCase/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    if (!(m.groups!.noun === undefined || !!pluralNoun(m.groups!.noun))) return null;
+    return caseObjectFinding(ctx, m, group(m, "pronoun"), objectForm(pronoun), false);
+  },
+  // common.yaml rule pronounCase frame 6
+  "@pronounCase/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    if (!(m.groups!.noun === undefined || !!pluralNoun(m.groups!.noun))) return null;
+    return caseObjectFinding(ctx, m, group(m, "pronoun"), objectForm(pronoun), false);
+  },
+  // common.yaml rule pronounCase frame 7
+  "@pronounCase/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    if (!(!/^(?:I|me)$/i.test(a) && !(/^you$/i.test(a) && /^between/i.test(m[0])))) return null;
+    return casePairFinding(ctx, m, a);
+  },
+  // common.yaml rule pronounCase frame 8
+  "@pronounCase/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    if (/^(?:I|me|myself)$/i.test(a)) return null;
+    const sentence = ctx.text
+      .slice(Math.max(0, m.index - 200), m.index)
+      .split(/[.!?\n]/)
+      .pop()!;
+    if (/(?:^|[^\p{L}'’])I(?:[^\p{L}'’]|['’](?:m|ve|ll|d))/u.test(sentence)) return null;
+    return casePairFinding(ctx, m, a);
+  },
+  // common.yaml rule pronounCase frame 9
+  "@pronounCase/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const a = m.groups!.a;
+    const next = m.groups!.next;
+    if (!(!/^(?:I|me)$/i.test(a) && lead !== "between" && (!next || OBJECT_NEXT.test(next))))
+      return null;
+    const read = englishWordInfo(lead);
+    if (!(
+      CASE_OBJECT_PREPOSITION_WORD.test(lead) ||
+      lead === "for" ||
+      (!/^(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)$/.test(
+        lead,
+      ) &&
+        !/^(?:and|or|but|that|if|when|because|so|think|thought|know|knew|said|says|hope|guess)$/.test(
+          lead,
+        ) &&
+        !/^(?:came|come|comes|went|go|goes|stood|sat|lay|ran|run|arrived|remain|remained)$/.test(
+          lead,
+        ) &&
+        !!read?.verbs.some((v) => v.form === "past" || v.form === "base" || v.form === "third"))
+    ))
+      return null;
+    return casePairFinding(ctx, m, a);
+  },
+  // common.yaml rule pronounCase frame 10
+  "@pronounCase/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pronoun = m.groups!.pronoun;
+    const noun = m.groups!.noun;
+    if (!(pronoun !== "US" && !!pluralNoun(noun))) return null;
+    return caseObjectFinding(
+      ctx,
+      m,
+      group(m, "pronoun"),
+      applyWordCase("we", detectWordCase(pronoun)),
+      true,
+    );
+  },
+  // common.yaml rule pronounCase frame 11
+  "@pronounCase/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const sentence = /[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 160), m.index))![0];
+    if (/\b(?:I|me|my|mine)\b/i.test(sentence)) return null;
+    const head = /([A-Za-z]+)[ \t ]+$/.exec(sentence)?.[1] ?? "";
+    const read = englishWordInfo(head);
+    if (!(
+      head === head.toLowerCase() &&
+      (/^(?:(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)|for|between)$/.test(
+        head,
+      ) ||
+        !!read?.verbs.some((v) => v.form === "past" || v.form === "third"))
+    ))
+      return null;
+    if (hasUserOrCasedWord(ctx, target)) return null;
+    const end = m.index + m[0].length;
+    const following = /^[ \t ]+([a-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1] ?? "";
+    if (!(
+      !finiteVerbForm(following) &&
+      !englishWordInfo(following)?.verbs.some((v) => v.form === "base")
+    ))
+      return null;
+    const span = group(m, "target");
+    return {
+      ruleId: "englishPronounCase",
+      messageKey: "review_msg_pronoun_object_case",
+      range: { start: span[0], end: span[1] },
+      alternatives: [applyWordCase("me", detectWordCase(target))],
+      context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 16) },
+    };
+  },
+  // common.yaml rule sentenceStructure frame 1
+  "@sentenceStructure/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (!(a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    const start = group(m, "a")[0];
+    const end = group(m, "b")[1];
+    const sentenceInitial =
+      a !== "I" || !/[;:][ \t ]*$/.test(ctx.text.slice(Math.max(0, start - 10), start));
+    const second = /^[A-Z]/.test(a) && sentenceInitial ? caseLike(m[0], b.toLowerCase()) : b;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_double_subject",
+      range: { start, end },
+      alternatives: [a, second === "i" ? "I" : second],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 2
+  "@sentenceStructure/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    if (!(a === a.toLowerCase() || m[0] === m[0].toUpperCase())) return null;
+    if (!(!wordEndsBefore(ctx, m.index, "(?:oh|ah|my),?") && !hasUserOrCasedWord(ctx, m[0])))
+      return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_pronoun_sequence",
+      range: { start: group(m, "a")[0], end: group(m, "b")[1] },
+      alternatives: [],
+      warningOnly: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 3
+  "@sentenceStructure/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    if (!(a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_pronoun_sequence",
+      range: { start: group(m, "a")[0], end: group(m, "b")[1] },
+      alternatives: [a, b],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 4
+  "@sentenceStructure/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const article = m.groups!.article;
+    const possessive = m.groups!.possessive;
+    const noun = m.groups!.noun;
+    if (!(possessive === possessive.toLowerCase() || m[0] === m[0].toUpperCase())) return null;
+    const word = noun ?? "";
+    if (!(!/^(?:and|or|own|but)$/i.test(word) && !META_NOUN.test(word))) return null;
+    const the = article.toLowerCase() === "the";
+    if (!(possessive.toLowerCase() !== "her" || (the && !!word))) return null;
+    if (!(!!word || /^[ \t ]*(?:[.!?,;:)]|$)/.test(ctx.text.slice(m.index + m[0].length))))
+      return null;
+    const sound = the ? "the" : word ? englishInitialSound(word) : "either";
+    if (!(sound !== "either")) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const bare = the ? article : caseLike(m[0], sound === "vowel" ? "an" : "a");
+    const owner =
+      /^[A-Z]/.test(article) && m[0] !== m[0].toUpperCase()
+        ? caseLike(article, possessive.toLowerCase())
+        : possessive;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_determiner_clash",
+      range: { start: group(m, "article")[0], end: group(m, "possessive")[1] },
+      alternatives: [owner, bare],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 5
+  "@sentenceStructure/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const one = first.toLowerCase();
+    const two = second.toLowerCase();
+    const plain = second === second.toLowerCase() && /^[a-zA-Z][a-z]*$/.test(first);
+    if (!(plain || m[0] === m[0].toUpperCase())) return null;
+    const isArticle = one === "a";
+    if (!(isArticle ? two === "the" : two === "the" || /^(?:my|our)$/.test(one))) return null;
+    if (!(two !== "her" && one !== two)) return null;
+    const end = m.index + m[0].length;
+    if (!(
+      one !== "his" ||
+      !/^[ \t ]+(?:whole|entire|same|next|following|previous|last|first|other)\b/i.test(
+        ctx.text.slice(end),
+      )
+    ))
+      return null;
+    if (!(one !== "my" || !wordEndsBefore(ctx, m.index, "(?:oh|ah|my),?"))) return null;
+    if (!(!/^(?:your|their)$/.test(one) || !opensSubjectClause(ctx, m.index))) return null;
+    const following = /^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(end))?.[1];
+    const sound = isArticle ? (following ? englishInitialSound(following) : "either") : "none";
+    if (!(sound !== "either")) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const kept = isArticle ? caseLike(m[0], sound === "vowel" ? "an" : "a") : first;
+    const start = group(m, "first")[0];
+    const before = ctx.text.slice(Math.max(0, start - 24), start).trimEnd();
+    const previous = /[A-Za-z]+$/.exec(before)?.[0];
+    const slip = previous ? englishWordInfo(previous)?.adverb : /[,;:(]$/.test(before);
+    const alternatives = [
+      ...(two === "the" && /^(?:your|their)$/.test(one) && slip
+        ? [
+            `${applyWordCase(one === "your" ? "you're" : "they're", detectWordCase(first))}${ctx.source.slice(group(m, "first")[1], group(m, "second")[0])}${second}`,
+          ]
+        : []),
+      kept,
+      caseLike(m[0], two),
+    ];
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_determiner_clash",
+      range: { start, end: group(m, "second")[1] },
+      alternatives,
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 6
+  "@sentenceStructure/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    const next = m.groups!.next;
+    if (!(first.toLowerCase() !== second.toLowerCase())) return null;
+    const following = next.toLowerCase();
+    if (!(
+      /^(?:not|never|also|just|really|still|probably|definitely|surely|certainly)$/.test(
+        following,
+      ) ||
+      following === "be" ||
+      hasVerbForm(following, "base")
+    ))
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_double_modal",
+      range: { start: group(m, "first")[0], end: group(m, "second")[1] },
+      alternatives: [first, applyWordCase(second, detectWordCase(first))],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 7
+  "@sentenceStructure/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const modal = m.groups!.modal;
+    const adjective = m.groups!.adjective;
+    if (!(
+      !NOT_A_SUBJECT.test(subject) &&
+      (modal === modal.toLowerCase() || m[0] === m[0].toUpperCase())
+    ))
+      return null;
+    const word = adjective.toLowerCase();
+    const info = englishWordInfo(word);
+    const tail = group(m, "adjective")[1];
+    const following = ctx.text.slice(tail, tail + 12);
+    const predicate =
+      /^(?:ready|busy)$/.test(word) ||
+      (word === "back" &&
+        /^[ \t ]+(?:in|soon|home|later|tomorrow|tonight|by|on)\b/i.test(following)) ||
+      (word === "best" &&
+        /^(?:it|this|that)$/i.test(subject) &&
+        /^[ \t ]+(?:to|if)\b/i.test(following));
+    if (!(
+      predicate ||
+      (!!info?.adjective && !info.adverb && !info.verbs.length && !NOT_PREDICATE.test(word))
+    ))
+      return null;
+    if (info?.noun && /^[ \t ]+of\b/i.test(following)) return null;
+    if (word === "due" && /^[ \t ]+(?:to|that|it|this)\b/i.test(following)) return null;
+    if (word === "careless" && /^could/i.test(modal)) return null;
+    if (/^(?:can|could)/i.test(modal) && /able$/i.test(adjective)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_missing_be",
+      range: { start: group(m, "adjective")[0], end: tail },
+      alternatives: [`${applyWordCase("be", detectWordCase(adjective))} ${adjective}`],
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 8
+  "@sentenceStructure/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const head = m.groups!.head;
+    const head2 = m.groups!.head2;
+    const noun = m.groups!.noun;
+    const ago = m.groups!.ago;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    const quantity = head ?? head2;
+    const plural = pluralNoun(noun);
+    if (!(
+      !!plural &&
+      (plural !== "ambiguous" || !!ago || wordEndsBefore(ctx, m.index, STRUCTURE_PREPOSITIONS))
+    ))
+      return null;
+    const tail = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 16);
+    if (!(
+      quantity.toLowerCase() !== "lot" ||
+      /^[ \t ]*(?:[.!?,;:)]|$|[ \t ]+(?:here|there|in|on|at|for|with|who|that|to|from|of)\b)/i.test(
+        tail,
+      )
+    ))
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const headSpan = m.indices!.groups![head ? "head" : "head2"];
+    const end = group(m, "noun")[1];
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_couple_of",
+      range: { start: headSpan[0], end },
+      alternatives: [
+        `${quantity} ${quantity === quantity.toUpperCase() ? "OF" : "of"}${ctx.text.slice(headSpan[1], end)}`,
+      ],
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 9
+  "@sentenceStructure/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const of = m.groups!.of;
+    const noun = m.groups!.noun;
+    if (!(
+      !!pluralNoun(noun) &&
+      !wordEndsBefore(ctx, m.index, "the") &&
+      !hasUserOrCasedWord(ctx, m[0])
+    ))
+      return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_partitive_of",
+      range: { start: group(m, "of")[0], end: group(m, "noun")[1] },
+      alternatives: [noun, `${of} ${applyWordCase("the", detectWordCase(of))} ${noun}`],
+      requiresChoice: true as const,
+      context: tightAround(ctx, m),
+    };
+  },
+  // common.yaml rule sentenceStructure frame 10
+  "@sentenceStructure/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    const start = group(m, "subject")[0];
+    const upper = m[0] === m[0].toUpperCase();
+    const who = upper || subject === "I" ? subject : subject.toLowerCase();
+    const end = m.index + m[0].length;
+    const tail = ctx.text.slice(end, end + 160);
+    const clause = /^[^.!?\n]*/.exec(tail)![0];
+    const nextSubject = /(?:[,;]|\bbut\b)[ \t ]*(?:but[ \t ]+)?(?:also[ \t ]+)?([A-Za-z]+)/i
+      .exec(clause)?.[1]
+      ?.toLowerCase();
+    const same = nextSubject === subject.toLowerCase();
+    const closed = /^[ \t ]*(?:[,;:.!?]|$)/.test(tail);
+    if (
+      closed ? !same : !same && !/^it$/i.test(subject) && INVERSION_SUBJECTS.test(nextSubject ?? "")
+    )
+      return null;
+    const replacement = notOnlyFix(ctx, m, who, upper, start, end);
+    if (!(replacement !== null)) return null;
+    return {
+      ruleId: "englishSentenceStructure",
+      messageKey: "review_msg_not_only_inversion",
+      range: { start, end },
+      alternatives: [replacement],
+      context: tightAround(ctx, m),
+    };
   },
   // common.yaml rule wordConfusions frame 1
   "@wordConfusions/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {

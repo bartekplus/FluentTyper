@@ -6,8 +6,6 @@ import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
 import { FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
-import { FIXERS as CASE_FIXERS } from "./englishPronounCase";
-import { FIXERS as STRUCTURE_FIXERS } from "./englishSentenceStructure";
 import type { CatalogRuleId } from "../ruleCatalog";
 import {
   isGreekQuestionMark,
@@ -1679,8 +1677,6 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   COMPLEMENT_FIXERS,
   AUXILIARY_FIXERS,
   PARTICIPLE_FIXERS,
-  STRUCTURE_FIXERS,
-  CASE_FIXERS,
   AGREEMENT_FIXERS,
   DATE_FIXERS,
   // The other rule files still name the ISO date frame fixer "common:invalidIsoDate".

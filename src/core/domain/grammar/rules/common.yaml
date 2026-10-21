@@ -4534,6 +4534,11 @@ defs:
     return: >-
       opensMainClause(ctx, index) ||
       CLAUSE_CUE_BEFORE.test(ctx.text.slice(Math.max(0, index - 96), index))
+  # The evidence around a match: 32 characters before it, 16 after it.
+  tightAround:
+    args: "ctx: DetectContext, m: RegExpExecArray"
+    return: >-
+      ({ start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, m.index + m[0].length + 16) })
   # An impossible ISO date (the ISO_DATE frame of the language files): a warning with the rule
   # and message of the frame.
   isoDateWarning:
@@ -5712,6 +5717,116 @@ rules:
     message: review_msg_pronoun_subject_case
     filter:
       return: firstPerStart(findings)
+    maps:
+      SUBJECT_FORM: { me: I, i: I, him: he, her: she, them: they, myself: I }
+      # A coordinated subject is plural.
+      PLURAL_VERB: { am: are, is: are, was: were, has: have, does: do }
+      OBJECT_FORM: { i: me, he: him, she: her, we: us, they: them }
+    defs:
+      # Finite verb evidence that the words before it are a subject (the CASE_FINITE fragment).
+      finiteVerbForm:
+        args: "word: string"
+        return: >-
+          /^(?:(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)(?:n['’]t)?|won['’]t|cannot|[a-z]{2,}ed)$/i.test(word) ||
+          isUniquePast(word)
+      subjectForm:
+        args: "word: string"
+        return: SUBJECT_FORM[word.toLowerCase()] ?? word
+      isFirstPerson:
+        args: "word: string"
+        return: /^(?:me|i|myself)$/i.test(word)
+      objectForm:
+        args: "word: string"
+        return: applyWordCase(OBJECT_FORM[word.toLowerCase()] ?? word, detectWordCase(word))
+      PREPOSITION_BEFORE: >-
+        /\b(?<prep>to|with|for|from|by|of|about|on|upon|in|into|at|among|between|against|without|under|over|through|toward|towards|behind|beside|before|after|like|than|around|near|beyond|via|unto|onto|within|regarding|concerning)[ \t ]+$/i
+      # "the topic of whom is…" is a free relative; "many/the rest/the eldest of whom were…" is
+      # not.
+      OF_NOUN: >-
+        /(?:^|[^,;:(–—\s])[ \t ]*(?:the|a|an)[ \t ]{1,8}(?<noun>[a-z]+)[ \t ]{1,8}of[ \t ]+$/iu
+      PARTITIVE: >-
+        /^(?:rest|majority|minority|remainder|bulk|most|half|number|total|whole|balance|sum|lot|couple|pair|group|handful|dozen|hundred|thousand|million|percent|portion|part|share|first|last|second|third|quarter|fraction|set|series|range|none|each|any|one|two|three|four|five|six|seven|eight|nine|ten)$/i
+      # Verb evidence after an auxiliary: "is coming", "was chosen", "will come". A base verb
+      # follows only a modal: "Whom will come?", not "Whom does help?".
+      verbAfterAuxiliary:
+        args: "aux: string, word: string"
+        type: boolean
+        let:
+          readings: englishWordInfo(word)?.verbs ?? []
+          base: readings.some((verb) => verb.form === "base")
+        when: word === word.toLowerCase()
+        return: >-
+          /^(?:be|been|being)$/.test(word) ||
+          (word.endsWith("ing")
+            ? readings.some((verb) => verb.form === "ing")
+            : (/^[a-z]{2,}ed$/.test(word) && !englishWordInfo(word)) ||
+              (!base && readings.some((verb) => verb.form === "participle")
+                ? !englishVerbForms(word)?.ambiguous.includes(word)
+                : base && /^(?:will|would|can|could|shall|should|may|might|must)$/i.test(aux)))
+        else: "false"
+      # A finite lexical verb right after whom: "Whom told you?", "whomever wants it".
+      # "whomever parents choose": an -s noun before a base verb is the subject, not the verb.
+      whomFiniteVerb:
+        args: "word: string, ever: boolean, next: string"
+        type: boolean
+        let:
+          readings: englishWordInfo(word)?.verbs ?? []
+          forms: englishVerbForms(word)
+          past: >-
+            (readings.some((verb) => verb.form === "past") &&
+              !readings.some((verb) => verb.form === "base") &&
+              !forms?.ambiguous.includes(word)) ||
+            (/^[a-z]{2,}ed$/.test(word) && !englishWordInfo(word))
+        when: word === word.toLowerCase()
+        return: >-
+          past || !ever
+            ? past
+            : readings.some((verb) => verb.form === "third") && !baseVerbNotNoun(next)
+        else: "false"
+      baseVerbNotNoun:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        return: '!!info?.verbs.some((verb) => verb.form === "base") && !info.noun'
+      # The finding of an object frame; `subject`: the fix is the subject form.
+      caseObjectFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, range: readonly number[], fix: string, subject: boolean"
+        type: RawFinding | null
+        when: "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({
+            ruleId: "englishPronounCase",
+            messageKey: subject ? "review_msg_pronoun_subject_case" : "review_msg_pronoun_object_case",
+            range: { start: range[0], end: range[1] },
+            alternatives: [fix],
+            context: {
+              start: Math.max(0, range[0] - 32),
+              end: Math.min(ctx.text.length, m.index + m[0].length + 16),
+            },
+          })
+      # "Tom and I" -> "Tom and me": the first word in its object form, "ME" in all-caps text.
+      casePairFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, a: string"
+        let:
+          aSpan: group(m, "a")
+          iSpan: group(m, "i")
+          first: "Object.hasOwn(OBJECT_FORM, a.toLowerCase()) ? objectForm(a) : a"
+        return: >-
+          caseObjectFinding(
+            ctx,
+            m,
+            [aSpan[0], iSpan[1]],
+            `${first}${ctx.source.slice(aSpan[1], iSpan[0])}${m[0] === m[0].toUpperCase() ? "ME" : "me"}`,
+            false,
+          )
+      # Words after which "X and I" cannot be a subject: they need no verb from the pair. The
+      # gate of the andIBefore frame repeats this list: change both.
+      OBJECT_NEXT: >-
+        /^(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)$/
+      # Prepositions that never open a clause ("for they are…", "like we do") or an inverted one
+      # ("In they went"): the CASE_OBJECT_PREPOSITION fragment.
+      CASE_OBJECT_PREPOSITION_WORD: >-
+        /^(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)$/
     frames:
       # "Me and Sam went", "My wife and me are": object pronouns in a clause-initial coordinated
       # subject.
@@ -5723,32 +5838,201 @@ rules:
         # chunk end could be missed; no real conjunct is that long.
         gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
         gateFlags: giu
-        fixer: coordinatedSubjects
+        let:
+          # After a comma, only a short opener ("However,", "On the other hand,") may stand
+          # before the pair; "We saw Ana, Tim and me…" continues a list of objects.
+          opener: >-
+            /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
+              ctx.text.slice(Math.max(0, m.index - 64), m.index))
+          aSpan: group(m, "a")
+          bSpan: group(m, "b")
+          verbSpan: group(m, "verb")
+          joint: ctx.source.slice(aSpan[1], bSpan[0])
+          pair: >-
+            isFirstPerson(a) || isFirstPerson(b)
+              ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
+              : `${subjectForm(a)}${joint}${subjectForm(b)}`
+          capped: "/^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair"
+          verbKey: verb.toLowerCase().replace(/n['’]t$/, "")
+          plural: Object.hasOwn(PLURAL_VERB, verbKey)
+          withVerb: >-
+            plural
+              ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
+              : capped
+          rangeEnd: "plural ? verbSpan[1] : bSpan[1]"
+          typed: ctx.source.slice(aSpan[0], rangeEnd)
+          phrase: "typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb"
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - "[a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))"
+          # "I suggested that the engineer and myself take…": a reflexive after "I" stays.
+          - >-
+            !([a, b].some((word) => /^myself$/i.test(word)) &&
+              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
+          # A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
+          - >-
+            finiteVerbForm(verb) ||
+            ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+              verb === verb.toLowerCase() &&
+              !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+          - >-
+            !(opener &&
+              (opener[1].trim().split(/\s+/).length > 4 ||
+                opener[1]
+                  .toLowerCase()
+                  .match(/[a-z]+/g)
+                  ?.some((w) =>
+                    finiteVerbForm(w) ||
+                    englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"))))
+          - "!(isFirstPerson(a) && isFirstPerson(b))"
+          # "Her and my parents met" shares one noun between two possessives.
+          - '!(/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b))'
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - phrase !== typed
+        return: >-
+          finding("englishPronounCase", "review_msg_pronoun_subject_case", aSpan[0], rangeEnd, [phrase], {
+            context: tightAround(ctx, m),
+          })
       # A present base verb after a pair of single words: "Tim and me work", "Me and Sam live".
       - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_ONE_WORD}}){{S}}and{{S}}(?<b>{{CASE_ONE_WORD}})(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>[a-z]+){{E}}"
         owner: none
         gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
         gateFlags: giu
-        fixer: coordinatedSubjects
+        let:
+          # After a comma, only a short opener ("However,", "On the other hand,") may stand
+          # before the pair; "We saw Ana, Tim and me…" continues a list of objects.
+          opener: >-
+            /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
+              ctx.text.slice(Math.max(0, m.index - 64), m.index))
+          aSpan: group(m, "a")
+          bSpan: group(m, "b")
+          verbSpan: group(m, "verb")
+          joint: ctx.source.slice(aSpan[1], bSpan[0])
+          pair: >-
+            isFirstPerson(a) || isFirstPerson(b)
+              ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
+              : `${subjectForm(a)}${joint}${subjectForm(b)}`
+          capped: "/^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair"
+          verbKey: verb.toLowerCase().replace(/n['’]t$/, "")
+          plural: Object.hasOwn(PLURAL_VERB, verbKey)
+          withVerb: >-
+            plural
+              ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
+              : capped
+          rangeEnd: "plural ? verbSpan[1] : bSpan[1]"
+          typed: ctx.source.slice(aSpan[0], rangeEnd)
+          phrase: "typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb"
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - "[a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))"
+          # "I suggested that the engineer and myself take…": a reflexive after "I" stays.
+          - >-
+            !([a, b].some((word) => /^myself$/i.test(word)) &&
+              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
+          # A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
+          - >-
+            finiteVerbForm(verb) ||
+            ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+              verb === verb.toLowerCase() &&
+              !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+          - >-
+            !(opener &&
+              (opener[1].trim().split(/\s+/).length > 4 ||
+                opener[1]
+                  .toLowerCase()
+                  .match(/[a-z]+/g)
+                  ?.some((w) =>
+                    finiteVerbForm(w) ||
+                    englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"))))
+          - "!(isFirstPerson(a) && isFirstPerson(b))"
+          # "Her and my parents met" shares one noun between two possessives.
+          - '!(/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b))'
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - phrase !== typed
+        return: >-
+          finding("englishPronounCase", "review_msg_pronoun_subject_case", aSpan[0], rangeEnd, [phrase], {
+            context: tightAround(ctx, m),
+          })
       # "Both Ana and me helped", "Either Ana or me will call", "Ana or myself can help".
       - regex: "(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0]){{CASE_COORDINATION_START}}(?:(?<lead>both|either|neither){{S}})?(?<a>{{CASE_CONJUNCT}}){{S}}(?<conj>and|or|nor){{S}}(?<b>me|myself|him|them)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
         owner: b
         # Skips the frame when no "and/or me|myself|him|them" stands in the text.
         gate: "(?:and|or)[ \\t\\u00a0]{1,8}(?:me|myself|him|them)[ \\t\\u00a0]"
         gateFlags: giu
-        fixer: correlativeSubjects
+        let:
+          span: group(m, "b")
+        when:
+          # A plain and-pair belongs to coordinatedSubjects; "both" needs and, either/neither or/nor.
+          - >-
+            !(conj.toLowerCase() === "and"
+              ? lead?.toLowerCase() !== "both"
+              : /^both$/i.test(lead ?? ""))
+          # "or me is" agrees with the nearest subject: "I am" would change the verb too.
+          - '!(conj.toLowerCase() !== "and" && /^(?:is|was|has|does)/i.test(verb))'
+          - >-
+            !(/^myself$/i.test(b) &&
+              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
+          - "!/^(?:me|myself)$/i.test(a) && !hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({
+            ruleId: "englishPronounCase",
+            messageKey: "review_msg_pronoun_subject_case",
+            range: { start: span[0], end: span[1] },
+            alternatives: [isFirstPerson(b) ? "I" : applyWordCase(subjectForm(b), detectWordCase(b))],
+            context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, span[1] + 16) },
+          })
       # "Whom is coming?", "to whomever wrote it": whom before its own finite verb is the subject.
       - regex: '(?<whom>whom(?:ever|soever)?){{S}}(?:(?<aux>{{CASE_AUX}})(?:{{S}}{{CASE_INSERT}})?{{S}}["“'']?(?<evidence>[a-z]+)|(?<verb>[a-z]+)){{E}}'
         owner: whom
-        fixer: whomSubjects
+        let:
+          # Title case names someone ("Whom was Ted…"); all-caps text keeps its evidence.
+          caps: m[0] === m[0].toUpperCase()
+          proof: "caps ? evidence?.toLowerCase() : evidence"
+          lexical: "caps ? verb?.toLowerCase() : verb"
+          span: group(m, "whom")
+          matchEnd: m.index + m[0].length
+          # whoever/whosoever take their case from their own clause, never from a preposition.
+          ever: whom.length > 4
+          before: ctx.text.slice(Math.max(0, span[0] - 48), span[0])
+          prep: "ever ? undefined : PREPOSITION_BEFORE.exec(before)?.groups!.prep.toLowerCase()"
+          ofNoun: 'prep === "of" ? OF_NOUN.exec(before)?.groups!.noun : undefined'
+          ofInfo: "ofNoun ? englishWordInfo(ofNoun) : null"
+        when:
+          - >-
+            aux
+              ? (ever
+                  ? !/^(?:I|you|he|she|we|they|it|there)$/i.test(proof)
+                  : !/^(?:do|does|did)$/i.test(aux) && verbAfterAuxiliary(aux, proof)) &&
+                (prep === "of"
+                  ? !!ofNoun && !PARTITIVE.test(ofNoun) && !(ofInfo && (!ofInfo.noun || ofInfo.adjective))
+                  : !prep ||
+                    (/^(?:has|have|had)$/i.test(aux) && proof !== "been") ||
+                    (/^(?:will|would|can|could|shall|should|may|might|must)$/i.test(aux) && proof !== "be"))
+              : !prep &&
+                whomFiniteVerb(
+                  lexical,
+                  ever,
+                  (/^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(matchEnd))?.[1] ?? "").toLowerCase(),
+                )
+          - "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({
+            ruleId: "englishPronounCase",
+            messageKey: "review_msg_who_subject",
+            range: { start: span[0], end: span[1] },
+            alternatives: [applyWordCase(whom.toLowerCase().replace("whom", "who"), detectWordCase(whom))],
+            context: { start: Math.max(0, span[0] - 32), end: Math.min(ctx.text.length, matchEnd + 9) },
+          })
       # Subject pronouns after a preposition take the object form: "to he and his team", "to we
       # developers", "with Sam and I.".
       - regex: "{{CASE_OBJECT_PREPOSITION}}{{S}}(?<pronoun>he|she|they|we){{S}}(?:and|or){{E}}(?!{{S}}I{{E}})"
         owner: pronoun
-        fixer: pronounObject
+        when: m.groups!.noun === undefined || !!pluralNoun(m.groups!.noun)
+        return: caseObjectFinding(ctx, m, group(m, "pronoun"), objectForm(pronoun), false)
       - regex: "{{CASE_OBJECT_PREPOSITION}}{{S}}(?<pronoun>we){{S}}(?<noun>[a-z]+){{E}}"
         owner: pronoun
-        fixer: pronounObject
+        when: m.groups!.noun === undefined || !!pluralNoun(m.groups!.noun)
+        return: caseObjectFinding(ctx, m, group(m, "pronoun"), objectForm(pronoun), false)
       - regex: "(?:{{CASE_OBJECT_PREPOSITION}}|for|between){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}and{{S}}(?<i>I){{CASE_PAIR_ENDS}}"
         owner: a
         # The gate: "and I" before the end of the pair (CASE_PAIR_ENDS). shortcut: as for
@@ -5756,11 +6040,18 @@ rules:
         # be missed.
         gate: "and[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
         gateFlags: giu
-        fixer: andIObject
+        # "between you and I" is left to its fixed phrase; "me and I" has no fix.
+        when: "!/^(?:I|me)$/i.test(a) && !(/^you$/i.test(a) && /^between/i.test(m[0]))"
+        return: casePairFinding(ctx, m, a)
       # "Talk to Don or myself.": with no "I" before it in the sentence, myself is me.
       - regex: "(?:{{CASE_OBJECT_PREPOSITION}}|for|between){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>myself){{COMPLETE_OR_PAREN}}"
         owner: a
-        fixer: andMyselfObject
+        let:
+          sentence: ctx.text.slice(Math.max(0, m.index - 200), m.index).split(/[.!?\n]/).pop()!
+        when:
+          - "!/^(?:I|me|myself)$/i.test(a)"
+          - "!/(?:^|[^\\p{L}'’])I(?:[^\\p{L}'’]|['’](?:m|ve|ll|d))/u.test(sentence)"
+        return: casePairFinding(ctx, m, a)
       # "told Mary and I that…", "to Tom and I before you go", "Please include Tony and I.": an
       # object pair before a closed word or the clause end.
       - regex: "(?=[a-z]+(?:{{S}}[a-z]+){1,3}{{S}}(?:and|or){{S}}I(?![\\p{L}]))(?<lead>[a-z]+){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>I)(?:{{E}}(?={{S}}(?<next>[a-z]+){{E}})|{{COMPLETE_OR_PAREN}})"
@@ -5769,66 +6060,417 @@ rules:
         # gate repeats that list. shortcut: as for coordinatedSubjects.
         gate: "(?:and|or)[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
         gateFlags: giu
-        fixer: andIBefore
+        let:
+          # The lead takes the pair as its object: a preposition or a verb that is no auxiliary.
+          # "Then came Tom and I.": an intransitive verb before an inverted subject.
+          read: englishWordInfo(lead)
+        when:
+          - '!/^(?:I|me)$/i.test(a) && lead !== "between" && (!next || OBJECT_NEXT.test(next))'
+          - >-
+            CASE_OBJECT_PREPOSITION_WORD.test(lead) ||
+            lead === "for" ||
+            (!/^(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)$/.test(lead) &&
+              !/^(?:and|or|but|that|if|when|because|so|think|thought|know|knew|said|says|hope|guess)$/.test(lead) &&
+              !/^(?:came|come|comes|went|go|goes|stood|sat|lay|ran|run|arrived|remain|remained)$/.test(lead) &&
+              !!read?.verbs.some((v) => v.form === "past" || v.form === "base" || v.form === "third"))
+        return: casePairFinding(ctx, m, a)
       # "Us developers are tired": "us" before a subject noun is "we".
       - regex: "(?=us(?![\\p{L}])){{CASE_CLAUSE_START}}(?<pronoun>us){{S}}(?<noun>[a-z]+)(?:{{S}}{{CASE_ADVERB}})?{{S}}{{CASE_FINITE}}{{E}}"
         owner: pronoun
-        fixer: usSubject
+        # "US companies" names the country.
+        when: pronoun !== "US" && !!pluralNoun(noun)
+        return: caseObjectFinding(ctx, m, group(m, "pronoun"), applyWordCase("we", detectWordCase(pronoun)), true)
       # "The coach asked Ana and myself": an object pair takes "me" when no "I" governs it.
       - regex: "(?<a>{{CASE_CONJUNCT}}){{S}}and{{S}}(?<target>myself){{E}}"
-        fixer: myselfObjects
+        let:
+          sentence: '/[^.!?;:\n]*$/.exec(ctx.text.slice(Math.max(0, m.index - 160), m.index))![0]'
+          head: '/([A-Za-z]+)[ \t ]+$/.exec(sentence)?.[1] ?? ""'
+          read: englishWordInfo(head)
+          end: m.index + m[0].length
+          following: '/^[ \t ]+([a-z]+)/.exec(ctx.text.slice(end, end + 24))?.[1] ?? ""'
+          span: group(m, "target")
+        when:
+          # "I asked Ana and myself" is reflexive; a subject pair belongs to coordinatedSubjects.
+          - '!/\b(?:I|me|my|mine)\b/i.test(sentence)'
+          - >-
+            head === head.toLowerCase() &&
+            (/^(?:(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)|for|between)$/.test(head) ||
+              !!read?.verbs.some((v) => v.form === "past" || v.form === "third"))
+          - "!hasUserOrCasedWord(ctx, target)"
+          # "…and myself went": a verb after the pair makes it a subject.
+          - >-
+            !finiteVerbForm(following) &&
+            !englishWordInfo(following)?.verbs.some((v) => v.form === "base")
+        return: >-
+          ({
+            ruleId: "englishPronounCase",
+            messageKey: "review_msg_pronoun_object_case",
+            range: { start: span[0], end: span[1] },
+            alternatives: [applyWordCase("me", detectWordCase(target))],
+            context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 16) },
+          })
   # Bounded sentence-structure slips: closed-class frames, with lexicon evidence for open words.
   - id: sentenceStructure
     checks: [englishSentenceStructure]
     style: match
     message: review_msg_double_subject
+    maps:
+      INVERSION_CONTRACTED: { re: are, ve: have, m: am, ll: will }
+    defs:
+      # A word that ends right before `index` (spaces between) and is one of `words` (a regex
+      # alternation).
+      wordEndsBefore:
+        args: "ctx: DetectContext, index: number, words: string"
+        return: >-
+          new RegExp(`(?:^|[^\\p{L}\\p{N}_'’-])${words}[ \\t\\u00a0]{1,8}$`, "iu").test(
+            ctx.text.slice(Math.max(0, index - 40), index))
+      STRUCTURE_PREPOSITIONS: >-
+        "(?:to|with|for|from|about|at|by|of|on|in|into|onto|upon|without|against|among|between|toward|towards|behind|beside|near|around|via)"
+      # Words that name a word: "the my keyword" names a word, not an owner.
+      META_NOUN: /^(?:keyword|pronoun|word|determiner|possessive|variable|declaration|operator)$/i
+      # Adverbs the lexicon lists as adjectives ("will likely", "can just") are no predicates.
+      NOT_PREDICATE: /^(?:just|likely|often|soon|together|alone|only|still|even|sure)$/
+      NOT_A_SUBJECT: >-
+        /^(?:the|a|an|my|your|his|her|our|their|its|good|ill|free|own|last|when|where|what|why|how|who|which|whose|whom)$/i
+      INVERSION_SUBJECTS: >-
+        /^(?:i|you|he|she|it|we|they|everyone|everybody|others|nobody|someone|somebody|all|many|most)$/
+      INVERSION_AUX: >-
+        /^(?:am|is|are|was|were|has|have|had|can|could|will|would|should|must|may|might|shall|do|does|did)$/i
+      INVERSION_SUBJECT_OF: >-
+        ({ s: /^(?:he|she|it)$/i, re: /^(?:you|we|they)$/i, ve: /^(?:I|you|we|they)$/i, m: /^I$/, ll: /./ }) as Readonly<Record<string, RegExp>>
+      # "does it work", "did they go": do-support for a fronted lexical verb, or null when
+      # unclear. "Not only we people are…": a noun, not a verb, when a finite verb follows.
+      doSupport:
+        args: "subject: string, verb: string, rest: string"
+        type: "[string, string] | null"
+        let:
+          verbs: englishWordInfo(verb)?.verbs ?? []
+          third: '[...new Set(verbs.filter((r) => r.form === "third").map((r) => r.lemma))]'
+          past: '[...new Set(verbs.filter((r) => r.form === "past").map((r) => r.lemma))]'
+          base: '[...new Set(verbs.filter((r) => r.form === "base").map((r) => r.lemma))]'
+          singular: /^(?:he|she|it)$/i.test(subject)
+        when: verb === verb.toLowerCase()
+        return: >-
+          singular && third.length === 1
+            ? ["does", third[0]]
+            : past.length === 1 && (singular || !base.length)
+              ? ["did", past[0]]
+              : !singular &&
+                  base.length === 1 &&
+                  !past.length &&
+                  !/^[ \t ]+(?:am|is|are|was|were|have|has|had|do|does|did|can|could|will|would|should|must|may|might)\b/i.test(rest)
+                ? ["do", base[0]]
+                : null
+      # The subject and auxiliary of a "not only" clause in inverted order, or null.
+      notOnlyFix:
+        args: >-
+          ctx: DetectContext, m: RegExpExecArray, who: string, upper: boolean, start: number,
+          end: number
+        type: string | null
+        let:
+          g: m.groups!
+          key: 'g.contraction ? g.contraction.slice(1).toLowerCase() : ""'
+          support: >-
+            g.contraction || INVERSION_AUX.test(g.verb)
+              ? null
+              : doSupport(g.subject, g.verb, ctx.text.slice(end, end + 24))
+        when:
+          - "!g.contraction || INVERSION_SUBJECT_OF[key].test(g.subject)"
+          - "!!g.contraction || INVERSION_AUX.test(g.verb) || !!support"
+        return: >-
+          g.contraction
+            ? `${upperIf(upper, key === "s" ? (/^[ \t ]+(?:been|got|gotten)\b/i.test(ctx.text.slice(end)) ? "has" : "is") : INVERSION_CONTRACTED[key])} ${who}`
+            : INVERSION_AUX.test(g.verb)
+              ? `${g.verb}${ctx.source.slice(start + g.subject.length, group(m, "verb")[0])}${who}`
+              : `${upperIf(upper, support![0])} ${who} ${upperIf(upper, support![1])}`
+      upperIf:
+        args: "upper: boolean, word: string"
+        return: "upper ? word.toUpperCase() : word"
     frames:
       # "I he went": two subject pronouns left over from an edit. Both readings agree with the verb.
       # Reporting verbs leave a comma-less parenthetical possible ("They he said were late").
       - regex: "{{STRUCTURE_CLAUSE_START}}(?<a>I|we|they|he|she){{S}}(?<b>I|we|they|he|she){{S}}(?!(?:said|told|thought|knew|felt|believed|claimed|heard|guessed|supposed|reckoned){{E}})(?:{{STRUCTURE_MODALS}}|{{PASTS}}|[a-z]{2,}ed){{E}}"
         owner: none
-        fixer: doubleSubjects
+        let:
+          start: group(m, "a")[0]
+          end: group(m, "b")[1]
+          # "I" is capitalized anywhere; it starts a sentence unless a semicolon or colon precedes it.
+          sentenceInitial: 'a !== "I" || !/[;:][ \t ]*$/.test(ctx.text.slice(Math.max(0, start - 10), start))'
+          second: "/^[A-Z]/.test(a) && sentenceInitial ? caseLike(m[0], b.toLowerCase()) : b"
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0])
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_double_subject",
+            range: { start, end },
+            alternatives: [a, second === "i" ? "I" : second],
+            requiresChoice: true as const,
+            context: tightAround(ctx, m),
+          })
       # "about my I want": a possessive needs a noun, never a subject pronoun ("Oh my, I…" abstains).
       - regex: "(?<a>my|your|our|their){{S}}(?<b>I|you|he|she|we|they){{E}}"
         owner: a
-        fixer: possessiveSubjects
+        when:
+          # A capitalized "My I never…" can be an exclamation.
+          - a === a.toLowerCase() || m[0] === m[0].toUpperCase()
+          - '!wordEndsBefore(ctx, m.index, "(?:oh|ah|my),?") && !hasUserOrCasedWord(ctx, m[0])'
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_pronoun_sequence",
+            range: { start: group(m, "a")[0], end: group(m, "b")[1] },
+            alternatives: [],
+            warningOnly: true as const,
+            context: tightAround(ctx, m),
+          })
       # "to you them": a preposition takes one object; "give you them" (two objects) has no preposition.
       - regex: "{{STRUCTURE_PREPOSITION}}{{S}}(?<a>me|you|him|her|us|them|it){{S}}(?<b>me|him|us|them){{E}}"
         owner: a
-        fixer: objectPairs
+        when: a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0])
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_pronoun_sequence",
+            range: { start: group(m, "a")[0], end: group(m, "b")[1] },
+            alternatives: [a, b],
+            requiresChoice: true as const,
+            context: tightAround(ctx, m),
+          })
       # "the my car": an article and a possessive cannot share a noun. "a/an her" abstains (object
       # "her" after a noun is ordinary: "a gift for a her"), as does a bare "the her".
       - regex: "(?<article>the|a|an){{S}}(?<possessive>{{STRUCTURE_POSSESSIVE}}){{E}}(?:{{S}}(?<noun>[a-z]+))?"
         owner: article
-        fixer: determinerClashes
+        let:
+          word: noun ?? ""
+          the: article.toLowerCase() === "the"
+          sound: 'the ? "the" : word ? englishInitialSound(word) : "either"'
+          bare: 'the ? article : caseLike(m[0], sound === "vowel" ? "an" : "a")'
+          owner: >-
+            /^[A-Z]/.test(article) && m[0] !== m[0].toUpperCase()
+              ? caseLike(article, possessive.toLowerCase())
+              : possessive
+        when:
+          # "the My Account page" names an interface label.
+          - possessive === possessive.toLowerCase() || m[0] === m[0].toUpperCase()
+          # "the his and hers set", "the my keyword" (a word, not an owner).
+          - "!/^(?:and|or|own|but)$/i.test(word) && !META_NOUN.test(word)"
+          - 'possessive.toLowerCase() !== "her" || (the && !!word)'
+          - '!!word || /^[ \t ]*(?:[.!?,;:)]|$)/.test(ctx.text.slice(m.index + m[0].length))'
+          - sound !== "either"
+          - "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_determiner_clash",
+            range: { start: group(m, "article")[0], end: group(m, "possessive")[1] },
+            alternatives: [owner, bare],
+            requiresChoice: true as const,
+            context: tightAround(ctx, m),
+          })
       # "my the car", "a the car", "my your car": determiners that cannot stack either way round.
       # "its the"/"your the" opening a clause are it's/you're slips, which those rules own.
       - regex: "(?<first>my|your|our|their|his|a){{S}}(?<second>the|{{STRUCTURE_POSSESSIVE}}){{E}}"
         owner: first
-        fixer: stackedDeterminers
+        let:
+          one: first.toLowerCase()
+          two: second.toLowerCase()
+          plain: second === second.toLowerCase() && /^[a-zA-Z][a-z]*$/.test(first)
+          isArticle: one === "a"
+          end: m.index + m[0].length
+          # "a the apple" keeps "an": the article agrees with the next word.
+          following: '/^[ \t ]+([A-Za-z]+)/.exec(ctx.text.slice(end))?.[1]'
+          sound: 'isArticle ? (following ? englishInitialSound(following) : "either") : "none"'
+          kept: 'isArticle ? caseLike(m[0], sound === "vowel" ? "an" : "a") : first'
+          start: group(m, "first")[0]
+          # After a comma or an adverb, "your the" is more likely a you're slip ("Thanks, your
+          # the best").
+          before: ctx.text.slice(Math.max(0, start - 24), start).trimEnd()
+          previous: /[A-Za-z]+$/.exec(before)?.[0]
+          slip: "previous ? englishWordInfo(previous)?.adverb : /[,;:(]$/.test(before)"
+          alternatives: >-
+            [
+              ...(two === "the" && /^(?:your|their)$/.test(one) && slip
+                ? [
+                    `${applyWordCase(one === "your" ? "you're" : "they're", detectWordCase(first))}${ctx.source.slice(group(m, "first")[1], group(m, "second")[0])}${second}`,
+                  ]
+                : []),
+              kept,
+              caseLike(m[0], two),
+            ]
+        when:
+          - plain || m[0] === m[0].toUpperCase()
+          # "a the" and possessive + "the" only; two possessives stack after "my"/"our" alone.
+          - 'isArticle ? two === "the" : two === "the" || /^(?:my|our)$/.test(one)'
+          # "her the" is an object; "Oh my the view!"; "his" can stand alone ("It was his the
+          # whole time").
+          - two !== "her" && one !== two
+          - >-
+            one !== "his" ||
+            !/^[ \t ]+(?:whole|entire|same|next|following|previous|last|first|other)\b/i.test(
+              ctx.text.slice(end))
+          - one !== "my" || !wordEndsBefore(ctx, m.index, "(?:oh|ah|my),?")
+          - "!/^(?:your|their)$/.test(one) || !opensSubjectClause(ctx, m.index)"
+          - sound !== "either"
+          - "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_determiner_clash",
+            range: { start, end: group(m, "second")[1] },
+            alternatives,
+            requiresChoice: true as const,
+            context: tightAround(ctx, m),
+          })
       # Regional double modals; the writer keeps one. A subject pronoun rules out the nouns
       # "will" and "might"; a base verb after them rules out canning ("We must can tomatoes").
       - regex: "(?:I|you|we|they|he|she|it){{S}}(?<first>{{STRUCTURE_MODALS}}){{S}}(?<second>{{STRUCTURE_MODALS}}|ought{{S}}to){{S}}(?<next>[a-z]+){{E}}"
         owner: first
-        fixer: doubleModals
+        let:
+          # The frame's `i` flag lets all-caps words in: "THEY MAY CAN BE LATE".
+          following: next.toLowerCase()
+        when:
+          - first.toLowerCase() !== second.toLowerCase()
+          - >-
+            /^(?:not|never|also|just|really|still|probably|definitely|surely|certainly)$/.test(following) ||
+            following === "be" ||
+            hasVerbForm(following, "base")
+          - "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_double_modal",
+            range: { start: group(m, "first")[0], end: group(m, "second")[1] },
+            alternatives: [first, applyWordCase(second, detectWordCase(first))],
+            requiresChoice: true as const,
+            context: tightAround(ctx, m),
+          })
       # A modal directly before a word the lexicon knows only as an adjective ("It would nice if…").
       - regex: "(?<subject>[a-z]+){{S}}(?<modal>{{STRUCTURE_MODALS}}|won['’]t|cannot|(?:could|would|should|might|must|can)n['’]t)(?:{{S}}not)?{{S}}(?<adjective>[a-z]+){{E}}{{STRUCTURE_AFTER_PREDICATE}}"
         owner: adjective
-        fixer: missingBe
+        let:
+          word: adjective.toLowerCase()
+          info: englishWordInfo(word)
+          tail: group(m, "adjective")[1]
+          following: ctx.text.slice(tail, tail + 12)
+          # Predicates the lexicon also reads as verbs or nouns: "ready" and "busy" take an
+          # object as verbs; "I will back soon"; "It would best to ask".
+          predicate: >-
+            /^(?:ready|busy)$/.test(word) ||
+            (word === "back" &&
+              /^[ \t ]+(?:in|soon|home|later|tomorrow|tonight|by|on)\b/i.test(following)) ||
+            (word === "best" &&
+              /^(?:it|this|that)$/i.test(subject) &&
+              /^[ \t ]+(?:to|if)\b/i.test(following))
+        when:
+          # "In May possible…" names the month; "Will" can be a name.
+          - >-
+            !NOT_A_SUBJECT.test(subject) &&
+            (modal === modal.toLowerCase() || m[0] === m[0].toUpperCase())
+          - >-
+            predicate ||
+            (!!info?.adjective && !info.adverb && !info.verbs.length && !NOT_PREDICATE.test(word))
+          # "could kind of see": a noun before "of" is a hedge, not a predicate.
+          - '!(info?.noun && /^[ \t ]+of\b/i.test(following))'
+          # "it cannot due to the bug": an elided verb before "due to"; "I may due that" is "do".
+          - '!(word === "due" && /^[ \t ]+(?:to|that|it|this)\b/i.test(following))'
+          # "I couldn't careless" is the idiom "couldn't care less".
+          - '!(word === "careless" && /^could/i.test(modal))'
+          # "can be able" is itself awkward; "I can able to" wants "I am able to" or "I can".
+          - "!(/^(?:can|could)/i.test(modal) && /able$/i.test(adjective))"
+          - "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_missing_be",
+            range: { start: group(m, "adjective")[0], end: tail },
+            alternatives: [`${applyWordCase("be", detectWordCase(adjective))} ${adjective}`],
+            context: tightAround(ctx, m),
+          })
       # "a couple days", "a lot people": a quantity noun takes "of" before a plural. An -s word that is
       # also a verb needs "ago" after it or a preposition before ("A couple runs the shop").
       - regex: "(?:a{{S}}(?<head>couple|lot|bunch|handful)|(?<head2>plenty)){{S}}(?<noun>[a-z]+){{E}}(?<ago>{{S}}ago{{E}})?"
         owner: none
-        fixer: quantities
+        let:
+          quantity: head ?? head2
+          plural: pluralNoun(noun)
+          tail: ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 16)
+          headSpan: 'm.indices!.groups![head ? "head" : "head2"]'
+          # The range runs to the noun, so the inserted "of" sits inside it.
+          end: group(m, "noun")[1]
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          # An -s word that is also a verb needs "ago" after it or a preposition before it.
+          - >-
+            !!plural &&
+            (plural !== "ambiguous" || !!ago || wordEndsBefore(ctx, m.index, STRUCTURE_PREPOSITIONS))
+          # "a lot" is also an adverb ("It helps a lot people say"): its noun must close the phrase.
+          - >-
+            quantity.toLowerCase() !== "lot" ||
+            /^[ \t ]*(?:[.!?,;:)]|$|[ \t ]+(?:here|there|in|on|at|for|with|who|that|to|from|of)\b)/i.test(tail)
+          - "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_couple_of",
+            range: { start: headSpan[0], end },
+            alternatives: [
+              `${quantity} ${quantity === quantity.toUpperCase() ? "OF" : "of"}${ctx.text.slice(headSpan[1], end)}`,
+            ],
+            context: tightAround(ctx, m),
+          })
       # "many of people": "of" before a bare plural needs a determiner ("many of the people").
       - regex: "(?<quantifier>a{{S}}few|many|several|most|some|both|all){{S}}(?<of>of){{S}}(?<noun>[a-z]+){{E}}"
         owner: of
-        fixer: partitives
+        # "make the most of chances" is an idiom.
+        when: '!!pluralNoun(noun) && !wordEndsBefore(ctx, m.index, "the") && !hasUserOrCasedWord(ctx, m[0])'
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_partitive_of",
+            range: { start: group(m, "of")[0], end: group(m, "noun")[1] },
+            alternatives: [noun, `${of} ${applyWordCase("the", detectWordCase(of))} ${noun}`],
+            requiresChoice: true as const,
+            context: tightAround(ctx, m),
+          })
       # "Not only it is fast": a fronted "not only" inverts subject and auxiliary, also after a
       # linking word ("because not only it was…"); other verbs take do-support.
       - regex: "(?=not{{S}}only{{S}})(?:{{STRUCTURE_CLAUSE_START}}|(?<=(?:^|[^\\p{L}\\p{N}_'’-]){{STRUCTURE_OPENER}},?{{S}}))not{{S}}only{{S}}(?<subject>I|you|he|she|it|we|they)(?:(?<contraction>['’](?:s|re|ve|m|ll))|{{S}}(?<verb>[a-z]+)){{E}}"
         owner: none
-        fixer: notOnlyInversion
+        let:
+          start: group(m, "subject")[0]
+          upper: m[0] === m[0].toUpperCase()
+          who: 'upper || subject === "I" ? subject : subject.toLowerCase()'
+          end: m.index + m[0].length
+          # "Not only you know it, everyone does" and "Not only I am, but you are" stress the
+          # subject; "Not only it works, it is fast" goes on with the same one. Expletive "it"
+          # is never stressed.
+          tail: ctx.text.slice(end, end + 160)
+          clause: /^[^.!?\n]*/.exec(tail)![0]
+          nextSubject: >-
+            /(?:[,;]|\bbut\b)[ \t ]*(?:but[ \t ]+)?(?:also[ \t ]+)?([A-Za-z]+)/i
+              .exec(clause)?.[1]
+              ?.toLowerCase()
+          same: nextSubject === subject.toLowerCase()
+          closed: '/^[ \t ]*(?:[,;:.!?]|$)/.test(tail)'
+          replacement: notOnlyFix(ctx, m, who, upper, start, end)
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - >-
+            !(closed
+              ? !same
+              : !same && !/^it$/i.test(subject) && INVERSION_SUBJECTS.test(nextSubject ?? ""))
+          - replacement !== null
+        return: >-
+          ({
+            ruleId: "englishSentenceStructure",
+            messageKey: "review_msg_not_only_inversion",
+            range: { start, end },
+            alternatives: [replacement],
+            context: tightAround(ctx, m),
+          })
   # Independently selectable families (one check each), using explicit grammatical evidence.
   - id: wordConfusions
     checks:

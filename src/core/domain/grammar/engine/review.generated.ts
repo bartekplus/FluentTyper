@@ -4968,7 +4968,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=[A-Za-z]+(?:[ \\t\\u00a0]{1,8}[A-Za-z]+){0,2}[ \\t\\u00a0]{1,8}and(?![\\p{L}]))(?:(?<=(?:^|[.!?;:\\n\"“(])[ \\t\\u00a0]{0,8}(?:(?:yesterday|today|tonight|then|later|so|but|and|now|last[ \\t\\u00a0]{1,8}(?:night|week|month|year|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday)),?[ \\t\\u00a0]{1,8})?)|(?<=(?:,|\\b(?:that|when|because|if|since|while|whenever|until|think|thinks|thought|believe|believes|believed|hope|hopes|guess|suppose))[ \\t\\u00a0]{1,8}))(?<a>(?:(?:me|him|her|them|I|you|he|she|they|we)|(?:my|your|his|her|our|their|the|an?)[ \\t\\u00a0]{1,8}(?:(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8})?(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+)|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?<b>(?:(?:me|him|her|them|I|you|he|she|they|we)|(?:my|your|his|her|our|their|the|an?)[ \\t\\u00a0]{1,8}(?:(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8})?(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+)|myself)(?:[ \\t\\u00a0]{1,8}(?:both|all|also|always|never|just|still|often|already|then|actually|finally))?[ \\t\\u00a0]{1,8}(?<verb>(?:(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)(?:n['’]t)?|won['’]t|cannot|arose|awoke|bore|beat|became|began|bent|bet|bound|bit|bled|blew|broke|bred|brought|built|burst|bought|caught|chose|clung|came|cost|crept|cut|dealt|dug|did|drew|drank|drove|ate|fell|fed|felt|fought|found|fled|flung|flew|forbade|forgot|forgave|froze|got|gave|went|ground|grew|hung|had|heard|hid|hit|held|hurt|kept|knelt|knew|laid|led|left|lent|let|lit|lost|made|meant|met|misled|mistook|misunderstood|overcame|overtook|overwrote|paid|put|quit|read|rebuilt|redid|reran|reset|rewrote|rode|rang|rose|ran|said|saw|sought|sold|sent|set|shook|shone|shot|shrank|shut|sang|sank|sat|slept|slid|spoke|spent|spun|split|spread|sprang|stood|stole|stuck|stung|stank|struck|swore|swept|swam|swung|took|taught|tore|told|thought|threw|underwent|understood|undertook|undid|upset|woke|wore|wept|won|wound|withdrew|worked|wrote|[a-z]{2,}ed))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["and"],
-    fixer: "common:coordinatedSubjects",
+    fixer: "common:@pronounCase/1",
     owner: "none",
     gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]",
     gateFlags: "giu",
@@ -4977,7 +4977,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=[A-Za-z]+(?:[ \\t\\u00a0]{1,8}[A-Za-z]+){0,2}[ \\t\\u00a0]{1,8}and(?![\\p{L}]))(?:(?<=(?:^|[.!?;:\\n\"“(])[ \\t\\u00a0]{0,8}(?:(?:yesterday|today|tonight|then|later|so|but|and|now|last[ \\t\\u00a0]{1,8}(?:night|week|month|year|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday)),?[ \\t\\u00a0]{1,8})?)|(?<=(?:,|\\b(?:that|when|because|if|since|while|whenever|until|think|thinks|thought|believe|believes|believed|hope|hopes|guess|suppose))[ \\t\\u00a0]{1,8}))(?<a>(?:(?:me|him|her|them|I|you|he|she|they|we)|myself|(?:my|your|his|her|our|their|the)[ \\t\\u00a0]{1,8}(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?<b>(?:(?:me|him|her|them|I|you|he|she|they|we)|myself|(?:my|your|his|her|our|their|the)[ \\t\\u00a0]{1,8}(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))(?:[ \\t\\u00a0]{1,8}(?:both|all|also|always|never|just|still|often|already|then|actually|finally))?[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["and"],
-    fixer: "common:coordinatedSubjects",
+    fixer: "common:@pronounCase/2",
     owner: "none",
     gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]",
     gateFlags: "giu",
@@ -4986,7 +4986,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0])(?:(?<=(?:^|[.!?;:\\n\"“(])[ \\t\\u00a0]{0,8}(?:(?:yesterday|today|tonight|then|later|so|but|and|now|last[ \\t\\u00a0]{1,8}(?:night|week|month|year|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday)),?[ \\t\\u00a0]{1,8})?)|(?<=(?:,|\\b(?:that|when|because|if|since|while|whenever|until|think|thinks|thought|believe|believes|believed|hope|hopes|guess|suppose))[ \\t\\u00a0]{1,8}))(?:(?<lead>both|either|neither)[ \\t\\u00a0]{1,8})?(?<a>(?:(?:me|him|her|them|I|you|he|she|they|we)|(?:my|your|his|her|our|their|the|an?)[ \\t\\u00a0]{1,8}(?:(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8})?(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))[ \\t\\u00a0]{1,8}(?<conj>and|or|nor)[ \\t\\u00a0]{1,8}(?<b>me|myself|him|them)(?:[ \\t\\u00a0]{1,8}(?:both|all|also|always|never|just|still|often|already|then|actually|finally))?[ \\t\\u00a0]{1,8}(?<verb>(?:(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)(?:n['’]t)?|won['’]t|cannot|arose|awoke|bore|beat|became|began|bent|bet|bound|bit|bled|blew|broke|bred|brought|built|burst|bought|caught|chose|clung|came|cost|crept|cut|dealt|dug|did|drew|drank|drove|ate|fell|fed|felt|fought|found|fled|flung|flew|forbade|forgot|forgave|froze|got|gave|went|ground|grew|hung|had|heard|hid|hit|held|hurt|kept|knelt|knew|laid|led|left|lent|let|lit|lost|made|meant|met|misled|mistook|misunderstood|overcame|overtook|overwrote|paid|put|quit|read|rebuilt|redid|reran|reset|rewrote|rode|rang|rose|ran|said|saw|sought|sold|sent|set|shook|shone|shot|shrank|shut|sang|sank|sat|slept|slid|spoke|spent|spun|split|spread|sprang|stood|stole|stuck|stung|stank|struck|swore|swept|swam|swung|took|taught|tore|told|thought|threw|underwent|understood|undertook|undid|upset|woke|wore|wept|won|wound|withdrew|worked|wrote|[a-z]{2,}ed))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:correlativeSubjects",
+    fixer: "common:@pronounCase/3",
     owner: "b",
     gate: "(?:and|or)[ \\t\\u00a0]{1,8}(?:me|myself|him|them)[ \\t\\u00a0]",
     gateFlags: "giu",
@@ -4995,28 +4995,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<whom>whom(?:ever|soever)?)[ \\t\\u00a0]{1,8}(?:(?<aux>(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?:[ \\t\\u00a0]{1,8}(?:not|of[ \\t\\u00a0]{1,8}course|also|still|really|just|never|always|already|probably|certainly|definitely|actually|truly|then|now|ever|only))?[ \\t\\u00a0]{1,8}[\"“']?(?<evidence>[a-z]+)|(?<verb>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["whom"],
-    fixer: "common:whomSubjects",
+    fixer: "common:@pronounCase/4",
     owner: "whom",
   }),
   frame({
     pattern:
       "(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)[ \\t\\u00a0]{1,8}(?<pronoun>he|she|they|we)[ \\t\\u00a0]{1,8}(?:and|or)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}I(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "common:pronounObject",
+    fixer: "common:@pronounCase/5",
     owner: "pronoun",
   }),
   frame({
     pattern:
       "(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)[ \\t\\u00a0]{1,8}(?<pronoun>we)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:pronounObject",
+    fixer: "common:@pronounCase/6",
     owner: "pronoun",
   }),
   frame({
     pattern:
       "(?:(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)|for|between)[ \\t\\u00a0]{1,8}(?<a>(?:(?:me|him|her|them|I|you|he|she|they|we)|(?:my|your|his|her|our|their|the|an?)[ \\t\\u00a0]{1,8}(?:(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8})?(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?<i>I)(?:(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))|(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["and"],
-    fixer: "common:andIObject",
+    fixer: "common:@pronounCase/7",
     owner: "a",
     gate: "and[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
     gateFlags: "giu",
@@ -5025,14 +5025,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:to|with|from|by|of|about|among|against|without|toward|towards|at|upon|via|regarding|concerning|beside|near)|for|between)[ \\t\\u00a0]{1,8}(?<a>(?:(?:me|him|her|them|I|you|he|she|they|we)|(?:my|your|his|her|our|their|the|an?)[ \\t\\u00a0]{1,8}(?:(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8})?(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}(?<i>myself)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
     literals: ["myself"],
-    fixer: "common:andMyselfObject",
+    fixer: "common:@pronounCase/8",
     owner: "a",
   }),
   frame({
     pattern:
       "(?=[a-z]+(?:[ \\t\\u00a0]{1,8}[a-z]+){1,3}[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}I(?![\\p{L}]))(?<lead>[a-z]+)[ \\t\\u00a0]{1,8}(?<a>(?:(?:me|him|her|them|I|you|he|she|they|we)|(?:my|your|his|her|our|their|the|an?)[ \\t\\u00a0]{1,8}(?:(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8})?(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))[ \\t\\u00a0]{1,8}(?:and|or)[ \\t\\u00a0]{1,8}(?<i>I)(?:(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)))",
     literals: [],
-    fixer: "common:andIBefore",
+    fixer: "common:@pronounCase/9",
     owner: "a",
     gate: "(?:and|or)[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
     gateFlags: "giu",
@@ -5041,55 +5041,55 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=us(?![\\p{L}]))(?<=(?:^|[.!?;:\\n\"“(])[ \\t\\u00a0]{0,8}(?:(?:yesterday|today|tonight|then|later|so|but|and|now|last[ \\t\\u00a0]{1,8}(?:night|week|month|year|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday)),?[ \\t\\u00a0]{1,8})?)(?<pronoun>us)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?:both|all|also|always|never|just|still|often|already|then|actually|finally))?[ \\t\\u00a0]{1,8}(?:(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must)(?:n['’]t)?|won['’]t|cannot|arose|awoke|bore|beat|became|began|bent|bet|bound|bit|bled|blew|broke|bred|brought|built|burst|bought|caught|chose|clung|came|cost|crept|cut|dealt|dug|did|drew|drank|drove|ate|fell|fed|felt|fought|found|fled|flung|flew|forbade|forgot|forgave|froze|got|gave|went|ground|grew|hung|had|heard|hid|hit|held|hurt|kept|knelt|knew|laid|led|left|lent|let|lit|lost|made|meant|met|misled|mistook|misunderstood|overcame|overtook|overwrote|paid|put|quit|read|rebuilt|redid|reran|reset|rewrote|rode|rang|rose|ran|said|saw|sought|sold|sent|set|shook|shone|shot|shrank|shut|sang|sank|sat|slept|slid|spoke|spent|spun|split|spread|sprang|stood|stole|stuck|stung|stank|struck|swore|swept|swam|swung|took|taught|tore|told|thought|threw|underwent|understood|undertook|undid|upset|woke|wore|wept|won|wound|withdrew|worked|wrote|[a-z]{2,}ed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:usSubject",
+    fixer: "common:@pronounCase/10",
     owner: "pronoun",
   }),
   frame({
     pattern:
       "(?<a>(?:(?:me|him|her|them|I|you|he|she|they|we)|(?:my|your|his|her|our|their|the|an?)[ \\t\\u00a0]{1,8}(?:(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+[ \\t\\u00a0]{1,8})?(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+|(?!(?:and|or|but|so|then|also|not|only|just|even|both|all|too|to|of|in|on|at|for|with|from|by|the|a|an|this|that|these|those|it|its|us|there|here|now|me|him|her|them|i|you|he|she|we|they|my|your|his|our|their|myself|(?:am|is|are|was|were|has|have|had|do|does|did|will|would|can|could|shall|should|may|might|must))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?<target>myself)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["myself"],
-    fixer: "common:myselfObjects",
+    fixer: "common:@pronounCase/11",
   }),
   frame({
     pattern:
       "(?<=(?:^|[.!?;:\\n\"“(])[ \\t\\u00a0]{0,8})(?<a>I|we|they|he|she)[ \\t\\u00a0]{1,8}(?<b>I|we|they|he|she)[ \\t\\u00a0]{1,8}(?!(?:said|told|thought|knew|felt|believed|claimed|heard|guessed|supposed|reckoned)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?:(?:can|could|will|would|shall|should|may|might|must)|arose|awoke|bore|beat|became|began|bent|bet|bound|bit|bled|blew|broke|bred|brought|built|burst|bought|caught|chose|clung|came|cost|crept|cut|dealt|dug|did|drew|drank|drove|ate|fell|fed|felt|fought|found|fled|flung|flew|forbade|forgot|forgave|froze|got|gave|went|ground|grew|hung|had|heard|hid|hit|held|hurt|kept|knelt|knew|laid|led|left|lent|let|lit|lost|made|meant|met|misled|mistook|misunderstood|overcame|overtook|overwrote|paid|put|quit|read|rebuilt|redid|reran|reset|rewrote|rode|rang|rose|ran|said|saw|sought|sold|sent|set|shook|shone|shot|shrank|shut|sang|sank|sat|slept|slid|spoke|spent|spun|split|spread|sprang|stood|stole|stuck|stung|stank|struck|swore|swept|swam|swung|took|taught|tore|told|thought|threw|underwent|understood|undertook|undid|upset|woke|wore|wept|won|wound|withdrew|worked|wrote|[a-z]{2,}ed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:doubleSubjects",
+    fixer: "common:@sentenceStructure/1",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<a>my|your|our|their)[ \\t\\u00a0]{1,8}(?<b>I|you|he|she|we|they)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:possessiveSubjects",
+    fixer: "common:@sentenceStructure/2",
     owner: "a",
   }),
   frame({
     pattern:
       "(?:to|with|for|from|about|at|by|of|on|in|into|onto|upon|without|against|among|between|toward|towards|behind|beside|near|around|via)[ \\t\\u00a0]{1,8}(?<a>me|you|him|her|us|them|it)[ \\t\\u00a0]{1,8}(?<b>me|him|us|them)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:objectPairs",
+    fixer: "common:@sentenceStructure/3",
     owner: "a",
   }),
   frame({
     pattern:
       "(?<article>the|a|an)[ \\t\\u00a0]{1,8}(?<possessive>(?:my|your|our|their|his|its|her))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:[ \\t\\u00a0]{1,8}(?<noun>[a-z]+))?",
     literals: [],
-    fixer: "common:determinerClashes",
+    fixer: "common:@sentenceStructure/4",
     owner: "article",
   }),
   frame({
     pattern:
       "(?<first>my|your|our|their|his|a)[ \\t\\u00a0]{1,8}(?<second>the|(?:my|your|our|their|his|its|her))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:stackedDeterminers",
+    fixer: "common:@sentenceStructure/5",
     owner: "first",
   }),
   frame({
     pattern:
       "(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?<first>(?:can|could|will|would|shall|should|may|might|must))[ \\t\\u00a0]{1,8}(?<second>(?:can|could|will|would|shall|should|may|might|must)|ought[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["can", "could", "will", "would", "shall", "should", "may", "might", "must"],
-    fixer: "common:doubleModals",
+    fixer: "common:@sentenceStructure/6",
     owner: "first",
   }),
   frame({
@@ -5114,28 +5114,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "must",
       "can",
     ],
-    fixer: "common:missingBe",
+    fixer: "common:@sentenceStructure/7",
     owner: "adjective",
   }),
   frame({
     pattern:
       "(?:a[ \\t\\u00a0]{1,8}(?<head>couple|lot|bunch|handful)|(?<head2>plenty))[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<ago>[ \\t\\u00a0]{1,8}ago(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?",
     literals: ["couple", "lot", "bunch", "handful", "plenty"],
-    fixer: "common:quantities",
+    fixer: "common:@sentenceStructure/8",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<quantifier>a[ \\t\\u00a0]{1,8}few|many|several|most|some|both|all)[ \\t\\u00a0]{1,8}(?<of>of)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["few", "many", "several", "most", "some", "both", "all"],
-    fixer: "common:partitives",
+    fixer: "common:@sentenceStructure/9",
     owner: "of",
   }),
   frame({
     pattern:
       "(?=not[ \\t\\u00a0]{1,8}only[ \\t\\u00a0]{1,8})(?:(?<=(?:^|[.!?;:\\n\"“(])[ \\t\\u00a0]{0,8})|(?<=(?:^|[^\\p{L}\\p{N}_'’-])(?:because|so|and|but|here|now|since|although|though|while|yet|thus|hence|indeed),?[ \\t\\u00a0]{1,8}))not[ \\t\\u00a0]{1,8}only[ \\t\\u00a0]{1,8}(?<subject>I|you|he|she|it|we|they)(?:(?<contraction>['’](?:s|re|ve|m|ll))|[ \\t\\u00a0]{1,8}(?<verb>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["only"],
-    fixer: "common:notOnlyInversion",
+    fixer: "common:@sentenceStructure/10",
     owner: "none",
   }),
   frame({
