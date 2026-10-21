@@ -26,6 +26,7 @@ import {
   deTokensBefore,
   deUtcDate,
   deWeekdayOf,
+  deWordBefore,
   deYearsFor,
   deumlaut,
   germanAdjective,
@@ -6663,7 +6664,7 @@ export const QUOTE_MARK = /“|”|,,|''|"/;
 
 // de.yaml rule de.quotes def quoteTrack
 export function quoteTrack(open: number, chars: string) {
-  return [...chars].reduce(
+  return (chars.match(/[„“\n]/g) ?? []).reduce(
     (n, c) => (c === "„" ? n + 1 : c === "“" && n > 0 ? n - 1 : c === "\n" ? 0 : n),
     open,
   );
@@ -6734,14 +6735,20 @@ export const QUOTE_NESTING = [
   ["»", "«", "›", "‹"],
 ];
 
+// de.yaml rule de.quotes def QUOTE_OUTER_MARKS
+export const QUOTE_OUTER_MARKS = QUOTE_NESTING.map(
+  (row) => new RegExp(`[${row[0]}${row[1]}]`, "g"),
+);
+
 // de.yaml rule de.quotes def nestedQuoteFindings
 export function nestedQuoteFindings(
   ctx: DetectContext,
   start: number,
   line: string,
   row: string[],
+  marks: RegExp,
 ): RawFinding[] {
-  return [...line.matchAll(new RegExp(`[${row[0]}${row[1]}]`, "g"))].reduce(
+  return [...line.matchAll(marks)].reduce(
     (s, mark) =>
       mark[0] === row[0]
         ? { stack: [...s.stack, start + mark.index], inner: s.inner, out: s.out }
@@ -6832,16 +6839,6 @@ export function commaFinding(
     alternatives: [`${word},`],
     context: { start: Math.max(0, wordStart - 40), end: Math.min(ctx.text.length, at + 40) },
   };
-}
-
-// de.yaml rule de.commas def commaWordBefore
-export function commaWordBefore(
-  text: string,
-  index: number,
-): { word: string; start: number } | null {
-  const low = Math.max(0, index - 64);
-  const hit = /([\p{L}\p{N}]+)[ \t ]+$/u.exec(text.slice(low, index));
-  return hit ? { word: hit[1], start: low + hit.index } : null;
 }
 
 // de.yaml rule de.commas def commaFiniteWord
@@ -7484,7 +7481,7 @@ export function commaQuestionBranch(
 ): RawFinding[] | null {
   if (!(typed === low && COMMA_W_WORDS.has(low) && !!prior)) return null;
   const prep = COMMA_QUESTION_PREPOSITIONS.has(prior.word) && /^(?:was|wem|wen)$/.test(low);
-  const lead = prep ? commaWordBefore(ctx.text, prior.start) : prior;
+  const lead = prep ? deWordBefore(ctx.text, prior.start) : prior;
   if (!lead) return null;
   const chain = prep ? before.slice(0, -1) : before;
   const k0 = commaSkipAskFillers(chain, chain.length - 1);
@@ -10740,7 +10737,9 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const start = ctx.text.lastIndexOf("\n", m.index - 1) + 1;
     const end = m.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0);
     const line = ctx.text.slice(start, end);
-    return QUOTE_NESTING.flatMap((row) => nestedQuoteFindings(ctx, start, line, row));
+    return QUOTE_NESTING.flatMap((row, r) =>
+      nestedQuoteFindings(ctx, start, line, row, QUOTE_OUTER_MARKS[r]),
+    );
   },
   // de.yaml rule de.quoteFrames frame 1
   "@de.quoteFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -10818,7 +10817,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const at = m.index;
     if (!(!deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, at))) return null;
     const end = at + typed.length;
-    const prior = commaWordBefore(ctx.text, at);
+    const prior = deWordBefore(ctx.text, at);
     const before = deTokensBefore(ctx.text, at, 8);
     return (
       commaCorrelateBranch(ctx, typed, low, at, before) ??

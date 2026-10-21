@@ -6221,7 +6221,7 @@ rules:
       # The count of open „ after `chars`; a line break closes them all.
       quoteTrack:
         args: "open: number, chars: string"
-        return: '[...chars].reduce((n, c) => c === "„" ? n + 1 : c === "“" && n > 0 ? n - 1 : c === "\n" ? 0 : n, open)'
+        return: '(chars.match(/[„“\n]/g) ?? []).reduce((n, c) => c === "„" ? n + 1 : c === "“" && n > 0 ? n - 1 : c === "\n" ? 0 : n, open)'
       # What a mark does: the findings it gives and the count of open „ after it. A straight mark
       # only closes a German opening one („so" → „so“); ",,so" and "''so''" are doubled commas or
       # apostrophes as quotes.
@@ -6260,13 +6260,15 @@ rules:
         else: found
       # A quotation inside a quotation takes the single marks: „Er sagte ‚Hallo‘.“, »… ›…‹ …«.
       QUOTE_NESTING: '[["„", "“", "‚", "‘"], ["»", "«", "›", "‹"]]'
+      # The outer marks of each row: the scan jumps from mark to mark.
+      QUOTE_OUTER_MARKS: 'QUOTE_NESTING.map((row) => new RegExp(`[${row[0]}${row[1]}]`, "g"))'
       # The quotations inside quotations of one line for one row of marks, reported only once the
       # outer quotation closes too: an unclosed one may be the slip.
       nestedQuoteFindings:
-        args: "ctx: DetectContext, start: number, line: string, row: string[]"
+        args: "ctx: DetectContext, start: number, line: string, row: string[], marks: RegExp"
         type: RawFinding[]
         return: >-
-          [...line.matchAll(new RegExp(`[${row[0]}${row[1]}]`, "g"))].reduce((s, mark) =>
+          [...line.matchAll(marks)].reduce((s, mark) =>
           mark[0] === row[0] ? { stack: [...s.stack, start + mark.index], inner: s.inner, out: s.out }
           : s.stack.length === 0 ? s
           : s.stack.length > 1 ? { stack: s.stack.slice(0, -1), inner: [...s.inner, [s.stack[s.stack.length - 1], start + mark.index] as [number, number]], out: s.out }
@@ -6295,7 +6297,7 @@ rules:
           start: ctx.text.lastIndexOf("\n", m.index - 1) + 1
           end: 'm.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0)'
           line: ctx.text.slice(start, end)
-        return: QUOTE_NESTING.flatMap((row) => nestedQuoteFindings(ctx, start, line, row))
+        return: "QUOTE_NESTING.flatMap((row, r) => nestedQuoteFindings(ctx, start, line, row, QUOTE_OUTER_MARKS[r]))"
   - id: de.quoteFrames
     checks: [germanQuotes]
     style: match
@@ -7069,15 +7071,6 @@ rules:
         return: >-
           ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start: wordStart, end: wordStart + word.length },
           alternatives: [`${word},`], context: { start: Math.max(0, wordStart - 40), end: Math.min(ctx.text.length, at + 40) } })
-      # The word right before `index`, and where it starts, when only spaces come between (read
-      # in the 64 characters before `index`).
-      commaWordBefore:
-        args: "text: string, index: number"
-        type: "{ word: string; start: number } | null"
-        let:
-          low: Math.max(0, index - 64)
-          hit: '/([\p{L}\p{N}]+)[ \t ]+$/u.exec(text.slice(low, index))'
-        return: "hit ? { word: hit[1], start: low + hit.index } : null"
       # A finite verb form: listed, or a regular third person ("lernt") of a known verb; not a
       # participle ("übereilt", "garantiert").
       commaFiniteWord:
@@ -7487,7 +7480,7 @@ rules:
         type: RawFinding[] | null
         let:
           prep: COMMA_QUESTION_PREPOSITIONS.has(prior.word) && /^(?:was|wem|wen)$/.test(low)
-          lead: "prep ? commaWordBefore(ctx.text, prior.start) : prior"
+          lead: "prep ? deWordBefore(ctx.text, prior.start) : prior"
           chain: "prep ? before.slice(0, -1) : before"
           k0: commaSkipAskFillers(chain, chain.length - 1)
           subject: >-
@@ -7519,7 +7512,7 @@ rules:
           low: typed.toLowerCase()
           at: m.index
           end: at + typed.length
-          prior: commaWordBefore(ctx.text, at)
+          prior: deWordBefore(ctx.text, at)
           before: deTokensBefore(ctx.text, at, 8)
         when:
           # Only the words a check below starts at; the reads after this cost more than the test.
