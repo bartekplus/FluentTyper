@@ -1,6 +1,5 @@
 // The rule library (library.ts): German conjugation. The person forms of the irregular verbs and
 // the forms that fit a subject.
-import { wordTable } from "../../review/wordTable";
 import {
   germanAdjective,
   germanGender as germanGenderOf,
@@ -72,7 +71,7 @@ export const germanVerbForms = (word: string): readonly GermanVerbForm[] | undef
 export const germanInfinitiveOf = (word: string) => FORMS.get(word)?.[0].line[0][3] ?? null;
 
 // "er habe", "sie wisse": the present subjunctive of the third person is the "ich" form.
-const SUBJUNCTIVE: Readonly<Record<string, string>> = wordTable({ bin: "sei" });
+const SUBJUNCTIVE: Readonly<Record<string, string>> = { bin: "sei" };
 // Strong verbs that change their vowel for "du" ("du fährst"): no regular ending is offered.
 const STRONG =
   /(?:fahr|schlaf|trag|fall|halt|lass|wasch|wachs|lad|rat|brat|grab|schlag|lauf|sauf|geb|nehm|seh|les|sprech|helf|ess|treff|vergess|werf|sterb|empfehl|stehl|brech|tret|gelt|mess|befehl|fress|stoß)t$/;
