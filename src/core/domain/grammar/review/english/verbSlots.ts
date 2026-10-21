@@ -2,7 +2,7 @@ import { englishInflect, englishLemma } from "../../implementations/helpers/Engl
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import type { DetectContext } from "../reviewDetectors";
 import type { Fixer } from "../../engine/reviewRules";
-import { participle } from "./realWordFrames";
+import { participle } from "../../library/english/verbs";
 import { afterBreak, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords";
 
 const read = (word: string | undefined) => (word ? englishWordInfo(word.toLowerCase()) : null);

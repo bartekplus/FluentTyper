@@ -15611,27 +15611,27 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?<subject>I|we|they|he|she)(?:[ \\t\\u00a0]{1,8}(?:formally|recently|really|just|also|never|always|often|usually|already|still|only|sometimes|actually|then))?[ \\t\\u00a0]{1,8}(?<target>[a-z]{4,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:realWordFramesA",
+    fixer: "en:@en.realWordFrames/1",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?<target>cause)[ \\t\\u00a0]{1,8}(?<next>I|I['’]m|I['’]ve|I['’]ll|we|we['’]re|they|they['’]re|he|he['’]s|she|she['’]s|it['’]s|you['’]re|there['’]s|(?:it|you|our|my|your|his|her|their|the)[ \\t\\u00a0]{1,8}(?:[a-z]+[ \\t\\u00a0]{1,8})?(?:is|was|are|were|can|can['’]t|will|won['’]t|did|didn['’]t|does|doesn['’]t|has|had|need|needs))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["cause"],
-    fixer: "en:realWordFramesCause",
+    fixer: "en:@en.realWordFrames/2",
     cue: ["cause"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she)[ \\t\\u00a0]{1,8}(?<target>though)(?:[ \\t\\u00a0]{1,8}(?<next>of|about|that|so|it|he|she|I|you|we|they|this|was|is|the|a|my|his|her|their|our)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<end>[ \\t\\u00a0]*[.!?]))",
     literals: ["though"],
-    fixer: "en:realWordFramesThough",
+    fixer: "en:@en.realWordFrames/3",
     cue: ["though"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?<target>bit)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["bit"],
-    fixer: "en:realWordFramesBit",
+    fixer: "en:@en.realWordFrames/4",
     message: "review_msg_contextual_grammar",
     check: "englishPhraseCorrections",
     cue: ["bit"],
@@ -15640,21 +15640,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:I|we|they|you|will|would|should|could|can|must|might|please)[ \\t\\u00a0]{1,8}(?<target>[a-z]+ies)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ies"],
-    fixer: "en:realWordFramesA2",
+    fixer: "en:@en.realWordFrames/5",
     cue: ["apologies", "priorities", "summaries", "categories", "memories"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:a|an|my|your|our|their|his|her|no)[ \\t\\u00a0]{1,8}(?<target>[a-z]+ize)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ize"],
-    fixer: "en:realWordFramesA3",
+    fixer: "en:@en.realWordFrames/6",
     cue: ["apologize", "prioritize", "summarize", "categorize", "memorize"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:help|helped|helps|helping)[ \\t\\u00a0]{1,8}(?:not[ \\t\\u00a0]{1,8})?(?<target>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["help", "helped", "helps", "helping"],
-    fixer: "en:realWordFramesA4",
+    fixer: "en:@en.realWordFrames/7",
     message: "review_msg_verb_complements",
     check: "englishVerbComplements",
     cue: ["help", "helped", "helps", "helping"],
@@ -15663,7 +15663,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:(?:I['’]m|I[ \\t\\u00a0]{1,8}am|I[ \\t\\u00a0]{1,8}was|(?:we|you)(?:['’]re|[ \\t\\u00a0]{1,8}are|[ \\t\\u00a0]{1,8}were))(?:[ \\t\\u00a0]{1,8}(?:so|very|really|not|quite|just))?[ \\t\\u00a0]{1,8}used|accustomed)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["used", "accustomed"],
-    fixer: "en:realWordFramesA5",
+    fixer: "en:@en.realWordFrames/8",
     message: "review_msg_gerund_complement",
     check: "englishVerbComplements",
     cue: ["used", "accustomed"],
@@ -15672,7 +15672,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])to[ \\t\\u00a0]{1,8}(?:not[ \\t\\u00a0]{1,8})?(?<target>[a-z]+(?:s|ed))(?=(?<close>[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:the|a|an|my|your|his|her|our|their|it|them|him|me|us|there|here|home|at|in|to|with|on)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: [],
-    fixer: "en:realWordFramesA6",
+    fixer: "en:@en.realWordFrames/9",
     message: "review_msg_to_base",
     check: "englishAuxiliaryBaseVerb",
     cue: ["to"],
@@ -15681,7 +15681,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:will|would|can|could|should|must|might|may|to)[ \\t\\u00a0]{1,8}(?<target>be[ \\t\\u00a0]{1,8}(?<verb>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:realWordFramesBe",
+    fixer: "en:@en.realWordFrames/10",
     message: "review_msg_auxiliary_base",
     check: "englishAuxiliaryBaseVerb",
     cue: ["be"],
@@ -15690,7 +15690,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>state[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}art)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["state"],
-    fixer: "en:realWordFramesState",
+    fixer: "en:@en.realWordFrames/11",
     message: "review_msg_contextual_grammar",
     check: "englishPhraseCorrections",
     cue: ["art"],

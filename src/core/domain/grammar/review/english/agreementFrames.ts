@@ -11,7 +11,7 @@ import {
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import type { DetectContext } from "../reviewDetectors";
 import type { Fixer } from "../../engine/reviewRules";
-import { nounVerb, participle } from "./realWordFrames";
+import { nounVerb, participle } from "../../library/english/verbs";
 import { nounNumber } from "./nounNumberSlots";
 import { afterBreak, FUNCTION_WORDS, tokensAfter, wordBefore } from "./slotWords";
 

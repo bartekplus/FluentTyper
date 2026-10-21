@@ -54,7 +54,6 @@ import * as neighbourSlots from "./neighbourSlots";
 import * as prepositionSlots from "./prepositionSlots";
 import * as clauseFrames from "./clauseFrames";
 import * as slipFrames from "./slipFrames";
-import * as realWordFrames from "./realWordFrames";
 import * as clauseGaps from "./clauseGaps";
 import * as misheardWords from "./misheardWords";
 import * as verbSlots from "./verbSlots";
@@ -85,7 +84,6 @@ export const FIXERS = mergePredicates<Fixer>(
   neighbourSlots.FIXERS,
   nounSlots.FIXERS,
   prepositionSlots.FIXERS,
-  realWordFrames.FIXERS,
   typoSlots.FIXERS,
   verbSlots.FIXERS,
   remaining.FIXERS,

@@ -5622,62 +5622,207 @@ rules:
       ]
     style: slot
     message: review_msg_confused_word
+    defs:
+      # The lexicon reading of a word, or null.
+      rwRead:
+        args: "word: string | undefined"
+        return: "word ? englishWordInfo(word.toLowerCase()) : null"
+      # A word that the lexicon reads only as a verb.
+      rwVerbOnly:
+        args: "word: string"
+        let:
+          r: rwRead(word)
+        return: "!!r?.verbs.length && !r.noun && !r.plural && !r.adjective"
+      # A base verb that is its own lemma.
+      rwBaseVerb:
+        args: "word: string"
+        return: >-
+          !!rwRead(word)?.verbs.some((v) => v.form === "base" && v.lemma === word.toLowerCase())
+      # Verbs and adjectives that take a to-infinitive, in their usual forms.
+      RW_TO_GOVERNOR: >-
+        /^(?:wants?|wanted|wanting|needs?|needed|tr(?:y|ies|ied|ying)|seems?|seemed|going|has|have|had|able|likes?|liked|loves?|loved|hates?|hated|decided?|decides|plans?|planned|hopes?|hoped|expects?|expected|managed?|manages|starts?|started|begins?|began|continues?|continued|refused?|refuses|forgot|forget|remember(?:ed|s)?|learn(?:ed|s)?|agreed?|agrees|promised?|promises|chose|choose|fails?|failed|invited|asked|told|allowed|supposed|ought|would|'d|wish(?:es|ed)?|prefer(?:s|red)?|intends?|intended|happens?|happened|appears?|appeared|tends?|tended|helps?|helped|used)$/
+      # "must be replaces": the participle of a verb-only base or -s form after "be", or null.
+      rwBeParticiple:
+        args: "m: RegExpExecArray, ctx: DetectContext, word: string"
+        let:
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          r: rwRead(word)
+          form: r.verbs[0]
+          done: enParticiple(form.lemma)
+        when:
+          # "should be, please…", "will be follow up", "to be seem" (seen): not a verb slip.
+          - "!/^(?:please|further|seem)$/.test(word)"
+          - '!(next?.kind === "word" && /^(?:up|out|off|on|down|in)$/.test(next.lower))'
+          - r && rwVerbOnly(word) && !EN_FUNCTION_WORDS.has(word)
+          - r.verbs.every((v) => v.lemma === form.lemma)
+          - '!r.verbs.some((v) => v.form === "participle" || v.form === "past" || v.form === "ing")'
+          - done
+        # The participle, as the verb-group check offers it ("can be install" -> installed).
+        return: "{ alternatives: [done], range: m.indices!.groups!.verb }"
     frames:
       # "I complaint about it", "We life in Moscow", "He departures at 8", "She intents to go":
       # a noun after a subject pronoun where only its verb fits.
       - regex: "(?<![\\p{L}'’])(?<subject>I|we|they|he|she)(?:{{S}}(?:formally|recently|really|just|also|never|always|often|usually|already|still|only|sometimes|actually|then))?{{S}}(?<target>[a-z]{4,}){{E}}"
-        fixer: realWordFramesA
+        let:
+          word: target.toLowerCase()
+          verb: enNounVerb(word)
+          plural: /s$/.test(word) && !/ss$/.test(word)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          # "they lawyers", "we developers": a plural noun can stand beside we/they.
+          singularSubject: /^(?:he|she)$/i.test(subject)
+          after: 'next?.kind === "word" ? rwRead(next.lower) : null'
+        when:
+          - target === word
+          - verb
+          # "Type I life jackets", "World War I deliveries": a numeral I.
+          - '!/\p{Lu}/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))'
+          - singularSubject === plural
+          # A clause goes on after the verb: an object, a preposition, "to" or the clause end; a
+          # noun or another verb form after it ("life jackets") leaves a compound.
+          - >-
+            !(after && !EN_FUNCTION_WORDS.has(next.lower) && (after.verbs.some((v) => v.form !==
+            "base") || ((after.noun || after.plural) && !after.verbs.length)))
+        return: >-
+          singularSubject ? englishInflect(verb, "third") : englishInflect(verb, "past") ? [verb,
+          englishInflect(verb, "past")!] : verb
       # "I guess they did it cause they need money": because.
       - regex: "(?<![\\p{L}'’])(?<target>cause){{S}}(?<next>I|I['’]m|I['’]ve|I['’]ll|we|we['’]re|they|they['’]re|he|he['’]s|she|she['’]s|it['’]s|you['’]re|there['’]s|(?:it|you|our|my|your|his|her|their|the){{S}}(?:[a-z]+{{S}})?(?:is|was|are|were|can|can['’]t|will|won['’]t|did|didn['’]t|does|doesn['’]t|has|had|need|needs)){{E}}"
         cue: ["cause"]
-        fixer: realWordFramesCause
+        let:
+          before: enWordBefore(ctx, m.index)
+          lead: ctx.text.slice(Math.max(0, m.index - 30), m.index)
+        when:
+          # "a good cause they support", "can cause the", "that cause our": a noun or a verb.
+          - >-
+            !(before && (EN_DETERMINERS.has(before) || EN_FUNCTION_WORDS.has(before) ||
+            /n['’]t$/.test(before) || rwRead(before)?.verbs.some((v) => v.form === "base" ||
+            v.form === "third")))
+          - >-
+            !/\b(?:a|an|the|this|that|my|our|your|his|her|their|every|any|no)[ \t ]+[a-z]+[ \t ]+$/i.test(lead)
+        return: '"because"'
       # "I though he left", "a problem they though was fixed", "higher than I though.": thought.
       - regex: "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she){{S}}(?<target>though)(?:{{S}}(?<next>of|about|that|so|it|he|she|I|you|we|they|this|was|is|the|a|my|his|her|their|our){{E}}|(?<end>[ \\t\\u00a0]*[.!?]))"
         cue: ["though"]
-        fixer: realWordFramesThough
+        let:
+          before: enWordBefore(ctx, m.index)
+        # "He, though, is…" without commas: a clause start keeps "though" before be. "though of
+        # course"; "even though about".
+        return: >-
+          end !== undefined ? (before === "than" ? "thought" : null) : /^(?:is|was)$/i.test(next)
+          && !/^(?:that|which|what|who)$/.test(before) ? null : /^of$/i.test(next) &&
+          /^[ \t ]+course\b/i.test(ctx.text.slice(m.index + m[0].length)) ? null :
+          /^(?:even|as)$/.test(before) ? null : "thought"
       # "I'm bit lazy", "Bit odd that…", "got bit money": a bit.
       - regex: "(?<![\\p{L}'’])(?<target>bit){{S}}(?<next>[a-z]+){{E}}"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
         cue: ["bit"]
-        fixer: realWordFramesBit
+        let:
+          word: next.toLowerCase()
+          before: enWordBefore(ctx, m.index)
+          lead: >-
+            /^(?:am|is|are|was|were|be|been|feel|feels|felt|seem|seems|seemed|look|looks|looked|sound|sounds|got|get|need)$/.test(before)
+            || /['’](?:m|s|re)$/.test(before) || (!before && enAfterBreak(ctx, m.index))
+          r: rwRead(word)
+          closed: >-
+            /^(?:too|more|less|of|late|early|later|earlier|better|worse|longer|faster|slower|behind|much)$/.test(word)
+          # "Bit serial designs": at a sentence start an adjective must end its phrase.
+          after: "!before && !closed ? enTokensAfter(ctx, m.index + m[0].length, 1)[0] : undefined"
+        when:
+          - lead && !/^(?:by|off|into|me|him|her|them|us|you|it|the|my)$/.test(word)
+          - '!(after?.kind === "word" && !/^(?:that|to|but)$/.test(after.lower))'
+        return: >-
+          closed || (!!r?.adjective && !r.verbs.length) || (/^(?:got|get|need)$/.test(before) &&
+          !!r?.noun && !r.plural && !r.verbs.length) ? { alternatives: ["a bit"], range:
+          m.indices!.groups!.target } : null
       # "I apologies for that", "We would priorities it": the -ize verb; "an apologize": the noun.
       - regex: "(?<![\\p{L}'’])(?:I|we|they|you|will|would|should|could|can|must|might|please){{S}}(?<target>[a-z]+ies){{E}}"
         cue: ["apologies", "priorities", "summaries", "categories", "memories"]
-        fixer: realWordFramesA2
+        let:
+          word: target.toLowerCase()
+          verb: "`${word.slice(0, -3)}ize`"
+        return: "rwRead(word)?.plural && !rwRead(word)?.verbs.length && rwBaseVerb(verb) ? verb : null"
       - regex: "(?<![\\p{L}'’])(?:a|an|my|your|our|their|his|her|no){{S}}(?<target>[a-z]+ize){{E}}"
         cue: ["apologize", "prioritize", "summarize", "categorize", "memorize"]
-        fixer: realWordFramesA3
+        let:
+          word: target.toLowerCase()
+          noun: "`${word.slice(0, -3)}y`"
+          r: rwRead(noun)
+        return: "rwVerbOnly(word) && r?.noun && !r.verbs.length ? noun : null"
       # "He helped carrying the bags": help takes a bare or to-infinitive.
       - regex: "(?<![\\p{L}'’])(?:help|helped|helps|helping){{S}}(?:not{{S}})?(?<target>[a-z]+ing){{E}}"
         check: englishVerbComplements
         message: review_msg_verb_complements
         cue: ["help", "helped", "helps", "helping"]
-        fixer: realWordFramesA4
+        let:
+          word: target.toLowerCase()
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          subject: enWordBefore(ctx, m.index)
+          r: rwRead(word)
+          lemma: englishLemma(word, "ing")
+        when:
+          # "can't help laughing"; "It helps knowing that…": a gerund subject after it.
+          - >-
+            !/(?:can['’]?t|cannot|could(?:n['’]t|[ \t ]+not)|can[ \t ]+not)[ \t ]+$/i.test(before)
+          - "!/^(?:it|this|that|what|which)$/.test(subject)"
+          # "I need help getting started": help is the noun there. "Meditation helps relaxing" is
+          # heard too: only a pronoun, "to" or an auxiliary before help.
+          - >-
+            /^(?:i|we|they|you|he|she|to|will|would|can|could|should|must|might|did|do|does|please)$/.test(subject)
+          - lemma && lemma !== "be" && !r?.noun && !r?.adjective
+        return: "[`to ${lemma}`, lemma]"
       # "I'm used to run every day", "accustomed to wait": the to is a preposition there.
       - regex: "(?<![\\p{L}'’])(?:(?:I['’]m|I{{S}}am|I{{S}}was|(?:we|you)(?:['’]re|{{S}}are|{{S}}were))(?:{{S}}(?:so|very|really|not|quite|just))?{{S}}used|accustomed){{S}}to{{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_gerund_complement
         cue: ["used", "accustomed"]
-        fixer: realWordFramesA5
+        let:
+          word: target.toLowerCase()
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+        when:
+          - "!(!rwBaseVerb(word) || EN_FUNCTION_WORDS.has(word) || rwRead(word)?.adjective)"
+          # "used to work as…", "accustomed to change": a noun-or-verb needs an object after it.
+          - >-
+            !(rwRead(word)?.noun && !(next?.kind === "word" &&
+            /^(?:the|a|an|my|your|our|their|his|her|it|them|him|me|us|every|each|this|these|those)$/.test(next.lower)))
+        return: englishInflect(word, "ing")
       # "She wants you to goes there", "seemed to noticed.": an infinitive takes the base.
       - regex: "(?<![\\p{L}'’])to{{S}}(?:not{{S}})?(?<target>[a-z]+(?:s|ed))(?=(?<close>[ \\t\\u00a0]*[.!?,;]|{{S}}(?:the|a|an|my|your|his|her|our|their|it|them|him|me|us|there|here|home|at|in|to|with|on){{E}}))"
         check: englishAuxiliaryBaseVerb
         message: review_msg_to_base
         cue: ["to"]
-        fixer: realWordFramesA6
+        let:
+          word: target.toLowerCase()
+          r: rwRead(word)
+          # "wants you to goes", "tried not to laughs": only after a verb that takes an
+          # infinitive; "points to exists", "set it to disabled" keep the preposition.
+          lead: >-
+            /([A-Za-z]+)(?:[ \t ]+(?:you|him|her|them|us|me|it))?[ \t ]+(?:not[ \t ]+)?$/.exec(ctx.text.slice(Math.max(0,
+            m.index - 40), m.index))?.[1]
+          form: r.verbs.find((v) => v.form === "third" || v.form === "past")
+        when:
+          - target === word && r && !r.noun && !r.plural && !r.adjective && !EN_FUNCTION_WORDS.has(word)
+          - word !== "thanks"
+          - lead && RW_TO_GOVERNOR.test(lead.toLowerCase())
+          - form && !r.verbs.some((v) => v.form === "base")
+          # A participle can be an adjective before its noun; only third or a clause end here.
+          - '!(form.form === "past" && !close)'
+        return: form.lemma
       # "He will be have a party", "must be replaces": be + a verb's base or -s form.
       - regex: "(?<![\\p{L}'’])(?:will|would|can|could|should|must|might|may|to){{S}}(?<target>be{{S}}(?<verb>[a-z]+)){{E}}"
         check: englishAuxiliaryBaseVerb
         message: review_msg_auxiliary_base
         cue: ["be"]
-        fixer: realWordFramesBe
+        return: 'verb.toLowerCase() === "have" ? ["have", "be having"] : rwBeParticiple(m, ctx, verb.toLowerCase())'
       # "This state of art equipment": the compound adjective state-of-the-art.
       - regex: "(?<target>state{{S}}of{{S}}art){{S}}(?<noun>[a-z]+){{E}}"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
         cue: ["art"]
-        fixer: realWordFramesState
+        let:
+          word: noun.toLowerCase()
+          r: rwRead(word)
+        return: 'r && (r.noun || r.plural) && !r.verbs.length && !EN_FUNCTION_WORDS.has(word) ? "state-of-the-art" : null'
   - id: en.clauseGaps
     checks: [englishSentenceStructure, englishConfusedWords, englishThenThan]
     style: slot

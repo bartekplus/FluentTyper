@@ -2,14 +2,245 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import type { DetectContext, FixResult, FrameRef, MatchResult } from "../../library";
+import {
+  EN_DETERMINERS,
+  EN_FUNCTION_WORDS,
+  enAfterBreak,
+  enNounVerb,
+  enParticiple,
+  enTokensAfter,
+  enWordBefore,
+  englishInflect,
+  englishLemma,
+  englishWordInfo,
+} from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+// en.yaml rule en.realWordFrames def rwRead
+export function rwRead(word: string | undefined) {
+  return word ? englishWordInfo(word.toLowerCase()) : null;
+}
+
+// en.yaml rule en.realWordFrames def rwVerbOnly
+export function rwVerbOnly(word: string) {
+  const r = rwRead(word);
+  return !!r?.verbs.length && !r.noun && !r.plural && !r.adjective;
+}
+
+// en.yaml rule en.realWordFrames def rwBaseVerb
+export function rwBaseVerb(word: string) {
+  return !!rwRead(word)?.verbs.some((v) => v.form === "base" && v.lemma === word.toLowerCase());
+}
+
+// en.yaml rule en.realWordFrames def RW_TO_GOVERNOR
+export const RW_TO_GOVERNOR =
+  /^(?:wants?|wanted|wanting|needs?|needed|tr(?:y|ies|ied|ying)|seems?|seemed|going|has|have|had|able|likes?|liked|loves?|loved|hates?|hated|decided?|decides|plans?|planned|hopes?|hoped|expects?|expected|managed?|manages|starts?|started|begins?|began|continues?|continued|refused?|refuses|forgot|forget|remember(?:ed|s)?|learn(?:ed|s)?|agreed?|agrees|promised?|promises|chose|choose|fails?|failed|invited|asked|told|allowed|supposed|ought|would|'d|wish(?:es|ed)?|prefer(?:s|red)?|intends?|intended|happens?|happened|appears?|appeared|tends?|tended|helps?|helped|used)$/;
+
+// en.yaml rule en.realWordFrames def rwBeParticiple
+export function rwBeParticiple(m: RegExpExecArray, ctx: DetectContext, word: string) {
+  if (/^(?:please|further|seem)$/.test(word)) return null;
+  const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+  if (next?.kind === "word" && /^(?:up|out|off|on|down|in)$/.test(next.lower)) return null;
+  const r = rwRead(word);
+  if (!(r && rwVerbOnly(word) && !EN_FUNCTION_WORDS.has(word))) return null;
+  const form = r.verbs[0];
+  if (!r.verbs.every((v) => v.lemma === form.lemma)) return null;
+  if (r.verbs.some((v) => v.form === "participle" || v.form === "past" || v.form === "ing"))
+    return null;
+  const done = enParticiple(form.lemma);
+  if (!done) return null;
+  return { alternatives: [done], range: m.indices!.groups!.verb };
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.realWordFrames frame 1
+  "@en.realWordFrames/1": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const subject = m.groups!.subject;
+    const target = m.groups!.target;
+    const word = target.toLowerCase();
+    if (!(target === word)) return null;
+    const verb = enNounVerb(word);
+    if (!verb) return null;
+    if (/\p{Lu}/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))) return null;
+    const plural = /s$/.test(word) && !/ss$/.test(word);
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    const singularSubject = /^(?:he|she)$/i.test(subject);
+    if (!(singularSubject === plural)) return null;
+    const after = next?.kind === "word" ? rwRead(next.lower) : null;
+    if (
+      after &&
+      !EN_FUNCTION_WORDS.has(next.lower) &&
+      (after.verbs.some((v) => v.form !== "base") ||
+        ((after.noun || after.plural) && !after.verbs.length))
+    )
+      return null;
+    return singularSubject
+      ? englishInflect(verb, "third")
+      : englishInflect(verb, "past")
+        ? [verb, englishInflect(verb, "past")!]
+        : verb;
+  },
+  // en.yaml rule en.realWordFrames frame 2
+  "@en.realWordFrames/2": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const before = enWordBefore(ctx, m.index);
+    if (
+      before &&
+      (EN_DETERMINERS.has(before) ||
+        EN_FUNCTION_WORDS.has(before) ||
+        /n['’]t$/.test(before) ||
+        rwRead(before)?.verbs.some((v) => v.form === "base" || v.form === "third"))
+    )
+      return null;
+    const lead = ctx.text.slice(Math.max(0, m.index - 30), m.index);
+    if (
+      /\b(?:a|an|the|this|that|my|our|your|his|her|their|every|any|no)[ \t ]+[a-z]+[ \t ]+$/i.test(
+        lead,
+      )
+    )
+      return null;
+    return "because";
+  },
+  // en.yaml rule en.realWordFrames frame 3
+  "@en.realWordFrames/3": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const next = m.groups!.next;
+    const end = m.groups!.end;
+    const before = enWordBefore(ctx, m.index);
+    return end !== undefined
+      ? before === "than"
+        ? "thought"
+        : null
+      : /^(?:is|was)$/i.test(next) && !/^(?:that|which|what|who)$/.test(before)
+        ? null
+        : /^of$/i.test(next) && /^[ \t ]+course\b/i.test(ctx.text.slice(m.index + m[0].length))
+          ? null
+          : /^(?:even|as)$/.test(before)
+            ? null
+            : "thought";
+  },
+  // en.yaml rule en.realWordFrames frame 4
+  "@en.realWordFrames/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const next = m.groups!.next;
+    const word = next.toLowerCase();
+    const before = enWordBefore(ctx, m.index);
+    const lead =
+      /^(?:am|is|are|was|were|be|been|feel|feels|felt|seem|seems|seemed|look|looks|looked|sound|sounds|got|get|need)$/.test(
+        before,
+      ) ||
+      /['’](?:m|s|re)$/.test(before) ||
+      (!before && enAfterBreak(ctx, m.index));
+    if (!(lead && !/^(?:by|off|into|me|him|her|them|us|you|it|the|my)$/.test(word))) return null;
+    const r = rwRead(word);
+    const closed =
+      /^(?:too|more|less|of|late|early|later|earlier|better|worse|longer|faster|slower|behind|much)$/.test(
+        word,
+      );
+    const after = !before && !closed ? enTokensAfter(ctx, m.index + m[0].length, 1)[0] : undefined;
+    if (after?.kind === "word" && !/^(?:that|to|but)$/.test(after.lower)) return null;
+    return closed ||
+      (!!r?.adjective && !r.verbs.length) ||
+      (/^(?:got|get|need)$/.test(before) && !!r?.noun && !r.plural && !r.verbs.length)
+      ? { alternatives: ["a bit"], range: m.indices!.groups!.target }
+      : null;
+  },
+  // en.yaml rule en.realWordFrames frame 5
+  "@en.realWordFrames/5": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const word = target.toLowerCase();
+    const verb = `${word.slice(0, -3)}ize`;
+    return rwRead(word)?.plural && !rwRead(word)?.verbs.length && rwBaseVerb(verb) ? verb : null;
+  },
+  // en.yaml rule en.realWordFrames frame 6
+  "@en.realWordFrames/6": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    const word = target.toLowerCase();
+    const noun = `${word.slice(0, -3)}y`;
+    const r = rwRead(noun);
+    return rwVerbOnly(word) && r?.noun && !r.verbs.length ? noun : null;
+  },
+  // en.yaml rule en.realWordFrames frame 7
+  "@en.realWordFrames/7": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const word = target.toLowerCase();
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (/(?:can['’]?t|cannot|could(?:n['’]t|[ \t ]+not)|can[ \t ]+not)[ \t ]+$/i.test(before))
+      return null;
+    const subject = enWordBefore(ctx, m.index);
+    if (/^(?:it|this|that|what|which)$/.test(subject)) return null;
+    if (
+      !/^(?:i|we|they|you|he|she|to|will|would|can|could|should|must|might|did|do|does|please)$/.test(
+        subject,
+      )
+    )
+      return null;
+    const r = rwRead(word);
+    const lemma = englishLemma(word, "ing");
+    if (!(lemma && lemma !== "be" && !r?.noun && !r?.adjective)) return null;
+    return [`to ${lemma}`, lemma];
+  },
+  // en.yaml rule en.realWordFrames frame 8
+  "@en.realWordFrames/8": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const word = target.toLowerCase();
+    if (!rwBaseVerb(word) || EN_FUNCTION_WORDS.has(word) || rwRead(word)?.adjective) return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (
+      rwRead(word)?.noun &&
+      !(
+        next?.kind === "word" &&
+        /^(?:the|a|an|my|your|our|their|his|her|it|them|him|me|us|every|each|this|these|those)$/.test(
+          next.lower,
+        )
+      )
+    )
+      return null;
+    return englishInflect(word, "ing");
+  },
+  // en.yaml rule en.realWordFrames frame 9
+  "@en.realWordFrames/9": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const close = m.groups!.close;
+    const word = target.toLowerCase();
+    const r = rwRead(word);
+    if (!(
+      target === word &&
+      r &&
+      !r.noun &&
+      !r.plural &&
+      !r.adjective &&
+      !EN_FUNCTION_WORDS.has(word)
+    ))
+      return null;
+    if (!(word !== "thanks")) return null;
+    const lead = /([A-Za-z]+)(?:[ \t ]+(?:you|him|her|them|us|me|it))?[ \t ]+(?:not[ \t ]+)?$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 40), m.index),
+    )?.[1];
+    if (!(lead && RW_TO_GOVERNOR.test(lead.toLowerCase()))) return null;
+    const form = r.verbs.find((v) => v.form === "third" || v.form === "past");
+    if (!(form && !r.verbs.some((v) => v.form === "base"))) return null;
+    if (form.form === "past" && !close) return null;
+    return form.lemma;
+  },
+  // en.yaml rule en.realWordFrames frame 10
+  "@en.realWordFrames/10": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const verb = m.groups!.verb;
+    return verb.toLowerCase() === "have"
+      ? ["have", "be having"]
+      : rwBeParticiple(m, ctx, verb.toLowerCase());
+  },
+  // en.yaml rule en.realWordFrames frame 11
+  "@en.realWordFrames/11": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    const word = noun.toLowerCase();
+    const r = rwRead(word);
+    return r && (r.noun || r.plural) && !r.verbs.length && !EN_FUNCTION_WORDS.has(word)
+      ? "state-of-the-art"
+      : null;
   },
 };
 
