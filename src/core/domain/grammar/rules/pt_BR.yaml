@@ -876,13 +876,18 @@ rules:
     checks: [portugueseNumberFormat]
     style: cased
     message: review_msg_pt_number_format
+    maps:
+      # "o 12o lugar", "a 1a vez": ordinals take º and ª.
+      ORDINAL: { o: º, a: ª, os: ºs, as: ªs }
+      # "2 m3": exponents are superscript.
+      SUPERSCRIPT: { "2": ², "3": ³ }
     frames:
       # "1 999 349.56": an English decimal point after a spaced thousands group.
       - regex: "(?<![\\d.,])\\d{1,3}(?:[ \\u00a0]\\d{3}){1,6}(?<target>\\.)\\d{1,6}(?![\\d.,]{0,12}\\d)"
         fix: ","
       # "21,349.56", "4,500.00": English separators; Portuguese swaps them.
       - regex: "(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){1,6}\\.\\d{1,6})(?![\\d.,]{0,12}\\d)"
-        fixer: typographyD
+        return: 'target.replace(/[.,]/g, (c) => (c === "," ? "." : ","))'
       # "7'5%", "1.250'75": an apostrophe typed for the decimal comma. Not feet and inches (5'10"),
       # minutes after a degree (8° 15'30") or a minute mark alone (aos 45').
       - regex: "(?<![\\d.,'’′º°]|[º°][ \\t\\u00a0])\\d{1,3}(?:[. \\u00a0]\\d{3}){0,6}(?<target>['’])\\d{1,3}(?![\\d'’′\"”″])"
@@ -910,7 +915,9 @@ rules:
         fix: "°"
       # "25º 29' 49\"" -> "25° 29′ 49″": degrees before minutes, and the primes that mark them.
       - regex: "(?<target>\\d{1,3}{{GAP}}º{{GAP}}\\d{1,2}(?:,\\d+)?{{GAP}}['’′](?:{{GAP}}\\d{1,2}(?:,\\d+)?{{GAP}}(?:[\"”″]|['’′]{1,2}))?)"
-        fixer: typographyD2
+        let:
+          parts: 'target.match(/\d+(?:,\d+)?/g)!'
+        return: '`${parts[0]}° ${parts[1]}′${parts[2] ? ` ${parts[2]}″` : ""}`'
       # "38,8º", "3,5o": an ordinal is a whole number, so a decimal takes the degree sign.
       - regex: "[−-]?\\d{1,3},\\d{1,3}(?<target>[ºo])(?![\\p{L}\\p{N}])"
         fix: "°"
@@ -922,7 +929,7 @@ rules:
         fix: "°"
       # "o 12o lugar", "a 1a vez": ordinals take º and ª.
       - regex: "{{ARTICLE}}{{S}}\\d{1,4}\\.?(?<target>os|as|o|a)(?={{E}}(?:{{S}}\\p{Ll}|[ \\t\\u00a0]{0,2}[.,;:!?]))"
-        fixer: typographyOs
+        return: "ORDINAL[target]"
       # "no 1ª lugar" -> "1º", "na 2º posição" -> "2ª": the ordinal agrees with its determiner.
       - regex: "(?<![\\dºª°][ \\t\\u00a0]{0,8}){{MASCULINE_DET}}{{S}}\\d{1,4}\\.?(?<target>ª)(?={{S}}\\p{L})"
         fix: "º"
@@ -939,15 +946,15 @@ rules:
       - regex: "\\d+{{GAP}}(?<target>[kK]W/h|KW\\.h){{E}}"
         fix: "kWh"
       - regex: "(?:\\d+{{GAP}}|por{{S}}|/)k(?<target>M|G)(?={{E}})"
-        fixer: typographyM
+        return: "target.toLowerCase()"
       # "2 m3", "por km2", "m/s2": exponents are superscript.
       - regex: "(?:\\d+{{GAP}}|por{{S}}|/)(?:km|cm|mm|dm|m)(?<target>\\^?[23])(?![\\p{L}\\p{N}])"
-        fixer: typographyP
+        return: "SUPERSCRIPT[target.slice(-1)]"
       - regex: "\\d+{{GAP}}(?:km|cm|mm|m)/s(?<target>\\^?2)(?![\\p{L}\\p{N}])"
         fix: "²"
       # "22° C" -> "22 °C": the degree sign stays with its scale letter.
       - regex: "\\d+(?<target>[ \\u00a0]?°[ \\u00a0]+[CF])(?![\\p{L}\\p{N}])"
-        fixer: typographyU
+        return: "` °${target.slice(-1)}`"
       # "30ºK", "30 º K", "30° K": the kelvin takes no degree sign ("30°K" is a shared check).
       - regex: "\\d+(?<target>[ \\u00a0]?º[ \\u00a0]?K|[ \\u00a0]?°[ \\u00a0]+K)(?![\\p{L}\\p{N}])"
         message: review_msg_kelvin_degree
@@ -955,53 +962,78 @@ rules:
       # "no ano de 1.989", "em maio de 2.014": a year has no thousands dot.
       - regex: "(?:[aA]nos?{{S}}(?:de{{S}})?|(?:{{MONTHS}}){{S}}de{{S}}|(?:[eE]m|[dD]esde|[aA]té){{S}}(?=[12]\\.\\d{3}[ \\t\\u00a0]*(?:[.,;:!?)]|$)))(?<target>[12]\\.\\d{3})(?![.,]?\\d)"
         message: review_msg_pt_year
-        fixer: typographyD3
+        return: 'target.replace(".", "")'
       # "5,500,300": English commas between digit groups; Portuguese groups them with dots.
       - regex: "(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){2,})(?![.,]?\\d)"
-        fixer: typographyD4
+        return: 'target.replaceAll(",", ".")'
       # A year range with a space on one side of the dash only: "2013– 2021" -> "2013–2021".
       - regex: "(?<![\\d.,])(?<target>{{YEAR}}(?:[ \\u00a0]+[-–—]|[-–—][ \\u00a0]+){{YEAR}})(?!\\d|[.,]\\d)"
         message: review_msg_range_dash
-        fixer: typographyD5
+        return: 'target.replace(/[  ]*[-–—][  ]*/, "–")'
   - id: pt_BR.typographyStyleFrames
     checks: [portugueseTypographyStyle]
     style: cased
     message: review_msg_pt_typography_style
+    defs:
+      # 1 to 99 in Roman numerals: the largest value first.
+      ROMAN: '[[90, "XC"], [50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]] as [number, string][]'
+      roman:
+        args: "n: number"
+        type: string
+        let:
+          next: ROMAN.find((pair) => n >= pair[0])
+        when: next !== undefined
+        return: next[1] + roman(n - next[0])
+        else: '""'
     frames:
       # "século 20" -> "século XX": centuries take Roman numerals.
       - regex: "[sS]éculos?{{S}}(?<target>[1-9]\\d?)(?![\\dºª°\\p{L}]|[.,]\\d)"
         message: review_msg_pt_century
-        fixer: styleD
+        return: "roman(Number(target))"
       # "às 10.00", "às 6,05 h", "das 9.30 às 11.00": Brazilian usage writes a clock time
       # with a colon (European texts also write 17.40 h, so this stays opt-in).
       - regex: "(?:[àÀ]s|[dD]as?|até{{S}}[àa]s){{S}}(?<target>(?:[01]?\\d|2[0-3])[.,][0-5]\\d(?:[.,][0-5]\\d(?:,\\d+)?)?)(?!\\d)(?={{GAP}}h{{E}}|{{S}}d[ae]{{S}}(?:manhã|tarde|noite|madrugada){{E}}|{{S}}(?:às|e|até){{E}}|[ \\t\\u00a0]{0,2}(?:[;!?]|\\.(?!\\d)|$))"
         message: review_msg_pt_number_format
-        fixer: styleD2
+        return: 'target.replace(/^(\d+)[.,](\d\d)(?:[.,](\d\d))?/, (_: string, h: string, min: string, sec: string | undefined) => `${h}:${min}${sec ? `:${sec}` : ""}`)'
       # "6,626 x 10", "5 * 2", "10,5x17,2km": multiplication between numbers (not hex "0x1F").
       - regex: "(?!0[xX]){{NUM}}(?<target>{{GAP}}[xX*]{{GAP}})(?=\\d)"
-        fixer: styleT
+        return: 'target.replace(/[xX*]/g, "×")'
       # "em Niterói/RJ", "de Niterói - RJ", "para Niterói (RJ)": a city and its state take an
       # en dash. Only after a place preposition: "Gabeira (RJ)" names a politician's state. A
       # bare hyphen stays: "Águia de Marabá-PA" names a club.
       - regex: "(?:em|de|para|até){{S}}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}(?<target>/|[ \\t\\u00a0][-–—][ \\t\\u00a0])(?={{UF}}(?![\\p{L}\\p{N}/-]))"
         fix: "–"
       - regex: "(?:em|de|para|até){{S}}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}(?<target>{{GAP}}\\({{UF}}\\))"
-        fixer: styleT2
+        return: "`–${target.trim().slice(1, 3)}`"
   - id: pt_BR.typographyStyle
     checks: [portugueseTypographyStyle]
     style: match
     message: review_msg_pt_typography_style
+    defs:
+      SUBSCRIPTS: '"₀₁₂₃₄₅₆₇₈₉"'
     frames:
       # Chemical subscripts: "H2O" -> "H₂O". The fixer adds the guards that keep names and
       # models out.
       - regex: "(?<![\\p{L}\\p{N}_./-])\\d*(?:(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)\\d*){2,}(?![\\p{L}\\p{N}_-])"
         flags: gu
         scan: owned
-        fixer: formula
+        let:
+          token: "m[0]"
+          lead: '/^\d*/.exec(token)![0]'
+          body: "token.slice(lead.length)"
+        when:
+          - "!userWord(ctx, m.index, m.index + token.length)"
+          - '/[A-Za-z]\d/.test(body) && !/\d{3}|[A-Za-z][10](?!\d)|[A-GI-Za-z]\d\d/.test(body) && /[CHO]/.test(body)'
+        return: '({ ruleId: "portugueseTypographyStyle", messageKey: "review_msg_pt_typography_style", range: { start: m.index, end: m.index + token.length }, alternatives: [lead + body.replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)])] })'
   - id: pt_BR.rangeDash
     checks: [emdashShortcut]
     style: match
     message: review_msg_range_dash
+    defs:
+      # "tel. 12-34", "art. 3-5", "CEP 12-14": the label of a code or a law before the pair.
+      RANGE_CODE: '/(?:^|[^\p{L}])(?:tel|telefone|celular|fax|whatsapp|cep|nº|n\.º|no|número|ref|referência|processo|protocolo|art|artigo|lei|decreto|inciso|parágrafo|cpf|cnpj|rg|conta|agência|pedido|nota|versão|voo|linha|modelo|matrícula|isbn)\.?[ \t\u00a0]*:?[ \t\u00a0]*$|§[ \t\u00a0]*$/iu'
+      # "venceu 3-1", "o jogo terminou 2-2", "placar de 1-0".
+      RANGE_SCORE: '/(?:^|[^\p{L}])(?:venc|ganh|perd|derrot|empat|golead|goleou|placar|resultado|partida|jogo|set|vitória|derrota)\p{L}*(?:[ \t\u00a0]+\p{L}+){0,3}[ \t\u00a0]+$/iu'
     frames:
       # "pages 10-15", "1990-1995": two numbers of up to four digits joined by a hyphen. A dash,
       # a colon, a slash or a digit group after the second number makes a date, a phone number
@@ -1010,7 +1042,20 @@ rules:
         scan: owned
         lookback: 8
         flags: gu
-        fixer: rangeDash
+        let:
+          whole: "m[0]"
+          a: "m[1]"
+          dash: "m[2]"
+          b: "m[3]"
+          last: "a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)"
+          before: "ctx.text.slice(Math.max(0, m.index - 48), m.index)"
+          at: "m.index + a.length"
+        when:
+          - "!(m.index < ctx.from || namedExampleBefore(ctx.text, m.index))"
+          - '!(a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4))'
+          - "last > Number(a)"
+          - "!(RANGE_CODE.test(before) || RANGE_SCORE.test(before))"
+        return: 'finding("emdashShortcut", "review_msg_range_dash", at, at + dash.length, ["–"], { context: { start: m.index, end: m.index + whole.length } })'
   - id: pt_BR.cliticPlacement
     checks: [portugueseCliticPlacement]
     style: match
@@ -1518,13 +1563,40 @@ rules:
     checks: [styleSpelledNumbers]
     style: match
     message: review_msg_spelled_numbers
+    defs:
+      UNITS: '"zero um dois três quatro cinco seis sete oito nove dez onze doze treze catorze quinze dezesseis dezessete dezoito dezenove".split(" ")'
+      TENS: '",,vinte,trinta,quarenta,cinquenta,sessenta,setenta,oitenta,noventa".split(",")'
+      HUNDREDS: '",cento,duzentos,trezentos,quatrocentos,quinhentos,seiscentos,setecentos,oitocentos,novecentos".split(",")'
+      # Months and abbreviations that follow a day or a page number.
+      DAY_NOUNS: /^(?:janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez|pag|pág|págs|pags)$/
+      # 1 to 999 in words, masculine: 21 -> "vinte e um", 100 -> "cem", 305 -> "trezentos e cinco".
+      numberWords:
+        args: "n: number"
+        return: >-
+          n === 100
+            ? "cem"
+            : [
+                HUNDREDS[Math.floor(n / 100)],
+                ...(n % 100 < 20
+                  ? [n % 100 ? UNITS[n % 100] : ""]
+                  : [TENS[Math.floor((n % 100) / 10)], n % 10 ? UNITS[n % 10] : ""]),
+              ]
+                .filter(Boolean)
+                .join(" e ")
     frames:
       # A figure that opens a sentence, before a lowercase word: "12 pessoas chegaram." A line
       # with no full stop is a list item or a recipe line ("2 xícaras de farinha"), not a
       # sentence; one with another figure is a date, an address or a measure ("29 fevereiro
       # 2000.").
       - regex: "(?=[1-9])(?<=(?:^|[.!?]{{S}}|\\n[ \\t\\u00a0]{0,8}))(?<target>[1-9]\\d{0,2})(?={{S}}(?<noun>\\p{L}{3,}){{E}}(?<rest>[^\\n.!?]*)[.!?])"
-        fixer: sentenceStartNumber
+        let:
+          masculine: "numberWords(Number(target))"
+          female: 'masculine.replace(/\bum$/, "uma").replace(/\bdois$/, "duas").replace(/entos\b/g, "entas")'
+          forms: "female === masculine || /(?:o|os|or|ores)$|^dias?$/.test(noun) ? [masculine] : /(?:[^m]as?|ção|ções|dade|dades|gem|gens)$/.test(noun) ? [female] : [masculine, female]"
+          span: "m.indices!.groups!.target"
+        when:
+          - 'noun === noun.toLowerCase() && !DAY_NOUNS.test(noun) && !/\d/.test(rest)'
+        return: 'finding("styleSpelledNumbers", "review_msg_spelled_numbers", span[0], span[1], forms.map((form) => form[0].toUpperCase() + form.slice(1)), forms.length > 1 ? { requiresChoice: true } : undefined)'
   - id: pt_BR.markSpacing
     checks: [commaPeriodSpacing]
     style: match
@@ -1534,14 +1606,23 @@ rules:
       # follow the library convention of a spaced colon.
       - regex: "(?<=(?<![\\p{L}])\\p{Ll}\\p{L}*)(?<target>[ \\u00A0]+[:;])(?=[ \\t\\u00A0\\n]|$)"
         flags: dgu
-        fixer: markBefore
+        let:
+          span: "m.indices!.groups!.target"
+        return: 'finding("commaPeriodSpacing", "review_msg_space_before_mark", span[0], span[1], [ctx.source[span[1] - 1]])'
       - regex: "(?<=\\p{L})(?<target>\\.{3}|\\u2026)(?=\\p{Ll}{2})"
         flags: dgu
-        fixer: markGlued
+        let:
+          span: "m.indices!.groups!.target"
+        return: 'finding("commaPeriodSpacing", "review_msg_space_after_mark", span[0], span[1], [`${target} `])'
       # After a word of 4 letters or more: "e o …", "do …" mark an omission.
       - regex: "(?<=\\p{L}{4})(?<target>[ \\u00A0]+\\u2026)(?=[ \\t\\u00A0]*(?:\\n|$|[\"\\u201D\\u00BB)]))"
         flags: dgu
-        fixer: markSpaced
+        let:
+          span: "m.indices!.groups!.target"
+          line: 'ctx.text.slice(ctx.text.lastIndexOf("\n", span[0]) + 1, span[0])'
+        when:
+          - '!/^[ \t ]*(?:…|\.{3}|\[…\])/u.test(line)'
+        return: 'finding("commaPeriodSpacing", "review_msg_space_before_mark", span[0], span[1], ["…"])'
   - id: pt_BR.unitSpacing
     checks: [measurementUnitFormatting]
     style: match
@@ -1549,7 +1630,12 @@ rules:
     frames:
       - regex: "(?<![\\p{L}\\p{N}.,])(?<target>(?<number>\\d+(?:[.,]\\d+)*)(?<unit>kB|KB|MB|GB|TB|kbps|Mbps|Gbps|MWh|GWh))(?![\\p{L}\\p{N}])"
         flags: dgu
-        fixer: dataUnit
+        let:
+          span: "m.indices!.groups!.target"
+          separator: 'resolveMeasurementLocale(ctx.lang)?.separator ?? " "'
+        when:
+          - "!ctx.dictionary.has(target.toLowerCase())"
+        return: 'finding("measurementUnitFormatting", "review_msg_measurement_spacing", span[0], span[1], [`${number}${separator}${unit}`])'
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

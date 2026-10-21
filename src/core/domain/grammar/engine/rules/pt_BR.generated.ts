@@ -3,7 +3,15 @@
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, MatchResult, RawFinding } from "../../library";
-import { applyWordCase, detectWordCase, ptNoun } from "../../library";
+import {
+  applyWordCase,
+  detectWordCase,
+  finding,
+  namedExampleBefore,
+  ptNoun,
+  resolveMeasurementLocale,
+  userWord,
+} from "../../library";
 
 export const FEMININE_R: ReadonlySet<string> = new Set([
   "mulher",
@@ -182,6 +190,10 @@ export const HAD_TO: Readonly<Record<string, string>> = {
   estiveram: "tiveram",
 };
 
+export const ORDINAL: Readonly<Record<string, string>> = { o: "º", a: "ª", os: "ºs", as: "ªs" };
+
+export const SUPERSCRIPT: Readonly<Record<string, string>> = { "2": "²", "3": "³" };
+
 // pt_BR.yaml rule pt_BR.confusions def CLAUSE_START
 export const CLAUSE_START = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
 
@@ -202,6 +214,69 @@ export function crase(
     context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
   };
+}
+
+// pt_BR.yaml rule pt_BR.typographyStyleFrames def ROMAN
+export const ROMAN = [
+  [90, "XC"],
+  [50, "L"],
+  [40, "XL"],
+  [10, "X"],
+  [9, "IX"],
+  [5, "V"],
+  [4, "IV"],
+  [1, "I"],
+] as [number, string][];
+
+// pt_BR.yaml rule pt_BR.typographyStyleFrames def roman
+export function roman(n: number): string {
+  const next = ROMAN.find((pair) => n >= pair[0]);
+  if (!(next !== undefined)) return "";
+  return next[1] + roman(n - next[0]);
+}
+
+// pt_BR.yaml rule pt_BR.typographyStyle def SUBSCRIPTS
+export const SUBSCRIPTS = "₀₁₂₃₄₅₆₇₈₉";
+
+// pt_BR.yaml rule pt_BR.rangeDash def RANGE_CODE
+export const RANGE_CODE =
+  /(?:^|[^\p{L}])(?:tel|telefone|celular|fax|whatsapp|cep|nº|n\.º|no|número|ref|referência|processo|protocolo|art|artigo|lei|decreto|inciso|parágrafo|cpf|cnpj|rg|conta|agência|pedido|nota|versão|voo|linha|modelo|matrícula|isbn)\.?[ \t\u00a0]*:?[ \t\u00a0]*$|§[ \t\u00a0]*$/iu;
+
+// pt_BR.yaml rule pt_BR.rangeDash def RANGE_SCORE
+export const RANGE_SCORE =
+  /(?:^|[^\p{L}])(?:venc|ganh|perd|derrot|empat|golead|goleou|placar|resultado|partida|jogo|set|vitória|derrota)\p{L}*(?:[ \t\u00a0]+\p{L}+){0,3}[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.sentenceStartNumbers def UNITS
+export const UNITS =
+  "zero um dois três quatro cinco seis sete oito nove dez onze doze treze catorze quinze dezesseis dezessete dezoito dezenove".split(
+    " ",
+  );
+
+// pt_BR.yaml rule pt_BR.sentenceStartNumbers def TENS
+export const TENS = ",,vinte,trinta,quarenta,cinquenta,sessenta,setenta,oitenta,noventa".split(",");
+
+// pt_BR.yaml rule pt_BR.sentenceStartNumbers def HUNDREDS
+export const HUNDREDS =
+  ",cento,duzentos,trezentos,quatrocentos,quinhentos,seiscentos,setecentos,oitocentos,novecentos".split(
+    ",",
+  );
+
+// pt_BR.yaml rule pt_BR.sentenceStartNumbers def DAY_NOUNS
+export const DAY_NOUNS =
+  /^(?:janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez|pag|pág|págs|pags)$/;
+
+// pt_BR.yaml rule pt_BR.sentenceStartNumbers def numberWords
+export function numberWords(n: number) {
+  return n === 100
+    ? "cem"
+    : [
+        HUNDREDS[Math.floor(n / 100)],
+        ...(n % 100 < 20
+          ? [n % 100 ? UNITS[n % 100] : ""]
+          : [TENS[Math.floor((n % 100) / 10)], n % 10 ? UNITS[n % 10] : ""]),
+      ]
+        .filter(Boolean)
+        .join(" e ");
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -417,6 +492,177 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const verb = m.groups!.verb;
     if (FEMININE_R.has(verb) || ctx.dictionary.has(verb)) return null;
     return crase(ctx, m, ["a"]);
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 2
+  "@pt_BR.numberFormat/2": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return target.replace(/[.,]/g, (c) => (c === "," ? "." : ","));
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 11
+  "@pt_BR.numberFormat/11": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    const parts = target.match(/\d+(?:,\d+)?/g)!;
+    return `${parts[0]}° ${parts[1]}′${parts[2] ? ` ${parts[2]}″` : ""}`;
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 15
+  "@pt_BR.numberFormat/15": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return ORDINAL[target];
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 21
+  "@pt_BR.numberFormat/21": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return target.toLowerCase();
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 22
+  "@pt_BR.numberFormat/22": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return SUPERSCRIPT[target.slice(-1)];
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 24
+  "@pt_BR.numberFormat/24": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return ` °${target.slice(-1)}`;
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 26
+  "@pt_BR.numberFormat/26": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return target.replace(".", "");
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 27
+  "@pt_BR.numberFormat/27": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return target.replaceAll(",", ".");
+  },
+  // pt_BR.yaml rule pt_BR.numberFormat frame 28
+  "@pt_BR.numberFormat/28": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return target.replace(/[  ]*[-–—][  ]*/, "–");
+  },
+  // pt_BR.yaml rule pt_BR.typographyStyleFrames frame 1
+  "@pt_BR.typographyStyleFrames/1": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return roman(Number(target));
+  },
+  // pt_BR.yaml rule pt_BR.typographyStyleFrames frame 2
+  "@pt_BR.typographyStyleFrames/2": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return target.replace(
+      /^(\d+)[.,](\d\d)(?:[.,](\d\d))?/,
+      (_: string, h: string, min: string, sec: string | undefined) =>
+        `${h}:${min}${sec ? `:${sec}` : ""}`,
+    );
+  },
+  // pt_BR.yaml rule pt_BR.typographyStyleFrames frame 3
+  "@pt_BR.typographyStyleFrames/3": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return target.replace(/[xX*]/g, "×");
+  },
+  // pt_BR.yaml rule pt_BR.typographyStyleFrames frame 5
+  "@pt_BR.typographyStyleFrames/5": (m: RegExpExecArray): string => {
+    const target = m.groups!.target;
+    return `–${target.trim().slice(1, 3)}`;
+  },
+  // pt_BR.yaml rule pt_BR.typographyStyle frame 1
+  "@pt_BR.typographyStyle/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const token = m[0];
+    if (userWord(ctx, m.index, m.index + token.length)) return null;
+    const lead = /^\d*/.exec(token)![0];
+    const body = token.slice(lead.length);
+    if (!(
+      /[A-Za-z]\d/.test(body) &&
+      !/\d{3}|[A-Za-z][10](?!\d)|[A-GI-Za-z]\d\d/.test(body) &&
+      /[CHO]/.test(body)
+    ))
+      return null;
+    return {
+      ruleId: "portugueseTypographyStyle",
+      messageKey: "review_msg_pt_typography_style",
+      range: { start: m.index, end: m.index + token.length },
+      alternatives: [lead + body.replace(/\d/g, (digit) => SUBSCRIPTS[Number(digit)])],
+    };
+  },
+  // pt_BR.yaml rule pt_BR.rangeDash frame 1
+  "@pt_BR.rangeDash/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) return null;
+    const whole = m[0];
+    const a = m[1];
+    const dash = m[2];
+    const b = m[3];
+    if (a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4)) return null;
+    const last = a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b);
+    if (!(last > Number(a))) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+    if (RANGE_CODE.test(before) || RANGE_SCORE.test(before)) return null;
+    const at = m.index + a.length;
+    return finding("emdashShortcut", "review_msg_range_dash", at, at + dash.length, ["–"], {
+      context: { start: m.index, end: m.index + whole.length },
+    });
+  },
+  // pt_BR.yaml rule pt_BR.sentenceStartNumbers frame 1
+  "@pt_BR.sentenceStartNumbers/1": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const rest = m.groups!.rest;
+    if (!(noun === noun.toLowerCase() && !DAY_NOUNS.test(noun) && !/\d/.test(rest))) return null;
+    const masculine = numberWords(Number(target));
+    const female = masculine
+      .replace(/\bum$/, "uma")
+      .replace(/\bdois$/, "duas")
+      .replace(/entos\b/g, "entas");
+    const forms =
+      female === masculine || /(?:o|os|or|ores)$|^dias?$/.test(noun)
+        ? [masculine]
+        : /(?:[^m]as?|ção|ções|dade|dades|gem|gens)$/.test(noun)
+          ? [female]
+          : [masculine, female];
+    const span = m.indices!.groups!.target;
+    return finding(
+      "styleSpelledNumbers",
+      "review_msg_spelled_numbers",
+      span[0],
+      span[1],
+      forms.map((form) => form[0].toUpperCase() + form.slice(1)),
+      forms.length > 1 ? { requiresChoice: true } : undefined,
+    );
+  },
+  // pt_BR.yaml rule pt_BR.markSpacing frame 1
+  "@pt_BR.markSpacing/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const span = m.indices!.groups!.target;
+    return finding("commaPeriodSpacing", "review_msg_space_before_mark", span[0], span[1], [
+      ctx.source[span[1] - 1],
+    ]);
+  },
+  // pt_BR.yaml rule pt_BR.markSpacing frame 2
+  "@pt_BR.markSpacing/2": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    return finding("commaPeriodSpacing", "review_msg_space_after_mark", span[0], span[1], [
+      `${target} `,
+    ]);
+  },
+  // pt_BR.yaml rule pt_BR.markSpacing frame 3
+  "@pt_BR.markSpacing/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const span = m.indices!.groups!.target;
+    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", span[0]) + 1, span[0]);
+    if (/^[ \t ]*(?:…|\.{3}|\[…\])/u.test(line)) return null;
+    return finding("commaPeriodSpacing", "review_msg_space_before_mark", span[0], span[1], ["…"]);
+  },
+  // pt_BR.yaml rule pt_BR.unitSpacing frame 1
+  "@pt_BR.unitSpacing/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const number = m.groups!.number;
+    const unit = m.groups!.unit;
+    if (ctx.dictionary.has(target.toLowerCase())) return null;
+    const span = m.indices!.groups!.target;
+    const separator = resolveMeasurementLocale(ctx.lang)?.separator ?? " ";
+    return finding(
+      "measurementUnitFormatting",
+      "review_msg_measurement_spacing",
+      span[0],
+      span[1],
+      [`${number}${separator}${unit}`],
+    );
   },
 };
 

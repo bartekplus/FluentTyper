@@ -28203,7 +28203,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){1,6}\\.\\d{1,6})(?![\\d.,]{0,12}\\d)",
     literals: [],
-    fixer: "pt_BR:typographyD",
+    fixer: "pt_BR:@pt_BR.numberFormat/2",
   }),
   frame({
     pattern:
@@ -28256,7 +28256,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>\\d{1,3}[ \\t\\u00a0]?º[ \\t\\u00a0]?\\d{1,2}(?:,\\d+)?[ \\t\\u00a0]?['’′](?:[ \\t\\u00a0]?\\d{1,2}(?:,\\d+)?[ \\t\\u00a0]?(?:[\"”″]|['’′]{1,2}))?)",
     literals: [],
-    fixer: "pt_BR:typographyD2",
+    fixer: "pt_BR:@pt_BR.numberFormat/11",
   }),
   frame({
     pattern: "[−-]?\\d{1,3},\\d{1,3}(?<target>[ºo])(?![\\p{L}\\p{N}])",
@@ -28293,7 +28293,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:[oaOA]s?|d[oa]s?|n[oa]s?|ao|aos|à|às|pel[oa]s?|seus?|suas?|meu|minha|nosso|nossa|est[ea]|ess[ea])[ \\t\\u00a0]{1,8}\\d{1,4}\\.?(?<target>os|as|o|a)(?=(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:[ \\t\\u00a0]{1,8}\\p{Ll}|[ \\t\\u00a0]{0,2}[.,;:!?]))",
     literals: [],
-    fixer: "pt_BR:typographyOs",
+    fixer: "pt_BR:@pt_BR.numberFormat/15",
   }),
   frame({
     pattern:
@@ -28328,13 +28328,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:\\d+[ \\t\\u00a0]?|por[ \\t\\u00a0]{1,8}|/)k(?<target>M|G)(?=(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "pt_BR:typographyM",
+    fixer: "pt_BR:@pt_BR.numberFormat/21",
   }),
   frame({
     pattern:
       "(?:\\d+[ \\t\\u00a0]?|por[ \\t\\u00a0]{1,8}|/)(?:km|cm|mm|dm|m)(?<target>\\^?[23])(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pt_BR:typographyP",
+    fixer: "pt_BR:@pt_BR.numberFormat/22",
   }),
   frame({
     pattern: "\\d+[ \\t\\u00a0]?(?:km|cm|mm|m)/s(?<target>\\^?2)(?![\\p{L}\\p{N}])",
@@ -28344,7 +28344,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\d+(?<target>[ \\u00a0]?°[ \\u00a0]+[CF])(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pt_BR:typographyU",
+    fixer: "pt_BR:@pt_BR.numberFormat/24",
   }),
   frame({
     pattern: "\\d+(?<target>[ \\u00a0]?º[ \\u00a0]?K|[ \\u00a0]?°[ \\u00a0]+K)(?![\\p{L}\\p{N}])",
@@ -28356,38 +28356,38 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:[aA]nos?[ \\t\\u00a0]{1,8}(?:de[ \\t\\u00a0]{1,8})?|(?:janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro)[ \\t\\u00a0]{1,8}de[ \\t\\u00a0]{1,8}|(?:[eE]m|[dD]esde|[aA]té)[ \\t\\u00a0]{1,8}(?=[12]\\.\\d{3}[ \\t\\u00a0]*(?:[.,;:!?)]|$)))(?<target>[12]\\.\\d{3})(?![.,]?\\d)",
     literals: [],
-    fixer: "pt_BR:typographyD3",
+    fixer: "pt_BR:@pt_BR.numberFormat/26",
     message: "review_msg_pt_year",
   }),
   frame({
     pattern: "(?<![\\d.,])(?<target>\\d{1,3}(?:,\\d{3}){2,})(?![.,]?\\d)",
     literals: [],
-    fixer: "pt_BR:typographyD4",
+    fixer: "pt_BR:@pt_BR.numberFormat/27",
   }),
   frame({
     pattern:
       "(?<![\\d.,])(?<target>(?:1[5-9]|20)\\d\\d(?:[ \\u00a0]+[-–—]|[-–—][ \\u00a0]+)(?:1[5-9]|20)\\d\\d)(?!\\d|[.,]\\d)",
     literals: [],
-    fixer: "pt_BR:typographyD5",
+    fixer: "pt_BR:@pt_BR.numberFormat/28",
     message: "review_msg_range_dash",
   }),
   frame({
     pattern: "[sS]éculos?[ \\t\\u00a0]{1,8}(?<target>[1-9]\\d?)(?![\\dºª°\\p{L}]|[.,]\\d)",
     literals: ["século"],
-    fixer: "pt_BR:styleD",
+    fixer: "pt_BR:@pt_BR.typographyStyleFrames/1",
     message: "review_msg_pt_century",
   }),
   frame({
     pattern:
       "(?:[àÀ]s|[dD]as?|até[ \\t\\u00a0]{1,8}[àa]s)[ \\t\\u00a0]{1,8}(?<target>(?:[01]?\\d|2[0-3])[.,][0-5]\\d(?:[.,][0-5]\\d(?:,\\d+)?)?)(?!\\d)(?=[ \\t\\u00a0]?h(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}d[ae][ \\t\\u00a0]{1,8}(?:manhã|tarde|noite|madrugada)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}(?:às|e|até)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{0,2}(?:[;!?]|\\.(?!\\d)|$))",
     literals: [],
-    fixer: "pt_BR:styleD2",
+    fixer: "pt_BR:@pt_BR.typographyStyleFrames/2",
     message: "review_msg_pt_number_format",
   }),
   frame({
     pattern: "(?!0[xX])\\d[\\d.,]*(?<target>[ \\t\\u00a0]?[xX*][ \\t\\u00a0]?)(?=\\d)",
     literals: [],
-    fixer: "pt_BR:styleT",
+    fixer: "pt_BR:@pt_BR.typographyStyleFrames/3",
   }),
   frame({
     pattern:
@@ -28399,13 +28399,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:em|de|para|até)[ \\t\\u00a0]{1,8}\\p{Lu}[\\p{Ll}\\p{M}]+(?:[ \\t\\u00a0-](?:d[aoe]s?|\\p{Lu}[\\p{Ll}\\p{M}]+)){0,6}(?<target>[ \\t\\u00a0]?\\((?:AC|AL|AP|AM|BA|CE|DF|ES|GO|MA|MT|MS|MG|PA|PB|PR|PE|PI|RJ|RN|RS|RO|RR|SC|SP|SE|TO)\\))",
     literals: [],
-    fixer: "pt_BR:styleT2",
+    fixer: "pt_BR:@pt_BR.typographyStyleFrames/5",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}_./-])\\d*(?:(?:H|He|Li|Be|B|C|N|O|F|Ne|Na|Mg|Al|Si|P|S|Cl|Ar|K|Ca|Ti|Cr|Mn|Fe|Co|Ni|Cu|Zn|Br|Ag|I|Ba|Pt|Au|Hg|Pb|U)\\d*){2,}(?![\\p{L}\\p{N}_-])",
     literals: [],
-    fixer: "pt_BR:formula",
+    fixer: "pt_BR:@pt_BR.typographyStyle/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -28413,7 +28413,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,:/#+\\u2013\\u2014-])(\\d{1,4})([-\\u2014])(\\d{1,4})(?![\\p{L}\\p{N}_]|[-\\u2013\\u2014/:.,]\\p{N})",
     literals: [],
-    fixer: "pt_BR:rangeDash",
+    fixer: "pt_BR:@pt_BR.rangeDash/1",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -30056,32 +30056,32 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=[1-9])(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>[1-9]\\d{0,2})(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{L}{3,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<rest>[^\\n.!?]*)[.!?])",
     literals: [],
-    fixer: "pt_BR:sentenceStartNumber",
+    fixer: "pt_BR:@pt_BR.sentenceStartNumbers/1",
   }),
   frame({
     pattern: "(?<=(?<![\\p{L}])\\p{Ll}\\p{L}*)(?<target>[ \\u00A0]+[:;])(?=[ \\t\\u00A0\\n]|$)",
     literals: [],
-    fixer: "pt_BR:markBefore",
+    fixer: "pt_BR:@pt_BR.markSpacing/1",
     flags: "dgu",
   }),
   frame({
     pattern: "(?<=\\p{L})(?<target>\\.{3}|\\u2026)(?=\\p{Ll}{2})",
     literals: [],
-    fixer: "pt_BR:markGlued",
+    fixer: "pt_BR:@pt_BR.markSpacing/2",
     flags: "dgu",
   }),
   frame({
     pattern:
       '(?<=\\p{L}{4})(?<target>[ \\u00A0]+\\u2026)(?=[ \\t\\u00A0]*(?:\\n|$|["\\u201D\\u00BB)]))',
     literals: [],
-    fixer: "pt_BR:markSpaced",
+    fixer: "pt_BR:@pt_BR.markSpacing/3",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<target>(?<number>\\d+(?:[.,]\\d+)*)(?<unit>kB|KB|MB|GB|TB|kbps|Mbps|Gbps|MWh|GWh))(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pt_BR:dataUnit",
+    fixer: "pt_BR:@pt_BR.unitSpacing/1",
     flags: "dgu",
   }),
   frame({
