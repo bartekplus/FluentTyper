@@ -22,6 +22,13 @@ export {
   tokensAfter as deTokensAfter,
   tokensBefore as deTokensBefore,
 } from "../review/german/shared";
+export {
+  contextYear as deContextYear,
+  daysInMonth as deDaysInMonth,
+  utcDate as deUtcDate,
+  weekdayOf as deWeekdayOf,
+  yearsFor as deYearsFor,
+} from "../review/reviewClock";
 export type {
   GermanGender,
   GermanGenderReading,

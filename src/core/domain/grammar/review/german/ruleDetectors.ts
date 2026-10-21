@@ -12,7 +12,6 @@ import * as articleGender from "./articleGender";
 import * as colloquial from "./colloquial";
 import * as commas from "./commas";
 import * as compounds from "./compounds";
-import * as dates from "./dates";
 import * as joinedVerbs from "./joinedVerbs";
 import * as nounCasing from "./nounCasing";
 import * as nominalized from "./nominalized";
@@ -33,7 +32,6 @@ export const FIXERS = mergePredicates<Fixer>(
   suspendedHyphen.FIXERS,
   questions.FIXERS,
   quotes.FIXERS,
-  dates.FIXERS,
   numbers.FIXERS,
   colloquial.FIXERS,
   compounds.FIXERS,
@@ -51,7 +49,6 @@ export const FIXERS = mergePredicates<Fixer>(
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */
 export const FILTERS = mergePredicates<FindingsFilter>(
-  numbers.FILTERS,
   commas.FILTERS,
   nounCasing.FILTERS,
 );

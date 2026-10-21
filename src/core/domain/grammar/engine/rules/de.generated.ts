@@ -5,10 +5,15 @@ import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult, RawFinding } from "../../library";
 import {
   capitalize,
+  deContextYear,
+  deDaysInMonth,
   deEnglishLine,
   deLikeTyped,
   deTokensAfter,
   deTokensBefore,
+  deUtcDate,
+  deWeekdayOf,
+  deYearsFor,
   deumlaut,
   germanAdjective,
   germanAuxiliary,
@@ -147,6 +152,22 @@ export const PRONOUNS: ReadonlySet<string> = new Set([
   "dir",
 ]);
 
+export const DE_SHORT_MONTHS: ReadonlySet<string> = new Set([
+  "jan",
+  "jän",
+  "feb",
+  "mär",
+  "apr",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "sept",
+  "okt",
+  "nov",
+  "dez",
+]);
+
 export const THAT_ADJECTIVES: ReadonlySet<string> = new Set([
   "gut",
   "schön",
@@ -191,6 +212,56 @@ export const DA_ADVERBS: ReadonlySet<string> = new Set([
   "bald",
 ]);
 
+export const CHEMICAL_ELEMENTS: ReadonlySet<string> = new Set([
+  "H",
+  "He",
+  "Li",
+  "Be",
+  "B",
+  "C",
+  "N",
+  "O",
+  "F",
+  "Ne",
+  "Na",
+  "Mg",
+  "Al",
+  "Si",
+  "P",
+  "S",
+  "Cl",
+  "Ar",
+  "K",
+  "Ca",
+  "Mn",
+  "Fe",
+  "Co",
+  "Ni",
+  "Cu",
+  "Zn",
+  "Br",
+  "Ag",
+  "Sn",
+  "I",
+  "Ba",
+  "Pt",
+  "Au",
+  "Hg",
+  "Pb",
+]);
+
+export const CHEMICAL_GASES: ReadonlySet<string> = new Set([
+  "H2",
+  "O2",
+  "N2",
+  "O3",
+  "Cl2",
+  "H²",
+  "O²",
+  "N²",
+  "O³",
+]);
+
 export const JOINED_PAIRS: ReadonlySet<string> = new Set([
   "viel sagend",
   "hoch begabt",
@@ -225,6 +296,35 @@ export const PHRASAL_JOINED_WRONG: ReadonlySet<string> = new Set([
   "breakeven",
   "musthave",
 ]);
+
+export const DE_MONTHS: Readonly<Record<string, number>> = {
+  januar: 1,
+  jänner: 1,
+  jan: 1,
+  jän: 1,
+  februar: 2,
+  feb: 2,
+  märz: 3,
+  mär: 3,
+  april: 4,
+  apr: 4,
+  mai: 5,
+  juni: 6,
+  jun: 6,
+  juli: 7,
+  jul: 7,
+  august: 8,
+  aug: 8,
+  september: 9,
+  sep: 9,
+  sept: 9,
+  oktober: 10,
+  okt: 10,
+  november: 11,
+  nov: 11,
+  dezember: 12,
+  dez: 12,
+};
 
 export const SEIN_FOR: Readonly<Record<string, string>> = {
   hat: "ist",
@@ -335,6 +435,15 @@ export const IDIOM_DECONTRACTED: Readonly<Record<string, string>> = {
 };
 
 export const DATIVE_OF: Readonly<Record<string, string>> = { ihn: "ihm", mich: "mir", dich: "dir" };
+
+export const ONE_OF: Readonly<Record<string, string>> = {
+  millionen: "million",
+  milliarden: "milliarde",
+  billionen: "billion",
+  billiarden: "billiarde",
+};
+
+export const SUBSCRIPTS: Readonly<Record<string, string>> = { "²": "₂", "³": "₃" };
 
 export const REDUNDANT_NOUNS: Readonly<Record<string, readonly string[]>> = {
   rund: ["Kugel", "Kreis"],
@@ -530,6 +639,93 @@ export function politeOpens(token: string | undefined) {
   return token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token);
 }
 
+// de.yaml rule de.dates def WEEKDAYS
+export const WEEKDAYS = [
+  "Sonntag",
+  "Montag",
+  "Dienstag",
+  "Mittwoch",
+  "Donnerstag",
+  "Freitag",
+  "Samstag",
+];
+
+// de.yaml rule de.dates def WEEKDAY_SHORT
+export const WEEKDAY_SHORT = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
+
+// de.yaml rule de.dates def DATE_PREPOSITION
+export const DATE_PREPOSITION = /(?:^|[^\p{L}])(?:am|vom|zum|bis|ab|dem|den|seit)[ \t ]{1,8}$/iu;
+
+// de.yaml rule de.dates def dateParts
+export function dateParts(g: Record<string, string | undefined>): {
+  day: number;
+  month: number;
+  year?: number;
+} {
+  return g.isoYear
+    ? { day: Number(g.isoDay), month: Number(g.isoMonth), year: Number(g.isoYear) }
+    : {
+        day: Number(g.day),
+        month: g.month ? Number(g.month) : DE_MONTHS[g.name!.toLowerCase()],
+        year: (g.year ?? g.year2) ? Number(g.year ?? g.year2) : undefined,
+      };
+}
+
+// de.yaml rule de.dates def dateValid
+export function dateValid(date: { day: number; month: number; year?: number }) {
+  return (
+    date.month >= 1 &&
+    date.month <= 12 &&
+    date.day >= 1 &&
+    date.day <= deDaysInMonth(date.month, date.year)
+  );
+}
+
+// de.yaml rule de.dates def dateFinding
+export function dateFinding(
+  start: number,
+  end: number,
+  alternatives: string[],
+  key: RawFinding["messageKey"],
+): RawFinding {
+  return {
+    ruleId: "germanDates",
+    messageKey: key,
+    range: { start, end },
+    alternatives,
+    ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// de.yaml rule de.dates def weekdayFix
+export function weekdayFix(
+  m: RegExpExecArray,
+  parts: { day: number; month: number; year?: number },
+  years: number[],
+  weekdays: number[],
+  index: number,
+): RawFinding {
+  const g = m.groups!;
+  const turn = (index - weekdays[0] + 7) % 7;
+  const moved = deUtcDate(years[0], parts.month, parts.day + (turn > 3 ? turn - 7 : turn));
+  const typedDate = g.date;
+  const dayText = g.isoYear ? moved.toISOString().slice(0, 10) : String(moved.getUTCDate());
+  const dayStart = g.isoYear ? 0 : typedDate.indexOf(g.day);
+  const dayEnd = g.isoYear ? typedDate.length : dayStart + g.day.length;
+  const sep = g.sep.startsWith(",") ? g.sep : `,${g.sep}`;
+  const head = typedDate.slice(0, dayStart);
+  return dateFinding(
+    m.indices!.groups!.target[0],
+    m.indices!.groups!.date[0] + dayEnd,
+    [
+      ...weekdays.map((w) => `${WEEKDAYS[w]}${sep}${head}${g.isoYear ? typedDate : g.day}`),
+      `${g.weekday}${sep}${head}${dayText}`,
+    ],
+    parts.year === undefined ? "review_msg_weekday_no_year" : "review_msg_german_weekday_date",
+  );
+}
+
 // de.yaml rule de.confusions def DATIVE_ADJECTIVES
 export const DATIVE_ADJECTIVES =
   /(?:bekannt|vertraut|fremd|lieb|wichtig|verfügbar|zugänglich|nah|ähnlich|treu|dankbar|egal|bewusst|verständlich|peinlich|unheimlich|angenehm|unangenehm|zugetan|gewogen|überlegen|unterlegen|gleich|teuer|wert|zugeteilt|zugewiesen|anvertraut|geschenkt|gegeben|empfohlen)$/;
@@ -642,6 +838,86 @@ export function commaAfter(
   };
 }
 
+// de.yaml rule de.numbers def NUMBER_BELOW_100
+export const NUMBER_BELOW_100 =
+  "(?:(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun)und(?:zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig)|zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun)";
+
+// de.yaml rule de.numbers def NUMBER_BELOW_1000
+export const NUMBER_BELOW_1000 = `(?:(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun)?hundert(?:und)?${NUMBER_BELOW_100}?|${NUMBER_BELOW_100})`;
+
+// de.yaml rule de.numbers def NUMBER_WORD
+export const NUMBER_WORD = new RegExp(
+  `^(?:${NUMBER_BELOW_1000}?tausend(?:und)?${NUMBER_BELOW_1000}?|${NUMBER_BELOW_1000})$`,
+  "u",
+);
+
+// de.yaml rule de.numbers def DIGIT_WORDS
+export const DIGIT_WORDS = [
+  "null",
+  "ein",
+  "zwei",
+  "drei",
+  "vier",
+  "fünf",
+  "sechs",
+  "sieben",
+  "acht",
+  "neun",
+  "zehn",
+  "elf",
+  "zwölf",
+];
+
+// de.yaml rule de.numbers def numberWord
+export function numberWord(word: string) {
+  return NUMBER_WORD.test(word.toLowerCase());
+}
+
+// de.yaml rule de.numbers def writtenNumber
+export function writtenNumber(first: string, rest: string, mal?: string) {
+  const joined = [first, ...rest.trim().split(/[ \t ]+/)].join("").toLowerCase();
+  if (!numberWord(joined)) return null;
+  return deLikeTyped(first, mal ? `${joined}mal` : joined);
+}
+
+// de.yaml rule de.numbers def numberFinding
+export function numberFinding(start: number, end: number, alternatives: string[]): RawFinding {
+  return {
+    ruleId: "germanNumbers",
+    messageKey: "review_msg_german_numbers",
+    range: { start, end },
+    alternatives,
+    context: { start: Math.max(0, start - 30), end: end + 30 },
+  };
+}
+
+// de.yaml rule de.numbers def numberFix
+export function numberFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  name: string,
+  alternatives: string[] | null,
+): RawFinding | null {
+  const span = m.indices!.groups![name];
+  const typed = m.groups![name];
+  if (!(!!alternatives && !alternatives.includes(typed) && !namedExampleBefore(ctx.text, span[0])))
+    return null;
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
+  return numberFinding(span[0], span[1], alternatives);
+}
+
+// de.yaml rule de.rangeDashes def RANGE_CODE
+export const RANGE_CODE =
+  /(?:^|[^\p{L}])(?:tel|telefon|handy|mobil|fax|plz|nr|nummer|kto|konto|iban|blz|az|aktenzeichen|art|artikel|abs|absatz|ziff|ziffer|din|iso|isbn|version|flug|linie|gleis|zimmer|raum|modell|typ|rechnung|bestellung|kundennummer|von|vom|zwischen)\.?:?(?:[ \t ]+\p{L}{2,13})?[ \t ]*$|§[ \t ]*$/iu;
+
+// de.yaml rule de.rangeDashes def RANGE_SCORE
+export const RANGE_SCORE =
+  /(?:^|[^\p{L}])(?:spiel|sieg|gewann|gewinn|verlor|verlier|unterl[ai]g|endstand|halbzeit|ergebnis|treffer|satz|sätze|partie|unentschieden|steht[ \t ]+es|stand[ \t ]+es)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu;
+
+// de.yaml rule de.typography def CODE_BEFORE
+export const CODE_BEFORE =
+  /(?:Nr\.?|Nummer|PLZ|Postleitzahl|ID|Tel\.?|Telefon|Fax|Kto\.?|Konto|Kontonummer|Artikel|Bestellung|Code|Pin|PIN|Jahr|Jahre|Version|Seite|Zimmer|Raum|BLZ|IBAN|Kunden\p{L}*|Rechnung\p{L}*|Auftrag\p{L}*|Vorgang\p{L}*|Ticket\p{L}*)[ \t:.#-]*$/u;
+
 // de.yaml rule de.recommended def PH_SPELLINGS
 export const PH_SPELLINGS = [
   [/phantas/g, "fantas"],
@@ -699,6 +975,94 @@ export function redundancyAdvice(
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // de.yaml rule de.dates frame 1
+  "@de.dates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const weekday = m.groups!.weekday;
+    const sep = m.groups!.sep;
+    const parts = dateParts(m.groups!);
+    if (!dateValid(parts)) return null;
+    const start = m.indices!.groups!.target[0];
+    const punct = sep.startsWith(",")
+      ? []
+      : [
+          dateFinding(
+            m.indices!.groups!.weekday[0],
+            m.indices!.groups!.weekday[1],
+            [`${weekday},`],
+            "review_msg_german_date_punctuation",
+          ),
+        ];
+    const early =
+      (parts.year !== undefined && parts.year < 1583) ||
+      /^[ \t ]*v\./.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 4));
+    const years = early
+      ? []
+      : parts.year === undefined
+        ? deYearsFor(parts.month, parts.day, deContextYear(ctx.text, start, ctx.lang))
+        : [parts.year];
+    const weekdays = [...new Set(years.map((y) => deWeekdayOf(y, parts.month, parts.day)))];
+    const typedDay = weekday.replace(/\.$/, "");
+    const index =
+      typedDay === "Sonnabend"
+        ? 6
+        : Math.max(WEEKDAYS.indexOf(typedDay), WEEKDAY_SHORT.indexOf(typedDay));
+    return early || !years.length || weekdays.includes(index)
+      ? punct
+      : [...punct, weekdayFix(m, parts, years, weekdays, index)];
+  },
+  // de.yaml rule de.dates frame 2
+  "@de.dates/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = m.groups!.name;
+    const year2 = m.groups!.year2;
+    const isoYear = m.groups!.isoYear;
+    const parts = dateParts(m.groups!);
+    if (!(!isoYear && !dateValid(parts))) return null;
+    const namedZero =
+      m.groups!.name !== undefined &&
+      parts.day === 0 &&
+      DATE_PREPOSITION.test(ctx.text.slice(Math.max(0, m.index - 12), m.index));
+    if (
+      parts.year === undefined &&
+      !namedZero &&
+      (parts.day === 0 || parts.month === 0 || parts.month > 12)
+    )
+      return null;
+    return dateFinding(
+      m.indices!.groups!.target[0],
+      name && !year2 && !DE_SHORT_MONTHS.has(name.toLowerCase())
+        ? m.indices!.groups!.name[1]
+        : m.indices!.groups!.target[1],
+      [],
+      "review_msg_german_invalid_date",
+    );
+  },
+  // de.yaml rule de.dates frame 3
+  "@de.dates/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const year2 = m.groups!.year2;
+    const parts = dateParts(m.groups!);
+    if (dateValid(parts)) return null;
+    if (!(!!year2 || DATE_PREPOSITION.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))))
+      return null;
+    return dateFinding(
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [],
+      "review_msg_german_invalid_date",
+    );
+  },
+  // de.yaml rule de.dateDots frame 1
+  "@de.dateDots/1": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    const day = m.groups!.day;
+    const month = m.groups!.month;
+    if (!dateValid({ day: Number(day), month: Number(month) })) return null;
+    return dateFinding(
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      [`${target}.`],
+      "review_msg_german_date_punctuation",
+    );
+  },
   // de.yaml rule de.nounCasing frame 21
   "@de.nounCasing/21": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     if (!idiomOpen(m, ctx)) return null;
@@ -2113,6 +2477,213 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       `, ${target.replace(/[ \t ]+/g, " ")},`,
     );
   },
+  // de.yaml rule de.numbers frame 1
+  "@de.numbers/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const rest = m.groups!.rest;
+    const mal = m.groups!.mal;
+    if (/zwischen[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))) return null;
+    const end = m.index + m[0].length;
+    if (
+      !mal &&
+      /^[ \t]+\p{Lu}\p{Ll}+[ \t]+\p{Ll}+(?:e|er|es|en|em)(?!\p{L})/u.test(
+        ctx.text.slice(end, end + 40),
+      )
+    )
+      return null;
+    const fixed = writtenNumber(first, rest, mal);
+    return numberFix(ctx, m, "target", fixed ? [fixed] : null);
+  },
+  // de.yaml rule de.numbers frame 2
+  "@de.numbers/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    return numberFix(ctx, m, "target", numberWord(first) ? [`${first}mal`] : null);
+  },
+  // de.yaml rule de.numbers frame 3
+  "@de.numbers/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    return numberFix(
+      ctx,
+      m,
+      "target",
+      numberWord(first) && first.toLowerCase() !== "ein" ? [`${first} mal`] : null,
+    );
+  },
+  // de.yaml rule de.numbers frame 4
+  "@de.numbers/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    return numberFix(ctx, m, "target", [
+      `${/\d/.test(n) ? DIGIT_WORDS[Number(n)] : n === "eins" ? "ein" : n}einhalb`,
+    ]);
+  },
+  // de.yaml rule de.numbers frame 5
+  "@de.numbers/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return numberFix(
+      ctx,
+      m,
+      "target",
+      numberWord(target) || target === "Null" ? [target.toLowerCase()] : null,
+    );
+  },
+  // de.yaml rule de.numbers frame 6
+  "@de.numbers/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    const next = t2
+      ? /^[ \t]+(\p{Lu}\p{Ll}+)/u.exec(ctx.text.slice(m.index + m[0].length))?.[1]
+      : undefined;
+    if (!(!t2 || !(next && germanNounReading(next.toLowerCase()) === null))) return null;
+    return !t2
+      ? numberFix(ctx, m, "target", [`${target}en`])
+      : numberFix(ctx, m, "t2", [t2 === "Milliarde" ? "Milliarden" : `${t2}en`]);
+  },
+  // de.yaml rule de.numbers frame 7
+  "@de.numbers/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (
+      /(?:\d|zwei|drei|vier|fünf|viele|mehrere|beide)[ \t]+halbe[nr]?[ \t]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 30), m.index),
+      )
+    )
+      return null;
+    const name = target ? "target" : "t2";
+    const typed = m.groups![name];
+    return numberFix(ctx, m, name, [
+      typed.replace(/(millionen|milliarden|billionen|billiarden)$/i, (plural) =>
+        deLikeTyped(plural, ONE_OF[plural.toLowerCase()]),
+      ),
+    ]);
+  },
+  // de.yaml rule de.numbers frame 8
+  "@de.numbers/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const parts = target.split(".");
+    return numberFix(ctx, m, "target", [
+      parts[0].replaceAll(",", ".") + (parts[1] ? `,${parts[1]}` : ""),
+    ]);
+  },
+  // de.yaml rule de.numbers frame 9
+  "@de.numbers/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    if (namedExampleBefore(ctx.text, span[0])) return null;
+    return {
+      ...numberFinding(span[0], span[1], [`${target}.`]),
+      messageKey: "review_msg_german_ordinal_dot",
+    };
+  },
+  // de.yaml rule de.numbers frame 10
+  "@de.numbers/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const from = m.groups!.from;
+    const to = m.groups!.to;
+    const before = ctx.text.slice(Math.max(0, m.index - 30), m.index);
+    const between = /zwischen[ \t]+(?:\S+[ \t]+)?$/i.test(before);
+    if (between && !/\d/.test(from + to)) return null;
+    if (/(?<!\p{L})\p{Lu}\p{Ll}+[ \t]+von[ \t]+$/u.test(before) && /\d/.test(from + to))
+      return null;
+    const span = m.indices!.groups!.target;
+    if (!(!namedExampleBefore(ctx.text, span[0]) && !ctx.dictionary.has(target.toLowerCase())))
+      return null;
+    return {
+      ...numberFinding(span[0], span[1], [`${from} ${between ? "und" : "bis"} ${to}`]),
+      messageKey: "review_msg_german_range",
+    };
+  },
+  // de.yaml rule de.rangeDashes frame 1
+  "@de.rangeDashes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) return null;
+    const a = m[1];
+    const dash = m[2];
+    const b = m[3];
+    if (a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4)) return null;
+    if (!((a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)) > Number(a)))
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+    if (RANGE_CODE.test(before) || RANGE_SCORE.test(before)) return null;
+    return {
+      ruleId: "emdashShortcut",
+      messageKey: "review_msg_range_dash",
+      range: { start: m.index + a.length, end: m.index + a.length + dash.length },
+      alternatives: ["–"],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // de.yaml rule de.typography frame 1
+  "@de.typography/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (/(?<![\p{L}\p{N}.,])0$/u.test(ctx.text.slice(Math.max(0, m.index - 2), m.index)))
+      return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: "germanTypography",
+      messageKey: "review_msg_typographic_symbol",
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: ["×", "·"],
+      requiresChoice: true,
+      context: { start: Math.max(0, m.index - 20), end: m.index + 20 },
+    };
+  },
+  // de.yaml rule de.typography frame 2
+  "@de.typography/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const formula = m[0];
+    if (!(/[0-9²³]/.test(formula) && !/^[0-9]/.test(formula))) return null;
+    const symbols = formula.match(/[A-Z][a-z]?/g)!;
+    if (!symbols.every((s) => CHEMICAL_ELEMENTS.has(s))) return null;
+    if (
+      !(symbols.length === 1
+        ? CHEMICAL_GASES.has(formula)
+        : symbols.some((s) => s === "H" || s === "O"))
+    )
+      return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: "germanTypography",
+      messageKey: "review_msg_typographic_symbol",
+      range: { start: m.index, end: m.index + formula.length },
+      alternatives: [
+        formula.replace(
+          /[0-9²³]/g,
+          (d) => SUBSCRIPTS[d] ?? String.fromCharCode(0x2080 + Number(d)),
+        ),
+      ],
+      context: { start: Math.max(0, m.index - 20), end: m.index + formula.length + 20 },
+    };
+  },
+  // de.yaml rule de.typography frame 3
+  "@de.typography/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const digits = m[0];
+    if (digits.length > 12 || CODE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)))
+      return null;
+    const end = m.index + digits.length;
+    const after = ctx.text.slice(end, end + 12);
+    if (
+      digits.length === 5 &&
+      !/^[ \t]*(?:[.,;!?)]|[ \t]\p{Ll}|[ \t]?(?:[€$%£]|[kMGT]?B\b|km|kg|Euro|Dollar|Franken))/u.test(
+        after,
+      )
+    )
+      return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: "germanTypography",
+      messageKey: "review_msg_german_thousands",
+      range: { start: m.index, end },
+      alternatives: [digits.replace(/\B(?=(?:\d{3})+$)/g, ".")],
+    };
+  },
+  // de.yaml rule de.decadeCentury frame 1
+  "@de.decadeCentury/1": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    const decade = m.groups!.decade;
+    return {
+      ruleId: "stylePhrasing",
+      messageKey: "review_msg_style_phrasing",
+      range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+      alternatives: [decade, target.slice(2)],
+      requiresChoice: true,
+    };
+  },
   // de.yaml rule de.recommended frame 1
   "@de.recommended/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const target = m.groups!.target;
@@ -2285,7 +2856,19 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
 };
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
-export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
+export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // de.yaml rule de.numbers filter
+  "@de.numbers/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    return findings.reduce(
+      (kept, f) =>
+        f.messageKey === "review_msg_german_numbers" &&
+        kept.some((k) => k.range.start < f.range.end && f.range.start < k.range.end)
+          ? kept
+          : kept.concat([f]),
+      [] as RawFinding[],
+    );
+  },
+};
 
 /** The Review detectors of rules with code, by rule ("@<rule id>"). */
 export const DETECTORS: Readonly<Record<string, Detector>> = {};

@@ -3603,7 +3603,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [2393, 2394, 2395, 2396, 2397, 2398, 2399, 2400, 2401, 2402],
     message: "review_msg_german_numbers",
     style: "match",
-    filter: "de:firstNumberFix",
+    filter: "de:@de.numbers/filter",
     source: "de",
   },
   {
@@ -23285,14 +23285,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>(?<weekday>Sonntag|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonnabend|(?:So|Mo|Di|Mi|Do|Fr|Sa)\\.?)(?<sep>,?[ \\t\\u00a0]+(?:(?:den|der|dem)[ \\t\\u00a0]+)?)(?<date>(?:(?<day>\\d{1,3})\\.(?:(?<month>\\d{1,2})\\.(?<year>[0-9]{4})?|[ \\t\\u00a0]?(?<name>September|November|Dezember|Februar|Oktober|Januar|Jänner|August|April|März|Juni|Juli|Sept|Jan|Jän|Feb|Mär|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez)\\.?(?:[ \\t\\u00a0](?<year2>[0-9]{4}))?)|(?<isoYear>[0-9]{4})-(?<isoMonth>\\d{2})-(?<isoDay>\\d{2}))(?!\\d)))",
     literals: [],
-    fixer: "de:weekdayDate",
+    fixer: "de:@de.dates/1",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?<![\\d.])(?<target>(?:(?<day>\\d{1,3})\\.(?:(?<month>\\d{1,2})\\.(?<year>[0-9]{4})?|[ \\t\\u00a0]?(?<name>September|November|Dezember|Februar|Oktober|Januar|Jänner|August|April|März|Juni|Juli|Sept|Jan|Jän|Feb|Mär|Apr|Mai|Jun|Jul|Aug|Sep|Okt|Nov|Dez)\\.?(?:[ \\t\\u00a0](?<year2>[0-9]{4}))?)|(?<isoYear>[0-9]{4})-(?<isoMonth>\\d{2})-(?<isoDay>\\d{2}))(?!\\d))",
     literals: [],
-    fixer: "de:loneDate",
+    fixer: "de:@de.dates/2",
     flags: "dgu",
   }),
   frame({
@@ -23313,7 +23313,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "november",
       "dezember",
     ],
-    fixer: "de:lowerDate",
+    fixer: "de:@de.dates/3",
     flags: "dgu",
   }),
   frame({
@@ -23328,7 +23328,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[^\\p{L}])(?:am|vom|zum|bis|dem|den|seit)[ \\t\\u00a0]{1,8})(?<target>(?<day>\\d{1,2})\\.(?<month>\\d{1,2}))(?=[ \\t\\u00a0]+[^\\d\\s.]|[ \\t\\u00a0]*[,)]|$)",
     literals: [],
-    fixer: "de:dateDot",
+    fixer: "de:@de.dateDots/1",
     flags: "dgu",
   }),
   frame({
@@ -26267,7 +26267,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hundert",
       "tausend",
     ],
-    fixer: "de:numberApart",
+    fixer: "de:@de.numbers/1",
     flags: "dgu",
   }),
   frame({
@@ -26305,7 +26305,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hundert",
       "tausend",
     ],
-    fixer: "de:singleMal",
+    fixer: "de:@de.numbers/2",
     flags: "dgu",
   }),
   frame({
@@ -26343,28 +26343,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hundert",
       "tausend",
     ],
-    fixer: "de:joinedTimes",
+    fixer: "de:@de.numbers/3",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<n>ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|1[0-2]|[1-9])[ \\t\\u00a0]{1,8}an[ \\t\\u00a0]{1,8}halb))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["halb"],
-    fixer: "de:anHalb",
+    fixer: "de:@de.numbers/4",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Lu})(?<=(?:bis|um|durch|über|unter|gegen|zu|auf|[Ww]ir|[Ii]hr|[Dd]iese|als|an[ \\t\\u00a0]{1,8}die)[ \\t\\u00a0]{1,8})(?<target>(?:Null|Zwei|Drei|Vier|Fünf|Sechs|Sieben|Acht|Neun|Zehn|Elf|Zwölf|\\p{Lu}\\p{Ll}*(?:zig|ßig|zehn|hundert|tausend)\\p{Ll}*))(?![ \\t\\u00a0]{1,8}\\p{Lu}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:capitalNumber",
+    fixer: "de:@de.numbers/5",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Lu})(?<=(?:(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige)|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle)[ \\t\\u00a0]{1,8}(?:von|an))(?:[ \\t\\u00a0]{1,8}\\p{Ll}{1,30}(?:e|en))?[ \\t\\u00a0]{1,8})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|(?=[MB]il)(?<=(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige|[2-9]|\\d{2,12}(?:,\\d{1,6})?)[ \\t\\u00a0]{1,8})(?<t2>Million|Milliarde|Billion)(?!\\p{L}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ung", "heit", "keit", "schaft", "ion", "tät", "million", "milliarde", "billion"],
-    fixer: "de:singularAfterCount",
+    fixer: "de:@de.numbers/6",
     flags: "dgu",
     owner: "target|t2",
   }),
@@ -26372,7 +26372,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Hh]albe|[Hh]alben|[Hh]alber|(?<!\\p{L})[Ee]iner?|(?<![\\p{N},.])1)[ \\t\\u00a0]{1,8})(?<target>Millionen|Milliarden|Billionen|Billiarden)|(?<=(?:[Ee]ine|[Ee]iner|[Dd]ie|[Dd]er)[ \\t\\u00a0]{1,8})(?<t2>Viertel(?:millionen|milliarden)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["millionen", "milliarden", "billionen", "billiarden", "millionen", "milliarden"],
-    fixer: "de:halfMillion",
+    fixer: "de:@de.numbers/7",
     flags: "dgu",
     owner: "target|t2",
   }),
@@ -26380,28 +26380,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<![\\p{N},.])(?<target>[1-9]\\d{0,2}(?:(?:,\\d{3}){2,}(?:\\.\\d{1,2})?|,\\d{3}\\.\\d{1,2}))(?![\\p{N},.]\\d|\\p{L}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:englishDigits",
+    fixer: "de:@de.numbers/8",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Ii]m|[Aa]m|[Zz]um|[Vv]om|[Bb]eim|[Dd]em|[Dd]en|[Dd]er|[Dd]as|[Ss]eit[ \\t\\u00a0]{1,8}dem|[Ii]n[ \\t\\u00a0]{1,8}den|[Ii]n[ \\t\\u00a0]{1,8}der|[Aa]b[ \\t\\u00a0]{1,8}der|[Aa]b[ \\t\\u00a0]{1,8}dem)[ \\t\\u00a0]{1,8})(?<target>[1-9]\\d{0,2})(?=[ \\t\\u00a0]{1,8}(?:Jahrhundert|Jahrhunderts|Jahrtausend|Stock|Stockwerk|Etage|Minute|Platz|Geburtstag|Jahrestag|Lebensjahr|Klasse|Spieltag|Runde|Liga|Etappe|Auflage|Kapitel|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:ordinalDot",
+    fixer: "de:@de.numbers/9",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=[0-9]|\\p{Lu})(?<=(?:[Vv]on|[Vv]om|[Zz]wischen)[ \\t\\u00a0]{1,8}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.)[ \\t\\u00a0]{1,8})?)(?<target>(?<from>(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu})[ \\t]?[-–][ \\t]?(?<to>(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}))(?![-–\\d]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:numberRange",
+    fixer: "de:@de.numbers/10",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}.,:/#+\\u2013\\u2014-])(\\d{1,4})([-\\u2014])(\\d{1,4})(?![\\p{L}\\p{N}_]|[-\\u2013\\u2014/:.,]\\p{N})",
     literals: [],
-    fixer: "de:rangeDash",
+    fixer: "de:@de.rangeDashes/1",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -26410,21 +26410,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}\\p{N}.,])\\d+(?:[.,]\\d+)?[ \\u00A0]?)[x*](?=[ \\u00A0]?\\d)|(?<=[\\p{L}\\p{N}][ \\u00A0])\\*(?=[ \\u00A0][\\p{L}\\p{N}])",
     literals: [],
-    fixer: "de:timesSign",
+    fixer: "de:@de.typography/1",
     flags: "gu",
     scan: "owned",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{N}_])(?:[A-Z][a-z]?[0-9\\u00B2\\u00B3]*){1,6}(?![\\p{L}\\p{N}_])",
     literals: [],
-    fixer: "de:chemicalFormula",
+    fixer: "de:@de.typography/2",
     flags: "gu",
     scan: "owned",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{N}.,:/#+_-])[1-9]\\d{4,}(?![\\p{L}\\p{N}.,:/_-])",
     literals: [],
-    fixer: "de:thousands",
+    fixer: "de:@de.typography/3",
     message: "review_msg_german_thousands",
     flags: "gu",
     scan: "owned",
@@ -26433,7 +26433,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<decade>(?:1[0-9]|20)\\d0er(?:-|[ \\t\\u00a0]{1,8})Jahren?)[ \\t\\u00a0]{1,8}des[ \\t\\u00a0]{1,8}(?:vorigen|letzten|vergangenen|\\d{1,2}\\.|neunzehnten|zwanzigsten|einundzwanzigsten)[ \\t\\u00a0]{1,8}Jahrhunderts))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["jahrhunderts"],
-    fixer: "de:decadeCentury",
+    fixer: "de:@de.decadeCentury/1",
     flags: "dgu",
   }),
   frame({

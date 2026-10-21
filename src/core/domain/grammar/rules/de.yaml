@@ -305,19 +305,105 @@ rules:
     checks: [germanDates]
     style: match
     message: review_msg_german_invalid_date
+    maps:
+      # Month names and their short forms: the month's number.
+      DE_MONTHS:
+        {
+          januar: 1, jänner: 1, jan: 1, jän: 1, februar: 2, feb: 2, märz: 3, mär: 3, april: 4, apr: 4,
+          mai: 5, juni: 6, jun: 6, juli: 7, jul: 7, august: 8, aug: 8, september: 9, sep: 9, sept: 9,
+          oktober: 10, okt: 10, november: 11, nov: 11, dezember: 12, dez: 12,
+        }
+    sets:
+      DE_SHORT_MONTHS: [jan, jän, feb, mär, apr, jun, jul, aug, sep, sept, okt, nov, dez]
+    defs:
+      WEEKDAYS: '["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"]'
+      WEEKDAY_SHORT: '["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"]'
+      # A preposition or article that a date takes: "am", "vom", "bis zum", "seit dem".
+      DATE_PREPOSITION: '/(?:^|[^\p{L}])(?:am|vom|zum|bis|ab|dem|den|seit)[ \t ]{1,8}$/iu'
+      # The day, month and year of a DATE match.
+      dateParts:
+        args: "g: Record<string, string | undefined>"
+        type: "{ day: number; month: number; year?: number }"
+        return: >-
+          g.isoYear ? { day: Number(g.isoDay), month: Number(g.isoMonth), year: Number(g.isoYear) }
+          : { day: Number(g.day), month: g.month ? Number(g.month) : DE_MONTHS[g.name!.toLowerCase()],
+          year: (g.year ?? g.year2) ? Number(g.year ?? g.year2) : undefined }
+      # A date that the calendar has.
+      dateValid:
+        args: "date: { day: number; month: number; year?: number }"
+        return: "date.month >= 1 && date.month <= 12 && date.day >= 1 && date.day <= deDaysInMonth(date.month, date.year)"
+      dateFinding:
+        args: 'start: number, end: number, alternatives: string[], key: RawFinding["messageKey"]'
+        type: RawFinding
+        return: >-
+          ({ ruleId: "germanDates", messageKey: key, range: { start, end }, alternatives,
+          ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
+          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+      # The weekday the date has, or the nearest date with the weekday typed: only the weekday and
+      # the day change, so the range ends after the day.
+      weekdayFix:
+        args: "m: RegExpExecArray, parts: { day: number; month: number; year?: number }, years: number[], weekdays: number[], index: number"
+        type: RawFinding
+        let:
+          g: m.groups!
+          turn: (index - weekdays[0] + 7) % 7
+          moved: "deUtcDate(years[0], parts.month, parts.day + (turn > 3 ? turn - 7 : turn))"
+          typedDate: g.date
+          dayText: "g.isoYear ? moved.toISOString().slice(0, 10) : String(moved.getUTCDate())"
+          dayStart: "g.isoYear ? 0 : typedDate.indexOf(g.day)"
+          dayEnd: "g.isoYear ? typedDate.length : dayStart + g.day.length"
+          sep: 'g.sep.startsWith(",") ? g.sep : `,${g.sep}`'
+          head: typedDate.slice(0, dayStart)
+        return: >-
+          dateFinding(m.indices!.groups!.target[0], m.indices!.groups!.date[0] + dayEnd,
+          [...weekdays.map((w) => `${WEEKDAYS[w]}${sep}${head}${g.isoYear ? typedDate : g.day}`), `${g.weekday}${sep}${head}${dayText}`],
+          parts.year === undefined ? "review_msg_weekday_no_year" : "review_msg_german_weekday_date")
     frames:
       # A weekday before its date: "Sonntag, 23.08.2014", "Samstag den 23. August".
       - regex: "{{WG}}(?<target>{{WEEKDAY}}(?<sep>,?[ \\t\\u00a0]+(?:(?:den|der|dem)[ \\t\\u00a0]+)?)(?<date>{{DATE}}))"
         flags: dgu
-        fixer: weekdayDate
+        let:
+          parts: dateParts(m.groups!)
+          start: m.indices!.groups!.target[0]
+          punct: >-
+            sep.startsWith(",") ? [] : [dateFinding(m.indices!.groups!.weekday[0], m.indices!.groups!.weekday[1],
+            [`${weekday},`], "review_msg_german_date_punctuation")]
+          early: >-
+            (parts.year !== undefined && parts.year < 1583) ||
+            /^[ \t ]*v\./.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 4))
+          years: >-
+            early ? [] : parts.year === undefined ? deYearsFor(parts.month, parts.day, deContextYear(ctx.text, start, ctx.lang))
+            : [parts.year]
+          weekdays: "[...new Set(years.map((y) => deWeekdayOf(y, parts.month, parts.day)))]"
+          typedDay: weekday.replace(/\.$/, "")
+          index: >-
+            typedDay === "Sonnabend" ? 6 : Math.max(WEEKDAYS.indexOf(typedDay), WEEKDAY_SHORT.indexOf(typedDay))
+        when: dateValid(parts)
+        return: >-
+          early || !years.length || weekdays.includes(index) ? punct : [...punct, weekdayFix(m, parts, years, weekdays, index)]
       # A date alone: "31. November", "29.2.2014".
       - regex: "(?<![\\d.])(?<target>{{DATE}})"
         flags: dgu
-        fixer: loneDate
+        let:
+          parts: dateParts(m.groups!)
+          namedZero: >-
+            m.groups!.name !== undefined && parts.day === 0 && DATE_PREPOSITION.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+        when:
+          - "!isoYear && !dateValid(parts)"
+          - "!(parts.year === undefined && !namedZero && (parts.day === 0 || parts.month === 0 || parts.month > 12))"
+        return: >-
+          dateFinding(m.indices!.groups!.target[0], name && !year2 && !DE_SHORT_MONTHS.has(name.toLowerCase())
+          ? m.indices!.groups!.name[1] : m.indices!.groups!.target[1], [], "review_msg_german_invalid_date")
       # "am 31. april 2020": a full month name in lowercase (germanNounCasing reports its case).
       - regex: "(?<![\\d.])(?<target>(?<day>\\d{1,2})\\.[ \\t\\u00a0]?(?<name>januar|jänner|februar|märz|april|mai|juni|juli|august|september|oktober|november|dezember)(?:[ \\t\\u00a0](?<year2>[0-9]{4}))?)(?![\\p{L}\\d])"
         flags: dgu
-        fixer: lowerDate
+        let:
+          parts: dateParts(m.groups!)
+        when:
+          - "!dateValid(parts)"
+          - "!!year2 || DATE_PREPOSITION.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))"
+        return: >-
+          dateFinding(m.indices!.groups!.target[0], m.indices!.groups!.target[1], [], "review_msg_german_invalid_date")
   - id: de.isoDates
     checks: [germanDates]
     style: match
@@ -340,7 +426,9 @@ rules:
       # A day-month date without its closing dot ("am 13.12 um").
       - regex: "(?<=(?:^|[^\\p{L}])(?:am|vom|zum|bis|dem|den|seit){{S}})(?<target>(?<day>\\d{1,2})\\.(?<month>\\d{1,2}))(?=[ \\t\\u00a0]+[^\\d\\s.]|[ \\t\\u00a0]*[,)]|$)"
         flags: dgu
-        fixer: dateDot
+        when: "dateValid({ day: Number(day), month: Number(month) })"
+        return: >-
+          dateFinding(m.indices!.groups!.target[0], m.indices!.groups!.target[1], [`${target}.`], "review_msg_german_date_punctuation")
   - id: de.nounCasing
     checks: [germanNounCasing]
     style: match
@@ -2312,60 +2400,138 @@ rules:
     checks: [germanNumbers]
     style: match
     message: review_msg_german_numbers
-    filter: firstNumberFix
+    # "hundert tausend mal" already covers its "tausend mal": a number fix that overlaps an
+    # earlier finding goes. The ordinal and range frames run last and keep theirs.
+    filter:
+      return: >-
+        findings.reduce((kept, f) => f.messageKey === "review_msg_german_numbers" &&
+        kept.some((k) => k.range.start < f.range.end && f.range.start < k.range.end) ? kept : kept.concat([f]), [] as RawFinding[])
+    maps:
+      ONE_OF: { millionen: million, milliarden: milliarde, billionen: billion, billiarden: billiarde }
+    defs:
+      # A number in words below a hundred and below a thousand ("achtundzwanzig", "dreihundert").
+      NUMBER_BELOW_100: >-
+        "(?:(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun)und(?:zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig)|zwanzig|dreißig|vierzig|fünfzig|sechzig|siebzig|achtzig|neunzig|zehn|elf|zwölf|dreizehn|vierzehn|fünfzehn|sechzehn|siebzehn|achtzehn|neunzehn|ein|eins|zwei|drei|vier|fünf|sechs|sieben|acht|neun)"
+      NUMBER_BELOW_1000: "`(?:(?:ein|zwei|drei|vier|fünf|sechs|sieben|acht|neun)?hundert(?:und)?${NUMBER_BELOW_100}?|${NUMBER_BELOW_100})`"
+      NUMBER_WORD: 'new RegExp(`^(?:${NUMBER_BELOW_1000}?tausend(?:und)?${NUMBER_BELOW_1000}?|${NUMBER_BELOW_1000})$`, "u")'
+      DIGIT_WORDS: '["null", "ein", "zwei", "drei", "vier", "fünf", "sechs", "sieben", "acht", "neun", "zehn", "elf", "zwölf"]'
+      # A number in words, written as one: "dreihundertsechsundzwanzig".
+      numberWord:
+        args: "word: string"
+        return: NUMBER_WORD.test(word.toLowerCase())
+      # The number words joined ("zwei drei Tage" is "two or three": only a whole number joins).
+      writtenNumber:
+        args: "first: string, rest: string, mal?: string"
+        let:
+          joined: '[first, ...rest.trim().split(/[ \t ]+/)].join("").toLowerCase()'
+        when: numberWord(joined)
+        return: "deLikeTyped(first, mal ? `${joined}mal` : joined)"
+      numberFinding:
+        args: "start: number, end: number, alternatives: string[]"
+        type: RawFinding
+        return: >-
+          ({ ruleId: "germanNumbers", messageKey: "review_msg_german_numbers", range: { start, end }, alternatives,
+          context: { start: Math.max(0, start - 30), end: end + 30 } })
+      # The finding for the group `name` of m, unless it is already right or the writer's word.
+      numberFix:
+        args: "ctx: DetectContext, m: RegExpExecArray, name: string, alternatives: string[] | null"
+        type: RawFinding | null
+        let:
+          span: m.indices!.groups![name]
+          typed: m.groups![name]
+        when:
+          - "!!alternatives && !alternatives.includes(typed) && !namedExampleBefore(ctx.text, span[0])"
+          - "!ctx.dictionary.has(typed.toLowerCase())"
+        return: numberFinding(span[0], span[1], alternatives)
     frames:
       # Number words written apart: "sechs und zwanzig", "Zwei Hundert", "hundert tausend mal".
       - regex: "{{WG}}(?:(?<target>(?<first>{{NUMBER_PART}})(?<rest>(?:{{S}}(?:und{{S}})?{{NUMBER_PART}})+)(?:{{S}}(?<mal>mal))?)){{E}}"
         flags: dgu
-        fixer: numberApart
+        let:
+          end: m.index + m[0].length
+          fixed: writtenNumber(first, rest, mal)
+        when:
+          - '!/zwischen[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
+          - '!(!mal && /^[ \t]+\p{Lu}\p{Ll}+[ \t]+\p{Ll}+(?:e|er|es|en|em)(?!\p{L})/u.test(ctx.text.slice(end, end + 40)))'
+        return: 'numberFix(ctx, m, "target", fixed ? [fixed] : null)'
       # "acht mal versucht" → "achtmal"; "acht mal zwei" multiplies and stays.
       - regex: "{{WG}}(?:(?<target>(?<first>{{NUMBER_PART}}){{S}}mal)(?!{{S}}(?:{{NUMBER_PART}}|\\d))){{E}}"
         flags: dgu
-        fixer: singleMal
+        return: 'numberFix(ctx, m, "target", numberWord(first) ? [`${first}mal`] : null)'
       # "Achtmal zwei ist 16" → "Acht mal zwei".
       - regex: "{{WG}}(?:(?<target>(?<first>{{NUMBER_PART}})mal)(?={{S}}(?:(?!ein)(?:{{NUMBER_STARTS}})\\p{Ll}*|\\d+){{E}}(?:{{S}}\\p{L}+)?{{S}}(?:ist|gleich|ergibt|macht|sind|=))){{E}}"
         flags: dgu
-        fixer: joinedTimes
+        return: 'numberFix(ctx, m, "target", numberWord(first) && first.toLowerCase() !== "ein" ? [`${first} mal`] : null)'
       # "zwei an halb" → "zweieinhalb".
       - regex: "{{WG}}(?:(?<target>(?<n>{{NUMBER_UNITS}}|zehn|elf|zwölf|1[0-2]|[1-9]){{S}}an{{S}}halb)){{E}}"
         flags: dgu
-        fixer: anHalb
+        return: 'numberFix(ctx, m, "target", [`${/\d/.test(n) ? DIGIT_WORDS[Number(n)] : n === "eins" ? "ein" : n}einhalb`])'
       # "bis Drei", "unter Null", "wir Fünf": a number that is no noun there.
       - regex: "{{WG}}(?:(?=\\p{Lu})(?<=(?:bis|um|durch|über|unter|gegen|zu|auf|[Ww]ir|[Ii]hr|[Dd]iese|als|an{{S}}die){{S}})(?<target>(?:Null|Zwei|Drei|Vier|Fünf|Sechs|Sieben|Acht|Neun|Zehn|Elf|Zwölf|\\p{Lu}\\p{Ll}*(?:zig|ßig|zehn|hundert|tausend)\\p{Ll}*))(?!{{S}}\\p{Lu})){{E}}"
         flags: dgu
-        fixer: capitalNumber
+        return: 'numberFix(ctx, m, "target", numberWord(target) || target === "Null" ? [target.toLowerCase()] : null)'
       # "zwei Million", "viele Möglichkeit": a singular after a plural quantity. ("einige
       # Übung", "wenige Hoffnung" take a mass noun in the singular.)
       - regex: "{{WG}}(?:(?=\\p{Lu})(?<=(?:(?:{{QUANTITY}})|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle){{S}}(?:von|an))(?:{{S}}\\p{Ll}{1,30}(?:e|en))?{{S}})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|(?=[MB]il)(?<=(?:{{QUANTITY}}|[2-9]|\\d{2,12}(?:,\\d{1,6})?){{S}})(?<t2>Million|Milliarde|Billion)(?!\\p{L})){{E}}"
         flags: dgu
         owner: target|t2
-        fixer: singularAfterCount
+        let:
+          next: 't2 ? /^[ \t]+(\p{Lu}\p{Ll}+)/u.exec(ctx.text.slice(m.index + m[0].length))?.[1] : undefined'
+        when: "!t2 || !(next && germanNounReading(next.toLowerCase()) === null)"
+        return: >-
+          !t2 ? numberFix(ctx, m, "target", [`${target}en`]) : numberFix(ctx, m, "t2", [t2 === "Milliarde" ? "Milliarden" : `${t2}en`])
       # "eine halbe Millionen", "eine Viertelmilliarden", "1 Millionen": a half, a quarter or
       # one is one ("2,1 Millionen" is a decimal).
       - regex: "{{WG}}(?:(?<=(?:[Hh]albe|[Hh]alben|[Hh]alber|(?<!\\p{L})[Ee]iner?|(?<![\\p{N},.])1){{S}})(?<target>Millionen|Milliarden|Billionen|Billiarden)|(?<=(?:[Ee]ine|[Ee]iner|[Dd]ie|[Dd]er){{S}})(?<t2>Viertel(?:millionen|milliarden))){{E}}"
         flags: dgu
         owner: target|t2
-        fixer: halfMillion
+        let:
+          name: 'target ? "target" : "t2"'
+          typed: m.groups![name]
+        when: '!/(?:\d|zwei|drei|vier|fünf|viele|mehrere|beide)[ \t]+halbe[nr]?[ \t]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 30), m.index))'
+        return: >-
+          numberFix(ctx, m, name, [typed.replace(/(millionen|milliarden|billionen|billiarden)$/i, (plural) => deLikeTyped(plural, ONE_OF[plural.toLowerCase()]))])
       # "12,450,300", "4,250.75": English digit groups. German groups thousands with a point
       # and writes a decimal comma ("1,250" alone is a decimal).
       - regex: "{{WG}}(?:(?<![\\p{N},.])(?<target>[1-9]\\d{0,2}(?:(?:,\\d{3}){2,}(?:\\.\\d{1,2})?|,\\d{3}\\.\\d{1,2}))(?![\\p{N},.]\\d|\\p{L})){{E}}"
         flags: dgu
-        fixer: englishDigits
+        let:
+          parts: target.split(".")
+        return: 'numberFix(ctx, m, "target", [parts[0].replaceAll(",", ".") + (parts[1] ? `,${parts[1]}` : "")])'
       # "im 20 Jahrhundert", "am 3 Mai", "in den 4 Stock": a numeral between a definite article
       # and a noun that counts in order is an ordinal and takes its dot.
       - regex: "{{WG}}(?:(?<=(?:[Ii]m|[Aa]m|[Zz]um|[Vv]om|[Bb]eim|[Dd]em|[Dd]en|[Dd]er|[Dd]as|[Ss]eit{{S}}dem|[Ii]n{{S}}den|[Ii]n{{S}}der|[Aa]b{{S}}der|[Aa]b{{S}}dem){{S}})(?<target>[1-9]\\d{0,2})(?={{S}}(?:{{ORDINAL_NOUNS}}){{E}})){{E}}"
         flags: dgu
-        fixer: ordinalDot
+        let:
+          span: m.indices!.groups!.target
+        when: "!namedExampleBefore(ctx.text, span[0])"
+        return: '({ ...numberFinding(span[0], span[1], [`${target}.`]), messageKey: "review_msg_german_ordinal_dot" })'
       # "von 9–10 Uhr", "Seiten von A-Z", "vom 7.-10. März", "zwischen 2019 – 2021": after "von"
       # or "zwischen" the dash stands for "bis" or "und", which German writes out.
       - regex: "{{WG}}(?:(?=[0-9]|\\p{Lu})(?<=(?:[Vv]on|[Vv]om|[Zz]wischen){{S}}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.){{S}})?)(?<target>(?<from>{{RANGE_END}})[ \\t]?[-–][ \\t]?(?<to>{{RANGE_END}}))(?![-–\\d])){{E}}"
         flags: dgu
-        fixer: numberRange
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 30), m.index)
+          between: '/zwischen[ \t]+(?:\S+[ \t]+)?$/i.test(before)'
+          span: m.indices!.groups!.target
+        when:
+          - '!(between && !/\d/.test(from + to))'
+          - '!(/(?<!\p{L})\p{Lu}\p{Ll}+[ \t]+von[ \t]+$/u.test(before) && /\d/.test(from + to))'
+          - "!namedExampleBefore(ctx.text, span[0]) && !ctx.dictionary.has(target.toLowerCase())"
+        return: >-
+          ({ ...numberFinding(span[0], span[1], [`${from} ${between ? "und" : "bis"} ${to}`]), messageKey: "review_msg_german_range" })
   - id: de.rangeDashes
     checks: [emdashShortcut]
-    # German gives only the guards of the shared scan.
     style: match
     message: review_msg_range_dash
+    defs:
+      # Not after a label of a code or a law ("Tel. 12-34", "§ 3-5", "Az. 12-14"), and not after
+      # "von" or "zwischen", where germanNumbers writes "bis" or "und".
+      RANGE_CODE: >-
+        /(?:^|[^\p{L}])(?:tel|telefon|handy|mobil|fax|plz|nr|nummer|kto|konto|iban|blz|az|aktenzeichen|art|artikel|abs|absatz|ziff|ziffer|din|iso|isbn|version|flug|linie|gleis|zimmer|raum|modell|typ|rechnung|bestellung|kundennummer|von|vom|zwischen)\.?:?(?:[ \t ]+\p{L}{2,13})?[ \t ]*$|§[ \t ]*$/iu
+      # "gewann 3-1", "das Spiel endete 2-2", "steht es 1-0".
+      RANGE_SCORE: >-
+        /(?:^|[^\p{L}])(?:spiel|sieg|gewann|gewinn|verlor|verlier|unterl[ai]g|endstand|halbzeit|ergebnis|treffer|satz|sätze|partie|unentschieden|steht[ \t ]+es|stand[ \t ]+es)\p{L}*(?:[ \t ]+\p{L}+){0,3}[ \t ]+$/iu
     frames:
       # "pages 10-15", "1990-1995": two numbers of up to four digits joined by a hyphen. A dash,
       # a colon, a slash or a digit group after the second number makes a date, a phone number
@@ -2374,30 +2540,84 @@ rules:
         scan: owned
         lookback: 8
         flags: gu
-        fixer: rangeDash
+        let:
+          a: m[1]
+          dash: m[2]
+          b: m[3]
+          before: ctx.text.slice(Math.max(0, m.index - 48), m.index)
+        when:
+          - "!(m.index < ctx.from || namedExampleBefore(ctx.text, m.index))"
+          # A leading zero or a 3-4 pair is a phone number or an ID: "0034-600", "12-05", "915-5512".
+          - '!(a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4))'
+          # A range runs up: "1990-95" and the season "2014-15" end in 1995 and 2015; "3-1" does not.
+          - "(a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)) > Number(a)"
+          - "!(RANGE_CODE.test(before) || RANGE_SCORE.test(before))"
+        return: >-
+          ({ ruleId: "emdashShortcut", messageKey: "review_msg_range_dash",
+          range: { start: m.index + a.length, end: m.index + a.length + dash.length }, alternatives: ["–"],
+          context: { start: m.index, end: m.index + m[0].length } })
   - id: de.typography
     checks: [germanTypography]
     style: match
     message: review_msg_typographic_symbol
+    sets:
+      CHEMICAL_ELEMENTS:
+        [H, He, Li, Be, B, C, N, O, F, Ne, Na, Mg, Al, Si, P, S, Cl, Ar, K, Ca, Mn, Fe, Co, Ni, Cu, Zn, Br, Ag, Sn, I, Ba, Pt, Au, Hg, Pb]
+      # One element with a count only as a gas.
+      CHEMICAL_GASES: [H2, O2, N2, O3, Cl2, H², O², N², O³]
+    maps:
+      SUBSCRIPTS: { "²": "₂", "³": "₃" }
+    defs:
+      # Codes, postal codes and account numbers stay: never after a word that names a code.
+      CODE_BEFORE: >-
+        /(?:Nr\.?|Nummer|PLZ|Postleitzahl|ID|Tel\.?|Telefon|Fax|Kto\.?|Konto|Kontonummer|Artikel|Bestellung|Code|Pin|PIN|Jahr|Jahre|Version|Seite|Zimmer|Raum|BLZ|IBAN|Kunden\p{L}*|Rechnung\p{L}*|Auftrag\p{L}*|Vorgang\p{L}*|Ticket\p{L}*)[ \t:.#-]*$/u
     frames:
       # Typeset German multiplies with × or ·: "6,6 x 10⁻³⁴", "5*2", "a * b" (opt-in). "0x1F" is
       # hexadecimal; a "*" without spaces between words is a gender star or emphasis.
       - regex: "(?<=(?<![\\p{L}\\p{N}.,])\\d+(?:[.,]\\d+)?[ \\u00A0]?)[x*](?=[ \\u00A0]?\\d)|(?<=[\\p{L}\\p{N}][ \\u00A0])\\*(?=[ \\u00A0][\\p{L}\\p{N}])"
         scan: owned
         flags: gu
-        fixer: timesSign
+        when:
+          - '!/(?<![\p{L}\p{N}.,])0$/u.test(ctx.text.slice(Math.max(0, m.index - 2), m.index))'
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanTypography", messageKey: "review_msg_typographic_symbol", range: { start: m.index, end: m.index + 1 },
+          alternatives: ["×", "·"], requiresChoice: true, context: { start: Math.max(0, m.index - 20), end: m.index + 20 } })
       # A chemical formula takes subscript counts: "CO2", "H2O", "CO²" → "CO₂", "H₂O" (opt-in).
       - regex: "(?<![\\p{L}\\p{N}_])(?:[A-Z][a-z]?[0-9\\u00B2\\u00B3]*){1,6}(?![\\p{L}\\p{N}_])"
         scan: owned
         flags: gu
-        fixer: chemicalFormula
+        let:
+          formula: m[0]
+          symbols: "formula.match(/[A-Z][a-z]?/g)!"
+        when:
+          - '/[0-9²³]/.test(formula) && !/^[0-9]/.test(formula)'
+          - symbols.every((s) => CHEMICAL_ELEMENTS.has(s))
+          - 'symbols.length === 1 ? CHEMICAL_GASES.has(formula) : symbols.some((s) => s === "H" || s === "O")'
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanTypography", messageKey: "review_msg_typographic_symbol",
+          range: { start: m.index, end: m.index + formula.length },
+          alternatives: [formula.replace(/[0-9²³]/g, (d) => SUBSCRIPTS[d] ?? String.fromCharCode(0x2080 + Number(d)))],
+          context: { start: Math.max(0, m.index - 20), end: m.index + formula.length + 20 } })
       # A long number groups its thousands with a point: "250000 Besucher" → "250.000"
       # (opt-in).
       - regex: "(?<![\\p{L}\\p{N}.,:/#+_-])[1-9]\\d{4,}(?![\\p{L}\\p{N}.,:/_-])"
         scan: owned
         flags: gu
         message: review_msg_german_thousands
-        fixer: thousands
+        let:
+          digits: m[0]
+          end: m.index + digits.length
+          after: ctx.text.slice(end, end + 12)
+        when:
+          - "!(digits.length > 12 || CODE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)))"
+          - >-
+            !(digits.length === 5 && !/^[ \t]*(?:[.,;!?)]|[ \t]\p{Ll}|[ \t]?(?:[€$%£]|[kMGT]?B\b|km|kg|Euro|Dollar|Franken))/u.test(after))
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanTypography", messageKey: "review_msg_german_thousands", range: { start: m.index, end },
+          alternatives: [digits.replace(/\B(?=(?:\d{3})+$)/g, ".")] })
   - id: de.decadeCentury
     checks: [stylePhrasing]
     style: match
@@ -2407,7 +2627,10 @@ rules:
       # already (opt-in style advice).
       - regex: "{{WG}}(?:(?<target>(?<decade>(?:1[0-9]|20)\\d0er(?:-|{{S}})Jahren?){{S}}des{{S}}(?:vorigen|letzten|vergangenen|\\d{1,2}\\.|neunzehnten|zwanzigsten|einundzwanzigsten){{S}}Jahrhunderts)){{E}}"
         flags: dgu
-        fixer: decadeCentury
+        return: >-
+          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing",
+          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+          alternatives: [decade, target.slice(2)], requiresChoice: true })
   - id: de.colloquial
     checks: [germanColloquial]
     style: match
