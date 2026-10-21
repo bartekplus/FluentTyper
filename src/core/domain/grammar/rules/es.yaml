@@ -1499,13 +1499,590 @@ rules:
     group: spanishAccents
     style: match
     message: review_msg_spanish_accent
+    # Accents that tell a verb form from its twin: "el termino" (término, the noun), "se creo"
+    # (creó, the preterite), "no sabia" (sabía, the imperfect).
+    sets:
+      # Determiners that are never clitics: "el termino", "su numero", "dos practicas".
+      ES_VA_DETERMINERS:
+        [
+          el, un, una, unos, unas, del, al, mi, mis, tus, su, sus, cada, nuestro, nuestra, nuestros, nuestras, dos, tres,
+          cuatro, cinco, varios, varias, muchas, muchos, pocas, pocos, otra, otro, otras, otros, toda, todo, cuyo, cuya,
+          cuyos, cuyas,
+        ]
+      ES_VA_DEGREE: [muy, más, tan, bastante]
+      # Demonstratives are also subject pronouns ("este opera"): only after a preposition.
+      ES_VA_DEMONSTRATIVES: [este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas]
+      ES_VA_SUBJECTS: [él, ella, usted]
+      ES_VA_TENER: [tengo, tienes, tiene, tenemos, tienen, tenía, tenías, teníamos, tenían, tuve, tuvo]
+      # Before these, an imperfect or conditional verb: "no sabía", "se hacía", "yo tenía".
+      ES_VA_BEFORE_VERB: [me, te, se, le, les, nos, os, "no", yo, él, ella, usted, lo]
+      # "-o" words that are conjunctions, adverbs or quantifiers before a verb ("no sé cómo").
+      ES_VA_FUNCTION_WORDS:
+        [como, cuando, donde, pero, todo, mucho, poco, solo, tanto, otro, mismo, uno, ninguno, alguno, cuanto, luego, tampoco, sino, demasiado, medio, esto, eso, aquello]
+      # Words after which "la"/"las" is a clitic: "Ella la practica de vez en cuando".
+      ES_NOT_BEFORE_ARTICLE:
+        [yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes, "no", ya, también, tampoco, nunca, siempre, que, quien, se, me, te, nos, os]
+      ES_VA_ADVERBS: ["no", nunca, ya, también, siempre, jamás]
+      # What follows a verb but not a noun or adjective ("trabajo en un banco", "canto hoy"); "de"
+      # and "a" follow both ("repleto de", "junto a").
+      ES_VA_ARTICLES: [el, la, los, las, un, una, unos, unas]
+      ES_AFTER_VERB: [el, la, los, las, un, una, hoy, ayer, anoche, mucho, poco, bien, mal, tarde, pronto, en, con, por, para, sin, hasta, desde]
+      ES_VA_SUBJECT_DETERMINERS: [el, la, un, una, mi, tu, su, este, esta, ese, esa, aquel, aquella, nuestro, nuestra]
+      ES_VA_CLOSED:
+        [
+          al, del, lo, yo, tú, él, ella, usted, nosotros, ellos, ellas, ustedes, "no", ya, hoy, ayer, anoche, mañana, aquí,
+          allí, así, también, tampoco, muy, más, menos, siempre, nunca, entonces, luego, después, antes, ahora, todavía, aún,
+        ]
+      # "Esta semana no puedo", "El año pasado trabajo…": a time phrase, not a subject.
+      ES_VA_TIME:
+        [semana, año, mes, día, tarde, noche, mañana, vez, momento, rato, verano, invierno, otoño, primavera, lunes, martes, miércoles, jueves, viernes, sábado, domingo, fin]
+      # Words that call for the past subjunctive: "si cantara mañana", "como si lo supiera".
+      ES_FUTURE_BLOCKERS: [si, que, ojalá, aunque, como, cuando, quizá, quizás, tal]
+      ES_DIRECTIONS: [abajo, arriba, adelante, atrás, afuera, adentro, allá, acá, aquí, allí, delante, donde, dónde]
+      ES_WEATHER: [calor, frío, sol, viento, fresco, bueno, malo, buen, mal]
+      ES_VA_AMOUNTS: [mucho, muchos, tanto, tantos, poco, pocos, demasiado, casi, unos, unas, más, una, un]
+      ES_VA_TIME_NOUNS: [tiempo, años, días, meses, semanas, horas, minutos, rato, siglos, año, día, mes, semana, hora, minuto]
+      ES_OBJECT_CLITICS: [lo, la, los, las, le, les, me, te, se, nos, os]
+      ES_DEGREE_BEFORE: [muy, tan, poco, más, menos, bastante, demasiado, ya]
+      ES_LINKS: [es, era, fue, está, estaba, estuvo, parece, parecía, puso, quedó, quedaba, sea]
+      ES_VA_LEADING: [otra, otro, otras, otros, misma, mismo, tercera, segunda, primera, cierta]
+      ES_SUBJECT_OR_NO:
+        [yo, tú, él, ella, usted, ellos, ellas, ustedes, eso, esto, estos, esos, aquellos, "no", ya, nunca, también, tampoco]
+      ES_VERAS_NEXT: [el, la, los, las, un, una, lo, que, qué, cómo, cuándo, si]
+      ES_VA_NUMBERS: [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, once, doce, quince, veinte, treinta, cien, mil]
+      ES_BEFORE_HIATUS_NOUN:
+        [
+          del, al, menudo, tremendo, gran, buen, qué, vaya, mucho, poco, tanto, más, menos, muy, ni, hace, hacía, hizo,
+          hará, tengo, tienes, tiene, tenemos, tienen, tenía, tenían, hay, había, paso, pasa, pasé, pasamos,
+        ]
+    maps:
+      # The accented future endings.
+      ES_FUTURE_ACCENTS: { a: á, as: ás, an: án, e: é }
+    defs:
+      # The gender and number of each demonstrative.
+      ES_DEMONSTRATIVE_FORM: >-
+        ({
+          este: { feminine: false, plural: false }, estos: { feminine: false, plural: true },
+          ese: { feminine: false, plural: false }, esos: { feminine: false, plural: true },
+          aquel: { feminine: false, plural: false }, aquellos: { feminine: false, plural: true },
+          esta: { feminine: true, plural: false }, estas: { feminine: true, plural: true },
+          esa: { feminine: true, plural: false }, esas: { feminine: true, plural: true },
+          aquella: { feminine: true, plural: false }, aquellas: { feminine: true, plural: true },
+        }) as Readonly<Record<string, { feminine: boolean; plural: boolean }>>
+      # Future and imperfect forms whose plain spelling is a noun: "sera" (a basket), "veras" (de
+      # veras), "venia" (leave). A subject, "no" or a sentence start before them makes them verbs.
+      ES_PLAIN_TWINS: 'new Map([["sera", "será"], ["seras", "serás"], ["serian", "serían"], ["veras", "verás"], ["venia", "venía"]])'
+      # Nouns with a stressed "i" in hiatus whose plain spelling is a preterite since 2010 ("lio",
+      # "rio", "frio" from "liar", "reír", "freír"). A determiner or a verb that takes the noun
+      # before them makes them nouns.
+      ES_HIATUS_NOUNS: 'new Map([["lio", "lío"], ["rio", "río"], ["frio", "frío"]])'
+      # After a noun it agrees with, where that noun cannot be the verb's subject: a preposition, an
+      # indefinite article or a verb before it ("en una zona crítica", "hace tareas específicas"),
+      # and the phrase closing after the adjective ("crítica.", "válida y", "íntegro de"). Where the
+      # governing preposition stands: "en zona", "en esta zona". "La especie domestica vive aquí":
+      # a finite verb right after, so the word is no verb. "Las disposiciones explicitas", "el
+      # método practico": a first-person or a second-person form cannot have the noun before it as
+      # its subject ("La gente critica" can). "Por este motivo solicito desde…": after a fronted
+      # phrase the word may be the main verb.
+      esPostponedAdjective:
+        args: "at: SpanishAround, accented: string"
+        let:
+          ending: /(o|a)(s?)$/u.exec(accented)
+          noun: ending && esReadNoun(at.prev())
+          before: at.prev(2)
+          article: /^(?:un|una|unos|unas)$/u.test(before)
+          preposition: 'ES_PREPOSITIONS.has(before) ? 2 : ES_DETERMINERS.has(before) && ES_PREPOSITIONS.has(at.prev(3)) ? 3 : 0'
+          after0: at.next()
+          governed: >-
+            article || preposition > 0 || (!!before && esFiniteVerb(before) && !esIsNoun(before) && !esReadNoun(before)) ||
+            (ES_DETERMINERS.has(before) && !!after0 && esFiniteVerb(after0) && !esIsNoun(after0) && !esAttribute(after0) &&
+              !ES_CLITICS.has(after0) && !ES_PREPOSITIONS.has(after0) && !ES_CONJUNCTIONS.has(after0)) ||
+            (ES_DETERMINERS.has(before) && /(?:o|as|os)$/u.test(at.tokens[at.i].lower))
+          after: at.next()
+        when:
+          - ending && noun?.gender && !at.tokens[at.i - 1].broken
+          - '!((noun.gender === "f") !== (ending[1] === "a") || noun.plural !== (ending[2] === "s"))'
+          - governed
+        return: >-
+          !article && preposition && esAround(at.tokens, at.i - preposition).starts
+            ? at.endsAfter()
+            : at.endsAfter() || ((after === "y" || after === "e") && !ES_DETERMINERS.has(at.next(2))) ||
+              (ES_PREPOSITIONS.has(after) && after !== "a") || /^\p{L}{4,}mente$/u.test(after)
+        else: "false"
+      esFormOf:
+        args: "word: string"
+        let:
+          m: /(o|a)(s?)$/u.exec(word)
+        return: 'm ? { feminine: m[1] === "a", plural: m[2] === "s" } : null'
+      # An -o/-a word of the gender and number given.
+      esAgrees:
+        args: "form: { feminine: boolean | null; plural: boolean }, accented: string"
+        let:
+          own: esFormOf(accented)
+        return: "!!own && own.plural === form.plural && (form.feminine === null || own.feminine === form.feminine)"
+      esAgreesWithArticle:
+        args: "article: string, accented: string"
+        return: 'esAgrees({ feminine: !article.startsWith("lo"), plural: article.endsWith("s") }, accented)'
+      # The next word is a noun of the gender and number of the -o/-a word before it.
+      esAgreesWithNext:
+        args: "at: SpanishAround, accented: string"
+        let:
+          own: esFormOf(accented)
+          noun: esReadNoun(at.next())
+        when:
+          - own && noun && !noun.paired && noun.gender && !at.tokens[at.i + 1].broken
+          - '!(esFiniteVerb(at.next()) || noun.plural !== own.plural)'
+        return: (noun.gender === "f") === own.feminine
+        else: "false"
+      esPerfectParticipleLike:
+        args: "word: string"
+        return: /(?:ado|ido)$/u.test(word) && !!esParticiple(word)
+      # No finite verb after the word before the sentence ends: "Critica de cine.".
+      esVaVerbless:
+        args: "at: SpanishAround, k: number"
+        type: boolean
+        let:
+          word: at.next(k)
+        return: >-
+          k > 8
+            ? false
+            : at.endsAfter(k - 1) || !word
+              ? true
+              : /^(?:es|son|era|fue|está|están|hay|ha|han|ve|va|da|dio|vio|hace|tiene|puede|dice)$/u.test(word)
+                ? false
+                : ES_PREPOSITIONS.has(word) || ES_DETERMINERS.has(word) || ES_CONJUNCTIONS.has(word)
+                  ? esVaVerbless(at, k + 1)
+                  : esFiniteVerb(word) && !esIsNoun(word) && !esAttribute(word) && !esGenderedForm(word)
+                    ? false
+                    : esVaVerbless(at, k + 1)
+      # "la"/"las"/"los" before the word: "en la página", "parar la máquina", "la máquina del
+      # tiempo": "la" is no clitic there. "la termino": a feminine article cannot take the masculine
+      # noun. "es la valida": "ser" takes no clitic. "La critica que haces": a relative after the
+      # noun opening the clause. "La maquina del tiempo.", "Las nauseas no se pasan": a clitic never
+      # opens a clause before "de" or "no". "Memorizarás las fórmulas": a clitic goes before its
+      # verb, not after another one. "La fábrica produjo…": two finite verbs never stand side by
+      # side.
+      esNominalAfterArticle:
+        args: "at: SpanishAround, accented: string, prev: string, next: string"
+        let:
+          before: at.prev(2)
+          opens: "!!at.tokens[at.i - 1] && esAround(at.tokens, at.i - 1).starts"
+        return: >-
+          prev !== "los" && /os?$/u.test(accented)
+            ? null
+            : ES_PREPOSITIONS.has(before) ||
+                (ES_SER.has(before) && esAgreesWithArticle(prev, accented)) ||
+                (opens && next === "que" && esAgreesWithArticle(prev, accented)) ||
+                esIsInfinitive(before) ||
+                (at.tokens[at.i - 1] && esAround(at.tokens, at.i - 1).starts && /^(?:de|del|no)$/u.test(next) &&
+                  esAgreesWithArticle(prev, accented)) ||
+                /(?:ado|ido)$/u.test(before) ||
+                (!!before && (next === "de" || next === "del") && !ES_NOT_BEFORE_ARTICLE.has(before) &&
+                  !/^\p{Lu}/u.test(at.tokens[at.i - 2].text)) ||
+                (!!before && esFiniteVerb(before) && !esIsNoun(before) && !ES_CLITICS.has(at.prev(3))) ||
+                (!!next && esFiniteVerb(next) && !esIsNoun(next) && !esAttribute(next) && !ES_CLITICS.has(next) &&
+                  !ES_PREPOSITIONS.has(next) && !ES_CONJUNCTIONS.has(next) && !ES_DETERMINERS.has(next))
+              ? accented
+              : null
+      # "termino" -> "término" where a noun or adjective goes, not a verb. "una tremolo": a feminine
+      # determiner cannot take the masculine noun either. "un termino cuyo origen…": "cuyo" follows
+      # the noun it belongs to; "tengo lio": "tener" takes a noun, never a second finite verb. "el
+      # tristemente celebre episodio": a determiner, an adverb in -mente and the adjective before
+      # a noun that agrees with it. "lo ultimo que quiero", "lo incomodo que es": the neuter "lo"
+      # and a relative. "tu numero": "tú" takes no first or third person verb, so "tu" is the
+      # possessive. "Tengo 2 practicas": a count before a plural. "le pondría ese titulo": after a
+      # verb the demonstrative is its object's determiner. "Un destacado interprete": a determiner
+      # and an adjective before the word; "Mi abuelo practico el piano": a noun before it is the
+      # subject. "Capitulo 3", "las paginas 3 y 4": a number after it counts or labels a noun.
+      # "Critica de cine.", "Optimas prestaciones.", "La ultima.": a heading or a fragment with no
+      # verb of its own opens with the noun or adjective, not with a verb. "Termino de trabajar",
+      # "Practica de lunes a viernes": a verb before "de" and an infinitive or a time; a short
+      # heading ("Lineas de actuación") has neither. "No había termino medio": the impersonal
+      # "haber" takes a noun. "La ultima consideración", "aquella magnifica intervención": a noun
+      # that agrees with it follows, so the word is an adjective before it. "a buen termino", "un
+      # gran numero": these short forms only go before a noun. "Un solo termino", "la extraña
+      # maquina": an adjective between a determiner and the word. "Hubo que poner termino a
+      # aquello": an infinitive's object, the infinitive no preposition's. "una situación
+      # crítica.", "hace tareas específicas": an adjective after its noun. A preposition never
+      # governs a finite verb: "de termino", "en linea", "por ultimo".
+      esNominal:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          accented: ES_ACCENTED_NOMINAL.get(word)
+          prev: at.prev()
+          next: at.next()
+          count: at.tokens[at.i - 1]
+          adjective: esGenderedForm(prev)
+          numbered: /^\p{N}/u.test(at.tokens[at.i + 1]?.text ?? "") && !at.tokens[at.i + 1].broken
+          opener: at.starts || (/^(?:la|las|los)$/u.test(prev) && at.tokens[at.i - 1] && esAround(at.tokens, at.i - 1).starts)
+          between: >-
+            ES_PRENOMINAL.has(prev.replace(/s$/u, ""))
+              ? (esFormOf(prev) ?? { feminine: null, plural: prev.endsWith("s") })
+              : null
+        when: accented
+        return: >-
+          /^(?:una|unas|mis|tus|sus|toda|otra|otras|muchas|pocas|varias|nuestra|nuestras)$/u.test(prev) && /os?$/u.test(accented)
+            ? null
+            : ES_VA_DETERMINERS.has(prev) || ES_VA_DEGREE.has(prev) || ES_SER.has(prev)
+              ? accented
+              : /^cuy[oa]s?$/u.test(next) || ES_VA_TENER.has(prev)
+                ? accented
+                : /^\p{L}{3,}mente$/u.test(prev) && (ES_DETERMINERS.has(at.prev(2)) || /^(?:del|al)$/u.test(at.prev(2))) &&
+                    (esAgreesWithNext(at, accented) || (!esFormOf(accented) && !!esReadNoun(next) && !esFiniteVerb(next)))
+                  ? accented
+                  : prev === "lo" && next === "que" && /o$/u.test(accented)
+                    ? accented
+                    : prev === "tu" && !word.endsWith("s")
+                      ? accented
+                      : count && !at.tokens[at.i].broken && /^\p{N}{1,3}$/u.test(count.text) && count.text !== "1" &&
+                          accented.endsWith("s")
+                        ? accented
+                        : ES_VA_DEMONSTRATIVES.has(prev) &&
+                            ((esFiniteVerb(at.prev(2)) && !esIsNoun(at.prev(2))) || esIsInfinitive(at.prev(2))) &&
+                            esAgrees(ES_DEMONSTRATIVE_FORM[prev], accented)
+                          ? accented
+                          : adjective && !esFiniteVerb(prev) && !esIsNoun(prev) && ES_VA_DETERMINERS.has(at.prev(2)) &&
+                              adjective.plural === accented.endsWith("s") &&
+                              (!esFormOf(accented) || esFormOf(accented)!.feminine === adjective.feminine)
+                            ? accented
+                            : numbered && (at.starts || /^(?:la|las|los)$/u.test(prev))
+                              ? accented
+                              : opener && esVaVerbless(at, 1) &&
+                                  ((/^(?:la|las|los)$/u.test(prev) && at.endsAfter() && esAgreesWithArticle(prev, accented)) ||
+                                    (at.starts &&
+                                      (((next === "de" || next === "del") && at.endsAfter(2) && !!at.next(2) &&
+                                        !esIsInfinitive(at.next(2)) && !ES_VA_TIME.has(at.next(2))) ||
+                                        esAgreesWithNext(at, accented))))
+                                ? accented
+                                : ES_VA_DEMONSTRATIVES.has(prev) && ES_PREPOSITIONS.has(at.prev(2))
+                                  ? accented
+                                  : /^(?:hay|había|habrá|hubo|haya|habría)$/u.test(prev)
+                                    ? accented
+                                    : /^(?:la|las|tu|tus|esta|estas|esa|esas|aquella|aquellas)$/u.test(prev) &&
+                                        esAgreesWithNext(at, accented)
+                                      ? accented
+                                      : /^(?:buen|gran|primer|tercer|algún|ningún)$/u.test(prev) && (prev === "gran" || /o$/u.test(accented))
+                                        ? accented
+                                        : between && (ES_VA_DETERMINERS.has(at.prev(2)) || /^(?:la|las|los|el)$/u.test(at.prev(2))) &&
+                                            esAgrees(between, accented)
+                                          ? accented
+                                          : esIsInfinitive(prev) && at.prev(2) && !ES_PREPOSITIONS.has(at.prev(2)) && ES_PREPOSITIONS.has(next)
+                                            ? accented
+                                            : /^(?:la|las|los)$/u.test(prev)
+                                              ? esNominalAfterArticle(at, accented, prev, next)
+                                              : esPostponedAdjective(at, accented)
+                                                ? accented
+                                                : ES_PREPOSITIONS.has(prev) && prev !== "a" ? accented : null
+      # Capitalized words that are no name: "Me quedo", "Al contrario", "Mañana trabajo".
+      esNotName:
+        args: "word: string"
+        return: >-
+          !ES_GIVEN_NAMES.has(word) &&
+          (ES_CLITICS.has(word) || ES_PREPOSITIONS.has(word) || ES_CONJUNCTIONS.has(word) || ES_DETERMINERS.has(word) ||
+            ES_VA_CLOSED.has(word) || /mente$/u.test(word) || !!esAttribute(word) || esIsInfinitive(word) || esFiniteVerb(word))
+      # The subject opens its clause: "Ella habló", "y él no le habló" (not "tiene usted empleo").
+      esOpensAt:
+        args: "at: SpanishAround, k: number"
+        let:
+          before: esAround(at.tokens, at.i - k)
+        return: before.starts || /^(?:y|e|pero|que|cuando|porque|pues|aunque)$/u.test(before.prev())
+      # The words of a name before tokens[i], from k words back, at most to `last`.
+      esNamesEnd:
+        args: "at: SpanishAround, k: number, last: number"
+        type: number
+        return: >-
+          k < last && at.tokens[at.i - k]?.word && /^\p{Lu}\p{Ll}/u.test(at.tokens[at.i - k].text) &&
+          !esNotName(at.tokens[at.i - k].lower) && at.prev(k)
+            ? esNamesEnd(at, k + 1, last)
+            : k
+      # A third-person subject opening the clause right before the verb: a name ("Juan hablo",
+      # "Time Magazine llamo") or a determiner and noun ("La policía colaboro"), with at most one
+      # adverb between ("Jesús nunca enseño"). "En Madrid trabajo" starts with a preposition. "El
+      # pan compro yo": a fronted object. "que un grupo deshonesto tenga": an adjective, unless a
+      # verb's company follows.
+      esNounSubject:
+        args: "at: SpanishAround"
+        let:
+          k: 'ES_VA_ADVERBS.has(at.prev()) ? 2 : 1'
+          end: esNamesEnd(at, k, k + 3)
+          noun: at.prev(k)
+          det: at.prev(k + 1)
+        when: '![1, 2, 3].some((n) => at.next(n) === "yo")'
+        return: >-
+          end > k
+            ? esOpensAt(at, end - 1)
+            : !!noun && ES_VA_SUBJECT_DETERMINERS.has(det) && !ES_VA_TIME.has(noun) &&
+              (esIsNoun(noun) || !!esAttribute(noun)) && !noun.endsWith("s") && esOpensAt(at, k + 1) &&
+              (ES_AFTER_VERB.has(at.next()) || at.next() === "a" || at.next() === "al")
+        else: "false"
+      # A first-person present never follows "se" or a third-person subject. "Él no le hablo": "no"
+      # and a clitic between. After a named subject, a noun twin ("Mi madre trabajo en…") is the verb
+      # when what follows goes with a verb; "el niño modelo saluda" keeps its noun. "La revista
+      # catalogo la campaña": an article right after makes even "catálogo" the verb. "Uber pago a
+      # sus socios", but "el niño modelo a seguir". "lio" and "guion" take no accent; nouns and
+      # adjectives after "él" are not verbs. "Ella, creo, no lo sabe": a parenthetical first
+      # person. "Él tranquilo, ella nerviosa" leaves the copula out; "él trabajo varias horas" and
+      # "él limpio la herida" go on as a verb does.
+      esVaPreterite:
+        args: "at: SpanishAround, word: string, prev: string"
+        let:
+          pronounSubject: >-
+            (ES_VA_SUBJECTS.has(prev) && esOpensAt(at, 1)) ||
+            (ES_VA_SUBJECTS.has(at.prev(2)) && /^(?:no|le|les|lo|la|me|te|nos)$/u.test(prev) && esOpensAt(at, 2)) ||
+            (ES_VA_SUBJECTS.has(at.prev(3)) && at.prev(2) === "no" && /^(?:le|les|lo|la|me|te|nos|se)$/u.test(prev) &&
+              esOpensAt(at, 3))
+          named: >-
+            !pronounSubject && /o$/u.test(word) && !esParticiple(word) &&
+            (!ES_ACCENTED_NOMINAL.has(word) || ES_VA_ARTICLES.has(at.next())) && at.tokens[at.i + 1]?.text !== "-" &&
+            (!(esIsNoun(word) || esAttribute(word)) || ES_AFTER_VERB.has(at.next()) ||
+              (at.next() === "a" && !esIsInfinitive(at.next(2)) && !/^(?:junto|debido|respecto)$/u.test(word))) &&
+            esNounSubject(at)
+          subject: pronounSubject || named
+          m: /^(\p{L}{2,})o$/u.exec(word)
+          aside: ES_VA_FUNCTION_WORDS.has(word) || (subject && /^(?:creo|pienso|supongo|digo|imagino|opino)$/u.test(word))
+          nounReading: >-
+            pronounSubject && (esIsNoun(word) || esAttribute(word)) && !ES_AFTER_VERB.has(at.next()) &&
+            !/^(?:varias|varios|muchas|muchos|dos|tres|cuatro|cinco|algunas|algunos)$/u.test(at.next())
+        when:
+          - (prev === "se" && at.prev(2) !== "per") || subject
+          - m && word.length > 3 && !aside && !nounReading
+        return: >-
+          esIsVerb(`${m[1]}ar`)
+            ? `${m[1]}ó`
+            : (esIsVerb(`${m[1]}er`) || esIsVerb(`${m[1]}ir`)) && !esIsNoun(word) ? `${m[1]}ió` : null
+      # "Nos lo confeso", "Me lo recordo": a stem-changing -ar verb has no present on its plain stem
+      # ("confieso"), so after a clitic the -o form is the preterite missing its accent. "lo" alone
+      # may be the neuter article before an adjective.
+      esVaCliticPreterite:
+        args: "at: SpanishAround, word: string, prev: string"
+        let:
+          plainStem: /^(\p{L}{3,})o$/u.exec(word)
+        when: >-
+          plainStem && ES_CLITICS.has(prev) && esIsVerb(`${plainStem[1]}ar`) && !esFiniteVerb(word) && !esNounForm(word) &&
+          !esIsNoun(word) && (!esAttribute(word) || !/^(?:lo|la|los|las)$/u.test(prev) || ES_CLITICS.has(at.prev(2)))
+        return: "`${plainStem[1]}ó`"
+      # "lo hacia abajo": the preposition "hacia".
+      esVaImperfect:
+        args: "at: SpanishAround, word: string, prev: string"
+        let:
+          m: /^(\p{L}+)ia(s|n|mos)?$/u.exec(word)
+          direction: >-
+            word === "hacia" &&
+            /^(?:abajo|arriba|adelante|atrás|afuera|adentro|allá|acá|aquí|allí|delante|el|la|los|las)$/u.test(at.next())
+        when:
+          - ES_VA_BEFORE_VERB.has(prev)
+          - '!direction && m && (esIsVerb(`${m[1]}er`) || esIsVerb(`${m[1]}ir`) || esIsInfinitive(m[1]))'
+        return: '`${m[1]}ía${m[2] ?? ""}`'
+      # "con él varias cosas": a pronoun after a preposition is no subject. "se continua" ->
+      # "continúa", "lo amplias" -> "amplías": -uar/-iar verbs stress the vowel. Every -uar verb but
+      # -guar/-cuar ("averigua"); only the listed -iar verbs ("cambia" is not). "ya veras" ->
+      # "verás", "se ira" -> "irá": a future without its accent.
+      esVaStressed:
+        args: "at: SpanishAround, word: string, prev: string"
+        let:
+          governed: ES_VA_SUBJECTS.has(prev) && ES_PREPOSITIONS.has(at.prev(2))
+          stressed: /^(\p{L}+)([ui])(a|as|an|e|es|en)$/u.exec(word)
+          iar: >-
+            stressed?.[2] === "i" &&
+            /^(?:ampl|env|conf|f|var|cr|gu|enfr|desv|vac|esp|desaf|exp|resfr|hast|roc)$/u.test(stressed[1])
+          uar: stressed?.[2] === "u" && !/[gc]$/u.test(stressed[1])
+          future: /^(\p{L}*?[eií]r)(a|as|an|e)$/u.exec(word)
+        when: '!governed && (ES_VA_BEFORE_VERB.has(prev) || /^(?:ya|tú|que|si|quién)$/u.test(prev))'
+        return: >-
+          stressed && (iar || uar) && esIsVerb(`${stressed[1]}${stressed[2]}ar`) && !esIsNoun(word)
+            ? `${stressed[1]}${stressed[2] === "u" ? "ú" : "í"}${stressed[3]}`
+            : future && (esIsInfinitive(future[1]) || future[1] === "ir") &&
+                (!esIsNoun(word) || /^(?:ya|tú|se|me|te|le|lo|no)$/u.test(prev)) && word !== "para"
+              ? `${future[1]}${ES_FUTURE_ACCENTS[future[2]]}`
+              : null
+      esVaCliticsBack:
+        args: "at: SpanishAround, k: number"
+        type: number
+        return: "k < 3 && /^(?:me|te|lo|la|los|las|le|les|nos|os)$/u.test(at.prev(k)) ? esVaCliticsBack(at, k + 1) : k"
+      # "Yo lo analice ayer", "Me enfade.", "Ayer tome el día libre" -> "analicé", "enfadé", "tomé":
+      # an -ar subjunctive needs a trigger before it ("que yo cante"), so at a sentence start after
+      # "yo", "me" or "ayer" it is the first person preterite without its accent. "cuando ayer lo
+      # analice", "cuando lo analice la semana pasada": a past time in the clause rules out the
+      # subjunctive's future. A clitic before the verb and no "que" trigger before it ("el ayer
+      # ocupe" is a noun). "Me envíe la factura" may be a request: only before the clause end or a
+      # preposition.
+      esVaFirstPreterite:
+        args: "at: SpanishAround, word: string"
+        let:
+          k: esVaCliticsBack(at, 1)
+          lead: at.prev(k)
+          leadStarts: esAround(at.tokens, at.i - k).starts
+          clitics: k > 1 && esAround(at.tokens, at.i - k + 1).starts
+          pastAfter: >-
+            [1, 2, 3].some((n) => /^(?:ayer|anoche|anteayer)$/u.test(at.next(n)) ||
+              (/^(?:pasado|pasada)$/u.test(at.next(n)) &&
+                /^(?:semana|año|mes|lunes|martes|miércoles|jueves|viernes|sábado|domingo|verano|invierno)$/u.test(at.next(n - 1))))
+        when:
+          - /^\p{L}{3,}e$/u.test(word) && esSubjunctiveLike(word) && !esIsNoun(word) && !esAttribute(word)
+          - >-
+            (leadStarts && /^(?:yo|ayer|anoche|anteayer)$/u.test(lead)) ||
+            (k > 1 && lead !== "que" && (/^(?:ayer|anoche|anteayer)$/u.test(lead) || pastAfter) && !ES_VA_DETERMINERS.has(at.prev(k + 1))) ||
+            (clitics && at.prev(k - 1) === "me" && (at.endsAfter() || /^(?:a|en|de|con|sin|por)$/u.test(at.next())))
+        return: "`${word.slice(0, -1)}é`"
+      # "e ira creciendo", "cómo ira armado": "ira" (anger) takes no gerund or participle after it
+      # unless a determiner makes it the noun ("la ira creciendo en su pecho"). "rechazo e ira
+      # dirigido a ellos": two nouns and their participle. "Cantara mañana" -> "cantará",
+      # "¿Cuándo llegaras?" -> "llegarás": an -ar future without its accent reads as a past
+      # subjunctive, which needs a trigger ("si", "que") before it.
+      esVaFuture:
+        args: "at: SpanishAround, word: string, prev: string"
+        let:
+          ira: /^ir(a|as|an)$/u.exec(word)
+          arFuture: /^(\p{L}+ar)(a|as|an)$/u.exec(word)
+        return: >-
+          ira && !ES_DETERMINERS.has(prev) && !ES_PREPOSITIONS.has(prev) && !/^(?:mi|tu|su|sus|nuestra|vuestra)$/u.test(prev) &&
+          (esIsGerund(at.next()) || (esPerfectParticipleLike(at.next()) && !ES_CONJUNCTIONS.has(prev)))
+            ? `ir${ES_FUTURE_ACCENTS[ira[1]]}`
+            : arFuture && esIsVerb(arFuture[1]) && !esIsNoun(word) &&
+                ![1, 2, 3].some((k) => ES_FUTURE_BLOCKERS.has(at.prev(k))) &&
+                ((/^(?:cuándo|cuánto|cuánta|cuántos|cuántas|dónde|adónde)$/u.test(prev) && at.tokens[at.i - 2]?.text === "¿") ||
+                  at.next() === "mañana")
+              ? `${arFuture[1]}${ES_FUTURE_ACCENTS[arFuture[2]]}`
+              : null
+      # "se creo" -> "creó", "él hablo" -> "habló", "no sabia" -> "sabía".
+      esVerbAccent:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          prev: at.prev()
+        return: >-
+          esVaPreterite(at, word, prev) ?? esVaCliticPreterite(at, word, prev) ?? esVaImperfect(at, word, prev) ??
+          esVaStressed(at, word, prev) ?? esVaFirstPreterite(at, word) ?? esVaFuture(at, word, prev)
+      # The amount of time after "hacia": a time noun within seven words, or "que" right after the
+      # amount.
+      esHaciaTime:
+        args: "at: SpanishAround, j: number, n: number, start: number"
+        type: boolean
+        let:
+          token: at.tokens[j]
+        when: j < at.tokens.length && n < 7
+        return: >-
+          token.broken || /^[.;:!?]$/u.test(token.text)
+            ? false
+            : ES_VA_TIME_NOUNS.has(token.lower) || (token.lower === "que" && j === at.i + start + 1) ||
+              esHaciaTime(at, j + 1, n + 1, start)
+        else: "false"
+      # "Hacia dos años que…", "lo que hacia", "la hacia otra empresa": the imperfect "hacía". "Se
+      # fue hacía el sur", "Miró hacía las estrellas": after a verb of its own, the preposition
+      # towards a place. "Entonces hacia las veces de gerente": "hacer las veces". "¿Qué hacia en
+      # la calle?", "lo que hacia no importaba". An amount of time: "hacia mucho tiempo", "hacia
+      # dos años que no se veían", "hacia ya treinta días", "hacia muchos, muchos meses que";
+      # "hacía mucho que no se veían": the amount alone, then "que".
+      esHacia:
+        args: "at: SpanishAround"
+        let:
+          lower: at.tokens[at.i].lower
+          prev: at.prev()
+          next: at.next()
+          numeral: /^\p{N}/u.test(at.tokens[at.i + 1]?.text ?? "")
+          start: 'next === "ya" ? 2 : 1'
+          amount: at.next(start)
+        return: >-
+          lower === "hacía"
+            ? (ES_DIRECTIONS.has(next) || ES_DETERMINERS.has(next)) && esFiniteVerb(prev) && !esIsNoun(prev) &&
+              !esAttribute(prev) && !ES_CLITICS.has(prev)
+              ? "hacia"
+              : null
+            : lower !== "hacia"
+              ? null
+              : next === "las" && at.next(2) === "veces"
+                ? "hacía"
+                : ES_DIRECTIONS.has(next) || numeral
+                  ? null
+                  : ES_OBJECT_CLITICS.has(prev)
+                    ? "hacía"
+                    : ES_DETERMINERS.has(next)
+                      ? null
+                      : (prev === "qué" || (prev === "que" && at.prev(2) === "lo")) && !/^(?:más|ya)$/u.test(next)
+                        ? "hacía"
+                        : ES_WEATHER.has(next) || (next === "las" && at.next(2) === "veces")
+                          ? "hacía"
+                          : (ES_VA_AMOUNTS.has(amount) || ES_VA_NUMBERS.has(amount)) && esHaciaTime(at, at.i + start, 0, start)
+                            ? "hacía"
+                            : null
+      # "Esta observación seria correcta": the conditional "sería" before its attribute. "todo
+      # seria más difícil": any adjective after a degree word.
+      esSeria:
+        args: "at: SpanishAround"
+        let:
+          prev: at.prev()
+          k: '/^(?:más|menos|muy|tan|mucho|bastante)$/u.test(at.next(1)) ? 2 : 1'
+          next: at.next(k)
+          form: esGenderedForm(next) ?? esParticiple(next)
+        when:
+          - at.tokens[at.i].lower === "seria"
+          - '!(ES_DEGREE_BEFORE.has(prev) || ES_LINKS.has(prev) || ES_DETERMINERS.has(prev))'
+        return: >-
+          next === "yo" || next === "mejor" || next === "peor"
+            ? "sería"
+            : !next || ES_VA_LEADING.has(next)
+              ? null
+              : form
+                ? form.plural ? null : "sería"
+                : k === 2 && (esIsNoun(next) || esIsInvariantEntry(next)) ? "sería" : null
+      # "Veras el resultado", "Venia de lejos"; "veras" alone is "de veras" ("¿Veras?").
+      esPlainTwin:
+        args: "at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          fix: ES_PLAIN_TWINS.get(word)
+          next: at.next()
+        when:
+          - fix
+          - at.starts || ES_SUBJECT_OR_NO.has(at.prev())
+        return: >-
+          word === "veras"
+            ? ES_VERAS_NEXT.has(next) ? fix : null
+            : word === "venia"
+              ? /^(?:de|a|desde|con|por)$/u.test(next) ? fix : null
+              : next ? fix : null
+      # "Rio de Janeiro": a river name ("Río de la Plata") with a name after "de".
+      esHiatusNoun:
+        args: "at: SpanishAround"
+        let:
+          fix: ES_HIATUS_NOUNS.get(at.tokens[at.i].lower)
+          prev: at.prev()
+        return: >-
+          at.tokens[at.i].text === "Rio" && at.next() === "de" && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? "")
+            ? fix
+            : fix && (ES_DETERMINERS.has(prev) || ES_BEFORE_HIATUS_NOUN.has(prev)) ? fix : null
+      # "El hecho en si sucedió", "la idea en si es buena": "en sí" (in itself) after a noun. "Piensa
+      # en si vendrá": after a verb, "si" opens an indirect question.
+      esInItself:
+        args: "at: SpanishAround"
+        let:
+          head: at.prev(2)
+          next: at.next()
+        when:
+          - at.tokens[at.i].lower === "si" && at.prev() === "en"
+          - '!(!esIsNoun(head) || esFiniteVerb(head) || esIsInfinitive(head))'
+        return: 'at.endsAfter() || (esFiniteVerb(next) && !esIsNoun(next)) || ES_SER.has(next) ? "sí" : null'
     frames:
       # Every word: a verb form ("termino", "hablo") is no closed list. The fixer reads the
       # subject and the tense cues around the token (review/spanish/verbAccents.ts).
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
-        fixer: verbAccents
+        # A verb, noun or adverb form that needs its written accent at the token.
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+          at: esAround(tokens, i)
+          fix: >-
+            esNominal(at) ?? esVerbAccent(at) ?? esHacia(at) ?? esSeria(at) ?? esPlainTwin(at) ?? esHiatusNoun(at) ??
+            esInItself(at)
+        when:
+          - i >= 0
+          - token.word && token.start >= ctx.from && token.start < ctx.to
+          - fix
+        return: 'esReplaceToken(ctx, token, [fix], "spanishAccents", "review_msg_spanish_accent", tokens[i - 1] ?? token)'
   - id: es.paraQueAccent
     checks: [spanishAccents]
     group: spanishAccents

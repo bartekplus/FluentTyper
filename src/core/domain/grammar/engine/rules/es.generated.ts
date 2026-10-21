@@ -12,6 +12,7 @@ import type {
   SpanishTokens,
 } from "../../library";
 import {
+  ES_ACCENTED_NOMINAL,
   ES_BOUNDARY,
   ES_CLITICS,
   ES_CONJUNCTIONS,
@@ -37,10 +38,13 @@ import {
   esIsGenderedEntry,
   esIsGerund,
   esIsInfinitive,
+  esIsInvariantEntry,
   esIsNoun,
+  esIsVerb,
   esKeepsTyped,
   esMonthNumber,
   esNearestDayOn,
+  esNounForm,
   esParticiple,
   esPlain,
   esReadNoun,
@@ -847,6 +851,492 @@ export const ES_NOT_AFTER_EL: ReadonlySet<string> = new Set([
   "bueno",
 ]);
 
+export const ES_VA_DETERMINERS: ReadonlySet<string> = new Set([
+  "el",
+  "un",
+  "una",
+  "unos",
+  "unas",
+  "del",
+  "al",
+  "mi",
+  "mis",
+  "tus",
+  "su",
+  "sus",
+  "cada",
+  "nuestro",
+  "nuestra",
+  "nuestros",
+  "nuestras",
+  "dos",
+  "tres",
+  "cuatro",
+  "cinco",
+  "varios",
+  "varias",
+  "muchas",
+  "muchos",
+  "pocas",
+  "pocos",
+  "otra",
+  "otro",
+  "otras",
+  "otros",
+  "toda",
+  "todo",
+  "cuyo",
+  "cuya",
+  "cuyos",
+  "cuyas",
+]);
+
+export const ES_VA_DEGREE: ReadonlySet<string> = new Set(["muy", "más", "tan", "bastante"]);
+
+export const ES_VA_DEMONSTRATIVES: ReadonlySet<string> = new Set([
+  "este",
+  "esta",
+  "estos",
+  "estas",
+  "ese",
+  "esa",
+  "esos",
+  "esas",
+  "aquel",
+  "aquella",
+  "aquellos",
+  "aquellas",
+]);
+
+export const ES_VA_SUBJECTS: ReadonlySet<string> = new Set(["él", "ella", "usted"]);
+
+export const ES_VA_TENER: ReadonlySet<string> = new Set([
+  "tengo",
+  "tienes",
+  "tiene",
+  "tenemos",
+  "tienen",
+  "tenía",
+  "tenías",
+  "teníamos",
+  "tenían",
+  "tuve",
+  "tuvo",
+]);
+
+export const ES_VA_BEFORE_VERB: ReadonlySet<string> = new Set([
+  "me",
+  "te",
+  "se",
+  "le",
+  "les",
+  "nos",
+  "os",
+  "no",
+  "yo",
+  "él",
+  "ella",
+  "usted",
+  "lo",
+]);
+
+export const ES_VA_FUNCTION_WORDS: ReadonlySet<string> = new Set([
+  "como",
+  "cuando",
+  "donde",
+  "pero",
+  "todo",
+  "mucho",
+  "poco",
+  "solo",
+  "tanto",
+  "otro",
+  "mismo",
+  "uno",
+  "ninguno",
+  "alguno",
+  "cuanto",
+  "luego",
+  "tampoco",
+  "sino",
+  "demasiado",
+  "medio",
+  "esto",
+  "eso",
+  "aquello",
+]);
+
+export const ES_NOT_BEFORE_ARTICLE: ReadonlySet<string> = new Set([
+  "yo",
+  "tú",
+  "él",
+  "ella",
+  "usted",
+  "nosotros",
+  "nosotras",
+  "vosotros",
+  "vosotras",
+  "ellos",
+  "ellas",
+  "ustedes",
+  "no",
+  "ya",
+  "también",
+  "tampoco",
+  "nunca",
+  "siempre",
+  "que",
+  "quien",
+  "se",
+  "me",
+  "te",
+  "nos",
+  "os",
+]);
+
+export const ES_VA_ADVERBS: ReadonlySet<string> = new Set([
+  "no",
+  "nunca",
+  "ya",
+  "también",
+  "siempre",
+  "jamás",
+]);
+
+export const ES_VA_ARTICLES: ReadonlySet<string> = new Set([
+  "el",
+  "la",
+  "los",
+  "las",
+  "un",
+  "una",
+  "unos",
+  "unas",
+]);
+
+export const ES_AFTER_VERB: ReadonlySet<string> = new Set([
+  "el",
+  "la",
+  "los",
+  "las",
+  "un",
+  "una",
+  "hoy",
+  "ayer",
+  "anoche",
+  "mucho",
+  "poco",
+  "bien",
+  "mal",
+  "tarde",
+  "pronto",
+  "en",
+  "con",
+  "por",
+  "para",
+  "sin",
+  "hasta",
+  "desde",
+]);
+
+export const ES_VA_SUBJECT_DETERMINERS: ReadonlySet<string> = new Set([
+  "el",
+  "la",
+  "un",
+  "una",
+  "mi",
+  "tu",
+  "su",
+  "este",
+  "esta",
+  "ese",
+  "esa",
+  "aquel",
+  "aquella",
+  "nuestro",
+  "nuestra",
+]);
+
+export const ES_VA_CLOSED: ReadonlySet<string> = new Set([
+  "al",
+  "del",
+  "lo",
+  "yo",
+  "tú",
+  "él",
+  "ella",
+  "usted",
+  "nosotros",
+  "ellos",
+  "ellas",
+  "ustedes",
+  "no",
+  "ya",
+  "hoy",
+  "ayer",
+  "anoche",
+  "mañana",
+  "aquí",
+  "allí",
+  "así",
+  "también",
+  "tampoco",
+  "muy",
+  "más",
+  "menos",
+  "siempre",
+  "nunca",
+  "entonces",
+  "luego",
+  "después",
+  "antes",
+  "ahora",
+  "todavía",
+  "aún",
+]);
+
+export const ES_VA_TIME: ReadonlySet<string> = new Set([
+  "semana",
+  "año",
+  "mes",
+  "día",
+  "tarde",
+  "noche",
+  "mañana",
+  "vez",
+  "momento",
+  "rato",
+  "verano",
+  "invierno",
+  "otoño",
+  "primavera",
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+  "domingo",
+  "fin",
+]);
+
+export const ES_FUTURE_BLOCKERS: ReadonlySet<string> = new Set([
+  "si",
+  "que",
+  "ojalá",
+  "aunque",
+  "como",
+  "cuando",
+  "quizá",
+  "quizás",
+  "tal",
+]);
+
+export const ES_DIRECTIONS: ReadonlySet<string> = new Set([
+  "abajo",
+  "arriba",
+  "adelante",
+  "atrás",
+  "afuera",
+  "adentro",
+  "allá",
+  "acá",
+  "aquí",
+  "allí",
+  "delante",
+  "donde",
+  "dónde",
+]);
+
+export const ES_WEATHER: ReadonlySet<string> = new Set([
+  "calor",
+  "frío",
+  "sol",
+  "viento",
+  "fresco",
+  "bueno",
+  "malo",
+  "buen",
+  "mal",
+]);
+
+export const ES_VA_AMOUNTS: ReadonlySet<string> = new Set([
+  "mucho",
+  "muchos",
+  "tanto",
+  "tantos",
+  "poco",
+  "pocos",
+  "demasiado",
+  "casi",
+  "unos",
+  "unas",
+  "más",
+  "una",
+  "un",
+]);
+
+export const ES_VA_TIME_NOUNS: ReadonlySet<string> = new Set([
+  "tiempo",
+  "años",
+  "días",
+  "meses",
+  "semanas",
+  "horas",
+  "minutos",
+  "rato",
+  "siglos",
+  "año",
+  "día",
+  "mes",
+  "semana",
+  "hora",
+  "minuto",
+]);
+
+export const ES_OBJECT_CLITICS: ReadonlySet<string> = new Set([
+  "lo",
+  "la",
+  "los",
+  "las",
+  "le",
+  "les",
+  "me",
+  "te",
+  "se",
+  "nos",
+  "os",
+]);
+
+export const ES_DEGREE_BEFORE: ReadonlySet<string> = new Set([
+  "muy",
+  "tan",
+  "poco",
+  "más",
+  "menos",
+  "bastante",
+  "demasiado",
+  "ya",
+]);
+
+export const ES_LINKS: ReadonlySet<string> = new Set([
+  "es",
+  "era",
+  "fue",
+  "está",
+  "estaba",
+  "estuvo",
+  "parece",
+  "parecía",
+  "puso",
+  "quedó",
+  "quedaba",
+  "sea",
+]);
+
+export const ES_VA_LEADING: ReadonlySet<string> = new Set([
+  "otra",
+  "otro",
+  "otras",
+  "otros",
+  "misma",
+  "mismo",
+  "tercera",
+  "segunda",
+  "primera",
+  "cierta",
+]);
+
+export const ES_SUBJECT_OR_NO: ReadonlySet<string> = new Set([
+  "yo",
+  "tú",
+  "él",
+  "ella",
+  "usted",
+  "ellos",
+  "ellas",
+  "ustedes",
+  "eso",
+  "esto",
+  "estos",
+  "esos",
+  "aquellos",
+  "no",
+  "ya",
+  "nunca",
+  "también",
+  "tampoco",
+]);
+
+export const ES_VERAS_NEXT: ReadonlySet<string> = new Set([
+  "el",
+  "la",
+  "los",
+  "las",
+  "un",
+  "una",
+  "lo",
+  "que",
+  "qué",
+  "cómo",
+  "cuándo",
+  "si",
+]);
+
+export const ES_VA_NUMBERS: ReadonlySet<string> = new Set([
+  "dos",
+  "tres",
+  "cuatro",
+  "cinco",
+  "seis",
+  "siete",
+  "ocho",
+  "nueve",
+  "diez",
+  "once",
+  "doce",
+  "quince",
+  "veinte",
+  "treinta",
+  "cien",
+  "mil",
+]);
+
+export const ES_BEFORE_HIATUS_NOUN: ReadonlySet<string> = new Set([
+  "del",
+  "al",
+  "menudo",
+  "tremendo",
+  "gran",
+  "buen",
+  "qué",
+  "vaya",
+  "mucho",
+  "poco",
+  "tanto",
+  "más",
+  "menos",
+  "muy",
+  "ni",
+  "hace",
+  "hacía",
+  "hizo",
+  "hará",
+  "tengo",
+  "tienes",
+  "tiene",
+  "tenemos",
+  "tienen",
+  "tenía",
+  "tenían",
+  "hay",
+  "había",
+  "paso",
+  "pasa",
+  "pasé",
+  "pasamos",
+]);
+
 export const ES_FREE_PREFIXES: ReadonlySet<string> = new Set([
   "ex",
   "pro",
@@ -1317,6 +1807,13 @@ export const ES_PLAIN_RELATIVE: Readonly<Record<string, string>> = {
   dónde: "donde",
   cómo: "como",
   cuándo: "cuando",
+};
+
+export const ES_FUTURE_ACCENTS: Readonly<Record<string, string>> = {
+  a: "á",
+  as: "ás",
+  an: "án",
+  e: "é",
 };
 
 export const ES_ABBREVIATION_FORMS: Readonly<Record<string, string>> = {
@@ -2826,6 +3323,600 @@ export function esMonosyllable(at: SpanishAround) {
                             : null;
 }
 
+// es.yaml rule es.verbAccents def ES_DEMONSTRATIVE_FORM
+export const ES_DEMONSTRATIVE_FORM = {
+  este: { feminine: false, plural: false },
+  estos: { feminine: false, plural: true },
+  ese: { feminine: false, plural: false },
+  esos: { feminine: false, plural: true },
+  aquel: { feminine: false, plural: false },
+  aquellos: { feminine: false, plural: true },
+  esta: { feminine: true, plural: false },
+  estas: { feminine: true, plural: true },
+  esa: { feminine: true, plural: false },
+  esas: { feminine: true, plural: true },
+  aquella: { feminine: true, plural: false },
+  aquellas: { feminine: true, plural: true },
+} as Readonly<Record<string, { feminine: boolean; plural: boolean }>>;
+
+// es.yaml rule es.verbAccents def ES_PLAIN_TWINS
+export const ES_PLAIN_TWINS = new Map([
+  ["sera", "será"],
+  ["seras", "serás"],
+  ["serian", "serían"],
+  ["veras", "verás"],
+  ["venia", "venía"],
+]);
+
+// es.yaml rule es.verbAccents def ES_HIATUS_NOUNS
+export const ES_HIATUS_NOUNS = new Map([
+  ["lio", "lío"],
+  ["rio", "río"],
+  ["frio", "frío"],
+]);
+
+// es.yaml rule es.verbAccents def esPostponedAdjective
+export function esPostponedAdjective(at: SpanishAround, accented: string) {
+  const ending = /(o|a)(s?)$/u.exec(accented);
+  const noun = ending && esReadNoun(at.prev());
+  if (!(ending && noun?.gender && !at.tokens[at.i - 1].broken)) return false;
+  if ((noun.gender === "f") !== (ending[1] === "a") || noun.plural !== (ending[2] === "s"))
+    return false;
+  const before = at.prev(2);
+  const article = /^(?:un|una|unos|unas)$/u.test(before);
+  const preposition = ES_PREPOSITIONS.has(before)
+    ? 2
+    : ES_DETERMINERS.has(before) && ES_PREPOSITIONS.has(at.prev(3))
+      ? 3
+      : 0;
+  const after0 = at.next();
+  const governed =
+    article ||
+    preposition > 0 ||
+    (!!before && esFiniteVerb(before) && !esIsNoun(before) && !esReadNoun(before)) ||
+    (ES_DETERMINERS.has(before) &&
+      !!after0 &&
+      esFiniteVerb(after0) &&
+      !esIsNoun(after0) &&
+      !esAttribute(after0) &&
+      !ES_CLITICS.has(after0) &&
+      !ES_PREPOSITIONS.has(after0) &&
+      !ES_CONJUNCTIONS.has(after0)) ||
+    (ES_DETERMINERS.has(before) && /(?:o|as|os)$/u.test(at.tokens[at.i].lower));
+  if (!governed) return false;
+  const after = at.next();
+  return !article && preposition && esAround(at.tokens, at.i - preposition).starts
+    ? at.endsAfter()
+    : at.endsAfter() ||
+        ((after === "y" || after === "e") && !ES_DETERMINERS.has(at.next(2))) ||
+        (ES_PREPOSITIONS.has(after) && after !== "a") ||
+        /^\p{L}{4,}mente$/u.test(after);
+}
+
+// es.yaml rule es.verbAccents def esFormOf
+export function esFormOf(word: string) {
+  const m = /(o|a)(s?)$/u.exec(word);
+  return m ? { feminine: m[1] === "a", plural: m[2] === "s" } : null;
+}
+
+// es.yaml rule es.verbAccents def esAgrees
+export function esAgrees(form: { feminine: boolean | null; plural: boolean }, accented: string) {
+  const own = esFormOf(accented);
+  return (
+    !!own &&
+    own.plural === form.plural &&
+    (form.feminine === null || own.feminine === form.feminine)
+  );
+}
+
+// es.yaml rule es.verbAccents def esAgreesWithArticle
+export function esAgreesWithArticle(article: string, accented: string) {
+  return esAgrees({ feminine: !article.startsWith("lo"), plural: article.endsWith("s") }, accented);
+}
+
+// es.yaml rule es.verbAccents def esAgreesWithNext
+export function esAgreesWithNext(at: SpanishAround, accented: string) {
+  const own = esFormOf(accented);
+  const noun = esReadNoun(at.next());
+  if (!(own && noun && !noun.paired && noun.gender && !at.tokens[at.i + 1].broken)) return false;
+  if (esFiniteVerb(at.next()) || noun.plural !== own.plural) return false;
+  return (noun.gender === "f") === own.feminine;
+}
+
+// es.yaml rule es.verbAccents def esPerfectParticipleLike
+export function esPerfectParticipleLike(word: string) {
+  return /(?:ado|ido)$/u.test(word) && !!esParticiple(word);
+}
+
+// es.yaml rule es.verbAccents def esVaVerbless
+export function esVaVerbless(at: SpanishAround, k: number): boolean {
+  const word = at.next(k);
+  return k > 8
+    ? false
+    : at.endsAfter(k - 1) || !word
+      ? true
+      : /^(?:es|son|era|fue|está|están|hay|ha|han|ve|va|da|dio|vio|hace|tiene|puede|dice)$/u.test(
+            word,
+          )
+        ? false
+        : ES_PREPOSITIONS.has(word) || ES_DETERMINERS.has(word) || ES_CONJUNCTIONS.has(word)
+          ? esVaVerbless(at, k + 1)
+          : esFiniteVerb(word) && !esIsNoun(word) && !esAttribute(word) && !esGenderedForm(word)
+            ? false
+            : esVaVerbless(at, k + 1);
+}
+
+// es.yaml rule es.verbAccents def esNominalAfterArticle
+export function esNominalAfterArticle(
+  at: SpanishAround,
+  accented: string,
+  prev: string,
+  next: string,
+) {
+  const before = at.prev(2);
+  const opens = !!at.tokens[at.i - 1] && esAround(at.tokens, at.i - 1).starts;
+  return prev !== "los" && /os?$/u.test(accented)
+    ? null
+    : ES_PREPOSITIONS.has(before) ||
+        (ES_SER.has(before) && esAgreesWithArticle(prev, accented)) ||
+        (opens && next === "que" && esAgreesWithArticle(prev, accented)) ||
+        esIsInfinitive(before) ||
+        (at.tokens[at.i - 1] &&
+          esAround(at.tokens, at.i - 1).starts &&
+          /^(?:de|del|no)$/u.test(next) &&
+          esAgreesWithArticle(prev, accented)) ||
+        /(?:ado|ido)$/u.test(before) ||
+        (!!before &&
+          (next === "de" || next === "del") &&
+          !ES_NOT_BEFORE_ARTICLE.has(before) &&
+          !/^\p{Lu}/u.test(at.tokens[at.i - 2].text)) ||
+        (!!before && esFiniteVerb(before) && !esIsNoun(before) && !ES_CLITICS.has(at.prev(3))) ||
+        (!!next &&
+          esFiniteVerb(next) &&
+          !esIsNoun(next) &&
+          !esAttribute(next) &&
+          !ES_CLITICS.has(next) &&
+          !ES_PREPOSITIONS.has(next) &&
+          !ES_CONJUNCTIONS.has(next) &&
+          !ES_DETERMINERS.has(next))
+      ? accented
+      : null;
+}
+
+// es.yaml rule es.verbAccents def esNominal
+export function esNominal(at: SpanishAround) {
+  const word = at.tokens[at.i].lower;
+  const accented = ES_ACCENTED_NOMINAL.get(word);
+  if (!accented) return null;
+  const prev = at.prev();
+  const next = at.next();
+  const count = at.tokens[at.i - 1];
+  const adjective = esGenderedForm(prev);
+  const numbered = /^\p{N}/u.test(at.tokens[at.i + 1]?.text ?? "") && !at.tokens[at.i + 1].broken;
+  const opener =
+    at.starts ||
+    (/^(?:la|las|los)$/u.test(prev) && at.tokens[at.i - 1] && esAround(at.tokens, at.i - 1).starts);
+  const between = ES_PRENOMINAL.has(prev.replace(/s$/u, ""))
+    ? (esFormOf(prev) ?? { feminine: null, plural: prev.endsWith("s") })
+    : null;
+  return /^(?:una|unas|mis|tus|sus|toda|otra|otras|muchas|pocas|varias|nuestra|nuestras)$/u.test(
+    prev,
+  ) && /os?$/u.test(accented)
+    ? null
+    : ES_VA_DETERMINERS.has(prev) || ES_VA_DEGREE.has(prev) || ES_SER.has(prev)
+      ? accented
+      : /^cuy[oa]s?$/u.test(next) || ES_VA_TENER.has(prev)
+        ? accented
+        : /^\p{L}{3,}mente$/u.test(prev) &&
+            (ES_DETERMINERS.has(at.prev(2)) || /^(?:del|al)$/u.test(at.prev(2))) &&
+            (esAgreesWithNext(at, accented) ||
+              (!esFormOf(accented) && !!esReadNoun(next) && !esFiniteVerb(next)))
+          ? accented
+          : prev === "lo" && next === "que" && /o$/u.test(accented)
+            ? accented
+            : prev === "tu" && !word.endsWith("s")
+              ? accented
+              : count &&
+                  !at.tokens[at.i].broken &&
+                  /^\p{N}{1,3}$/u.test(count.text) &&
+                  count.text !== "1" &&
+                  accented.endsWith("s")
+                ? accented
+                : ES_VA_DEMONSTRATIVES.has(prev) &&
+                    ((esFiniteVerb(at.prev(2)) && !esIsNoun(at.prev(2))) ||
+                      esIsInfinitive(at.prev(2))) &&
+                    esAgrees(ES_DEMONSTRATIVE_FORM[prev], accented)
+                  ? accented
+                  : adjective &&
+                      !esFiniteVerb(prev) &&
+                      !esIsNoun(prev) &&
+                      ES_VA_DETERMINERS.has(at.prev(2)) &&
+                      adjective.plural === accented.endsWith("s") &&
+                      (!esFormOf(accented) || esFormOf(accented)!.feminine === adjective.feminine)
+                    ? accented
+                    : numbered && (at.starts || /^(?:la|las|los)$/u.test(prev))
+                      ? accented
+                      : opener &&
+                          esVaVerbless(at, 1) &&
+                          ((/^(?:la|las|los)$/u.test(prev) &&
+                            at.endsAfter() &&
+                            esAgreesWithArticle(prev, accented)) ||
+                            (at.starts &&
+                              (((next === "de" || next === "del") &&
+                                at.endsAfter(2) &&
+                                !!at.next(2) &&
+                                !esIsInfinitive(at.next(2)) &&
+                                !ES_VA_TIME.has(at.next(2))) ||
+                                esAgreesWithNext(at, accented))))
+                        ? accented
+                        : ES_VA_DEMONSTRATIVES.has(prev) && ES_PREPOSITIONS.has(at.prev(2))
+                          ? accented
+                          : /^(?:hay|había|habrá|hubo|haya|habría)$/u.test(prev)
+                            ? accented
+                            : /^(?:la|las|tu|tus|esta|estas|esa|esas|aquella|aquellas)$/u.test(
+                                  prev,
+                                ) && esAgreesWithNext(at, accented)
+                              ? accented
+                              : /^(?:buen|gran|primer|tercer|algún|ningún)$/u.test(prev) &&
+                                  (prev === "gran" || /o$/u.test(accented))
+                                ? accented
+                                : between &&
+                                    (ES_VA_DETERMINERS.has(at.prev(2)) ||
+                                      /^(?:la|las|los|el)$/u.test(at.prev(2))) &&
+                                    esAgrees(between, accented)
+                                  ? accented
+                                  : esIsInfinitive(prev) &&
+                                      at.prev(2) &&
+                                      !ES_PREPOSITIONS.has(at.prev(2)) &&
+                                      ES_PREPOSITIONS.has(next)
+                                    ? accented
+                                    : /^(?:la|las|los)$/u.test(prev)
+                                      ? esNominalAfterArticle(at, accented, prev, next)
+                                      : esPostponedAdjective(at, accented)
+                                        ? accented
+                                        : ES_PREPOSITIONS.has(prev) && prev !== "a"
+                                          ? accented
+                                          : null;
+}
+
+// es.yaml rule es.verbAccents def esNotName
+export function esNotName(word: string) {
+  return (
+    !ES_GIVEN_NAMES.has(word) &&
+    (ES_CLITICS.has(word) ||
+      ES_PREPOSITIONS.has(word) ||
+      ES_CONJUNCTIONS.has(word) ||
+      ES_DETERMINERS.has(word) ||
+      ES_VA_CLOSED.has(word) ||
+      /mente$/u.test(word) ||
+      !!esAttribute(word) ||
+      esIsInfinitive(word) ||
+      esFiniteVerb(word))
+  );
+}
+
+// es.yaml rule es.verbAccents def esOpensAt
+export function esOpensAt(at: SpanishAround, k: number) {
+  const before = esAround(at.tokens, at.i - k);
+  return before.starts || /^(?:y|e|pero|que|cuando|porque|pues|aunque)$/u.test(before.prev());
+}
+
+// es.yaml rule es.verbAccents def esNamesEnd
+export function esNamesEnd(at: SpanishAround, k: number, last: number): number {
+  return k < last &&
+    at.tokens[at.i - k]?.word &&
+    /^\p{Lu}\p{Ll}/u.test(at.tokens[at.i - k].text) &&
+    !esNotName(at.tokens[at.i - k].lower) &&
+    at.prev(k)
+    ? esNamesEnd(at, k + 1, last)
+    : k;
+}
+
+// es.yaml rule es.verbAccents def esNounSubject
+export function esNounSubject(at: SpanishAround) {
+  if ([1, 2, 3].some((n) => at.next(n) === "yo")) return false;
+  const k = ES_VA_ADVERBS.has(at.prev()) ? 2 : 1;
+  const end = esNamesEnd(at, k, k + 3);
+  const noun = at.prev(k);
+  const det = at.prev(k + 1);
+  return end > k
+    ? esOpensAt(at, end - 1)
+    : !!noun &&
+        ES_VA_SUBJECT_DETERMINERS.has(det) &&
+        !ES_VA_TIME.has(noun) &&
+        (esIsNoun(noun) || !!esAttribute(noun)) &&
+        !noun.endsWith("s") &&
+        esOpensAt(at, k + 1) &&
+        (ES_AFTER_VERB.has(at.next()) || at.next() === "a" || at.next() === "al");
+}
+
+// es.yaml rule es.verbAccents def esVaPreterite
+export function esVaPreterite(at: SpanishAround, word: string, prev: string) {
+  const pronounSubject =
+    (ES_VA_SUBJECTS.has(prev) && esOpensAt(at, 1)) ||
+    (ES_VA_SUBJECTS.has(at.prev(2)) &&
+      /^(?:no|le|les|lo|la|me|te|nos)$/u.test(prev) &&
+      esOpensAt(at, 2)) ||
+    (ES_VA_SUBJECTS.has(at.prev(3)) &&
+      at.prev(2) === "no" &&
+      /^(?:le|les|lo|la|me|te|nos|se)$/u.test(prev) &&
+      esOpensAt(at, 3));
+  const named =
+    !pronounSubject &&
+    /o$/u.test(word) &&
+    !esParticiple(word) &&
+    (!ES_ACCENTED_NOMINAL.has(word) || ES_VA_ARTICLES.has(at.next())) &&
+    at.tokens[at.i + 1]?.text !== "-" &&
+    (!(esIsNoun(word) || esAttribute(word)) ||
+      ES_AFTER_VERB.has(at.next()) ||
+      (at.next() === "a" &&
+        !esIsInfinitive(at.next(2)) &&
+        !/^(?:junto|debido|respecto)$/u.test(word))) &&
+    esNounSubject(at);
+  const subject = pronounSubject || named;
+  if (!((prev === "se" && at.prev(2) !== "per") || subject)) return null;
+  const m = /^(\p{L}{2,})o$/u.exec(word);
+  const aside =
+    ES_VA_FUNCTION_WORDS.has(word) ||
+    (subject && /^(?:creo|pienso|supongo|digo|imagino|opino)$/u.test(word));
+  const nounReading =
+    pronounSubject &&
+    (esIsNoun(word) || esAttribute(word)) &&
+    !ES_AFTER_VERB.has(at.next()) &&
+    !/^(?:varias|varios|muchas|muchos|dos|tres|cuatro|cinco|algunas|algunos)$/u.test(at.next());
+  if (!(m && word.length > 3 && !aside && !nounReading)) return null;
+  return esIsVerb(`${m[1]}ar`)
+    ? `${m[1]}ó`
+    : (esIsVerb(`${m[1]}er`) || esIsVerb(`${m[1]}ir`)) && !esIsNoun(word)
+      ? `${m[1]}ió`
+      : null;
+}
+
+// es.yaml rule es.verbAccents def esVaCliticPreterite
+export function esVaCliticPreterite(at: SpanishAround, word: string, prev: string) {
+  const plainStem = /^(\p{L}{3,})o$/u.exec(word);
+  if (!(
+    plainStem &&
+    ES_CLITICS.has(prev) &&
+    esIsVerb(`${plainStem[1]}ar`) &&
+    !esFiniteVerb(word) &&
+    !esNounForm(word) &&
+    !esIsNoun(word) &&
+    (!esAttribute(word) || !/^(?:lo|la|los|las)$/u.test(prev) || ES_CLITICS.has(at.prev(2)))
+  ))
+    return null;
+  return `${plainStem[1]}ó`;
+}
+
+// es.yaml rule es.verbAccents def esVaImperfect
+export function esVaImperfect(at: SpanishAround, word: string, prev: string) {
+  if (!ES_VA_BEFORE_VERB.has(prev)) return null;
+  const m = /^(\p{L}+)ia(s|n|mos)?$/u.exec(word);
+  const direction =
+    word === "hacia" &&
+    /^(?:abajo|arriba|adelante|atrás|afuera|adentro|allá|acá|aquí|allí|delante|el|la|los|las)$/u.test(
+      at.next(),
+    );
+  if (!(
+    !direction &&
+    m &&
+    (esIsVerb(`${m[1]}er`) || esIsVerb(`${m[1]}ir`) || esIsInfinitive(m[1]))
+  ))
+    return null;
+  return `${m[1]}ía${m[2] ?? ""}`;
+}
+
+// es.yaml rule es.verbAccents def esVaStressed
+export function esVaStressed(at: SpanishAround, word: string, prev: string) {
+  const governed = ES_VA_SUBJECTS.has(prev) && ES_PREPOSITIONS.has(at.prev(2));
+  if (!(!governed && (ES_VA_BEFORE_VERB.has(prev) || /^(?:ya|tú|que|si|quién)$/u.test(prev))))
+    return null;
+  const stressed = /^(\p{L}+)([ui])(a|as|an|e|es|en)$/u.exec(word);
+  const iar =
+    stressed?.[2] === "i" &&
+    /^(?:ampl|env|conf|f|var|cr|gu|enfr|desv|vac|esp|desaf|exp|resfr|hast|roc)$/u.test(stressed[1]);
+  const uar = stressed?.[2] === "u" && !/[gc]$/u.test(stressed[1]);
+  const future = /^(\p{L}*?[eií]r)(a|as|an|e)$/u.exec(word);
+  return stressed && (iar || uar) && esIsVerb(`${stressed[1]}${stressed[2]}ar`) && !esIsNoun(word)
+    ? `${stressed[1]}${stressed[2] === "u" ? "ú" : "í"}${stressed[3]}`
+    : future &&
+        (esIsInfinitive(future[1]) || future[1] === "ir") &&
+        (!esIsNoun(word) || /^(?:ya|tú|se|me|te|le|lo|no)$/u.test(prev)) &&
+        word !== "para"
+      ? `${future[1]}${ES_FUTURE_ACCENTS[future[2]]}`
+      : null;
+}
+
+// es.yaml rule es.verbAccents def esVaCliticsBack
+export function esVaCliticsBack(at: SpanishAround, k: number): number {
+  return k < 3 && /^(?:me|te|lo|la|los|las|le|les|nos|os)$/u.test(at.prev(k))
+    ? esVaCliticsBack(at, k + 1)
+    : k;
+}
+
+// es.yaml rule es.verbAccents def esVaFirstPreterite
+export function esVaFirstPreterite(at: SpanishAround, word: string) {
+  if (!(
+    /^\p{L}{3,}e$/u.test(word) &&
+    esSubjunctiveLike(word) &&
+    !esIsNoun(word) &&
+    !esAttribute(word)
+  ))
+    return null;
+  const k = esVaCliticsBack(at, 1);
+  const lead = at.prev(k);
+  const leadStarts = esAround(at.tokens, at.i - k).starts;
+  const clitics = k > 1 && esAround(at.tokens, at.i - k + 1).starts;
+  const pastAfter = [1, 2, 3].some(
+    (n) =>
+      /^(?:ayer|anoche|anteayer)$/u.test(at.next(n)) ||
+      (/^(?:pasado|pasada)$/u.test(at.next(n)) &&
+        /^(?:semana|año|mes|lunes|martes|miércoles|jueves|viernes|sábado|domingo|verano|invierno)$/u.test(
+          at.next(n - 1),
+        )),
+  );
+  if (!(
+    (leadStarts && /^(?:yo|ayer|anoche|anteayer)$/u.test(lead)) ||
+    (k > 1 &&
+      lead !== "que" &&
+      (/^(?:ayer|anoche|anteayer)$/u.test(lead) || pastAfter) &&
+      !ES_VA_DETERMINERS.has(at.prev(k + 1))) ||
+    (clitics &&
+      at.prev(k - 1) === "me" &&
+      (at.endsAfter() || /^(?:a|en|de|con|sin|por)$/u.test(at.next())))
+  ))
+    return null;
+  return `${word.slice(0, -1)}é`;
+}
+
+// es.yaml rule es.verbAccents def esVaFuture
+export function esVaFuture(at: SpanishAround, word: string, prev: string) {
+  const ira = /^ir(a|as|an)$/u.exec(word);
+  const arFuture = /^(\p{L}+ar)(a|as|an)$/u.exec(word);
+  return ira &&
+    !ES_DETERMINERS.has(prev) &&
+    !ES_PREPOSITIONS.has(prev) &&
+    !/^(?:mi|tu|su|sus|nuestra|vuestra)$/u.test(prev) &&
+    (esIsGerund(at.next()) || (esPerfectParticipleLike(at.next()) && !ES_CONJUNCTIONS.has(prev)))
+    ? `ir${ES_FUTURE_ACCENTS[ira[1]]}`
+    : arFuture &&
+        esIsVerb(arFuture[1]) &&
+        !esIsNoun(word) &&
+        ![1, 2, 3].some((k) => ES_FUTURE_BLOCKERS.has(at.prev(k))) &&
+        ((/^(?:cuándo|cuánto|cuánta|cuántos|cuántas|dónde|adónde)$/u.test(prev) &&
+          at.tokens[at.i - 2]?.text === "¿") ||
+          at.next() === "mañana")
+      ? `${arFuture[1]}${ES_FUTURE_ACCENTS[arFuture[2]]}`
+      : null;
+}
+
+// es.yaml rule es.verbAccents def esVerbAccent
+export function esVerbAccent(at: SpanishAround) {
+  const word = at.tokens[at.i].lower;
+  const prev = at.prev();
+  return (
+    esVaPreterite(at, word, prev) ??
+    esVaCliticPreterite(at, word, prev) ??
+    esVaImperfect(at, word, prev) ??
+    esVaStressed(at, word, prev) ??
+    esVaFirstPreterite(at, word) ??
+    esVaFuture(at, word, prev)
+  );
+}
+
+// es.yaml rule es.verbAccents def esHaciaTime
+export function esHaciaTime(at: SpanishAround, j: number, n: number, start: number): boolean {
+  if (!(j < at.tokens.length && n < 7)) return false;
+  const token = at.tokens[j];
+  return token.broken || /^[.;:!?]$/u.test(token.text)
+    ? false
+    : ES_VA_TIME_NOUNS.has(token.lower) ||
+        (token.lower === "que" && j === at.i + start + 1) ||
+        esHaciaTime(at, j + 1, n + 1, start);
+}
+
+// es.yaml rule es.verbAccents def esHacia
+export function esHacia(at: SpanishAround) {
+  const lower = at.tokens[at.i].lower;
+  const prev = at.prev();
+  const next = at.next();
+  const numeral = /^\p{N}/u.test(at.tokens[at.i + 1]?.text ?? "");
+  const start = next === "ya" ? 2 : 1;
+  const amount = at.next(start);
+  return lower === "hacía"
+    ? (ES_DIRECTIONS.has(next) || ES_DETERMINERS.has(next)) &&
+      esFiniteVerb(prev) &&
+      !esIsNoun(prev) &&
+      !esAttribute(prev) &&
+      !ES_CLITICS.has(prev)
+      ? "hacia"
+      : null
+    : lower !== "hacia"
+      ? null
+      : next === "las" && at.next(2) === "veces"
+        ? "hacía"
+        : ES_DIRECTIONS.has(next) || numeral
+          ? null
+          : ES_OBJECT_CLITICS.has(prev)
+            ? "hacía"
+            : ES_DETERMINERS.has(next)
+              ? null
+              : (prev === "qué" || (prev === "que" && at.prev(2) === "lo")) &&
+                  !/^(?:más|ya)$/u.test(next)
+                ? "hacía"
+                : ES_WEATHER.has(next) || (next === "las" && at.next(2) === "veces")
+                  ? "hacía"
+                  : (ES_VA_AMOUNTS.has(amount) || ES_VA_NUMBERS.has(amount)) &&
+                      esHaciaTime(at, at.i + start, 0, start)
+                    ? "hacía"
+                    : null;
+}
+
+// es.yaml rule es.verbAccents def esSeria
+export function esSeria(at: SpanishAround) {
+  if (!(at.tokens[at.i].lower === "seria")) return null;
+  const prev = at.prev();
+  if (ES_DEGREE_BEFORE.has(prev) || ES_LINKS.has(prev) || ES_DETERMINERS.has(prev)) return null;
+  const k = /^(?:más|menos|muy|tan|mucho|bastante)$/u.test(at.next(1)) ? 2 : 1;
+  const next = at.next(k);
+  const form = esGenderedForm(next) ?? esParticiple(next);
+  return next === "yo" || next === "mejor" || next === "peor"
+    ? "sería"
+    : !next || ES_VA_LEADING.has(next)
+      ? null
+      : form
+        ? form.plural
+          ? null
+          : "sería"
+        : k === 2 && (esIsNoun(next) || esIsInvariantEntry(next))
+          ? "sería"
+          : null;
+}
+
+// es.yaml rule es.verbAccents def esPlainTwin
+export function esPlainTwin(at: SpanishAround) {
+  const word = at.tokens[at.i].lower;
+  const fix = ES_PLAIN_TWINS.get(word);
+  if (!fix) return null;
+  if (!(at.starts || ES_SUBJECT_OR_NO.has(at.prev()))) return null;
+  const next = at.next();
+  return word === "veras"
+    ? ES_VERAS_NEXT.has(next)
+      ? fix
+      : null
+    : word === "venia"
+      ? /^(?:de|a|desde|con|por)$/u.test(next)
+        ? fix
+        : null
+      : next
+        ? fix
+        : null;
+}
+
+// es.yaml rule es.verbAccents def esHiatusNoun
+export function esHiatusNoun(at: SpanishAround) {
+  const fix = ES_HIATUS_NOUNS.get(at.tokens[at.i].lower);
+  const prev = at.prev();
+  return at.tokens[at.i].text === "Rio" &&
+    at.next() === "de" &&
+    /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? "")
+    ? fix
+    : fix && (ES_DETERMINERS.has(prev) || ES_BEFORE_HIATUS_NOUN.has(prev))
+      ? fix
+      : null;
+}
+
+// es.yaml rule es.verbAccents def esInItself
+export function esInItself(at: SpanishAround) {
+  if (!(at.tokens[at.i].lower === "si" && at.prev() === "en")) return null;
+  const head = at.prev(2);
+  if (!esIsNoun(head) || esFiniteVerb(head) || esIsInfinitive(head)) return null;
+  const next = at.next();
+  return at.endsAfter() || (esFiniteVerb(next) && !esIsNoun(next)) || ES_SER.has(next)
+    ? "sí"
+    : null;
+}
+
 // es.yaml rule es.prefixes def esKnownWord
 export function esKnownWord(word: string) {
   return (
@@ -3683,6 +4774,32 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
           ? "review_msg_spanish_accent"
           : "review_msg_spanish_accent_extra",
       tokens[i + 1],
+    );
+  },
+  // es.yaml rule es.verbAccents frame 1
+  "@es.verbAccents/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    const token = tokens[i];
+    if (!(token.word && token.start >= ctx.from && token.start < ctx.to)) return null;
+    const at = esAround(tokens, i);
+    const fix =
+      esNominal(at) ??
+      esVerbAccent(at) ??
+      esHacia(at) ??
+      esSeria(at) ??
+      esPlainTwin(at) ??
+      esHiatusNoun(at) ??
+      esInItself(at);
+    if (!fix) return null;
+    return esReplaceToken(
+      ctx,
+      token,
+      [fix],
+      "spanishAccents",
+      "review_msg_spanish_accent",
+      tokens[i - 1] ?? token,
     );
   },
   // es.yaml rule es.prefixes frame 1

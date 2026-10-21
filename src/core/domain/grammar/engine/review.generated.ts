@@ -17565,7 +17565,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{L}[\\p{L}\\p{M}]*",
     literals: [],
-    fixer: "es:verbAccents",
+    fixer: "es:@es.verbAccents/1",
     flags: "gu",
     scan: "owned",
   }),
