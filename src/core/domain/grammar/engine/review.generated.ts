@@ -7408,7 +7408,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s)|very|really|so|not|also|more|most|less|still|always|particularly|especially)[ \\t\\u00a0]{1,8}interested[ \\t\\u00a0]{1,8}(?<target>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["interested"],
-    fixer: "en:idioms5A",
+    fixer: "en:@en.idiomFrames5/1",
     check: "englishFixedPrepositions",
     cue: ["interested"],
   }),
@@ -7416,7 +7416,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>from)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}naked[ \\t\\u00a0]{1,8}eyes?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["naked"],
-    fixer: "en:idioms5From",
+    fixer: "en:@en.idiomFrames5/2",
     check: "englishFixedPrepositions",
     cue: ["naked"],
   }),
@@ -7432,7 +7432,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?=in|at)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:live|lives|lived|living|located|situated|stay|stays|stayed|staying|reside|resides|resided|residing|am|is|are|was|were|be|been|being|[a-z]+['’](?:m|re|s))[ \\t\\u00a0]{1,8})(?<target>in|at)[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:[0-9]+(?:st|nd|rd|th)|first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth)[ \\t\\u00a0]{1,8}floor(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["floor"],
-    fixer: "en:idioms5In",
+    fixer: "en:@en.idiomFrames5/4",
     check: "englishFixedPrepositions",
     cue: ["floor"],
   }),
@@ -7456,7 +7456,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![.])(?<![\\p{L}\\p{M}\\p{N}_'’@#\\\\-])(?=\\p{L})(?<!(?<![\\p{L}'’])(?:for)[ \\t\\u00a0]{1,8})(?<target>(?<noun>reasons?)[ \\t\\u00a0]{1,8}of)[ \\t\\u00a0]{1,8}(?<ing>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["reason"],
-    fixer: "en:idioms5Noun",
+    fixer: "en:@en.idiomFrames5/7",
     check: "englishFixedPrepositions",
     cue: ["reason", "reasons"],
     wordStart: false,
@@ -7473,7 +7473,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:what|whats|what['’]s|what[ \\t\\u00a0]{1,8}is|what[ \\t\\u00a0]{1,8}was)[ \\t\\u00a0]{1,8})the[ \\t\\u00a0]{1,8}point[ \\t\\u00a0]{1,8}(?<target>for)[ \\t\\u00a0]{1,8}(?<ing>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["point"],
-    fixer: "en:idioms5For",
+    fixer: "en:@en.idiomFrames5/9",
     check: "englishFixedPrepositions",
     cue: ["point"],
   }),
@@ -7481,7 +7481,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:take|takes|took|taken|taking|have|has|had|having)[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?:(?:quick|closer|close|brief|good|deeper|second|first|careful|short)[ \\t\\u00a0]{1,8})?look[ \\t\\u00a0]{1,8}(?<target>to)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["look"],
-    fixer: "en:idioms5To",
+    fixer: "en:@en.idiomFrames5/10",
     check: "englishFixedPrepositions",
     cue: ["look"],
   }),
@@ -7497,7 +7497,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>since[ \\t\\u00a0]{1,8}(?<quantity>a[ \\t\\u00a0]{1,8}couple(?:[ \\t\\u00a0]{1,8}of)?|few|(?:(?:over|more[ \\t\\u00a0]{1,8}than|almost|nearly|about)[ \\t\\u00a0]{1,8})?(?:two|three|four|five|six|seven|eight|nine|ten|twelve|several|many|a[ \\t\\u00a0]{1,8}few|[0-9]{1,3}))[ \\t\\u00a0]{1,8}(?<unit>seconds|minutes|hours|days|weeks|months|years|decades))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:ago|before|after|earlier|later|prior|old|of|back|since|from|that|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["since"],
-    fixer: "en:idioms5Since",
+    fixer: "en:@en.idiomFrames5/12",
     message: "review_msg_since_duration",
     check: "englishFixedPrepositions",
     cue: ["since"],
@@ -7522,7 +7522,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:and|but|so|or)[ \\t\\u00a0]{1,8}(?<target>(?<no>no[ \\t\\u00a0]{1,8}longer)[ \\t\\u00a0]{1,8}(?<pron>I|you|we|they|he|she|it)(?:[ \\t\\u00a0]{1,8}(?<aux>am|is|are|was|were|can|could|will|would|should|must|may|might|do|does|did|have|has|had))?)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["longer"],
-    fixer: "en:idioms5No",
+    fixer: "en:@en.idiomFrames5/15",
     message: "review_msg_sentence_structure",
     check: "englishSentenceStructure",
     cue: ["longer"],
@@ -7531,7 +7531,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "nor[ \\t\\u00a0]{1,8}(?<target>(?<pron>I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?<aux>can|could|will|would|shall|should|may|might|must|do|does|did|am|is|are|was|were|have|has|had))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["nor"],
-    fixer: "en:idioms5Pron",
+    fixer: "en:@en.idiomFrames5/16",
     message: "review_msg_sentence_structure",
     check: "englishSentenceStructure",
     cue: ["nor"],
@@ -7540,7 +7540,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<subject>I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?<target>wonts?)[ \\t\\u00a0]{1,8}to(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["wont"],
-    fixer: "en:idioms5Wonts",
+    fixer: "en:@en.idiomFrames5/17",
     message: "review_msg_typo",
     cue: ["wont", "wonts"],
   }),
@@ -7596,7 +7596,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:take|takes|took|taken|taking)[ \\t\\u00a0]{1,8}(?:(?:these|those|this|that|the|my|your|his|her|our|their|its)[ \\t\\u00a0]{1,8})?(?<object>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>serious)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["serious"],
-    fixer: "en:idioms5Serious",
+    fixer: "en:@en.idiomFrames5/24",
     message: "review_msg_phrase_correction",
     cue: ["serious"],
   }),
@@ -7604,7 +7604,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>the[ \\t\\u00a0]{1,8})(?<wh>(?:how|why|when|what|where)[ \\t\\u00a0]{1,8}(?:it|we|you|they|he|she|I|the|a|an|this|that|these|those)|who[ \\t\\u00a0]{1,8}(?:is|are|was|were|will|can|it|we|you|they|he|she|I|the|a|an|this|that))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:idioms5The",
+    fixer: "en:@en.idiomFrames5/25",
     message: "review_msg_contextual_grammar",
     cue: ["how", "why", "when", "what", "where", "who"],
   }),
@@ -7623,14 +7623,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "raised",
       "raising",
     ],
-    fixer: "en:idioms5Verb",
+    fixer: "en:@en.idiomFrames5/26",
     message: "review_msg_phrase_correction",
     cue: ["rank", "ranks"],
   }),
   frame({
     pattern: "(?<target>through)[ \\t\\u00a0]{1,8}away(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["through"],
-    fixer: "en:idioms5Through",
+    fixer: "en:@en.idiomFrames5/27",
     message: "review_msg_typo",
     cue: ["through"],
   }),
@@ -7638,7 +7638,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<verb>throw|throws|threw|thrown|throwing|through))[ \\t\\u00a0]{1,8}(?<away>away[ \\t\\u00a0]{1,8}|out[ \\t\\u00a0]{1,8})?(?<baby>the[ \\t\\u00a0]{1,8}baby)[ \\t\\u00a0]{1,8}(?<out>out[ \\t\\u00a0]{1,8})?with[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}bath(?:(?:[ \\t\\u00a0]{1,8})?water|-water)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["throw", "throws", "threw", "thrown", "throwing", "through"],
-    fixer: "en:idioms5Verb2",
+    fixer: "en:@en.idiomFrames5/28",
     message: "review_msg_phrase_correction",
     cue: ["baby"],
   }),
@@ -7646,7 +7646,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:am|is|are|was|were|be|been|being|(?:I|you|we|they|he|she|it|that|there|who|what|this)['’](?:m|re|s))(?:[ \\t\\u00a0]{1,8}(?:[a-z]+ly|so|very|still|also|always|often|sometimes|mostly|not|now|quite|quiet|much|more|most|less|pretty|kinda)){0,2}|very|highly|extremely|fairly|hugely|incredibly|pretty|quite|quiet|vastly|much|most|more|somewhat|kinda|abit|bit|strongly|greatly|widely|keenly|eagerly|hotly|super|increasingly|less|least|(?<![\\p{L}'’])(?:a|an)[ \\t\\u00a0]{1,8}rather)[ \\t\\u00a0]{1,8}(?<target>sort)[ \\t\\u00a0]{1,8}after(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["after"],
-    fixer: "en:idioms5Sort",
+    fixer: "en:@en.idiomFrames5/29",
     message: "review_msg_typo",
     cue: ["sort"],
   }),
@@ -7654,7 +7654,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "of[ \\t\\u00a0]{1,8}(?<target>sort)[ \\t\\u00a0]{1,8}after(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["after"],
-    fixer: "en:idioms5Sort2",
+    fixer: "en:@en.idiomFrames5/30",
     message: "review_msg_typo",
     cue: ["sort"],
   }),
@@ -7682,7 +7682,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "intended",
       "expected",
     ],
-    fixer: "en:idioms5A2",
+    fixer: "en:@en.idiomFrames5/31",
     message: "review_msg_missing_to",
     check: "englishVerbComplements",
     cue: [
@@ -7728,7 +7728,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "intend",
       "expect",
     ],
-    fixer: "en:idioms5A2",
+    fixer: "en:@en.idiomFrames5/32",
     message: "review_msg_missing_to",
     check: "englishVerbComplements",
     cue: [
@@ -7771,7 +7771,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "intends",
       "expects",
     ],
-    fixer: "en:idioms5A2",
+    fixer: "en:@en.idiomFrames5/33",
     message: "review_msg_missing_to",
     check: "englishVerbComplements",
     cue: [
@@ -7807,7 +7807,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "keen",
       "determined",
     ],
-    fixer: "en:idioms5A2",
+    fixer: "en:@en.idiomFrames5/34",
     message: "review_msg_missing_to",
     check: "englishVerbComplements",
     cue: [
@@ -7843,7 +7843,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "warmup",
       "workout",
     ],
-    fixer: "en:idioms5Backup",
+    fixer: "en:@en.idiomFrames5/35",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -7887,7 +7887,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "warmup",
       "workout",
     ],
-    fixer: "en:idioms5Backup",
+    fixer: "en:@en.idiomFrames5/36",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -7932,7 +7932,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "warmup",
       "workout",
     ],
-    fixer: "en:idioms5Backup",
+    fixer: "en:@en.idiomFrames5/37",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -7976,7 +7976,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "warmup",
       "workout",
     ],
-    fixer: "en:idioms5Backup",
+    fixer: "en:@en.idiomFrames5/38",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -8020,7 +8020,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "warmup",
       "workout",
     ],
-    fixer: "en:idioms5Backup2",
+    fixer: "en:@en.idiomFrames5/39",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -8065,7 +8065,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "warmup",
       "workout",
     ],
-    fixer: "en:idioms5Backup",
+    fixer: "en:@en.idiomFrames5/40",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -8109,7 +8109,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "warmup",
       "workout",
     ],
-    fixer: "en:idioms5Backup",
+    fixer: "en:@en.idiomFrames5/41",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: [
@@ -8136,7 +8136,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>show(?:[ \\t\\u00a0]{1,8}case|-case|-cases|-cased|-casing))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:[0-9]|(?:stud(?:y|ies)|sensitive|insensitive|sensitivity|numbers?|files?|laws?|histor(?:y|ies)|notes?|reports?|examples?|results?|details?|statements?|summar(?:y|ies)|managers?|workers?|officers?|status)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["show"],
-    fixer: "en:idioms5Show",
+    fixer: "en:@en.idiomFrames5/42",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: ["show"],
@@ -8145,7 +8145,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those)[ \\t\\u00a0]{1,8}|(?=soon)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8}))(?<target>soon[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}be)[ \\t\\u00a0]{1,8}(?=[\\p{L}\\p{N}])",
     literals: ["soon"],
-    fixer: "en:idioms5Soon",
+    fixer: "en:@en.idiomFrames5/43",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: ["soon"],
@@ -8170,7 +8170,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:have|has|had|having|ought|got|need|needs|want|wants|going|condition|option|setting|mode)[ \\t\\u00a0]{1,8})(?<target>(?<first>to)[ \\t\\u00a0]{1,8}(?<adverb>[a-z]+)[ \\t\\u00a0]{1,8}to)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:idioms5First",
+    fixer: "en:@en.idiomFrames5/46",
     message: "review_msg_contextual_grammar",
     cue: ["to"],
   }),
@@ -8178,7 +8178,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<verb>run|runs|ran|running)[ \\t\\u00a0]{1,8}into[ \\t\\u00a0]{1,8}problem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["problem"],
-    fixer: "en:idioms5Verb3",
+    fixer: "en:@en.idiomFrames5/47",
     message: "review_msg_phrase_correction",
     cue: ["problem"],
   }),
@@ -8216,7 +8216,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "normally",
       "typically",
     ],
-    fixer: "en:idioms5First2",
+    fixer: "en:@en.idiomFrames5/50",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: [
@@ -8238,7 +8238,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>over[ \\t\\u00a0]{1,8}(?<number>[0-9][0-9,.]*(?:[ \\t\\u00a0]{1,8}(?:thousand|million|billion))?)(?:[ \\t\\u00a0]{1,8}(?<plus>plus)|\\+))(?![\\p{L}\\p{N}_-])(?![ \\t\\u00a0]{1,8}(?:size|sizes|sized)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["over"],
-    fixer: "en:idioms5Over",
+    fixer: "en:@en.idiomFrames5/51",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: ["over"],
@@ -8258,7 +8258,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "painkiller",
       "capsule",
     ],
-    fixer: "en:idioms5Verb4",
+    fixer: "en:@en.idiomFrames5/52",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: ["eat", "eats", "ate", "eaten", "eating"],
@@ -8296,7 +8296,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "raised",
       "raising",
     ],
-    fixer: "en:idioms5Verb5",
+    fixer: "en:@en.idiomFrames5/55",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: ["rank", "ranks"],
@@ -8305,7 +8305,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<verb>throw|throws|threw|thrown|throwing)[ \\t\\u00a0]{1,8}(?<det>(?:(?:the|my|his|her|their|our|your|some|any|this|that|all[ \\t\\u00a0]{1,8}the)[ \\t\\u00a0]{1,8})?)(?<noun>trash|garbage|rubbish|litter))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["throw", "throws", "threw", "thrown", "throwing"],
-    fixer: "en:idioms5Verb6",
+    fixer: "en:@en.idiomFrames5/56",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     cue: ["trash", "garbage", "rubbish", "litter"],

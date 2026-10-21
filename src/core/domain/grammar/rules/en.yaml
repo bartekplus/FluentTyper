@@ -997,16 +997,70 @@ rules:
       ]
     style: slot
     message: review_msg_fixed_prepositions
+    maps:
+      # "rise the ranks", "raise through the ranks", "rise up in the ranks".
+      RISE_FOR_RAISE: { raise: rise, raises: rises, raised: rose, raising: rising, rised: rose }
+      # Phrasal verbs written as their compound noun: "I backup", "to rollback again".
+      PHRASAL_VERB_OF:
+        {
+          backup: "back up",
+          breakup: "break up",
+          checkout: "check out",
+          cleanup: "clean up",
+          comeback: "come back",
+          followup: "follow up",
+          lookup: "look up",
+          pickup: "pick up",
+          playback: "play back",
+          rollback: "roll back",
+          rollout: "roll out",
+          setup: "set up",
+          shutdown: "shut down",
+          signup: "sign up",
+          takeover: "take over",
+          warmup: "warm up",
+          workout: "work out",
+        }
+      TAKE_FOR_EAT: { eat: take, eats: takes, eaten: taken, eating: taking }
+    defs:
+      # Function words the lexicon also lists as nouns ("it", "you", "the ins and outs").
+      FRAME_FUNCTION_WORD: /^(?:i|me|my|you|your|he|him|his|she|her|it|its|we|us|our|they|them|their|this|that|these|those|the|a|an|if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|here|there|yet|still|too|very|is|are|was|were|be|been)$/i
+      OBJECT_OPENER: /^(?:the|a|an|my|your|his|her|its|our|their|it|them|him|me|us|you)$/i
+      # "need help the most": a degree phrase, not an object.
+      DEGREE_AFTER_THE: '/^[ \t ]+the[ \t ]+(?:most|least|best|whole|rest|same|entire|other)\b/i'
+      TIME_AFTER: '/^[ \t ]+(?:an?|the|this|that|every)[ \t ]+(?:hour|minute|moment|second|day|week|month|year|while|night|morning|evening)\b/i'
+      SUBORDINATE_LEAD: '/(?:^|[.!?;:\n][ \t "“]*)(?:when|whenever|if|after|before|because|while|once|until|since)\b[^.!?;:,\n]*$/i'
+      ADVERB_SLOT: /^(?:never|not|just|maybe|always|also|even|only|still|ever|perhaps)$/i
+      # A verb right after "since two days" makes the duration a subject.
+      CLAUSE_VERB: /^(?:can|could|will|would|shall|should|may|might|must|do|does|did|am|is|are|was|were|have|has|had|went|passed|elapsed)$/i
+      HIDING: /\b(?:hid|hide|hides|hidden|hiding|conceal\w*|keep|keeps|kept|keeping|shield\w*|protect\w*|obscur\w*|disguis\w*|mask\w*|secret\w*|safe|away)\b[^.!?;]*$/i
+      TRASH_AFTER: /^(?:away|out|in|into|on|onto|at|over|across|around|everywhere|from|off|down|to|inside|outside|anywhere|there|here)$/i
+      # A word the lexicon knows as a noun; unknown words are not.
+      lexiconNoun:
+        args: "word: string"
+        let:
+          known: englishWordInfo(word)
+        when: "!!word && !FRAME_FUNCTION_WORD.test(word)"
+        return: "!!known && (known.noun || known.plural)"
+        else: "false"
+      # The word after `end`, or "" when punctuation or the text end comes first.
+      tokenAfter:
+        args: "ctx: DetectContext, end: number"
+        return: '/^[ \t ]{1,8}([\p{L}\p{N}][\p{L}\p{N}''’-]*)/u.exec(ctx.text.slice(end, end + 48))?.[1] ?? ""'
+      # The words between the verb and "the ranks", lowercase and one space apart.
+      ranksMiddle:
+        args: "mid: string"
+        return: 'mid.toLowerCase().trim().replace(/[ \t ]+/g, " ")'
     frames:
       # ---- prepositions ----
       - regex: "(?:{{BE_FORM}}|very|really|so|not|also|more|most|less|still|always|particularly|especially){{S}}interested{{S}}(?<target>[a-z]+ing){{E}}"
         check: englishFixedPrepositions
         cue: ["interested"]
-        fixer: idioms5A
+        return: 'hasVerbForm(target, "ing") ? `in ${target}` : null'
       - regex: "(?<target>from){{S}}the{{S}}naked{{S}}eyes?{{E}}"
         check: englishFixedPrepositions
         cue: ["naked"]
-        fixer: idioms5From
+        return: 'HIDING.test(enBefore(ctx, m.index, 80)) ? null : ["to", "with"]'
       - regex: "(?:{{BE_FORM}}|im|its|hes|shes|theyre|youre){{S}}no{{S}}match{{S}}(?<target>against|to|of){{E}}"
         check: englishFixedPrepositions
         cue: ["match"]
@@ -1014,7 +1068,7 @@ rules:
       - regex: "(?:(?=in|at)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:live|lives|lived|living|located|situated|stay|stays|stayed|staying|reside|resides|resided|residing|am|is|are|was|were|be|been|being|[a-z]+['’](?:m|re|s)){{S}})(?<target>in|at){{S}}the{{S}}(?:{{IDIOMS5_ORDINAL}}){{S}}floor{{E}}"
         check: englishFixedPrepositions
         cue: ["floor"]
-        fixer: idioms5In
+        return: 'lexiconNoun(tokenAfter(ctx, m.index + m[0].length)) ? null : "on"'
       - regex: "{{notAfter:most|more|least|less|very|so}}passionate{{S}}(?<target>of){{E}}(?!{{S}}(?:all|them|us|you|those|these|whom){{E}})"
         check: englishFixedPrepositions
         cue: ["passionate"]
@@ -1027,7 +1081,7 @@ rules:
         wordStart: false
         check: englishFixedPrepositions
         cue: ["reason", "reasons"]
-        fixer: idioms5Noun
+        return: 'hasVerbForm(ing, "ing") ? `${noun} for` : null'
       - regex: "(?:what{{S}}is|what{{S}}was|what['’]s|whats|what){{S}}the{{S}}point{{S}}(?<target>for){{E}}"
         check: englishFixedPrepositions
         cue: ["point"]
@@ -1035,11 +1089,14 @@ rules:
       - regex: "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:what|whats|what['’]s|what{{S}}is|what{{S}}was){{S}})the{{S}}point{{S}}(?<target>for){{S}}(?<ing>[a-z]+ing){{E}}"
         check: englishFixedPrepositions
         cue: ["point"]
-        fixer: idioms5For
+        return: 'hasVerbForm(ing, "ing") ? "of" : null'
       - regex: "(?:take|takes|took|taken|taking|have|has|had|having){{S}}a{{S}}(?:(?:quick|closer|close|brief|good|deeper|second|first|careful|short){{S}})?look{{S}}(?<target>to){{E}}"
         check: englishFixedPrepositions
         cue: ["look"]
-        fixer: idioms5To
+        let:
+          next: tokenAfter(ctx, m.index + m[0].length)
+        # "has a look to it" describes an appearance.
+        return: 'hasVerbForm(next, "base") || (/^ha/i.test(m[0]) && /^(?:it|them)$/i.test(next)) ? null : "at"'
       - regex: "(?:take|takes|took|taken|taking){{S}}(?:(?:great|much|such|real|a{{S}}lot{{S}}of){{S}})?pride{{S}}(?<target>of){{E}}(?!{{S}}place{{E}})"
         check: englishFixedPrepositions
         cue: ["pride"]
@@ -1048,7 +1105,23 @@ rules:
         check: englishFixedPrepositions
         message: review_msg_since_duration
         cue: ["since"]
-        fixer: idioms5Since
+        let:
+          # "Since two days were lost, …": the duration is a subject and "since" means "because".
+          next: tokenAfter(ctx, m.index + m[0].length)
+          # A following space joins the range, so "ago" lands before the next word.
+          space: '/^[ \t ]*/.exec(ctx.text.slice(m.index + m[0].length))![0]'
+          span: group(m, "target")
+          ago: enRecase(unit, "ago", unit)
+        when: '!(CLAUSE_VERB.test(next) || hasVerbForm(next, "past", "third"))'
+        return: >-
+          ({
+            alternatives: [
+              `${enRecase(target.slice(0, 5), "for", m[0])}${target.slice(5)}${space}`,
+              space ? `${target} ${ago}${space}` : `${target} ${ago}`,
+            ],
+            range: [span[0], span[1] + space.length],
+            raw: true,
+          })
       # ---- set phrases ----
       - regex: "(?:most|a{{S}}lot){{S}}of{{S}}the{{S}}(?<target>times){{E}}(?!{{S}}(?:I|we|you|he|she|they|it|that|when|which|where|people|the|this|those|these|my|our|their|his|her|its|in|on|of|listed|shown|given|above|below|between|from|to|for|I['’]ve|we['’]ve|you['’]ve|they['’]ve){{E}})"
         message: review_msg_contextual_grammar
@@ -1062,16 +1135,16 @@ rules:
         check: englishSentenceStructure
         message: review_msg_sentence_structure
         cue: ["longer"]
-        fixer: idioms5No
+        return: "({ alternatives: [aux ? `${pron} ${aux} ${no}` : `${pron} ${no}`], raw: true })"
       - regex: "nor{{S}}(?<target>(?<pron>{{SUBJECT}}){{S}}(?<aux>{{AUXILIARY}})){{E}}"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
         cue: ["nor"]
-        fixer: idioms5Pron
+        return: '/\bneither\b[^,.!?;:]*$/i.test(enBefore(ctx, m.index, 80)) ? null : { alternatives: [`${aux} ${pron}`], raw: true }'
       - regex: "(?<subject>{{SUBJECT}}){{S}}(?<target>wonts?){{S}}to{{E}}"
         message: review_msg_typo
         cue: ["wont", "wonts"]
-        fixer: idioms5Wonts
+        return: '/^(?:he|she|it)$/i.test(subject) ? "wants" : "want"'
       - regex: "(?:(?=of)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:yes|yeah|well|and|but|so|oh|ok|okay|sure),?{{S}})(?<target>of{{S}}(?:curse|coarse)|off{{S}}course){{E}}"
         message: review_msg_phrase_correction
         cue: ["curse", "coarse", "course"]
@@ -1099,31 +1172,62 @@ rules:
       - regex: "(?:take|takes|took|taken|taking){{S}}(?:(?:these|those|this|that|the|my|your|his|her|our|their|its){{S}})?(?<object>[a-z]+){{S}}(?<target>serious){{E}}"
         message: review_msg_phrase_correction
         cue: ["serious"]
-        fixer: idioms5Serious
+        when: "/^(?:it|me|him|her|them|us|you|this|that|everything|anything|anyone|everyone|nothing)$/i.test(object) || lexiconNoun(object)"
+        return: 'lexiconNoun(tokenAfter(ctx, m.index + m[0].length)) ? null : "seriously"'
       - regex: "(?<target>the{{S}})(?<wh>(?:how|why|when|what|where){{S}}(?:it|we|you|they|he|she|I|the|a|an|this|that|these|those)|who{{S}}(?:is|are|was|were|will|can|it|we|you|they|he|she|I|the|a|an|this|that)){{E}}"
         message: review_msg_contextual_grammar
         cue: ["how", "why", "when", "what", "where", "who"]
-        fixer: idioms5The
+        return: '/^\p{Lu}/u.test(wh) && m[0] !== m[0].toUpperCase() ? null : ""'
       - regex: "(?<target>(?<verb>rise|rises|rose|risen|rising|rised|raise|raises|raised|raising)(?<mid>(?:{{S}}up)?(?:{{S}}(?:in|through))?){{S}}(?<the>the{{S}}(?<rank>ranks?))){{E}}(?!{{S}}and{{S}}file{{E}})"
         message: review_msg_phrase_correction
         cue: ["rank", "ranks"]
-        fixer: idioms5Verb
+        # Errors: a missing preposition, "raise", "rised", or a singular "rank". "raise (up) the ranks
+        # of" is a transitive "raise"; "rised the ranks" only lacks "through".
+        let:
+          typed: verb.toLowerCase()
+          middle: ranksMiddle(mid)
+        return: >-
+          !(typed in RISE_FOR_RAISE)
+            ? !middle
+              ? { alternatives: ["through the ranks"], range: group(m, "the") }
+              : /s$/i.test(rank)
+                ? null
+                : `${verb} through the ranks`
+            : !middle || middle === "up"
+              ? typed !== "rised"
+                ? null
+                : middle
+                  ? "rose through the ranks"
+                  : { alternatives: ["through the ranks"], range: group(m, "the") }
+              : typed === "raised"
+                ? ["rose through the ranks", "risen through the ranks"]
+                : `${RISE_FOR_RAISE[typed]} through the ranks`
       - regex: "(?<target>through){{S}}away{{E}}"
         message: review_msg_typo
         cue: ["through"]
-        fixer: idioms5Through
+        return: >-
+          /(?:^|[.!?;:]\s*|\b(?:to|don['’]t|do|not|will|would|can|could|should|must|please|never|let['’]s|didn['’]t|did|cannot|can['’]t|won['’]t)\s+)$/i.test(enBefore(ctx, m.index, 24))
+            ? "throw"
+            : ["throw", "threw"]
       - regex: "(?<target>(?<verb>throw|throws|threw|thrown|throwing|through)){{S}}(?<away>away{{S}}|out{{S}})?(?<baby>the{{S}}baby){{S}}(?<out>out{{S}})?with{{S}}the{{S}}bath(?:(?:{{S}})?water|-water){{E}}"
         message: review_msg_phrase_correction
         cue: ["baby"]
-        fixer: idioms5Verb2
+        return: >-
+          /^through$/i.test(verb)
+            ? { alternatives: ["throw"], range: group(m, "verb") }
+            : away && /^away/i.test(away)
+              ? { alternatives: ["out"], range: [group(m, "away")[0], group(m, "away")[0] + 4] }
+              : away || out
+                ? null
+                : { alternatives: ["the baby out"], range: group(m, "baby") }
       - regex: "(?:(?:{{BE_FORM}})(?:{{S}}(?:[a-z]+ly|so|very|still|also|always|often|sometimes|mostly|not|now|quite|quiet|much|more|most|less|pretty|kinda)){0,2}|very|highly|extremely|fairly|hugely|incredibly|pretty|quite|quiet|vastly|much|most|more|somewhat|kinda|abit|bit|strongly|greatly|widely|keenly|eagerly|hotly|super|increasingly|less|least|(?<![\\p{L}'’])(?:a|an){{S}}rather){{S}}(?<target>sort){{S}}after{{E}}"
         message: review_msg_typo
         cue: ["sort"]
-        fixer: idioms5Sort
+        return: 'OBJECT_OPENER.test(tokenAfter(ctx, m.index + m[0].length)) ? null : "sought"'
       - regex: "of{{S}}(?<target>sort){{S}}after{{E}}"
         message: review_msg_typo
         cue: ["sort"]
-        fixer: idioms5Sort2
+        return: 'lexiconNoun(tokenAfter(ctx, m.index + m[0].length)) ? "sought" : null'
       - regex: "{{notAfter:the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|no|every|each}}(?:meant|wanted|needed|agreed|forgot|forgotten|tried|trying|refused|resolved|attempted|decided|hoped|promised|managed|failed|planned|intended|expected){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
@@ -1149,7 +1253,38 @@ rules:
             "intended",
             "expected",
           ]
-        fixer: idioms5A2
+        let:
+          known: englishWordInfo(target)
+          end: m.index + m[0].length
+          rest: ctx.text.slice(end)
+          after: ctx.text.slice(end, end + 32)
+          next: tokenAfter(ctx, end)
+        when:
+          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
+          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
+          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
+          # plan deploy" at the text end may still be typed.
+          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
+          # "If it is not what you wanted please let me know": please opens the next clause, and so does
+          # a subject + auxiliary ("if you need help you should ask").
+          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
+          # "anything you need let me know", "the things he needs depend on": a relative clause. The
+          # text before the governor is the match without its last two words.
+          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
+          # "need write access", "want read rights": the verb names a kind of permission.
+          - "!EN_PERMISSION_AFTER.test(after)"
+        # After a fronted subordinate clause, a noun object can end the clause before the main clause
+        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
+        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
+        return: >-
+          !known.noun && !known.adjective && !known.plural && !known.adverb
+            ? `to ${target}`
+            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
+              ? null
+              : /^about$/i.test(next) ||
+                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
+                ? `to ${target}`
+                : null
       - regex: "(?<![\\p{L}'’])(?:{{BASE_LEAD}}){{S}}(?:{{GOVERNOR_BASE}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
@@ -1172,7 +1307,38 @@ rules:
             "intend",
             "expect",
           ]
-        fixer: idioms5A2
+        let:
+          known: englishWordInfo(target)
+          end: m.index + m[0].length
+          rest: ctx.text.slice(end)
+          after: ctx.text.slice(end, end + 32)
+          next: tokenAfter(ctx, end)
+        when:
+          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
+          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
+          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
+          # plan deploy" at the text end may still be typed.
+          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
+          # "If it is not what you wanted please let me know": please opens the next clause, and so does
+          # a subject + auxiliary ("if you need help you should ask").
+          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
+          # "anything you need let me know", "the things he needs depend on": a relative clause. The
+          # text before the governor is the match without its last two words.
+          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
+          # "need write access", "want read rights": the verb names a kind of permission.
+          - "!EN_PERMISSION_AFTER.test(after)"
+        # After a fronted subordinate clause, a noun object can end the clause before the main clause
+        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
+        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
+        return: >-
+          !known.noun && !known.adjective && !known.plural && !known.adverb
+            ? `to ${target}`
+            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
+              ? null
+              : /^about$/i.test(next) ||
+                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
+                ? `to ${target}`
+                : null
       - regex: "(?:he|she|it|who|one|everyone|someone|somebody|everybody|nobody|anyone|anybody){{S}}(?:{{GOVERNOR_THIRD}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
@@ -1195,7 +1361,38 @@ rules:
             "intends",
             "expects",
           ]
-        fixer: idioms5A2
+        let:
+          known: englishWordInfo(target)
+          end: m.index + m[0].length
+          rest: ctx.text.slice(end)
+          after: ctx.text.slice(end, end + 32)
+          next: tokenAfter(ctx, end)
+        when:
+          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
+          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
+          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
+          # plan deploy" at the text end may still be typed.
+          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
+          # "If it is not what you wanted please let me know": please opens the next clause, and so does
+          # a subject + auxiliary ("if you need help you should ask").
+          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
+          # "anything you need let me know", "the things he needs depend on": a relative clause. The
+          # text before the governor is the match without its last two words.
+          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
+          # "need write access", "want read rights": the verb names a kind of permission.
+          - "!EN_PERMISSION_AFTER.test(after)"
+        # After a fronted subordinate clause, a noun object can end the clause before the main clause
+        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
+        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
+        return: >-
+          !known.noun && !known.adjective && !known.plural && !known.adverb
+            ? `to ${target}`
+            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
+              ? null
+              : /^about$/i.test(next) ||
+                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
+                ? `to ${target}`
+                : null
       - regex: "(?:{{BE_FORM}}|feel|feels|felt|seem|seems|seemed|not|so|very|really|always|more|less|quite|too){{S}}(?:{{GOVERNOR_ADJECTIVES}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
@@ -1211,7 +1408,38 @@ rules:
             "keen",
             "determined",
           ]
-        fixer: idioms5A2
+        let:
+          known: englishWordInfo(target)
+          end: m.index + m[0].length
+          rest: ctx.text.slice(end)
+          after: ctx.text.slice(end, end + 32)
+          next: tokenAfter(ctx, end)
+        when:
+          # "need further details", "want better tools": comparatives the dictionary lists as verbs.
+          - '!!known?.verbs.some((v) => v.form === "base") && !/^(?:be|not|do|further|farther|better|worse|lower|less)$/i.test(target)'
+          # "agree with", "try out": function words; "tried create+modify" names an operation; "They
+          # plan deploy" at the text end may still be typed.
+          - '!(FRAME_FUNCTION_WORD.test(target) || /^[^\s.,;:!?)]/u.test(rest) || !/\S/.test(rest))'
+          # "If it is not what you wanted please let me know": please opens the next clause, and so does
+          # a subject + auxiliary ("if you need help you should ask").
+          - "!(/^please$/i.test(target) || enClauseAfter(ctx, end))"
+          # "anything you need let me know", "the things he needs depend on": a relative clause. The
+          # text before the governor is the match without its last two words.
+          - '!enObjectGapBefore(`${enBefore(ctx, m.index, 48)}${m[0]}`.replace(/\s*\S+\s+\S+$/, ""))'
+          # "need write access", "want read rights": the verb names a kind of permission.
+          - "!EN_PERMISSION_AFTER.test(after)"
+        # After a fronted subordinate clause, a noun object can end the clause before the main clause
+        # ("When we needed help the neighbours came"). A word that is also a noun needs an object or
+        # "about" after it ("need talk about"). A time phrase is no object ("wanted cake an hour ago").
+        return: >-
+          !known.noun && !known.adjective && !known.plural && !known.adverb
+            ? `to ${target}`
+            : SUBORDINATE_LEAD.test(enBefore(ctx, m.index, 64))
+              ? null
+              : /^about$/i.test(next) ||
+                  (OBJECT_OPENER.test(next) && !DEGREE_AFTER_THE.test(after) && !TIME_AFTER.test(after))
+                ? `to ${target}`
+                : null
       - regex: "(?:(?=you)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:and|but|or|so|then|if|when|that|because|where|once|before|after|until|unless|while|now|always|never|also|just|often|usually){{S}})you{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
@@ -1235,7 +1463,7 @@ rules:
             "warmup",
             "workout",
           ]
-        fixer: idioms5Backup
+        return: PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "(?<![\\p{L}'’])(?:I|we|they|(?<=(?:^|[.!?;:]|\\b(?:hope|that|if|when|who)){{S}})you){{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
@@ -1259,7 +1487,7 @@ rules:
             "warmup",
             "workout",
           ]
-        fixer: idioms5Backup
+        return: PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "(?<![\\p{L}'’])who{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|setup|shutdown|signup|takeover|warmup|workout){{S}}(?:{{VERB_AFTER}}){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
@@ -1283,7 +1511,7 @@ rules:
             "warmup",
             "workout",
           ]
-        fixer: idioms5Backup
+        return: PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:will|would|can|could|should|must|might|may|shall)|never|(?<=(?:^|[^\\p{L}'’])(?:i|you|we|they|he|she|it|who){{S}})(?:do|does|did|could|would|should|can|wo|must|might)(?:n['’]t|{{S}}not)|please|let['’]s|cannot){{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
@@ -1307,7 +1535,7 @@ rules:
             "warmup",
             "workout",
           ]
-        fixer: idioms5Backup
+        return: PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "(?:{{IDIOMS5_INFINITIVE_LEAD}}){{S}}to{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
@@ -1331,7 +1559,11 @@ rules:
             "warmup",
             "workout",
           ]
-        fixer: idioms5Backup2
+        # "need to backup if it fails" may name the backup system.
+        return: >-
+          /^(?:if|when|unless|because|before|after|until|while|and|or|in)$/i.test(tokenAfter(ctx, m.index + m[0].length))
+            ? null
+            : PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "to{{S}}[a-z]+ly{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|setup|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
@@ -1355,7 +1587,7 @@ rules:
             "warmup",
             "workout",
           ]
-        fixer: idioms5Backup
+        return: PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "to{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{S}}(?:{{VERB_AFTER}}){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
@@ -1379,17 +1611,20 @@ rules:
             "warmup",
             "workout",
           ]
-        fixer: idioms5Backup
+        return: PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "(?<target>show(?:{{S}}case|-case|-cases|-cased|-casing)){{E}}(?!{{S}}(?:[0-9]|(?:stud(?:y|ies)|sensitive|insensitive|sensitivity|numbers?|files?|laws?|histor(?:y|ies)|notes?|reports?|examples?|results?|details?|statements?|summar(?:y|ies)|managers?|workers?|officers?|status){{E}}))"
         check: englishContextualCompounds
         message: review_msg_compounds
         cue: ["show"]
-        fixer: idioms5Show
+        return: 'target.replace(/[ \t -]+/, "")'
       - regex: "(?:(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those){{S}}|(?=soon)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8}))(?<target>soon{{S}}to{{S}}be){{S}}(?=[\\p{L}\\p{N}])"
         check: englishContextualCompounds
         message: review_msg_compounds
         cue: ["soon"]
-        fixer: idioms5Soon
+        let:
+          next: tokenAfter(ctx, group(m, "target")[1])
+        # At a clause start, only a noun makes it attributive: "Soon to be parents filled…".
+        return: '/^soon/i.test(m[0]) && (!lexiconNoun(next) || hasVerbForm(next, "past", "participle")) ? null : "soon-to-be"'
       - regex: "(?<target>vi[cs]e(?:-a-|{{S}}a{{S}}|-)versa)(?![\\p{L}\\p{N}_'’])"
         message: review_msg_phrase_correction
         cue: ["versa"]
@@ -1401,11 +1636,20 @@ rules:
       - regex: "{{notAfter:have|has|had|having|ought|got|need|needs|want|wants|going|condition|option|setting|mode}}(?<target>(?<first>to){{S}}(?<adverb>[a-z]+){{S}}to){{S}}(?<verb>[a-z]+){{E}}"
         message: review_msg_contextual_grammar
         cue: ["to"]
-        fixer: idioms5First
+        when:
+          - "ADVERB_SLOT.test(adverb) || (englishWordInfo(adverb)?.adverb && /ly$/i.test(adverb))"
+          - 'hasVerbForm(verb, "base")'
+        return: >-
+          ({
+            alternatives: /^(?:never|not)$/i.test(adverb)
+              ? [`${first} ${adverb}`, `${enRecase(first, adverb, m[0])} to`]
+              : [`${first} ${adverb}`],
+            raw: true,
+          })
       - regex: "(?<target>(?<verb>run|runs|ran|running){{S}}into{{S}}problem){{E}}"
         message: review_msg_phrase_correction
         cue: ["problem"]
-        fixer: idioms5Verb3
+        return: "lexiconNoun(tokenAfter(ctx, m.index + m[0].length)) ? null : [`${verb} into a problem`, `${verb} into problems`]"
       - regex: "{{notAfter:good}}(?<target>(?:till|til)(?:{{S}}|-)date){{E}}"
         message: review_msg_phrase_correction
         cue: ["till", "til"]
@@ -1434,17 +1678,21 @@ rules:
             "normally",
             "typically",
           ]
-        fixer: idioms5First2
+        return: "first.toLowerCase() === second.toLowerCase() ? null : { alternatives: [first, second], raw: true }"
       - regex: "(?<target>over{{S}}(?<number>[0-9][0-9,.]*(?:{{S}}(?:thousand|million|billion))?)(?:{{S}}(?<plus>plus)|\\+))(?![\\p{L}\\p{N}_-])(?!{{S}}(?:size|sizes|sized){{E}})"
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["over"]
-        fixer: idioms5Over
+        # "over 5,000 PLUS": capitals for emphasis are the writer's choice.
+        when: "!(plus && plus === plus.toUpperCase() && !/^OVER/.test(target))"
+        return: '({ alternatives: [`${target.slice(0, 4)} ${number}`, target.replace(/^over[ \t ]+/i, "")], raw: true })'
       - regex: "(?<target>(?<verb>eat|eats|ate|eaten|eating)){{S}}(?:(?:the|my|your|his|her|their|our|some|these|those|this|that|prescribed){{S}}){0,2}(?:{{MEDICINE}}){{E}}"
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["eat", "eats", "ate", "eaten", "eating"]
-        fixer: idioms5Verb4
+        let:
+          typed: verb.toLowerCase()
+        return: 'typed === "ate" ? ["took", "swallowed"] : TAKE_FOR_EAT[typed]'
       - regex: "(?:in|for|during|over|within|throughout){{S}}the{{S}}(?<target>last{{S}})(?:minutes|hours|days|weeks|months|years|decades){{E}}(?!{{S}}(?:of|before|after|until|till|prior|leading|preceding|following|when){{E}})"
         check: stylePhrasing
         message: review_msg_style_phrasing
@@ -1459,12 +1707,24 @@ rules:
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["rank", "ranks"]
-        fixer: idioms5Verb5
+        # Style: "rise up the ranks", "rise in the ranks" for the set "rise through the ranks".
+        let:
+          middle: ranksMiddle(mid)
+        when: '!(verb.toLowerCase() in RISE_FOR_RAISE || !middle || middle === "through")'
+        return: "/s$/i.test(rank) ? `${verb} through the ranks` : null"
       - regex: "(?<target>(?<verb>throw|throws|threw|thrown|throwing){{S}}(?<det>(?:(?:the|my|his|her|their|our|your|some|any|this|that|all{{S}}the){{S}})?)(?<noun>trash|garbage|rubbish|litter)){{E}}"
         check: stylePhrasing
         message: review_msg_style_phrasing
         cue: ["trash", "garbage", "rubbish", "litter"]
-        fixer: idioms5Verb6
+        let:
+          next: tokenAfter(ctx, m.index + m[0].length)
+          # "garbage data", "garbage comments": a noun (or an unknown word) after it.
+          known: "next && !FRAME_FUNCTION_WORD.test(next) ? englishWordInfo(next) : null"
+          tagged: "known && (known.noun || known.plural || known.adjective || known.adverb || known.verbs.length)"
+        when:
+          - "!(TRASH_AFTER.test(next) || (known !== null && !tagged))"
+          - '!(lexiconNoun(next) && !hasVerbForm(next, "ing"))'
+        return: "[`${verb} away ${det}${noun}`, `${verb} out ${det}${noun}`, `${verb} ${det}${noun} away`]"
   - id: en.moreMostDegree
     checks: [englishDoubledDegree, stylePhrasing]
     style: match
