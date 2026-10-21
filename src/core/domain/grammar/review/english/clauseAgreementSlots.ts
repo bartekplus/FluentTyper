@@ -383,8 +383,10 @@ export const FIXERS = {
    * before it.
    */
   clauseAgreementAsideSubject: (m, ctx) => {
-    if (!opensClause(ctx, m.index, CLAUSE_CUE)) return null;
     const det = m.groups!.det?.toLowerCase();
+    // Without a determiner the head is the first token and must not be lowercase (see below).
+    if (!det && m.groups!.head === m.groups!.head.toLowerCase()) return null;
+    if (!opensClause(ctx, m.index, CLAUSE_CUE)) return null;
     const tokens = tokensAfter(ctx, m.index, 24);
     let j = det ? 1 : 0;
     // Modifiers, the head, and an optional "in Asia"/"of war" phrase before the comma.
