@@ -1233,50 +1233,267 @@ rules:
     checks: [polishMisplacedComma]
     style: match
     message: review_msg_pl_misplaced_comma
+    maps:
+      # First word of a compound conjunction -> the words that may follow it. "tyle że" only after
+      # a comma or at the sentence start: "Zjadł tyle, że pękł" (so much that).
+      COMMA_COMPOUNDS:
+        {
+          mimo: że|iż,
+          pomimo: że|iż,
+          podczas: gdy,
+          chyba: że|żeby|by,
+          nawet: jeśli|jeżeli|gdy|gdyby|kiedy,
+          jeszcze: zanim,
+          a: więc,
+          o: ile,
+          pod warunkiem: że|iż,
+          tyle: że,
+        }
+    sets:
+      # Words after which no comma opens the clause: conjunctions, and the sentence's start.
+      COMMA_NO_COMMA_AFTER:
+        [
+          i,
+          a,
+          oraz,
+          lub,
+          albo,
+          bądź,
+          ani,
+          czy,
+          bo,
+          ale,
+          lecz,
+          niż,
+          jak,
+          jakby,
+          że,
+          iż,
+          żeby,
+          aby,
+          by,
+          gdy,
+          kiedy,
+          jeśli,
+          jeżeli,
+          gdyby,
+          który,
+          która,
+          które,
+          którego,
+          której,
+          którym,
+          których,
+          którzy,
+          to,
+        ]
+    defs:
+      COMMA_PAIRS: "({ tak: /^czy\\s/iu, chcąc: /^nie\\s+chcąc$/iu, bądź: /^co\\s+bądź$/iu, byle: /^jak$/iu, chybił: /^trafił$/iu, wypisz: /^wymaluj$/iu }) as Readonly<Record<string, RegExp>>"
     frames:
       # "mimo, że" -> "mimo że": a compound conjunction takes the comma before it as a whole.
       - regex: "(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<head>mimo|pomimo|podczas|chyba|nawet|jeszcze|a|o|pod[ \\t\\u00a0]+warunkiem|tyle)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<tail>że|iż|gdy|żeby|by|jeśli|jeżeli|gdyby|kiedy|zanim|więc|ile)(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: commaInsideConjunction
+        let:
+          headKey: 'head.toLowerCase().replace(/\s+/g, " ")'
+          headStart: "m.index + (prev ? prev.length + gap.length : 0)"
+          joined: head + " " + tail
+        when:
+          - 'new RegExp(`^(?:${COMMA_COMPOUNDS[headKey]})$`, "iu").test(tail)'
+          # "O, ile tu ludzi!" is the interjection "o".
+          - '!(headKey === "o" && /^O$/.test(head) && plSentenceStart(ctx.text, headStart))'
+          # "wtedy nawet, gdy" (even then, when) and "czy tak, czy owak" keep their comma; "mimo",
+          # "podczas" and "pod warunkiem" are never read apart ("tam mimo, że" -> "tam, mimo że").
+          - "!(prev && !/^(?:mimo|pomimo|podczas|pod)/iu.test(headKey) && /^(?:wtedy|wówczas|tylko|właśnie|tam|tu|czy)$/iu.test(prev))"
+          - '!(headKey === "tyle" && (prev || !/(?:^|[,.!?…]\s*|\n\s*)$/u.test(ctx.text.slice(Math.max(0, headStart - 8), headStart))))'
+        # "tam mimo, że" -> "tam, mimo że": the comma moves before the conjunction.
+        return: >-
+          prev && !COMMA_NO_COMMA_AFTER.has(prev.toLowerCase()) && !plUserOrNamed(ctx, prev)
+          ? plFindingAt(ctx, m.index, m.index + m[0].length, [prev + "," + gap + joined], "polishMisplacedComma",
+          "review_msg_pl_misplaced_comma")
+          : plFindingAt(ctx, headStart, m.index + m[0].length, [joined], "polishMisplacedComma",
+          "review_msg_pl_misplaced_comma")
       # Set phrases written without a comma: "tak czy owak", "chcąc nie chcąc".
       - regex: "(?<![\\p{L}])(?<phrase>(?<a>tak|chcąc|bądź|byle|chybił|wypisz)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<b>czy[ \\t\\u00a0]+(?:siak|owak|inaczej)|nie[ \\t\\u00a0]+chcąc|co[ \\t\\u00a0]+bądź|jak|trafił|wymaluj))(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: setPhraseCommas
+        when:
+          - '!/(?:^|[^\p{L}])czy[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))'
+          # "Tak, czy inaczej?" can answer a question; only mid-sentence or before more text.
+          - COMMA_PAIRS[a.toLowerCase()]?.test(b)
+        return: >-
+          plFindingAt(ctx, m.index, m.index + phrase.length, [a + " " + b], "polishMisplacedComma",
+          "review_msg_pl_misplaced_comma")
       # No comma before "itd."/"itp.". The match starts at the first space of a run: a long run of
       # spaces is read once, not at each space.
       - regex: "(?<![ \\t\\u00a0])(?<comma>[ \\t\\u00a0]*,)(?=[ \\t\\u00a0]*(?:itd|itp|etc)\\.)"
         scan: polish
         flags: gu
-        fixer: commaBeforeEtc
+        # "itp., itd.": a list of abbreviations.
+        when: ctx.text[m.index - 1] !== "."
+        return: >-
+          plFindingAt(ctx, m.index, m.index + comma.length, [""], "polishMisplacedComma",
+          "review_msg_pl_misplaced_comma")
       # "Do, czego", "nie wiem z, kim", "dom w, którym": a comma after a preposition, before the
       # pronoun it governs. The comma goes before the preposition, or away at the sentence start.
       - regex: "(?<![\\p{L}\\p{N}])(?:(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+))?(?<prep>za[ \\t\\u00a0]+pomocą|w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]*,[ \\t\\u00a0]*(?<pronoun>co|czego|czemu|czym|kogo|komu|kim|{{RELATIVE}}|{{JAKI}})(?![\\p{L}])"
         scan: polish
         flags: giu
-        fixer: commaAfterPreposition
+        let:
+          prepStart: "m.index + (prev ? prev.length + gap.length : 0)"
+          end: m.index + m[0].length
+          joined: prep + " " + pronoun
+          moved: prev && !COMMA_NO_COMMA_AFTER.has(prev.toLowerCase()) && !plSentenceStart(ctx.text, prepStart)
+        when:
+          # "O, kogo widzę!": the interjection "o" opens the sentence.
+          - "!(/^o$/iu.test(prep) && (!prev || COMMA_NO_COMMA_AFTER.has(prev.toLowerCase())))"
+          # "bez, co gorsza, kurtki": an aside opens after the preposition.
+          - '!/^[ \t ]*\p{L}+[ \t ]*,/u.test(ctx.text.slice(end, end + 30))'
+        return: >-
+          plFindingAt(ctx, moved ? m.index : prepStart, end, [moved ? prev + "," + gap + joined : joined],
+          "polishMisplacedComma", "review_msg_pl_misplaced_comma")
   - id: pl.missingCommas
     checks: [polishMissingComma]
     style: match
     message: review_msg_pl_missing_comma
+    defs:
+      # What makes the word after a subordinator part of a set phrase: "kiedy indziej", "póki co".
+      COMMA_SET_AFTER: >-
+        ({ kiedy: /^(?:indziej|niekiedy|bądź)$/iu, gdzie: /^(?:indziej|niegdzie|bądź)$/iu,
+        dlaczego: /^(?:innego|innym)$/iu }) as Readonly<Record<string, RegExp>>
+      COMMA_RELATIVE_WORD: /^(?:{{RELATIVE}})$/
+      COMMA_JAKI_WORD: /^(?:{{JAKI}})$/
+      COMMA_QUESTION_OR_RELATIVE: /^(?:dlaczego|gdzie|kiedy|{{RELATIVE}})$/
+      # Words after which the conjunction belongs to what comes before (compounds, coordination).
+      COMMA_OPENS_COMPOUND: >-
+        new Set([..."i a oraz lub albo bądź ani czy bo ale lecz niż jak jakby aż tylko właśnie nawet zwłaszcza szczególnie zaś dlatego mimo pomimo chyba tyle tak również także jednak jednakże przecież no pewnie jasne choć chociaż nie to wtedy wówczas raz co byle lada wiadomo potem zaraz dopiero jeszcze przy może omal nieomal prawie niemal więc zatem przeto przynajmniej dość jako tym bardziej daj mało rzadko warunkiem razie miarę chwili momencie czasie zamiast podczas dzięki wobec wie diabli licho oto".split(" "),
+        ..."{{SUBORDINATORS}}".split("|")])
+      # Which conjunctions each adverb may stand before.
+      COMMA_ADVERB_SUBS: >-
+        ({ tylko: /^(?:że|żeby|aby|by|gdy|kiedy)$/u, tak: /^(?:żeby|ażeby|aby|by)$/u, właśnie: /^(?:że|gdy|kiedy)$/u,
+        "z tym": /^(?:że|iż)$/u }) as Readonly<Record<string, RegExp>>
+      COMMA_SUBJECT_OR_OBJECT: /^(?:nie|ja|ty|on|ona|ono|my|wy|oni|one|go|ją|je|mu|mi|ci|się|to|mnie|cię|nas|was|ich|jej|im|nam|wam)$/u
+      # A compound conjunction takes the comma before it as a whole: "zdradził, mimo że".
+      COMMA_COMPOUND_TAILS: >-
+        ({ mimo: /^(?:że|iż)$/u, pomimo: /^(?:że|iż)$/u, nawet: /^(?:jeśli|jeżeli|gdy|kiedy|gdyby\p{L}{0,5})$/u,
+        dopiero: /^(?:gdy|kiedy|jak)$/u, zwłaszcza: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u,
+        szczególnie: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u, "tym bardziej": /^(?:że|iż)$/u,
+        "pod warunkiem": /^(?:że|iż)$/u, podczas: /^gdy$/u }) as Readonly<Record<string, RegExp>>
+      # "który" opens a relative clause here: not a question ("o której?"), not the indefinite
+      # "którego z" or "zaniemógł który", and no comma a few words back already opens the clause
+      # ("w trakcie którego", "za pomocą którego", "uzwojenie którego"). "i w czasie której":
+      # coordinated with an earlier relative; "złapać którego ptaka": indefinite.
+      commaRelativeClause:
+        args: "ctx: DetectContext, start: number, end: number"
+        let:
+          after: ctx.text.slice(end, end + 200)
+          before: ctx.text.slice(Math.max(0, start - 60), start)
+          clause: 'before.split(/[,;:—–(]/u).at(-1) ?? ""'
+          words: 'clause.match(/\p{L}+/gu) ?? []'
+        when:
+          - '!/^[ \t ]*(?:[.!?,;:…)"”»]|z[ \t ])/u.test(after)'
+          - '!/^[^.!?\n]*\?/u.test(after)'
+          - "!words.slice(-4).some((word) => /^(?:i|oraz|a|lub|albo)$/iu.test(word))"
+          - '!/ć$/u.test(words.at(-1) ?? "")'
+        return: "words.length > 3 || !/[,;:—–(]/u.test(before)"
+        else: "false"
+      # "to że" -> "to, że", unless a particle comes before ("no to że").
+      commaToZe:
+        args: "ctx: DetectContext, m: RegExpExecArray, prev: string, gap: string"
+        let:
+          before: '/(\p{L}+)[ \t ]+$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1]'
+        when: "!!before && !/^(?:no|i|a|ale|bo|lecz|tylko|właśnie|nawet|tak|jak|mimo|pomimo)$/iu.test(before) && !plUserOrNamed(ctx, before)"
+        return: plFindingAt(ctx, m.index, m.index + prev.length + gap.length, [prev + "," + gap], "polishMissingComma", "review_msg_pl_missing_comma")
+      # A comma before a conjunction or a relative pronoun.
+      commaMissing:
+        args: "ctx: DetectContext, m: RegExpExecArray, prev: string, gap: string, prep: string | undefined, sub: string, lowerPrev: string, relative: boolean"
+        let:
+          end: m.index + m[0].length
+          next: '/^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 40))?.[1] ?? ""'
+        when:
+          # A preposition only goes with the relative pronoun: "dom w którym".
+          - "!(prep && !relative)"
+          - "!(COMMA_OPENS_COMPOUND.has(lowerPrev) || PREPOSITION_WORDS.has(lowerPrev))"
+          # "ale" before punctuation is the noun ("bez żadnych ale"); "ale" opening an exclamation.
+          - '!((sub === "ale" || sub === "lecz") && !/^[ \t ]+\p{L}/u.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3)))'
+          - '!(plUserOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev))'
+          - "!COMMA_SET_AFTER[sub]?.test(next)"
+          # A bare question word ends the sentence without a comma: "Nie powie dlaczego."
+          - "!(!next && /^(?:dlaczego|gdzie|kiedy)$/.test(sub))"
+          - 'sub !== "by" || commaPurposeBy(ctx, prev, lowerPrev, next, end)'
+          # "jaki" opens a clause after a noun or an infinitive ("założeń, jakie mamy", "wyobrazić,
+          # jakie to było"), not as a question or an exclamation ("Jaki piękny dzień!"), not as
+          # "some" before a number ("jakich trzydziestu tysięcy") or after a comparison ("jak
+          # bałwan jaki").
+          - >-
+            !(COMMA_JAKI_WORD.test(sub) && (!(/ć$/u.test(prev) || plOnlyNoun(plNounTags(prev.toLowerCase()))) ||
+            !next || /^(?:\d|pół|półtor|jed|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|par|set|stu|sto|tysi)/iu.test(next) ||
+            /^[^.!\n]*[?!]/u.test(ctx.text.slice(end, end + 200)) ||
+            /(?:^|[^\p{L}])(?:jak|niczym|jakby)[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))))
+          # "zamiast" opens a clause only before an infinitive ("zamiast pracować"), not a noun.
+          - '!(sub === "zamiast" && !/(?:ć|c)$/u.test(next))'
+          # A direct question keeps its question word: "A ty gdzie idziesz?".
+          - '!(COMMA_QUESTION_OR_RELATIVE.test(sub) && /^[^.!\n]*\?/u.test(ctx.text.slice(end, end + 200)))'
+          # "złapać którego ptaka": after an infinitive "który" is the indefinite pronoun.
+          - "!(relative && (/ć$/u.test(prev) || !commaRelativeClause(ctx, m.index, m.index + m[0].length)))"
+        return: plFindingAt(ctx, m.index, m.index + prev.length + gap.length, [prev + "," + gap], "polishMissingComma", "review_msg_pl_missing_comma")
+      # "by" opens a clause of purpose before an infinitive ("wstąpił do domu, by się przebrać");
+      # "można by zrobić", "mógł by zrobić" (split "mógłby") keep the conditional particle.
+      # "Pokład szorowano by nie zostały ślady", "Pracuję by dzieci miały co jeść": after an
+      # impersonal or present verb, "by" with a past form opens a clause of purpose too.
+      commaPurposeBy:
+        args: "ctx: DetectContext, prev: string, lowerPrev: string, next: string, end: number"
+        let:
+          verb: 'next === "się" ? (/^[ \t ]+się[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 60))?.[1] ?? "") : next'
+          clause: '/^[ \t]+(?:\p{L}+[ \t]+){0,2}?(\p{Ll}+(?:ł|ła|ło|li|ły))(?![\p{L}])/u.exec(ctx.text.slice(end, end + 60))?.[1]'
+          purpose: >-
+            clause !== undefined && (plFiniteVerb(clause) || plAmbiguousVerb(clause)) &&
+            (plImpersonalVerb(lowerPrev) || (plFiniteVerb(lowerPrev) && !/(?:ł|ła|ło|li|ły)$/u.test(lowerPrev)))
+        return: >-
+          purpose || !(!/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(verb) || plNounTags(verb.toLowerCase()) ||
+          /^(?:można|trzeba|warto|wolno|lepiej|dobrze|trudno|łatwo|należy|należało|wypada|wypadało|opłacało|coś|nic)$/iu.test(prev) ||
+          /^(?:mógł|mogł|mogl|chcia|chcie|musia|musie|miał|miel|umiał|umiel|potrafi|wola|wole|zdoła|powin)/iu.test(prev))
     frames:
       # "Wiem że", "dom w którym": a subordinate clause is set off by a comma before its
       # conjunction or relative pronoun.
       - regex: "(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?:(?<prep>w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]+)?(?<sub>{{SUBORDINATORS}})(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gu
-        fixer: missingCommas
+        let:
+          lowerPrev: prev.toLowerCase()
+          relative: COMMA_RELATIVE_WORD.test(sub)
+        when:
+          - '!/\p{Lu}/u.test(sub[0])'
+          # The word must start where the match starts (no letters glued before it).
+          - '!/[\p{L}\p{N}_''’-]/u.test(ctx.text[m.index - 1] ?? "")'
+        # "to że" -> "to, że" ("Chodzi o to, że…"), but not the particle in "no to że".
+        return: >-
+          lowerPrev === "to" && /^(?:że|iż)$/.test(sub) ? commaToZe(ctx, m, prev, gap)
+          : commaMissing(ctx, m, prev, gap, prep, sub, lowerPrev, relative)
       # A compound conjunction takes the comma before it as a whole: "zdradził, mimo że".
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+)(?<gap>[ \\t\\u00a0]+)(?<head>mimo|pomimo|nawet|dopiero|zwłaszcza|szczególnie|tym[ \\t\\u00a0]+bardziej|pod[ \\t\\u00a0]+warunkiem|podczas)[ \\t\\u00a0]+(?<tail>\\p{Ll}+)(?![\\p{L}\\p{N}_'’-])"
         scan: polish
         flags: gu
-        fixer: missingCompoundCommas
+        let:
+          lowerPrev: prev.toLowerCase()
+          # "Zrobię to pod warunkiem że": "to" is the verb's object here, not "to że".
+          object: >-
+            lowerPrev === "to" && plFiniteVerb(/(\p{L}+)[ \t ]+$/u.exec(ctx.text.slice(Math.max(0,
+            m.index - 30), m.index))?.[1]?.toLowerCase() ?? "")
+        when:
+          - COMMA_COMPOUND_TAILS[head.replace(/\s+/gu, " ")]?.test(tail)
+          - "!(!object && (COMMA_OPENS_COMPOUND.has(lowerPrev) || PREPOSITION_WORDS.has(lowerPrev)))"
+          - '!(plUserOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev))'
+        return: >-
+          plFindingAt(ctx, m.index, m.index + prev.length + gap.length, [prev + "," + gap],
+          "polishMissingComma", "review_msg_pl_missing_comma")
       # "nie dość że" -> "nie dość, że".
       - regex: "(?<![\\p{L}])[Nn]ie[ \\t\\u00a0]+do\\u015B\\u0107(?=[ \\t\\u00a0]+\\u017Ce(?![\\p{L}]))"
         scan: polish
         flags: gu
-        fixer: notEnoughComma
+        return: >-
+          plFindingAt(ctx, m.index, m.index + m[0].length, [m[0] + ","], "polishMissingComma",
+          "review_msg_pl_missing_comma")
       # An adverb between a clause and its subordinate conjunction: "wstąpił zatem żeby się przebrać"
       # -> "zatem, żeby"; "uważano jednak iż" -> "jednak, iż"; "poszedł do domu tylko żeby" -> "domu,
       # tylko żeby" or "domu tylko, żeby", "z tym że" -> ", z tym że" or "z tym, że" (the writer
@@ -1284,13 +1501,42 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}\\p{Ll}*)(?<gap>[ \\t\\u00a0]+)(?<adverb>tylko|tak|właśnie|z[ \\t\\u00a0]+tym|zatem|więc|przeto|jednak|jednakże|przecież|także|również)(?<gap2>[ \\t\\u00a0]+)(?<sub>żeby|ażeby|aby|by|że|iż|gdy|kiedy)[ \\t\\u00a0]+(?:się[ \\t\\u00a0]+)?(?<next>\\p{L}+)"
         scan: polish
         flags: gu
-        fixer: adverbBeforeClause
+        let:
+          lower: prev.toLowerCase()
+          key: 'adverb.replace(/[ \t ]+/gu, " ")'
+          end: m.index + prev.length + gap.length + adverb.length + gap2.length + sub.length
+        when:
+          - "!(COMMA_OPENS_COMPOUND.has(lower) || PREPOSITION_WORDS.has(lower) || plUserOrNamed(ctx, prev))"
+          # A capital inside the sentence names something.
+          - "!(prev !== lower && !plSentenceStart(ctx.text, m.index))"
+          - (COMMA_ADVERB_SUBS[key] ?? /^(?:że|iż|żeby|ażeby|aby|by)$/u).test(sub)
+          # "tak by było lepiej": the conditional "by" goes with a finite verb, not an infinitive.
+          - '!(sub === "by" && (!/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(next) || plNounTags(next)))'
+        # Adverbs that also open the conjunction ("tylko że", "tak żeby"): the comma goes either side.
+        return: >-
+          plFindingAt(ctx, m.index, end, /^(?:tylko|tak|właśnie|z[ \t ]+tym)$/u.test(adverb)
+          ? [prev + "," + gap + adverb + gap2 + sub, prev + gap + adverb + "," + gap2 + sub]
+          : [prev + gap + adverb + "," + gap2 + sub], "polishMissingComma", "review_msg_pl_missing_comma")
       # Conjunctions that are also other words ("póki czas", "choć raz", "o ile więcej"): they open a
       # clause, and want the comma before them, only before a verb, "nie" or a pronoun subject.
       - regex: "(?<![\\p{L}\\p{N}_'’-])(?<prev>\\p{L}+(?:-\\p{L}+)?)(?<gap>[ \\t\\u00a0]+)(?<sub>póki|chociaż|choć|dopóty|o[ \\t\\u00a0]+ile)[ \\t\\u00a0]+(?<next>\\p{L}+)"
         scan: polish
         flags: gu
-        fixer: clauseOpeners
+        let:
+          lower: prev.toLowerCase()
+          nextLower: next.toLowerCase()
+        when:
+          - "!(COMMA_OPENS_COMPOUND.has(lower) || PREPOSITION_WORDS.has(lower) || plUserOrNamed(ctx, prev))"
+          - "!(prev !== lower && !plSentenceStart(ctx.text, m.index))"
+          # "Dopóki …, dopóty …": the correlative of a clause that opened the sentence.
+          - >-
+            sub === "dopóty" ? /^[\s„"(]*dopóki(?![\p{L}])/iu.test(ctx.text.slice(Math.max(0, m.index - 200),
+            m.index).split(/[.!?\n]/u).at(-1)!) : COMMA_SUBJECT_OR_OBJECT.test(nextLower) || plFiniteVerb(nextLower)
+          # A question keeps "o ile" whole: "O ile wzrosła cena?".
+          - '!/^[^.!\n]*\?/u.test(ctx.text.slice(m.index, m.index + 200))'
+        return: >-
+          plFindingAt(ctx, m.index, m.index + prev.length + gap.length, [prev + "," + gap],
+          "polishMissingComma", "review_msg_pl_missing_comma")
   # Prepositions with a vowel-extended form: "we" and "ze" before a hard consonant cluster ("we
   # wtorek", "ze Świecia"), "ode/beze/przeze/przede/nade/pode" before "mnie/mną", and the short
   # form everywhere else.

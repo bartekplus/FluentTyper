@@ -16,6 +16,7 @@ import {
   plAdjectiveForm,
   plAdjectiveOf,
   plAmbiguousAdjective,
+  plAmbiguousVerb,
   plCaseLike,
   plCases,
   plContextYear,
@@ -124,6 +125,42 @@ export const ZE_NOT_CONJUNCTION: ReadonlySet<string> = new Set([
   "miesiąc",
   "rok",
   "dzień",
+]);
+
+export const COMMA_NO_COMMA_AFTER: ReadonlySet<string> = new Set([
+  "i",
+  "a",
+  "oraz",
+  "lub",
+  "albo",
+  "bądź",
+  "ani",
+  "czy",
+  "bo",
+  "ale",
+  "lecz",
+  "niż",
+  "jak",
+  "jakby",
+  "że",
+  "iż",
+  "żeby",
+  "aby",
+  "by",
+  "gdy",
+  "kiedy",
+  "jeśli",
+  "jeżeli",
+  "gdyby",
+  "który",
+  "która",
+  "które",
+  "którego",
+  "której",
+  "którym",
+  "których",
+  "którzy",
+  "to",
 ]);
 
 export const DEGREE_IRREGULAR_ADVERBS: ReadonlySet<string> = new Set([
@@ -377,6 +414,19 @@ export const NUMERAL_COLLECTIVE_NOUNS: Readonly<Record<string, string>> = {
   prosięta: "prosiąt",
   pisklęta: "piskląt",
   niemowlęta: "niemowląt",
+};
+
+export const COMMA_COMPOUNDS: Readonly<Record<string, string>> = {
+  mimo: "że|iż",
+  pomimo: "że|iż",
+  podczas: "gdy",
+  chyba: "że|żeby|by",
+  nawet: "jeśli|jeżeli|gdy|gdyby|kiedy",
+  jeszcze: "zanim",
+  a: "więc",
+  o: "ile",
+  "pod warunkiem": "że|iż",
+  tyle: "że",
 };
 
 export const FORMS_NA_PLACES: Readonly<Record<string, string>> = {
@@ -903,6 +953,189 @@ export function dateWeekday(
         "polishDates",
         key,
       );
+}
+
+// pl.yaml rule pl.misplacedCommas def COMMA_PAIRS
+export const COMMA_PAIRS = {
+  tak: /^czy\s/iu,
+  chcąc: /^nie\s+chcąc$/iu,
+  bądź: /^co\s+bądź$/iu,
+  byle: /^jak$/iu,
+  chybił: /^trafił$/iu,
+  wypisz: /^wymaluj$/iu,
+} as Readonly<Record<string, RegExp>>;
+
+// pl.yaml rule pl.missingCommas def COMMA_SET_AFTER
+export const COMMA_SET_AFTER = {
+  kiedy: /^(?:indziej|niekiedy|bądź)$/iu,
+  gdzie: /^(?:indziej|niegdzie|bądź)$/iu,
+  dlaczego: /^(?:innego|innym)$/iu,
+} as Readonly<Record<string, RegExp>>;
+
+// pl.yaml rule pl.missingCommas def COMMA_RELATIVE_WORD
+export const COMMA_RELATIVE_WORD =
+  /^(?:który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)$/;
+
+// pl.yaml rule pl.missingCommas def COMMA_JAKI_WORD
+export const COMMA_JAKI_WORD =
+  /^(?:jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi)$/;
+
+// pl.yaml rule pl.missingCommas def COMMA_QUESTION_OR_RELATIVE
+export const COMMA_QUESTION_OR_RELATIVE =
+  /^(?:dlaczego|gdzie|kiedy|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)$/;
+
+// pl.yaml rule pl.missingCommas def COMMA_OPENS_COMPOUND
+export const COMMA_OPENS_COMPOUND = new Set([
+  ..."i a oraz lub albo bądź ani czy bo ale lecz niż jak jakby aż tylko właśnie nawet zwłaszcza szczególnie zaś dlatego mimo pomimo chyba tyle tak również także jednak jednakże przecież no pewnie jasne choć chociaż nie to wtedy wówczas raz co byle lada wiadomo potem zaraz dopiero jeszcze przy może omal nieomal prawie niemal więc zatem przeto przynajmniej dość jako tym bardziej daj mało rzadko warunkiem razie miarę chwili momencie czasie zamiast podczas dzięki wobec wie diabli licho oto".split(
+    " ",
+  ),
+  ..."że|iż|żeby|ażeby|aby|by|ponieważ|gdyż|jeśli|jeżeli|gdyby|zanim|dopóki|gdy|zamiast|ale|lecz|dlaczego|gdzie|kiedy|który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy|jaki|jaka|jakie|jakiego|jakiej|jakiemu|jaką|jakim|jakich|jakimi".split(
+    "|",
+  ),
+]);
+
+// pl.yaml rule pl.missingCommas def COMMA_ADVERB_SUBS
+export const COMMA_ADVERB_SUBS = {
+  tylko: /^(?:że|żeby|aby|by|gdy|kiedy)$/u,
+  tak: /^(?:żeby|ażeby|aby|by)$/u,
+  właśnie: /^(?:że|gdy|kiedy)$/u,
+  "z tym": /^(?:że|iż)$/u,
+} as Readonly<Record<string, RegExp>>;
+
+// pl.yaml rule pl.missingCommas def COMMA_SUBJECT_OR_OBJECT
+export const COMMA_SUBJECT_OR_OBJECT =
+  /^(?:nie|ja|ty|on|ona|ono|my|wy|oni|one|go|ją|je|mu|mi|ci|się|to|mnie|cię|nas|was|ich|jej|im|nam|wam)$/u;
+
+// pl.yaml rule pl.missingCommas def COMMA_COMPOUND_TAILS
+export const COMMA_COMPOUND_TAILS = {
+  mimo: /^(?:że|iż)$/u,
+  pomimo: /^(?:że|iż)$/u,
+  nawet: /^(?:jeśli|jeżeli|gdy|kiedy|gdyby\p{L}{0,5})$/u,
+  dopiero: /^(?:gdy|kiedy|jak)$/u,
+  zwłaszcza: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u,
+  szczególnie: /^(?:że|gdy|kiedy|jeśli|jeżeli)$/u,
+  "tym bardziej": /^(?:że|iż)$/u,
+  "pod warunkiem": /^(?:że|iż)$/u,
+  podczas: /^gdy$/u,
+} as Readonly<Record<string, RegExp>>;
+
+// pl.yaml rule pl.missingCommas def commaRelativeClause
+export function commaRelativeClause(ctx: DetectContext, start: number, end: number) {
+  const after = ctx.text.slice(end, end + 200);
+  if (/^[ \t ]*(?:[.!?,;:…)"”»]|z[ \t ])/u.test(after)) return false;
+  if (/^[^.!?\n]*\?/u.test(after)) return false;
+  const before = ctx.text.slice(Math.max(0, start - 60), start);
+  const clause = before.split(/[,;:—–(]/u).at(-1) ?? "";
+  const words = clause.match(/\p{L}+/gu) ?? [];
+  if (words.slice(-4).some((word) => /^(?:i|oraz|a|lub|albo)$/iu.test(word))) return false;
+  if (/ć$/u.test(words.at(-1) ?? "")) return false;
+  return words.length > 3 || !/[,;:—–(]/u.test(before);
+}
+
+// pl.yaml rule pl.missingCommas def commaToZe
+export function commaToZe(ctx: DetectContext, m: RegExpExecArray, prev: string, gap: string) {
+  const before = /(\p{L}+)[ \t ]+$/u.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1];
+  if (!(
+    !!before &&
+    !/^(?:no|i|a|ale|bo|lecz|tylko|właśnie|nawet|tak|jak|mimo|pomimo)$/iu.test(before) &&
+    !plUserOrNamed(ctx, before)
+  ))
+    return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    m.index + prev.length + gap.length,
+    [prev + "," + gap],
+    "polishMissingComma",
+    "review_msg_pl_missing_comma",
+  );
+}
+
+// pl.yaml rule pl.missingCommas def commaMissing
+export function commaMissing(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  prev: string,
+  gap: string,
+  prep: string | undefined,
+  sub: string,
+  lowerPrev: string,
+  relative: boolean,
+) {
+  if (prep && !relative) return null;
+  if (COMMA_OPENS_COMPOUND.has(lowerPrev) || PREPOSITION_WORDS.has(lowerPrev)) return null;
+  if (
+    (sub === "ale" || sub === "lecz") &&
+    !/^[ \t ]+\p{L}/u.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 3))
+  )
+    return null;
+  if (plUserOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev)) return null;
+  const end = m.index + m[0].length;
+  const next = /^[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 40))?.[1] ?? "";
+  if (COMMA_SET_AFTER[sub]?.test(next)) return null;
+  if (!next && /^(?:dlaczego|gdzie|kiedy)$/.test(sub)) return null;
+  if (!(sub !== "by" || commaPurposeBy(ctx, prev, lowerPrev, next, end))) return null;
+  if (
+    COMMA_JAKI_WORD.test(sub) &&
+    (!(/ć$/u.test(prev) || plOnlyNoun(plNounTags(prev.toLowerCase()))) ||
+      !next ||
+      /^(?:\d|pół|półtor|jed|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|par|set|stu|sto|tysi)/iu.test(
+        next,
+      ) ||
+      /^[^.!\n]*[?!]/u.test(ctx.text.slice(end, end + 200)) ||
+      /(?:^|[^\p{L}])(?:jak|niczym|jakby)[ \t ]+$/iu.test(
+        ctx.text.slice(Math.max(0, m.index - 12), m.index),
+      ))
+  )
+    return null;
+  if (sub === "zamiast" && !/(?:ć|c)$/u.test(next)) return null;
+  if (COMMA_QUESTION_OR_RELATIVE.test(sub) && /^[^.!\n]*\?/u.test(ctx.text.slice(end, end + 200)))
+    return null;
+  if (relative && (/ć$/u.test(prev) || !commaRelativeClause(ctx, m.index, m.index + m[0].length)))
+    return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    m.index + prev.length + gap.length,
+    [prev + "," + gap],
+    "polishMissingComma",
+    "review_msg_pl_missing_comma",
+  );
+}
+
+// pl.yaml rule pl.missingCommas def commaPurposeBy
+export function commaPurposeBy(
+  ctx: DetectContext,
+  prev: string,
+  lowerPrev: string,
+  next: string,
+  end: number,
+) {
+  const verb =
+    next === "się"
+      ? (/^[ \t ]+się[ \t ]+(\p{L}+)/u.exec(ctx.text.slice(end, end + 60))?.[1] ?? "")
+      : next;
+  const clause = /^[ \t]+(?:\p{L}+[ \t]+){0,2}?(\p{Ll}+(?:ł|ła|ło|li|ły))(?![\p{L}])/u.exec(
+    ctx.text.slice(end, end + 60),
+  )?.[1];
+  const purpose =
+    clause !== undefined &&
+    (plFiniteVerb(clause) || plAmbiguousVerb(clause)) &&
+    (plImpersonalVerb(lowerPrev) ||
+      (plFiniteVerb(lowerPrev) && !/(?:ł|ła|ło|li|ły)$/u.test(lowerPrev)));
+  return (
+    purpose ||
+    !(
+      !/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(verb) ||
+      plNounTags(verb.toLowerCase()) ||
+      /^(?:można|trzeba|warto|wolno|lepiej|dobrze|trudno|łatwo|należy|należało|wypada|wypadało|opłacało|coś|nic)$/iu.test(
+        prev,
+      ) ||
+      /^(?:mógł|mogł|mogl|chcia|chcie|musia|musie|miał|miel|umiał|umiel|potrafi|wola|wole|zdoła|powin)/iu.test(
+        prev,
+      )
+    )
+  );
 }
 
 // pl.yaml rule pl.prepositionForms def PREPOSITION_LONG
@@ -2208,6 +2441,216 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       years,
       "polishDates",
       "review_msg_pl_impossible_date",
+    );
+  },
+  // pl.yaml rule pl.misplacedCommas frame 1
+  "@pl.misplacedCommas/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const head = m.groups!.head;
+    const tail = m.groups!.tail;
+    const headKey = head.toLowerCase().replace(/\s+/g, " ");
+    if (!new RegExp(`^(?:${COMMA_COMPOUNDS[headKey]})$`, "iu").test(tail)) return null;
+    const headStart = m.index + (prev ? prev.length + gap.length : 0);
+    if (headKey === "o" && /^O$/.test(head) && plSentenceStart(ctx.text, headStart)) return null;
+    if (
+      prev &&
+      !/^(?:mimo|pomimo|podczas|pod)/iu.test(headKey) &&
+      /^(?:wtedy|wówczas|tylko|właśnie|tam|tu|czy)$/iu.test(prev)
+    )
+      return null;
+    if (
+      headKey === "tyle" &&
+      (prev ||
+        !/(?:^|[,.!?…]\s*|\n\s*)$/u.test(ctx.text.slice(Math.max(0, headStart - 8), headStart)))
+    )
+      return null;
+    const joined = head + " " + tail;
+    return prev && !COMMA_NO_COMMA_AFTER.has(prev.toLowerCase()) && !plUserOrNamed(ctx, prev)
+      ? plFindingAt(
+          ctx,
+          m.index,
+          m.index + m[0].length,
+          [prev + "," + gap + joined],
+          "polishMisplacedComma",
+          "review_msg_pl_misplaced_comma",
+        )
+      : plFindingAt(
+          ctx,
+          headStart,
+          m.index + m[0].length,
+          [joined],
+          "polishMisplacedComma",
+          "review_msg_pl_misplaced_comma",
+        );
+  },
+  // pl.yaml rule pl.misplacedCommas frame 2
+  "@pl.misplacedCommas/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const phrase = m.groups!.phrase;
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    if (/(?:^|[^\p{L}])czy[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))
+      return null;
+    if (!COMMA_PAIRS[a.toLowerCase()]?.test(b)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + phrase.length,
+      [a + " " + b],
+      "polishMisplacedComma",
+      "review_msg_pl_misplaced_comma",
+    );
+  },
+  // pl.yaml rule pl.misplacedCommas frame 3
+  "@pl.misplacedCommas/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const comma = m.groups!.comma;
+    if (!(ctx.text[m.index - 1] !== ".")) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + comma.length,
+      [""],
+      "polishMisplacedComma",
+      "review_msg_pl_misplaced_comma",
+    );
+  },
+  // pl.yaml rule pl.misplacedCommas frame 4
+  "@pl.misplacedCommas/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const prep = m.groups!.prep;
+    const pronoun = m.groups!.pronoun;
+    if (/^o$/iu.test(prep) && (!prev || COMMA_NO_COMMA_AFTER.has(prev.toLowerCase()))) return null;
+    const prepStart = m.index + (prev ? prev.length + gap.length : 0);
+    const end = m.index + m[0].length;
+    if (/^[ \t ]*\p{L}+[ \t ]*,/u.test(ctx.text.slice(end, end + 30))) return null;
+    const joined = prep + " " + pronoun;
+    const moved =
+      prev &&
+      !COMMA_NO_COMMA_AFTER.has(prev.toLowerCase()) &&
+      !plSentenceStart(ctx.text, prepStart);
+    return plFindingAt(
+      ctx,
+      moved ? m.index : prepStart,
+      end,
+      [moved ? prev + "," + gap + joined : joined],
+      "polishMisplacedComma",
+      "review_msg_pl_misplaced_comma",
+    );
+  },
+  // pl.yaml rule pl.missingCommas frame 1
+  "@pl.missingCommas/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const prep = m.groups!.prep;
+    const sub = m.groups!.sub;
+    if (/\p{Lu}/u.test(sub[0])) return null;
+    if (/[\p{L}\p{N}_'’-]/u.test(ctx.text[m.index - 1] ?? "")) return null;
+    const lowerPrev = prev.toLowerCase();
+    const relative = COMMA_RELATIVE_WORD.test(sub);
+    return lowerPrev === "to" && /^(?:że|iż)$/.test(sub)
+      ? commaToZe(ctx, m, prev, gap)
+      : commaMissing(ctx, m, prev, gap, prep, sub, lowerPrev, relative);
+  },
+  // pl.yaml rule pl.missingCommas frame 2
+  "@pl.missingCommas/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const head = m.groups!.head;
+    const tail = m.groups!.tail;
+    if (!COMMA_COMPOUND_TAILS[head.replace(/\s+/gu, " ")]?.test(tail)) return null;
+    const lowerPrev = prev.toLowerCase();
+    const object =
+      lowerPrev === "to" &&
+      plFiniteVerb(
+        /(\p{L}+)[ \t ]+$/u
+          .exec(ctx.text.slice(Math.max(0, m.index - 30), m.index))?.[1]
+          ?.toLowerCase() ?? "",
+      );
+    if (!object && (COMMA_OPENS_COMPOUND.has(lowerPrev) || PREPOSITION_WORDS.has(lowerPrev)))
+      return null;
+    if (plUserOrNamed(ctx, prev) || /^\p{Lu}+$/u.test(prev)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + prev.length + gap.length,
+      [prev + "," + gap],
+      "polishMissingComma",
+      "review_msg_pl_missing_comma",
+    );
+  },
+  // pl.yaml rule pl.missingCommas frame 3
+  "@pl.missingCommas/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [m[0] + ","],
+      "polishMissingComma",
+      "review_msg_pl_missing_comma",
+    );
+  },
+  // pl.yaml rule pl.missingCommas frame 4
+  "@pl.missingCommas/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const adverb = m.groups!.adverb;
+    const gap2 = m.groups!.gap2;
+    const sub = m.groups!.sub;
+    const next = m.groups!.next;
+    const lower = prev.toLowerCase();
+    if (COMMA_OPENS_COMPOUND.has(lower) || PREPOSITION_WORDS.has(lower) || plUserOrNamed(ctx, prev))
+      return null;
+    if (prev !== lower && !plSentenceStart(ctx.text, m.index)) return null;
+    const key = adverb.replace(/[ \t ]+/gu, " ");
+    if (!(COMMA_ADVERB_SUBS[key] ?? /^(?:że|iż|żeby|ażeby|aby|by)$/u).test(sub)) return null;
+    if (
+      sub === "by" &&
+      (!/(?:ć|móc|biec|wlec|strzec|piec|rzec|tłuc)$/u.test(next) || plNounTags(next))
+    )
+      return null;
+    const end = m.index + prev.length + gap.length + adverb.length + gap2.length + sub.length;
+    return plFindingAt(
+      ctx,
+      m.index,
+      end,
+      /^(?:tylko|tak|właśnie|z[ \t ]+tym)$/u.test(adverb)
+        ? [prev + "," + gap + adverb + gap2 + sub, prev + gap + adverb + "," + gap2 + sub]
+        : [prev + gap + adverb + "," + gap2 + sub],
+      "polishMissingComma",
+      "review_msg_pl_missing_comma",
+    );
+  },
+  // pl.yaml rule pl.missingCommas frame 5
+  "@pl.missingCommas/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prev = m.groups!.prev;
+    const gap = m.groups!.gap;
+    const sub = m.groups!.sub;
+    const next = m.groups!.next;
+    const lower = prev.toLowerCase();
+    if (COMMA_OPENS_COMPOUND.has(lower) || PREPOSITION_WORDS.has(lower) || plUserOrNamed(ctx, prev))
+      return null;
+    if (prev !== lower && !plSentenceStart(ctx.text, m.index)) return null;
+    const nextLower = next.toLowerCase();
+    if (
+      !(sub === "dopóty"
+        ? /^[\s„"(]*dopóki(?![\p{L}])/iu.test(
+            ctx.text
+              .slice(Math.max(0, m.index - 200), m.index)
+              .split(/[.!?\n]/u)
+              .at(-1)!,
+          )
+        : COMMA_SUBJECT_OR_OBJECT.test(nextLower) || plFiniteVerb(nextLower))
+    )
+      return null;
+    if (/^[^.!\n]*\?/u.test(ctx.text.slice(m.index, m.index + 200))) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + prev.length + gap.length,
+      [prev + "," + gap],
+      "polishMissingComma",
+      "review_msg_pl_missing_comma",
     );
   },
   // pl.yaml rule pl.prepositionForms frame 1

@@ -3,7 +3,6 @@
 import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
 import * as agreement from "./agreement";
 import * as clauses from "./clauses";
-import * as commas from "./commas";
 
 export const PREDICATES = mergePredicates();
 
@@ -11,7 +10,6 @@ export const PREDICATES = mergePredicates();
 export const FIXERS = mergePredicates<Fixer>(
   agreement.FIXERS,
   clauses.FIXERS,
-  commas.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/pl.yaml (`filter:`). */
