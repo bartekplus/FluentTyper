@@ -428,8 +428,21 @@ export function compileRuleFiles(
         phraseTableKinds[lang] = PHRASE_KINDS.filter((kind) => phrases[lang][kind]);
       }
     }
-    for (const [table, rows] of Object.entries(file.tables ?? {}))
-      tables[`${name}.${table}`] = parseRows(rows, `${name}.yaml tables.${table}`, errors);
+    // review/english/tables.ts pools the "<module>.<kind>" tables of a kind: a typed form that
+    // a pool has two times is a dead row.
+    const typedIn = new Map<string, string>();
+    for (const [table, rows] of Object.entries(file.tables ?? {})) {
+      const where = `${name}.yaml tables.${table}`;
+      const pool = table.replace(/^[^.]+(?=\.(?:phrases|compounds|style)$)/, "*");
+      for (const [typed, fix] of (tables[`${name}.${table}`] = parseRows(rows, where, errors)))
+        for (const form of [typed].flat()) {
+          const key = `${pool} ${form.toLowerCase()}`;
+          if ([fix].flat().includes(form)) errors.push(`${where}: row "${form}" fixes to itself`);
+          if (typedIn.has(key))
+            errors.push(`${where}: "${form}" is also a row of ${typedIn.get(key)}`);
+          else typedIn.set(key, where);
+        }
+    }
   }
 
   const reviewMetadata: Record<string, ReviewMetadataOut> = {};

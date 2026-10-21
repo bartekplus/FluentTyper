@@ -27477,14 +27477,9 @@ tables:
     catch your breathe = catch your breath
     a deep breathe = a deep breath
     waste your breathe = waste your breath
-    free trail = free trial
     30-day trail = 30-day trial
     14-day trail = 14-day trial
     7-day trail = 7-day trial
-    trail period = trial period
-    trail version = trial version
-    trail account = trial account
-    trail license = trial license
     trail expired = trial expired
     trail ends = trial ends
     trail ended = trial ended
@@ -27626,8 +27621,8 @@ tables:
     on the bright site = on the bright side
     on the flip site = on the flip side
   misheardWords.phrases: |
-    route cause | rout cause = root cause
-    route causes | rout causes = root causes
+    rout cause = root cause
+    rout causes = root causes
     take case of = take care of
     takes case of = takes care of
     took case of = took care of
@@ -27702,7 +27697,7 @@ tables:
     rear wheel drive = rear-wheel drive
     four wheel drive = four-wheel drive
   neighbourTypos.phrases: |
-    in another words | another words = in other words
+    another words = in other words
     et all = et al.
     climate chance = climate change
     ally concern | ally fear = allay concern; allay fear
@@ -27717,7 +27712,7 @@ tables:
     in relieve = in relief
     no mater what = no matter what
     brake away from = break away from
-    taken a back by | taken aback by = taken aback by
+    taken a back by = taken aback by
     doggy-dog world = dog-eat-dog world
   closedCompounds: |
     back ground = background
@@ -28349,21 +28344,13 @@ tables:
     four engined = four-engined
     Harley Davidson = Harley-Davidson
     right hand man = right-hand man
-    right hand side = right-hand side
-    right hand corner = right-hand corner
     right hand drive = right-hand drive
     right hand lane = right-hand lane
     right hand turn = right-hand turn
-    right hand column = right-hand column
-    right hand margin = right-hand margin
     left hand man = left-hand man
-    left hand side = left-hand side
-    left hand corner = left-hand corner
     left hand drive = left-hand drive
     left hand lane = left-hand lane
     left hand turn = left-hand turn
-    left hand column = left-hand column
-    left hand margin = left-hand margin
     off ramp = off-ramp
     off ramps = off-ramps
     on ramp = on-ramp
@@ -28381,7 +28368,6 @@ tables:
     out run = outrun
     back filled = backfilled
     under appreciate = underappreciate
-    under appreciated = underappreciated
     under appreciates = underappreciates
     hitch hike = hitchhike
     hitch hiked = hitchhiked
@@ -28530,7 +28516,6 @@ tables:
     out grow = outgrow
     out grows = outgrows
     out grew = outgrew
-    out grown = outgrown
     out growing = outgrowing
     back fire = backfire
     back fires = backfires
@@ -28540,8 +28525,6 @@ tables:
     over stated = overstated
     over turn = overturn
     over whelm = overwhelm
-    over whelmed = overwhelmed
-    over whelming = overwhelming
   dialects.both: |
     colour = color
     colours = colors
@@ -30960,9 +30943,6 @@ tables:
     recedes back = recedes
     receded back = receded
     receding back = receding
-    returns back = returns
-    returned back = returned
-    returning back = returning
     repeats again = repeats
     repeated again = repeated
     repeating again = repeating
