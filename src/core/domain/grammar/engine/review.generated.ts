@@ -17572,7 +17572,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?:que|ingles|paris|seria)(?![\\p{L}\\p{M}])",
     literals: ["que", "ingles", "paris", "seria"],
-    fixer: "es:paraQueAccent",
+    fixer: "es:@es.paraQueAccent/1",
     flags: "giu",
     scan: "owned",
   }),
@@ -17655,7 +17655,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{L}[\\p{L}\\p{M}]*",
     literals: [],
-    fixer: "es:clauseConfusions",
+    fixer: "es:@es.clauseConfusions/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -18061,7 +18061,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:a|pueden|pod[ií]an|podr[ií]an|pudieron|deben|deb[ií]an|deber[ií]an|suelen|sol[ií]an|van|iban|tienen|ten[ií]an|tendr[aá]n|tendr[ií]an)(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "es:clauseAgreement",
+    fixer: "es:@es.clauseAgreement/1",
     flags: "giu",
     scan: "owned",
   }),
@@ -18076,7 +18076,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:hace|tambi[eé]n|tampoco|ya|s[oó]lo|a[uú]n|todav[ií]a|siempre|nunca)(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "es:clauseStyle",
+    fixer: "es:@es.clauseStyle/1",
     flags: "giu",
     scan: "owned",
   }),

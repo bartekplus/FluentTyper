@@ -2,7 +2,6 @@
 // languages and order.
 import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
 import * as agreement from "./agreement";
-import * as clauses from "./clauses";
 import * as frames from "./frames";
 import * as verbAgreement from "./verbAgreement";
 
@@ -12,7 +11,6 @@ export const PREDICATES = mergePredicates();
 export const FIXERS = mergePredicates<Fixer>(
   agreement.FIXERS,
   verbAgreement.FIXERS,
-  clauses.FIXERS,
   frames.FIXERS,
 );
 
