@@ -409,6 +409,15 @@ function verbAfterObjectRelative(text: string, tokens: ClauseToken[], i: number)
   return tokens[k] && ENGLISH_CLAUSE.isFiniteVerb(tokens[k]) ? k : -1;
 }
 
+/**
+ * afterBreak(ctx, index) || cue.test(wordBefore(ctx, index)), for a `cue` that never matches "".
+ * A word right before `index` means no break stands there, so afterBreak runs only without one.
+ */
+export function opensClause(ctx: DetectContext, index: number, cue: RegExp): boolean {
+  const before = wordBefore(ctx, index);
+  return before ? cue.test(before) : afterBreak(ctx, index);
+}
+
 // The word token of tokensAfter, with no other token kind.
 const WORD =
   /[ \t\u00a0]*([A-Za-z]+(?:['’][A-Za-z]+)?)(?![\p{L}\p{M}\p{N}_@/#\\-]|\.[\p{L}\p{N}])/uy;
@@ -484,10 +493,10 @@ function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): Raw
   }
   // A clause opens at a break, a cue word, a list bullet ("- The message…") or a comma after
   // an opening phrase ("As such, each page…"); not after a list item ("The oceans, our wealth").
-  let before: string | undefined;
+  // A word right before the match means no break stands there (see opensClause).
+  const before = wordBefore(ctx, m.index);
   const opens =
-    afterBreak(ctx, m.index) ||
-    CLAUSE_CUE.test((before = wordBefore(ctx, m.index))) ||
+    (before ? CLAUSE_CUE.test(before) : afterBreak(ctx, m.index)) ||
     /(?:^|\n)[ \t]*[-*•][ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
     (commaBefore(ctx.text, m.index) &&
       OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)));
@@ -496,7 +505,7 @@ function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): Raw
   const later =
     !bare &&
     (/,[ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)) ||
-      LATER_CUE.test(before ?? wordBefore(ctx, m.index)));
+      LATER_CUE.test(before));
   if (!opens && !later) return null;
   const pluralOnly = bare || !opens;
   const det = bare ? "" : m.groups!.target.toLowerCase();
@@ -990,7 +999,7 @@ export const FIXERS = {
       m.groups!.target !== m.groups!.target.toLowerCase()
     )
       return null;
-    if (!afterBreak(ctx, m.index) && !NAME_CUE.test(wordBefore(ctx, m.index))) return null;
+    if (!opensClause(ctx, m.index, NAME_CUE)) return null;
     const name = m.groups!.name.toLowerCase();
     if (FUNCTION_WORDS.has(name) || NOT_A_NAME.test(name) || COLLECTIVE.has(name)) return null;
     // A name is unknown to the lexicon or only a noun ("Tom"); never a plural.
@@ -1076,7 +1085,7 @@ export const FIXERS = {
    * complements and a relative clause by the shared clause reader, and the main verb.
    */
   agreementDistantSubject: (m, ctx) => {
-    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) return null;
+    if (!opensClause(ctx, m.index, CLAUSE_CUE)) return null;
     // The words of the clause: a comma, a number or punctuation ends it.
     const words = wordsAfter(ctx, m.index, 24);
     const tokens = words.map((t) => ({

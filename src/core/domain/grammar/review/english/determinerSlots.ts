@@ -163,10 +163,12 @@ export const FIXERS = {
   },
   determinerTheForThey: (m, ctx) => {
     const target = m.groups!.target;
-    if (target !== target.toLowerCase() && !afterBreak(ctx, m.index)) return null;
     const before = wordBefore(ctx, m.index);
+    // A word right before the match means no break stands there (see opensClause).
+    const opens = !before && afterBreak(ctx, m.index);
+    if (target !== target.toLowerCase() && !opens) return null;
     if (
-      !afterBreak(ctx, m.index) &&
+      !opens &&
       !/^(?:if|when|and|but|so|because|what|that|since|as|until|while|how|why|where|indicates|ensures)$/.test(
         before,
       )

@@ -12,7 +12,7 @@ import {
   wordBefore,
 } from "./slotWords";
 import { finding } from "../finding";
-import { wordsAfter } from "./agreementSlots";
+import { opensClause, wordsAfter } from "./agreementSlots";
 
 // Clauses whose subject has no verb: "It very easy", "I not sure", "There a lot of ways",
 // "Can we able to", "would very helpful", and no/not mixed up next to a verb or noun.
@@ -52,8 +52,7 @@ const NOT_PREDICATE = new Set(
 
 // "I don't know, it pathetic": a clause may also open after a comma.
 const subjectClause = (ctx: DetectContext, start: number) =>
-  afterBreak(ctx, start) ||
-  CLAUSE_CUE.test(wordBefore(ctx, start)) ||
+  opensClause(ctx, start, CLAUSE_CUE) ||
   /,[ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, start - 4), start));
 
 /** A finite verb before the clause ends: the subject already has its verb. */
