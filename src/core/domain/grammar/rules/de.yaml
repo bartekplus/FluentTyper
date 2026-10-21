@@ -96,7 +96,7 @@ rules:
         fixer: zuJoined
       # "beim Haare schneiden", "zum Auto fahren", "für das Korrektur lesen": a verb phrase made
       # a noun is one word ("beim Haareschneiden").
-      - regex: "{{WG}}(?:(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it){{S}}d(?:as|em)){{S}})(?<target>(?<noun>\\p{Lu}\\p{Ll}+){{S}}(?<verb>\\p{Ll}+(?:en|ern|eln)))){{E}}"
+      - regex: "{{WG}}(?:(?=\\p{Lu}\\p{Ll})(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it){{S}}d(?:as|em)){{S}})(?<target>(?<noun>\\p{Lu}\\p{Ll}+){{S}}(?<verb>\\p{Ll}+(?:en|ern|eln)))){{E}}"
         flags: dgu
         fixer: nominalPhrase
       # "Ideen zum selber machen", "beim Selbst Kochen": "selber" or "selbst" with an infinitive
@@ -142,7 +142,7 @@ rules:
       # singular determiner goes with are one hyphenated word ("5-Minuten-Takt"). Without such
       # a determiner the unit may measure the noun ("3 Tage Urlaub"). A longer chain ("eine 14
       # Tage Geld zurück Garantie") is left alone.
-      - regex: "{{WG}}(?:(?<=(?<!\\p{L})(?:[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Ee]iner|[Ee]ines|[Ii]m|[Aa]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Dd]as|[Dd]em|[Dd]es){{S}})(?<target>(?<n>\\p{N}+){{S}}(?<unit>Minuten|Stunden|Tage|Wochen|Monate|Jahre|Euro|Dollar|Cent|Prozent|Punkte|Meter|Kilometer|Zimmer|Sterne|Gänge|Liter|Kilo|Gramm|Seiten|Personen|Zoll|Grad|Tonnen){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![ \\t]+(?:\\p{Lu}|zurück))){{E}}"
+      - regex: "{{WG}}(?:(?=\\p{N})(?<=(?<!\\p{L})(?:[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Ee]iner|[Ee]ines|[Ii]m|[Aa]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Dd]as|[Dd]em|[Dd]es){{S}})(?<target>(?<n>\\p{N}+){{S}}(?<unit>Minuten|Stunden|Tage|Wochen|Monate|Jahre|Euro|Dollar|Cent|Prozent|Punkte|Meter|Kilometer|Zimmer|Sterne|Gänge|Liter|Kilo|Gramm|Seiten|Personen|Zoll|Grad|Tonnen){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![ \\t]+(?:\\p{Lu}|zurück))){{E}}"
         flags: dgu
         fixer: unitNoun
       # "3. Klässler" → "Drittklässler".
@@ -459,7 +459,7 @@ rules:
         fixer: idiomCase19
       # "Ich bin sehr Stolz auf euch", "Das ist nicht Fair.": a predicative adjective stays
       # lowercase.
-      - regex: "{{WG}}(?:(?<=(?:ist|sind|war|waren|bin|bist|seid|wäre|wären|wird|wurde|bleibt|blieb)(?:{{S}}(?:du|ihr|er|sie|es|wir|ich|man))?(?<degree>(?:{{S}}(?:{{IDIOM_DEGREE}})){0,3}){{S}})(?<target>\\p{Lu}\\p{Ll}{2,})(?=[ \\t]*[.!?,;]|{{S}}(?:auf|über|für|mit|zu|von|gegenüber|darauf|damit|dafür|davon){{E}})){{E}}"
+      - regex: "{{WG}}(?:(?=\\p{Lu}\\p{Ll}{2})(?<=(?:ist|sind|war|waren|bin|bist|seid|wäre|wären|wird|wurde|bleibt|blieb)(?:{{S}}(?:du|ihr|er|sie|es|wir|ich|man))?(?<degree>(?:{{S}}(?:{{IDIOM_DEGREE}})){0,3}){{S}})(?<target>\\p{Lu}\\p{Ll}{2,})(?=[ \\t]*[.!?,;]|{{S}}(?:auf|über|für|mit|zu|von|gegenüber|darauf|damit|dafür|davon){{E}})){{E}}"
         flags: dgu
         owner: target|t2|t3|t4|t5
         message: review_msg_german_adjective_lowercase
@@ -1150,7 +1150,7 @@ rules:
       - regex: "{{NOT_BLANK}}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=dabei{{S}}(?:nicht{{S}})?)(?<target>beenden)(?={{S}}lassen{{E}}|[ \\t]*[.!?]))"
         fix: "bewenden"
       # "Versuch mal, das zu schrieben" → schreiben: "ie" for "ei" after "zu" at a clause end.
-      - regex: "{{NOT_BLANK}}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}])zu{{S}})(?<target>\\p{Ll}{4,}en)(?=[ \\t]*[.!?,;]))"
+      - regex: "{{NOT_BLANK}}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Ll}{4})(?<=(?<![\\p{L}])zu{{S}})(?<target>\\p{Ll}{4,}en)(?=[ \\t]*[.!?,;]))"
         fixer: deP
       # "hätten zugreife müssen" → zugreifen; "LanguageTool abonnier haben" → abonniert.
       - regex: "{{NOT_BLANK}}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>\\p{Ll}{3,}e)(?={{S}}(?:müssen|können|sollen|dürfen|wollen)[ \\t]*[.!?,;])|(?<t2>\\p{Ll}{3,}ier)(?={{S}}(?:haben|hat|habe|hatte|hätte|hast){{E}}))"
@@ -1400,7 +1400,7 @@ rules:
       # "werden" takes the strong ending -e ("folgende Daten"). A plural in -n or -s may be a
       # dative object ("Die Bücher werden armen Kindern geschenkt"), so it counts only when no
       # subject comes before "werden": the clause opens with a preposition, "es" or an adverb.
-      - regex: "{{WG}}(?:(?<=(?:werden|wurden|würden){{S}})(?<target>(?<adj>\\p{Ll}{3,}en){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,})){{E}})"
+      - regex: "{{WG}}(?:(?=\\p{Ll}{3})(?<=(?:werden|wurden|würden){{S}})(?<target>(?<adj>\\p{Ll}{3,}en){{S}}(?<noun>\\p{Lu}\\p{Ll}{2,})){{E}})"
         flags: dgu
         fixer: werdenPlural
       # The strong ending after an article that already shows the case: "im mentalem Lexikon"
@@ -1717,12 +1717,12 @@ rules:
         flags: dgu
         fixer: anHalb
       # "bis Drei", "unter Null", "wir Fünf": a number that is no noun there.
-      - regex: "{{WG}}(?:(?<=(?:bis|um|durch|über|unter|gegen|zu|auf|[Ww]ir|[Ii]hr|[Dd]iese|als|an{{S}}die){{S}})(?<target>(?:Null|Zwei|Drei|Vier|Fünf|Sechs|Sieben|Acht|Neun|Zehn|Elf|Zwölf|\\p{Lu}\\p{Ll}*(?:zig|ßig|zehn|hundert|tausend)\\p{Ll}*))(?!{{S}}\\p{Lu})){{E}}"
+      - regex: "{{WG}}(?:(?=\\p{Lu})(?<=(?:bis|um|durch|über|unter|gegen|zu|auf|[Ww]ir|[Ii]hr|[Dd]iese|als|an{{S}}die){{S}})(?<target>(?:Null|Zwei|Drei|Vier|Fünf|Sechs|Sieben|Acht|Neun|Zehn|Elf|Zwölf|\\p{Lu}\\p{Ll}*(?:zig|ßig|zehn|hundert|tausend)\\p{Ll}*))(?!{{S}}\\p{Lu})){{E}}"
         flags: dgu
         fixer: capitalNumber
       # "zwei Million", "viele Möglichkeit": a singular after a plural quantity. ("einige
       # Übung", "wenige Hoffnung" take a mass noun in the singular.)
-      - regex: "{{WG}}(?:(?=\\p{Lu})(?<=(?:(?:{{QUANTITY}})|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle){{S}}(?:von|an))(?:{{S}}\\p{Ll}{1,30}(?:e|en))?{{S}})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|(?<=(?:{{QUANTITY}}|[2-9]|\\d{2,12}(?:,\\d{1,6})?){{S}})(?<t2>Million|Milliarde|Billion)(?!\\p{L})){{E}}"
+      - regex: "{{WG}}(?:(?=\\p{Lu})(?<=(?:(?:{{QUANTITY}})|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle){{S}}(?:von|an))(?:{{S}}\\p{Ll}{1,30}(?:e|en))?{{S}})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|(?=[MB]il)(?<=(?:{{QUANTITY}}|[2-9]|\\d{2,12}(?:,\\d{1,6})?){{S}})(?<t2>Million|Milliarde|Billion)(?!\\p{L})){{E}}"
         flags: dgu
         owner: target|t2
         fixer: singularAfterCount
@@ -1744,7 +1744,7 @@ rules:
         fixer: ordinalDot
       # "von 9–10 Uhr", "Seiten von A-Z", "vom 7.-10. März", "zwischen 2019 – 2021": after "von"
       # or "zwischen" the dash stands for "bis" or "und", which German writes out.
-      - regex: "{{WG}}(?:(?<=(?:[Vv]on|[Vv]om|[Zz]wischen){{S}}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.){{S}})?)(?<target>(?<from>{{RANGE_END}})[ \\t]?[-–][ \\t]?(?<to>{{RANGE_END}}))(?![-–\\d])){{E}}"
+      - regex: "{{WG}}(?:(?=[0-9]|\\p{Lu})(?<=(?:[Vv]on|[Vv]om|[Zz]wischen){{S}}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.){{S}})?)(?<target>(?<from>{{RANGE_END}})[ \\t]?[-–][ \\t]?(?<to>{{RANGE_END}}))(?![-–\\d])){{E}}"
         flags: dgu
         fixer: numberRange
   - id: de.rangeDashes

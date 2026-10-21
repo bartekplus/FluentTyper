@@ -22550,7 +22550,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it)[ \\t\\u00a0]{1,8}d(?:as|em))[ \\t\\u00a0]{1,8})(?<target>(?<noun>\\p{Lu}\\p{Ll}+)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+(?:en|ern|eln))))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Lu}\\p{Ll})(?<=(?:[Bb]eim|[Zz]um|[Vv]om|[Vv]orm|[Ff]ürs|(?:[Ff]ür|[Üü]ber|[Nn]ach|[Vv]or|[Bb]ei|[Mm]it)[ \\t\\u00a0]{1,8}d(?:as|em))[ \\t\\u00a0]{1,8})(?<target>(?<noun>\\p{Lu}\\p{Ll}+)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+(?:en|ern|eln))))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "de:nominalPhrase",
     flags: "dgu",
@@ -22686,7 +22686,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<!\\p{L})(?:[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Ee]iner|[Ee]ines|[Ii]m|[Aa]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Dd]as|[Dd]em|[Dd]es)[ \\t\\u00a0]{1,8})(?<target>(?<n>\\p{N}+)[ \\t\\u00a0]{1,8}(?<unit>Minuten|Stunden|Tage|Wochen|Monate|Jahre|Euro|Dollar|Cent|Prozent|Punkte|Meter|Kilometer|Zimmer|Sterne|Gänge|Liter|Kilo|Gramm|Seiten|Personen|Zoll|Grad|Tonnen)[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![ \\t]+(?:\\p{Lu}|zurück)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{N})(?<=(?<!\\p{L})(?:[Ee]in|[Ee]ine|[Ee]inen|[Ee]inem|[Ee]iner|[Ee]ines|[Ii]m|[Aa]m|[Zz]um|[Zz]ur|[Vv]om|[Bb]eim|[Ii]ns|[Dd]as|[Dd]em|[Dd]es)[ \\t\\u00a0]{1,8})(?<target>(?<n>\\p{N}+)[ \\t\\u00a0]{1,8}(?<unit>Minuten|Stunden|Tage|Wochen|Monate|Jahre|Euro|Dollar|Cent|Prozent|Punkte|Meter|Kilometer|Zimmer|Sterne|Gänge|Liter|Kilo|Gramm|Seiten|Personen|Zoll|Grad|Tonnen)[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![ \\t]+(?:\\p{Lu}|zurück)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [
       "minuten",
       "stunden",
@@ -23369,7 +23369,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:ist|sind|war|waren|bin|bist|seid|wäre|wären|wird|wurde|bleibt|blieb)(?:[ \\t\\u00a0]{1,8}(?:du|ihr|er|sie|es|wir|ich|man))?(?<degree>(?:[ \\t\\u00a0]{1,8}(?:sehr|ganz|ziemlich|echt|wirklich|total|so|zu|nicht|überhaupt|recht|richtig|extrem|besonders|gar|nie|immer|doch|auch|schon|eher|absolut|einfach|unheimlich|wahnsinnig)){0,3})[ \\t\\u00a0]{1,8})(?<target>\\p{Lu}\\p{Ll}{2,})(?=[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:auf|über|für|mit|zu|von|gegenüber|darauf|damit|dafür|davon)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Lu}\\p{Ll}{2})(?<=(?:ist|sind|war|waren|bin|bist|seid|wäre|wären|wird|wurde|bleibt|blieb)(?:[ \\t\\u00a0]{1,8}(?:du|ihr|er|sie|es|wir|ich|man))?(?<degree>(?:[ \\t\\u00a0]{1,8}(?:sehr|ganz|ziemlich|echt|wirklich|total|so|zu|nicht|überhaupt|recht|richtig|extrem|besonders|gar|nie|immer|doch|auch|schon|eher|absolut|einfach|unheimlich|wahnsinnig)){0,3})[ \\t\\u00a0]{1,8})(?<target>\\p{Lu}\\p{Ll}{2,})(?=[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:auf|über|für|mit|zu|von|gegenüber|darauf|damit|dafür|davon)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "de:idiomCase20",
     message: "review_msg_german_adjective_lowercase",
@@ -24909,7 +24909,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}])zu[ \\t\\u00a0]{1,8})(?<target>\\p{Ll}{4,}en)(?=[ \\t]*[.!?,;]))",
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Ll}{4})(?<=(?<![\\p{L}])zu[ \\t\\u00a0]{1,8})(?<target>\\p{Ll}{4,}en)(?=[ \\t]*[.!?,;]))",
     literals: [],
     fixer: "de:deP",
   }),
@@ -25371,7 +25371,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:werden|wurden|würden)[ \\t\\u00a0]{1,8})(?<target>(?<adj>\\p{Ll}{3,}en)[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Ll}{3})(?<=(?:werden|wurden|würden)[ \\t\\u00a0]{1,8})(?<target>(?<adj>\\p{Ll}{3,}en)[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
     fixer: "de:werdenPlural",
     flags: "dgu",
@@ -25893,14 +25893,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:bis|um|durch|über|unter|gegen|zu|auf|[Ww]ir|[Ii]hr|[Dd]iese|als|an[ \\t\\u00a0]{1,8}die)[ \\t\\u00a0]{1,8})(?<target>(?:Null|Zwei|Drei|Vier|Fünf|Sechs|Sieben|Acht|Neun|Zehn|Elf|Zwölf|\\p{Lu}\\p{Ll}*(?:zig|ßig|zehn|hundert|tausend)\\p{Ll}*))(?![ \\t\\u00a0]{1,8}\\p{Lu}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Lu})(?<=(?:bis|um|durch|über|unter|gegen|zu|auf|[Ww]ir|[Ii]hr|[Dd]iese|als|an[ \\t\\u00a0]{1,8}die)[ \\t\\u00a0]{1,8})(?<target>(?:Null|Zwei|Drei|Vier|Fünf|Sechs|Sieben|Acht|Neun|Zehn|Elf|Zwölf|\\p{Lu}\\p{Ll}*(?:zig|ßig|zehn|hundert|tausend)\\p{Ll}*))(?![ \\t\\u00a0]{1,8}\\p{Lu}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "de:capitalNumber",
     flags: "dgu",
   }),
   frame({
     pattern:
-      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Lu})(?<=(?:(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige)|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle)[ \\t\\u00a0]{1,8}(?:von|an))(?:[ \\t\\u00a0]{1,8}\\p{Ll}{1,30}(?:e|en))?[ \\t\\u00a0]{1,8})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|(?<=(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige|[2-9]|\\d{2,12}(?:,\\d{1,6})?)[ \\t\\u00a0]{1,8})(?<t2>Million|Milliarde|Billion)(?!\\p{L}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Lu})(?<=(?:(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige)|(?:Vielzahl|Reihe|Menge|Anzahl|Fülle)[ \\t\\u00a0]{1,8}(?:von|an))(?:[ \\t\\u00a0]{1,8}\\p{Ll}{1,30}(?:e|en))?[ \\t\\u00a0]{1,8})(?<target>\\p{Lu}\\p{Ll}+(?:ung|heit|keit|schaft|ion|tät))(?!\\p{L})|(?=[MB]il)(?<=(?:zwei|drei|vier|fünf|sechs|sieben|acht|neun|zehn|elf|zwölf|zwanzig|hundert|tausend|viele|mehrere|beide|zahlreiche|unzählige|[2-9]|\\d{2,12}(?:,\\d{1,6})?)[ \\t\\u00a0]{1,8})(?<t2>Million|Milliarde|Billion)(?!\\p{L}))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ung", "heit", "keit", "schaft", "ion", "tät", "million", "milliarde", "billion"],
     fixer: "de:singularAfterCount",
     flags: "dgu",
@@ -25930,7 +25930,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Vv]on|[Vv]om|[Zz]wischen)[ \\t\\u00a0]{1,8}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.)[ \\t\\u00a0]{1,8})?)(?<target>(?<from>(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu})[ \\t]?[-–][ \\t]?(?<to>(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}))(?![-–\\d]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=[0-9]|\\p{Lu})(?<=(?:[Vv]on|[Vv]om|[Zz]wischen)[ \\t\\u00a0]{1,8}(?:(?:\\p{Lu}\\p{Ll}{2,12}|S\\.|Nr\\.)[ \\t\\u00a0]{1,8})?)(?<target>(?<from>(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu})[ \\t]?[-–][ \\t]?(?<to>(?:[1-9]\\d{0,3}|0)\\.?|\\p{Lu}))(?![-–\\d]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "de:numberRange",
     flags: "dgu",
