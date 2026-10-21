@@ -9,169 +9,29 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import { canonicalCasing } from "../canonicalCasing";
 import { phraseCorrections } from "../englishPhraseCorrections";
-import type { PhraseRow } from "../englishPhraseTables";
 import { NOUN_LIKE_ING } from "../englishParticiples";
 import { namedExampleBefore } from "../exampleCues";
-import {
-  caseLike,
-  COMPLETE,
-  detectAll,
-  found,
-  frameMatches,
-  group,
-  hasUserOrCasedWord,
-  ownedMatches,
-  SPACE,
-  WORD_END,
-} from "../phraseTemplates";
-import type { CatalogRuleId } from "../../ruleCatalog";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { english as outsideQuotes, gated as whenMentioned } from "./grammarStyle1";
+import { caseLike, found, group, hasUserOrCasedWord } from "../phraseTemplates";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { TextRange } from "../types";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { opensClause } from "./grammarStyle2";
-import { DETECTORS as CONFUSED_WORDS } from "./confusions1";
-import { DETECTORS as FIXED_PHRASES } from "./fixedPhrases";
-import { DETECTORS as IDIOM_FRAMES_1 } from "./idioms1";
+import { confusedWords } from "./confusions1";
+import { fixedPhrases } from "./fixedPhrases";
+import { FIXERS as IDIOM_FIXERS_1 } from "./idioms1";
+import { frameRuleDetector } from "../../engine/reviewRules";
 
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  // A disassembler's view is a disassembly; "dissemble" means to hide one's feelings.
-  ...["tab", "window", "view", "listing", "output", "pane"].map((noun): PhraseRow => [
-    `dissemble ${noun}`,
-    `disassembly ${noun}`,
-  ]),
-  // Taking apart is paired with putting together (see PROSE_SLASH_TOKEN for the slash token).
-  ["dissemble/assemble", "disassemble/assemble"],
-  ["assemble/dissemble", "assemble/disassemble"],
-  // Never English: quoted speech is checked too ("once a twice", he said).
-  ["once a twice", "once or twice"],
-];
-export const STYLE: readonly PhraseRow[] = [
-  ["chicken/egg", ["chicken-and-egg", "chicken & egg"]],
-  // A whole system's infrastructure is uncountable in plain prose.
-  ["an infrastructure for", "infrastructure for"],
-  // The legal "constituted as" (established as) stays; a judgment is "construed as".
-  ["be constituted as a", ["be construed as a", "be constituted a"]],
-  ["be constituted as an", ["be construed as an", "be constituted an"]],
-];
+// ---------------------------------------------------------------- frame fixes
 
-/** A detector for English text that only runs on chunks naming its literal. */
-const gated = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
-  outsideQuotes(whenMentioned(gate, detect));
-
-/** English text only; for detectors whose own patterns already read quotes. */
-const english =
-  (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
-  (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors);
-/** English text naming the detector's literal; quotations are left to the detector. */
-const when = (gate: RegExp, detect: (ctx: DetectContext) => RawFinding[]) =>
-  english(whenMentioned(gate, detect));
-
-// ---------------------------------------------------------------- modal of
-
-// "could of" closing its clause; the core rule waits for the word after "of". Only a
-// subject, an adverb or the clause start may come before: "great might of", "a must of".
-const MODAL_OF_END = `(?<target>(?<modal>could|would|should|must|might)(?:n['’]t)?${SPACE}(?<of>of))${COMPLETE}`;
+// Only a subject, an adverb or the clause start may come before "could of": "great might
+// of", "a must of".
 const MODAL_LEAD =
   /(?:^|[.!?;:,\n"“(][ \t\u00a0]*|\b(?:I|you|we|they|he|she|it|who|that|there|this|just|still|also|really|never|probably)[ \t\u00a0]+)$/i;
 
-function modalOfAtEnd(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, MODAL_OF_END)]
-    .filter((m) => {
-      const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-      return MODAL_LEAD.test(before) && !isNounMight(m.groups!.modal, before);
-    })
-    .map((m) => {
-      const [ofStart] = m.indices!.groups!.of;
-      const typed = ctx.source.slice(m.index, ofStart);
-      return found(ctx, m, "englishModalOfCorrection", "review_msg_modal_of", [
-        `${typed}${modalHaveWord(m.groups!.modal, m.groups!.of)}`,
-      ]);
-    });
-}
-
-// ---------------------------------------------------------------- prepositions
-
-// "Beware on the step": the thing to beware of takes "of".
-const BEWARE = `beware${SPACE}(?<target>in|on|at)${SPACE}(?:the|that|this|these|those)${WORD_END}`;
-
-function bewareOf(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, BEWARE)]
-    .filter((m) => opensClause(ctx, m.index))
-    .map((m) =>
-      found(ctx, m, "englishFixedPrepositions", "review_msg_fixed_prepositions", [
-        caseLike(m.groups!.target, "of"),
-      ]),
-    );
-}
-
-// "They left in mass": all together is "en masse" after a verb of moving or quitting.
-const MOVERS = `move|moves|moved|moving|arrive|arrives|arrived|arriving|leave|leaves|left|leaving|flee|flees|fled|fleeing|resign|resigns|resigned|resigning|quit|quits|quitting|migrate|migrates|migrated|migrating|desert|deserted|gather|gathered|protest|protested|walked${SPACE}out`;
-const AFTER_MASS =
-  "yesterday|today|tonight|again|now|then|last|this|that|from|to|into|across|after|before|when|and|but|as|over|toward|towards";
-const EN_MASSE = `(?:${MOVERS})${SPACE}(?<target>[io]n${SPACE}mass)(?:${COMPLETE}|(?=${SPACE}(?:${AFTER_MASS})${WORD_END}))`;
-
-function enMasse(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, EN_MASSE)]
-    .filter((m) => !hasUserOrCasedWord(ctx, m[0]))
-    .map((m) =>
-      found(ctx, m, "englishPhraseCorrections", "review_msg_phrase_correction", [
-        caseLike(m.groups!.target, "en masse"),
-      ]),
-    );
-}
-
-// ---------------------------------------------------------------- data structures
-
-// "link lists" are lists of links unless the text is about nodes and pointers.
-const LINK_LISTS = `(?<target>link)${SPACE}lists${WORD_END}`;
 const LINKED_LIST_CONTEXT =
   /\b(?:nodes?|pointers?|doubly|singly|traversal|traverse|insertion|deletion|data structures?)\b/i;
-
-function linkedLists(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, LINK_LISTS)]
-    .filter((m) =>
-      LINKED_LIST_CONTEXT.test(
-        ctx.text.slice(Math.max(0, m.index - 160), m.index + m[0].length + 160),
-      ),
-    )
-    .map((m) =>
-      found(ctx, m, "englishPhraseCorrections", "review_msg_phrase_correction", [
-        caseLike(m.groups!.target, "linked"),
-      ]),
-    );
-}
-
-// "parts of speeches" are sections of speeches unless the text is about grammar.
-const PARTS_OF_SPEECHES = `(?<target>parts?${SPACE}of${SPACE}speeches)${WORD_END}`;
 const GRAMMAR_CONTEXT =
   /\b(?:nouns?|verbs?|adjectives?|adverbs?|pronouns?|prepositions?|conjunctions?|POS|tag(?:s|ging|ger)?|grammar|grammatical)\b/;
-
-function partsOfSpeech(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, PARTS_OF_SPEECHES)]
-    .filter(
-      (m) =>
-        !hasUserOrCasedWord(ctx, m[0]) &&
-        GRAMMAR_CONTEXT.test(
-          ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120),
-        ),
-    )
-    .map((m) =>
-      found(ctx, m, "englishPhraseCorrections", "review_msg_phrase_correction", [
-        caseLike(
-          m.groups!.target,
-          // "one part of speeches" is one part of speech; "the part of speeches" is plural.
-          /\b(?:one|a|an|each|every|this|that)[ \t\u00a0]+$/i.test(
-            ctx.text.slice(Math.max(0, m.index - 16), m.index),
-          )
-            ? "part of speech"
-            : "parts of speech",
-        ),
-      ]),
-    );
-}
-
-// ---------------------------------------------------------------- scrape / scrap
 
 // "scrap" discards; "scrape" extracts. Only extraction evidence decides: a "from"
 // source, a site's markup, or what only a scraper collects.
@@ -181,7 +41,6 @@ const SCRAPE: Readonly<Record<string, string>> = {
   scrapped: "scraped",
   scrapping: "scraping",
 };
-const SCRAP = `(?<target>scrap(?:s|ped|ping)?)${SPACE}(?:(?:the|a|an|all|some|its|their|our|my|your|this|these|different|multiple|various|several|many|other)${SPACE})?(?<site>(?:website|site|page|webpage)['’]s${SPACE})?(?<object>[a-z]+)${WORD_END}(?<from>${SPACE}from${WORD_END})?`;
 const SCRAPED_ONLY = /^(?:html|urls|tweets|headlines|metadata|hyperlinks)$/;
 // Whole sites are scraped only by a program: scrapping them is also just discarding them.
 const SITES = /^(?:websites|sites|pages|webpages)$/;
@@ -190,36 +49,50 @@ const SCRAPER_CONTEXT =
 const EXTRACTED =
   /^(?:data|html|content|news|text|prices|information|info|results|links|urls|reviews|listings|articles|emails|images|tweets|headlines|metadata|hyperlinks)$/;
 
-function scrapeWeb(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, SCRAP)) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+const PHRASE_FIXERS = {
+  modalOfAtEnd: (m, ctx) => {
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (!MODAL_LEAD.test(before) || isNounMight(m.groups!.modal, before)) return null;
+    const [ofStart] = m.indices!.groups!.of;
+    const typed = ctx.source.slice(m.index, ofStart);
+    return `${typed}${modalHaveWord(m.groups!.modal, m.groups!.of)}`;
+  },
+  bewareOf: (m, ctx) => (opensClause(ctx, m.index) ? caseLike(m.groups!.target, "of") : null),
+  enMasse: (m, ctx) =>
+    hasUserOrCasedWord(ctx, m[0]) ? null : caseLike(m.groups!.target, "en masse"),
+  linkedLists: (m, ctx) =>
+    LINKED_LIST_CONTEXT.test(
+      ctx.text.slice(Math.max(0, m.index - 160), m.index + m[0].length + 160),
+    )
+      ? caseLike(m.groups!.target, "linked")
+      : null,
+  partsOfSpeech: (m, ctx) =>
+    !hasUserOrCasedWord(ctx, m[0]) &&
+    GRAMMAR_CONTEXT.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120))
+      ? caseLike(
+          m.groups!.target,
+          // "one part of speeches" is one part of speech; "the part of speeches" is plural.
+          /\b(?:one|a|an|each|every|this|that)[ \t\u00a0]+$/i.test(
+            ctx.text.slice(Math.max(0, m.index - 16), m.index),
+          )
+            ? "part of speech"
+            : "parts of speech",
+        )
+      : null,
+  scrapeWeb: (m, ctx) => {
     const { target, site, object, from } = m.groups!;
     const object_ = object.toLowerCase();
-    if (target !== target.toLowerCase() && !/^S[a-z]+$/.test(target)) continue;
+    if (target !== target.toLowerCase() && !/^S[a-z]+$/.test(target)) return null;
     const sites =
       SITES.test(object_) &&
       SCRAPER_CONTEXT.test(ctx.text.slice(Math.max(0, m.index - 200), m.index + m[0].length + 200));
     if (!sites && (!EXTRACTED.test(object_) || !(from || site || SCRAPED_ONLY.test(object_))))
-      continue;
-    findings.push(
-      found(ctx, m, "englishPhraseCorrections", "review_msg_phrase_correction", [
-        caseLike(target, SCRAPE[target.toLowerCase()]),
-      ]),
-    );
-  }
-  return findings;
-}
-
-// ---------------------------------------------------------------- style
-
-// "imitate the rhythm from their mentor": whose rhythm it is takes "of" (opt-in).
-const IMITATE_FROM = `imitat(?:e|es|ed|ing)${SPACE}(?:the|every|that|this|their|his|her|its|our|your|my)(?:${SPACE}[a-z]+){1,3}${SPACE}(?<target>from)${SPACE}(?:the|their|his|her|its|our|your|my|\\p{L}{2,}['’]s)${WORD_END}`;
-
-function imitateOf(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, IMITATE_FROM)].map((m) =>
-    found(ctx, m, "stylePhrasing", "review_msg_style_phrasing", [caseLike(m.groups!.target, "of")]),
-  );
-}
+      return null;
+    return caseLike(target, SCRAPE[target.toLowerCase()]);
+  },
+  imitateOf: (m) => caseLike(m.groups!.target, "of"),
+} satisfies Record<string, MatchFixer>;
 
 // ---------------------------------------------------------------- phrase tables through a mark
 
@@ -284,46 +157,59 @@ function sentenceAround(ctx: DetectContext, start: number, end: number): string 
   return `${before.slice(open + 1)} ${close < 0 ? after : after.slice(0, close)}`;
 }
 
+// The quotation and example ranges by their first and by their last character, one map per
+// array: the frames match those characters and look the range up.
+const BY_START = new WeakMap<readonly TextRange[], Map<number, TextRange>>();
+const BY_LAST = new WeakMap<readonly TextRange[], Map<number, TextRange>>();
+const NO_RANGES: readonly TextRange[] = [];
+
+function rangeAt(
+  byKey: WeakMap<readonly TextRange[], Map<number, TextRange>>,
+  ranges: readonly TextRange[] = NO_RANGES,
+  at: number,
+): TextRange | undefined {
+  let map = byKey.get(ranges);
+  if (!map) {
+    const key = byKey === BY_START ? (r: TextRange) => r.start : (r: TextRange) => r.end - 1;
+    byKey.set(ranges, (map = new Map(ranges.map((r) => [key(r), r]))));
+  }
+  return map.get(at);
+}
+
 /**
  * Scare quotes ("tongue and cheek" jokes) and quoted speech are the writer's own words:
  * the tables' quotation guard is meant for mentions, which a cue word gives away.
  * Still necessary: phraseCorrections skips a phrase that a quotation wraps exactly (quotedSpan).
  */
-function quotedPhrases(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const examples = new Set((ctx.exampleRanges ?? []).map((r) => r.start));
-  for (const { start, end } of ctx.quotationRanges ?? []) {
-    if (start < ctx.from - 1 || examples.has(start)) continue;
-    if (start >= ctx.to) break;
-    const inner = ctx.text.slice(start + 1, end - 1);
-    if (inner.length < 3 || inner.length > 48 || /[\n.!?]/.test(inner)) continue;
-    if (!/[\p{P}]/u.test(ctx.text[end - 1])) continue;
-    if (namedExampleBefore(ctx.text, start + 1) || MENTION.test(sentenceAround(ctx, start, end)))
-      continue;
-    // A list of quoted forms or a mapping ("x" → "y") names them.
-    if (
-      LISTED_BEFORE.test(ctx.text.slice(Math.max(0, start - 8), start)) ||
-      LISTED_AFTER.test(ctx.text.slice(end, end + 8))
-    )
-      continue;
-    const swaps: Swap[] = [
-      [start, " "],
-      [end - 1, " "],
-    ];
-    findings.push(
-      ...inView(ctx, start + 1, end - 1, swaps, phraseCorrections).filter((f) =>
-        inside(f, start + 1, end - 1),
-      ),
-    );
-  }
-  return findings;
+function quotedPhrase(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | null {
+  const range = rangeAt(BY_START, ctx.quotationRanges, m.index);
+  if (!range || rangeAt(BY_START, ctx.exampleRanges, range.start)) return null;
+  const { start, end } = range;
+  const inner = ctx.text.slice(start + 1, end - 1);
+  if (inner.length < 3 || inner.length > 48 || /[\n.!?]/.test(inner)) return null;
+  if (!/[\p{P}]/u.test(ctx.text[end - 1])) return null;
+  if (namedExampleBefore(ctx.text, start + 1) || MENTION.test(sentenceAround(ctx, start, end)))
+    return null;
+  // A list of quoted forms or a mapping ("x" → "y") names them.
+  if (
+    LISTED_BEFORE.test(ctx.text.slice(Math.max(0, start - 8), start)) ||
+    LISTED_AFTER.test(ctx.text.slice(end, end + 8))
+  )
+    return null;
+  const swaps: Swap[] = [
+    [start, " "],
+    [end - 1, " "],
+  ];
+  return inView(ctx, start + 1, end - 1, swaps, phraseCorrections).filter((f) =>
+    inside(f, start + 1, end - 1),
+  );
 }
 
 // The fixed-preposition frames ("inspired from") that a named example before them also hides.
-const PHRASE_FRAMES = IDIOM_FRAMES_1.filter((d) => d.rules.includes("englishPhraseCorrections"));
+const idiomPhrases1 = frameRuleDetector("en.idiomPhrases1", { en: IDIOM_FIXERS_1 });
 const phrasesAndFrames = (view: DetectContext) => [
   ...phraseCorrections(view),
-  ...PHRASE_FRAMES.flatMap((d) => d.detect(view)),
+  ...idiomPhrases1(view),
 ];
 
 /**
@@ -331,138 +217,26 @@ const phrasesAndFrames = (view: DetectContext) => [
  * quotation closes ('The name "Forge" is inspired from'), the prose after it is checked.
  * Still necessary: namedExampleBefore also hides that prose from the shared tables.
  */
-function afterExamples(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
+function afterExample(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | null {
+  // The frame matches the punctuation mark that closes the example.
+  const range = rangeAt(BY_LAST, ctx.exampleRanges, m.index);
+  if (!range) return null;
+  const { start, end } = range;
+  if (end < ctx.from || end >= ctx.to) return null;
   const quotes = ctx.quotationRanges ?? [];
-  for (const { start, end } of ctx.exampleRanges ?? []) {
-    if (end < ctx.from || end >= ctx.to || !/[\p{P}]/u.test(ctx.text[end - 1])) continue;
-    const lineEnd = ctx.text.indexOf("\n", end);
-    const stop = Math.min(ctx.to, end + 80, lineEnd < 0 ? ctx.text.length : lineEnd);
-    if (stop - end < 4) continue;
-    findings.push(
-      ...inView(ctx, end, stop, [[start, " "]], phrasesAndFrames).filter(
-        (f) =>
-          f.range.start >= end &&
-          !quotes.some((q) => f.range.start < q.end && f.range.end > q.start),
-      ),
-    );
-  }
-  return findings;
-}
-
-// One line break inside a sentence, before a lowercase word: a soft wrap.
-const SOFT_WRAP = /(?<=\p{L})[ \t]*\n[ \t]*(?=\p{Ll})/gu;
-
-/** Fixed phrases broken across a soft wrap ("Double\nclick"). */
-function wrappedPhrases(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, SOFT_WRAP)) {
-    const newline = m.index + m[0].indexOf("\n");
-    const lineStart = ctx.text.lastIndexOf("\n", newline - 1) + 1;
-    // Phrases are short: start at a word boundary at most ~40 characters back.
-    let from = Math.max(lineStart, newline - 40);
-    if (from > lineStart) {
-      const space = ctx.text.indexOf(" ", from);
-      if (space < 0 || space >= newline) continue;
-      from = space + 1;
-    }
-    findings.push(
-      ...inView(ctx, from, newline, [[newline, " "]], phraseCorrections).filter(
-        (f) => f.range.start < newline && f.range.end > newline,
-      ),
-    );
-  }
-  return findings;
-}
-
-// The filler "I would argue that" (grammarStyle1) over a soft wrap.
-const ARGUE_WRAPPED = `(?<target>I${SPACE}would${SPACE}argue[ \\t]*\\n[ \\t]*that${SPACE})(?=[A-Za-z])`;
-
-function argueWrapped(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, ARGUE_WRAPPED)].map((m) =>
-    found(ctx, m, "stylePhrasing", "review_msg_style_phrasing", [""]),
+  const lineEnd = ctx.text.indexOf("\n", end);
+  const stop = Math.min(ctx.to, end + 80, lineEnd < 0 ? ctx.text.length : lineEnd);
+  if (stop - end < 4) return null;
+  return inView(ctx, end, stop, [[start, " "]], phrasesAndFrames).filter(
+    (f) =>
+      f.range.start >= end && !quotes.some((q) => f.range.start < q.end && f.range.end > q.start),
   );
 }
 
-// A run of capitalized words: a heading, a sign, or shouting.
-const CAPS_RUN =
-  /(?<![\p{L}\p{N}_'’@/#\\.-])[A-Z]{2,}(?:[ \t ]+[A-Z]{2,})*(?![\p{L}\p{N}_'’@/#\\-])/gu;
 const CASING_ONLY: ReadonlySet<string> = new Set(["englishCanonicalCasing"]);
 
-/** Optional: names written in capitals ("SOUTH AMERICA") in their usual casing. */
-function shoutedNames(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, CAPS_RUN)) {
-    const start = m.index;
-    const end = start + m[0].length;
-    // A short acronym ("API", "NASA") is no name written in capitals.
-    if (m[0].length < 5) continue;
-    const swaps: Swap[] = [[start, m[0].toLowerCase()]];
-    const names = (view: DetectContext) => [
-      ...canonicalCasing(view),
-      ...phraseCorrections(view),
-      ...chromeExtension(view),
-    ];
-    for (const f of inView(ctx, start, end, swaps, names, CASING_ONLY))
-      if (
-        inside(f, start, end) &&
-        !f.alternatives.includes(ctx.text.slice(f.range.start, f.range.end))
-      )
-        findings.push({ ...f, ruleId: "stylePhrasing", messageKey: "review_msg_name_casing" });
-  }
-  return findings;
-}
-
-// ---------------------------------------------------------------- names
-
-// Lowercase "chrome extension" is the browser's add-on; "Chrome Extension" is offered too.
-const CHROME_EXTENSION = `(?<target>(?<chrome>chrome)${SPACE}(?<ext>extensions?))${WORD_END}`;
-
-function chromeExtension(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, CHROME_EXTENSION)]
-    .filter((m) => m.groups!.chrome === "chrome" && m.groups!.ext === m.groups!.ext.toLowerCase())
-    .map((m) => {
-      const ext = m.groups!.ext;
-      return found(ctx, m, "englishCanonicalCasing", "review_msg_canonical_casing", [
-        `Chrome ${ext}`,
-        `Chrome E${ext.slice(1)}`,
-      ]);
-    });
-}
-
 // "Day One" is the journaling app; "day one" is the first day.
-const DAY_ONE = `(?<target>day${SPACE}one)${WORD_END}`;
 const JOURNAL_APP = /\bjournal(?:s|ing)?\b[\s\S]{0,40}\bapps?\b|\bapps?\b[\s\S]{0,40}\bjournal/i;
-
-function dayOne(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, DAY_ONE)]
-    .filter(
-      (m) =>
-        m[0] === m[0].toLowerCase() &&
-        JOURNAL_APP.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + 140)),
-    )
-    .map((m) =>
-      found(ctx, m, "englishCanonicalCasing", "review_msg_canonical_casing", ["Day One"]),
-    );
-}
-
-// Apple writes "macOS" even at the start of a sentence.
-const MAC_OS = /(?<![\p{L}\p{N}_'’@/#\\.-])(?<target>MacO[Ss])(?![\p{L}\p{N}_'’@/#\\-])/dgu;
-
-function macOS(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, MAC_OS)].map((m) =>
-    found(ctx, m, "englishCanonicalCasing", "review_msg_canonical_casing", ["macOS"]),
-  );
-}
-
-// The clipped "cybersec" (grammarStyle2) shouted: its capitals are kept.
-const CYBERSEC = /(?<![\p{L}\p{N}_'’@/#\\.-])(?<target>CYBERSEC)(?![\p{L}\p{N}_'’@/#\\-])/dgu;
-
-function cybersec(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, CYBERSEC)].map((m) =>
-    found(ctx, m, "stylePhrasing", "review_msg_style_phrasing", ["CYBERSECURITY"]),
-  );
-}
 
 // ---------------------------------------------------------------- slashed words
 
@@ -481,10 +255,6 @@ const SLASHED: Readonly<
   derefs: { to: "dereferences", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
   dirs: { to: "directories", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
 };
-const SLASHED_WORD = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>${Object.keys(SLASHED).join("|")})(?=/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))`,
-  "dgiu",
-);
 /**
  * Slashed tokens that are prose, not paths: "w/o", "prev/next", a decade before a slash
  * ("1970's/early"), the SLASHED words and the slash-token rows. Review's technical-token
@@ -494,119 +264,18 @@ export const PROSE_SLASH_TOKEN = new RegExp(
   `^(?:w\\/o|prev\\/next|\\p{Nd}{3}0['’]s\\/\\p{L}+|(?:${Object.keys(SLASHED).join("|")})\\/\\p{L}+|dissemble\\/assemble|assemble\\/dissemble|chicken\\/egg)$`,
   "iu",
 );
-const BE_BEFORE = /(?:^|[^\p{L}'’])(?:am|is|are|was|were|be|been|being|['’]m|['’]re)[ \t ]+$/iu;
-
-function slashedWords(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, SLASHED_WORD)) {
-    const typed = m.groups!.target;
-    const word = typed.toLowerCase();
-    if (ctx.rules && !ctx.rules.has(SLASHED[word].ruleId)) continue;
-    if (typed !== word && !/^[A-Z][a-z]+$/.test(typed)) continue;
-    if (ctx.dictionary.has(word)) continue;
-    if (word === "bias" && !BE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index)))
-      continue;
-    const { to, ruleId, messageKey } = SLASHED[word];
-    findings.push(found(ctx, m, ruleId, messageKey, [caseLike(typed, to)]));
-  }
-  return findings;
-}
+const BE_BEFORE = /(?:^|[^\p{L}'’])(?:am|is|are|was|were|be|been|being|['’]m|['’]re)[ \t ]+$/iu;
 
 // frame() uses the `i` flag, and `\p{Ll}` then also matches capitals. In all-caps text, write
 // the fix in capitals.
 const shouted = (m: RegExpExecArray, word: string) =>
   m[0] === m[0].toUpperCase() ? word.toUpperCase() : word;
 
-// ---------------------------------------------------------------- their / there
-
-// "Is that there dog?": the dialect demonstrative or a slip for the possessive.
-// The lookahead first: the clause lookbehind runs only where "is/was that" stands.
-const THAT_THERE = `(?=(?:is|was)${SPACE}that${SPACE})(?<=(?:^|[.!?]["”’)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t]{0,8}))(?:is|was)${SPACE}that${SPACE}(?<target>there)${SPACE}(?<noun>\\p{L}+)(?=[ \\t\\u00a0]*\\?)`;
-
-function thatThere(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, THAT_THERE)]
-    .filter((m) => {
-      const noun = m.groups!.noun;
-      const info = englishWordInfo(noun);
-      if (NOT_FOUND_THING.test(noun)) return false;
-      return !!info?.noun && !info.plural && !info.adverb && !info.adjective;
-    })
-    .map((m) =>
-      found(ctx, m, "englishTheirThereTheyAre", "review_msg_their_possessive", [
-        shouted(m, "their"),
-      ]),
-    );
-}
-
-// "I saw their running through the park": a seen action, not a possession.
-const SAW_THEIR = `(?:saw|see|sees|seen|seeing|watched|noticed|spotted)${SPACE}(?<target>their)${SPACE}(?<ing>\\p{L}+ing)${SPACE}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off)${WORD_END}`;
-
-function sawTheir(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, SAW_THEIR)]
-    .filter((m) => hasVerbForm(m.groups!.ing, "ing"))
-    .map((m) =>
-      found(ctx, m, "englishTheirThereTheyAre", "review_msg_confused_word", [
-        shouted(m, "they're"),
-        shouted(m, "them"),
-      ]),
-    );
-}
-
-// ---------------------------------------------------------------- small fixes
-
-// "npm" is spelled out letter by letter: "an npm package".
-const A_NPM = `(?<target>a)${SPACE}npm${WORD_END}`;
-
-function anNpm(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, A_NPM)]
-    .filter((m) => m[0].endsWith("npm"))
-    .map((m) =>
-      found(ctx, m, "englishArticleAnCorrection", "review_msg_article", [
-        caseLike(m.groups!.target, "an"),
-      ]),
-    );
-}
-
-// "all are broke under 3.5.1": software is broken in a version; people are broke.
-const BROKE_IN_VERSION = `(?:is|are|was|were|be|been|being|got|gets|get)${SPACE}(?<target>broke)${SPACE}(?:again${SPACE})?(?:under|on|in|since|after|with|from|for)${SPACE}v?\\p{Nd}+(?:\\.\\p{Nd}+)+${WORD_END}`;
-
-function brokeInVersion(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, BROKE_IN_VERSION)].map((m) =>
-    found(ctx, m, "englishIrregularForms", "review_msg_irregular_form", [
-      caseLike(m.groups!.target, "broken"),
-    ]),
-  );
-}
-
-// "This policy effects employee morale": a singular subject acting on a bare object.
-// "effects" itself takes a change brought about ("effects change").
-const EFFECTS = `(?:this|that|the|our|their|his|her|its|my|your|each|every|any)${SPACE}(?<subject>\\p{L}{3,})${SPACE}(?<target>effects)${SPACE}(?<object>\\p{L}+(?:${SPACE}\\p{L}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))`;
+// "This policy effects employee morale": "effects" itself takes a change brought about
+// ("effects change").
 const BROUGHT_ABOUT =
   /^(?:change|changes|reform|reforms|transformation|transformations|improvement|improvements|repair|repairs|cure|escape|rescue|transfer|transfers|entry|compromise|recovery|savings|closure|settlement)$/;
 
-function effectsObject(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, EFFECTS)]
-    .filter((m) => {
-      const subject = englishWordInfo(m.groups!.subject);
-      const listed = englishListedNoun(m.groups!.subject);
-      if (subject ? !subject.noun || subject.plural || subject.adjective : listed !== "singular")
-        return false;
-      const words = m.groups!.object.split(/[ \t ]+/);
-      if (words.some((w) => BROUGHT_ABOUT.test(w))) return false;
-      return words.every((w, i) => {
-        const info = englishWordInfo(w);
-        if (!info) return englishListedNoun(w) !== null;
-        return i === words.length - 1 ? info.noun : info.noun || info.adjective;
-      });
-    })
-    .map((m) =>
-      found(ctx, m, "englishConfusedWords", "review_msg_confused_word", [shouted(m, "affects")]),
-    );
-}
-
-// "WebScrappers", "WebScrapping": a web scraper scrapes; "scrap" discards.
-const WEB_SCRAP =
-  /(?<![\p{L}\p{N}])[Ww]eb(?<target>Scrap(?:p(?:ers?|ing|ed))|Scraps(?=[ \t ]+(?:the|a|an|data|pages|sites|websites)\b))(?![\p{L}\p{N}])/dgu;
 const WEB_SCRAPE: Readonly<Record<string, string>> = {
   Scrapper: "Scraper",
   Scrappers: "Scrapers",
@@ -614,31 +283,6 @@ const WEB_SCRAPE: Readonly<Record<string, string>> = {
   Scrapped: "Scraped",
   Scraps: "Scrapes",
 };
-
-function webScrape(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, WEB_SCRAP)].map((m) =>
-    found(ctx, m, "englishPhraseCorrections", "review_msg_phrase_correction", [
-      WEB_SCRAPE[m.groups!.target],
-    ]),
-  );
-}
-
-// "each person (s)", "person(ss)": the optional plural is "(s)", attached.
-const PLURAL_MARK = /(?<=\p{L})(?<target>[ \t ]+\(s\)|\(ss\))(?![\p{L}\p{N}])/dgu;
-
-function pluralMark(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, PLURAL_MARK)]
-    .filter((m) => {
-      const word = /\p{L}+$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))?.[0] ?? "";
-      return word === word.toLowerCase() && !!englishWordInfo(word)?.noun;
-    })
-    .map((m) => found(ctx, m, "englishClosedCompounds", "review_msg_closed_compound", ["(s)"]));
-}
-
-// "They agreed meet at dawn": "agree" and "decide" take an infinitive, never a bare verb.
-// The verb is no adjective or adverb ("agreed long ago") and a preposition, adverb or
-// object follows it, so "decided work was…" (a clause) stays.
-const AGREED_VERB = `(?:agree|agrees|agreed|decide|decides|decided)${SPACE}(?<target>\\p{L}+)${SPACE}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your)${WORD_END}`;
 
 /** A base verb that has no plural, adjective or adverb reading and is no determiner. */
 function bareVerb(word: string): boolean {
@@ -653,21 +297,8 @@ function bareVerb(word: string): boolean {
   );
 }
 
-function agreedVerb(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, AGREED_VERB)]
-    .filter((m) => bareVerb(m.groups!.target))
-    .map((m) =>
-      found(ctx, m, "englishVerbComplements", "review_msg_missing_to", [
-        `${shouted(m, "to")} ${m.groups!.target}`,
-      ]),
-    );
-}
-
 // ---------------------------------------------------------------- opt-in style
 
-// "find out the answer": "find" names what was looked for; "find out" stays before a clause,
-// "about", a pronoun or a time ("find out the next day").
-const FIND_OUT = `(?<target>(?<verb>find|finds|finding)${SPACE}out)${SPACE}(?<next>\\p{L}+)(?:${SPACE}(?<second>\\p{L}+))?`;
 const NOT_FOUND_THING =
   /^(?:about|if|whether|what|who|whom|whose|why|when|where|which|how|that|more|much|less|everything|anything|something|nothing|all|for|from|by|in|on|at|to|with|it|them|him|me|us|you|myself|yourself|himself|herself|themselves|ourselves|soon|later|now|today|tomorrow|tonight|yesterday|first|again|too|also|here|there|fast|quickly|eventually|exactly|together|and|or|but|so|then)$/;
 const DETERMINERS =
@@ -675,46 +306,9 @@ const DETERMINERS =
 const NOT_AFTER_DETERMINER =
   /^(?:hard|next|following|same|other|day|week|month|year|morning|evening|night|time|moment|minute|second|way)$/;
 
-function findOut(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, FIND_OUT)) {
-    const { verb, next, second } = m.groups!;
-    if (NOT_FOUND_THING.test(next)) continue;
-    if (DETERMINERS.test(next)) {
-      if (!second || NOT_AFTER_DETERMINER.test(second)) continue;
-    } else {
-      const info = englishWordInfo(next);
-      if (!info || info.adverb || !(info.noun || info.adjective) || /ly$/.test(next)) continue;
-    }
-    findings.push(found(ctx, m, "stylePhrasing", "review_msg_style_phrasing", [verb]));
-  }
-  return findings;
-}
-
-// "After thinking a while, …": as an adverb right after its verb it is one word, "awhile".
-// "took a while", "spent a while", "be a while" keep the noun phrase.
-const A_WHILE = `(?<verb>\\p{L}{3,})${SPACE}(?<target>a${SPACE}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))`;
 const OBJECT_WHILE = new Set(["take", "spend", "have", "need", "give", "be", "last", "require"]);
 
-function awhile(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, A_WHILE)]
-    .filter((m) => {
-      const verbs = englishWordInfo(m.groups!.verb)?.verbs ?? [];
-      return (
-        verbs.some((v) => v.form === "ing" || v.form === "past") &&
-        !verbs.some((v) => OBJECT_WHILE.has(v.lemma))
-      );
-    })
-    .map((m) =>
-      found(ctx, m, "stylePhrasing", "review_msg_style_phrasing", [shouted(m, "awhile")]),
-    );
-}
-
 // ---------------------------------------------------------------- slash before a word
-
-// "the most insulting /backhand compliment": one slash typed before a dictionary word in a
-// sentence is a typo, not a path ("/usr", "/tmp") or a command at a line start ("/help").
-const SLASH_WORD = /(?<=\p{Ll}[,]?[ \t])\/(?=\p{Ll}{3,}[ \t]+\p{Ll})/gu;
 
 /** The slashed token at `start` reads as a word in prose; review's path guard lets it through. */
 export function slashedProseWord(source: string, start: number, bare: string): boolean {
@@ -724,23 +318,6 @@ export function slashedProseWord(source: string, start: number, bare: string): b
     /^[ \t]+\p{Ll}/u.test(source.slice(start + bare.length, start + bare.length + 3)) &&
     !!englishWordInfo(bare.slice(1))
   );
-}
-
-/** The fixed phrases a stray slash hides from the tables: "/backhand compliment". */
-function slashPrefixed(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, SLASH_WORD)) {
-    const word = /^\p{Ll}+/u.exec(ctx.text.slice(m.index + 1, m.index + 40))![0];
-    if (slashedProseWord(ctx.text, m.index, `/${word}`)) {
-      const start = m.index + 1;
-      findings.push(
-        ...inView(ctx, start, start + word.length, [[m.index, " "]], phraseCorrections).filter(
-          (f) => f.range.start === start,
-        ),
-      );
-    }
-  }
-  return findings;
 }
 
 // ---------------------------------------------------------------- opt-in: possible mistakes
@@ -760,84 +337,6 @@ const lowerFirst = (word: string) =>
   word !== "I" && englishWordInfo(word) ? word[0].toLowerCase() + word.slice(1) : word;
 const isLower = (word: string) => word === word.toLowerCase();
 
-// "the 2st", "1012rd": "st" (stone) and "rd" (rod) are units too, so the default rule
-// leaves them; here the ordinal is offered unless a pound count follows ("11st 4lb").
-const ODD_ORDINAL = /(?<=^|[\s([])(?<digits>\p{Nd}{1,9})(?<suffix>st|rd)(?![\p{L}\p{N}_/@#\\-])/gu;
-
-function ordinals(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, ODD_ORDINAL)) {
-    const { digits, suffix } = m.groups!;
-    const end = m.index + m[0].length;
-    const expected = ordinalSuffix(digits);
-    if (expected !== suffix && !/^[ \t]*\p{Nd}+[ \t]*lbs?\b/u.test(ctx.text.slice(end, end + 12)))
-      findings.push(
-        possible(ctx, m.index, {
-          range: [m.index, end],
-          alternatives: [`${digits}${expected}`],
-          key: "review_msg_ordinal",
-        }),
-      );
-  }
-  return findings;
-}
-
-// "Their two options left.": "There are …" when what is left is counted.
-const THEIR_LEFT = `(?<target>their)${SPACE}(?:two|three|four|five|six|seven|eight|nine|ten|no|several|many|\\p{Nd}+|a${SPACE}few)${SPACE}(?<noun>\\p{L}+)${SPACE}left(?=[ \\t\\u00a0]*(?:[.!?]|$))`;
-
-function theirLeft(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, THEIR_LEFT)]
-    .filter((m) => opensClause(ctx, m.index) && isLower(m.groups!.noun))
-    .filter((m) => !!englishWordInfo(m.groups!.noun)?.plural)
-    .map((m) =>
-      possible(ctx, m.index, {
-        range: group(m, "target"),
-        alternatives: [caseLike(m.groups!.target, "there are")],
-      }),
-    );
-}
-
-// "The cause it is unclear.": a pronoun repeating the subject before an adjective that ends
-// the sentence. "cause" may also have been "because".
-const SUBJECT_IT = `(?<target>(?<det>the|this|that|our|my|your|their|his|her)${SPACE}(?<noun>\\p{L}+)${SPACE}it${SPACE}(?<be>is|was))${SPACE}(?<adj>\\p{L}+)(?=[ \\t\\u00a0]*(?:[.!?]|$))`;
-
-function subjectIt(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, SUBJECT_IT)) {
-    const { det, noun, be, adj } = m.groups!;
-    const nounInfo = englishWordInfo(noun);
-    if (!opensClause(ctx, m.index) || !isLower(noun + adj) || !nounInfo?.noun || nounInfo.plural)
-      continue;
-    if (!englishWordInfo(adj)?.adjective) continue;
-    const alternatives = [`${det} ${noun} ${be}`];
-    if (noun === "cause" && /^the$/i.test(det))
-      alternatives.push(caseLike(det, `because it ${be}`));
-    findings.push(possible(ctx, m.index, { range: group(m, "target"), alternatives }));
-  }
-  return findings;
-}
-
-// "Stress can cause it is not obvious.": a clause missing "That", or a clause after "it".
-const CAUSE_IT_IS = `(?<target>(?<subject>\\p{L}+)${SPACE}(?<modal>can|could|may|might|will|would|should|must|does|did)${SPACE}cause${SPACE}it${SPACE}(?<be>is|was))${WORD_END}`;
-
-function causeItIs(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, CAUSE_IT_IS)]
-    .filter((m) => opensClause(ctx, m.index) && isLower(m.groups!.modal))
-    .map((m) => {
-      const { subject, modal, be } = m.groups!;
-      return possible(ctx, m.index, {
-        range: group(m, "target"),
-        alternatives: [
-          `${caseLike(subject, "that")} ${lowerFirst(subject)} ${modal} cause it ${be}`,
-          `${subject} ${modal} cause it, which ${be}`,
-        ],
-      });
-    });
-}
-
-// "The artist painted portrait in studio.": a lone countable noun after a past verb, with a
-// lone noun after its preposition or an adverb closing the sentence.
-const BARE_OBJECT = `(?:the|a|an|this|that|my|our|their|his|her)${SPACE}\\p{L}+${SPACE}(?<verb>\\p{L}+)${SPACE}(?<obj>\\p{L}+)${SPACE}(?:(?:in|on|at|under|near|into|onto|behind|beside)${SPACE}(?<place>\\p{L}+)|(?<adverb>\\p{L}+ly|outside|inside|nearby|indoors|outdoors))(?=[ \\t\\u00a0]*[.!?])`;
 // Places English names without an article ("in bed", "at home", "on time").
 const BARE_PLACES = new Set(
   "bed home school class church college court prison jail hospital sea work town time foot board fire hand line stage camp office duty air".split(
@@ -860,112 +359,277 @@ function countableSingular(word: string): boolean {
   return [`${word}s`, `${word}es`].some((form) => englishWordInfo(form)?.plural);
 }
 
-function bareObjects(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, BARE_OBJECT, "obj")) {
-    const { verb, obj, place, adverb } = m.groups!;
-    if (!opensClause(ctx, m.index) || !isLower(verb) || !countableSingular(obj)) continue;
-    if (!hasVerbForm(verb, "past")) continue;
-    if (place && (BARE_PLACES.has(place) || !countableSingular(place))) continue;
-    if (adverb && /ly$/.test(adverb) && !englishWordInfo(adverb)?.adverb) continue;
-    // People say "herb" and "ukulele" with the two articles: the first letter selects one.
-    const sound = englishInitialSound(obj);
-    const vowel = sound === "either" ? /^[aeiou]/.test(obj) : sound === "vowel";
-    findings.push(
-      possible(ctx, m.index, {
-        range: group(m, "obj"),
-        alternatives: [`${vowel ? "an" : "a"} ${obj}`, `the ${obj}`],
-      }),
-    );
-    if (place)
-      findings.push(
-        possible(ctx, m.index, { range: group(m, "place"), alternatives: [`the ${place}`] }),
-      );
-  }
-  return findings;
-}
-
-// "They have writing today.": the progressive takes "be"; "have been writing" keeps "have".
-// The default rule leaves -ing words that are also nouns ("We have training today") and a
-// clause ending on the verb; this opt-in check offers both readings there.
-const HAVE_ING = `(?<target>(?<subject>I|you|we|they|he|she|it)${SPACE}(?<have>have|has)${SPACE}(?<ing>\\p{L}+ing))(?=${SPACE}(?:today|now|tonight|tomorrow|again)${WORD_END}|(?<end>[ \\t\\u00a0]*(?:[.!?]|$)))`;
 const BE_FOR: Record<string, string> = { i: "am", he: "is", she: "is", it: "is" };
 
-function haveIng(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, HAVE_ING)]
-    .filter((m) => {
-      const { subject, have, ing, end } = m.groups!;
-      const singular = /^(?:he|she|it)$/i.test(subject);
-      if (!opensClause(ctx, m.index) || !isLower(have + ing) || (have === "has") !== singular)
-        return false;
-      if (end === undefined && !NOUN_LIKE_ING.test(ing)) return false;
-      return hasVerbForm(ing, "ing");
-    })
-    .map((m) => {
-      const { subject, have, ing } = m.groups!;
-      const be = BE_FOR[subject.toLowerCase()] ?? "are";
-      return possible(ctx, m.index, {
-        range: group(m, "target"),
-        alternatives: [`${subject} ${be} ${ing}`, `${subject} ${have} been ${ing}`],
-      });
-    });
-}
-
-// "It doesn't quiet.": "quite" closing a negated clause (the default rule needs a next word).
-const NOT_QUIET = `\\p{L}+n['’]t${SPACE}(?<target>quiet)${COMPLETE}`;
-
-// "you have more good" -> "better", unless more good is weighed against harm.
-const MORE_GOOD = `(?<target>more${SPACE}good)${COMPLETE}`;
-
-// "they often sort after the total": a habit is "sought after" or "sort by"; "sort after the
-// join" (then) has no frequency adverb before it.
-const SORT_AFTER = `(?:often|usually|always|generally|typically|commonly|normally|sometimes|mostly)${SPACE}(?<target>sort${SPACE}after)${SPACE}(?:the|a|an|their|its|his|her|our|my|your)${WORD_END}`;
-
-// "scrap page", "scrapped pages": scraping extracts a page; scrapping discards it.
-const SCRAP_PAGES = `(?<target>scrap(?:s|ped|ping)?)${SPACE}(?:web${SPACE})?(?:pages?|webpages?|websites?|sites?)${WORD_END}`;
-
-// "I adore markdown": the formatting language is "Markdown"; a price cut keeps lowercase.
-const MARKDOWN = `(?<!(?:a|an|the|this|that|any|no|big|huge|steep|deep|small|price|\\p{Nd}+%?)${SPACE})(?<target>markdown)${WORD_END}(?!${SPACE}(?:of|on|in|to|from|price|prices)${WORD_END})`;
-
-// "She wants finish early": "want" and "need" take "to" before a verb.
-const WANTS_VERB = `(?:want|wants|wanted|need|needs|needed)${SPACE}(?<target>\\p{L}+)${SPACE}(?:early|later|soon|now|today|tonight|tomorrow|first|quickly|again|together|immediately)${WORD_END}`;
-
-// "because affect is hidden": the noun is usually "effect" ("affect" is a mood in psychology).
-const AFFECT_NOUN = `(?:because|since|although|though|while|if|when|and|but|so)${SPACE}(?<target>affect)${SPACE}(?:is|was|has|will|can|may|might|seems)${WORD_END}`;
-
-// "helps you weight small things": "weigh" measures; "weight" assigns a weight.
-const WEIGHT_VERB = `(?:help|helps|helped|helping|let|lets|make|makes)${SPACE}(?:you|me|us|them|him|her|people|users)${SPACE}(?<target>weight)${WORD_END}`;
-
-// "You boxes": "Your boxes", or "You box".
-const YOU_PLURAL = `(?<target>you${SPACE}(?<word>\\p{L}+s))(?=[ \\t\\u00a0]*(?:[.!?]|$)|${SPACE}(?:are|were|look|seem)${WORD_END})`;
-
-// "The Putin's war": a name's possessive takes no article. Names that take "the" stay.
-const THE_NAME = `(?<target>the${SPACE})(?<name>\\p{L}+)['’]s${SPACE}\\p{L}`;
+// "The Putin's war": names that take "the" stay.
 const THE_NAMES = new Set(
   "hague thames bronx vatican kremlin sahara nile rhine danube mediterranean caribbean gambia congo sudan ukraine crimea midwest quran koran louvre alamo riviera yukon mekong volga titanic hobbit".split(
     " ",
   ),
 );
 
-function possibleForms(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const add = (pattern: string, alternatives: (m: RegExpExecArray) => string[] | null) => {
-    for (const m of frameMatches(ctx, pattern)) {
-      const alts = alternatives(m);
-      if (alts)
-        findings.push(possible(ctx, m.index, { range: group(m, "target"), alternatives: alts }));
-    }
+/** A fixer that offers `alternatives` of the `target` group as a possible mistake. */
+const possibleFix =
+  (alternatives: (m: RegExpExecArray, ctx: DetectContext) => string[] | null): MatchFixer =>
+  (m, ctx) => {
+    const alts = alternatives(m, ctx);
+    return alts && possible(ctx, m.index, { range: group(m, "target"), alternatives: alts });
   };
-  const typed = (m: RegExpExecArray) => m.groups!.target;
-  add(NOT_QUIET, (m) => (isLower(typed(m)) ? ["quite"] : null));
-  add(MORE_GOOD, (m) => (isLower(typed(m)) ? ["better"] : null));
-  add(SORT_AFTER, (m) => (isLower(typed(m)) ? ["sought after", "sort by"] : null));
-  add(SCRAP_PAGES, (m) => (isLower(typed(m)) ? [SCRAPE[typed(m)]] : null));
-  add(MARKDOWN, (m) => (typed(m) === "markdown" ? ["Markdown"] : null));
-  add(WANTS_VERB, (m) => (isLower(typed(m)) && bareVerb(typed(m)) ? [`to ${typed(m)}`] : null));
-  add(AFFECT_NOUN, (m) => (isLower(typed(m)) ? ["effect", "the effect"] : null));
-  add(WEIGHT_VERB, (m) => (isLower(typed(m)) ? ["weigh"] : null));
-  add(YOU_PLURAL, (m) => {
+const targetOf = (m: RegExpExecArray) => m.groups!.target;
+const lowerTarget = (alternatives: string[]) =>
+  possibleFix((m) => (isLower(targetOf(m)) ? alternatives : null));
+
+// A copy of the mixed-case frame for matchAll, which starts at the lastIndex of the regex it is
+// given.
+const MIXED_WORDS =
+  /(?<![\p{L}\p{N}_'’@/#\\.-])\p{L}*\p{Ll}\p{Lu}\p{L}*(?![\p{L}\p{N}_'’@/#\\-])/gu;
+const casedChecks = (view: DetectContext) => [...confusedWords(view), ...chromeExtension(view)];
+
+// Quoted wording is checked too: the tables' quotation and example guards keep a mention
+// ("'chalk full' is nonstandard") as typed, and this opt-in check reads it anyway.
+const QUOTE_MARKS = /["“”'‘’«»`]/;
+const QUOTED_RULES: ReadonlySet<string> = new Set([
+  "englishPhraseCorrections",
+  "englishClosedCompounds",
+  "englishPossibleErrors",
+]);
+const quotedChecks = (view: DetectContext) => [...phrasesAndFrames(view), ...fixedPhrases(view)];
+
+// Still necessary: the default checks skip a named example; only this opt-in check reads it.
+function quotedMention(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | null {
+  const range = rangeAt(BY_START, ctx.quotationRanges, m.index);
+  if (!range) return null;
+  const { start, end } = range;
+  const innerEnd = QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end;
+  const inner = ctx.text.slice(start + 1, innerEnd);
+  // A letter or two ("a", "x") holds no phrase; skipping it spares a full frame pass.
+  if ((inner.match(/\p{L}/gu)?.length ?? 0) < 3) return null;
+  // The window inView reads: 256 characters around the quotation's inside.
+  const left = Math.max(0, start + 1 - 256);
+  const right = Math.min(ctx.text.length, innerEnd + 256);
+  // Away from the text's edges, the view is 256 blanks, the inside and 256 blanks: the same
+  // inside gives the same findings at a shift. Each distinct inside is checked one time a chunk.
+  const same = left === start + 1 - 256 && right === innerEnd + 256;
+  let checked = CHECKED.get(ctx);
+  if (!checked) CHECKED.set(ctx, (checked = new Map<string, Checked>()));
+  const seen = same ? checked.get(inner) : undefined;
+  if (seen) {
+    const shift = start + 1 - seen.at;
+    return seen.found.map((f) => ({
+      ...f,
+      range: { start: f.range.start + shift, end: f.range.end + shift },
+      context: f.context && { start: f.context.start + shift, end: f.context.end + shift },
+    }));
+  }
+  // Only the quotation is read: everything around it is blanked.
+  const swaps: Swap[] = [
+    [left, " ".repeat(start + 1 - left)],
+    [innerEnd, " ".repeat(right - innerEnd)],
+  ];
+  const found = inView(ctx, start + 1, innerEnd, swaps, quotedChecks, QUOTED_RULES)
+    .filter((f) => inside(f, start + 1, innerEnd))
+    .map((f): RawFinding => ({
+      ...f,
+      ruleId: "englishPossibleErrors",
+      messageKey: "review_msg_quoted_mention",
+    }));
+  if (same) checked.set(inner, { at: start + 1, found });
+  return found;
+}
+
+// The distinct quotation insides each chunk checked, with their findings.
+type Checked = { at: number; found: RawFinding[] };
+const CHECKED = new WeakMap<DetectContext, Map<string, Checked>>();
+
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  ...PHRASE_FIXERS,
+  quotedPhrase,
+  afterExample,
+  quotedMention,
+  /** Fixed phrases broken across a soft wrap ("Double\nclick"). */
+  wrappedPhrase: (m, ctx) => {
+    const newline = m.index + m[0].indexOf("\n");
+    const lineStart = ctx.text.lastIndexOf("\n", newline - 1) + 1;
+    // Phrases are short: start at a word boundary at most ~40 characters back.
+    let from = Math.max(lineStart, newline - 40);
+    if (from > lineStart) {
+      const space = ctx.text.indexOf(" ", from);
+      if (space < 0 || space >= newline) return null;
+      from = space + 1;
+    }
+    return inView(ctx, from, newline, [[newline, " "]], phraseCorrections).filter(
+      (f) => f.range.start < newline && f.range.end > newline,
+    );
+  },
+  shoutedNames: (m, ctx) => {
+    const start = m.index;
+    const end = start + m[0].length;
+    // A short acronym ("API", "NASA") is no name written in capitals.
+    if (m[0].length < 5) return null;
+    const swaps: Swap[] = [[start, m[0].toLowerCase()]];
+    const names = (view: DetectContext) => [
+      ...canonicalCasing(view),
+      ...phraseCorrections(view),
+      ...chromeExtension(view),
+    ];
+    return inView(ctx, start, end, swaps, names, CASING_ONLY)
+      .filter(
+        (f) =>
+          inside(f, start, end) &&
+          !f.alternatives.includes(ctx.text.slice(f.range.start, f.range.end)),
+      )
+      .map((f): RawFinding => ({
+        ...f,
+        ruleId: "stylePhrasing",
+        messageKey: "review_msg_name_casing",
+      }));
+  },
+  chromeExtension: (m) => {
+    const ext = m.groups!.ext;
+    return m.groups!.chrome === "chrome" && ext === ext.toLowerCase()
+      ? [`Chrome ${ext}`, `Chrome E${ext.slice(1)}`]
+      : null;
+  },
+  dayOne: (m, ctx) =>
+    m[0] === m[0].toLowerCase() &&
+    JOURNAL_APP.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + 140))
+      ? "Day One"
+      : null,
+  slashedWord: (m, ctx) => {
+    const typed = m.groups!.target;
+    const word = typed.toLowerCase();
+    if (ctx.rules && !ctx.rules.has(SLASHED[word].ruleId)) return null;
+    if (typed !== word && !/^[A-Z][a-z]+$/.test(typed)) return null;
+    if (ctx.dictionary.has(word)) return null;
+    if (word === "bias" && !BE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index)))
+      return null;
+    const { to, ruleId, messageKey } = SLASHED[word];
+    return found(ctx, m, ruleId, messageKey, [caseLike(typed, to)]);
+  },
+  thatThere: (m) => {
+    const noun = m.groups!.noun;
+    const info = englishWordInfo(noun);
+    if (NOT_FOUND_THING.test(noun)) return null;
+    return info?.noun && !info.plural && !info.adverb && !info.adjective
+      ? shouted(m, "their")
+      : null;
+  },
+  sawTheir: (m) =>
+    hasVerbForm(m.groups!.ing, "ing") ? [shouted(m, "they're"), shouted(m, "them")] : null,
+  anNpm: (m) => (m[0].endsWith("npm") ? caseLike(m.groups!.target, "an") : null),
+  brokeInVersion: (m) => caseLike(m.groups!.target, "broken"),
+  effectsObject: (m) => {
+    const subject = englishWordInfo(m.groups!.subject);
+    const listed = englishListedNoun(m.groups!.subject);
+    if (subject ? !subject.noun || subject.plural || subject.adjective : listed !== "singular")
+      return null;
+    const words = m.groups!.object.split(/[ \t ]+/);
+    if (words.some((w) => BROUGHT_ABOUT.test(w))) return null;
+    return words.every((w, i) => {
+      const info = englishWordInfo(w);
+      if (!info) return englishListedNoun(w) !== null;
+      return i === words.length - 1 ? info.noun : info.noun || info.adjective;
+    })
+      ? shouted(m, "affects")
+      : null;
+  },
+  agreedVerb: (m) =>
+    bareVerb(m.groups!.target) ? `${shouted(m, "to")} ${m.groups!.target}` : null,
+  webScrape: (m) => WEB_SCRAPE[m.groups!.target],
+  pluralMark: (m, ctx) => {
+    const word = /\p{L}+$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))?.[0] ?? "";
+    return word === word.toLowerCase() && !!englishWordInfo(word)?.noun ? "(s)" : null;
+  },
+  /** The fixed phrases a stray slash hides from the tables: "/backhand compliment". */
+  slashPrefixed: (m, ctx) => {
+    const word = /^\p{Ll}+/u.exec(ctx.text.slice(m.index + 1, m.index + 40))![0];
+    if (!slashedProseWord(ctx.text, m.index, `/${word}`)) return null;
+    const start = m.index + 1;
+    return inView(ctx, start, start + word.length, [[m.index, " "]], phraseCorrections).filter(
+      (f) => f.range.start === start,
+    );
+  },
+  oddOrdinal: (m, ctx) => {
+    const { digits, suffix } = m.groups!;
+    const end = m.index + m[0].length;
+    const expected = ordinalSuffix(digits);
+    if (expected === suffix || /^[ \t]*\p{Nd}+[ \t]*lbs?\b/u.test(ctx.text.slice(end, end + 12)))
+      return null;
+    return possible(ctx, m.index, {
+      range: [m.index, end],
+      alternatives: [`${digits}${expected}`],
+      key: "review_msg_ordinal",
+    });
+  },
+  theirLeft: possibleFix((m, ctx) =>
+    opensClause(ctx, m.index) &&
+    isLower(m.groups!.noun) &&
+    !!englishWordInfo(m.groups!.noun)?.plural
+      ? [caseLike(m.groups!.target, "there are")]
+      : null,
+  ),
+  subjectIt: (m, ctx) => {
+    const { det, noun, be, adj } = m.groups!;
+    const nounInfo = englishWordInfo(noun);
+    if (!opensClause(ctx, m.index) || !isLower(noun + adj) || !nounInfo?.noun || nounInfo.plural)
+      return null;
+    if (!englishWordInfo(adj)?.adjective) return null;
+    const alternatives = [`${det} ${noun} ${be}`];
+    if (noun === "cause" && /^the$/i.test(det))
+      alternatives.push(caseLike(det, `because it ${be}`));
+    return possible(ctx, m.index, { range: group(m, "target"), alternatives });
+  },
+  causeItIsPossible: possibleFix((m, ctx) => {
+    if (!opensClause(ctx, m.index) || !isLower(m.groups!.modal)) return null;
+    const { subject, modal, be } = m.groups!;
+    return [
+      `${caseLike(subject, "that")} ${lowerFirst(subject)} ${modal} cause it ${be}`,
+      `${subject} ${modal} cause it, which ${be}`,
+    ];
+  }),
+  bareObjects: (m, ctx) => {
+    const { verb, obj, place, adverb } = m.groups!;
+    if (!opensClause(ctx, m.index) || !isLower(verb) || !countableSingular(obj)) return null;
+    if (!hasVerbForm(verb, "past")) return null;
+    if (place && (BARE_PLACES.has(place) || !countableSingular(place))) return null;
+    if (adverb && /ly$/.test(adverb) && !englishWordInfo(adverb)?.adverb) return null;
+    // People say "herb" and "ukulele" with the two articles: the first letter selects one.
+    const sound = englishInitialSound(obj);
+    const vowel = sound === "either" ? /^[aeiou]/.test(obj) : sound === "vowel";
+    const findings = [
+      possible(ctx, m.index, {
+        range: group(m, "obj"),
+        alternatives: [`${vowel ? "an" : "a"} ${obj}`, `the ${obj}`],
+      }),
+    ];
+    if (place)
+      findings.push(
+        possible(ctx, m.index, { range: group(m, "place"), alternatives: [`the ${place}`] }),
+      );
+    return findings;
+  },
+  haveIng: possibleFix((m, ctx) => {
+    const { subject, have, ing, end } = m.groups!;
+    const singular = /^(?:he|she|it)$/i.test(subject);
+    if (!opensClause(ctx, m.index) || !isLower(have + ing) || (have === "has") !== singular)
+      return null;
+    if (end === undefined && !NOUN_LIKE_ING.test(ing)) return null;
+    if (!hasVerbForm(ing, "ing")) return null;
+    const be = BE_FOR[subject.toLowerCase()] ?? "are";
+    return [`${subject} ${be} ${ing}`, `${subject} ${have} been ${ing}`];
+  }),
+  notQuiet: lowerTarget(["quite"]),
+  moreGood: lowerTarget(["better"]),
+  sortAfter: lowerTarget(["sought after", "sort by"]),
+  scrapPages: possibleFix((m) => (isLower(targetOf(m)) ? [SCRAPE[targetOf(m)]] : null)),
+  markdownName: possibleFix((m) => (targetOf(m) === "markdown" ? ["Markdown"] : null)),
+  wantsVerb: possibleFix((m) =>
+    isLower(targetOf(m)) && bareVerb(targetOf(m)) ? [`to ${targetOf(m)}`] : null,
+  ),
+  affectNoun: lowerTarget(["effect", "the effect"]),
+  weightVerb: lowerTarget(["weigh"]),
+  youPlural: possibleFix((m, ctx) => {
     const word = m.groups!.word;
     const info = englishWordInfo(word);
     const third = info?.verbs.find((v) => v.form === "third");
@@ -977,11 +641,11 @@ function possibleForms(ctx: DetectContext): RawFinding[] {
       )
     )
       return null;
-    const you = typed(m).slice(0, 3);
+    const you = targetOf(m).slice(0, 3);
     // A plural noun that is also an -s verb ("You boxes") may have meant the verb.
     return [`${caseLike(you, "your")} ${word}`, ...(third ? [`${you} ${third.lemma}`] : [])];
-  });
-  add(THE_NAME, (m) => {
+  }),
+  theName: possibleFix((m, ctx) => {
     const name = m.groups!.name;
     if (!/^\p{Lu}\p{Ll}+$/u.test(name) || /s$/.test(name) || THE_NAMES.has(name.toLowerCase()))
       return null;
@@ -989,197 +653,49 @@ function possibleForms(ctx: DetectContext): RawFinding[] {
     // A title in capitals ("The Hobbit's Ending") is a name of its own.
     const after = ctx.text.slice(m.index + m[0].length - 1, m.index + m[0].length);
     return isLower(after) ? [""] : null;
-  });
-  return findings;
-}
-
-// "I HoP we can…", "cHrOmE eXtEnSiOn": words typed with random capitals hide the default
-// checks, which abstain on cased words (names like "iPhone"). Read lowercased, they apply.
-const MIXED_CASE = /(?<![\p{L}\p{N}_'’@/#\\.-])\p{L}*\p{Ll}\p{Lu}\p{L}*(?![\p{L}\p{N}_'’@/#\\-])/gu;
-// A copy for matchAll, which starts at the lastIndex of the regex it is given.
-const MIXED_WORDS = new RegExp(MIXED_CASE.source, "gu");
-const casedChecks = (view: DetectContext) => [
-  ...CONFUSED_WORDS.flatMap((d) => d.detect(view)),
-  ...chromeExtension(view),
-];
-
-function mixedCase(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, MIXED_CASE)) {
+  }),
+  mixedCase: (m, ctx) => {
     const start = m.index;
     const end = start + m[0].length;
     // Only a dictionary word can hide a check ("aB" or "PoC" stay).
-    if (englishWordInfo(m[0])) {
-      // Every mixed word around it is read lowercased: "cHrOmE eXtEnSiOn".
-      const from = Math.max(0, start - 64);
-      const swaps: Swap[] = [...ctx.text.slice(from, end + 64).matchAll(MIXED_WORDS)].map(
-        (w): Swap => [from + w.index, w[0].toLowerCase()],
-      );
-      for (const f of inView(ctx, start, end, swaps, casedChecks))
-        if (f.range.start < end && f.range.end > start)
-          findings.push({ ...f, ruleId: "englishPossibleErrors" });
-    }
-  }
-  return findings;
-}
-
-// Quoted wording is checked too: the tables' quotation and example guards keep a mention
-// ("'chalk full' is nonstandard") as typed, and this opt-in check reads it anyway.
-const QUOTE_MARKS = /["“”'‘’«»`]/;
-const QUOTED_RULES: ReadonlySet<string> = new Set([
-  "englishPhraseCorrections",
-  "englishClosedCompounds",
-  "englishPossibleErrors",
-]);
-const quotedChecks = (view: DetectContext) => [
-  ...phrasesAndFrames(view),
-  ...FIXED_PHRASES.flatMap((d) => d.detect(view)),
-];
-
-// Still necessary: the default checks skip a named example; only this opt-in check reads it.
-function quotedMentions(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  // Away from the text's edges, the view is 256 blanks, the inside and 256 blanks: the same
-  // inside gives the same findings at a shift. Each distinct inside is checked one time.
-  const checked = new Map<string, { at: number; found: RawFinding[] }>();
-  for (const { start, end } of ctx.quotationRanges ?? []) {
-    if (start < ctx.from) continue;
-    if (start >= ctx.to) break;
-    const innerEnd = QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end;
-    const inner = ctx.text.slice(start + 1, innerEnd);
-    // A letter or two ("a", "x") holds no phrase; skipping it spares a full frame pass.
-    if ((inner.match(/\p{L}/gu)?.length ?? 0) < 3) continue;
-    // The window inView reads: 256 characters around the quotation's inside.
-    const left = Math.max(0, start + 1 - 256);
-    const right = Math.min(ctx.text.length, innerEnd + 256);
-    const same = left === start + 1 - 256 && right === innerEnd + 256;
-    const seen = same ? checked.get(inner) : undefined;
-    if (seen) {
-      const shift = start + 1 - seen.at;
-      for (const f of seen.found)
-        findings.push({
-          ...f,
-          range: { start: f.range.start + shift, end: f.range.end + shift },
-          context: f.context && { start: f.context.start + shift, end: f.context.end + shift },
-        });
-      continue;
-    }
-    // Only the quotation is read: everything around it is blanked.
-    const swaps: Swap[] = [
-      [left, " ".repeat(start + 1 - left)],
-      [innerEnd, " ".repeat(right - innerEnd)],
-    ];
-    const found = inView(ctx, start + 1, innerEnd, swaps, quotedChecks, QUOTED_RULES)
-      .filter((f) => inside(f, start + 1, innerEnd))
-      .map((f): RawFinding => ({
-        ...f,
-        ruleId: "englishPossibleErrors",
-        messageKey: "review_msg_quoted_mention",
-      }));
-    if (same) checked.set(inner, { at: start + 1, found });
-    findings.push(...found);
-  }
-  return findings;
-}
-
-// ---------------------------------------------------------------- opt-in: other accepted forms
-
-// "Chrome extension": the store's own title case, "Chrome Extension", is offered on request.
-function chromeTitle(ctx: DetectContext): RawFinding[] {
-  return [...frameMatches(ctx, CHROME_EXTENSION)]
-    .filter((m) => m.groups!.chrome === "Chrome" && isLower(m.groups!.ext))
-    .map((m) =>
-      found(ctx, m, "styleAlternativePhrasing", "review_msg_alternative_phrasing", [
-        `Chrome E${m.groups!.ext.slice(1)}`,
-      ]),
+    if (!englishWordInfo(m[0])) return null;
+    // Every mixed word around it is read lowercased: "cHrOmE eXtEnSiOn".
+    const from = Math.max(0, start - 64);
+    const swaps: Swap[] = [...ctx.text.slice(from, end + 64).matchAll(MIXED_WORDS)].map(
+      (w): Swap => [from + w.index, w[0].toLowerCase()],
     );
-}
+    return inView(ctx, start, end, swaps, casedChecks)
+      .filter((f) => f.range.start < end && f.range.end > start)
+      .map((f): RawFinding => ({ ...f, ruleId: "englishPossibleErrors" }));
+  },
+  // "Chrome extension": the store's own title case, "Chrome Extension", is offered on request.
+  chromeTitle: (m) =>
+    m.groups!.chrome === "Chrome" && isLower(m.groups!.ext)
+      ? `Chrome E${m.groups!.ext.slice(1)}`
+      : null,
+  findOut: (m) => {
+    const { verb, next, second } = m.groups!;
+    if (NOT_FOUND_THING.test(next)) return null;
+    if (DETERMINERS.test(next)) {
+      if (!second || NOT_AFTER_DETERMINER.test(second)) return null;
+    } else {
+      const info = englishWordInfo(next);
+      if (!info || info.adverb || !(info.noun || info.adjective) || /ly$/.test(next)) return null;
+    }
+    return verb;
+  },
+  awhile: (m) => {
+    const verbs = englishWordInfo(m.groups!.verb)?.verbs ?? [];
+    return verbs.some((v) => v.form === "ing" || v.form === "past") &&
+      !verbs.some((v) => OBJECT_WHILE.has(v.lemma))
+      ? shouted(m, "awhile")
+      : null;
+  },
+} satisfies Record<string, MatchFixer>;
 
-const PHRASE_RULES: CatalogRuleId[] = [
-  "englishPhraseCorrections",
-  "englishClosedCompounds",
-  "stylePhrasing",
-  "englishAmericanSpelling",
-  "englishBritishSpelling",
-  "englishOxfordSpelling",
-  "styleWordChoice",
-  "englishCanonicalCasing",
-];
+// Lowercase "chrome extension" is the browser's add-on. Other checks read it in a view, as the
+// predicate did: whatever checks are on.
+const chromeExtensionRule = frameRuleDetector("en.chromeExtension", { en: FIXERS });
+const chromeExtension = (view: DetectContext) => chromeExtensionRule({ ...view, rules: undefined });
 
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishModalOfCorrection"],
-    detect: gated(/(?:ld|st|ht)(?:n['’]t)?[ \t\u00a0]+of\b/gi, modalOfAtEnd),
-  },
-  { rules: ["englishFixedPrepositions"], detect: gated(/beware/gi, bewareOf) },
-  {
-    rules: ["englishPhraseCorrections"],
-    detect: (ctx) => [
-      ...gated(/\b[io]n[ \t\u00a0]+mass\b/gi, enMasse)(ctx),
-      ...gated(/link[ \t\u00a0]+lists/gi, linkedLists)(ctx),
-      ...gated(/of[ \t\u00a0]+speeches/gi, partsOfSpeech)(ctx),
-      ...gated(/scrap/gi, scrapeWeb)(ctx),
-    ],
-  },
-  { rules: ["stylePhrasing"], detect: gated(/imitat/gi, imitateOf) },
-  { rules: PHRASE_RULES, detect: english(quotedPhrases, afterExamples, wrappedPhrases) },
-  { rules: ["stylePhrasing"], detect: english(shoutedNames) },
-  {
-    rules: ["englishCanonicalCasing"],
-    detect: (ctx) => [
-      ...when(/chrome[ \t\u00a0]+extension/gi, chromeExtension)(ctx),
-      ...when(/day[ \t\u00a0]+one/gi, dayOne)(ctx),
-      ...when(/MacO[Ss]/g, macOS)(ctx),
-    ],
-  },
-  {
-    rules: ["englishClosedCompounds", "englishConfusedWords", "styleWordChoice"],
-    detect: when(/\/\p{L}/gu, slashedWords),
-  },
-  {
-    rules: ["englishTheirThereTheyAre"],
-    detect: (ctx) => [
-      ...when(/that[ \t\u00a0]+there/gi, thatThere)(ctx),
-      ...when(/their[ \t\u00a0]+\p{L}+ing/giu, sawTheir)(ctx),
-    ],
-  },
-  { rules: ["englishArticleAnCorrection"], detect: when(/\ba[ \t\u00a0]+npm/gi, anNpm) },
-  { rules: ["englishIrregularForms"], detect: when(/broke[ \t\u00a0]/gi, brokeInVersion) },
-  { rules: ["englishConfusedWords"], detect: when(/effects[ \t\u00a0]/gi, effectsObject) },
-  {
-    rules: ["englishVerbComplements"],
-    detect: when(/(?:agree|decide)[sd]?[ \t\u00a0]/gi, agreedVerb),
-  },
-  { rules: ["englishPhraseCorrections"], detect: when(/[Ww]ebScrap/g, webScrape) },
-  { rules: ["englishClosedCompounds"], detect: when(/\((?:s|ss)\)/g, pluralMark) },
-  { rules: ["englishPhraseCorrections"], detect: when(/\s\/\p{Ll}/gu, slashPrefixed) },
-  {
-    rules: ["englishPossibleErrors"],
-    // Each check runs only on chunks holding its rare literal.
-    detect: english(
-      when(/\p{Nd}(?:st|rd)/gu, ordinals),
-      when(/their[ \t\u00a0]/gi, theirLeft),
-      when(/\bit[ \t\u00a0]+(?:is|was)\b/gi, subjectIt),
-      when(/cause[ \t\u00a0]+it/gi, causeItIs),
-      bareObjects,
-      when(/\bha(?:ve|s)[ \t\u00a0]+\p{L}+ing\b/giu, haveIng),
-      possibleForms,
-      when(/\p{Ll}\p{Lu}/gu, mixedCase),
-      quotedMentions,
-    ),
-  },
-  {
-    rules: ["styleAlternativePhrasing"],
-    detect: when(/chrome[ \t\u00a0]+extension/gi, chromeTitle),
-  },
-  {
-    rules: ["stylePhrasing"],
-    detect: (ctx) => [
-      ...when(/find(?:s|ing)?[ \t\u00a0]+out/gi, findOut)(ctx),
-      ...when(/\ba[ \t\u00a0]+while/gi, awhile)(ctx),
-      ...when(/argue[ \t]*\n/gi, argueWrapped)(ctx),
-      ...when(/CYBERSEC/g, cybersec)(ctx),
-    ],
-  },
-];
+/** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */

@@ -48,10 +48,39 @@ export function tokensAfter(ctx: DetectContext, index: number, count: number): T
 
 /** The word right before `index` (spaces only between), lowercased; "" after punctuation or at the start. */
 export function wordBefore(ctx: DetectContext, index: number): string {
-  const m = /(?<![\p{L}\p{N}_'’@/#\\.-])([A-Za-z]+(?:['’][A-Za-z]+)?)[ \t\u00a0]{1,8}$/u.exec(
-    ctx.text.slice(Math.max(0, index - 40), index),
-  );
-  return m ? m[1].toLowerCase() : "";
+  // A backward read of the 40 characters before `index`, the same as the regex
+  // /(?<![\p{L}\p{N}_'’@/#\\.-])([A-Za-z]+(?:['’][A-Za-z]+)?)[ \t\u00a0]{1,8}$/u on that slice,
+  // which a `$` anchor makes retry at every position.
+  const text = ctx.text;
+  const low = Math.max(0, index - 40);
+  let end = index;
+  while (end > low && end > index - 9 && SPACE_CHARS.has(text[end - 1])) end--;
+  if (end === index || (end > low && SPACE_CHARS.has(text[end - 1]))) return "";
+  let start = end;
+  while (start > low && ASCII_LETTER.test(text[start - 1])) start--;
+  if (start === end) return "";
+  if (start > low && (text[start - 1] === "'" || text[start - 1] === "’")) {
+    let first = start - 1;
+    while (first > low && ASCII_LETTER.test(text[first - 1])) first--;
+    if (first === start - 1) return "";
+    start = first;
+  }
+  if (start > low && NO_WORD_BEFORE.test(charBefore(text, start, low))) return "";
+  return text.slice(start, end).toLowerCase();
+}
+
+const SPACE_CHARS = new Set([" ", "\t", "\u00a0"]);
+const ASCII_LETTER = /[A-Za-z]/;
+const NO_WORD_BEFORE = /[\p{L}\p{N}_'’@/#\\.-]/u;
+
+/** The character before `at` as the u-flag regex reads it: a whole surrogate pair after `low`. */
+function charBefore(text: string, at: number, low: number): string {
+  const code = text.charCodeAt(at - 1);
+  if (code >= 0xdc00 && code <= 0xdfff && at - 2 >= low) {
+    const high = text.charCodeAt(at - 2);
+    if (high >= 0xd800 && high <= 0xdbff) return text.slice(at - 2, at);
+  }
+  return text[at - 1];
 }
 
 /**

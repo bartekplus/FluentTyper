@@ -1,6 +1,8 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { DETERMINER, pluralOf, readNoun } from "./agreement";
 import {
+  atToken,
   Around,
   attributeOf,
   CLITICS,
@@ -8,12 +10,10 @@ import {
   isInfinitive,
   PREPOSITIONS,
   replaceToken,
-  tokenize,
   words,
   type Token,
 } from "./common";
 import { finiteVerb, genderedForm, isGerund, isNoun, participle, plain } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // Short closed-class frames: "de el" -> "del", "ala casa" -> "a la casa", "miles de persona"
 // -> "personas", "soy conscientes" -> "consciente", "q" -> "que".
@@ -280,6 +280,7 @@ function coordinatedAdjective(ctx: DetectContext, at: Around): RawFinding | null
 }
 
 // Verbs in -uar whose stressed forms carry "ú": unaccented, they are adjectives.
+// The es.frameAccents frame of rules/es.yaml lists these words and those of DEMONSTRATIVE.
 const UAR: Record<string, string> = {
   continua: "continúa",
   continuas: "continúas",
@@ -514,23 +515,18 @@ function unoPlural(ctx: DetectContext, at: Around): RawFinding | null {
 
 type Check = (ctx: DetectContext, at: Around) => RawFinding | null;
 
-function frames(ctx: DetectContext, checks: Check[]): RawFinding[] {
-  if (!isLang(ctx, "es")) return [];
-  const tokens = tokenize(ctx);
-  const findings: RawFinding[] = [];
-  for (let i = 0; i < tokens.length; i++) {
+/** A fixer that runs `checks` on the word at the match: the first finding wins. */
+function frames(checks: Check[]) {
+  return atToken((ctx, tokens, i) => {
     const token = tokens[i];
-    if (!token.word || token.start < ctx.from || token.start >= ctx.to) continue;
+    if (!token.word || token.start < ctx.from || token.start >= ctx.to) return null;
     const at = new Around(tokens, i);
     for (const check of checks) {
       const finding = check(ctx, at);
-      if (finding) {
-        findings.push(finding);
-        break;
-      }
+      if (finding) return finding;
     }
-  }
-  return findings;
+    return null;
+  });
 }
 
 const CONFUSIONS: Check[] = [
@@ -554,9 +550,10 @@ const AGREEMENT: Check[] = [
 ];
 const ACCENTS: Check[] = [uarVerb, accentedDeterminer];
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["spanishConfusions"], detect: (ctx) => frames(ctx, CONFUSIONS) },
-  { rules: ["spanishAgreement"], detect: (ctx) => frames(ctx, AGREEMENT) },
-  { rules: ["spanishAccents"], detect: (ctx) => frames(ctx, ACCENTS) },
-  { rules: ["englishRepeatedWords"], detect: (ctx) => frames(ctx, [repeatedPair]) },
-];
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = {
+  frameConfusions: frames(CONFUSIONS),
+  frameAgreement: frames(AGREEMENT),
+  frameAccents: frames(ACCENTS),
+  repeatedPair: frames([repeatedPair]),
+} satisfies Record<string, MatchFixer>;

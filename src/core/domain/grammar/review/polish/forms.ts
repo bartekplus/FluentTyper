@@ -1,14 +1,6 @@
-import type { DetectContext, RawFinding } from "../reviewDetectors";
-import {
-  findingAt,
-  type Frame,
-  isPl,
-  owned,
-  PREPOSITIONS,
-  runFrames,
-  S,
-  userOrNamed,
-} from "./shared";
+import type { Fixer, MatchResult } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
+import { findingAt, userOrNamed } from "./shared";
 
 /*
  * Word forms set by convention rather than by a neighbour's meaning:
@@ -17,7 +9,6 @@ import {
  */
 
 const RULE = "englishPhraseCorrections" as const;
-const NOT_LETTER = "(?![\\p{L}])";
 
 /** Destinations taken with "na": "jechać na Węgry", not "do Węgier". */
 const NA_PLACES: Record<string, string> = {
@@ -45,96 +36,34 @@ const NA_PLACES: Record<string, string> = {
   hawajów: "na Hawaje",
 };
 
-export const FRAMES: readonly Frame[] = [
+/** The named frame fixes of grammar/rules/pl.yaml (`fixer:`). */
+export const FIXERS = {
+  inflectedNames,
+  acronymEndings,
   // Travel verbs only: "należał do Węgier" (belonged to Hungary) is right.
-  {
-    pattern: `(?<=(?:jecha\\p{L}*|jadę|jedzie\\p{L}*|jadą|lecie\\p{L}*|leci\\p{L}*|lecę|wyjecha\\p{L}*|wyjeżdża\\p{L}*|wyjedzie\\p{L}*|przyjecha\\p{L}*|pojecha\\p{L}*|pojedzie\\p{L}*|polecia\\p{L}*|poleci\\p{L}*|wylecia\\p{L}*|wybra\\p{L}*${S}się|wybiera\\p{L}*${S}się|podróż\\p{L}*|wycieczk\\p{L}*|wyjazd\\p{L}*|emigrowa\\p{L}*|wyemigrowa\\p{L}*|uciek\\p{L}*|uciec|wróci\\p{L}*|wraca\\p{L}*)${S})(?<target>do${S}(?<place>${Object.keys(NA_PLACES).join("|")}))${NOT_LETTER}`,
-    fix: (m) => NA_PLACES[m.groups!.place.toLowerCase()],
-    ruleId: RULE,
-    messageKey: "review_msg_contextual_grammar",
-  },
+  formsDo: (m) => NA_PLACES[m.groups!.place.toLowerCase()],
   // "Ważnym jest, aby": the predicative adjective before a clause is neuter "-e".
-  {
-    pattern: `(?=\\p{L})(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS}|tym|każdym|jednym|nim|kim|czym)${S})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=(?:${S}(?:również|także|też|zawsze|zatem|więc))?${S}(?:jest|było|byłoby|będzie)(?:${S}to)?[ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:że|aby|żeby|by|iż|gdy|jeśli)${NOT_LETTER})`,
-    fix: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
-    ruleId: RULE,
-    messageKey: "review_msg_contextual_grammar",
-  },
-  {
-    pattern: `(?=\\p{L})(?<=(?:jest|było|byłoby|będzie)${S})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=[ \\t\\u00a0]*,[ \\t\\u00a0]*(?:aby|żeby|by|że|iż)${NOT_LETTER})`,
-    fix: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
-    ruleId: RULE,
-    messageKey: "review_msg_contextual_grammar",
-  },
+  formsStem: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
+  formsStem2: (m) => `${m.groups!.stem}${m.groups!.end.toLowerCase() === "im" ? "ie" : "e"}`,
   // Abbreviations that keep the word's last letter take no dot: "nr 2", "3 mln złotych".
-  {
-    // "pod nr. 2" (numerem) is an oblique case, which keeps the dot.
-    pattern: `(?<!(?:^|[^\\p{L}])(?:${PREPOSITIONS})${S})(?<target>(?<abbr>nr|mln|mld|ha|kg|km|cm|mm)\\.)(?=[ \\t\\u00a0]+(?:\\p{L}|\\d))`,
-    fix: (m) => m.groups!.abbr,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
+  formsAbbr: (m) => m.groups!.abbr,
   // "3 m. tkaniny", "200 g. mąki": a unit after a number takes no dot inside the sentence.
-  {
-    pattern: `(?<=\\p{N}${S})(?<target>(?<abbr>m|g|mg|ml|dag)\\.)(?=[ \\t\\u00a0]+\\p{L})`,
-    fix: (m) => m.groups!.abbr,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
+  formsAbbr2: (m) => m.groups!.abbr,
   // "Dr. Kowalski", "mgr. Anna Nowak", "Dr. hab. Nowak" -> no dot before a name in the
   // nominative (the dot marks "doktora", "magistra").
-  {
-    pattern: `(?<target>(?<abbr>dr|mgr|dyr)\\.)(?=${S}(?:hab\\.${S})?(?:\\p{L}{2,}${S})?\\p{L}+(?:ski|cki|dzki|ska|cka|dzka)${NOT_LETTER})`,
-    fix: (m) => m.groups!.abbr,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
+  formsAbbr3: (m) => m.groups!.abbr,
   // "dr", "mgr" keep the last letter of "doktor" only: a man's name in an oblique case takes
   // "dr." ("dzięki dr. Kowalskiemu"); a woman's title does not inflect ("z dr Kowalską").
-  {
-    pattern: `(?<target>dr|mgr|dyr)(?=${S}(?:\\p{L}{2,}${S})?\\p{L}+(?:skiego|ckiego|dzkiego|skiemu|ckiemu|dzkiemu|skim|ckim|dzkim|owi)${NOT_LETTER})`,
-    fix: (m) => `${m.groups!.target}.`,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
-  // "ok dwustu psów", "ok 5 km" -> "ok.": "około" shortened takes its dot before a count.
-  {
-    pattern: `(?<![\\p{L}])(?<target>ok)(?=${S}(?:\\d|dw|trz|czter|pięć|pięci|sześ|siedem|siedmi|osiem|ośmi|dziewię|dziesię|kilk|pół|stu|sto|tysi))`,
-    fix: "ok.",
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
+  formsDr: (m) => `${m.groups!.target}.`,
   // Truncations take one:"np.", "tzw.", "itd.", "m.in.", "p.n.e.", "proc.", "ok." before a number.
-  {
-    pattern: `(?<target>np|tzw|itd|itp|m\\.in|p\\.n\\.e|n\\.e|proc|godz)(?![\\p{L}\\p{N}.])(?=[ \\t\\u00a0,;:)?!]|$)`,
-    fix: (m) => `${m.groups!.target}.`,
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    verbatim: true,
-  },
-  {
-    pattern: `(?<target>ok)(?=[ \\t\\u00a0]+\\d)`,
-    fix: "ok.",
-    ruleId: RULE,
-    messageKey: "review_msg_pl_abbreviation_dot",
-    lowercase: true,
-  },
-];
+  formsNp: (m) => `${m.groups!.target}.`,
+} satisfies Record<string, Fixer>;
 
 /*
  * Inflected foreign names: the ending joins a name whose last letter is
  * pronounced ("Johnie", "Bentleyu", "Andym"), and an acronym takes a hyphen
  * ("SMS-ów", "PKP-u"). Names ending in a silent "-e" keep the apostrophe.
  */
-const NAME_ENDING =
-  /(?<![\p{L}\p{N}'’-])(?<name>\p{Lu}\p{Ll}+)(?<mark>['’])(?<end>a|u|owi|em|iem|ie|om|ów|ach|ami|y|i|ego|emu|go|mu|m|im|ym)(?![\p{L}\p{N}])/gu;
-const ACRONYM_ENDING =
-  /(?<![\p{L}\p{N}'’-])(?<name>\p{Lu}{2,}|\p{Lu}\p{Ll}?\p{Lu}+)(?<mark>['’])?(?<end>a|u|owi|em|ie|om|ów|ach|ami|y|ach)(?![\p{L}\p{N}])/gu;
 
 /**
  * The right spelling of a name ending in a vowel letter with its case ending, or "" when the
@@ -162,68 +91,51 @@ function silentEnding(name: string, end: string): string | undefined {
   return undefined;
 }
 
-function inflectedNames(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of owned(ctx, NAME_ENDING)) {
-    const { name, end } = m.groups!;
-    const silent = silentEnding(name, end);
-    if (silent !== undefined) {
-      if (silent && !userOrNamed(ctx, name))
-        findings.push(
-          findingAt(
-            ctx,
-            m.index,
-            m.index + m[0].length,
-            [silent],
-            RULE,
-            "review_msg_pl_inflected_name",
-          ),
-        );
-      continue;
-    }
-    // Silent French endings ("Jacques'a", "Charles'a") and a pronounced "-y" after a
-    // consonant ("Kennedy'ego") keep it too.
-    if (/(?:ques|les|ges|ois|eux|aux|oix|ault|eau|[^aeiouy]y)$/u.test(name)) continue;
-    // "-y" names drop the "i" of the ending: "Bill'im" -> "Billym" is beyond this check.
-    if (/^(?:i|im|ie|iem)$/u.test(end) && /y$/u.test(name)) continue;
-    if (userOrNamed(ctx, name)) continue;
-    findings.push(
-      findingAt(
+function inflectedNames(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { name, end } = m.groups!;
+  const silent = silentEnding(name, end);
+  if (silent !== undefined) {
+    if (silent && !userOrNamed(ctx, name))
+      return findingAt(
         ctx,
         m.index,
         m.index + m[0].length,
-        [name + end],
+        [silent],
         RULE,
         "review_msg_pl_inflected_name",
-      ),
-    );
+      );
+    return null;
   }
-  for (const m of owned(ctx, ACRONYM_ENDING)) {
-    const { name, end } = m.groups!;
-    // A capital or a lowercase run inside ("PiS", "WiN") marks the acronym's own spelling.
-    if (!m.groups!.mark && name.length < 3) continue;
-    // "IPN'ie", "SMS’y": a vowel-initial ending after the apostrophe is the house style of some.
-    if (m.groups!.mark && /^(?:ie|y)$/u.test(end)) continue;
-    if (/^(?:PL|EU|USA|UK|OK)$/u.test(name) && !m.groups!.mark) continue;
-    if (ctx.dictionary.has(m[0].toLowerCase())) continue;
-    findings.push(
-      findingAt(
-        ctx,
-        m.index,
-        m.index + m[0].length,
-        [`${name}-${end}`],
-        RULE,
-        "review_msg_pl_inflected_name",
-      ),
-    );
-  }
-  return findings;
+  // Silent French endings ("Jacques'a", "Charles'a") and a pronounced "-y" after a
+  // consonant ("Kennedy'ego") keep it too.
+  if (/(?:ques|les|ges|ois|eux|aux|oix|ault|eau|[^aeiouy]y)$/u.test(name)) return null;
+  // "-y" names drop the "i" of the ending: "Bill'im" -> "Billym" is beyond this check.
+  if (/^(?:i|im|ie|iem)$/u.test(end) && /y$/u.test(name)) return null;
+  if (userOrNamed(ctx, name)) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [name + end],
+    RULE,
+    "review_msg_pl_inflected_name",
+  );
 }
 
-export const DETECTORS = [
-  {
-    rules: [RULE] as RawFinding["ruleId"][],
-    detect: (ctx: DetectContext) =>
-      isPl(ctx) ? [...runFrames(ctx, FRAMES), ...inflectedNames(ctx)] : [],
-  },
-];
+function acronymEndings(m: RegExpExecArray, ctx: DetectContext): MatchResult {
+  const { name, end } = m.groups!;
+  // A capital or a lowercase run inside ("PiS", "WiN") marks the acronym's own spelling.
+  if (!m.groups!.mark && name.length < 3) return null;
+  // "IPN'ie", "SMS’y": a vowel-initial ending after the apostrophe is the house style of some.
+  if (m.groups!.mark && /^(?:ie|y)$/u.test(end)) return null;
+  if (/^(?:PL|EU|USA|UK|OK)$/u.test(name) && !m.groups!.mark) return null;
+  if (ctx.dictionary.has(m[0].toLowerCase())) return null;
+  return findingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [`${name}-${end}`],
+    RULE,
+    "review_msg_pl_inflected_name",
+  );
+}

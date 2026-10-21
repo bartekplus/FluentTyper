@@ -5,113 +5,14 @@ import {
   wordKey,
   wordSet,
 } from "../../implementations/helpers/GenericRuleShared";
-import type { PhraseRow } from "../englishPhraseTables";
-import { caseLike, frameMatches, isLang } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import { caseLike } from "../phraseTemplates";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import { frameRuleDetector, type MatchFixer } from "../../engine/reviewRules";
 import type { ReviewMessageKey } from "../types";
 import { finding } from "../finding";
 
 // Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good advise" a
 // noun slot. Every frame reads at most a few words on each side of the target, within its block.
-
-/** One row per form: `~` stands for the typed lookalike, replaced by the intended word. */
-const rows = (forms: string[], typed: string, fixed: string): PhraseRow[] =>
-  forms.map((form) => [form.replace("~", typed), form.replace("~", fixed)]);
-
-/** Rows for englishPhraseCorrections. */
-export const PHRASES: readonly PhraseRow[] = [
-  ...rows(["I ~", "you ~", "he ~", "she ~", "it ~", "we ~", "they ~"], "dint", "didn't"),
-  ["over they're", "over there"],
-  ["very quite", "very quiet"],
-  ...rows(["~ often", "~ a few", "~ a bit", "~ a lot", "~ a while"], "quiet", "quite"),
-  ["now and than", "now and then"],
-  ...rows(["it is ~ to", "it's ~ to", "it was ~ to", "is it ~ to", "was it ~ to"], "save", "safe"),
-  ...rows(
-    [
-      "cause and ~",
-      "placebo ~",
-      "greenhouse ~",
-      "ripple ~",
-      "snowball ~",
-      "domino ~",
-      "butterfly ~",
-      "knock-on ~",
-      "with immediate ~",
-      "to great ~",
-      "to good ~",
-      "to little ~",
-    ],
-    "affect",
-    "effect",
-  ),
-  ["baton rogue", "baton rouge"],
-  ["khmer rogue", "khmer rouge"],
-  ...rows(
-    [
-      "go ~",
-      "goes ~",
-      "went ~",
-      "gone ~",
-      "going ~",
-      "a ~ who",
-      "~ nation",
-      "~ nations",
-      "~ state",
-      "~ states",
-      "~ trader",
-      "~ traders",
-      "~ squadron",
-      "~ agent",
-      "~ agents",
-      "~-like",
-      "~-likes",
-      "~-lite",
-      "~ like",
-      "~ likes",
-      "~like",
-      "~likes",
-      "~ wave",
-      "~ waves",
-      "~ planet",
-      "~ process",
-      "~ processes",
-      "~ device",
-      "~ devices",
-      "~ employee",
-      "~ employees",
-      "~ actor",
-      "~ actors",
-    ],
-    "rouge",
-    "rogue",
-  ),
-  ...rows(
-    [
-      "chemotherapy ~",
-      "chemotherapeutic ~",
-      "therapeutic ~",
-      "treatment ~",
-      "dose ~",
-      "dosing ~",
-      "dosage ~",
-      "drug ~",
-      "medication ~",
-      "antibiotic ~",
-      "training ~",
-      "workout ~",
-      "exercise ~",
-      "fitness ~",
-      "skincare ~",
-      "diet ~",
-      "dietary ~",
-      "supplement ~",
-    ].flatMap((form) => [form, `${form}s`]),
-    "regiment",
-    "regimen",
-  ),
-  ...rows(["~ dress", "~ dresses", "~ outfit", "~ outfits"], "summary", "summery"),
-  ["dissembly", "disassembly"],
-];
 
 // ---------------------------------------------------------------------------------------------
 // Tokens around a target, on its line: b[0] is the nearest word before, a[0] the nearest after.
@@ -122,13 +23,16 @@ const TOKEN = /[\p{L}\p{N}]+(?:['’][\p{L}]+)*|[^\s\p{L}\p{N}]/gu;
 function tokens(ctx: DetectContext, from: number, to: number): Tok[] {
   const slice = ctx.text.slice(from, to);
   const out: Tok[] = [];
-  for (const m of slice.matchAll(TOKEN))
+  for (const m of slice.matchAll(TOKEN)) {
+    const lower = m[0].toLowerCase();
     out.push({
       text: m[0],
-      w: wordKey(m[0]),
+      // wordKey, without its replace when the token has no ’ (most tokens).
+      w: lower.includes("’") ? wordKey(lower) : lower,
       start: from + m.index,
       end: from + m.index + m[0].length,
     });
+  }
   return out;
 }
 // A wrapped line continues its sentence; a blank line or a list, heading or quote line does not.
@@ -1119,14 +1023,6 @@ const HANDLERS: Record<string, Handler> = {
   "you're": youre,
   were,
 };
-const TARGET = new RegExp(
-  `(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:${Object.keys(HANDLERS)
-    .map((w) => w.replaceAll("'", "['’]"))
-    .sort((x, y) => y.length - x.length)
-    .join("|")}|dissembl[a-z]*)(?![\\p{L}\\p{N}_'’@#\\\\])`,
-  "giu",
-);
-
 const QUOTE = /^["“”'‘’]$/;
 /** A quoted example: a quote within a word of each side ("I cant go" in a style guide). */
 function mentioned(ctx: DetectContext, h: Hit): boolean {
@@ -1135,31 +1031,27 @@ function mentioned(ctx: DetectContext, h: Hit): boolean {
   return b.some((t) => QUOTE.test(t.text)) && a.some((t) => QUOTE.test(t.text));
 }
 
-function confusedWords(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "en")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, TARGET, (x) => x.index)) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  confusedWord: (m, ctx) => {
+    // The target word owns the match.
+    if (m.index < ctx.from || m.index >= ctx.to) return null;
     const text = m[0];
     const w = wordKey(text);
     // Mixed case names something; a user word is the user's.
-    if (applyWordCase(text, detectWordCase(text)) !== text || ctx.dictionary.has(w)) continue;
+    if (applyWordCase(text, detectWordCase(text)) !== text || ctx.dictionary.has(w)) return null;
     const glue = ctx.text[m.index + text.length];
     if ((glue === "-" && w !== "summery") || (glue === "/" && !/^(?:dissembl|bias)/.test(w)))
-      continue;
+      return null;
     const t: Tok = { text, w, start: m.index, end: m.index + text.length };
     const handler = w.startsWith("dissembl") ? dissemble : HANDLERS[w];
     const h = handler(ctx, t, before(ctx, t.start), after(ctx, t.end));
-    if (!h || mentioned(ctx, h)) continue;
-    const finding = make(ctx, h.start, h.end, h.alts, h.key);
-    if (finding) findings.push(finding);
-  }
-  return findings;
-}
-
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: [RULE],
-    detect: confusedWords,
+    if (!h || mentioned(ctx, h)) return null;
+    return make(ctx, h.start, h.end, h.alts, h.key);
   },
-];
+} satisfies Record<string, MatchFixer>;
+
+const confusedWordsRule = frameRuleDetector("en.confusedWords", { en: FIXERS });
+/** The confused-word frame, whatever checks are on: other checks read it in a view. */
+export const confusedWords = (view: DetectContext) =>
+  confusedWordsRule({ ...view, rules: undefined });

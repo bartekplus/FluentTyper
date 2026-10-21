@@ -14,6 +14,7 @@ import {
   LOCAL_AI_ORT_DIR,
   LOCAL_AI_ORT_FILES,
 } from "./scripts/check-local-ai-artifact";
+import { writeGrammarRuleModules } from "./scripts/grammarRules";
 
 type BuildMode = "production" | "development";
 
@@ -261,7 +262,7 @@ async function assertEngineIsolation(outfiles: string[], engineOutfile: string |
 const REVIEW_DETECTION_MARKERS = [
   "V e ive e;V  ive [^e]",
   "without further adieu",
-  "Vorraussetzung",
+  "einweihtest",
   "each|every|the|a|index|variable|counter|iterator|loop",
   "Use the conventional form of this fixed English phrase.",
 ];
@@ -288,6 +289,9 @@ async function assertReviewDetectionIsolation(
 }
 
 async function bundleExtension(context: BuildContext): Promise<void> {
+  // AOT: grammar/rules/*.yaml -> grammar/engine/*.generated.ts, before anything imports them.
+  for (const file of await writeGrammarRuleModules())
+    console.log(`Compiled grammar rules: ${path.relative(ROOT_DIR, file)}`);
   await rm(context.buildDir, { recursive: true, force: true });
   await mkdir(context.buildDir, { recursive: true });
 

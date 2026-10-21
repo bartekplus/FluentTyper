@@ -38,18 +38,6 @@ export const wordEntries = <T>(words: string, value: T) =>
 /** A token that ends a clause, or no token at all. */
 export const BOUNDARY = /^(?:[.!?:;,()"“”„«»–—\n-]|$)/;
 
-// A word of letters, not glued into a number, path, mention or dotted token.
-const WORD =
-  /(?<![\p{L}\p{M}\p{N}_@/#\\.-])\p{L}[\p{L}\p{M}]*(?![\p{L}\p{M}\p{N}_@/#\\]|\.\p{L})/gu;
-
-/** The words whose start the chunk owns. */
-export function* words(ctx: DetectContext): Generator<RegExpExecArray> {
-  WORD.lastIndex = ctx.from;
-  for (let m = WORD.exec(ctx.scanText); m && m.index < ctx.to; m = WORD.exec(ctx.scanText)) {
-    yield m;
-  }
-}
-
 // Words (with "_", "/" or "-" joins: "Pädagog_in", "Partner/in", "Grammatik-Regeln"), line
 // breaks and single marks; a hyphen at a word edge ("Vor- und") stays a mark.
 const TOKEN = /\n|[\p{L}\p{M}\p{N}_]+(?:[-/][\p{L}\p{M}\p{N}_]+)*|[^\s\p{L}\p{M}\p{N}_]/gu;
@@ -84,19 +72,18 @@ function firstFrom(starts: number[], at: number): number {
 }
 
 /**
- * The tokens of text[start, end) as `match(TOKEN)` gives them, from the shared pass. Null when
- * an edge cuts a token: the cut token reads otherwise in the window.
+ * The tokens of text[start, end) as `match(TOKEN)` gives them, from the shared pass: the index
+ * range [a, b) of the whole tokens, and whether an edge cuts a token (`cutStart`, `cutEnd`). A
+ * cut token reads otherwise in the window; the tokens between the cuts read the same.
  */
-function windowTokens(
-  text: string,
-  start: number,
-  end: number,
-): [TokenIndex, number, number] | null {
+function windowTokens(text: string, start: number, end: number) {
   const index = tokenIndex(text);
   const a = firstFrom(index.starts, start);
   const b = firstFrom(index.starts, end);
-  if ((a > 0 && index.ends[a - 1] > start) || (b > 0 && index.ends[b - 1] > end)) return null;
-  return [index, a, b];
+  const cutStart = a > 0 && index.ends[a - 1] > start;
+  const cutEnd = b > 0 && index.ends[b - 1] > end;
+  // A cut token at the end is not whole in the window.
+  return { index, a, b: cutEnd ? b - 1 : b, cutStart, cutEnd };
 }
 
 const read = ({ starts, ends }: TokenIndex, text: string, from: number, to: number) => {
@@ -110,22 +97,26 @@ export function tokensBefore(text: string, index: number, n: number): string[] {
   const start = Math.max(0, index - 16 * n);
   // The first token may be cut by the window.
   const skip = start > 0 ? 1 : 0;
-  const shared = windowTokens(text, start, index);
-  if (shared) {
-    const [tokens, a, b] = shared;
-    return read(tokens, text, Math.max(a + skip, b - n), b);
+  const { index: tokens, a, b, cutStart, cutEnd } = windowTokens(text, start, index);
+  // A cut first token is the one skipped; with n whole tokens after it, only those are read.
+  if (!cutEnd && (!cutStart || b - a >= n)) {
+    return read(tokens, text, Math.max(cutStart ? a : a + skip, b - n), b);
   }
-  const tokens = text.slice(start, index).match(TOKEN) ?? [];
-  return tokens.slice(Math.max(skip, tokens.length - n));
+  const found = text.slice(start, index).match(TOKEN) ?? [];
+  return found.slice(Math.max(skip, found.length - n));
 }
 
 /** Up to `n` tokens right after `index`. */
 export function tokensAfter(text: string, index: number, n: number): string[] {
-  const shared = windowTokens(text, index, Math.min(text.length, index + 16 * n));
-  if (shared) {
-    const [tokens, a, b] = shared;
-    return read(tokens, text, a, Math.min(b, a + n));
-  }
+  const {
+    index: tokens,
+    a,
+    b,
+    cutStart,
+    cutEnd,
+  } = windowTokens(text, index, Math.min(text.length, index + 16 * n));
+  // A cut last token comes after the whole ones: n whole tokens before it are the first n.
+  if (!cutStart && (!cutEnd || b - a >= n)) return read(tokens, text, a, Math.min(b, a + n));
   return (text.slice(index, index + 16 * n).match(TOKEN) ?? []).slice(0, n);
 }
 

@@ -8,9 +8,9 @@ import { englishNounForms } from "../../implementations/helpers/EnglishNounNumbe
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { ENGLISH_VERB_FORMS } from "../../implementations/helpers/EnglishVerbForms";
 import { lastNonBlankBefore } from "../../implementations/helpers/EnglishRuleShared";
-import { caseLike, frameMatches, hasUserOrCasedWord, SPACE } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
-import { english } from "./grammarStyle1";
+import { caseLike, hasUserOrCasedWord } from "../phraseTemplates";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { finding } from "../finding";
 
 // Checks that lean on the dictionary-derived lexicon (EnglishLexicon) rather than phrase rows:
@@ -22,20 +22,23 @@ const context = (ctx: DetectContext, start: number, end: number) => ({
   end: Math.min(ctx.text.length, end + 40),
 });
 
-// One word: letters only, not part of a technical token, a number or an abbreviation ("e.g").
-const WORD =
-  /(?<![\p{L}\p{M}\p{N}_'’@/#\\.-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#\\-]|\.[\p{L}\p{N}])/gu;
-
 // Function words the lexicon has no part of speech for.
 const FUNCTION_WORDS = new Set(
   "as his her hers into only its us is unto per amongst ok vs".split(" "),
 );
 // Memoized: the same words recur, and a lexicon lookup tries every affix rule.
 const infoOf = memoize(englishWordInfo, 20_000);
-const knownOf = memoize(
-  (w) => FUNCTION_WORDS.has(w) || !!infoOf(w) || englishListedNoun(w) !== null,
-  20_000,
-);
+// One Map read per call (memoize reads two times): the word check asks this for each word.
+const KNOWN = new Map<string, boolean>();
+function knownOf(w: string): boolean {
+  let answer = KNOWN.get(w);
+  if (answer === undefined) {
+    if (KNOWN.size >= 20_000) KNOWN.clear();
+    answer = FUNCTION_WORDS.has(w) || !!infoOf(w) || englishListedNoun(w) !== null;
+    KNOWN.set(w, answer);
+  }
+  return answer;
+}
 const info = (word: string) => infoOf(lower(word));
 const known = (word: string) => knownOf(lower(word));
 
@@ -197,82 +200,94 @@ const LATIN_PAIRS = new Set([
 
 const ruleOn = (ctx: DetectContext, rule: string) => !ctx.rules || ctx.rules.has(rule);
 
-/** One pass over the words for the irregular-form and space checks. */
-function wordChecks(ctx: DetectContext): RawFinding[] {
+// Characters that make a letter run part of a token: no WORD match starts after them.
+const NOT_WORD_BEFORE = /[\p{L}\p{M}\p{N}_'’@/#\\.-]/u;
+
+/**
+ * The word that ends one space before `index`, as a WORD match: the only neighbour a word
+ * check reads. Null when a space and a word do not come right before `index`.
+ */
+function wordBeforeSpace(text: string, index: number) {
+  if (text.charCodeAt(index - 1) !== 32) return null;
+  // The word checked before ends here. It is a WORD match, so the read below gives it again.
+  if (previous.text === text && previous.end === index - 1)
+    return { index: previous.index, word: previous.word, unknown: previous.unknown };
+  let start = index - 1;
+  while (start > 0 && isAsciiLetter(text.charCodeAt(start - 1))) start--;
+  if (start === index - 1 || NOT_WORD_BEFORE.test(text[start - 1] ?? "")) return null;
+  const word = text.slice(start, index - 1);
+  return { index: start, word, unknown: !known(word) };
+}
+const isAsciiLetter = (code: number) => (code >= 65 && code <= 90) || (code >= 97 && code <= 122);
+// The last two words that wordCheck read: a word reads the word before it again as its
+// neighbour.
+let previous = { text: "", end: -1, index: 0, word: "", unknown: false };
+let current = { ...previous };
+
+/** The irregular-form and space checks of one word. */
+function wordCheck(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
   const irregular = ruleOn(ctx, "englishIrregularForms");
   const spaces = ruleOn(ctx, "englishAlotCorrection");
-  const findings: RawFinding[] = [];
-  const words = new RegExp(WORD);
-  words.lastIndex = Math.max(0, ctx.from - 40);
-  let last: { index: number; word: string; unknown: boolean } | null = null;
-  // Reads one word past the chunk: a word-boundary fix belongs to its first word.
-  for (
-    let m = words.exec(ctx.scanText);
-    m && (!last || last.index < ctx.to);
-    m = words.exec(ctx.scanText)
-  ) {
-    const { index } = m;
-    const word = m[0];
-    const w = word.toLowerCase();
-    const unknown = !known(w);
-    const prev = last;
-    last = { index, word, unknown };
-    const owned = index >= ctx.from && index < ctx.to;
-    // Most words are known, and so is their neighbour: nothing to check.
-    const regular =
-      irregular &&
-      owned &&
-      (w.endsWith("ed") ? REGULAR_PASTS.has(w) : w.length > 3 && w.endsWith("s") && !info(w));
-    if (!unknown && !regular && !prev?.unknown) continue;
-    if (!plainAt(ctx, word, index) || ctx.dictionary.has(w)) continue;
-    const end = index + word.length;
-    const forms = regular && irregularFor(word, ctx.text.slice(Math.max(0, index - 40), index));
-    if (forms) {
-      findings.push({
-        ruleId: "englishIrregularForms",
-        messageKey: "review_msg_irregular_form",
-        range: { start: index, end },
-        alternatives: forms.map((form) => caseLike(word, form)),
-        ...(forms.length > 1 ? { requiresChoice: true as const } : {}),
-        context: context(ctx, index, end),
-      });
-      continue;
-    }
-    if (!spaces) continue;
-    // Only a glued function word: an unknown content compound ("rainforest", "zebrafish")
-    // is usually a real word the lexicon lacks, and stays with dictionary spelling.
-    // "~isability" in a pattern or a regex is no prose word.
-    const split =
-      unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && splitGlued(word);
-    if (split) {
-      findings.push(
-        finding("englishAlotCorrection", "review_msg_split_words", index, end, [split], {
-          bulkBlock: "context-dependent",
-          context: context(ctx, index, end),
-        }),
-      );
-      continue;
-    }
-    if (!spaces) continue;
-    // A single space between two words of two letters or more, one of them unknown.
-    if (!prev || prev.index < ctx.from || prev.index >= ctx.to) continue;
-    if (prev.index + prev.word.length !== index - 1) continue;
-    if (ctx.text[index - 1] !== " " || prev.word.length < 2 || word.length < 2) continue;
-    if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) continue;
-    if (ctx.dictionary.has(lower(prev.word))) continue;
-    // Latin set phrases keep their space: "pro forma", "ad hoc".
-    if (LATIN_PAIRS.has(`${lower(prev.word)} ${w}`)) continue;
-    const fixes = boundaryFix(prev.word, word);
-    if (!fixes.length) continue;
-    findings.push(
-      finding("englishAlotCorrection", "review_msg_word_boundary", prev.index, end, fixes, {
-        ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
-        bulkBlock: "context-dependent",
-        context: context(ctx, prev.index, end),
-      }),
-    );
-  }
-  return findings;
+  const { index } = m;
+  const word = m[0];
+  const w = word.toLowerCase();
+  const unknown = !knownOf(w);
+  const read = previous;
+  previous = current;
+  current = read;
+  current.text = ctx.scanText;
+  current.end = index + word.length;
+  current.index = index;
+  current.word = word;
+  current.unknown = unknown;
+  // Read only when needed: most words and their neighbours are known.
+  let neighbour: ReturnType<typeof wordBeforeSpace> | undefined;
+  const before = () => (neighbour ??= wordBeforeSpace(ctx.scanText, index));
+  const owned = index >= ctx.from && index < ctx.to;
+  // Most words are known, and so is their neighbour: nothing to check.
+  const regular =
+    irregular &&
+    owned &&
+    (w.endsWith("ed") ? REGULAR_PASTS.has(w) : w.length > 3 && w.endsWith("s") && !infoOf(w));
+  if (!unknown && !regular && !before()?.unknown) return null;
+  if (!plainAt(ctx, word, index) || ctx.dictionary.has(w)) return null;
+  const end = index + word.length;
+  const forms = regular && irregularFor(word, ctx.text.slice(Math.max(0, index - 40), index));
+  if (forms)
+    return {
+      ruleId: "englishIrregularForms",
+      messageKey: "review_msg_irregular_form",
+      range: { start: index, end },
+      alternatives: forms.map((form) => caseLike(word, form)),
+      ...(forms.length > 1 ? { requiresChoice: true as const } : {}),
+      context: context(ctx, index, end),
+    };
+  if (!spaces) return null;
+  // Only a glued function word: an unknown content compound ("rainforest", "zebrafish")
+  // is usually a real word the lexicon lacks, and stays with dictionary spelling.
+  // "~isability" in a pattern or a regex is no prose word.
+  const split =
+    unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && splitGlued(word);
+  if (split)
+    return finding("englishAlotCorrection", "review_msg_split_words", index, end, [split], {
+      bulkBlock: "context-dependent",
+      context: context(ctx, index, end),
+    });
+  // A single space between two words of two letters or more, one of them unknown.
+  const prev = before();
+  if (!prev || prev.index < ctx.from || prev.index >= ctx.to) return null;
+  if (prev.word.length < 2 || word.length < 2) return null;
+  if (!plainAt(ctx, prev.word, prev.index) || /^[A-Z]/.test(word)) return null;
+  if (ctx.dictionary.has(lower(prev.word))) return null;
+  // Latin set phrases keep their space: "pro forma", "ad hoc".
+  if (LATIN_PAIRS.has(`${lower(prev.word)} ${w}`)) return null;
+  const fixes = boundaryFix(prev.word, word);
+  if (!fixes.length) return null;
+  return finding("englishAlotCorrection", "review_msg_word_boundary", prev.index, end, fixes, {
+    ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+    bulkBlock: "context-dependent",
+    context: context(ctx, prev.index, end),
+  });
 }
 
 // ---------------------------------------------------------------------------- possessive nouns
@@ -291,8 +306,6 @@ const ATTRIBUTIVE_PLURALS = new Set(
   ).split(" "),
 );
 const IRREGULAR_OWNERS = new Set(["children", "women", "men"]);
-const OWNER_DETERMINERS = "the|a|an|my|your|his|her|our|their|every|each|another";
-const POSSESSIVE_FRAME = `(?<det>${OWNER_DETERMINERS})${SPACE}(?<owner>[a-z]{3,}s|children|women|men)${SPACE}(?<head>[a-z]{3,})(?:[ \\t\\u00a0]*(?:[.!?,;:]|$)|${SPACE}(?<next>[A-Za-z]+)(?![\\p{L}\\p{N}_'’@/#\\\\-]))`;
 const SINGLE_DETERMINERS = new Set(["a", "an", "every", "each", "another"]);
 // Plural nouns that name a class before its members: "the metals tin and zinc".
 const CLASS_OWNERS = new Set(
@@ -362,23 +375,24 @@ function wordBefore(ctx: DetectContext, index: number): string {
   return (/([A-Za-z]+)[ \t\u00a0]+$/.exec(before)?.[1] ?? "?").toLowerCase();
 }
 
-/**
- * "the cats tail is long", "a teachers lounge": a plural owner right before the noun it owns,
- * where the frame leaves no other reading. The owner's head noun is followed by its verb, or
- * the phrase ends after a preposition or a perception verb, or a singular determiner rules
- * the plural out.
- */
-function possessiveNouns(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, POSSESSIVE_FRAME, "owner")) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  wordCheck,
+  /**
+   * "the cats tail is long", "a teachers lounge": a plural owner right before the noun it owns,
+   * where the frame leaves no other reading. The owner's head noun is followed by its verb, or
+   * the phrase ends after a preposition or a perception verb, or a singular determiner rules
+   * the plural out.
+   */
+  possessiveNoun: (m, ctx) => {
     const { det, owner, head, next } = m.groups!;
     // The frame is case-insensitive: capitals name something ("the Beatles song").
-    if (!/^[a-z]+$/.test(owner + head) || hasUserOrCasedWord(ctx, m[0])) continue;
+    if (!/^[a-z]+$/.test(owner + head) || hasUserOrCasedWord(ctx, m[0])) return null;
     const singular = IRREGULAR_OWNERS.has(owner) ? null : ownerSingular(owner);
-    if ((!singular && !IRREGULAR_OWNERS.has(owner)) || NOT_HEADS.has(head)) continue;
-    if (CLASS_OWNERS.has(owner)) continue;
+    if ((!singular && !IRREGULAR_OWNERS.has(owner)) || NOT_HEADS.has(head)) return null;
+    if (CLASS_OWNERS.has(owner)) return null;
     const headNoun = nounInfo(head);
-    if (!headNoun) continue;
+    if (!headNoun) return null;
     const verbal = !!headNoun.info?.verbs.length;
     const before = wordBefore(ctx, m.index);
     const n = next ? next.toLowerCase() : "";
@@ -393,52 +407,37 @@ function possessiveNouns(ctx: DetectContext): RawFinding[] {
       (finite && (!verbal || before === "" || PREPOSITIONS.has(before))) ||
       (ends && PREPOSITIONS.has(before)) ||
       (ends && !verbal && PERCEPTION.has(before));
-    if (!ok) continue;
+    if (!ok) return null;
     const [start, end] = m.indices!.groups!.owner;
     const alternatives = singular ? [`${singular}'s`, `${owner}'`] : [`${owner}'s`];
-    findings.push(
-      finding("englishPossessiveNouns", "review_msg_noun_possessive", start, end, alternatives, {
+    return finding(
+      "englishPossessiveNouns",
+      "review_msg_noun_possessive",
+      start,
+      end,
+      alternatives,
+      {
         ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
         context: context(ctx, m.index, m.index + m[0].length),
-      }),
+      },
     );
-  }
-  return findings;
-}
-
-// ---------------------------------------------------------------------------- you + noun
-
-const YOU_OF = `(?<target>You)${SPACE}(?<noun>[a-z]{4,})${SPACE}of(?![\\p{L}\\p{N}_'’@/#\\\\-])`;
-
-/** "You combination of artist and teacher.": "Your" or "You're a" before a lone noun. */
-function youNounOf(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, YOU_OF)) {
-    if (wordBefore(ctx, m.index) !== "" || hasUserOrCasedWord(ctx, m.groups!.noun)) continue;
+  },
+  /** "You combination of artist and teacher.": "Your" or "You're a" before a lone noun. */
+  youNounOf: (m, ctx) => {
+    if (wordBefore(ctx, m.index) !== "" || hasUserOrCasedWord(ctx, m.groups!.noun)) return null;
     const read = info(m.groups!.noun);
     const noun = read
       ? read.noun && !read.plural && !read.verbs.length && !read.adjective
       : englishListedNoun(m.groups!.noun) === "singular";
-    if (!noun) continue;
+    if (!noun) return null;
     const [start, end] = m.indices!.groups!.target;
-    findings.push({
+    return {
       ruleId: "englishYourYouAre",
       messageKey: "review_msg_your_possessive",
       range: { start, end },
       alternatives: [caseLike(m.groups!.target, "your"), caseLike(m.groups!.target, "you're a")],
       requiresChoice: true,
       context: context(ctx, m.index, m.index + m[0].length),
-    });
-  }
-  return findings;
-}
-
-/** Context detectors appended to REVIEW_DETECTORS. */
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishIrregularForms", "englishAlotCorrection"],
-    detect: english(wordChecks),
+    };
   },
-  { rules: ["englishPossessiveNouns"], detect: english(possessiveNouns) },
-  { rules: ["englishYourYouAre"], detect: english(youNounOf) },
-];
+} satisfies Record<string, MatchFixer>;

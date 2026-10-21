@@ -1,13 +1,12 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { alternation, frameMatches, SPACE, WORD_END, isLang } from "../phraseTemplates";
-import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 
 /**
  * "em a" -> "na", "de este" -> "deste", "a aquele" -> "àquele", "por o" -> "pelo":
  * the prepositions a, de, em and por fuse with a following article, demonstrative
  * or third-person pronoun. They stay apart when that word opens an infinitive clause
  * ("antes de o sol nascer", "gosto de o ouvir"). Brazilian "em um", "de um" and the
- * literary "doutro", "mo", "lho" are left alone.
+ * literary "doutro", "mo", "lho" are left alone. The frames are in grammar/rules/pt_BR.yaml.
  */
 
 const DEMONSTRATIVES = ["este", "esta", "estes", "estas", "esse", "essa", "esses", "essas"];
@@ -45,9 +44,6 @@ const FUSED: Record<string, Record<string, string>> = {
   por: { a: "pela", as: "pelas", o: "pelo", os: "pelos" },
 };
 
-const SECOND = [...new Set(Object.values(FUSED).flatMap((table) => Object.keys(table)))].join("|");
-// An article must start more text: a bare letter ("termina em o.") is a mention.
-const PATTERN = `(?<target>(?<first>a|de|em|por)${SPACE}(?<second>${SECOND}))${WORD_END}(?:(?<=\\p{L}{3})|(?=${SPACE}[\\p{L}\\d"“«'‘]))`;
 // An infinitive (personal or not) later in the clause: the pair opens its subject or object.
 const INFINITIVE =
   /^(?:\p{L}+(?:ar|er|ir|ares|eres|ires|armos|ermos|irmos|arem|erem|irem)|\p{L}*p[oô]r|\p{L}*por(?:es|mos|em)|\p{L}+(?:ar|er|ir)-(?:me|te|se|lhes?|nos|vos)|\p{L}+[áêíô]-[ln][oa]s?)$/u;
@@ -130,50 +126,45 @@ const WITH_ARTICLE: Record<string, Record<"o" | "a" | "os", string>> = {
   para: { o: "para o", a: "para a", os: "para os" },
   por: { o: "pelo", a: "pela", os: "pelos" },
 };
-// "em China" -> "na China".
-const COUNTRY = `(?<target>(?<first>em|de|a|para|por)${SPACE}(?<country>${alternation(Object.keys(COUNTRIES))}))(?![\\p{L}\\p{N}-])`;
-
-export function contractions(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, PATTERN)) {
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FIXERS = {
+  contraction: (m, ctx) => {
     const { first, second, target } = m.groups!;
     // Lowercase words, or a capital only where a sentence starts ("Em a" in a title stays).
-    if (second !== second.toLowerCase()) continue;
+    if (second !== second.toLowerCase()) return null;
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    if (first !== first.toLowerCase() && !SENTENCE_START.test(before)) continue;
+    if (first !== first.toLowerCase() && !SENTENCE_START.test(before)) return null;
     const fused = FUSED[first.toLowerCase()][second];
-    if (!fused) continue;
+    if (!fused) return null;
     const end = m.index + target.length;
-    if (infinitiveAhead(ctx.text.slice(end, end + 96))) continue;
-    if (first.toLowerCase() === "por" && MODAL_BEFORE.test(before)) continue;
-    if (ctx.dictionary.has(target.toLowerCase())) continue;
-    findings.push({
+    if (infinitiveAhead(ctx.text.slice(end, end + 96))) return null;
+    if (first.toLowerCase() === "por" && MODAL_BEFORE.test(before)) return null;
+    if (ctx.dictionary.has(target.toLowerCase())) return null;
+    return {
       ruleId: "portugueseContractions",
       messageKey: "review_msg_pt_contraction",
       range: { start: m.index, end },
       alternatives: [applyWordCase(fused, detectWordCase(first))],
       context: { start: m.index, end: Math.min(ctx.text.length, end + 24) },
-    });
-  }
-  for (const m of frameMatches(ctx, COUNTRY)) {
+    };
+  },
+  countryArticle: (m, ctx) => {
     const { first, country } = m.groups!;
     // Frames ignore case: the preposition is lowercase and the name capitalized as listed.
-    if (first !== first.toLowerCase()) continue;
+    if (first !== first.toLowerCase()) return null;
     const name = country.replace(/[ \t\u00a0]+/g, " ");
     const article = COUNTRIES[name];
     // "a China" already is the article.
     if (!article || (first === "a" && article === "a") || ctx.dictionary.has(name.toLowerCase()))
-      continue;
+      return null;
     const [start, end] = m.indices!.groups!.target;
     // A capitalized word after continues a name: "Banco de Brasil Seguros", "Coreia do Sul".
-    if (/^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3))) continue;
-    findings.push({
+    if (/^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3))) return null;
+    return {
       ruleId: "portugueseContractions",
       messageKey: "review_msg_pt_country_article",
       range: { start, end },
       alternatives: [`${WITH_ARTICLE[first][article]} ${country}`],
-    });
-  }
-  return findings;
-}
+    };
+  },
+} satisfies Record<string, MatchFixer>;

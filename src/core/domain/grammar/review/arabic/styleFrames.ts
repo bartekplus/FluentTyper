@@ -141,32 +141,36 @@ const QAMA_WORD = /^(?<pre>[وف]?)(?<future>س?)(?<verb>\p{L}+)$/u;
  * definite genitive) or, with the article, a preposition or the clause end:
  * an adjective on the noun ("بزيارة رسمية") has no place on the verb.
  */
-function lightVerbs(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function lightVerbs(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const m = QAMA_WORD.exec(list[i].word);
-    const slot = m && QAMA_SLOT.get(m.groups!.verb);
-    if (slot === undefined || slot === null || !at(list[i].start)) continue;
-    if (m!.groups!.future && slot < 7) continue;
-    const noun = list[i + 1];
-    if (!adjacent(noun)) continue;
-    const parts = /^ب(?<article>ال)?(?<noun>\p{L}+)$/u.exec(noun.word);
-    const stems = parts && derivedStems(parts.groups!.noun);
-    if (!stems) continue;
-    const after = list[i + 2];
-    const next = after && adjacent(after) ? after.word : "";
-    const fits = parts.groups!.article
-      ? next === "" || PREPOSITIONS.has(next)
-      : next.startsWith("ال");
-    if (!fits) continue;
-    const { pre, future } = m!.groups!;
-    findings.push({
-      messageKey: "review_msg_style_phrasing",
-      range: { start: list[i].start, end: noun.end },
-      alternatives: [pre + future + conjugate(stems[0], stems[1], slot)],
-      context: { start: list[i].start, end: after?.end ?? noun.end },
-    });
-  }
+  if (i + 1 >= list.length) return findings;
+  const m = QAMA_WORD.exec(list[i].word);
+  const slot = m && QAMA_SLOT.get(m.groups!.verb);
+  if (slot === undefined || slot === null || !at(list[i].start)) return findings;
+  if (m!.groups!.future && slot < 7) return findings;
+  const noun = list[i + 1];
+  if (!adjacent(noun)) return findings;
+  const parts = /^ب(?<article>ال)?(?<noun>\p{L}+)$/u.exec(noun.word);
+  const stems = parts && derivedStems(parts.groups!.noun);
+  if (!stems) return findings;
+  const after = list[i + 2];
+  const next = after && adjacent(after) ? after.word : "";
+  const fits = parts.groups!.article
+    ? next === "" || PREPOSITIONS.has(next)
+    : next.startsWith("ال");
+  if (!fits) return findings;
+  const { pre, future } = m!.groups!;
+  findings.push({
+    messageKey: "review_msg_style_phrasing",
+    range: { start: list[i].start, end: noun.end },
+    alternatives: [pre + future + conjugate(stems[0], stems[1], slot)],
+    context: { start: list[i].start, end: after?.end ?? noun.end },
+  });
   return findings;
 }
 
@@ -182,27 +186,25 @@ const RELATIVE = /^(?:الذي|التي|الذين|اللذان|اللتان|ا�
 function andRelatives(
   text: string,
   list: readonly StyleToken[],
+  i: number,
   at: (start: number) => boolean,
 ): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 1; i < list.length; i++) {
-    const word = list[i].word;
-    if (!word.startsWith("و") || !RELATIVE.test(word.slice(1)) || !at(list[i].start)) continue;
-    if (!/^،?[ \t ]*$/u.test(list[i].gap) || !/^(?:[وفبلك]{0,2})ال/u.test(list[i - 1].word))
-      continue;
-    const sentence = text.slice(Math.max(0, list[i].start - 200), list[i].start);
-    const clause = sentence.slice(sentence.search(/[^.!؟?\n]*$/u));
-    if (
-      /(?<![\p{L}])(?:و)?(?:الذي|التي|الذين|اللذان|اللتان|اللواتي|اللاتي)(?![\p{L}])/u.test(clause)
-    )
-      continue;
-    findings.push({
-      messageKey: "review_msg_style_phrasing",
-      range: { start: list[i].start, end: list[i].start + 1 },
-      alternatives: [""],
-      context: { start: list[i - 1].start, end: list[i].end },
-    });
-  }
+  if (i < 1) return findings;
+  const word = list[i].word;
+  if (!word.startsWith("و") || !RELATIVE.test(word.slice(1)) || !at(list[i].start)) return findings;
+  if (!/^،?[ \t ]*$/u.test(list[i].gap) || !/^(?:[وفبلك]{0,2})ال/u.test(list[i - 1].word))
+    return findings;
+  const sentence = text.slice(Math.max(0, list[i].start - 200), list[i].start);
+  const clause = sentence.slice(sentence.search(/[^.!؟?\n]*$/u));
+  if (/(?<![\p{L}])(?:و)?(?:الذي|التي|الذين|اللذان|اللتان|اللواتي|اللاتي)(?![\p{L}])/u.test(clause))
+    return findings;
+  findings.push({
+    messageKey: "review_msg_style_phrasing",
+    range: { start: list[i].start, end: list[i].start + 1 },
+    alternatives: [""],
+    context: { start: list[i - 1].start, end: list[i].end },
+  });
   return findings;
 }
 
@@ -242,100 +244,94 @@ const PLURAL_AF3AL = /^(?:[وفبلك]{0,2})الأ\p{L}{2}ا\p{L}$/u;
 function elatives(
   text: string,
   list: readonly StyleToken[],
+  i: number,
   at: (start: number) => boolean,
 ): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i < list.length; i++) {
-    const m = /^(?<pre>[وف]?)ال(?<elative>\p{L}+)$/u.exec(list[i].word);
-    const elative = m?.groups!.elative;
-    if (!elative || !(ELATIVES.has(elative) || FEMININE_ELATIVE.has(elative))) continue;
-    if (!at(list[i].start)) continue;
-    const previous = i > 0 && adjacent(list[i]) ? list[i - 1].word : "";
-    const next = list[i + 1];
-    const afterMin = list[i + 2]?.word ?? "";
+  const m = /^(?<pre>[وف]?)ال(?<elative>\p{L}+)$/u.exec(list[i].word);
+  const elative = m?.groups!.elative;
+  if (!elative || !(ELATIVES.has(elative) || FEMININE_ELATIVE.has(elative))) return findings;
+  if (!at(list[i].start)) return findings;
+  const previous = i > 0 && adjacent(list[i]) ? list[i - 1].word : "";
+  const next = list[i + 1];
+  const afterMin = list[i + 2]?.word ?? "";
+  if (
+    ELATIVES.has(elative) &&
+    next?.word === "من" &&
+    adjacent(next) &&
+    !/^(?:[وفبلك]{0,2})ال/u.test(previous) &&
+    !/^(?:بين|بينها|بينهم|نوعه|نوعها|نوعهم)$/u.test(afterMin)
+  ) {
+    findings.push({
+      messageKey: "review_msg_style_phrasing",
+      range: { start: list[i].start, end: list[i].end },
+      alternatives: [m.groups!.pre + elative],
+      context: { start: list[i].start, end: next.end },
+    });
+    return findings;
+  }
+  // "الأعداد الأكبر من 10": a number after من compares, it is no part.
+  if (
+    ELATIVES.has(elative) &&
+    next?.word === "من" &&
+    adjacent(next) &&
+    !m.groups!.pre &&
+    /^[ \t\u00a0]+[0-9٠-٩]/u.test(text.slice(next.end, next.end + 8))
+  ) {
+    // Only after a plural: "الجزء الأكبر من 2020" is a part of the year.
+    const people = PLURAL_AF3AL.test(previous);
     if (
-      ELATIVES.has(elative) &&
-      next?.word === "من" &&
-      adjacent(next) &&
-      !/^(?:[وفبلك]{0,2})ال/u.test(previous) &&
-      !/^(?:بين|بينها|بينهم|نوعه|نوعها|نوعهم)$/u.test(afterMin)
+      people ||
+      /^(?:[وفبلك]{0,2})ال\p{L}{2,}ات$/u.test(previous) ||
+      BROKEN_PLURAL.test(previous)
     ) {
       findings.push({
         messageKey: "review_msg_style_phrasing",
         range: { start: list[i].start, end: list[i].end },
-        alternatives: [m.groups!.pre + elative],
+        // أفعال may name people: "الأطفال الذين هم أكبر من عشر سنين".
+        alternatives: [`التي هي ${elative}`, ...(people ? [`الذين هم ${elative}`] : [])],
+        ...(people ? { requiresChoice: true as const } : {}),
         context: { start: list[i].start, end: next.end },
       });
-      continue;
+      return findings;
     }
-    // "الأعداد الأكبر من 10": a number after من compares, it is no part.
-    if (
-      ELATIVES.has(elative) &&
-      next?.word === "من" &&
-      adjacent(next) &&
-      !m.groups!.pre &&
-      /^[ \t\u00a0]+[0-9٠-٩]/u.test(text.slice(next.end, next.end + 8))
-    ) {
-      // Only after a plural: "الجزء الأكبر من 2020" is a part of the year.
-      const people = PLURAL_AF3AL.test(previous);
-      if (
-        people ||
-        /^(?:[وفبلك]{0,2})ال\p{L}{2,}ات$/u.test(previous) ||
-        BROKEN_PLURAL.test(previous)
-      ) {
-        findings.push({
-          messageKey: "review_msg_style_phrasing",
-          range: { start: list[i].start, end: list[i].end },
-          // أفعال may name people: "الأطفال الذين هم أكبر من عشر سنين".
-          alternatives: [`التي هي ${elative}`, ...(people ? [`الذين هم ${elative}`] : [])],
-          ...(people ? { requiresChoice: true as const } : {}),
-          context: { start: list[i].start, end: next.end },
-        });
-        continue;
-      }
-    }
-    // The feminine noun must not close an idafa ("مستوى الجودة الأعلى" is the level's).
-    const feminine = FEMININE_ELATIVE.get(elative);
-    // "هي الأكبر بين القارات" -> "هي الكبرى".
-    if (feminine && !m.groups!.pre && previous === "هي") {
-      findings.push({
-        messageKey: "review_msg_style_phrasing",
-        range: { start: list[i].start, end: list[i].end },
-        alternatives: ["ال" + feminine],
-      });
-      continue;
-    }
-    // A feminine dual: "الدولتان الأعظم" -> "العظميان", "المدينتين الأكبر" -> "الكبريين".
-    const dual = /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,})ت(?<ending>ان|ين)$/u.exec(previous)?.groups;
-    if (
-      feminine?.endsWith("ى") &&
-      !m.groups!.pre &&
-      dual &&
-      tagsOf(`${dual.stem}ة`).includes("f")
-    ) {
-      const before = i > 1 && adjacent(list[i - 1]) ? list[i - 2].word : "";
-      if (!before || PREPOSITIONS.has(before) || /^(?:[وفبلك]{0,2})ال/u.test(before))
-        findings.push({
-          messageKey: "review_msg_style_phrasing",
-          range: { start: list[i].start, end: list[i].end },
-          alternatives: [`ال${feminine.slice(0, -1)}ي${dual.ending}`],
-          context: { start: list[i - 1].start, end: list[i].end },
-        });
-      continue;
-    }
-    const noun =
-      /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,}ة)$/u.exec(previous)?.groups!.stem ??
-      (BROKEN_PLURAL.test(previous) ? previous : undefined);
-    if (!feminine || m.groups!.pre || !noun || NOT_FEMININE.has(noun)) continue;
-    const before = i > 1 && adjacent(list[i - 1]) ? list[i - 2].word : "";
-    if (before && !PREPOSITIONS.has(before) && !/^(?:[وفبلك]{0,2})ال/u.test(before)) continue;
+  }
+  // The feminine noun must not close an idafa ("مستوى الجودة الأعلى" is the level's).
+  const feminine = FEMININE_ELATIVE.get(elative);
+  // "هي الأكبر بين القارات" -> "هي الكبرى".
+  if (feminine && !m.groups!.pre && previous === "هي") {
     findings.push({
       messageKey: "review_msg_style_phrasing",
       range: { start: list[i].start, end: list[i].end },
       alternatives: ["ال" + feminine],
-      context: { start: list[i - 1].start, end: list[i].end },
     });
+    return findings;
   }
+  // A feminine dual: "الدولتان الأعظم" -> "العظميان", "المدينتين الأكبر" -> "الكبريين".
+  const dual = /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,})ت(?<ending>ان|ين)$/u.exec(previous)?.groups;
+  if (feminine?.endsWith("ى") && !m.groups!.pre && dual && tagsOf(`${dual.stem}ة`).includes("f")) {
+    const before = i > 1 && adjacent(list[i - 1]) ? list[i - 2].word : "";
+    if (!before || PREPOSITIONS.has(before) || /^(?:[وفبلك]{0,2})ال/u.test(before))
+      findings.push({
+        messageKey: "review_msg_style_phrasing",
+        range: { start: list[i].start, end: list[i].end },
+        alternatives: [`ال${feminine.slice(0, -1)}ي${dual.ending}`],
+        context: { start: list[i - 1].start, end: list[i].end },
+      });
+    return findings;
+  }
+  const noun =
+    /^(?:[وفبلك]{0,2})ال(?<stem>\p{L}{2,}ة)$/u.exec(previous)?.groups!.stem ??
+    (BROKEN_PLURAL.test(previous) ? previous : undefined);
+  if (!feminine || m.groups!.pre || !noun || NOT_FEMININE.has(noun)) return findings;
+  const before = i > 1 && adjacent(list[i - 1]) ? list[i - 2].word : "";
+  if (before && !PREPOSITIONS.has(before) && !/^(?:[وفبلك]{0,2})ال/u.test(before)) return findings;
+  findings.push({
+    messageKey: "review_msg_style_phrasing",
+    range: { start: list[i].start, end: list[i].end },
+    alternatives: ["ال" + feminine],
+    context: { start: list[i - 1].start, end: list[i].end },
+  });
   return findings;
 }
 
@@ -344,44 +340,52 @@ function elatives(
 const WORK = /^[وف]?(?:عمل|عملت|عملوا|يعمل|تعمل|يعملون|نعمل|أعمل|اشتغل|اشتغلت|يشتغل|تشتغل)$/u;
 
 /** "يعمل كمدير" -> "يعمل بصفة مدير": كـ compares; a role is بصفة. */
-function asRole(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function asRole(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    if (!WORK.test(list[i].word)) continue;
-    for (const j of [i + 1, i + 2]) {
-      const role = list[j];
-      if (!role || !adjacent(role)) break;
-      const m = /^ك(?<role>(?!ال)\p{L}{3,})$/u.exec(role.word);
-      if (m && at(role.start)) {
-        findings.push({
-          messageKey: "review_msg_style_phrasing",
-          range: { start: role.start, end: role.start + 1 },
-          alternatives: ["بصفة "],
-          context: { start: list[i].start, end: role.end },
-        });
-        break;
-      }
-      if (role.word.startsWith("ك")) break;
+  if (i + 1 >= list.length) return findings;
+  if (!WORK.test(list[i].word)) return findings;
+  for (const j of [i + 1, i + 2]) {
+    const role = list[j];
+    if (!role || !adjacent(role)) break;
+    const m = /^ك(?<role>(?!ال)\p{L}{3,})$/u.exec(role.word);
+    if (m && at(role.start)) {
+      findings.push({
+        messageKey: "review_msg_style_phrasing",
+        range: { start: role.start, end: role.start + 1 },
+        alternatives: ["بصفة "],
+        context: { start: list[i].start, end: role.end },
+      });
+      break;
     }
+    if (role.word.startsWith("ك")) break;
   }
   return findings;
 }
 
 /** "سيما الراتب" -> "لا سيما الراتب": سيّما is not used without لا. */
-function laSiyyama(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
-  return list.flatMap((token, i): Finding[] => {
-    if (!/^[وف]?سيما$/u.test(token.word) || !at(token.start)) return [];
-    if (i > 0 && adjacent(token) && /^[وف]?لا$/u.test(list[i - 1].word)) return [];
-    const start = token.end - 4;
-    return [
-      {
-        messageKey: "review_msg_style_phrasing",
-        range: { start, end: token.end },
-        alternatives: ["لا سيما"],
-        context: { start: token.start, end: token.end },
-      },
-    ];
-  });
+function laSiyyama(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
+  const token = list[i];
+  if (!/^[وف]?سيما$/u.test(token.word) || !at(token.start)) return [];
+  if (i > 0 && adjacent(token) && /^[وف]?لا$/u.test(list[i - 1].word)) return [];
+  const start = token.end - 4;
+  return [
+    {
+      messageKey: "review_msg_style_phrasing",
+      range: { start, end: token.end },
+      alternatives: ["لا سيما"],
+      context: { start: token.start, end: token.end },
+    },
+  ];
 }
 
 /** "ل" + a word: "الكتاب" -> "للكتاب", "اللغة" -> "للغة". */
@@ -401,20 +405,24 @@ const style = (start: number, end: number, fixed: string): Finding => ({
  * "القيام بدراسة الملف" -> "دراسة الملف": the verbal noun alone names the act.
  * Only for a noun that is itself a verbal noun ("القيام بالواجب" keeps its verb).
  */
-function doingTheAct(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function doingTheAct(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const m = /^(?<conj>[وف]?)(?<prep>بال|لل|ال)قيام$/u.exec(list[i].word);
-    const act = list[i + 1];
-    const parts = /^ب(?<article>ال)?(?<noun>\p{L}{3,})$/u.exec(act.word);
-    if (!m || !parts || !adjacent(act) || !at(list[i].start)) continue;
-    const noun = parts.groups!.noun;
-    if (!derivedStems(noun) && !PLAIN_VERBAL_NOUNS.has(noun)) continue;
-    const phrase = (parts.groups!.article ?? "") + noun;
-    const { conj, prep } = m.groups!;
-    const fixed = prep === "بال" ? "ب" + phrase : prep === "لل" ? withLam(phrase) : phrase;
-    findings.push(style(list[i].start, act.end, conj + fixed));
-  }
+  if (i + 1 >= list.length) return findings;
+  const m = /^(?<conj>[وف]?)(?<prep>بال|لل|ال)قيام$/u.exec(list[i].word);
+  const act = list[i + 1];
+  const parts = /^ب(?<article>ال)?(?<noun>\p{L}{3,})$/u.exec(act.word);
+  if (!m || !parts || !adjacent(act) || !at(list[i].start)) return findings;
+  const noun = parts.groups!.noun;
+  if (!derivedStems(noun) && !PLAIN_VERBAL_NOUNS.has(noun)) return findings;
+  const phrase = (parts.groups!.article ?? "") + noun;
+  const { conj, prep } = m.groups!;
+  const fixed = prep === "بال" ? "ب" + phrase : prep === "لل" ? withLam(phrase) : phrase;
+  findings.push(style(list[i].start, act.end, conj + fixed));
   return findings;
 }
 
@@ -440,27 +448,31 @@ const ADJECTIVE = /^(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[يو]\p{L})$/u;
  * "عموما": a calque of "in a ... way"; a relational adjective makes an adverb,
  * others take على نحو.
  */
-function inAWay(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function inAWay(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const m = /^(?<pre>[وف]?)ب(?<way>شكل|صورة|أسلوب|طريقة)$/u.exec(list[i].word);
-    const next = list[i + 1];
-    if (!m || !adjacent(next) || !at(list[i].start)) continue;
-    let adjective = next.word;
-    if (m.groups!.way.endsWith("ة")) {
-      if (!adjective.endsWith("ة")) continue;
-      adjective = adjective.slice(0, -1);
-    } else if (adjective.endsWith("ة")) continue;
-    if (adjective.startsWith("ال")) continue;
-    const fixed =
-      ADVERBS.get(adjective) ??
-      (/^\p{L}{2,}ي$/u.test(adjective)
-        ? adjective + "ا"
-        : ADJECTIVE.test(adjective)
-          ? `على نحو ${adjective}`
-          : undefined);
-    if (fixed) findings.push(style(list[i].start, next.end, m.groups!.pre + fixed));
-  }
+  if (i + 1 >= list.length) return findings;
+  const m = /^(?<pre>[وف]?)ب(?<way>شكل|صورة|أسلوب|طريقة)$/u.exec(list[i].word);
+  const next = list[i + 1];
+  if (!m || !adjacent(next) || !at(list[i].start)) return findings;
+  let adjective = next.word;
+  if (m.groups!.way.endsWith("ة")) {
+    if (!adjective.endsWith("ة")) return findings;
+    adjective = adjective.slice(0, -1);
+  } else if (adjective.endsWith("ة")) return findings;
+  if (adjective.startsWith("ال")) return findings;
+  const fixed =
+    ADVERBS.get(adjective) ??
+    (/^\p{L}{2,}ي$/u.test(adjective)
+      ? adjective + "ا"
+      : ADJECTIVE.test(adjective)
+        ? `على نحو ${adjective}`
+        : undefined);
+  if (fixed) findings.push(style(list[i].start, next.end, m.groups!.pre + fixed));
   return findings;
 }
 
@@ -486,24 +498,29 @@ const VERB_LIKE = /^[وف]?(?:س?[يتنأ]\p{L}{2,}(?:ون)?|\p{L}{2,}(?<!ا)(?
  * accusative, with no لـ. Not after a noun ("خطة لعامين"), nor before a genitive
  * ("ليوم الجمعة").
  */
-function forADuration(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function forADuration(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 1; i < list.length; i++) {
-    const m = /^(?<pre>[وف]?)ل(?<noun>\p{L}+)$/u.exec(list[i].word);
-    const fixed = m && DURATIONS.get(m.groups!.noun);
-    if (!fixed || !adjacent(list[i]) || !at(list[i].start)) continue;
-    const next = list[i + 1] && adjacent(list[i + 1]) ? list[i + 1].word : "";
-    if (next.startsWith("ال")) continue;
-    if (SINGULAR_DURATION.test(m.groups!.noun) && next && !DURATION_ADJECTIVE.test(next)) continue;
-    const previous = list[i - 1].word;
-    const verb =
-      (VERB_LIKE.test(previous) && !previous.endsWith("ة")) ||
-      (/^ال\p{L}+$/u.test(previous) &&
-        i > 1 &&
-        adjacent(list[i - 1]) &&
-        VERB_LIKE.test(list[i - 2].word));
-    if (verb) findings.push(style(list[i].start, list[i].end, m.groups!.pre + fixed));
-  }
+  if (i < 1) return findings;
+  const m = /^(?<pre>[وف]?)ل(?<noun>\p{L}+)$/u.exec(list[i].word);
+  const fixed = m && DURATIONS.get(m.groups!.noun);
+  if (!fixed || !adjacent(list[i]) || !at(list[i].start)) return findings;
+  const next = list[i + 1] && adjacent(list[i + 1]) ? list[i + 1].word : "";
+  if (next.startsWith("ال")) return findings;
+  if (SINGULAR_DURATION.test(m.groups!.noun) && next && !DURATION_ADJECTIVE.test(next))
+    return findings;
+  const previous = list[i - 1].word;
+  const verb =
+    (VERB_LIKE.test(previous) && !previous.endsWith("ة")) ||
+    (/^ال\p{L}+$/u.test(previous) &&
+      i > 1 &&
+      adjacent(list[i - 1]) &&
+      VERB_LIKE.test(list[i - 2].word));
+  if (verb) findings.push(style(list[i].start, list[i].end, m.groups!.pre + fixed));
   return findings;
 }
 
@@ -531,34 +548,38 @@ const RELATION = /^[وفبل]?(?:ال|لل)?علاق(?:ة|ات|ته|تها|ته�
  * "بـ" ("علاقة بابنه"), caution "لـ" ("تحسبا لكل طارئ"). One feminine adjective
  * may stand between the noun and its preposition ("رغبة شديدة لـ").
  */
-function nounPrepositions(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function nounPrepositions(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
   const push = (start: number, end: number, fixed: string) => {
     if (at(start)) findings.push(style(start, end, fixed));
   };
-  for (let i = 0; i + 2 < list.length; i++) {
-    const head = list[i].word;
-    let j = i + 1;
-    if (!adjacent(list[j])) continue;
-    // A feminine adjective between: "رغبة شديدة لـ", "علاقة وثيقة مع".
-    if (/^[^ل]\p{L}{2,}ة$/u.test(list[j].word) && adjacent(list[j + 1])) j++;
-    const word = list[j].word;
-    if (WISH.test(head)) {
-      if (!/^ل\p{L}{2,}$/u.test(word) || NOT_LAM_PREPOSITION.test(word)) continue;
-      push(
-        list[j].start,
-        list[j].end,
-        LI_PRONOUNS.get(word) ??
-          (word.startsWith("لل") ? "في ال" + word.slice(2) : "في " + word.slice(1)),
-      );
-    } else if (RELATION.test(head)) {
-      const pronoun = MA_PRONOUNS.get(word);
-      if (pronoun) push(list[j].start, list[j].end, pronoun);
-      else if (word === "مع" && list[j + 1] && adjacent(list[j + 1]))
-        push(list[j].start, list[j + 1].end, "ب" + list[j + 1].word);
-    } else if (/^و?تحسبا$/u.test(head) && list[i + 1].word === "من" && adjacent(list[i + 2])) {
-      push(list[i + 1].start, list[i + 2].end, withLam(list[i + 2].word));
-    }
+  if (i + 2 >= list.length) return findings;
+  const head = list[i].word;
+  let j = i + 1;
+  if (!adjacent(list[j])) return findings;
+  // A feminine adjective between: "رغبة شديدة لـ", "علاقة وثيقة مع".
+  if (/^[^ل]\p{L}{2,}ة$/u.test(list[j].word) && adjacent(list[j + 1])) j++;
+  const word = list[j].word;
+  if (WISH.test(head)) {
+    if (!/^ل\p{L}{2,}$/u.test(word) || NOT_LAM_PREPOSITION.test(word)) return findings;
+    push(
+      list[j].start,
+      list[j].end,
+      LI_PRONOUNS.get(word) ??
+        (word.startsWith("لل") ? "في ال" + word.slice(2) : "في " + word.slice(1)),
+    );
+  } else if (RELATION.test(head)) {
+    const pronoun = MA_PRONOUNS.get(word);
+    if (pronoun) push(list[j].start, list[j].end, pronoun);
+    else if (word === "مع" && list[j + 1] && adjacent(list[j + 1]))
+      push(list[j].start, list[j + 1].end, "ب" + list[j + 1].word);
+  } else if (/^و?تحسبا$/u.test(head) && list[i + 1].word === "من" && adjacent(list[i + 2])) {
+    push(list[i + 1].start, list[i + 2].end, withLam(list[i + 2].word));
   }
   return findings;
 }
@@ -570,22 +591,27 @@ const NOT_AFTER_GHAYR = /^بال(?:غ|ضرورة|كامل|مرة|تأكيد|طب
  * "لا تستعن سوى بالله" -> "بسوى الله", "غير بالله" -> "بغير الله": the preposition goes
  * before the word of exception (for غير only بـ: "غير بالغ" is "not adult").
  */
-function exceptPreposition(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function exceptPreposition(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const word = list[i].word;
-    if ((word !== "سوى" && word !== "غير") || !adjacent(list[i + 1]) || !at(list[i].start))
-      continue;
-    const next = list[i + 1].word;
-    const attached = /^(?<p>[بل])(?<rest>ال\p{L}{2,})$/u.exec(
-      next.startsWith("لل") ? "لال" + next.slice(2) : next,
-    );
-    if (word === "غير" && (attached?.groups!.p !== "ب" || NOT_AFTER_GHAYR.test(next))) continue;
-    const fixed = SEPARATE_PREPOSITIONS.has(next)
-      ? `${next} ${word}`
-      : attached && `${attached.groups!.p}${word} ${attached.groups!.rest}`;
-    if (fixed) findings.push(style(list[i].start, list[i + 1].end, fixed));
-  }
+  if (i + 1 >= list.length) return findings;
+  const word = list[i].word;
+  if ((word !== "سوى" && word !== "غير") || !adjacent(list[i + 1]) || !at(list[i].start))
+    return findings;
+  const next = list[i + 1].word;
+  const attached = /^(?<p>[بل])(?<rest>ال\p{L}{2,})$/u.exec(
+    next.startsWith("لل") ? "لال" + next.slice(2) : next,
+  );
+  if (word === "غير" && (attached?.groups!.p !== "ب" || NOT_AFTER_GHAYR.test(next)))
+    return findings;
+  const fixed = SEPARATE_PREPOSITIONS.has(next)
+    ? `${next} ${word}`
+    : attached && `${attached.groups!.p}${word} ${attached.groups!.rest}`;
+  if (fixed) findings.push(style(list[i].start, list[i + 1].end, fixed));
   return findings;
 }
 
@@ -598,28 +624,27 @@ const STILL = /^(?:زال|زلت|زالت|زلنا|زالوا|دام|دمت|بر
 function timeAdverbs(
   text: string,
   list: readonly StyleToken[],
+  i: number,
   at: (start: number) => boolean,
 ): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i < list.length; i++) {
-    const word = list[i].word;
-    if (word === "أبدا" && at(list[i].start)) {
-      for (let k = i - 1; k >= 0 && k >= i - 5; k--) {
-        if (CLAUSE_BREAK.test(list[k + 1].gap) || /^[وف]?(?:لن|لا)$/u.test(list[k].word)) break;
-        const past =
-          list[k].word === "لم" || (list[k].word === "ما" && !STILL.test(list[k + 1].word));
-        if (!past) continue;
-        const end = list[i].end + (text[list[i].end] === "ً" ? 1 : 0);
-        findings.push(style(list[i].start, end, "قط"));
-        break;
-      }
+  const word = list[i].word;
+  if (word === "أبدا" && at(list[i].start)) {
+    for (let k = i - 1; k >= 0 && k >= i - 5; k--) {
+      if (CLAUSE_BREAK.test(list[k + 1].gap) || /^[وف]?(?:لن|لا)$/u.test(list[k].word)) break;
+      const past =
+        list[k].word === "لم" || (list[k].word === "ما" && !STILL.test(list[k + 1].word));
+      if (!past) continue;
+      const end = list[i].end + (text[list[i].end] === "ً" ? 1 : 0);
+      findings.push(style(list[i].start, end, "قط"));
+      break;
     }
-    const during = /^(?<pre>[وف]?)أثناء$/u.exec(word);
-    if (!during || !at(list[i].start)) continue;
-    const before = i > 0 && !CLAUSE_BREAK.test(list[i].gap) ? list[i - 1].word : "";
-    if (!/^[وف]?(?:في|من)$/u.test(before))
-      findings.push(style(list[i].start, list[i].end, during.groups!.pre + "في أثناء"));
   }
+  const during = /^(?<pre>[وف]?)أثناء$/u.exec(word);
+  if (!during || !at(list[i].start)) return findings;
+  const before = i > 0 && !CLAUSE_BREAK.test(list[i].gap) ? list[i - 1].word : "";
+  if (!/^[وف]?(?:في|من)$/u.test(before))
+    findings.push(style(list[i].start, list[i].end, during.groups!.pre + "في أثناء"));
   return findings;
 }
 
@@ -627,31 +652,40 @@ function timeAdverbs(
  * "الجهاز عبارة عن صندوق" -> "الجهاز صندوق": عبارة عن adds nothing to the
  * predicate. After هو/هي the table rows keep the pronoun.
  */
-function amountsTo(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function amountsTo(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 2 < list.length; i++) {
-    if (list[i].word !== "عبارة" || list[i + 1].word !== "عن" || !adjacent(list[i + 1])) continue;
-    if (!adjacent(list[i + 2]) || !at(list[i].start)) continue;
-    if (i > 0 && /^(?:هو|هي|هم)$/u.test(list[i - 1].word)) continue;
-    findings.push(style(list[i].start, list[i + 2].start, ""));
-  }
+  if (i + 2 >= list.length) return findings;
+  if (list[i].word !== "عبارة" || list[i + 1].word !== "عن" || !adjacent(list[i + 1]))
+    return findings;
+  if (!adjacent(list[i + 2]) || !at(list[i].start)) return findings;
+  if (i > 0 && /^(?:هو|هي|هم)$/u.test(list[i - 1].word)) return findings;
+  findings.push(style(list[i].start, list[i + 2].start, ""));
   return findings;
 }
 
 /** "فأما أن تحفظه وأما أن تضيعه" -> "فإما ... وإما": the choice is إمّا. */
-function eitherOr(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function eitherOr(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const first = /^(?<pre>[وف]?)أما$/u.exec(list[i].word);
-    if (!first || list[i + 1].word !== "أن" || !adjacent(list[i + 1])) continue;
-    for (let k = i + 2; k + 1 < list.length && k < i + 14; k++) {
-      if (/[.!؟?\n]/u.test(list[k].gap)) break;
-      if (list[k].word !== "وأما" || list[k + 1].word !== "أن") continue;
-      if (at(list[i].start))
-        findings.push(style(list[i].start, list[i].end, first.groups!.pre + "إما"));
-      if (at(list[k].start)) findings.push(style(list[k].start, list[k].end, "وإما"));
-      break;
-    }
+  if (i + 1 >= list.length) return findings;
+  const first = /^(?<pre>[وف]?)أما$/u.exec(list[i].word);
+  if (!first || list[i + 1].word !== "أن" || !adjacent(list[i + 1])) return findings;
+  for (let k = i + 2; k + 1 < list.length && k < i + 14; k++) {
+    if (/[.!؟?\n]/u.test(list[k].gap)) break;
+    if (list[k].word !== "وأما" || list[k + 1].word !== "أن") continue;
+    if (at(list[i].start))
+      findings.push(style(list[i].start, list[i].end, first.groups!.pre + "إما"));
+    if (at(list[k].start)) findings.push(style(list[k].start, list[k].end, "وإما"));
+    break;
   }
   return findings;
 }
@@ -663,20 +697,20 @@ const HAMM = /^(?<pre>[وف]?)هام(?<f>ة?)$/u;
 function important(
   text: string,
   list: readonly StyleToken[],
+  i: number,
   at: (start: number) => boolean,
 ): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 1; i < list.length; i++) {
-    const m = HAMM.exec(list[i].word);
-    if (!m || !adjacent(list[i]) || !/^[وف]?ال\p{L}{2,}$/u.test(list[i - 1].word)) continue;
-    const next = list[i + 1];
-    const closes =
-      !next ||
-      CLAUSE_BREAK.test(text.slice(list[i].end, next.start)) ||
-      /^(?:جدا|للغاية|لنا|لي|لك|لكم|له|لها|لهم)$/u.test(next.word);
-    if (closes && at(list[i].start))
-      findings.push(style(list[i].start, list[i].end, `${m.groups!.pre}مهم${m.groups!.f}`));
-  }
+  if (i < 1) return findings;
+  const m = HAMM.exec(list[i].word);
+  if (!m || !adjacent(list[i]) || !/^[وف]?ال\p{L}{2,}$/u.test(list[i - 1].word)) return findings;
+  const next = list[i + 1];
+  const closes =
+    !next ||
+    CLAUSE_BREAK.test(text.slice(list[i].end, next.start)) ||
+    /^(?:جدا|للغاية|لنا|لي|لك|لكم|له|لها|لهم)$/u.test(next.word);
+  if (closes && at(list[i].start))
+    findings.push(style(list[i].start, list[i].end, `${m.groups!.pre}مهم${m.groups!.f}`));
   return findings;
 }
 
@@ -698,30 +732,30 @@ const TRADE = /^[وف]?(?:تاجرت|تاجروا|يتاجر|تتاجر|يتاج
  * "أعطى لصاحبه كتابا" -> "أعطى صاحبه", "كلفه بالعمل" -> "كلفه العمل", "كلفه به" ->
  * "كلفه إياه".
  */
-function directObjects(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function directObjects(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const object = list[i + 1];
-    if (!adjacent(object) || !at(object.start)) continue;
-    const li = DIRECT_LI.test(list[i].word) && /^ل\p{L}{3,}$/u.exec(object.word);
-    if (li && !NOT_LAM_PREPOSITION.test(object.word)) {
-      const word = object.word;
-      findings.push(
-        style(
-          object.start,
-          object.end,
-          word.startsWith("لل") ? "ال" + word.slice(2) : word.slice(1),
-        ),
-      );
-      continue;
-    }
-    if (DIRECT_BI.test(list[i].word) && /^ب(?:ال\p{L}{2,}|\p{L}{3,}ة)$/u.test(object.word))
-      findings.push(style(object.start, object.end, object.word.slice(1)));
-    else if (DIRECT_BI.test(list[i].word) && BI_PRONOUN.has(object.word))
-      findings.push(style(object.start, object.end, BI_PRONOUN.get(object.word)!));
-    else if (TRADE.test(list[i].word) && /^ب\p{L}{3,}$/u.test(object.word))
-      findings.push(style(object.start, object.end, "في " + object.word.slice(1)));
+  if (i + 1 >= list.length) return findings;
+  const object = list[i + 1];
+  if (!adjacent(object) || !at(object.start)) return findings;
+  const li = DIRECT_LI.test(list[i].word) && /^ل\p{L}{3,}$/u.exec(object.word);
+  if (li && !NOT_LAM_PREPOSITION.test(object.word)) {
+    const word = object.word;
+    findings.push(
+      style(object.start, object.end, word.startsWith("لل") ? "ال" + word.slice(2) : word.slice(1)),
+    );
+    return findings;
   }
+  if (DIRECT_BI.test(list[i].word) && /^ب(?:ال\p{L}{2,}|\p{L}{3,}ة)$/u.test(object.word))
+    findings.push(style(object.start, object.end, object.word.slice(1)));
+  else if (DIRECT_BI.test(list[i].word) && BI_PRONOUN.has(object.word))
+    findings.push(style(object.start, object.end, BI_PRONOUN.get(object.word)!));
+  else if (TRADE.test(list[i].word) && /^ب\p{L}{3,}$/u.test(object.word))
+    findings.push(style(object.start, object.end, "في " + object.word.slice(1)));
   return findings;
 }
 
@@ -733,17 +767,21 @@ const WAW_ROOT =
   /^و(?:ال)?(?:ضع|قت|جه|جو|زن|صف|ظيف|عد|اقع|سع|طن|حد|لد|قع|سائل|سيل|ثيق|صول|قوف|جب|عي|زير|زار|رق|رد|فق|فر|سط|حش|هم|راث|ريث|صي)/u;
 
 /** "يتناسب ورأيه" -> "يتناسب مع رأيه": with no pronoun between, the partner takes مع. */
-function mutualWaw(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function mutualWaw(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const partner = list[i + 1];
-    if (!MUTUAL.test(list[i].word) || !adjacent(partner) || !at(partner.start)) continue;
-    const m = /^و(?<rest>\p{L}{2,})$/u.exec(partner.word);
-    if (!m || WAW_ROOT.test(partner.word)) continue;
-    // "لا يتناسب ... مع": the partner comes later, this is the subject.
-    if (list.slice(i + 2, i + 5).some((token) => /^مع\p{L}*$/u.test(token.word))) continue;
-    findings.push(style(partner.start, partner.end, `مع ${m.groups!.rest}`));
-  }
+  if (i + 1 >= list.length) return findings;
+  const partner = list[i + 1];
+  if (!MUTUAL.test(list[i].word) || !adjacent(partner) || !at(partner.start)) return findings;
+  const m = /^و(?<rest>\p{L}{2,})$/u.exec(partner.word);
+  if (!m || WAW_ROOT.test(partner.word)) return findings;
+  // "لا يتناسب ... مع": the partner comes later, this is the subject.
+  if (list.slice(i + 2, i + 5).some((token) => /^مع\p{L}*$/u.test(token.word))) return findings;
+  findings.push(style(partner.start, partner.end, `مع ${m.groups!.rest}`));
   return findings;
 }
 
@@ -757,35 +795,39 @@ const NOT_AFTER_ILLA_WAW =
 function exceptAnd(
   text: string,
   list: readonly StyleToken[],
+  i: number,
   at: (start: number) => boolean,
 ): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 1; i + 1 < list.length; i++) {
-    const verb = list[i + 1];
-    if (list[i].word !== "إلا" || !adjacent(verb) || !at(verb.start)) continue;
-    if (!/^و\p{L}{3,6}$/u.test(verb.word) || NOT_AFTER_ILLA_WAW.test(verb.word)) continue;
-    let negated = false;
-    for (let j = i - 1; j >= Math.max(0, i - 6); j--) {
-      if (CLAUSE_BREAK.test(text.slice(list[j].end, list[j + 1].start))) break;
-      if (NEGATION.test(list[j].word)) {
-        negated = true;
-        break;
-      }
+  if (i < 1 || i + 1 >= list.length) return findings;
+  const verb = list[i + 1];
+  if (list[i].word !== "إلا" || !adjacent(verb) || !at(verb.start)) return findings;
+  if (!/^و\p{L}{3,6}$/u.test(verb.word) || NOT_AFTER_ILLA_WAW.test(verb.word)) return findings;
+  let negated = false;
+  for (let j = i - 1; j >= Math.max(0, i - 6); j--) {
+    if (CLAUSE_BREAK.test(text.slice(list[j].end, list[j + 1].start))) break;
+    if (NEGATION.test(list[j].word)) {
+      negated = true;
+      break;
     }
-    if (negated) findings.push(style(verb.start, verb.start + 1, ""));
   }
+  if (negated) findings.push(style(verb.start, verb.start + 1, ""));
   return findings;
 }
 
 /** "نحن كمعلمين" -> "نحن المعلمين": "we, the teachers" is the specifying accusative. */
-function weAs(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function weAs(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 1 < list.length; i++) {
-    const group = list[i + 1];
-    if (!/^[وف]?نحن$/u.test(list[i].word) || !adjacent(group) || !at(group.start)) continue;
-    const m = /^ك(?<who>م\p{L}{3,}(?:ين|ون)|عرب|بشر)$/u.exec(group.word);
-    if (m) findings.push(style(group.start, group.end, "ال" + m.groups!.who));
-  }
+  if (i + 1 >= list.length) return findings;
+  const group = list[i + 1];
+  if (!/^[وف]?نحن$/u.test(list[i].word) || !adjacent(group) || !at(group.start)) return findings;
+  const m = /^ك(?<who>م\p{L}{3,}(?:ين|ون)|عرب|بشر)$/u.exec(group.word);
+  if (m) findings.push(style(group.start, group.end, "ال" + m.groups!.who));
   return findings;
 }
 
@@ -793,22 +835,24 @@ function weAs(list: readonly StyleToken[], at: (start: number) => boolean): Find
 function whileJoined(
   text: string,
   list: readonly StyleToken[],
+  i: number,
   at: (start: number) => boolean,
 ): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 0; i + 2 < list.length; i++) {
-    if (list[i].word !== "بين" || list[i + 1].word !== "ما" || !adjacent(list[i + 1])) continue;
-    const from = Math.max(0, list[i].start - 40);
-    const lead = text.slice(from, list[i].start);
-    if (!/(?:[.!؟?\n]|^)[^\p{L}\p{N}]*$/u.test(lead) || (from > 0 && !/[.!؟?\n]/u.test(lead)))
-      continue;
-    if (!/^(?:كان|كانت|كنت|كنا|كانوا|كنتم)$/u.test(list[i + 2].word)) continue;
-    // "بين ما كان وما سيكون": between the two.
-    const clause = list.slice(i + 3, i + 10);
-    const end = clause.findIndex((token) => CLAUSE_BREAK.test(token.gap));
-    if ((end < 0 ? clause : clause.slice(0, end)).some((token) => token.word === "وما")) continue;
-    if (at(list[i].start)) findings.push(style(list[i].start, list[i + 1].end, "بينما"));
-  }
+  if (i + 2 >= list.length) return findings;
+  if (list[i].word !== "بين" || list[i + 1].word !== "ما" || !adjacent(list[i + 1]))
+    return findings;
+  const from = Math.max(0, list[i].start - 40);
+  const lead = text.slice(from, list[i].start);
+  if (!/(?:[.!؟?\n]|^)[^\p{L}\p{N}]*$/u.test(lead) || (from > 0 && !/[.!؟?\n]/u.test(lead)))
+    return findings;
+  if (!/^(?:كان|كانت|كنت|كنا|كانوا|كنتم)$/u.test(list[i + 2].word)) return findings;
+  // "بين ما كان وما سيكون": between the two.
+  const clause = list.slice(i + 3, i + 10);
+  const end = clause.findIndex((token) => CLAUSE_BREAK.test(token.gap));
+  if ((end < 0 ? clause : clause.slice(0, end)).some((token) => token.word === "وما"))
+    return findings;
+  if (at(list[i].start)) findings.push(style(list[i].start, list[i + 1].end, "بينما"));
   return findings;
 }
 
@@ -819,45 +863,51 @@ const COMPASS = /^(?:شمالي|جنوبي|شرقي|غربي)$/u;
  * "تقع دمشق جنوبي حلب" -> "جنوب حلب": the place word is the adverb; the -ي adjective
  * names a part ("في جنوبي لبنان" is left alone).
  */
-function compassAdverb(list: readonly StyleToken[], at: (start: number) => boolean): Finding[] {
+function compassAdverb(
+  text: string,
+  list: readonly StyleToken[],
+  i: number,
+  at: (start: number) => boolean,
+): Finding[] {
   const findings: Finding[] = [];
-  for (let i = 1; i + 1 < list.length; i++) {
-    const place = list[i + 1];
-    if (!COMPASS.test(list[i].word) || !adjacent(list[i]) || !adjacent(place)) continue;
-    if (place.word.startsWith("ال") || !at(list[i].start)) continue;
-    const verb = LIES.test(list[i - 1].word) || (i > 1 && LIES.test(list[i - 2].word));
-    if (verb && !PREPOSITIONS.has(list[i - 1].word))
-      findings.push(style(list[i].start, list[i].end, list[i].word.slice(0, -1)));
-  }
+  if (i < 1 || i + 1 >= list.length) return findings;
+  const place = list[i + 1];
+  if (!COMPASS.test(list[i].word) || !adjacent(list[i]) || !adjacent(place)) return findings;
+  if (place.word.startsWith("ال") || !at(list[i].start)) return findings;
+  const verb = LIES.test(list[i - 1].word) || (i > 1 && LIES.test(list[i - 2].word));
+  if (verb && !PREPOSITIONS.has(list[i - 1].word))
+    findings.push(style(list[i].start, list[i].end, list[i].word.slice(0, -1)));
   return findings;
 }
 
-/** Optional Arabic style frames over the chunk's words. */
-export function styleFrames(
+/** One step of a style walker: the findings of the token at `i`. */
+export type StyleStep = (
   text: string,
   list: readonly StyleToken[],
+  i: number,
   at: (start: number) => boolean,
-): Finding[] {
-  return [
-    ...lightVerbs(list, at),
-    ...andRelatives(text, list, at),
-    ...elatives(text, list, at),
-    ...asRole(list, at),
-    ...laSiyyama(list, at),
-    ...doingTheAct(list, at),
-    ...inAWay(list, at),
-    ...forADuration(list, at),
-    ...nounPrepositions(list, at),
-    ...exceptPreposition(list, at),
-    ...timeAdverbs(text, list, at),
-    ...eitherOr(list, at),
-    ...important(text, list, at),
-    ...directObjects(list, at),
-    ...amountsTo(list, at),
-    ...mutualWaw(list, at),
-    ...exceptAnd(text, list, at),
-    ...weAs(list, at),
-    ...whileJoined(text, list, at),
-    ...compassAdverb(list, at),
-  ];
-}
+) => Finding[];
+
+/** The optional Arabic style walkers, by the fixer names of grammar/rules/ar_SA.yaml. */
+export const STYLE_STEPS = {
+  lightVerbs,
+  andRelatives,
+  elatives,
+  asRole,
+  laSiyyama,
+  doingTheAct,
+  inAWay,
+  forADuration,
+  nounPrepositions,
+  exceptPreposition,
+  timeAdverbs,
+  eitherOr,
+  important,
+  directObjects,
+  amountsTo,
+  mutualWaw,
+  exceptAnd,
+  weAs,
+  whileJoined,
+  compassAdverb,
+} satisfies Record<string, StyleStep>;

@@ -1,11 +1,9 @@
 import { englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
-import type { PhraseRow } from "../englishPhraseTables";
-import { frameMatches, SPACE, WORD_END } from "../phraseTemplates";
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import {
   afterBreak,
   caseLike,
-  english,
   evidence,
   FUNCTION_WORDS,
   nounOnly,
@@ -14,13 +12,11 @@ import {
   wordBefore,
 } from "./slotWords";
 import { finding } from "../finding";
+import { opensClause } from "./agreementSlots";
+import { wordsAfter } from "./nounNumberSlots";
 
 // Clauses whose subject has no verb: "It very easy", "I not sure", "There a lot of ways",
 // "Can we able to", "would very helpful", and no/not mixed up next to a verb or noun.
-
-export const PHRASES: readonly PhraseRow[] = [];
-export const COMPOUNDS: readonly PhraseRow[] = [];
-export const STYLE: readonly PhraseRow[] = [];
 
 const BE: Record<string, string> = {
   i: "am",
@@ -57,8 +53,7 @@ const NOT_PREDICATE = new Set(
 
 // "I don't know, it pathetic": a clause may also open after a comma.
 const subjectClause = (ctx: DetectContext, start: number) =>
-  afterBreak(ctx, start) ||
-  CLAUSE_CUE.test(wordBefore(ctx, start)) ||
+  opensClause(ctx, start, CLAUSE_CUE) ||
   /,[ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, start - 4), start));
 
 /** A finite verb before the clause ends: the subject already has its verb. */
@@ -85,30 +80,62 @@ function finiteLater(tokens: Token[], from: number): boolean {
   return false;
 }
 
-function push(
+/** A noun that is no adverb: after a gerund noun it continues a compound ("meeting rooms"). */
+const nounLike = (word: string) => {
+  const read = englishWordInfo(word);
+  return (
+    !!read?.noun &&
+    !read.adverb &&
+    !/^(?:well|there|here|home|today|tonight|tomorrow|now|fine|great|okay|ok|out|back)$/.test(word)
+  );
+};
+
+const missing = (
   ctx: DetectContext,
-  findings: RawFinding[],
   ruleId: RawFinding["ruleId"],
   messageKey: RawFinding["messageKey"],
   start: number,
   end: number,
   alternatives: string[],
   until: number,
-): void {
-  if (findings.some((f) => f.range.start === start)) return;
-  findings.push(
-    finding(ruleId, messageKey, start, end, alternatives, { context: evidence(ctx, start, until) }),
+): RawFinding =>
+  finding(ruleId, messageKey, start, end, alternatives, { context: evidence(ctx, start, until) });
+
+/**
+ * True when no predicate test of missingSubjectBe can accept the word after the subject `lower`
+ * and up to two adverbs. Each test below is the condition of one branch of that fixer's predicate
+ * tests: keep the two in step. It reads three words, not ten tokens.
+ */
+function noPredicate(ctx: DetectContext, end: number, lower: string): boolean {
+  const words = wordsAfter(ctx, end, 3);
+  let k = 0;
+  while (k < 2 && words[k] && ADVERB_RUN.has(words[k].lower)) k++;
+  const head = words[k];
+  if (!head || head.text !== head.lower) return true;
+  const word = head.lower;
+  if (k === 2 && words[0].lower === "too" && /^(?:much|many)$/.test(words[1].lower)) return false;
+  if (k === 0 && /^(?:a|an|the|my|our|your)$/.test(word)) return false;
+  if (lower === "this") return !(k > 0 && words[0].lower === "not");
+  const read = FUNCTION_WORDS.has(word) ? null : englishWordInfo(word);
+  return !(
+    word === "one" ||
+    word === "worth" ||
+    CLAUSE_ADJECTIVES.test(word) ||
+    PREDICATIVE.has(word) ||
+    /^(?:fine|good|great|ready|right|wrong)$/.test(word) ||
+    (read?.adjective && !read.verbs.length) ||
+    read?.verbs.some((v) => v.form === "ing")
   );
 }
 
-/** "It very easy", "I not sure", "He a racist", "You going to be there": a subject and no be. */
-function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(ctx, `(?<target>I|you|he|she|it|we|they|this)${SPACE}(?=[a-z])`)) {
+/** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
+export const FIXERS = {
+  missingSubjectBe: (m, ctx) => {
     const subject = m.groups!.target;
     const lower = subject.toLowerCase();
-    if (subject !== lower && !(subject === "I" || afterBreak(ctx, m.index))) continue;
-    if (!subjectClause(ctx, m.index)) continue;
+    if (subject !== lower && !(subject === "I" || afterBreak(ctx, m.index))) return null;
+    if (noPredicate(ctx, m.index + m[0].length, lower)) return null;
+    if (!subjectClause(ctx, m.index)) return null;
     // An unreadable token ("(", a URL) ends the look-ahead like punctuation.
     const tokens = tokensAfter(ctx, m.index + m[0].length, 10).map((t) =>
       t.kind === "other" ? { ...t, kind: "end" as const } : t,
@@ -116,7 +143,7 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
     let k = 0;
     while (k < 2 && tokens[k]?.kind === "word" && ADVERB_RUN.has(tokens[k].lower)) k++;
     const head = tokens[k];
-    if (head?.kind !== "word" || head.text !== head.lower) continue;
+    if (head?.kind !== "word" || head.text !== head.lower) return null;
     const word = head.lower;
     const read = FUNCTION_WORDS.has(word) ? null : englishWordInfo(word);
     const next = tokens[k + 1];
@@ -132,11 +159,11 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         ));
     // "This not only helps": a focus construction. "It maybe helpful" is "may be"
     // (wordFormSlots).
-    if (tokens[0]?.lower === "not" && tokens[1]?.lower === "only") continue;
-    if (tokens[0]?.lower === "maybe") continue;
+    if (tokens[0]?.lower === "not" && tokens[1]?.lower === "only") return null;
+    if (tokens[0]?.lower === "maybe") return null;
     // "It too much work", "it too many steps": too + a quantity is a predicate.
     const tooMuch = /^too (?:much|many)$/.test(adverbs.join(" "));
-    if (INTENSIFIERS.test(word) || (adverbs.length === 0 && /ly$/.test(word))) continue;
+    if (INTENSIFIERS.test(word) || (adverbs.length === 0 && /ly$/.test(word))) return null;
     const before = wordBefore(ctx, m.index);
     let ok = false;
     let clauseAfter = false;
@@ -238,7 +265,7 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
       )
     )
       ok = true;
-    if (!ok || (!clauseAfter && finiteLater(tokens, k + 1))) continue;
+    if (!ok || (!clauseAfter && finiteLater(tokens, k + 1))) return null;
     // "How are Tom and I doing?": be already stands before the subject.
     const inverted = /\b(?:am|is|are|was|were)((?:[ \t]+[A-Za-z]+){0,3})[ \t]+$/i.exec(
       ctx.text.slice(Math.max(0, m.index - 48), m.index),
@@ -249,7 +276,7 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         inverted[1],
       )
     )
-      continue;
+      return null;
     // A word right before that takes the pronoun as its object: "make it easy".
     if (
       !afterBreak(ctx, m.index) &&
@@ -257,7 +284,7 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         wordBefore(ctx, m.index),
       )
     )
-      continue;
+      return null;
     const [typedStart, end] = m.indices!.groups!.target;
     // "Adam and I going": a coordinated subject at the clause start is plural; "…ago and it
     // still working" joins two clauses.
@@ -277,9 +304,8 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
     const question = wh && /^[^.!\n]*\?/.test(ctx.text.slice(head.end, head.end + 120));
     if (question) {
       const whStart = start - wh[0].length;
-      push(
+      return missing(
         ctx,
-        findings,
         "englishSentenceStructure",
         "review_msg_clause_be",
         whStart,
@@ -293,9 +319,8 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
       lower !== "this"
     )
       // "You good?", "We ready to go?": a short yes/no question puts be first.
-      push(
+      return missing(
         ctx,
-        findings,
         "englishSentenceStructure",
         "review_msg_clause_be",
         start,
@@ -306,9 +331,8 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         head.end,
       );
     else
-      push(
+      return missing(
         ctx,
-        findings,
         "englishSentenceStructure",
         "review_msg_clause_be",
         start,
@@ -316,35 +340,16 @@ function subjectWithoutBe(ctx: DetectContext): RawFinding[] {
         [`${subjectText} ${be}`],
         head.end,
       );
-  }
-  return findings;
-}
-
-/** A noun that is no adverb: after a gerund noun it continues a compound ("meeting rooms"). */
-const nounLike = (word: string) => {
-  const read = englishWordInfo(word);
-  return (
-    !!read?.noun &&
-    !read.adverb &&
-    !/^(?:well|there|here|home|today|tonight|tomorrow|now|fine|great|okay|ok|out|back)$/.test(word)
-  );
-};
-
-/** "There a lot of ways", "Here my new song", "if there any questions": there/here + no verb. */
-function existentialWithoutBe(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<target>there|here)${SPACE}(?<det>a|an|some|any|no|nothing|nobody|several|many|my|our|your)${WORD_END}`,
-  )) {
+  },
+  missingExistentialBe: (m, ctx) => {
     const target = m.groups!.target;
-    if (target !== target.toLowerCase() && !afterBreak(ctx, m.index)) continue;
-    if (!subjectClause(ctx, m.index) && wordBefore(ctx, m.index) !== "hope") continue;
+    if (target !== target.toLowerCase() && !afterBreak(ctx, m.index)) return null;
+    if (!subjectClause(ctx, m.index) && wordBefore(ctx, m.index) !== "hope") return null;
     const det = m.groups!.det.toLowerCase();
     const tokens = tokensAfter(ctx, m.index + m[0].length, 10);
     // "Here a, b and c are constants": a list of letters.
-    if (tokens[0]?.kind !== "word") continue;
-    if (finiteLater(tokens, 0) || tokens.some((t) => t.kind === "other")) continue;
+    if (tokens[0]?.kind !== "word") return null;
+    if (finiteLater(tokens, 0) || tokens.some((t) => t.kind === "other")) return null;
     // "a lot/couple/number/bunch of", "some/any/several/many + plural": are.
     const next = tokens[0]?.lower ?? "";
     // A plural noun in the words before a closed word: "my new songs", "some free seats left".
@@ -359,9 +364,8 @@ function existentialWithoutBe(ctx: DetectContext): RawFinding[] {
       (/^(?:some|any|my|our|your|no)$/.test(det) &&
         ((/s$/.test(next) && !/ss$/.test(next)) || pluralNoun));
     const [start, end] = m.indices!.groups!.target;
-    push(
+    return missing(
       ctx,
-      findings,
       "englishSentenceStructure",
       "review_msg_clause_be",
       start,
@@ -369,25 +373,15 @@ function existentialWithoutBe(ctx: DetectContext): RawFinding[] {
       [`${target} ${plural ? "are" : "is"}`],
       m.index + m[0].length,
     );
-  }
-  return findings;
-}
-
-/** "Can we able to…", "Have you able to…": able needs be/been. */
-function ableWithoutBe(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<aux>can|could|would|will|should|can['’]t|couldn['’]t|have|has|haven['’]t|hasn['’]t)${SPACE}(?<target>we|you|they|he|she|it|I|anyone|someone|everyone)(?:${SPACE}(?:ever|still|not))?${SPACE}(?:able|unable)${SPACE}to${WORD_END}`,
-  )) {
+  },
+  missingAbleBe: (m, ctx) => {
     const aux = m.groups!.aux.toLowerCase();
     const target = m.groups!.target;
     // "…and then have it able to…": a causative have.
-    if (/^ha/.test(aux) && !afterBreak(ctx, m.index)) continue;
+    if (/^ha/.test(aux) && !afterBreak(ctx, m.index)) return null;
     const [start, end] = m.indices!.groups!.target;
-    push(
+    return missing(
       ctx,
-      findings,
       "englishSentenceStructure",
       "review_msg_clause_be",
       start,
@@ -395,17 +389,8 @@ function ableWithoutBe(ctx: DetectContext): RawFinding[] {
       [`${target} ${/^ha/.test(aux) ? "been" : "be"}`],
       m.index + m[0].length,
     );
-  }
-  return findings;
-}
-
-/** "It would very helpful", "It will OK to go": a modal before a degree word and an adjective. */
-function modalDegreeAdjective(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?<modal>would|will|could|should|might|may|must|can)(?<target>${SPACE})(?:(?:very|too|so|extremely|quite|pretty|forever)${SPACE}(?<adjective>[a-z]+)|(?<fixed>ok|okay|worth))${WORD_END}`,
-  )) {
+  },
+  missingModalBe: (m, ctx) => {
     const { adjective, fixed } = m.groups!;
     if (adjective) {
       const read = englishWordInfo(adjective);
@@ -414,13 +399,12 @@ function modalDegreeAdjective(ctx: DetectContext): RawFinding[] {
         !(read.adjective || read.verbs.some((v) => v.form === "participle")) ||
         read.verbs.some((v) => v.form === "base")
       )
-        continue;
-      if (/^(?:much|many|few|little|likely)$/.test(adjective)) continue;
-    } else if (fixed && !/^(?:it|that|this|which)$/.test(wordBefore(ctx, m.index))) continue;
+        return null;
+      if (/^(?:much|many|few|little|likely)$/.test(adjective)) return null;
+    } else if (fixed && !/^(?:it|that|this|which)$/.test(wordBefore(ctx, m.index))) return null;
     const [start, end] = m.indices!.groups!.target;
-    push(
+    return missing(
       ctx,
-      findings,
       "englishSentenceStructure",
       "review_msg_missing_be",
       start,
@@ -428,17 +412,8 @@ function modalDegreeAdjective(ctx: DetectContext): RawFinding[] {
       [" be "],
       m.index + m[0].length,
     );
-  }
-  return findings;
-}
-
-/** "She could no hear", "There is not time", "I have not idea": no and not swapped. */
-function noNot(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:could|would|should|can|will|might|must|does|do|did|am|is|are|was|were|['’]m|['’]re)${SPACE}(?<target>no)${SPACE}(?<word>[a-z]+)${WORD_END}`,
-  )) {
+  },
+  missingNoForNot: (m, ctx) => {
     const word = m.groups!.word;
     if (
       FUNCTION_WORDS.has(word) ||
@@ -446,9 +421,9 @@ function noNot(ctx: DetectContext): RawFinding[] {
         word,
       )
     )
-      continue;
+      return null;
     const read = englishWordInfo(word);
-    if (!read || read.noun || read.plural) continue;
+    if (!read || read.noun || read.plural) return null;
     const verbBase = read.verbs.some((v) => v.form === "base") && !read.adjective;
     const ing = read.verbs.some((v) => v.form === "ing");
     const adjective = read.adjective && !read.verbs.length && !/er$/.test(word);
@@ -456,15 +431,15 @@ function noNot(ctx: DetectContext): RawFinding[] {
     const after = tokensAfter(ctx, m.index + m[0].length, 1)[0];
     // "There was no stopping him", "It is no easy thing": a noun phrase after be.
     if (be) {
-      if (/\bthere[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
+      if (/\bthere[ \t\u00a0]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))
+        return null;
       if (after?.kind === "word" && (nounOnly(after.lower) || englishWordInfo(after.lower)?.noun))
-        continue;
-      if (verbBase || !(ing || adjective)) continue;
-    } else if (!verbBase) continue;
+        return null;
+      if (verbBase || !(ing || adjective)) return null;
+    } else if (!verbBase) return null;
     const [start, end] = m.indices!.groups!.target;
-    push(
+    return missing(
       ctx,
-      findings,
       "englishConfusedWords",
       "review_msg_confused_word",
       start,
@@ -472,24 +447,21 @@ function noNot(ctx: DetectContext): RawFinding[] {
       [caseLike(m.groups!.target, "not")],
       m.index + m[0].length,
     );
-  }
-  for (const m of frameMatches(
-    ctx,
-    `(?<lead>there${SPACE}(?:is|are|was|were|['’]s)|(?:i|we|you|they)${SPACE}(?:have|['’]ve)|(?:he|she|it)${SPACE}has)${SPACE}(?<target>not)${SPACE}(?<word>[a-z]+)${WORD_END}`,
-  )) {
+  },
+  missingNotForNo: (m, ctx) => {
     const word = m.groups!.word;
     // "the folks that work there are not mechanics": a locative there.
     if (
       !afterBreak(ctx, m.index) &&
       !/^(?:if|that|so|and|but|because|since|when|think|know)$/.test(wordBefore(ctx, m.index))
     )
-      continue;
-    if (/^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/.test(word)) continue;
+      return null;
+    if (/^(?:one|two|three|four|five|six|seven|eight|nine|ten)$/.test(word)) return null;
     if (
       FUNCTION_WORDS.has(word) ||
       /^(?:enough|sufficient|any|much|many|yet|got|gotten|been)$/.test(word)
     )
-      continue;
+      return null;
     const read = englishWordInfo(word);
     const noun = read ? read.noun && !read.verbs.length && !read.adverb : !!nounOnly(word);
     const tokens = tokensAfter(ctx, m.index + m[0].length, 2);
@@ -499,11 +471,10 @@ function noNot(ctx: DetectContext): RawFinding[] {
       !read.verbs.length &&
       tokens[0]?.kind === "word" &&
       !!nounOnly(tokens[0].lower);
-    if (!noun && !adjectiveNoun) continue;
+    if (!noun && !adjectiveNoun) return null;
     const [start, end] = m.indices!.groups!.target;
-    push(
+    return missing(
       ctx,
-      findings,
       "englishConfusedWords",
       "review_msg_confused_word",
       start,
@@ -511,43 +482,17 @@ function noNot(ctx: DetectContext): RawFinding[] {
       ["no"],
       m.index + m[0].length,
     );
-  }
-  return findings;
-}
-
-/** "I quickly the flashlight": a subject, an -ly adverb and then a determiner, no verb. */
-function adverbWithoutVerb(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  for (const m of frameMatches(
-    ctx,
-    `(?:I|we|you|they|he|she)${SPACE}(?<target>[a-z]+ly)${SPACE}(?:the|a|an|my|your|his|her|our|their|these|those)${WORD_END}`,
-  )) {
+  },
+  missingAdverbVerb: (m, ctx) => {
     const read = englishWordInfo(m.groups!.target);
     // Only an adverb: "early", "only", "likely" and "daily" are adjectives too.
-    if (!read?.adverb || read.adjective || read.noun || read.verbs.length) continue;
-    if (!subjectClause(ctx, m.index)) continue;
+    if (!read?.adverb || read.adjective || read.noun || read.verbs.length) return null;
+    if (!subjectClause(ctx, m.index)) return null;
     const [start, end] = m.indices!.groups!.target;
     // No fix: the missing verb cannot be guessed.
-    findings.push(
-      finding("englishSentenceStructure", "review_msg_sentence_structure", start, end, [], {
-        warningOnly: true,
-        context: evidence(ctx, m.index, m.index + m[0].length),
-      }),
-    );
-  }
-  return findings;
-}
-
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  {
-    rules: ["englishSentenceStructure", "englishConfusedWords"],
-    detect: english(
-      subjectWithoutBe,
-      existentialWithoutBe,
-      ableWithoutBe,
-      modalDegreeAdjective,
-      noNot,
-      adverbWithoutVerb,
-    ),
+    return finding("englishSentenceStructure", "review_msg_sentence_structure", start, end, [], {
+      warningOnly: true,
+      context: evidence(ctx, m.index, m.index + m[0].length),
+    });
   },
-];
+} satisfies Record<string, MatchFixer>;

@@ -22,3 +22,4 @@ FluentTyper is a privacy-first browser extension that provides local autocomplet
 - [Architecture and code placement](docs/agents/architecture.md)
 - [Testing and coverage policy](docs/agents/testing.md)
 - [Runtime feature workflows](docs/agents/runtime-features.md)
+- [Grammar rules (YAML rule files and the rule engine)](docs/agents/grammar-rules.md)

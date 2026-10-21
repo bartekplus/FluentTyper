@@ -1,4 +1,5 @@
 import { namedExampleBefore } from "../exampleCues";
+import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { determinerFits } from "./articleGender";
 import {
@@ -9,7 +10,7 @@ import {
   germanNounReading,
 } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "./nounCasing";
-import { BOUNDARY, isGerman, PRONOUNS, tokensAfter, tokensBefore, words } from "./shared";
+import { BOUNDARY, PRONOUNS, tokensAfter, tokensBefore } from "./shared";
 
 // A compound noun written as two words: "elf Fußball Spieler" (Fußballspieler), "die Abfahrts
 // Zeiten" (Abfahrtszeiten), "einen Pflege Fall" (Pflegefall). Flagged only when the joined word
@@ -115,70 +116,68 @@ const attribute = (w: string) =>
   /^\p{Ll}*(?:ge\p{Ll}+(?:t|en)|iert|end)(?:e|en|er|es|em)?$/u.test(w) ||
   (/^\p{Ll}+(?:e|en|er|es|em)$/u.test(w) && germanAdjective(w.replace(/(?:e|en|er|es|em)$/, "")));
 
-export function nounPairs(ctx: DetectContext): RawFinding[] {
-  if (!isGerman(ctx)) return [];
+/** A word of the chunk: the compound it opens, split by a space, and its adjective form. */
+export const nounPair: MatchFixer = (m, ctx) => {
   const findings: RawFinding[] = [];
-  for (const m of words(ctx)) {
-    const first = m[0];
-    const split = splitAdjective(ctx, m);
-    if (split) findings.push(split);
-    if (!/^\p{Lu}\p{Ll}{2,}$/u.test(first)) continue;
-    const end = m.index + first.length;
-    const pair = SECOND.exec(ctx.text.slice(end, end + 48));
-    if (!pair) continue;
-    const second = pair[1];
-    const joined = first.toLowerCase() + second.toLowerCase();
-    const low = first.toLowerCase();
-    // Both parts German nouns or opening parts ("Joint Venture", "Game Boys" stay English).
-    // "Abfahrts", "Regenerierungs": a word with this linking -s stands in no other place, so the
-    // compound needs no lookup.
-    // "Abfahrts" (die Abfahrt) is no genitive.
-    const fused =
-      /(?:ung|heit|keit|schaft|ion|tät)s$/.test(low) ||
-      (/s$/.test(low) && germanGender(low.slice(0, -1))?.gender === "f");
-    const knownJoin = germanNounReading(joined) !== null;
-    if (joined.length < 8 || (!knownJoin && !fused)) continue;
-    const secondNoun = fused
-      ? germanMayBeNoun(second.toLowerCase())
-      : germanListedNoun(second.toLowerCase()) !== null;
-    if (!secondNoun || FUNCTION_WORDS.has(low)) continue;
-    if (ctx.dictionary.has(low) || ctx.dictionary.has(second.toLowerCase())) continue;
-    const before = tokensBefore(ctx.text, m.index, 2);
-    const prior = before.at(-1) ?? "";
-    const next = tokensAfter(ctx.text, end + pair[0].length, 1)[0] ?? "";
-    // A longer name or title: a capitalized word right before (not at a sentence start) or after.
-    if (/^\p{Lu}/u.test(next) || TITLES.test(prior)) continue;
-    // "des Nachts Bücher lesen": an adverbial genitive.
-    if (/^(?:des|eines)$/i.test(prior)) continue;
-    // An unknown compound only after a determiner or an adjective: "nach Hephaistions Tod",
-    // "Adelungs Wörterbuch" are a name's genitive.
-    const det = prior.toLowerCase();
-    if (!knownJoin && !(DETERMINED.has(det) || SENTENCE_DETERMINERS.has(det) || attribute(prior)))
-      continue;
-    if (/^\p{Lu}/u.test(prior) && !BOUNDARY.test(before.at(-2) ?? "")) continue;
-    // A noun of its own ("Fußball Spieler" may be two nouns) needs a number or a determiner that
-    // fits the compound and not the first noun; "Abfahrts", "Kleinst", "Regional" are none.
-    const opening = BOUNDARY.test(prior);
-    // At a sentence start a capitalized adjective or adverb is no part ("Viel Spaß").
-    if (opening && germanAdjective(low)) continue;
-    // "Abfahrts", "Zeitungs": a feminine noun takes no -s of its own, so it links a compound.
-    const noun = germanNounReading(low) !== null;
-    if (noun && !fused) {
-      const counted = NUMBER.test(prior) && /(?:er|en|n|e|s)$/.test(second);
-      const fits = determinerFits(prior, first) !== true && determinerFits(prior, second);
-      if (!counted && !fits) continue;
-    } else if (!noun && !fused && !germanAdjective(low) && !STEMS.test(low) && !linked(low)) {
-      continue;
-    }
-    if (namedExampleBefore(ctx.text, m.index)) continue;
-    const stop = end + pair[0].length;
-    findings.push({
-      ruleId: "germanCompounds",
-      messageKey: "review_msg_closed_compound",
-      range: { start: m.index, end: stop },
-      alternatives: [first + second.toLowerCase()],
-      context: { start: Math.max(0, m.index - 40), end: stop + 20 },
-    });
+  const first = m[0];
+  const split = splitAdjective(ctx, m);
+  if (split) findings.push(split);
+  if (!/^\p{Lu}\p{Ll}{2,}$/u.test(first)) return findings;
+  const end = m.index + first.length;
+  const pair = SECOND.exec(ctx.text.slice(end, end + 48));
+  if (!pair) return findings;
+  const second = pair[1];
+  const joined = first.toLowerCase() + second.toLowerCase();
+  const low = first.toLowerCase();
+  // Both parts German nouns or opening parts ("Joint Venture", "Game Boys" stay English).
+  // "Abfahrts", "Regenerierungs": a word with this linking -s stands in no other place, so the
+  // compound needs no lookup.
+  // "Abfahrts" (die Abfahrt) is no genitive.
+  const fused =
+    /(?:ung|heit|keit|schaft|ion|tät)s$/.test(low) ||
+    (/s$/.test(low) && germanGender(low.slice(0, -1))?.gender === "f");
+  const knownJoin = germanNounReading(joined) !== null;
+  if (joined.length < 8 || (!knownJoin && !fused)) return findings;
+  const secondNoun = fused
+    ? germanMayBeNoun(second.toLowerCase())
+    : germanListedNoun(second.toLowerCase()) !== null;
+  if (!secondNoun || FUNCTION_WORDS.has(low)) return findings;
+  if (ctx.dictionary.has(low) || ctx.dictionary.has(second.toLowerCase())) return findings;
+  const before = tokensBefore(ctx.text, m.index, 2);
+  const prior = before.at(-1) ?? "";
+  const next = tokensAfter(ctx.text, end + pair[0].length, 1)[0] ?? "";
+  // A longer name or title: a capitalized word right before (not at a sentence start) or after.
+  if (/^\p{Lu}/u.test(next) || TITLES.test(prior)) return findings;
+  // "des Nachts Bücher lesen": an adverbial genitive.
+  if (/^(?:des|eines)$/i.test(prior)) return findings;
+  // An unknown compound only after a determiner or an adjective: "nach Hephaistions Tod",
+  // "Adelungs Wörterbuch" are a name's genitive.
+  const det = prior.toLowerCase();
+  if (!knownJoin && !(DETERMINED.has(det) || SENTENCE_DETERMINERS.has(det) || attribute(prior)))
+    return findings;
+  if (/^\p{Lu}/u.test(prior) && !BOUNDARY.test(before.at(-2) ?? "")) return findings;
+  // A noun of its own ("Fußball Spieler" may be two nouns) needs a number or a determiner that
+  // fits the compound and not the first noun; "Abfahrts", "Kleinst", "Regional" are none.
+  const opening = BOUNDARY.test(prior);
+  // At a sentence start a capitalized adjective or adverb is no part ("Viel Spaß").
+  if (opening && germanAdjective(low)) return findings;
+  // "Abfahrts", "Zeitungs": a feminine noun takes no -s of its own, so it links a compound.
+  const noun = germanNounReading(low) !== null;
+  if (noun && !fused) {
+    const counted = NUMBER.test(prior) && /(?:er|en|n|e|s)$/.test(second);
+    const fits = determinerFits(prior, first) !== true && determinerFits(prior, second);
+    if (!counted && !fits) return findings;
+  } else if (!noun && !fused && !germanAdjective(low) && !STEMS.test(low) && !linked(low)) {
+    return findings;
   }
+  if (namedExampleBefore(ctx.text, m.index)) return findings;
+  const stop = end + pair[0].length;
+  findings.push({
+    ruleId: "germanCompounds",
+    messageKey: "review_msg_closed_compound",
+    range: { start: m.index, end: stop },
+    alternatives: [first + second.toLowerCase()],
+    context: { start: Math.max(0, m.index - 40), end: stop + 20 },
+  });
   return findings;
-}
+};

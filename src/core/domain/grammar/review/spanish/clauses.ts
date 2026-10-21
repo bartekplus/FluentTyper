@@ -1,5 +1,7 @@
-import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
+import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
+  atToken,
   Around,
   CLITICS,
   isBoundary,
@@ -7,7 +9,6 @@ import {
   PREPOSITIONS,
   replaceToken,
   subjectAt,
-  tokenize,
   words,
   type Tokens,
 } from "./common";
@@ -22,7 +23,6 @@ import {
   presentInfinitive,
   subjunctiveLike,
 } from "./lexicon";
-import { isLang } from "../phraseTemplates";
 
 // Clause-level frames: "para que" before an indicative asks ("para qué sirve"), a pronoun
 // written apart from the gerund or infinitive it hangs on ("cantando lo" -> "cantándolo"), and
@@ -112,6 +112,7 @@ function separatedEnclitic(ctx: DetectContext, tokens: Tokens, i: number): RawFi
 
 // ------------------------------------------------------------------ impersonal haber
 
+// The es.clauseAgreement frame of rules/es.yaml lists these words.
 const PLURAL_MODAL: Record<string, string> = {
   pueden: "puede",
   podían: "podía",
@@ -393,6 +394,7 @@ function permitQue(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | 
 
 // ------------------------------------------------------------------ repeated adverbs
 
+// The es.clauseStyle frame of rules/es.yaml lists these words.
 const REPEATABLE_ADVERBS = words("también tampoco ya solo sólo aún todavía siempre nunca");
 
 /** "También se llama también así" -> drop one: the same adverb twice in a short clause. */
@@ -589,39 +591,34 @@ function dadoQue(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | nu
 
 type Frame = (ctx: DetectContext, tokens: Tokens, i: number) => RawFinding | null;
 
-function scan(...frames: Frame[]) {
-  return (ctx: DetectContext): RawFinding[] => {
-    if (!isLang(ctx, "es")) return [];
-    const tokens = tokenize(ctx);
+/** A fixer that runs the clause frames on the word at the match, in order. */
+function clauseFixer(...frames: Frame[]) {
+  return atToken((ctx, tokens, i) => {
+    if (!tokens[i].word || tokens[i].start < ctx.from || tokens[i].start >= ctx.to) return null;
     const findings: RawFinding[] = [];
-    for (let i = 0; i < tokens.length; i++) {
-      if (!tokens[i].word || tokens[i].start < ctx.from || tokens[i].start >= ctx.to) continue;
-      for (const frame of frames) {
-        const finding = frame(ctx, tokens, i);
-        if (finding) findings.push(finding);
-      }
+    for (const frame of frames) {
+      const finding = frame(ctx, tokens, i);
+      if (finding) findings.push(finding);
     }
     return findings;
-  };
+  });
 }
 
-export const DETECTORS: readonly ReviewDetectorEntry[] = [
-  { rules: ["spanishAccents"], detect: scan(paraQue, framedAccent) },
-  {
-    rules: ["spanishConfusions"],
-    detect: scan(
-      separatedEnclitic,
-      aPunto,
-      altaClitic,
-      permitQue,
-      prepositionFinite,
-      perfectInfinitive,
-      cliticOrder,
-      negativeImperative,
-      doubledSuperlative,
-      dadoQue,
-    ),
-  },
-  { rules: ["stylePhrasing"], detect: scan(agoBack, repeatedAdverb) },
-  { rules: ["spanishAgreement"], detect: scan(impersonalHaber, doubledPronoun) },
-];
+/** The named frame fixes of grammar/rules/es.yaml (`fixer:`). */
+export const FIXERS = {
+  paraQueAccent: clauseFixer(paraQue, framedAccent),
+  clauseConfusions: clauseFixer(
+    separatedEnclitic,
+    aPunto,
+    altaClitic,
+    permitQue,
+    prepositionFinite,
+    perfectInfinitive,
+    cliticOrder,
+    negativeImperative,
+    doubledSuperlative,
+    dadoQue,
+  ),
+  clauseStyle: clauseFixer(agoBack, repeatedAdverb),
+  clauseAgreement: clauseFixer(impersonalHaber, doubledPronoun),
+} satisfies Record<string, MatchFixer>;

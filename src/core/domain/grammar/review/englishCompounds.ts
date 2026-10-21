@@ -1,66 +1,14 @@
-import {
-  COMPLETE,
-  detectPhraseTemplates,
-  type PhraseTemplate,
-  SPACE,
-  WORD_END,
-} from "./phraseTemplates";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
-const SUBJECT = "(?:I|you|we|they|he|she)";
-const DAILY = [
-  "(?:use|uses|used) this tool",
-  "(?:check|checks|checked) the report",
-  "(?:read|reads) the file",
-  "(?:open|opens|opened) the app",
-  "(?:visit|visits|visited) the office",
-  "(?:review|reviews|reviewed) the plan",
-  "(?:test|tests|tested) the device",
-  "(?:work|works|worked) (?:here|remotely)",
-  "(?:walk|walks|walked) home",
-  "(?:run|runs|ran) the tests",
-  "(?:write|writes|wrote) code",
-  "(?:send|sends|sent) the report",
-]
-  .map((p) => p.replaceAll(" ", SPACE))
-  .join("|");
-const templates: readonly PhraseTemplate[] = [
-  {
-    pattern: `(?:tested|checked|reviewed)${SPACE}(?<target>aswell)${COMPLETE}`,
-    replacement: "as well",
-    messageKey: "review_msg_contextual_grammar",
-  },
-  {
-    pattern: `${SUBJECT}${SPACE}(?:${DAILY})${SPACE}(?<target>everyday)${COMPLETE}`,
-    replacement: "every day",
-    messageKey: "review_msg_every_day",
-  },
-  // Adverb after a lowercase verb or object, before a clause end or a linking word.
-  {
-    pattern: `(?<!\\b(?:the|an?|word|is|are|was|were|be|so|very|quite|more|most|less|such|of|called|named|my|your|our|their|his|her|its)${SPACE})(?<=[a-z]${SPACE})(?<target>everyday)(?=[ \t ]{0,8}(?:[.!?,;:)]|$)|${SPACE}(?:without|and|but|so|at|in|for|until|while|since|now|anyway)${WORD_END})`,
-    replacement: "every day",
-    messageKey: "review_msg_every_day",
-  },
-  {
-    pattern: `each${SPACE}and${SPACE}(?<target>everyday)${WORD_END}`,
-    replacement: "every day",
-    messageKey: "review_msg_every_day",
-  },
-  // Adjective before a listed noun after a determiner: "an every day thing".
-  {
-    pattern: `(?:a|an|the|my|our|your|their|his|her|its|of|in|for|beyond|these|those|such|and)${SPACE}(?<target>every${SPACE}day)${SPACE}(?:life|thing|things|problem|routine|routines|use|items|objects|language|tasks|activities|situations|problems|clothes|people|essentials|conversation|conversations|basis|tools|work)${WORD_END}`,
-    replacement: "everyday",
-    messageKey: "review_msg_everyday_adjective",
-  },
-];
 /** Only curated grammatical slots; dictionary membership never determines compound boundaries. */
-export function contextualCompounds(ctx: DetectContext): RawFinding[] {
-  const starts = new Set<number>();
-  return detectPhraseTemplates(ctx, templates, "englishContextualCompounds").filter(
-    ({ range: { start, end } }) => {
+/** The findings filters of common.yaml (`filter:`). */
+export const FILTERS = {
+  contextualCompounds: (ctx: DetectContext, findings: RawFinding[]) => {
+    const starts = new Set<number>();
+    return findings.filter(({ range: { start, end } }) => {
       const typed = ctx.text.slice(start, end);
       if (typed !== typed.toLowerCase() || starts.has(start)) return false;
       starts.add(start);
       return true;
-    },
-  );
-}
+    });
+  },
+};

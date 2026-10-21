@@ -1,6 +1,6 @@
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
-import { frameMatches, isLang, SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { FORM_ROWS, NOT_PLURAL_VERBS, NOT_VERBS, singularOf, TIME } from "./agreement";
 import { graphWords } from "../wordGraph";
 import type * as Data from "./verbs.generated";
@@ -25,47 +25,38 @@ import {
  * - "ser" agrees with the pronoun after it: "Quem fez foi eu" -> "fui";
  * - "trata-se de" and "precisa-se de" stay singular;
  * - a past or future verb right next to "ontem" or "amanhã": "Enviarão ontem" -> "Enviaram".
- * The subjunctive after "espero que", "embora"... is in subjunctive.ts.
+ * The subjunctive after "espero que", "embora"... is in subjunctive.ts. The frames are in
+ * grammar/rules/pt_BR.yaml.
  */
-
-const ADVERBS = `(?:(?:não|já|ainda|também|sempre|nunca|só|quase)${S}){0,2}`;
-const CLITIC = `(?:(?:se|me|te|lhe|lhes|nos)${S})?`;
 
 type MessageKey =
   "review_msg_pt_agreement" | "review_msg_pt_tense_adverb" | "review_msg_pt_subjunctive";
 
 function push(
-  findings: RawFinding[],
   ctx: DetectContext,
   m: RegExpExecArray,
   group: string,
   alternatives: string[],
   messageKey: MessageKey = "review_msg_pt_agreement",
-): void {
+): RawFinding | null {
   const typed = m.groups![group];
-  if (ctx.dictionary.has(typed.toLowerCase())) return;
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
   const [start, end] = m.indices!.groups![group];
   const style = detectWordCase(typed);
-  findings.push({
+  return {
     ruleId: "portugueseAgreement",
     messageKey,
     range: { start, end },
     alternatives: alternatives.map((alternative) => applyWordCase(alternative, style)),
     context: { start: Math.min(m.index, start), end: Math.max(end, m.index + m[0].length) },
     ...(alternatives.length > 1 && { requiresChoice: true }),
-  });
+  };
 }
 
 // -------------------------------------------------------------- noun-phrase subjects
 
 const PLURAL_LEAD =
   "os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|teus|tuas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias";
-const SINGULAR_LEAD =
-  "o|a|um|uma|este|esta|esse|essa|aquele|aquela|meu|minha|teu|tua|seu|sua|nosso|nossa";
-const POSSESSIVE =
-  "meus|minhas|teus|tuas|seus|suas|nossos|nossas|meu|minha|teu|tua|seu|sua|nosso|nossa";
-const PLURAL_SUBJECT = `(?<lead>${PLURAL_LEAD})${S}(?:(?:${POSSESSIVE})${S})?(?<noun>\\p{L}{3,}(?:[aeo]s|ões|ães|ais|éis|óis|res|zes))${S}${ADVERBS}${CLITIC}(?<target>\\p{L}{2,}|é)${W}(?!-)`;
-const SINGULAR_SUBJECT = `(?<lead>${SINGULAR_LEAD})${S}(?:(?:${POSSESSIVE})${S})?(?<noun>\\p{L}{3,})${S}${ADVERBS}${CLITIC}(?<target>\\p{L}{2,})${W}(?!-)`;
 // Time spans and words that open an adverbial, not a subject: "Este ano vão abrir", "Os
 // alunos dia 5 voltam", "Os jogadores fora de campo".
 const NOT_SUBJECT_NOUNS = new Set(
@@ -114,28 +105,28 @@ function subjectAndVerb(ctx: DetectContext, m: RegExpExecArray): boolean {
   return !VERB_AFTER.test(after) && !IMPERSONAL_AFTER.test(after);
 }
 
-function subjects(ctx: DetectContext, findings: RawFinding[]): void {
-  for (const m of frameMatches(ctx, PLURAL_SUBJECT)) {
-    if (!subjectAndVerb(ctx, m)) continue;
-    const target = m.groups!.target;
-    const wanted = pluralOf(target);
-    if (wanted) push(findings, ctx, m, "target", [wanted]);
-  }
-  for (const m of frameMatches(ctx, SINGULAR_SUBJECT)) {
-    const { lead, noun, target } = m.groups!;
-    if (!subjectAndVerb(ctx, m) || /s$/.test(noun) || NOT_FINITE.has(noun)) continue;
-    // "A pé vão mais rápido": "a" before a masculine noun is the preposition.
-    if (/^a$/i.test(lead) && !/(?:a|ção|dade|gem|ice|ez)$/.test(noun)) continue;
-    let wanted: string | undefined;
-    const rows = FORM_ROWS.get(target);
-    if (rows) {
-      const row = rows.find((candidate) => candidate[3] === target && candidate[1] !== target);
-      wanted = row?.[1];
-    } else if (/[ae]m$/.test(target) && !NOT_PLURAL_VERBS.has(target) && !NOT_FINITE.has(target))
-      wanted = singularOf(target, false);
-    if (wanted) push(findings, ctx, m, "target", [wanted]);
-  }
-}
+/** "Os meninos dança" -> "dançam": a plural subject opening the sentence and its verb. */
+const pluralSubject: MatchFixer = (m, ctx) => {
+  if (!subjectAndVerb(ctx, m)) return null;
+  const wanted = pluralOf(m.groups!.target);
+  return wanted ? push(ctx, m, "target", [wanted]) : null;
+};
+
+/** "O menino gostam" -> "gosta": a singular subject opening the sentence and its verb. */
+const singularSubject: MatchFixer = (m, ctx) => {
+  const { lead, noun, target } = m.groups!;
+  if (!subjectAndVerb(ctx, m) || /s$/.test(noun) || NOT_FINITE.has(noun)) return null;
+  // "A pé vão mais rápido": "a" before a masculine noun is the preposition.
+  if (/^a$/i.test(lead) && !/(?:a|ção|dade|gem|ice|ez)$/.test(noun)) return null;
+  let wanted: string | undefined;
+  const rows = FORM_ROWS.get(target);
+  if (rows) {
+    const row = rows.find((candidate) => candidate[3] === target && candidate[1] !== target);
+    wanted = row?.[1];
+  } else if (/[ae]m$/.test(target) && !NOT_PLURAL_VERBS.has(target) && !NOT_FINITE.has(target))
+    wanted = singularOf(target, false);
+  return wanted ? push(ctx, m, "target", [wanted]) : null;
+};
 
 // -------------------------------------------------------------- subjects at a distance
 
@@ -215,56 +206,54 @@ const PORTUGUESE_CLAUSE: ClauseProfile = {
 
 /** "A lista dos produtos estão", "Os preços da casa que comprei sobe": a subject read past its
  * complements, a second noun phrase or a relative clause by the shared clause reader. */
-function distantSubjects(ctx: DetectContext, findings: RawFinding[]): void {
-  for (const m of frameMatches(ctx, `(?<target>${PLURAL_LEAD}|${SINGULAR_LEAD})${S}(?=\\p{L})`)) {
-    const lead = m.groups!.target;
-    if (lead !== lead.replace(/^\p{Ll}/u, (c) => c.toUpperCase())) continue;
-    if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
-    const tokens = clauseTokensAfter(ctx.text, m.index, 16);
-    const noun = tokens[1] && !tokens[1].hyphen ? analyze(tokens[1].w) : null;
-    if (!noun || NOT_SUBJECT_NOUNS.has(tokens[1].w) || COLLECTIVE.has(tokens[1].w)) continue;
-    // "A norte de França": "a" before a noun that is not surely feminine may be the preposition.
-    if (tokens[0].w === "a" && noun.feminine !== true) continue;
-    if (ctx.text.slice(tokens[1].start, tokens[1].end) !== tokens[1].w) continue;
-    let plural = PT_PLURAL_LEAD.has(tokens[0].w);
-    if (noun.plural !== plural) continue;
-    const head = skipPostnominal(PORTUGUESE_CLAUSE, tokens, 2);
-    const joined = skipCoordinated(PORTUGUESE_CLAUSE, ctx.text, tokens, head);
-    if (joined > head) plural = true;
-    const end = skipComplements(PORTUGUESE_CLAUSE, ctx.text, tokens, joined);
-    const relative = verbAfterRelative(PORTUGUESE_CLAUSE, ctx.text, tokens, end, () => true);
-    let at = relative;
-    if (at < 0 && (end > joined || joined > head)) {
-      at = end;
-      while (tokens[at] && PORTUGUESE_CLAUSE.clitics.has(tokens[at].w)) at++;
-      // "Os livros de capa dura custam": a word right before another verb is an adjective.
-      if (at === end && tokens[at + 1] && ptVerb(tokens[at + 1].w)) continue;
-    }
-    const verb = tokens[at];
-    if (!verb || verb.hyphen || !ptVerb(verb.w) || /mente$/.test(verb.w)) continue;
-    if (ctx.text.slice(verb.start, verb.end) !== verb.w || ctx.dictionary.has(verb.w)) continue;
-    const after = ctx.text.slice(verb.end, verb.end + 40);
-    // "O problema dos preços são os impostos": "ser" may agree with the noun phrase after it.
-    if (/^(?:é|são|foi|foram|era|eram|será|serão|seja|sejam)$/.test(verb.w)) continue;
-    if (/^[ \t\u00a0]+que(?![\p{L}])/u.test(after) || IMPERSONAL_AFTER.test(after)) continue;
-    let wanted: string | undefined;
-    if (plural) {
-      if (!/[ae]m$|ão$/.test(verb.w)) wanted = pluralOf(verb.w);
-    } else {
-      const rows = FORM_ROWS.get(verb.w);
-      if (rows) wanted = rows.find((row) => row[3] === verb.w && row[1] !== verb.w)?.[1];
-      else if (/[ae]m$/.test(verb.w)) wanted = singularOf(verb.w, false);
-    }
-    if (!wanted || wanted === verb.w) continue;
-    findings.push({
-      ruleId: "portugueseAgreement",
-      messageKey: "review_msg_pt_agreement",
-      range: { start: verb.start, end: verb.end },
-      alternatives: [wanted],
-      context: { start: m.index, end: verb.end },
-    });
+const distantSubject: MatchFixer = (m, ctx) => {
+  const lead = m.groups!.target;
+  if (lead !== lead.replace(/^\p{Ll}/u, (c) => c.toUpperCase())) return null;
+  if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) return null;
+  const tokens = clauseTokensAfter(ctx.text, m.index, 16);
+  const noun = tokens[1] && !tokens[1].hyphen ? analyze(tokens[1].w) : null;
+  if (!noun || NOT_SUBJECT_NOUNS.has(tokens[1].w) || COLLECTIVE.has(tokens[1].w)) return null;
+  // "A norte de França": "a" before a noun that is not surely feminine may be the preposition.
+  if (tokens[0].w === "a" && noun.feminine !== true) return null;
+  if (ctx.text.slice(tokens[1].start, tokens[1].end) !== tokens[1].w) return null;
+  let plural = PT_PLURAL_LEAD.has(tokens[0].w);
+  if (noun.plural !== plural) return null;
+  const head = skipPostnominal(PORTUGUESE_CLAUSE, tokens, 2);
+  const joined = skipCoordinated(PORTUGUESE_CLAUSE, ctx.text, tokens, head);
+  if (joined > head) plural = true;
+  const end = skipComplements(PORTUGUESE_CLAUSE, ctx.text, tokens, joined);
+  const relative = verbAfterRelative(PORTUGUESE_CLAUSE, ctx.text, tokens, end, () => true);
+  let at = relative;
+  if (at < 0 && (end > joined || joined > head)) {
+    at = end;
+    while (tokens[at] && PORTUGUESE_CLAUSE.clitics.has(tokens[at].w)) at++;
+    // "Os livros de capa dura custam": a word right before another verb is an adjective.
+    if (at === end && tokens[at + 1] && ptVerb(tokens[at + 1].w)) return null;
   }
-}
+  const verb = tokens[at];
+  if (!verb || verb.hyphen || !ptVerb(verb.w) || /mente$/.test(verb.w)) return null;
+  if (ctx.text.slice(verb.start, verb.end) !== verb.w || ctx.dictionary.has(verb.w)) return null;
+  const after = ctx.text.slice(verb.end, verb.end + 40);
+  // "O problema dos preços são os impostos": "ser" may agree with the noun phrase after it.
+  if (/^(?:é|são|foi|foram|era|eram|será|serão|seja|sejam)$/.test(verb.w)) return null;
+  if (/^[ \t\u00a0]+que(?![\p{L}])/u.test(after) || IMPERSONAL_AFTER.test(after)) return null;
+  let wanted: string | undefined;
+  if (plural) {
+    if (!/[ae]m$|ão$/.test(verb.w)) wanted = pluralOf(verb.w);
+  } else {
+    const rows = FORM_ROWS.get(verb.w);
+    if (rows) wanted = rows.find((row) => row[3] === verb.w && row[1] !== verb.w)?.[1];
+    else if (/[ae]m$/.test(verb.w)) wanted = singularOf(verb.w, false);
+  }
+  if (!wanted || wanted === verb.w) return null;
+  return {
+    ruleId: "portugueseAgreement",
+    messageKey: "review_msg_pt_agreement",
+    range: { start: verb.start, end: verb.end },
+    alternatives: [wanted],
+    context: { start: m.index, end: verb.end },
+  };
+};
 
 // -------------------------------------------------------------- hours
 
@@ -291,26 +280,18 @@ const HOUR_AUXILIARIES: Record<string, string> = {
   pode: "podem",
   deve: "devem",
 };
-// Two o'clock or later: "uma hora" and "meio-dia" stay singular.
-const HOUR = `(?:as${S})?(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|0?[2-9]|1\\d|2[0-3])(?:(?:${S})?(?:h|hs|horas)${W}|:[0-5]\\d(?!\\d)|${S}d[ae]${S}(?:manhã|tarde|noite|madrugada)${W})`;
-const HOUR_FRAME = `(?<target>${Object.keys(HOUR_VERBS).join("|")})(?=${S}${HOUR})`;
-const HOUR_PERIPHRASIS = `(?<target>${Object.keys(HOUR_AUXILIARIES).join("|")})(?=${S}(?:dar|bater|soar|dando|batendo|soando|dado|batido|soado)${S}${HOUR})`;
 // Nothing but a sentence start or a conjunction before: "O sino bateu dez horas" has its
 // subject.
 const CLAUSE_OPENING =
   /(?:(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*|(?:^|[^\p{L}])(?:quando|que|até|mal|se|enquanto)[ \t\u00a0]+)(?:(?:já|não|ainda|nem|quase)[ \t\u00a0]+)*$/iu;
 
-function hours(ctx: DetectContext, findings: RawFinding[]): void {
-  for (const [pattern, table] of [
-    [HOUR_FRAME, HOUR_VERBS],
-    [HOUR_PERIPHRASIS, HOUR_AUXILIARIES],
-  ] as const) {
-    for (const m of frameMatches(ctx, pattern)) {
-      if (!CLAUSE_OPENING.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))) continue;
-      push(findings, ctx, m, "target", [table[m.groups!.target.toLowerCase()]]);
-    }
-  }
-}
+/** Hours take the plural: "Já deu dez horas" -> "deram", "Está dando 10h" -> "Estão". */
+const hour =
+  (table: Record<string, string>): MatchFixer =>
+  (m, ctx) =>
+    CLAUSE_OPENING.test(ctx.text.slice(Math.max(0, m.index - 40), m.index))
+      ? push(ctx, m, "target", [table[m.groups!.target.toLowerCase()]])
+      : null;
 
 // -------------------------------------------------------------- ser + pronoun
 
@@ -319,11 +300,7 @@ const SER_PRONOUN: Record<string, Record<string, string>> = {
   é: { eu: "sou", nós: "somos", eles: "são", elas: "são", vocês: "são" },
   será: { eu: "serei", nós: "seremos", eles: "serão", elas: "serão", vocês: "serão" },
 };
-const SER_PRONOUN_FRAME = `(?<target>foi|é|será)${S}(?<pronoun>eu|nós|eles|elas|vocês)(?=[ \\t\\u00a0]{0,2}(?:[.!?,;:]|$)|${S}(?:que|quem|mesm[oa]s?|própri[oa]s?)${W})`;
-
 // -------------------------------------------------------------- trata-se de
-
-const IMPERSONAL_SE = `(?<target>tratam|precisam|necessitam)-se${S}de${W}(?!${S}(?:manhã|tarde|noite|madrugada|forma|maneira|modo)${W})`;
 
 // -------------------------------------------------------------- tense next to ontem/amanhã
 
@@ -333,24 +310,8 @@ const present = (verb: string) =>
   (rStems ??= new Set(graphWords(reviewData<typeof Data>("pt").PORTUGUESE_R_STEMS))).has(
     verb.replace(/(?:am|a)$/, ""),
   );
-const FUTURE = "\\p{L}{2,}(?:ar|er|ir)(?:ão|ás|á|ei|emos|eis)";
-const PAST = "\\p{L}{2,}(?:aram|eram|iram|aras|eras|iras|ara|era|ira|áreis|êreis|íreis)";
 const DETERMINER_BEFORE =
   /(?:^|[^\p{L}])(?:o|a|os|as|um|uma|do|da|no|na|pelo|pela|este|esse|aquele|meu|seu|nosso)[ \t ]+$/iu;
-const PERIOD = "(?:semana|mês|ano)";
-// "ontem", "na semana passada", "na passada semana"; "a semana passada" needs its comma.
-const PAST_TIME = `(?:(?:antes${S}de${S})?ontem|anteontem|n[ao]${S}${PERIOD}${S}passad[oa]|n[ao]${S}passad[oa]${S}${PERIOD})`;
-const BARE_PAST_TIME = `[ao]${S}(?:${PERIOD}${S}passad[oa]|passad[oa]${S}${PERIOD}),`;
-const FUTURE_TIME = `(?:(?:depois${S}de${S})?amanhã|n[ao]${S}próxim[oa]${S}${PERIOD}|n[ao]${S}${PERIOD}${S}que${S}vem)`;
-// A short subject between the time phrase and the verb: "os editores", "ela", "vós".
-const SUBJECT = `(?:(?:os|as|o|a)${S}(?!(?:que|qua[il]s?)${W})\\p{L}+${S}|(?:eles|elas|ele|ela|tu|vós|nós|vocês|você)${S})?`;
-// Even indexes put the verb before the time phrase, odd ones after it.
-const TENSE_FRAMES = [
-  `(?<target>${FUTURE})${S}${PAST_TIME}${W}`,
-  `(?:${PAST_TIME},?|${BARE_PAST_TIME})${S}${SUBJECT}(?<target>${FUTURE})${W}`,
-  `(?<target>${PAST})${S}${FUTURE_TIME}${W}`,
-  `${FUTURE_TIME},?${S}${SUBJECT}(?<target>${PAST})${W}`,
-];
 // Only a time phrase that opens its clause rules the verb: not "Quem chegou ontem enviará".
 const FRONT_OPENING =
   /(?:^|[.!?;:,\n]["'”’»)]*)[ \t ]*(?:(?:eu|tu|ele|ela|nós|vós|eles|elas|você|vocês)[ \t]+)?$/iu;
@@ -399,37 +360,40 @@ function futureOf(past: string): string {
   return `${past.slice(0, -1)}á`;
 }
 
-function tenses(ctx: DetectContext, findings: RawFinding[]): void {
-  TENSE_FRAMES.forEach((pattern, index) => {
-    for (const m of frameMatches(ctx, pattern)) {
-      const target = m.groups!.target.toLowerCase();
-      const [start] = m.indices!.groups!.target;
-      const opening = ctx.text.slice(Math.max(0, m.index - 8), m.index);
-      if (index % 2 === 1 && !FRONT_OPENING.test(opening)) continue;
-      if (DETERMINER_BEFORE.test(ctx.text.slice(Math.max(0, start - 12), start))) continue;
-      if (RARE_ENDING.test(target) && !knownVerb(target)) continue;
-      if (index >= 2) {
-        if (present(target)) continue;
-        push(findings, ctx, m, "target", [futureOf(target)], "review_msg_pt_tense_adverb");
-      } else push(findings, ctx, m, "target", pastOf(target), "review_msg_pt_tense_adverb");
+/** A past or future verb next to "ontem" or "amanhã"; `after` frames put the verb second. */
+const tense =
+  (after: boolean, past: boolean): MatchFixer =>
+  (m, ctx) => {
+    const target = m.groups!.target.toLowerCase();
+    const [start] = m.indices!.groups!.target;
+    const opening = ctx.text.slice(Math.max(0, m.index - 8), m.index);
+    if (after && !FRONT_OPENING.test(opening)) return null;
+    if (DETERMINER_BEFORE.test(ctx.text.slice(Math.max(0, start - 12), start))) return null;
+    if (RARE_ENDING.test(target) && !knownVerb(target)) return null;
+    if (past) {
+      if (present(target)) return null;
+      return push(ctx, m, "target", [futureOf(target)], "review_msg_pt_tense_adverb");
     }
-  });
-}
+    return push(ctx, m, "target", pastOf(target), "review_msg_pt_tense_adverb");
+  };
 
-export function verbAgreement(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "pt")) return [];
-  const findings: RawFinding[] = [];
-  subjects(ctx, findings);
-  distantSubjects(ctx, findings);
-  hours(ctx, findings);
-  for (const m of frameMatches(ctx, SER_PRONOUN_FRAME)) {
+/** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
+export const FIXERS = {
+  verbPluralSubject: pluralSubject,
+  verbSingularSubject: singularSubject,
+  verbDistantSubject: distantSubject,
+  verbHour: hour(HOUR_VERBS),
+  verbHourPeriphrasis: hour(HOUR_AUXILIARIES),
+  verbSerPronoun: (m, ctx) => {
     const verb = m.groups!.target.toLowerCase();
-    push(findings, ctx, m, "target", [SER_PRONOUN[verb][m.groups!.pronoun.toLowerCase()]]);
-  }
-  for (const m of frameMatches(ctx, IMPERSONAL_SE)) {
-    if (!SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))) continue;
-    push(findings, ctx, m, "target", [m.groups!.target.slice(0, -1)]);
-  }
-  tenses(ctx, findings);
-  return findings;
-}
+    return push(ctx, m, "target", [SER_PRONOUN[verb][m.groups!.pronoun.toLowerCase()]]);
+  },
+  verbImpersonalSe: (m, ctx) =>
+    SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+      ? push(ctx, m, "target", [m.groups!.target.slice(0, -1)])
+      : null,
+  verbFutureBefore: tense(false, false),
+  verbFutureAfter: tense(true, false),
+  verbPastBefore: tense(false, true),
+  verbPastAfter: tense(true, true),
+} satisfies Record<string, MatchFixer>;

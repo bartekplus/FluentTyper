@@ -14,6 +14,13 @@ import * as portugueseVerbStems from "./portuguese/verbStems.generated";
 import * as portugueseVerbs from "./portuguese/verbs.generated";
 import * as spanish from "./spanish/spanishLexicon.generated";
 import * as swedish from "./swedish/lexicon.generated";
+import * as arabicPhrases from "./arabic/phrases.generated";
+import * as germanPhrases from "./german/phrases.generated";
+import * as spanishPhrases from "./spanish/phrases.generated";
+import * as frenchPhrases from "./french/phrases.generated";
+import * as polishPhrases from "./polish/phrases.generated";
+import * as portuguesePhrases from "./portuguese/phrases.generated";
+import * as swedishPhrases from "./swedish/phrases.generated";
 import { setReviewData, type ReviewLanguageData } from "./reviewLanguageData";
 
 /**
@@ -21,13 +28,13 @@ import { setReviewData, type ReviewLanguageData } from "./reviewLanguageData";
  * review-data/<lang>.json), tests and tools import this module, never background.js.
  */
 export const REVIEW_LANGUAGE_SOURCES: Record<string, readonly ReviewLanguageData[]> = {
-  ar: [arabic],
-  de: [germanGender, germanLexicon, germanUsage],
-  es: [spanish],
-  fr: [frenchAdjectives, frenchCompounds, frenchGender, frenchLexicon, frenchNouns],
-  pl: [polishLexicon, polishWords],
-  pt: [portugueseParonyms, portugueseVerbStems, portugueseVerbs],
-  sv: [swedish],
+  ar: [arabic, arabicPhrases],
+  de: [germanGender, germanLexicon, germanUsage, germanPhrases],
+  es: [spanish, spanishPhrases],
+  fr: [frenchAdjectives, frenchCompounds, frenchGender, frenchLexicon, frenchNouns, frenchPhrases],
+  pl: [polishLexicon, polishWords, polishPhrases],
+  pt: [portugueseParonyms, portugueseVerbStems, portugueseVerbs, portuguesePhrases],
+  sv: [swedish, swedishPhrases],
 };
 
 /** One language's data as one record (the content of review-data/<lang>.json). */

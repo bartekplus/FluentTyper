@@ -1,0 +1,234 @@
+# sv grammar rules. See docs/agents/grammar-rules.md for the format.
+lang: sv
+
+# Regex fragments of the frame rules: {{NAME}}.
+fragments:
+  GAP: "[ \\t\\u00a0]+"
+  EDGE: "[\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]"
+  END: "(?:\\d{1,4}(?:[.:]\\d{2})?|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio|elva|tolv|måndag|tisdag|onsdag|torsdag|fredag|lördag|söndag|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december|\\p{Lu}\\p{Ll}+)"
+  FINITE: "är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde"
+
+rules:
+  - id: sv.typography
+    checks: [swedishTypography]
+    style: match
+    message: review_msg_swedish_ordinal_colon
+    frames:
+      # "på 2a plats", "den 5e maj": an ordinal written in digits takes a colon (2:a, 5:e).
+      - regex: "(?<![\\p{L}\\p{N}.,:/-])(?<target>\\d{1,4})([ae])(?![\\p{L}\\p{N}:])"
+        scan: owned
+        flags: gu
+        fixer: ordinal
+      # "APIs fördelar": an acronym's genitive -s follows a colon (API:s).
+      - regex: "(?<![\\p{L}\\p{N}])(?<target>\\p{Lu}{2,6})s(?![\\p{L}\\p{N}:'\\u2019])"
+        scan: owned
+        flags: gu
+        message: review_msg_swedish_acronym_genitive
+        fixer: acronymGenitive
+      # "idag är det Måndag": Swedish weekdays and months are common nouns.
+      - regex: "(?<!{{EDGE}})(?<target>(?:Måndag|Tisdag|Onsdag|Torsdag|Fredag|Lördag|Söndag|Januari|Februari|Mars|April|Maj|Juni|Juli|Augusti|September|Oktober|November|December)(?:en|ens|s|ar|arna|ens)?)(?!{{EDGE}})"
+        scan: owned
+        flags: gu
+        message: review_msg_swedish_lowercase_names
+        fixer: lowercaseName
+  - id: sv.agreement
+    checks: [swedishAgreement]
+    style: match
+    message: review_msg_swedish_agreement
+    frames:
+      # "ett mörk kväll", "en urholkat sten": of the article, the adjective's -t form and the
+      # noun's gender, the odd one out is fixed when the other two agree. When article and
+      # adjective agree against the noun, nothing is said: the noun may have both genders or a
+      # gender the dictionary does not know.
+      # Overlapping phrases: the noun of one may open the next. The match is the article and a
+      # lookahead holds the phrase, so the next match can start after the article.
+      - regex: "(?<!{{EDGE}})(?<target>[Ee]tt|[Ee]n|ETT|EN)(?=(?<gap1>{{GAP}})(?<adjective>\\p{Ll}+)(?<gap2>{{GAP}})(?<noun>\\p{Ll}+)(?!{{EDGE}}|\\.\\p{L}))"
+        scan: owned
+        flags: gu
+        fixer: agreement
+  - id: sv.mellanTillDeDem
+    checks: [englishPhraseCorrections]
+    style: match
+    message: review_msg_swedish_mellan_till
+    frames:
+      # "mellan två till fyra": a range is "mellan … och …" or "från … till …".
+      - regex: "(?<!{{EDGE}})(?<target>[Mm]ellan)(?<middle>{{GAP}}(?:(?:klockan|kl\\.|år|åren){{GAP}})?{{END}}){{GAP}}(?<till>till)(?<rest>{{GAP}}{{END}})(?!{{EDGE}})"
+        scan: owned
+        flags: dgu
+        fixer: mellanTill
+      # "dem är här" -> "de är här": the subject form is "de". Only where the role is plain:
+      # "dem" opening a clause before its verb.
+      - regex: "(?<!{{EDGE}})(?<target>[Dd]em|DEM){{GAP}}(?:{{FINITE}})(?!{{EDGE}})"
+        scan: owned
+        flags: gu
+        message: review_msg_swedish_de_dem
+        fixer: demSubject
+      # "med de." -> "med dem.": after a preposition the object form is "dem". Only "de" ending
+      # a clause after a preposition ("med de andra" is the article).
+      - regex: "(?<!{{EDGE}})(?:med|till|för|av|hos|åt|om|från|på|mot|utan|efter|bredvid|framför|bakom|över|genom|mellan|kring){{GAP}}(?<target>de|DE)(?=[ \\t\\u00a0]*(?:[.,!?;:)]|$))"
+        scan: owned
+        flags: giu
+        message: review_msg_swedish_de_dem
+        fixer: deObject
+  - id: sv.enTillSpeechComma
+    checks: [stylePhrasing]
+    style: match
+    message: review_msg_style_phrasing
+    frames:
+      # "en till klubba" -> "en klubba till": "another" puts till after the noun.
+      - regex: "(?<!{{EDGE}})(?<target>[Ee]n|[Ee]tt)(?<gap1>{{GAP}})(?<till>till)(?<gap2>{{GAP}})(?<noun>\\p{Ll}{3,})(?=[ \\t\\u00a0]*(?:[.,!?;:]|$))"
+        scan: owned
+        flags: gu
+        fixer: enTill
+      # "Det var finfint sade Johan." -> "finfint, sade Johan": quoted speech is set off from
+      # the speech verb that follows it. Only when the words before already hold a finite verb,
+      # so they cannot be a fronted object ("Det sa Johan").
+      - regex: "(?<=\\p{L})(?<target>{{GAP}})(?<verb>sa|sade|svarade|frågade|ropade|skrek|viskade|utbrast|förklarade|menade|tänkte){{GAP}}(?:han|hon|hen|jag|vi|de|du|ni|\\p{Lu}\\p{Ll}+)(?=[.!?])"
+        scan: owned
+        flags: gu
+        message: review_msg_swedish_speech_comma
+        fixer: speechComma
+
+# Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
+phrases:
+  words: |
+    igentligen = egentligen
+    antligen = äntligen
+    alldrig = aldrig
+    intresant = intressant
+    komunikation = kommunikation
+    sammarbete = samarbete
+    tillsamans = tillsammans
+    definitift = definitivt
+    skilnad = skillnad
+    sjävklart = självklart
+    anorlunda = annorlunda
+    rekomendera = rekommendera
+    resturang = restaurang
+    tex = t.ex.
+  phrases: |
+    bruka att = bruka
+    brukar att = brukar
+    brukade att = brukade
+    brukat att = brukat
+    ångra på att = ångra att
+    ångrar på att = ångrar att
+    ångrade på att = ångrade att
+    ångrat på att = ångrat att
+    ta självmord = begå självmord
+    tar självmord = begår självmord
+    tog självmord = begick självmord
+    tagit självmord = begått självmord
+    i stor grad = i hög grad
+    i större grad = i högre grad
+    i störst grad = i högst grad
+    i så stor grad = i så hög grad
+    i mycket stor grad = i mycket hög grad
+    i möjligaste motto = i möjligaste måtto
+    i viss motto = i viss måtto
+    planer om att = planer på att
+    släppa los = släppa loss
+    släpper los = släpper loss
+    släppte los = släppte loss
+    släppt los = släppt loss
+    släpp los = släpp loss
+    slita sig los = slita sig loss
+    sliter sig los = sliter sig loss
+    slet sig los = slet sig loss
+    slitit sig los = slitit sig loss
+    bryta los = bryta loss
+    bryter los = bryter loss
+    bröt los = bröt loss
+    brutit los = brutit loss
+  compounds: |
+    dator skärm = datorskärm
+    dator skärmen = datorskärmen
+    kyl skåp = kylskåp
+    kyl skåpet = kylskåpet
+    tand borste = tandborste
+    tand borsten = tandborsten
+    tand läkare = tandläkare
+    tand läkaren = tandläkaren
+    sov rum = sovrum
+    sov rummet = sovrummet
+    vardags rum = vardagsrum
+    vardags rummet = vardagsrummet
+    bok hylla = bokhylla
+    bok hyllan = bokhyllan
+    lunch rast = lunchrast
+    lunch rasten = lunchrasten
+    kaffe kopp = kaffekopp
+    kaffe koppen = kaffekoppen
+    mjölk paket = mjölkpaket
+    mjölk paketet = mjölkpaketet
+    post kontor = postkontor
+    post kontoret = postkontoret
+    sjuk hus = sjukhus
+    sjuk huset = sjukhuset
+    flyg plats = flygplats
+    flyg platsen = flygplatsen
+    järn väg = järnväg
+    järn vägen = järnvägen
+    tåg station = tågstation
+    tåg stationen = tågstationen
+    buss hållplats = busshållplats
+    buss hållplatsen = busshållplatsen
+    arbets plats = arbetsplats
+    arbets platsen = arbetsplatsen
+    barn vagn = barnvagn
+    barn vagnen = barnvagnen
+    regn jacka = regnjacka
+    regn jackan = regnjackan
+    skol gård = skolgård
+    skol gården = skolgården
+    fot boll = fotboll
+    fot bollen = fotbollen
+    hand boll = handboll
+    hand bollen = handbollen
+    köks bord = köksbord
+    köks bordet = köksbordet
+    student lägenhet = studentlägenhet
+    student lägenheten = studentlägenheten
+    kund tjänst = kundtjänst
+    kund tjänsten = kundtjänsten
+    lösen ord = lösenord
+    lösen ordet = lösenordet
+    glass bil = glassbil
+    glass bilen = glassbilen
+  style: |
+    förra chefen = förre chefen
+    förra ordföranden = förre ordföranden
+    förra statsministern = förre statsministern
+    förra presidenten = förre presidenten
+    förra kungen = förre kungen
+    förra ministern = förre ministern
+    förra utrikesministern = förre utrikesministern
+    förra finansministern = förre finansministern
+    förra partiledaren = förre partiledaren
+    förra vd:n = förre vd:n
+    förra rektorn = förre rektorn
+    förra borgmästaren = förre borgmästaren
+    förra tränaren = förre tränaren
+    förra förbundskaptenen = förre förbundskaptenen
+    förra generalsekreteraren = förre generalsekreteraren
+    förra ärkebiskopen = förre ärkebiskopen
+    förra påven = förre påven
+    förra ambassadören = förre ambassadören
+    förra landshövdingen = förre landshövdingen
+    förra direktören = förre direktören
+    förra statsminister = förre statsminister
+    förra president = förre president
+    förra ordförande = förre ordförande
+    förra minister = förre minister
+    förra vd = förre vd
+    allt mer | allt mera = alltmer
+    efterhand = efter hand
+    planer om = planer på; drömmar om
+    klagomål över = klagomål på; klagomål mot
+    t ex = t.ex.
+    m fl = m.fl.
+    bl a = bl.a.
+    s k = s.k.
+    t o m = t.o.m.
+    o s v = osv.
+    m m = m.m.

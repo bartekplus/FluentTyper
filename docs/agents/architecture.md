@@ -35,6 +35,13 @@ Background code and page code communicate through contracts. They must not impor
 
 </details>
 
+## Grammar Rule Engine
+
+Grammar rules are declared in `src/core/domain/grammar/rules/*.yaml` and compiled at build time into `src/core/domain/grammar/engine/*.generated.ts`. The engine builds the typing rules and the Review detectors from the compiled rules. To add or change a rule, see [grammar rules](grammar-rules.md).
+
+- `engine/catalog.generated.ts` and `engine/live.generated.ts` are light: content scripts load them.
+- `engine/review.generated.ts` holds the Review rules and the phrase tables: only the background loads it.
+
 ## Review Clause Reader
 
 `src/core/domain/grammar/review/clauseReader.ts` is a limited clause reader that the agreement checks share. It is not a parser. From the head noun of a subject, it reads past:

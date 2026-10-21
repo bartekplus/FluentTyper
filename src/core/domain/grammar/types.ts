@@ -1,36 +1,9 @@
+import type { GeneratedGrammarRuleId } from "./engine/catalog.generated";
+
 export type GrammarEventType = "insertChar" | "wordBoundary" | "idle" | "paste";
 
-export type GrammarRuleId =
-  | "measurementUnitFormatting"
-  | "currencySpacing"
-  | "capitalizeSentenceStart"
-  | "capitalizeAfterLineBreak"
-  | "englishPronounICapitalization"
-  | "englishContractionNormalization"
-  | "englishTypoWhitelistCorrection"
-  | "doubleSpaceToPeriod"
-  | "englishModalOfCorrection"
-  | "englishYourWelcomeCorrection"
-  | "englishTheirThereBeVerb"
-  | "englishAlotCorrection"
-  | "englishPronounVerbWhitelistAgreement"
-  | "englishArticleAnCorrection"
-  | "englishOrdinalSuffix"
-  | "englishProperNounCapitalization"
-  | "commaPeriodSpacing"
-  | "openingBracketSpacing"
-  | "closingBracketSpacing"
-  | "slashContextSpacing"
-  | "mathOperatorSpacing"
-  | "technicalTokenCompaction"
-  | "collapseRepeatedSpaces"
-  | "trimSpaceBeforeLineBreak"
-  | "ellipsisShortcut"
-  | "emdashShortcut"
-  | "smartQuoteNormalization"
-  | "frenchPunctuationSpacing"
-  | "duplicatePunctuationCollapse"
-  | "autoBracketClose";
+/** The typing rules: catalog checks with mode "live" (grammar/rules/*.yaml). */
+export type GrammarRuleId = GeneratedGrammarRuleId;
 
 export interface GrammarHints {
   /** Adapter-verified editing context; missing information fails closed. */

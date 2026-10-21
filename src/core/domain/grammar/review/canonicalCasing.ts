@@ -3,6 +3,7 @@ import { namedExampleBefore, quotedSpan } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 import { finding } from "./finding";
 import { isLang, ownedMatches } from "./phraseTemplates";
+import type { MatchFixer } from "../engine/reviewRules";
 
 const CANONICAL = new Map(
   [
@@ -86,33 +87,43 @@ const brandNoun = (lang: string, text: string, start: number, end: number) =>
 export const hasCanonicalCasing = (word: string) =>
   CANONICAL.has(word.toLowerCase()) || ACRONYMS.has(word.toUpperCase());
 
+// Each ASCII word: the canonicalCasing frame of the phraseTables rule (grammar/rules/common.yaml).
+export const CASING_WORDS =
+  /(?<![.\p{L}\p{M}\p{N}_'’@/#=$\\-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#=$\\-])/gu;
+
 /** Explicit names only; uppercase emphasis and identifier-like mixed casing stay untouched. */
+export function canonicalCasingAt(match: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const typed = match[0];
+  const acronym = typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : "";
+  const canonical =
+    CANONICAL.get(typed.toLowerCase()) ??
+    (ACRONYMS.has(acronym) &&
+    /^[A-Z][a-z]+$/.test(typed) &&
+    // "Ai Weiwei" is a name.
+    !/^[ \t\u00a0]+[A-Z]/.test(ctx.text.slice(match.index + typed.length))
+      ? acronym
+      : undefined);
+  if (!canonical || canonical === typed || ctx.dictionary.has(typed.toLowerCase())) return null;
+  if (!/^[A-Z]?[a-z]+$/.test(typed)) return null;
+  const start = match.index;
+  const end = start + typed.length;
+  if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))) return null;
+  if (quotedSpan(ctx.text, start, end) || namedExampleBefore(ctx.text, start)) return null;
+  if (VERB_BRANDS.has(typed) && !brandNoun(ctx.lang.slice(0, 2), ctx.text, start, end)) return null;
+  return finding("englishCanonicalCasing", "review_msg_canonical_casing", start, end, [canonical], {
+    context: { start: Math.max(0, start - 128), end: Math.min(ctx.text.length, end + 2) },
+  });
+}
+
+/** The canonical names of a view of the text (en.quotedPhrases reads quotations so). */
 export function canonicalCasing(ctx: DetectContext): RawFinding[] {
   const findings: RawFinding[] = [];
-  const words = /(?<![.\p{L}\p{M}\p{N}_'’@/#=$\\-])[A-Za-z]+(?![\p{L}\p{M}\p{N}_'’@/#=$\\-])/gu;
-  for (const match of ownedMatches(ctx, words)) {
-    const typed = match[0];
-    const acronym = typed.length < 5 && isLang(ctx, "en") ? typed.toUpperCase() : "";
-    const canonical =
-      CANONICAL.get(typed.toLowerCase()) ??
-      (ACRONYMS.has(acronym) &&
-      /^[A-Z][a-z]+$/.test(typed) &&
-      // "Ai Weiwei" is a name.
-      !/^[ \t\u00a0]+[A-Z]/.test(ctx.text.slice(match.index + typed.length))
-        ? acronym
-        : undefined);
-    if (!canonical || canonical === typed || ctx.dictionary.has(typed.toLowerCase())) continue;
-    if (!/^[A-Z]?[a-z]+$/.test(typed)) continue;
-    const start = match.index;
-    const end = start + typed.length;
-    if (/^\.[\p{L}\p{N}_]/u.test(ctx.text.slice(end, end + 2))) continue;
-    if (quotedSpan(ctx.text, start, end) || namedExampleBefore(ctx.text, start)) continue;
-    if (VERB_BRANDS.has(typed) && !brandNoun(ctx.lang.slice(0, 2), ctx.text, start, end)) continue;
-    findings.push(
-      finding("englishCanonicalCasing", "review_msg_canonical_casing", start, end, [canonical], {
-        context: { start: Math.max(0, start - 128), end: Math.min(ctx.text.length, end + 2) },
-      }),
-    );
+  for (const match of ownedMatches(ctx, new RegExp(CASING_WORDS))) {
+    const found = canonicalCasingAt(match, ctx);
+    if (found) findings.push(found);
   }
   return findings;
 }
+
+/** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
+export const FIXERS = { canonicalCasing: canonicalCasingAt } satisfies Record<string, MatchFixer>;
