@@ -118,7 +118,7 @@ function parse(source: string): Node {
 type Prefix = { text: string; open: boolean };
 // Above this count the prefixes are cut to two characters, then to one: a shorter prefix is
 // still a correct (wider) start set.
-const MAX_PREFIXES = 256;
+const MAX_PREFIXES = 1024;
 
 function prefixes(node: Node, max: number): Prefix[] {
   switch (node.kind) {
