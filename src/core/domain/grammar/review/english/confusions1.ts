@@ -23,13 +23,16 @@ const TOKEN = /[\p{L}\p{N}]+(?:['’][\p{L}]+)*|[^\s\p{L}\p{N}]/gu;
 function tokens(ctx: DetectContext, from: number, to: number): Tok[] {
   const slice = ctx.text.slice(from, to);
   const out: Tok[] = [];
-  for (const m of slice.matchAll(TOKEN))
+  for (const m of slice.matchAll(TOKEN)) {
+    const lower = m[0].toLowerCase();
     out.push({
       text: m[0],
-      w: wordKey(m[0]),
+      // wordKey, without its replace when the token has no ’ (most tokens).
+      w: lower.includes("’") ? wordKey(lower) : lower,
       start: from + m.index,
       end: from + m.index + m[0].length,
     });
+  }
   return out;
 }
 // A wrapped line continues its sentence; a blank line or a list, heading or quote line does not.
