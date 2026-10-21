@@ -4067,6 +4067,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     ],
     fixer: "common:itsAfterVerb",
     flags: "gidu",
+    gate: "it['’]s",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4092,6 +4094,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     ],
     fixer: "common:itsNounPredicate",
     flags: "gidu",
+    gate: "it['’]s",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4100,6 +4104,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     fixer: "common:itsPhrase",
     message: "review_msg_its_contraction",
     flags: "gidu",
+    gate: "its[ \\t\\u00a0]{1,8}(?:unclear|ready|cold|warm|working|already)",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4131,6 +4137,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: [],
     fixer: "common:itsAfterPreposition",
     flags: "gidu",
+    gate: "it['’]s",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4138,6 +4146,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["own"],
     fixer: "common:itsOwn",
     flags: "gidu",
+    gate: "it['’]s",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4145,6 +4155,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: [],
     fixer: "common:itsOrdinal",
     flags: "gidu",
+    gate: "it['’]s",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4152,6 +4164,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["are", "were", "have"],
     fixer: "common:itsBeforeVerb",
     flags: "gidu",
+    gate: "it['’]s",
+    gateFlags: "giu",
   }),
   frame({
     pattern:

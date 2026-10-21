@@ -4674,13 +4674,20 @@ rules:
     frames:
       - regex: "(?<!{{EDGE}})(?:lost|checked|changed|updated|fixed|opened|closed|remembered|forgot|replaced|painted|cleaned){{S}}(?<target>it['’]s){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{COMPLETE}}{{E}}"
         flags: gidu
+        # The gates of the it's frames: "it's" (no literal of 3 letters finds it).
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsAfterVerb
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}{{POSSESSIVE_ADJECTIVE}}{{POSSESSIVE_NOUN}}{{S}}(?:is|was|looks|seems){{S}}(?:wet|dry|broken|new|old|red|blue|missing|different){{COMPLETE}}{{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsNounPredicate
       - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:unclear{{S}}whether{{S}}(?:the{{S}}change{{S}}will{{S}}affect{{S}}us|it{{S}}will{{S}}work)|ready{{S}}to{{S}}(?:use|go|open|start)|(?:cold|warm){{S}}outside|working{{S}}(?:now|again|today)|already{{S}}(?:been{{S}})?(?:fixed|updated|removed|replaced)){{COMPLETE}}{{E}}"
         flags: gidu
         message: review_msg_its_contraction
+        gate: "its[ \\t\\u00a0]{1,8}(?:unclear|ready|cold|warm|working|already)"
+        gateFlags: giu
         fixer: itsPhrase
       # "its" never precedes a verb, an article or a function word.
       - regex: "(?<!{{EDGE}})(?<target>its){{S}}(?:been|got|had|gotten|a|an|the|my|your|our|his|her|their|not|never|always|so|too|because|like|about|called|named|raining|snowing|someone|something|anyone|anything|everyone|everything|nobody|nothing|somebody|anybody|everybody|somewhere|anywhere|everywhere|going{{S}}to|getting{{S}}(?:late|dark|better|worse|harder|easier|cold|warm|old)|time{{S}}to){{E}}"
@@ -4698,15 +4705,23 @@ rules:
       # "it's" never follows a preposition or precedes "own".
       - regex: "(?<!{{EDGE}})(?=it['’]s)(?<!(?:how|what){{S}}about{{S}})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among){{S}})(?<target>it['’]s){{S}}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like){{E}})[a-z]+{{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsAfterPreposition
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}own{{S}}[a-z]+{{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsOwn
       - regex: "(?<!{{EDGE}})(?=it['’]s)(?<=[a-z]{3,30}ed{{S}})(?<target>it['’]s){{S}}[0-9]{1,4}(?:st|nd|rd|th){{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsOrdinal
       - regex: "(?<!{{EDGE}})(?<target>it['’]s){{S}}(?!(?:not|all|both|each|also|still|just|really|never|always|so|too|very|already|probably|certainly|here|there|now|then|what|who|which|whoever|whatever|where|how|why|when|that|this|it|one|someone|something|everything|everyone|anything|nothing|time|because|like|as|kind|sort|type|going|getting){{E}})[a-z]+{{S}}(?:are|were|have){{E}}{{E}}"
         flags: gidu
+        gate: "it['’]s"
+        gateFlags: giu
         fixer: itsBeforeVerb
       - regex: "(?<!{{EDGE}})(?<target>lets){{S}}(?:try{{S}}again|go{{S}}home|start{{S}}now|work{{S}}together|take{{S}}a{{S}}break|check{{S}}the{{S}}file|open{{S}}the{{S}}folder|read{{S}}the{{S}}report|fix{{S}}the{{S}}problem|meet{{S}}tomorrow|wait{{S}}here|begin{{S}}with{{S}}the{{S}}basics){{COMPLETE}}{{E}}"
         flags: gidu
