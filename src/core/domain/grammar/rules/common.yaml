@@ -5210,10 +5210,18 @@ rules:
       # subject.
       - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_CONJUNCT}}|myself){{S}}and{{S}}(?<b>{{CASE_CONJUNCT}}|myself)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
         owner: none
+        # coordinatedSubjects needs me, him, her, them or myself as one side of the pair: the gate
+        # skips the frame when no such word stands next to "and". shortcut: the gate must match
+        # before the chunk end + 64, so a first side longer than about 56 characters across a
+        # chunk end could be missed; no real conjunct is that long.
+        gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: coordinatedSubjects
       # A present base verb after a pair of single words: "Tim and me work", "Me and Sam live".
       - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_ONE_WORD}}){{S}}and{{S}}(?<b>{{CASE_ONE_WORD}})(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>[a-z]+){{E}}"
         owner: none
+        gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
+        gateFlags: giu
         fixer: coordinatedSubjects
       # "Both Ana and me helped", "Either Ana or me will call", "Ana or myself can help".
       - regex: "(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0]){{CASE_COORDINATION_START}}(?:(?<lead>both|either|neither){{S}})?(?<a>{{CASE_CONJUNCT}}){{S}}(?<conj>and|or|nor){{S}}(?<b>me|myself|him|them)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"

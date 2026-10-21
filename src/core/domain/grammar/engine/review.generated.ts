@@ -4862,6 +4862,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["and"],
     fixer: "common:coordinatedSubjects",
     owner: "none",
+    gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -4869,6 +4871,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["and"],
     fixer: "common:coordinatedSubjects",
     owner: "none",
+    gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
