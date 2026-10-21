@@ -104,6 +104,28 @@ test("phrase tables: kinds per language and the languages of a check", () => {
   expect(languagesOf(set.reviewMetadata.demoCheck)).toEqual(["en_US", "hr_HR"]);
 });
 
+test("pooled table rows: a typed form two times, or a row that fixes to itself, is an error", () => {
+  const message = errorsOf(() =>
+    compile(
+      { lang: "*", checks: [check()] },
+      {
+        lang: "en",
+        tables: {
+          "a.phrases": "free trail = free trial\n",
+          "b.phrases": "Free Trail = free trial\ntaken aback = taken aback\n",
+          "b.style": "free trail = trial\n",
+        },
+      },
+    ),
+  );
+  expect(message).toContain(
+    'en.yaml tables.b.phrases: "Free Trail" is also a row of en.yaml tables.a.phrases',
+  );
+  expect(message).toContain('en.yaml tables.b.phrases: row "taken aback" fixes to itself');
+  // Another kind is another pool.
+  expect(message).not.toContain("tables.b.style");
+});
+
 test("phrase rows: variants, choices and comments", () => {
   const errors: string[] = [];
   expect(

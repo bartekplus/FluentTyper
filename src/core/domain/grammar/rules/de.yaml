@@ -372,14 +372,10 @@ defs:
       replacements: "[fixed].flat().filter((r) => r !== typed)"
     when: replacements.length > 0
     return: >-
-      remember(IDIOM_FINDINGS, {
-        ruleId: "germanNounCasing",
-        messageKey: frame.messageKey,
-        range: { start: span[0], end: span[1] },
-        alternatives: replacements,
+      remember(IDIOM_FINDINGS, finding("germanNounCasing", frame.messageKey, span[0], span[1], replacements, {
         ...(replacements.length > 1 ? { requiresChoice: true as const } : {}),
         context: { start: Math.max(0, span[0] - 40), end: Math.min(ctx.text.length, span[1] + 40) },
-      })
+      }))
   # "die erste, die zweite und …", "die erste, das Gebiet umfassende …": an ordinal before a
   # relative pronoun of its gender is a noun unless an enumeration, an attribute or a noun earlier
   # in the sentence ("Von den Zügen ist der erste, der …") follows or comes before.
@@ -690,8 +686,9 @@ rules:
           span: m.indices!.groups!.target
         when: "!!replacement && replacement !== typed && !ctx.dictionary.has(typed.toLowerCase())"
         return: >-
-          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
-          alternatives: [deLikeTyped(typed, replacement)], context: { start: Math.max(0, span[0] - 40), end: span[1] + 20 } })
+          finding("germanCompounds", "review_msg_closed_compound", span[0], span[1], [deLikeTyped(typed, replacement)], {
+            context: { start: Math.max(0, span[0] - 40), end: span[1] + 20 },
+          })
       # "-adresse" → "-Adresse", "s" stays.
       emailRest:
         args: "rest: string | undefined"
@@ -839,8 +836,9 @@ rules:
           - "!ctx.dictionary.has(first) && !ctx.dictionary.has(low)"
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: m.index, end: stop },
-          alternatives: [first[0].toUpperCase() + first.slice(1) + low], context: { start: Math.max(0, m.index - 40), end: stop + 20 } })
+          finding("germanCompounds", "review_msg_closed_compound", m.index, stop, [first[0].toUpperCase() + first.slice(1) + low], {
+            context: { start: Math.max(0, m.index - 40), end: stop + 20 },
+          })
       # A word of the chunk: the compound it opens, split by a space. Both parts German nouns or
       # opening parts ("Joint Venture", "Game Boys" stay English). "Abfahrts", "Regenerierungs": a
       # word with this linking -s stands in no other place, so the compound needs no lookup
@@ -887,8 +885,9 @@ rules:
             : noun || fused || germanAdjective(low) || PAIR_STEMS.test(low) || pairLinked(low)
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: m.index, end: stop },
-          alternatives: [first + second.toLowerCase()], context: { start: Math.max(0, m.index - 40), end: stop + 20 } })
+          finding("germanCompounds", "review_msg_closed_compound", m.index, stop, [first + second.toLowerCase()], {
+            context: { start: Math.max(0, m.index - 40), end: stop + 20 },
+          })
     frames:
       # "Ich bin ihm über den weggelaufen", "aus dem weggehen": "über den Weg laufen", "aus dem
       # Weg gehen" split the noun from the verb.
@@ -1141,9 +1140,10 @@ rules:
         args: 'start: number, end: number, alternatives: string[], key: RawFinding["messageKey"]'
         type: RawFinding
         return: >-
-          ({ ruleId: "germanDates", messageKey: key, range: { start, end }, alternatives,
-          ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanDates", key, start, end, alternatives, {
+            ...(alternatives.length === 0 ? { warningOnly: true as const } : {}),
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # The weekday the date has, or the nearest date with the weekday typed: only the weekday and
       # the day change, so the range ends after the day.
       weekdayFix:
@@ -1793,8 +1793,9 @@ rules:
           word: '/^\p{L}+/u.exec(ctx.text.slice(start))?.[0] ?? ""'
         when: '/^\p{Ll}/u.test(word) && !ctx.dictionary.has(word) && !namedExampleBefore(ctx.text, start)'
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_name_case", range: { start, end: start + 1 },
-          alternatives: [word[0].toUpperCase()], context })
+          finding("germanNounCasing", "review_msg_german_name_case", start, start + 1, [word[0].toUpperCase()], {
+            context,
+          })
       capitalStemVerb:
         args: "stem: string"
         return: stem.length >= 2 && (germanInfinitive(`${stem}en`) || germanInfinitive(`${stem}n`))
@@ -1898,8 +1899,9 @@ rules:
             (nextNoun === "infinitive" && name === "target" && !governedBefore(before, before.length)))
           - "!namedExampleBefore(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_noun_case", range: { start, end: start + 1 },
-          alternatives: [typed[0].toUpperCase()], context: { start: m.index, end } })
+          finding("germanNounCasing", "review_msg_german_noun_case", start, start + 1, [typed[0].toUpperCase()], {
+            context: { start: m.index, end },
+          })
       NC_NOMINALIZING: '/(?<![\p{L}\p{N}])(?:beim|zum|vom|ins)[ \t]+$/iu'
       # "ein klopfen erfüllte den Raum", "kein zurückweichen.": an infinitive after a neuter
       # ein-word, before the clause's end, its verb or a preposition, is a noun; not before "zu",
@@ -2367,9 +2369,9 @@ rules:
             : !(reading !== "noun" && (ncAttributive(next) || !ncNounReadingHolds(reading, typed, found.kind, before, found.at, after)))
           - "!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index)"
         return: >-
-          remember(NOUN_FINDINGS, { ruleId: "germanNounCasing", messageKey: "review_msg_german_noun_case",
-          range: { start: m.index, end: m.index + 1 }, alternatives: [typed[0].toUpperCase()],
-          context: { start: Math.max(0, m.index - 40), end } })
+          remember(NOUN_FINDINGS, finding("germanNounCasing", "review_msg_german_noun_case", m.index, m.index + 1, [typed[0].toUpperCase()], {
+            context: { start: Math.max(0, m.index - 40), end },
+          }))
       # A strong neuter adjective with no determiner and no noun after it is a noun: "Was gibt es
       # neues?", "Wir wagen neues.", "um schlimmeres zu verhindern". Each lowercase word in -es.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{Ll}{2,}es(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
@@ -2400,8 +2402,9 @@ rules:
           - nextReading !== "noun" && nextReading !== "finite"
           - "!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_noun_case", range: { start: m.index, end: m.index + 1 },
-          alternatives: [typed[0].toUpperCase()], context: { start: Math.max(0, m.index - 40), end } })
+          finding("germanNounCasing", "review_msg_german_noun_case", m.index, m.index + 1, [typed[0].toUpperCase()], {
+            context: { start: Math.max(0, m.index - 40), end },
+          })
       # Adjectives used as nouns are capitalized: "im Freien", "zum Guten", "aufs Neue". Only where
       # no noun follows that the adjective could belong to ("im freien Feld" stays). Contractions:
       # "im klaren", "zum besseren", "ins reine", "aufs neue", "vom schlimmsten".
@@ -2502,8 +2505,9 @@ rules:
           - '!(/(?:isch|deutsch)$/.test(low) && next !== "vor")'
           - "!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_not_noun", range: { start: m.index, end: m.index + 1 },
-          alternatives: [typed[0].toLowerCase()], context: { start: Math.max(0, m.index - 40), end } })
+          finding("germanNounCasing", "review_msg_german_not_noun", m.index, m.index + 1, [typed[0].toLowerCase()], {
+            context: { start: Math.max(0, m.index - 40), end },
+          })
       # A finite verb capitalized after its subject pronoun: "Ich Koche heute.", "Wir Treffen uns
       # später.", "weil ich Arbeite,". The scan reads only the subject pronouns.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])(?:[iI][cC][hH]|[dD][uU]|[eE][rR]|[sS][iI][eE]|[eE][sS]|[wW][iI][rR])(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
@@ -2529,8 +2533,9 @@ rules:
           - "!(VERB_GOVERNORS.has(next) || (/en$/.test(low) && germanAdjective(low.slice(0, -2))))"
           - "!namedExampleBefore(ctx.text, m.index) && !deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_not_noun", range: { start, end: start + 1 },
-          alternatives: [typed[0].toLowerCase()], context: { start: m.index, end: start + typed.length } })
+          finding("germanNounCasing", "review_msg_german_not_noun", start, start + 1, [typed[0].toLowerCase()], {
+            context: { start: m.index, end: start + typed.length },
+          })
       # Fixed phrases whose words change case: a word that is a noun only in the phrase ("die
       # Schuld", "im Ernst", "zum Dank") and a noun that is an adverb or adjective in it ("mir ist
       # es recht", "nach links", "ernst nehmen"). "das importieren der Klassen", "beim erstellen
@@ -3070,8 +3075,9 @@ rules:
           - '!(!lemma || start === 0 || /(?:^|[.!?:\n„“"»«])[ \t]*$/.test(before))'
           - "!ctx.dictionary.has(adj.toLowerCase()) && !namedExampleBefore(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_adjective_lowercase", range: { start, end: start + 1 },
-          alternatives: [adj[0].toLowerCase()], context: { start, end: m.index + m[0].length } })
+          finding("germanNounCasing", "review_msg_german_adjective_lowercase", start, start + 1, [adj[0].toLowerCase()], {
+            context: { start, end: m.index + m[0].length },
+          })
       # "Reich deutscher Nation": the genitive closes the name.
       - regex: "Reich(?:es|s)?{{S}}(?<target>deutscher){{S}}Nation{{E}}"
         flags: dgu
@@ -3096,14 +3102,15 @@ rules:
           - NAME_ALWAYS.has(pair) || NAME_DEFINITE.test(before)
           - "!ctx.dictionary.has(adj) && !namedExampleBefore(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_name_case", range: { start, end: start + 1 },
-          alternatives: [adj[0].toUpperCase()], context: { start: m.index, end: m.indices!.groups!.noun[1] } })
+          finding("germanNounCasing", "review_msg_german_name_case", start, start + 1, [adj[0].toUpperCase()], {
+            context: { start: m.index, end: m.indices!.groups!.noun[1] },
+          })
       # "Hallo Liebe Katja" → liebe: after a greeting the adjective is lowercase.
       - regex: "(?<=(?:^|\\n)[ \\t]{0,8}{{GREETING_WORDS}}[ \\t]{1,4})(?<adj>Lieb(?:e|er|es))(?=[ \\t]+\\p{Lu})"
         scan: owned
         flags: gu
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_idiom_case", range: { start: m.index, end: m.index + 1 }, alternatives: ["l"], context: { start: m.index, end: m.index + m[0].length } })
+          finding("germanNounCasing", "review_msg_german_idiom_case", m.index, m.index + 1, ["l"], { context: { start: m.index, end: m.index + m[0].length } })
       # A verb in -en right before a lowercase "sie": "Kommen sie bitte herein!" (the polite
       # imperative).
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_-])(?<verb>\\p{L}+en)[ \\t]+(?<sie>sie)(?![\\p{L}\\p{M}\\p{N}_-])"
@@ -3122,7 +3129,7 @@ rules:
           - >-
             politeOpens(before.at(-1)) || (/^(?:bitte|so|und|oder|aber|dann|jetzt|nun|doch|also)$/i.test(prior) && politeOpens(before.at(-2)))
         return: >-
-          ({ ruleId: "germanNounCasing", messageKey: "review_msg_german_polite_sie", range: { start, end: start + 1 }, alternatives: ["S"], context: { start: m.index, end: start + 3 } })
+          finding("germanNounCasing", "review_msg_german_polite_sie", start, start + 1, ["S"], { context: { start: m.index, end: start + 3 } })
   - id: de.prepositionCase
     checks: [germanPrepositionCase]
     style: match
@@ -3417,8 +3424,10 @@ rules:
         let:
           span: m.indices!.groups!.target
         return: >-
-          ({ ruleId: "germanPrepositionCase", messageKey: "review_msg_german_preposition_case", range: { start: span[0], end: span[1] },
-          alternatives: fix.replacements, context: { start: m.index, end: span[1] }, ...(fix.choice ? { requiresChoice: true as const } : {}) })
+          finding("germanPrepositionCase", "review_msg_german_preposition_case", span[0], span[1], fix.replacements, {
+            context: { start: m.index, end: span[1] },
+            ...(fix.choice ? { requiresChoice: true as const } : {}),
+          })
     frames:
       # The case a preposition governs, read from the article after it: "mit eine Freundin"
       # (dative: einer), "wegen dem Regen" (genitive: des Regens), "für deiner Mutter"
@@ -4943,8 +4952,10 @@ rules:
         args: "m: RegExpExecArray, span: [number, number], fixes: string[]"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: span[0], end: span[1] },
-          alternatives: fixes, context: { start: m.index, end: span[1] }, ...(fixes.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", span[0], span[1], fixes, {
+            context: { start: m.index, end: span[1] },
+            ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # "Sie trinken lieber rot Wein", "kauft alt Gold": no article, a word that is no adverb.
       # "schwarz sehen", "rot sehen": a colour after the verb.
       adjectiveNoArticle:
@@ -4960,8 +4971,9 @@ rules:
           (ADJ_COMPOUND_ALONE.has(adj) || known) && !/^(?:seh|sieh|sah)/.test(low) && !noun.includes("-") &&
           /^\p{Ll}/u.test(m.groups!.det) && !ctx.dictionary.has(adj) && !ctx.dictionary.has(noun.toLowerCase())
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
-          alternatives: [glued], context: { start: m.index, end: span[1] } })
+          finding("germanAdjectiveForms", "review_msg_closed_compound", span[0], span[1], [glued], {
+            context: { start: m.index, end: span[1] },
+          })
       # An adjective with no ending after a determiner or a preposition. "aus weiß Gold": "weiß"
       # (knows) only where it joins the noun. "letzte", "erster": already inflected. "im
       # liebevoll Oma-Haus genannten Hof": an extended attribute before its noun; not a participle
@@ -4997,8 +5009,9 @@ rules:
           - "!(isPreposition && deTokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() === adj)"
         return: >-
           (listedJoin || (stemOnly && !adj.endsWith("e"))) && !noun.includes("-")
-          ? { ruleId: "germanAdjectiveForms", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] },
-          alternatives: [adj[0].toUpperCase() + compound.slice(1)], context: { start: m.index, end: span[1] } }
+          ? finding("germanAdjectiveForms", "review_msg_closed_compound", span[0], span[1], [adj[0].toUpperCase() + compound.slice(1)], {
+            context: { start: m.index, end: span[1] },
+          })
           : ADJ_ADVERBIAL.has(adj) || adjNominalized(noun) || !adjNounKnown(noun) || adj.endsWith("e") ? null
           : isPreposition ? adjectiveAfterPreposition(m, low, adj, noun, after, joinedNoun, glued, span)
           : adjectiveAfterArticle(ctx, m, det, low, adj, noun, joinedNoun, glued, span)
@@ -5116,8 +5129,7 @@ rules:
           - "!/[ns]$/.test(noun) || PREPOSITIONS.has(first) || ADJ_EMPTY_SUBJECT.has(first)"
           - "!ctx.dictionary.has(adj) && !namedExampleBefore(ctx.text, span[0])"
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: span[0], end: span[1] },
-          alternatives: [`${stem}e ${noun}`] })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", span[0], span[1], [`${stem}e ${noun}`])
       # The strong ending after an article that already shows the case: "im mentalem Lexikon"
       # (mentalen).
       - regex: "{{WG}}(?<det>[dD]em|[iI]m|[zZ]um|[vV]om|[bB]eim|[aA]m|[eE]inem|[mM]einem|[dD]einem|[sS]einem|[iI]hrem|[uU]nserem|[eE]urem|[dD]iesem|[jJ]edem|[kK]einem|[dD]es|[eE]ines|[mM]eines|[dD]eines|[sS]eines|[iI]hres|[uU]nseres|[eE]ures|[dD]ieses|[jJ]edes|[kK]eines){{S}}(?<target>\\p{Ll}+(?:em|es))(?={{S}}{{CAP_NOUN}}{{E}})"
@@ -5132,9 +5144,9 @@ rules:
           - germanAdjective(stem) || germanAdjective(`${stem}e`) || germanAdjective(stem.replace(/(.)([lr])$/, "$1e$2"))
           - "!ctx.dictionary.has(target)"
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.target[1] - 2, end: m.indices!.groups!.target[1] }, alternatives: ["en"],
-          context: { start: m.index, end: m.indices!.groups!.target[1] } })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", m.indices!.groups!.target[1] - 2, m.indices!.groups!.target[1], ["en"], {
+            context: { start: m.index, end: m.indices!.groups!.target[1] },
+          })
       # Letter salutations: "Lieber Herr Müller", "Liebe Frau Weber", "Sehr geehrte Damen und
       # Herren" take the title's gender ("Liebe Herr" → Lieber). At a line start, or after a
       # greeting.
@@ -5148,7 +5160,7 @@ rules:
           - wanted !== adj
           - '!/(?<!\p{L})(?:als|wie)(?!\p{L})/u.test(line)'
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending", range: { start: m.index, end: m.index + adj.length }, alternatives: [wanted], context: { start: m.index, end: m.index + adj.length + title.length + 1 } })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", m.index, m.index + adj.length, [wanted], { context: { start: m.index, end: m.index + adj.length + title.length + 1 } })
       # A predicative adjective takes no ending: "Er war schnelle." (schnell), "Die sind
       # schlauen."
       - regex: "{{WG}}(?:{{COPULA_FORMS}})(?:{{S}}(?:{{DEGREE_ADVERBS}}))*{{S}}(?<target>\\p{Ll}{3,}?(?:e|en))(?=[ \\t]*[.!?])"
@@ -5162,9 +5174,9 @@ rules:
           - germanNounReading(target) === null
           - lemma
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_predicative",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [lemma],
-          context: { start: m.index, end: m.indices!.groups!.target[1] } })
+          finding("germanAdjectiveForms", "review_msg_german_predicative", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [lemma], {
+            context: { start: m.index, end: m.indices!.groups!.target[1] },
+          })
       # "Er ist schnelle als ich" → schneller: an ending before "als" where the comparative
       # belongs.
       - regex: "{{WG}}(?<prior>\\p{L}+){{S}}(?<target>\\p{Ll}{3,}?e)(?={{S}}als{{E}})"
@@ -5180,9 +5192,9 @@ rules:
           # A vowel that may take an umlaut in the comparative ("größer") is left out.
           - '!(!lemma || /[aou](?![u])/.test(lemma.replace(/[ae]u/g, "")))'
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_predicative",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${lemma}er`],
-          context: { start: m.index, end: m.indices!.groups!.target[1] + 4 } })
+          finding("germanAdjectiveForms", "review_msg_german_predicative", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [`${lemma}er`], {
+            context: { start: m.index, end: m.indices!.groups!.target[1] + 4 },
+          })
       # "Beamter" declines like an adjective and has no feminine "die Beamte": "der Beamte",
       # "ein Beamter", "den Beamten", "die Beamten" (plural). The determiner sets the ending.
       - regex: "{{WG}}(?<det>[Dd](?:er|ie|en|em|es)|[Dd]ies(?:er|e|en|em|es)|[Jj]ede[rnms]|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Ee]uer)(?:en|em|es|er)?)(?:{{S}}\\p{Ll}+(?:e|en|er|es|em))?{{S}}(?<target>\\p{L}*[Bb]eamte[rn]?){{E}}"
@@ -5194,9 +5206,10 @@ rules:
           alternatives: endings.map((e) => stem + e)
         when: "!(endings.includes(target.slice(stem.length)) || ctx.dictionary.has(target.toLowerCase()))"
         return: >-
-          ({ ruleId: "germanAdjectiveForms", messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives,
-          context: { start: m.index, end: m.indices!.groups!.target[1] }, ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanAdjectiveForms", "review_msg_german_adjective_ending", m.indices!.groups!.target[0], m.indices!.groups!.target[1], alternatives, {
+            context: { start: m.index, end: m.indices!.groups!.target[1] },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
   - id: de.articleGender
     checks: [germanArticleGender]
     style: match
@@ -5570,8 +5583,9 @@ rules:
             : germanDeterminerFits(typed, first) !== false)
           - '!(modsText && !modsText.split(/[ \t ]+/).every((a) => ART_DEGREE_WORD.test(a) || artIsAdjective(a)))'
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_closed_compound", range: { start: m.indices!.groups!.noun[0], end },
-          alternatives: [first + second.toLowerCase()], context: { start: m.index, end } })
+          finding("germanArticleGender", "review_msg_closed_compound", m.indices!.groups!.noun[0], end, [first + second.toLowerCase()], {
+            context: { start: m.index, end },
+          })
       # An adjective used as a noun keeps the adjective's ending after its article: "der
       # Angestellte" (not "Angestellter"), "ein Abgeordneter" or "eine Abgeordnete" (not "ein
       # Abgeordnete"). Any gender fits a person, so the article's own readings decide. Only "-er"
@@ -5618,8 +5632,10 @@ rules:
           - '!(/^\p{Lu}/u.test(next) || ctx.dictionary.has(low))'
           - '!(next === "zu" || /^(?:\p{Ll}+nd|\p{Ll}*ge\p{Ll}+t)(?:e|en|er|es|em)$/u.test(next))'
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_adjective_ending", range: { start: m.indices!.groups!.det[0], end: nounEnd },
-          alternatives: fixes, context: { start: m.index, end: nounEnd }, ...(fixes.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanArticleGender", "review_msg_german_adjective_ending", m.indices!.groups!.det[0], nounEnd, fixes, {
+            context: { start: m.index, end: nounEnd },
+            ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # An article phrase whose noun has a gender. "am Bande", "im Walde": the old dative -e of a
       # masculine or neuter noun (a stem of two genders counts too). "zum Zeitung lesen": a verb
       # phrase made a noun, which the compound check joins. "die Naturschutz und Umweltthemen": the
@@ -5679,10 +5695,9 @@ rules:
             !/(?<!\p{L})(?:nach|und)[ \t]+$/u.test(ctx.text.slice(Math.max(0, m.index - 12), m.index - prior.length - 1))
         return: >-
           bareEin && inflected.every((a) => artEndingOf(a) === "er")
-          ? { ruleId: "germanArticleGender", messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.mods[0] + modsText.length - modsText.trimStart().length, end },
-          alternatives: [adjectives.map((a) => ART_DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, "es")).join(" ")],
-          context: { start: m.index, end: nounEnd } }
+          ? finding("germanArticleGender", "review_msg_german_adjective_ending", m.indices!.groups!.mods[0] + modsText.length - modsText.trimStart().length, end, [adjectives.map((a) => ART_DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, "es")).join(" ")], {
+            context: { start: m.index, end: nounEnd },
+          })
           : !wrongCase && typedReadings.some(([g, c]) => germanCaseFits(head, reading, g, c))
           ? articleObjectFix(ctx, m, parsed, typed, head, reading, adjectives, nounEnd, detStart, end)
           : articleGenderFix(ctx, m, parsed, typed, head, reading, adjectives, typedReadings, before, prior, nounEnd, detStart, end)
@@ -5698,12 +5713,16 @@ rules:
           recipient: "verbFix ? null : artIndirectObject(ctx, m.index, nounEnd, parsed, typed, head, reading, adjectives)"
           object: "verbFix || recipient ? null : artObjectCase(ctx, m.index, nounEnd, parsed, typed, reading, adjectives)"
         return: >-
-          verbFix ? { ruleId: "germanArticleGender", messageKey: "review_msg_german_verb_case", range: { start: detStart, end },
-          alternatives: verbFix, context: { start: m.index, end: nounEnd }, ...(verbFix.length > 1 ? { requiresChoice: true as const } : {}) }
-          : recipient ? { ruleId: "germanArticleGender", messageKey: "review_msg_german_verb_case", range: { start: detStart, end },
-          alternatives: [recipient], context: { start: m.index, end: nounEnd } }
-          : object ? { ruleId: "germanArticleGender", messageKey: "review_msg_german_object_case", range: { start: detStart, end },
-          alternatives: [object], context: { start: m.index, end: nounEnd } }
+          verbFix ? finding("germanArticleGender", "review_msg_german_verb_case", detStart, end, verbFix, {
+            context: { start: m.index, end: nounEnd },
+            ...(verbFix.length > 1 ? { requiresChoice: true as const } : {}),
+          })
+          : recipient ? finding("germanArticleGender", "review_msg_german_verb_case", detStart, end, [recipient], {
+            context: { start: m.index, end: nounEnd },
+          })
+          : object ? finding("germanArticleGender", "review_msg_german_object_case", detStart, end, [object], {
+            context: { start: m.index, end: nounEnd },
+          })
           : null
       # The article (and its adjectives) of the noun's gender, in the typed article's cases,
       # narrowed by the preposition or the sentence start. "der", "die", "diese" are also pronouns:
@@ -5749,8 +5768,10 @@ rules:
           - combos.every(([c, g]) => germanCaseFits(head, reading, g, c) && germanDeterminerFor(parsed, g, c, typed) !== null)
           - fixes.length > 0 && fixes.length <= 3
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_article_gender", range: { start: detStart, end },
-          alternatives: fixes, context: { start: m.index, end: nounEnd }, ...(fixes.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanArticleGender", "review_msg_german_article_gender", detStart, end, fixes, {
+            context: { start: m.index, end: nounEnd },
+            ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # The ending the determiner fixes: "der" → "er", "dem" → "em"; for "ein", "des" the noun's
       # gender decides ("ein Haus als solches", "kein Mensch als solcher").
       artSolchEnding:
@@ -5841,9 +5862,10 @@ rules:
           - '!(/^\p{Lu}/u.test(next) && !BOUNDARY.test(next))'
           - allowed.length > 0 && !allowed.includes(typedEnding)
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_adjective_ending",
-          range: { start: m.indices!.groups!.adj[0], end: m.indices!.groups!.adj[1] }, alternatives: allowed.map((e) => stem + e),
-          context: { start: m.index, end: m.indices!.groups!.noun[1] }, ...(allowed.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanArticleGender", "review_msg_german_adjective_ending", m.indices!.groups!.adj[0], m.indices!.groups!.adj[1], allowed.map((e) => stem + e), {
+            context: { start: m.index, end: m.indices!.groups!.noun[1] },
+            ...(allowed.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # "das Haus als solches", "dem Menschen als solchem": "als solch-" after a noun takes the
       # strong ending of the noun's case, gender and number, which its determiner shows.
       - regex: "{{WG}}(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:{{S}}\\p{Ll}{2,30}(?:e|en|er|es|em))?{{S}}(?<noun>\\p{Lu}\\p{Ll}{2,}){{S}}als{{S}}(?<target>solch(?:e|er|es|em|en)){{E}}"
@@ -5863,8 +5885,9 @@ rules:
           - '!(/^\p{Lu}/u.test(next) || ctx.dictionary.has(target.toLowerCase()))'
           - "!(!ending || target === `solch${ending}`)"
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_als_solch", range: { start: span[0], end: span[1] },
-          alternatives: [`solch${ending}`], context: { start: m.index, end: span[1] } })
+          finding("germanArticleGender", "review_msg_german_als_solch", span[0], span[1], [`solch${ending}`], {
+            context: { start: m.index, end: span[1] },
+          })
       # Verbs whose object is a genitive: "es bedarf eines Beweises", "wir gedenken der Opfer",
       # and reflexive ones: "sich der Stimme enthalten", "sich eines Erfolgs rühmen".
       - regex: "{{WG}}(?:(?:{{GENITIVE_VERBS}})(?:{{S}}es)?|(?:{{GENITIVE_REFLEXIVES}}){{S}}(?:sich|mich|dich|uns|euch)){{S}}(?<target>{{DATIVE_DET}}){{S}}(?<rest>(?:\\p{Ll}+{{S}}){0,2}\\p{Lu}\\p{Ll}+){{E}}|{{WG}}(?:sich|mich|dich|uns|euch){{S}}(?<t2>{{DATIVE_DET}}){{S}}(?<rest2>(?:\\p{Ll}+{{S}}){0,2}\\p{Lu}\\p{Ll}+)(?={{S}}(?:{{GENITIVE_PARTICIPLES}}){{E}})"
@@ -5890,8 +5913,9 @@ rules:
             !/^[^.!?;,\n]{0,60}(?<!\p{L})zu[ \t]+\p{Ll}|^[^.!?;,\n]{0,60}\p{Ll}zu\p{Ll}{3,}en(?!\p{L})/u.test(ctx.text.slice(end, end + 80))
           - "!(!fixed || ctx.dictionary.has(typedDet.toLowerCase()))"
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_genitive_verb", range: { start: span[0], end: genitive ? end : span[1] },
-          alternatives: [genitive ? `${article}${between}${genitive}` : article], context: { start: m.index, end } })
+          finding("germanArticleGender", "review_msg_german_genitive_verb", span[0], genitive ? end : span[1], [genitive ? `${article}${between}${genitive}` : article], {
+            context: { start: m.index, end },
+          })
       # "Wir machen uns auf dem Weg": setting out takes the accusative ("auf den Weg"); not "Ich
       # habe mich auf dem Weg verlaufen" or "Wir machten uns auf dem Heimweg Gedanken", where
       # the way is where it happens.
@@ -5903,8 +5927,9 @@ rules:
           span: m.indices!.groups!.target
         when: '!(!after && !/(?<!\p{L})mach(?:e|st|t|en|te|test|ten|tet)?(?!\p{L})/iu.test(clause))'
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_preposition_case", range: { start: span[0], end: span[1] },
-          alternatives: ["den"], context: { start: m.index, end: m.index + m[0].length } })
+          finding("germanArticleGender", "review_msg_german_preposition_case", span[0], span[1], ["den"], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # "das Auto, der da steht" → das: a relative pronoun right after its noun and a comma, as
       # the subject or object of its clause, takes the noun's gender. Only a pronoun that no
       # case of the noun's gender spells is flagged ("die Frau, der ich half" is a dative).
@@ -5942,8 +5967,9 @@ rules:
           - '!(verb && !BOUNDARY.test(after[1] ?? ""))'
           - "!ctx.dictionary.has(noun.toLowerCase())"
         return: >-
-          ({ ruleId: "germanArticleGender", messageKey: "review_msg_german_relative_pronoun", range: { start: span[0], end: span[1] },
-          alternatives: [ART_RELATIVE_FOR[reading.gender]], context: { start: m.index, end: span[1] + next.length + 1 } })
+          finding("germanArticleGender", "review_msg_german_relative_pronoun", span[0], span[1], [ART_RELATIVE_FOR[reading.gender]], {
+            context: { start: m.index, end: span[1] + next.length + 1 },
+          })
   - id: de.suspendedHyphen
     checks: [germanSuspendedHyphen]
     style: match
@@ -6071,17 +6097,17 @@ rules:
           - '!(capital && !sure && !linking && germanNounReading(low) === "noun")'
           - "sure || suspendedJoins(capital ? target : low, second, capital)"
         return: >-
-          ({ ruleId: "germanSuspendedHyphen", messageKey: "review_msg_german_suspended_hyphen",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${target}-`],
-          context: { start: m.index, end: m.index + m[0].length } })
+          finding("germanSuspendedHyphen", "review_msg_german_suspended_hyphen", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [`${target}-`], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # "hin und her gerissen": torn between two choices, the participle of "hin- und
       # herreißen".
       - regex: "{{WG}}(?<target>(?<hin>[Hh]in){{S}}und{{S}}her{{S}}gerissen){{E}}"
         flags: dgu
         return: >-
-          ({ ruleId: "germanSuspendedHyphen", messageKey: "review_msg_german_suspended_hyphen",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${hin}- und hergerissen`],
-          context: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] } })
+          finding("germanSuspendedHyphen", "review_msg_german_suspended_hyphen", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [`${hin}- und hergerissen`], {
+            context: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+          })
   - id: de.abbreviations
     checks: [germanAbbreviations, germanAbbreviationSpacing]
     style: match
@@ -6183,8 +6209,9 @@ rules:
         args: "start: number, end: number, replacement: string"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanQuotes", messageKey: "review_msg_german_quotes", range: { start, end }, alternatives: [replacement],
-          context: { start: Math.max(0, start - 40), end: end + 40 } })
+          finding("germanQuotes", "review_msg_german_quotes", start, end, [replacement], {
+            context: { start: Math.max(0, start - 40), end: end + 40 },
+          })
       # The marks that change the count of open „ for the next marks of a paragraph.
       QUOTE_MARK: /“|”|,,|''|"/
       # The count of open „ after `chars`; a line break closes them all.
@@ -6322,8 +6349,9 @@ rules:
           - "!between.includes(same)"
           - '!(ctx.text[open] === "(" && /[:;=-]/.test(ctx.text[open - 1] ?? ""))'
         return: >-
-          ({ ruleId: "germanQuotes", messageKey: "review_msg_german_inner_spacing", range: { start, end }, alternatives: [""],
-          context: { start: Math.max(0, start - 20), end: end + 20 } })
+          finding("germanQuotes", "review_msg_german_inner_spacing", start, end, [""], {
+            context: { start: Math.max(0, start - 20), end: end + 20 },
+          })
   - id: de.straightQuotes
     checks: [germanStraightQuotes]
     style: match
@@ -6444,7 +6472,6 @@ rules:
           weil,
           dass,
           wenn,
-          außer,
           nämlich,
           speziell,
           vornehmlich,
@@ -6459,7 +6486,6 @@ rules:
           kurz,
           lang,
           lange,
-          gleich,
           bald,
           unmittelbar,
           direkt,
@@ -7038,8 +7064,9 @@ rules:
         args: "ctx: DetectContext, wordStart: number, word: string, at: number"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start: wordStart, end: wordStart + word.length },
-          alternatives: [`${word},`], context: { start: Math.max(0, wordStart - 40), end: Math.min(ctx.text.length, at + 40) } })
+          finding("germanCommas", "review_msg_german_comma", wordStart, wordStart + word.length, [`${word},`], {
+            context: { start: Math.max(0, wordStart - 40), end: Math.min(ctx.text.length, at + 40) },
+          })
       # A finite verb form: listed, or a regular third person ("lernt") of a known verb; not a
       # participle ("übereilt", "garantiert").
       commaFiniteWord:
@@ -7512,9 +7539,9 @@ rules:
         args: "ctx: DetectContext, start: number, end: number, alternative: string"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start, end },
-          alternatives: [alternative],
-          context: { start: Math.max(0, start - 40), end: Math.min(ctx.text.length, end + 40) } })
+          finding("germanCommas", "review_msg_german_comma", start, end, [alternative], {
+            context: { start: Math.max(0, start - 40), end: Math.min(ctx.text.length, end + 40) },
+          })
     frames:
       # A salutation alone on its line: "Sehr geehrte Frau Weber", "Liebe Anna!" take a comma.
       - regex: "(?<=(?:^|\\n)[ \\t]{0,8})(?:Sehr[ \\t]{1,4}geehrte[r]?|Liebe[r]?)[ \\t]{1,4}(?:Herr|Frau|Damen[ \\t]{1,4}und[ \\t]{1,4}Herren|Kolleginnen[ \\t]{1,4}und[ \\t]{1,4}Kollegen|\\p{Lu}\\p{Ll}+)(?:[ \\t]{1,4}(?:Dr\\.|Prof\\.|\\p{Lu}[\\p{Ll}-]+)){0,3}!?(?=[ \\t]*(?:\\n|$))"
@@ -7528,7 +7555,7 @@ rules:
         when: >-
           !(named && /^(?:Grüße|Gruß|Grüßen|Wünsche|Wünschen)$/.test(named))
         return: >-
-          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start, end }, alternatives: [`${word.replace(/!$/, "")},`], context: { start: m.index, end } })
+          finding("germanCommas", "review_msg_german_comma", start, end, [`${word.replace(/!$/, "")},`], { context: { start: m.index, end } })
       # Paired words ("teils lustig, teils traurig", "halb …, halb …", "einerseits …,
       # andererseits", "je …, desto", "So weit, so gut"): the word that takes the comma after
       # it. The gate first checks the paired word after it, so the long lookbehinds run only
@@ -7832,8 +7859,10 @@ rules:
         let:
           cased: fits.map((f) => deLikeTyped(typed, f))
         return: >-
-          ({ ruleId: "germanVerbAgreement", messageKey: "review_msg_german_verb_agreement", range: { start, end: start + typed.length },
-          alternatives: cased, context: { start: context[0], end: context[1] }, ...(cased.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanVerbAgreement", "review_msg_german_verb_agreement", start, start + typed.length, cased, {
+            context: { start: context[0], end: context[1] },
+            ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # Whether the token at i opens the sentence (no token, a stop or a quote mark).
       verbOpensAt:
         args: "before: string[], i: number"
@@ -7971,8 +8000,9 @@ rules:
           - "!ctx.dictionary.has(verb) && !deEnglishLine(ctx.text, m.index)"
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanVerbAgreement", messageKey: "review_msg_german_modal_infinitive", range: { start: m.index, end: m.index + verb.length },
-          alternatives: [infinitive], context: { start: Math.max(0, m.index - 40), end: m.index + verb.length } })
+          finding("germanVerbAgreement", "review_msg_german_modal_infinitive", m.index, m.index + verb.length, [infinitive], {
+            context: { start: Math.max(0, m.index - 40), end: m.index + verb.length },
+          })
       # A subordinate clause with a pronoun subject and an auxiliary at its end: "weil du
       # gelogen hat" (hast), "als wir gekündigt wurde" (wurden). Only lowercase words that are
       # no subject pronoun or finite verb between them, so no other clause or subject
@@ -8228,8 +8258,9 @@ rules:
             exclaimed ? exclaimedQuestion(sentence, words) : QUESTION_ASKS.test(sentence.trimStart()) || tagged ||
             (!/[,;:"„“”«»()]/.test(sentence) && words.length >= 2 && !/(?:^|\s)\p{L}$/u.test(sentence) && isQuestion(words))
         return: >-
-          ({ ruleId: "germanQuestionMarks", messageKey: "review_msg_question_mark", range: { start: at, end: at + 1 },
-          alternatives: ["?"], context: { start, end: at + 1 } })
+          finding("germanQuestionMarks", "review_msg_question_mark", at, at + 1, ["?"], {
+            context: { start, end: at + 1 },
+          })
       # Quoted speech that a verb of asking reports, closed without a question mark: '"Wohin
       # gehst du", fragte sie.' → '"Wohin gehst du?"'.
       - regex: "(?<=\\p{L})\\.?(?<quote>[\"\\u201C\\u201D\\u00AB\\u00BB])(?=,?[ \\t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \\t]+\\p{Ll}+)?[ \\t]+wissen)(?!\\p{L}))"
@@ -8241,8 +8272,9 @@ rules:
           - '/["„»«“]/.test(line) && !deEnglishLine(ctx.text, m.index)'
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanQuestionMarks", messageKey: "review_msg_question_mark", range: { start: m.index, end: m.index + m[0].length },
-          alternatives: [`?${quote}`], context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 } })
+          finding("germanQuestionMarks", "review_msg_question_mark", m.index, m.index + m[0].length, [`?${quote}`], {
+            context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 },
+          })
   - id: de.numbers
     checks: [germanNumbers]
     style: match
@@ -8278,8 +8310,9 @@ rules:
         args: "start: number, end: number, alternatives: string[]"
         type: RawFinding
         return: >-
-          ({ ruleId: "germanNumbers", messageKey: "review_msg_german_numbers", range: { start, end }, alternatives,
-          context: { start: Math.max(0, start - 30), end: end + 30 } })
+          finding("germanNumbers", "review_msg_german_numbers", start, end, alternatives, {
+            context: { start: Math.max(0, start - 30), end: end + 30 },
+          })
       # The finding for the group `name` of m, unless it is already right or the writer's word.
       numberFix:
         args: "ctx: DetectContext, m: RegExpExecArray, name: string, alternatives: string[] | null"
@@ -8401,9 +8434,9 @@ rules:
           - "(a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)) > Number(a)"
           - "!(RANGE_CODE.test(before) || RANGE_SCORE.test(before))"
         return: >-
-          ({ ruleId: "emdashShortcut", messageKey: "review_msg_range_dash",
-          range: { start: m.index + a.length, end: m.index + a.length + dash.length }, alternatives: ["–"],
-          context: { start: m.index, end: m.index + m[0].length } })
+          finding("emdashShortcut", "review_msg_range_dash", m.index + a.length, m.index + a.length + dash.length, ["–"], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
   - id: de.typography
     checks: [germanTypography]
     style: match
@@ -8465,8 +8498,10 @@ rules:
           - '!/(?<![\p{L}\p{N}.,])0$/u.test(ctx.text.slice(Math.max(0, m.index - 2), m.index))'
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanTypography", messageKey: "review_msg_typographic_symbol", range: { start: m.index, end: m.index + 1 },
-          alternatives: ["×", "·"], requiresChoice: true, context: { start: Math.max(0, m.index - 20), end: m.index + 20 } })
+          finding("germanTypography", "review_msg_typographic_symbol", m.index, m.index + 1, ["×", "·"], {
+            requiresChoice: true,
+            context: { start: Math.max(0, m.index - 20), end: m.index + 20 },
+          })
       # A chemical formula takes subscript counts: "CO2", "H2O", "CO²" → "CO₂", "H₂O" (opt-in).
       - regex: "(?<![\\p{L}\\p{N}_])(?:[A-Z][a-z]?[0-9\\u00B2\\u00B3]*){1,6}(?![\\p{L}\\p{N}_])"
         scan: owned
@@ -8480,10 +8515,9 @@ rules:
           - 'symbols.length === 1 ? CHEMICAL_GASES.has(formula) : symbols.some((s) => s === "H" || s === "O")'
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanTypography", messageKey: "review_msg_typographic_symbol",
-          range: { start: m.index, end: m.index + formula.length },
-          alternatives: [formula.replace(/[0-9²³]/g, (d) => SUBSCRIPTS[d] ?? String.fromCharCode(0x2080 + Number(d)))],
-          context: { start: Math.max(0, m.index - 20), end: m.index + formula.length + 20 } })
+          finding("germanTypography", "review_msg_typographic_symbol", m.index, m.index + formula.length, [formula.replace(/[0-9²³]/g, (d) => SUBSCRIPTS[d] ?? String.fromCharCode(0x2080 + Number(d)))], {
+            context: { start: Math.max(0, m.index - 20), end: m.index + formula.length + 20 },
+          })
       # A long number groups its thousands with a point: "250000 Besucher" → "250.000"
       # (opt-in).
       - regex: "(?<![\\p{L}\\p{N}.,:/#+_-])[1-9]\\d{4,}(?![\\p{L}\\p{N}.,:/_-])"
@@ -8500,8 +8534,7 @@ rules:
             !(digits.length === 5 && !/^[ \t]*(?:[.,;!?)]|[ \t]\p{Ll}|[ \t]?(?:[€$%£]|[kMGT]?B\b|km|kg|Euro|Dollar|Franken))/u.test(after))
           - "!namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanTypography", messageKey: "review_msg_german_thousands", range: { start: m.index, end },
-          alternatives: [digits.replace(/\B(?=(?:\d{3})+$)/g, ".")] })
+          finding("germanTypography", "review_msg_german_thousands", m.index, end, [digits.replace(/\B(?=(?:\d{3})+$)/g, ".")])
   - id: de.decadeCentury
     checks: [stylePhrasing]
     style: match
@@ -8512,9 +8545,9 @@ rules:
       - regex: "{{WG}}(?:(?<target>(?<decade>(?:1[0-9]|20)\\d0er(?:-|{{S}})Jahren?){{S}}des{{S}}(?:vorigen|letzten|vergangenen|\\d{1,2}\\.|neunzehnten|zwanzigsten|einundzwanzigsten){{S}}Jahrhunderts)){{E}}"
         flags: dgu
         return: >-
-          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing",
-          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
-          alternatives: [decade, target.slice(2)], requiresChoice: true })
+          finding("stylePhrasing", "review_msg_style_phrasing", m.indices!.groups!.target[0], m.indices!.groups!.target[1], [decade, target.slice(2)], {
+            requiresChoice: true,
+          })
   - id: de.colloquial
     checks: [germanColloquial]
     style: match
@@ -8632,17 +8665,19 @@ rules:
           - "!ctx.dictionary.has(typed.toLowerCase()) && !namedExampleBefore(ctx.text, start)"
           - "!deEnglishLine(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start, end }, alternatives,
-          context: { start: Math.max(0, start - 40), end: end + 20 } })
+          finding("germanColloquial", "review_msg_german_colloquial", start, end, alternatives, {
+            context: { start: Math.max(0, start - 40), end: end + 20 },
+          })
       # A spoken measure at m, read from 64 characters before the chunk; null outside it.
       measure:
         args: "m: RegExpExecArray, ctx: DetectContext, alternatives: string[]"
         type: RawFinding | null
         when: "!(m.index < ctx.from || namedExampleBefore(ctx.text, m.index))"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + m[0].length },
-          alternatives, context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanColloquial", "review_msg_german_colloquial", m.index, m.index + m[0].length, alternatives, {
+            context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
       # A verb form: an infinitive, a 1st singular or past form, a present form in -t or -st.
       herVerbForm:
         args: "word: string"
@@ -8704,9 +8739,9 @@ rules:
           # The clause opens with it: a question or an indirect question after a comma.
           - '!(m.index > 0 && !/(?:^|[,;:\n„"]\s*|[.!?]\s+)$/.test(before))'
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + m[0].length },
-          alternatives: [deLikeTyped(prep, /^[aeiouü]/.test(low) ? `wor${low}` : `wo${low}`)],
-          context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 } })
+          finding("germanColloquial", "review_msg_german_colloquial", m.index, m.index + m[0].length, [deLikeTyped(prep, /^[aeiouü]/.test(low) ? `wor${low}` : `wo${low}`)], {
+            context: { start: Math.max(0, m.index - 40), end: m.index + m[0].length + 20 },
+          })
       # "Sinn machen" copies the English phrase; German says "Sinn ergeben". The phrase table
       # holds the adjacent forms; this frame takes the verb a few words before "Sinn" ("Das
       # macht für mich wenig Sinn", "Macht es vielleicht Sinn") and "Sinn zu machen". The scan
@@ -8727,8 +8762,9 @@ rules:
           - '!/^[ \t]+(?:des|der|eines|einer)(?![\p{L}])|(?<![\p{L}])aus[ \t]*$/u.test(rest)'
           - "!namedExampleBefore(ctx.text, start) && !deEnglishLine(ctx.text, start)"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start, end: start + typed.length },
-          alternatives: [deLikeTyped(typed, ERGEBEN[typed.toLowerCase()])], context: { start: m.index, end: m.index + m[0].length } })
+          finding("germanColloquial", "review_msg_german_colloquial", start, start + typed.length, [deLikeTyped(typed, ERGEBEN[typed.toLowerCase()])], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # Clipped words of speech and their written forms ("Mathe", "Infos", "Kuli").
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#.-])(?:Mathe|Info|Infos|Uni|Unis|Abi|Kuli|Kulis|Limo|Deo|Klo|Reli)(?![\\p{L}\\p{M}\\p{N}_@/#-])"
         scan: owned
@@ -8744,8 +8780,9 @@ rules:
           - "!ctx.dictionary.has(word.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
           - "!deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + word.length },
-          alternatives: [...CLIPPED[word]], context: { start: Math.max(0, m.index - 40), end: m.index + word.length + 20 } })
+          finding("germanColloquial", "review_msg_german_colloquial", m.index, m.index + word.length, [...CLIPPED[word]], {
+            context: { start: Math.max(0, m.index - 40), end: m.index + word.length + 20 },
+          })
       # Spoken names of a measured quantity and of arithmetic, and their written forms: "die
       # Voltzahl" (elektrische Spannung), "5 Kilo" (Kilogramm), "plus rechnen" (addieren),
       # "schneller als 50 Kilometer" (Kilometer pro Stunde: a speed, not a distance). These
@@ -8812,9 +8849,10 @@ rules:
           - "!ctx.dictionary.has(low) && !namedExampleBefore(ctx.text, m.index)"
           - "!deEnglishLine(ctx.text, m.index)"
         return: >-
-          ({ ruleId: "germanColloquial", messageKey: "review_msg_german_colloquial", range: { start: m.index, end: m.index + word.length },
-          alternatives, context: { start: Math.max(0, m.index - 40), end: m.index + word.length },
-          ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })
+          finding("germanColloquial", "review_msg_german_colloquial", m.index, m.index + word.length, alternatives, {
+            context: { start: Math.max(0, m.index - 40), end: m.index + word.length },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
   - id: de.recommended
     checks: [germanRecommendedSpelling]
     style: match
@@ -8860,9 +8898,9 @@ rules:
           - replacement !== typed && !ctx.dictionary.has(typed.toLowerCase())
           - "!namedExampleBefore(ctx.text, span[0])"
         return: >-
-          ({ ruleId: "germanRecommendedSpelling", messageKey: "review_msg_german_recommended_spelling",
-          range: { start: span[0], end: span[1] }, alternatives: [replacement],
-          context: { start: Math.max(0, span[0] - 30), end: span[1] + 30 } })
+          finding("germanRecommendedSpelling", "review_msg_german_recommended_spelling", span[0], span[1], [replacement], {
+            context: { start: Math.max(0, span[0] - 30), end: span[1] + 30 },
+          })
     frames:
       # "Geographie", "Paragraph", "Photographin", "Mikrophon", "Phantasie", "Delphin": a Greek
       # ph German now writes f. "Graph" and "Graphen" (graphene) alone, "Phonetik",
@@ -9003,8 +9041,9 @@ rules:
           typed: ctx.text.slice(start, end)
         when: "!ctx.dictionary.has(typed.toLowerCase()) && !namedExampleBefore(ctx.text, start)"
         return: >-
-          ({ ruleId: "stylePhrasing", messageKey: "review_msg_style_phrasing", range: { start, end },
-          alternatives: [fix], context: { start, end } })
+          finding("stylePhrasing", "review_msg_style_phrasing", start, end, [fix], {
+            context: { start, end },
+          })
     frames:
       # An adjective that the noun already says ("eine runde Kugel", "die toten Leichen", "eine
       # weibliche Ärztin": a feminine person noun says it already).
@@ -9087,7 +9126,7 @@ rules:
           - "!ctx.dictionary.has(target.toLowerCase()) && !deEnglishLine(ctx.text, span[0])"
           - "!namedExampleBefore(ctx.text, span[0])"
         return: >-
-          ({ ruleId: "germanCompounds", messageKey: "review_msg_closed_compound", range: { start: span[0], end: span[1] }, alternatives: [`${verb}-${particle.toLowerCase()}${plural ?? ""}`], context: { start: span[0], end: span[1] } })
+          finding("germanCompounds", "review_msg_closed_compound", span[0], span[1], [`${verb}-${particle.toLowerCase()}${plural ?? ""}`], { context: { start: span[0], end: span[1] } })
   - id: de.joinedVerbs
     checks: [germanJoinedVerbs]
     style: match

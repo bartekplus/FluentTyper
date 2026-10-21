@@ -4546,6 +4546,872 @@ defs:
     when: "!!range"
     return: >-
       ({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })
+  # The code of the dateTense rules.
+  # A clause break before or after a date phrase.
+  DATE_BREAK: /[!?;()\n"“”«»„،؛؟]|[.:](?=\s|$)|,/gu
+  DATE_WORD: /[\p{L}\p{M}]+(?:-[\p{L}\p{M}]+)*|\p{N}+(?:[.:]\p{N}+)*/gu
+  # The words of the clause around a date phrase at [start, end): the words before it,
+  # nearest last (at most 6), the words after it (at most 10), whether these reach the end
+  # of the clause, and the word that opens the clause, when a boundary word does. "Am
+  # 7.8.2031, …": a comma after a date that opens the sentence ends no clause.
+  clauseAround:
+    args: "text: string, start: number, end: number, boundary: ReadonlySet<string>"
+    let:
+      head: text.slice(Math.max(0, start - 160), start)
+      lastBreak: "[...head.matchAll(DATE_BREAK)].at(-1)"
+      clauseHead: "head.slice(lastBreak ? lastBreak.index + lastBreak[0].length : 0)"
+      headWords: clauseHead.match(DATE_WORD) ?? []
+      opens: headWords.map((w) => boundary.has(w.toLowerCase())).lastIndexOf(true)
+      before: headWords.slice(opens + 1).slice(-6)
+      fullTail: text.slice(end, end + 200)
+      tail: 'before.length ? fullTail : fullTail.replace(/^[ \t ]*,/, "")'
+      stop: tail.search(DATE_BREAK)
+      afterWords: "(stop >= 0 ? tail.slice(0, stop) : tail).match(DATE_WORD) ?? []"
+      ends: afterWords.findIndex((w) => boundary.has(w.toLowerCase()))
+      after: "ends >= 0 ? afterWords.slice(0, ends) : afterWords"
+      closed: "ends >= 0 || stop >= 0 || end + 200 >= text.length"
+    return: >-
+      ({
+        before,
+        after: after.length > 10 ? after.slice(0, 10) : after,
+        closed: after.length > 10 ? false : closed,
+        opener: opens >= 0 ? headWords[opens].toLowerCase() : undefined,
+      })
+  # "future", "past" (of the last three years) or null for every reading of the date. A
+  # slashed date can also be month first: "10/27/2031".
+  dateSideOf:
+    args: "year: number, month: number, day: number, swap: boolean"
+    type: '"future" | "past" | null'
+    let:
+      readings: "swap ? [[year, month, day], [year, day, month]] : [[year, month, day]]"
+      valid: readings.filter((r) => dayCount(r[0], r[1], r[2]) !== null)
+    return: >-
+      !valid.length
+        ? null
+        : valid.every((r) => dateSide(r[0], r[1], r[2]) === "future")
+          ? "future"
+          : valid.every((r) => recentPast(r[0], r[1], r[2]))
+            ? "past"
+            : null
+  # The warning of a date frame: the tense of the clause and the side of the date disagree.
+  dateTenseWarning:
+    args: 'm: RegExpExecArray, side: "future" | "past"'
+    type: RawFinding
+    let:
+      span: m.indices!.groups!.date
+    return: >-
+      finding("dateTenseConsistency", side === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future", span[0], span[1], [], {
+        warningOnly: true as const,
+      })
+  # A date frame of one language: groups `date`, `day`, `year`, and `month` (digits) or
+  # `name`. `side` is the side of the date; `clause` and `tense` are read only when it has
+  # one. Plans, reports and conditions are other clauses.
+  # The finding of a date frame: `months` gives the number of a month name. Arabic dates
+  # may have Arabic-Indic digits.
+  dateTenseAt:
+    args: >-
+      m: RegExpExecArray, ctx: DetectContext, months: Readonly<Record<string, number>>,
+      conditional: ReadonlySet<string>, boundary: ReadonlySet<string>, lang: string
+    type: RawFinding | null
+    let:
+      g: m.groups!
+      side: >-
+        dateSideOf(digitValue(g.year), g.name ? (months[g.name.toLowerCase()] ?? 0) : digitValue(g.month),
+        digitValue(g.day), !g.name && g.sep === "/")
+    return: dateTenseFinding(m, ctx, side, conditional, boundary, lang)
+  dateTenseFinding:
+    args: >-
+      m: RegExpExecArray, ctx: DetectContext, side: "future" | "past" | null,
+      conditional: ReadonlySet<string>, boundary: ReadonlySet<string>, lang: string
+    type: RawFinding | null
+    let:
+      clause: clauseAround(ctx.text, m.index, m.index + m[0].length, boundary)
+      verdict: >-
+        lang === "de"
+          ? germanTense(clause)
+          : lang === "fr"
+            ? frenchTense(clause)
+            : lang === "es"
+              ? spanishTense(clause)
+              : lang === "pt"
+                ? portugueseTense(clause)
+                : lang === "pl"
+                  ? polishTense(clause)
+                  : arabicTense(clause)
+    when:
+      - "!!side"
+      - "!(clause.opener && conditional.has(clause.opener))"
+      - "!!verdict && verdict !== side"
+    return: dateTenseWarning(m, side)
+  lowerAll:
+    args: "list: readonly string[]"
+    return: list.map((word) => word.toLowerCase())
+  # German: "wird … reisen"; "wird … gewesen sein" is a guess about the past. "Ich war am …
+  # schon ausgebucht": a planning verb names the date of the plan. A simple past next to its
+  # pronoun: "ich war am …", "am … schwamm ich".
+  germanTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      all: lowerAll([...clause.before, ...clause.after])
+      last: "clause.closed ? clause.after.at(-1) : undefined"
+      prev: clause.after.at(-2)
+      b: lowerAll(clause.before)
+      a: lowerAll(clause.after).slice(0, 6)
+    return: >-
+      all.some((w) => w.startsWith("würd"))
+        ? null
+        : all.some((w) => DE_WERDEN.has(w))
+          ? !last ||
+            !/^\p{Ll}+(?:en|ern|eln)$/u.test(last) ||
+            DE_PARTICIPLE.test(last) ||
+            (/^(?:sein|haben)$/.test(last) && !!prev && DE_PARTICIPLE.test(prev))
+            ? null
+            : "future"
+          : last && DE_ARRANGING.test(last)
+            ? null
+            : last &&
+                DE_PARTICIPLE.test(last) &&
+                !DE_NOT_PARTICIPLE.has(last) &&
+                (all.some((w) => DE_HABEN.has(w)) ||
+                  (all.some((w) => DE_SEIN.has(w)) && DE_SEIN_PARTICIPLE.test(last)))
+              ? "past"
+              : (b.length >= 2 && DE_PRONOUNS.has(b.at(-2)!) && DE_PAST.has(b.at(-1)!)) ||
+                  a.some((w, i) => DE_PAST.has(w) && i + 1 < a.length && DE_PRONOUNS.has(a[i + 1]))
+                ? "past"
+                : null
+  # French: the past ("avons visité", "sommes partis", "avaient déjà signé"; "il y a" is
+  # "there is"), or the future ("nous viendrons", "il ne viendra pas", "nous allons signer";
+  # "aura signé" guesses about the past). A planning verb names the date of the plan.
+  frenchTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      verdict: wordScan(lowerAll(clause.before), 0, "fr") ?? wordScan(lowerAll(clause.after), 0, "fr")
+    return: 'verdict === "past" || verdict === "future" ? verdict : null'
+  frenchStep:
+    args: "list: readonly string[], i: number"
+    type: '"past" | "future" | "none" | undefined'
+    let:
+      w: list[i]
+      auxiliary: (FR_AVOIR.has(w) && list[i - 1] !== "y") || FR_ETRE.has(w)
+      part: "auxiliary ? list.find((x, k) => k > i && !FR_ADVERBS.has(x)) : undefined"
+      partOk: "!!part && FR_PARTICIPLE.test(part) && !FR_NOT_PARTICIPLE.has(part)"
+    return: >-
+      auxiliary && !partOk
+        ? undefined
+        : auxiliary && FR_ARRANGING.test(part!)
+          ? "none"
+          : auxiliary && (FR_AVOIR.has(w) || FR_MOTION.has(part!.replace(/(?<=[éiu])(?:e|s|es)$/u, "")))
+            ? "past"
+            : FR_SUBJECTS.has(w)
+              ? frenchSubject(list, i)
+              : undefined
+  frenchSubject:
+    args: "list: readonly string[], i: number"
+    type: '"future" | "none" | undefined'
+    let:
+      stop: list.findIndex((x, k) => k > i && (k > i + 3 || !FR_OBJECTS.has(x)))
+      j: "stop < 0 ? list.length : stop"
+      verb: list[j]
+      next: list[j + 1]
+    return: >-
+      verb && FR_FUTURE.test(verb)
+        ? /^(?:aur|ser)/.test(verb) && next && FR_PARTICIPLE.test(next)
+          ? "none"
+          : "future"
+        : verb && FR_ALLER.has(verb) && FR_INFINITIVE.test(next ?? "")
+          ? "future"
+          : undefined
+  # Spanish: "íbamos a firmar", "queríamos firmar": a plan, not the past. A conditional
+  # ("visitaríamos") is no past.
+  spanishTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      verdict: >-
+        wordScan(lowerAll(clause.before), 0, "es") ?? wordScan(lowerAll(clause.after), 0, "es")
+    return: 'verdict === "past" || verdict === "future" ? verdict : null'
+  spanishStep:
+    args: "list: readonly string[], i: number"
+    type: '"past" | "future" | "none" | undefined'
+    let:
+      w: list[i]
+      next: list[i + 1] ?? ""
+      part: 'next === "ya" ? list[i + 2] : next'
+      past: >-
+        ES_PAST_WORDS.has(w) || (ES_PAST.test(w) && !ES_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w))
+    return: >-
+      (ES_FUTURE.test(w) && !/^(?:atrás|detrás)$/.test(w)) ||
+      (ES_IR.has(w) && next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
+        ? "future"
+        : ES_HABER.has(w)
+          ? part && ES_PARTICIPLE.test(part)
+            ? ES_ARRANGING.test(part)
+              ? "none"
+              : "past"
+            : undefined
+          : !past || ES_INFINITIVE.test(next) || (next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
+            ? undefined
+            : ES_ARRANGING.test(w)
+              ? "none"
+              : "past"
+  # Portuguese: "queríamos visitar", "íamos assinar": a plan; "estávamos a visitar" is the
+  # past.
+  portugueseTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      verdict: >-
+        wordScan(lowerAll(clause.before), 0, "pt") ?? wordScan(lowerAll(clause.after), 0, "pt")
+    return: 'verdict === "past" || verdict === "future" ? verdict : null'
+  portugueseStep:
+    args: "list: readonly string[], i: number"
+    type: '"past" | "future" | "none" | undefined'
+    let:
+      w: list[i]
+      next: list[i + 1] ?? ""
+      past: >-
+        PT_PAST_WORDS.has(w) || (PT_PAST.test(w) && !PT_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w))
+    return: >-
+      (PT_FUTURE.test(w) && w !== "atrás") || (PT_IR.has(w) && PT_INFINITIVE.test(next))
+        ? "future"
+        : PT_PLUPERFECT.has(w)
+          ? PT_PARTICIPLE.test(next)
+            ? PT_ARRANGING.test(next)
+              ? "none"
+              : "past"
+            : undefined
+          : !past || PT_INFINITIVE.test(next)
+            ? undefined
+            : PT_ARRANGING.test(w)
+              ? "none"
+              : "past"
+  # The verdict at the first word of `list` from `i` that decides one, by the steps of
+  # `lang` (fr, es or pt): "none" for no tense.
+  wordScan:
+    args: "list: readonly string[], i: number, lang: string"
+    type: '"past" | "future" | "none" | undefined'
+    let:
+      verdict: 'lang === "fr" ? frenchStep(list, i) : lang === "es" ? spanishStep(list, i) : portugueseStep(list, i)'
+    when: i < list.length
+    return: "verdict !== undefined ? verdict : wordScan(list, i + 1, lang)"
+    else: undefined
+  # Polish: "miało się odbyć", "chcieliśmy pojechać": a plan, not the past.
+  polishTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      list: lowerAll([...clause.before, ...clause.after])
+      past: >-
+        list.find(
+          (w, i) =>
+            (PL_PAST_PERSON.test(w) || (PL_PAST.test(w) && !PL_NOT_PAST.has(w))) &&
+            !PL_INFINITIVE.test((list[i + 1] === "się" ? list[i + 2] : list[i + 1]) ?? ""),
+        )
+    return: >-
+      list.some((w) => PL_FUTURE.has(w))
+        ? "future"
+        : past === undefined || PL_ARRANGING.test(past)
+          ? null
+          : "past"
+  # Arabic: "كان من المقرر": "was planned for", a plan.
+  arabicTense:
+    args: "clause: { before: string[]; after: string[]; closed: boolean }"
+    type: '"past" | "future" | null'
+    let:
+      list: "[...clause.before, ...clause.after]"
+    return: >-
+      list.some((w) => AR_FUTURE.has(w))
+        ? "future"
+        : list.some((w, i) => AR_PAST.has(w) && list[i + 1] !== "من")
+          ? "past"
+          : null
+  DE_PARTICIPLE: >-
+    /^(?:(?:ab|an|auf|aus|bei|ein|fest|fort|heim|her|hin|los|mit|nach|statt|teil|vor|weg|weiter|zu|zurück|zusammen|um|durch|über)?ge\p{Ll}{2,}(?:t|en)|(?:be|emp|ent|er|miss|ver|zer)\p{Ll}{2,}t|\p{Ll}{3,}iert)$/u
+  DE_SEIN_PARTICIPLE: >-
+    /(?:gangen|fahren|flogen|kommen|laufen|schwommen|gereist|wesen|blieben|storben|fallen|zogen|sprungen|wandert|rannt|stiegen|folgt|passiert|schehen|wachsen|worden|ritten|segelt|wacht|kehrt)$/u
+  DE_ARRANGING: >-
+    /(?:plant|bucht|reserviert|bestellt|vereinbart|schoben|verlegt|gesetzt|festgelegt|beworben|gemeldet|terminiert|kündigt|geladen|vorgesehen|bestätigt|gesagt|organisiert|getragen|notiert|gemerkt|gelegt|beantragt|gefragt|genehmigt|versprochen|geboten|gewünscht|geöffnet|geschlossen|fixiert|datiert|befristet|begrenzt)$/u
+  FR_PARTICIPLE: >-
+    /^\p{Ll}{2,}(?:é|ée|és|ées|i|ie|is|ies|it|ite|u|ue|us|ues|ert|erte|ait|aite|eint|ainte)$/u
+  FR_ARRANGING: >-
+    /^(?:prévu|planifié|fixé|programmé|réservé|commandé|reporté|décalé|déplacé|annoncé|confirmé|convenu|organisé|inscrit|demandé|proposé|promis|annulé|invité|noté|calé|repoussé|avancé|retenu|bloqué|posé|pris)(?:e|s|es)?$/u
+  FR_FUTURE: >-
+    /^(?:\p{Ll}+(?:er|ir|dr|ttr|aîtr)|ser|aur|fer|ir|pourr|verr|devr|saur|courr|mourr|enverr|recevr|vivr|suivr|écrir|lir|dir|boir|croir|plair)(?:ai|as|a|ons|ez|ont)$/u
+  FR_INFINITIVE: >-
+    /^\p{Ll}{2,}(?:er|ir|re|oir)$/u
+  ES_PARTICIPLE: >-
+    /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|hecho|dicho|puesto|escrito|abierto|vuelto|roto|muerto|cubierto|resuelto|devuelto|descubierto|impreso|satisfecho)$/u
+  ES_PAST: >-
+    /^\p{Ll}{3,}(?:é|ó|aste|iste|aron|ieron|yeron|asteis|isteis|aba|abas|ábamos|abais|aban|íamos|íais|ían)$/u
+  ES_ARRANGING: >-
+    /^(?:re)?(?:program|previst|prev|plane|reserv|fij|pospu|aplaz|convoc|anunci|confirm|acord|organiz|cancel|ped|pid|solicit|promet|agend|cit|inscri|qued|traslad|cambi|mov|apunt)/u
+  ES_FUTURE: >-
+    /^(?:\p{Ll}{2,}(?:ré|rás|rá|réis|rán)|\p{Ll}+[ai]remos)$/u
+  ES_INFINITIVE: >-
+    /^\p{Ll}{2,}(?:ar|er|ir)$/u
+  DATE_CONDITIONAL: >-
+    /[aeií]r(?:íamos|íais|ían|íeis|iam)$/u
+  PT_PAST: >-
+    /^\p{Ll}{2,}(?:ei|ou|aste|este|iste|aram|eram|iram|ava|avas|ávamos|áveis|avam|íamos|íeis|iam)$/u
+  PT_PARTICIPLE: >-
+    /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|feito|dito|posto|escrito|aberto|vindo|ganho|gasto|pago|entregue|morto|coberto)$/u
+  PT_ARRANGING: >-
+    /^(?:re|des)?(?:marc|agend|planej|plane|program|reserv|adi|confirm|anunci|combin|cancel|convid|promet|solicit|ped|previ|prev|fix|inscrev|inscri|transfer|mud)/u
+  PT_FUTURE: >-
+    /^(?:\p{Ll}{2,}(?:rá|rás|rão)|\p{Ll}+[aei]rei|\p{Ll}+[ai]remos)$/u
+  PT_INFINITIVE: >-
+    /^(?:\p{Ll}{2,}(?:ar|er|ir|or)|pôr)$/u
+  PL_PAST_PERSON: >-
+    /^\p{Ll}{2,}(?:łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście)$/u
+  PL_PAST: >-
+    /^\p{Ll}{2,}(?:[aiyą]ł|[aiyę]ła|[aiyę]ło|[aiyę]li|[aiyę]ły)$/u
+  PL_ARRANGING: >-
+    /^(?:za)?(?:plan|rezerw|zarezerw|przełoż|przesun|umówi|umawia|ustal|zapisa|zaprosi|zamówi|ogłosi|potwierdzi|wyznaczy|zgłosi|zapowiedzi|odwoła|obieca|zaprogramowa|zaplanowa)/u
+  PL_INFINITIVE: >-
+    /^\p{Ll}{2,}(?:ć|c)$/u
+
+# The date words of the dateTense rules, in each language. Their code is at the end of `defs`.
+sets:
+  DE_BOUNDARY:
+    [
+      dass,
+      ob,
+      wenn,
+      falls,
+      weil,
+      als,
+      bevor,
+      nachdem,
+      sobald,
+      bis,
+      und,
+      aber,
+      oder,
+      sondern,
+      denn,
+      damit,
+      obwohl,
+      während,
+    ]
+  DE_CONDITIONAL: [wenn, falls, ob]
+  FR_BOUNDARY:
+    [que, qu, si, quand, lorsque, lorsqu, et, mais, ou, car, donc, puis, dont, où, qui, comme]
+  FR_ES_CONDITIONAL: [si]
+  ES_DATE_BOUNDARY:
+    [que, si, cuando, porque, aunque, "y", e, pero, o, u, ni, mientras, donde, quien, como]
+  PT_BOUNDARY: [que, se, quando, porque, embora, e, mas, ou, enquanto, onde, quem, como]
+  PT_CONDITIONAL: [se]
+  PL_BOUNDARY:
+    [
+      że,
+      czy,
+      jeśli,
+      jeżeli,
+      gdy,
+      gdyby,
+      kiedy,
+      bo,
+      ponieważ,
+      aby,
+      żeby,
+      i,
+      ale,
+      lub,
+      albo,
+      oraz,
+      a,
+      który,
+      która,
+      które,
+      którzy,
+      jak,
+    ]
+  PL_CONDITIONAL: [jeśli, jeżeli, gdyby, czy]
+  AR_BOUNDARY: [أن, إن, إذا, لو, عندما, حتى, لأن, الذي, التي, الذين, لكن, ثم, بينما]
+  AR_CONDITIONAL: [إذا, لو, إن]
+  DE_HABEN: [habe, hast, hat, haben, habt, hatte, hattest, hatten, hattet]
+  DE_SEIN: [bin, bist, ist, sind, seid, war, warst, waren, wart]
+  DE_WERDEN: [werde, wirst, wird, werden, werdet]
+  DE_PRONOUNS: [ich, du, er, sie, wir, ihr]
+  DE_NOT_PARTICIPLE: [gegen, gesamt, insgesamt, gerecht]
+  FR_AVOIR: [ai, as, a, avons, avez, ont, avais, avait, avions, aviez, avaient]
+  FR_ETRE: [suis, es, est, sommes, êtes, sont, étais, était, étions, étiez, étaient]
+  FR_ADVERBS:
+    [
+      pas,
+      jamais,
+      déjà,
+      bien,
+      tout,
+      tous,
+      enfin,
+      aussi,
+      encore,
+      beaucoup,
+      rien,
+      plus,
+      toujours,
+      vraiment,
+      finalement,
+    ]
+  FR_NOT_PARTICIPLE:
+    [
+      plus,
+      tous,
+      nous,
+      vous,
+      sous,
+      jus,
+      dessus,
+      ainsi,
+      aussi,
+      ici,
+      parmi,
+      lui,
+      qui,
+      si,
+      ni,
+      tu,
+      du,
+      lit,
+      bien,
+      tout,
+      lundi,
+      mardi,
+      mercredi,
+      jeudi,
+      vendredi,
+      samedi,
+      midi,
+      aujourd,
+    ]
+  FR_MOTION:
+    [
+      allé,
+      venu,
+      parti,
+      arrivé,
+      rentré,
+      revenu,
+      sorti,
+      entré,
+      monté,
+      descendu,
+      tombé,
+      né,
+      mort,
+      resté,
+      retourné,
+      devenu,
+      parvenu,
+    ]
+  FR_SUBJECTS: [je, j, tu, il, elle, "on", nous, vous, ils, elles]
+  FR_OBJECTS: [ne, "n", "y", en, le, la, les, l, lui, leur, me, m, te, t, se, s, nous, vous]
+  FR_ALLER: [vais, vas, va, allons, allez, vont]
+  ES_HABER: [he, has, ha, hemos, habéis, han, había, habías, habíamos, habíais, habían]
+  ES_PAST_WORDS:
+    [
+      fui,
+      fue,
+      fuimos,
+      fuiste,
+      fueron,
+      estuve,
+      estuvo,
+      estuvimos,
+      estuvieron,
+      tuve,
+      tuvo,
+      tuvimos,
+      tuvieron,
+      hice,
+      hizo,
+      hicimos,
+      hicieron,
+      dije,
+      dijo,
+      dijimos,
+      dijeron,
+      vinimos,
+      vinieron,
+      pude,
+      pudo,
+      pudimos,
+      pudieron,
+      puse,
+      puso,
+      pusimos,
+      pusieron,
+      quise,
+      quiso,
+      supe,
+      supo,
+      traje,
+      trajo,
+      trajimos,
+      era,
+      eras,
+      éramos,
+      eran,
+      iba,
+      ibas,
+      íbamos,
+      iban,
+      vio,
+      vimos,
+      vieron,
+      dio,
+      dimos,
+      dieron,
+    ]
+  ES_NOT_PAST:
+    [
+      esté,
+      dé,
+      sé,
+      fe,
+      café,
+      bebé,
+      josé,
+      comité,
+      puré,
+      chalé,
+      té,
+      qué,
+      porqué,
+      dominó,
+      buró,
+      rococó,
+      mamá,
+      papá,
+    ]
+  ES_IR: [voy, vas, va, vamos, vais, van]
+  PT_PAST_WORDS:
+    [
+      fui,
+      foi,
+      fomos,
+      foram,
+      foste,
+      estive,
+      esteve,
+      estivemos,
+      estiveram,
+      tive,
+      teve,
+      tivemos,
+      tiveram,
+      fiz,
+      fez,
+      fizemos,
+      fizeram,
+      disse,
+      dissemos,
+      disseram,
+      vi,
+      viu,
+      vimos,
+      viram,
+      pude,
+      pôde,
+      pudemos,
+      puderam,
+      era,
+      eras,
+      éramos,
+      eram,
+      vim,
+      veio,
+      viemos,
+      vieram,
+      quis,
+      quisemos,
+      soube,
+      trouxe,
+      pus,
+      pôs,
+    ]
+  PT_NOT_PAST: [sei, lei, rei, grei, sou, estou, vou, dou]
+  PT_PLUPERFECT: [tinha, tinhas, tínhamos, tinham, havia, havíamos, haviam]
+  PT_IR: [vou, vais, vai, vamos, ides, vão]
+  PL_FUTURE: [będę, będziesz, będzie, będziemy, będziecie, będą]
+  PL_NOT_PAST:
+    [
+      kanał,
+      upał,
+      zapał,
+      dział,
+      udział,
+      materiał,
+      przedział,
+      podział,
+      rozdział,
+      pył,
+      wał,
+      szał,
+      skała,
+      siła,
+      mogiła,
+      ciało,
+      mało,
+      działo,
+      chwili,
+      fali,
+      sali,
+      stali,
+      cały,
+      mały,
+      biały,
+      stały,
+      trwały,
+      doskonały,
+      dojrzały,
+      wspaniały,
+      okazały,
+      śmiały,
+      siły,
+      skały,
+      mogiły,
+    ]
+  AR_PAST: [لقد, كان, كانت, كنا, كنت, كانوا, كنتم, قمنا, قمت, قام, قامت]
+  AR_FUTURE: [سوف, لن]
+  DE_PAST:
+    [
+      war,
+      waren,
+      ging,
+      gingen,
+      kam,
+      kamen,
+      sah,
+      sahen,
+      flog,
+      flogen,
+      fuhr,
+      fuhren,
+      schwamm,
+      schwammen,
+      lief,
+      liefen,
+      gab,
+      gaben,
+      nahm,
+      nahmen,
+      fand,
+      fanden,
+      blieb,
+      blieben,
+      schrieb,
+      schrieben,
+      sprach,
+      sprachen,
+      traf,
+      trafen,
+      aß,
+      aßen,
+      trank,
+      tranken,
+      saß,
+      saßen,
+      stand,
+      standen,
+      lag,
+      lagen,
+      rief,
+      riefen,
+      hielt,
+      hielten,
+      ließ,
+      ließen,
+      fiel,
+      fielen,
+      zog,
+      zogen,
+      bat,
+      baten,
+      schlief,
+      schliefen,
+      starb,
+      starben,
+      sang,
+      sangen,
+      sprang,
+      sprangen,
+      gewann,
+      gewannen,
+      begann,
+      begannen,
+      verlor,
+      verloren,
+      half,
+      halfen,
+      warf,
+      warfen,
+      wurde,
+      wurden,
+      brachte,
+      brachten,
+      dachte,
+      dachten,
+      kannte,
+      kannten,
+      nannte,
+      nannten,
+      rannte,
+      rannten,
+      wusste,
+      wussten,
+      ritt,
+      ritten,
+      stieg,
+      stiegen,
+      fing,
+      fingen,
+      bekam,
+      bekamen,
+      verließ,
+      verließen,
+      erhielt,
+      erhielten,
+      warst,
+      wart,
+    ]
+maps:
+  DE_MONTHS:
+    januar: 1
+    jänner: 1
+    jan: 1
+    jän: 1
+    februar: 2
+    feb: 2
+    märz: 3
+    mär: 3
+    april: 4
+    apr: 4
+    mai: 5
+    juni: 6
+    jun: 6
+    juli: 7
+    jul: 7
+    august: 8
+    aug: 8
+    september: 9
+    sep: 9
+    sept: 9
+    oktober: 10
+    okt: 10
+    november: 11
+    nov: 11
+    dezember: 12
+    dez: 12
+  FR_MONTHS:
+    janvier: 1
+    février: 2
+    fevrier: 2
+    mars: 3
+    avril: 4
+    mai: 5
+    juin: 6
+    juillet: 7
+    août: 8
+    aout: 8
+    septembre: 9
+    octobre: 10
+    novembre: 11
+    décembre: 12
+    decembre: 12
+  ES_MONTHS:
+    enero: 1
+    febrero: 2
+    marzo: 3
+    abril: 4
+    mayo: 5
+    junio: 6
+    julio: 7
+    agosto: 8
+    septiembre: 9
+    octubre: 10
+    noviembre: 11
+    diciembre: 12
+    setiembre: 9
+  PT_MONTHS:
+    janeiro: 1
+    fevereiro: 2
+    março: 3
+    abril: 4
+    maio: 5
+    junho: 6
+    julho: 7
+    agosto: 8
+    setembro: 9
+    outubro: 10
+    novembro: 11
+    dezembro: 12
+    jan: 1
+    fev: 2
+    mar: 3
+    abr: 4
+    mai: 5
+    jun: 6
+    jul: 7
+    ago: 8
+    set: 9
+    out: 10
+    nov: 11
+    dez: 12
+  PL_MONTHS:
+    stycznia: 1
+    lutego: 2
+    marca: 3
+    kwietnia: 4
+    maja: 5
+    czerwca: 6
+    lipca: 7
+    sierpnia: 8
+    września: 9
+    października: 10
+    listopada: 11
+    grudnia: 12
+  AR_MONTHS:
+    يناير: 1
+    "كانون الثاني": 1
+    جانفي: 1
+    فبراير: 2
+    شباط: 2
+    فيفري: 2
+    مارس: 3
+    آذار: 3
+    أبريل: 4
+    ابريل: 4
+    إبريل: 4
+    نيسان: 4
+    أفريل: 4
+    مايو: 5
+    أيار: 5
+    ماي: 5
+    يونيو: 6
+    يونيه: 6
+    حزيران: 6
+    جوان: 6
+    يوليو: 7
+    يوليه: 7
+    تموز: 7
+    جويلية: 7
+    أغسطس: 8
+    اغسطس: 8
+    آب: 8
+    أوت: 8
+    سبتمبر: 9
+    أيلول: 9
+    أكتوبر: 10
+    اكتوبر: 10
+    "تشرين الأول": 10
+    نوفمبر: 11
+    "تشرين الثاني": 11
+    ديسمبر: 12
+    "كانون الأول": 12
 
 rules:
   # Typing rules: each live check has its code here (`triggers`, `let`, `when`, `return`, with
@@ -6513,7 +7379,7 @@ rules:
         type: RawFinding[]
         return: "[...ownedMatches(ctx, new RegExp(CASING_WORDS))].flatMap((m) => canonicalCasingAt(m, ctx) ?? [])"
     frames:
-      # Each ASCII word: an explicit name in its canonical casing (review/canonicalCasing.ts).
+      # Each ASCII word: an explicit name in its canonical casing (the CANONICAL map above).
       - regex: "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#=$\\\\-])"
         scan: owned
         flags: gu
@@ -7332,12 +8198,8 @@ rules:
           style: detectWordCase(m.groups!.target.trim())
           end: m.index + m[0].length
         return: >-
-          ({
-            ruleId: "englishVerbComplements",
-            messageKey,
+          finding("englishVerbComplements", messageKey, span[0], span[1], alternatives.map((text) => applyWordCase(text, style)), {
             ...(choice ? { requiresChoice: true as const } : {}),
-            range: { start: span[0], end: span[1] },
-            alternatives: alternatives.map((text) => applyWordCase(text, style)),
             context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, end + 48) },
           })
     frames:
@@ -7355,11 +8217,7 @@ rules:
           - "!!tail"
           - "!hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, phraseEnd))"
         return: >-
-          ({
-            ruleId: "englishVerbComplements",
-            messageKey: "review_msg_missing_to",
-            range: { start: span[0], end: span[1] },
-            alternatives: [`${target === target.toUpperCase() ? "TO" : "to"} ${target}`],
+          finding("englishVerbComplements", "review_msg_missing_to", span[0], span[1], [`${target === target.toUpperCase() ? "TO" : "to"} ${target}`], {
             context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, phraseEnd + 9) },
           })
       # "I'm looking forward to meet you": -ing after "look forward to". Nouns end this phrase
@@ -8289,11 +9147,7 @@ rules:
           # A quoted example under discussion ("She has cleaning the kitchen") is not prose.
           - "!namedExampleBefore(ctx.text, startSpan[0])"
         return: >-
-          ({
-            ruleId: "englishPerfectParticiples",
-            messageKey: "review_msg_progressive_be",
-            range: { start: startSpan[0], end: endSpan[1] },
-            alternatives,
+          finding("englishPerfectParticiples", "review_msg_progressive_be", startSpan[0], endSpan[1], alternatives, {
             requiresChoice: true as const,
             context: around(ctx, m),
           })
@@ -8338,14 +9192,10 @@ rules:
           - "!!ing && !!finite"
           - "!hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, verbSpan[1]))"
         return: >-
-          ({
-            ruleId: "englishPerfectParticiples",
-            messageKey: "review_msg_be_base",
-            range: { start: m.index, end: verbSpan[1] },
-            alternatives: [
+          finding("englishPerfectParticiples", "review_msg_be_base", m.index, verbSpan[1], [
               `${ctx.source.slice(m.index, verbSpan[0])}${applyWordCase(ing, kase)}`,
               `${present}${gap}${applyWordCase(finite, kase)}`,
-            ],
+            ], {
             requiresChoice: true as const,
             context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, verbSpan[1] + 32) },
           })
@@ -8444,14 +9294,10 @@ rules:
           digits: four ?? two ?? bare ?? tens
         when: start >= ctx.from && start < ctx.to
         return: >-
-          [{
-            ruleId: "englishNounNumber",
-            messageKey: "review_msg_decade_plural",
-            range: { start, end: m.index + m[0].length },
-            alternatives: two ? [`${mark}${digits}s`, `${digits}s`] : [`${digits}s`],
+          [finding("englishNounNumber", "review_msg_decade_plural", start, m.index + m[0].length, two ? [`${mark}${digits}s`, `${digits}s`] : [`${digits}s`], {
             requiresChoice: two ? (true as const) : undefined,
             context: around(ctx, m),
-          }]
+          })]
   - id: usagePhrases
     checks: [englishUsagePhrases]
     style: template
@@ -8571,11 +9417,7 @@ rules:
           - "!namedExampleBefore(ctx.text, m.index)"
           - "!ctx.dictionary.has(marker.toLowerCase()) && !ctx.dictionary.has(word.toLowerCase())"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end },
-            alternatives: [caseLike(marker, word)],
+          finding(frame.ruleId, frame.messageKey, m.index, end, [caseLike(marker, word)], {
             context: { start: Math.max(0, m.index - 64), end },
             bulkBlock: "context-dependent",
           })
@@ -8721,11 +9563,7 @@ rules:
           - "!hasUserOrCasedWord(ctx, m[0])"
           - corrected !== noun
         return: >-
-          ({
-            ruleId: "englishCountability",
-            messageKey: singular ? "review_msg_mass_noun" : "review_msg_countable_number",
-            range: { start: span[0], end: span[1] },
-            alternatives: [corrected],
+          finding("englishCountability", singular ? "review_msg_mass_noun" : "review_msg_countable_number", span[0], span[1], [corrected], {
             context,
           })
     frames:
@@ -8876,11 +9714,7 @@ rules:
           - "!(/^\\p{Ll}/u.test(m[1]) && /^\\p{Lu}/u.test(second))"
           - '!(word.length === 1 && /(?:^|\s)\p{L}[ \t\u00a0]+$/u.test(before))'
         return: >-
-          ({
-            ruleId: "englishRepeatedWords",
-            messageKey: "review_msg_repeated_words",
-            range: { start, end },
-            alternatives: [ctx.source.slice(start, start + m[1].length)],
+          finding("englishRepeatedWords", "review_msg_repeated_words", start, end, [ctx.source.slice(start, start + m[1].length)], {
             context,
           })
     frames:
@@ -9297,11 +10131,7 @@ rules:
           kase: detectWordCase(token)
           lead: ctx.source.slice(start, verbStart)
         return: >-
-          ({
-            ruleId: "englishAuxiliaryBaseVerb",
-            messageKey: repair.be ? "review_msg_modal_be" : "review_msg_auxiliary_base",
-            range: { start, end },
-            alternatives: repair.forms.map((form) => `${lead}${applyWordCase(form, kase)}`),
+          finding("englishAuxiliaryBaseVerb", repair.be ? "review_msg_modal_be" : "review_msg_auxiliary_base", start, end, repair.forms.map((form) => `${lead}${applyWordCase(form, kase)}`), {
             ...(repair.choice ? { requiresChoice: true as const } : {}),
             context: { start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 32) },
           })
@@ -9530,13 +10360,9 @@ rules:
           # The user-word test reads each word of the match: it runs after the cheap tests.
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishAuxiliaryBaseVerb",
-            messageKey: "review_msg_to_base",
-            range: { start: m.index, end },
-            alternatives: [
+          finding("englishAuxiliaryBaseVerb", "review_msg_to_base", m.index, end, [
               `${ctx.source.slice(m.index, end - verb.length)}${applyWordCase(lemma, detectWordCase(verb))}`,
-            ],
+            ], {
             context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 32) },
           })
       # "I need to information": "to" before a noun that is never a verb.
@@ -9588,13 +10414,9 @@ rules:
           # The user-word test reads each word of the match: it runs after the cheap tests.
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishAuxiliaryBaseVerb",
-            messageKey: "review_msg_to_noun",
-            range: { start: span[0], end: span[1] },
-            alternatives: objectAfter
+          finding("englishAuxiliaryBaseVerb", "review_msg_to_noun", span[0], span[1], objectAfter
               ? []
-              : [`${original === original.toUpperCase() ? "THE" : "the"} ${original}`, original],
+              : [`${original === original.toUpperCase() ? "THE" : "the"} ${original}`, original], {
             ...(objectAfter ? { warningOnly: true as const } : { requiresChoice: true as const }),
             context: { start: m.index, end: Math.min(ctx.text.length, span[1] + 32) },
           })
@@ -9682,11 +10504,7 @@ rules:
         type: RawFinding | null
         when: "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishPronounCase",
-            messageKey: subject ? "review_msg_pronoun_subject_case" : "review_msg_pronoun_object_case",
-            range: { start: range[0], end: range[1] },
-            alternatives: [fix],
+          finding("englishPronounCase", subject ? "review_msg_pronoun_subject_case" : "review_msg_pronoun_object_case", range[0], range[1], [fix], {
             context: {
               start: Math.max(0, range[0] - 32),
               end: Math.min(ctx.text.length, m.index + m[0].length + 16),
@@ -9714,6 +10532,64 @@ rules:
       # Prepositions that never open a clause ("for they are…", "like we do") or an inverted one
       # ("In they went"): the CASE_OBJECT_PREPOSITION fragment.
       CASE_OBJECT_PREPOSITION_WORD: /^{{CASE_OBJECT_PREPOSITION}}$/
+      # A pair of subjects with an object pronoun in it: "Me and Sam went" -> "Sam and I went".
+      coordinatedSubjectFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, a: string, b: string, verb: string"
+        let:
+          # After a comma, only a short opener ("However,", "On the other hand,") may stand
+          # before the pair; "We saw Ana, Tim and me…" continues a list of objects.
+          opener: >-
+            /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
+              ctx.text.slice(Math.max(0, m.index - 64), m.index))
+          aSpan: group(m, "a")
+          bSpan: group(m, "b")
+          verbSpan: group(m, "verb")
+          joint: ctx.source.slice(aSpan[1], bSpan[0])
+          pair: >-
+            isFirstPerson(a) || isFirstPerson(b)
+              ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
+              : `${subjectForm(a)}${joint}${subjectForm(b)}`
+          capped: "/^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair"
+          verbKey: verb.toLowerCase().replace(/n['’]t$/, "")
+          plural: Object.hasOwn(PLURAL_VERB, verbKey)
+          withVerb: >-
+            plural
+              ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
+              : capped
+          rangeEnd: "plural ? verbSpan[1] : bSpan[1]"
+          typed: ctx.source.slice(aSpan[0], rangeEnd)
+          phrase: "typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb"
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - "[a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))"
+          # "I suggested that the engineer and myself take…": a reflexive after "I" stays.
+          - >-
+            !([a, b].some((word) => /^myself$/i.test(word)) &&
+              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
+          # A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
+          - >-
+            finiteVerbForm(verb) ||
+            ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
+              verb === verb.toLowerCase() &&
+              !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+          - >-
+            !(opener &&
+              (opener[1].trim().split(/\s+/).length > 4 ||
+                opener[1]
+                  .toLowerCase()
+                  .match(/[a-z]+/g)
+                  ?.some((w) =>
+                    finiteVerbForm(w) ||
+                    englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"))))
+          - "!(isFirstPerson(a) && isFirstPerson(b))"
+          # "Her and my parents met" shares one noun between two possessives.
+          - '!(/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b))'
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          - phrase !== typed
+        return: >-
+          finding("englishPronounCase", "review_msg_pronoun_subject_case", aSpan[0], rangeEnd, [phrase], {
+            context: tightAround(ctx, m),
+          })
     frames:
       # "Me and Sam went", "My wife and me are": object pronouns in a clause-initial coordinated
       # subject.
@@ -9725,121 +10601,13 @@ rules:
         # chunk end could be missed; no real conjunct is that long.
         gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
         gateFlags: giu
-        let:
-          # After a comma, only a short opener ("However,", "On the other hand,") may stand
-          # before the pair; "We saw Ana, Tim and me…" continues a list of objects.
-          opener: >-
-            /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
-              ctx.text.slice(Math.max(0, m.index - 64), m.index))
-          aSpan: group(m, "a")
-          bSpan: group(m, "b")
-          verbSpan: group(m, "verb")
-          joint: ctx.source.slice(aSpan[1], bSpan[0])
-          pair: >-
-            isFirstPerson(a) || isFirstPerson(b)
-              ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
-              : `${subjectForm(a)}${joint}${subjectForm(b)}`
-          capped: "/^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair"
-          verbKey: verb.toLowerCase().replace(/n['’]t$/, "")
-          plural: Object.hasOwn(PLURAL_VERB, verbKey)
-          withVerb: >-
-            plural
-              ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
-              : capped
-          rangeEnd: "plural ? verbSpan[1] : bSpan[1]"
-          typed: ctx.source.slice(aSpan[0], rangeEnd)
-          phrase: "typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb"
-        when:
-          - m.index >= ctx.from && m.index < ctx.to
-          - "[a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))"
-          # "I suggested that the engineer and myself take…": a reflexive after "I" stays.
-          - >-
-            !([a, b].some((word) => /^myself$/i.test(word)) &&
-              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
-          # A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
-          - >-
-            finiteVerbForm(verb) ||
-            ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
-              verb === verb.toLowerCase() &&
-              !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
-          - >-
-            !(opener &&
-              (opener[1].trim().split(/\s+/).length > 4 ||
-                opener[1]
-                  .toLowerCase()
-                  .match(/[a-z]+/g)
-                  ?.some((w) =>
-                    finiteVerbForm(w) ||
-                    englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"))))
-          - "!(isFirstPerson(a) && isFirstPerson(b))"
-          # "Her and my parents met" shares one noun between two possessives.
-          - '!(/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b))'
-          - "!hasUserOrCasedWord(ctx, m[0])"
-          - phrase !== typed
-        return: >-
-          finding("englishPronounCase", "review_msg_pronoun_subject_case", aSpan[0], rangeEnd, [phrase], {
-            context: tightAround(ctx, m),
-          })
+        return: coordinatedSubjectFinding(ctx, m, a, b, verb)
       # A present base verb after a pair of single words: "Tim and me work", "Me and Sam live".
       - regex: "{{CASE_AND_AHEAD}}{{CASE_COORDINATION_START}}(?<a>{{CASE_ONE_WORD}}){{S}}and{{S}}(?<b>{{CASE_ONE_WORD}})(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>[a-z]+){{E}}"
         owner: none
         gate: "(?:me|him|her|them|myself)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]|and[ \\t\\u00a0]{1,8}(?:me|him|her|them|myself)[ \\t\\u00a0]"
         gateFlags: giu
-        let:
-          # After a comma, only a short opener ("However,", "On the other hand,") may stand
-          # before the pair; "We saw Ana, Tim and me…" continues a list of objects.
-          opener: >-
-            /(?:^|[.!?;:\n"“(])([^.!?;:\n"“(]*),[ \t ]*$/.exec(
-              ctx.text.slice(Math.max(0, m.index - 64), m.index))
-          aSpan: group(m, "a")
-          bSpan: group(m, "b")
-          verbSpan: group(m, "verb")
-          joint: ctx.source.slice(aSpan[1], bSpan[0])
-          pair: >-
-            isFirstPerson(a) || isFirstPerson(b)
-              ? `${subjectForm(isFirstPerson(a) ? b : a)}${joint}I`
-              : `${subjectForm(a)}${joint}${subjectForm(b)}`
-          capped: "/^[A-Z]/.test(a) ? pair[0].toUpperCase() + pair.slice(1) : pair"
-          verbKey: verb.toLowerCase().replace(/n['’]t$/, "")
-          plural: Object.hasOwn(PLURAL_VERB, verbKey)
-          withVerb: >-
-            plural
-              ? `${capped}${ctx.source.slice(bSpan[1], verbSpan[0])}${applyWordCase(PLURAL_VERB[verbKey], detectWordCase(verb))}${verb.slice(verbKey.length)}`
-              : capped
-          rangeEnd: "plural ? verbSpan[1] : bSpan[1]"
-          typed: ctx.source.slice(aSpan[0], rangeEnd)
-          phrase: "typed === typed.toUpperCase() ? withVerb.toUpperCase() : withVerb"
-        when:
-          - m.index >= ctx.from && m.index < ctx.to
-          - "[a, b].some((word) => /^(?:me|him|her|them|myself)$/i.test(word))"
-          # "I suggested that the engineer and myself take…": a reflexive after "I" stays.
-          - >-
-            !([a, b].some((word) => /^myself$/i.test(word)) &&
-              /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
-          # A present base verb only after "me"/"myself" ("Tim and me work"); "her" may own a noun.
-          - >-
-            finiteVerbForm(verb) ||
-            ([a, b].some((word) => /^(?:me|myself)$/i.test(word)) &&
-              verb === verb.toLowerCase() &&
-              !!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
-          - >-
-            !(opener &&
-              (opener[1].trim().split(/\s+/).length > 4 ||
-                opener[1]
-                  .toLowerCase()
-                  .match(/[a-z]+/g)
-                  ?.some((w) =>
-                    finiteVerbForm(w) ||
-                    englishWordInfo(w)?.verbs.some((v) => v.form === "past" || v.form === "third"))))
-          - "!(isFirstPerson(a) && isFirstPerson(b))"
-          # "Her and my parents met" shares one noun between two possessives.
-          - '!(/^her$/i.test(a) && /^(?:my|your|his|her|our|their|the)[ \t ]/i.test(b))'
-          - "!hasUserOrCasedWord(ctx, m[0])"
-          - phrase !== typed
-        return: >-
-          finding("englishPronounCase", "review_msg_pronoun_subject_case", aSpan[0], rangeEnd, [phrase], {
-            context: tightAround(ctx, m),
-          })
+        return: coordinatedSubjectFinding(ctx, m, a, b, verb)
       # "Both Ana and me helped", "Either Ana or me will call", "Ana or myself can help".
       - regex: "(?=(?:both|either|neither|[a-z]+)[ \\t\\u00a0]){{CASE_COORDINATION_START}}(?:(?<lead>both|either|neither){{S}})?(?<a>{{CASE_CONJUNCT}}){{S}}(?<conj>and|or|nor){{S}}(?<b>me|myself|him|them)(?:{{S}}{{CASE_ADVERB}})?{{S}}(?<verb>{{CASE_FINITE}}){{E}}"
         owner: b
@@ -9861,11 +10629,7 @@ rules:
               /\bI\b[^.!?;:\n]*$/.test(ctx.text.slice(Math.max(0, m.index - 160), m.index)))
           - "!/^(?:me|myself)$/i.test(a) && !hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishPronounCase",
-            messageKey: "review_msg_pronoun_subject_case",
-            range: { start: span[0], end: span[1] },
-            alternatives: [isFirstPerson(b) ? "I" : applyWordCase(subjectForm(b), detectWordCase(b))],
+          finding("englishPronounCase", "review_msg_pronoun_subject_case", span[0], span[1], [isFirstPerson(b) ? "I" : applyWordCase(subjectForm(b), detectWordCase(b))], {
             context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, span[1] + 16) },
           })
       # "Whom is coming?", "to whomever wrote it": whom before its own finite verb is the subject.
@@ -9903,11 +10667,7 @@ rules:
                 )
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishPronounCase",
-            messageKey: "review_msg_who_subject",
-            range: { start: span[0], end: span[1] },
-            alternatives: [applyWordCase(whom.toLowerCase().replace("whom", "who"), detectWordCase(whom))],
+          finding("englishPronounCase", "review_msg_who_subject", span[0], span[1], [applyWordCase(whom.toLowerCase().replace("whom", "who"), detectWordCase(whom))], {
             context: { start: Math.max(0, span[0] - 32), end: Math.min(ctx.text.length, matchEnd + 9) },
           })
       # Subject pronouns after a preposition take the object form: "to he and his team", "to we
@@ -9989,11 +10749,7 @@ rules:
             !finiteVerbForm(following) &&
             !englishWordInfo(following)?.verbs.some((v) => v.form === "base")
         return: >-
-          ({
-            ruleId: "englishPronounCase",
-            messageKey: "review_msg_pronoun_object_case",
-            range: { start: span[0], end: span[1] },
-            alternatives: [applyWordCase("me", detectWordCase(target))],
+          finding("englishPronounCase", "review_msg_pronoun_object_case", span[0], span[1], [applyWordCase("me", detectWordCase(target))], {
             context: { start: Math.max(0, m.index - 48), end: Math.min(ctx.text.length, end + 16) },
           })
   # Bounded sentence-structure slips: closed-class frames, with lexicon evidence for open words.
@@ -10091,11 +10847,7 @@ rules:
           - m.index >= ctx.from && m.index < ctx.to
           - a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0])
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_double_subject",
-            range: { start, end },
-            alternatives: [a, second === "i" ? "I" : second],
+          finding("englishSentenceStructure", "review_msg_double_subject", start, end, [a, second === "i" ? "I" : second], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10107,11 +10859,7 @@ rules:
           - a === a.toLowerCase() || m[0] === m[0].toUpperCase()
           - '!wordEndsBefore(ctx, m.index, "(?:oh|ah|my),?") && !hasUserOrCasedWord(ctx, m[0])'
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_pronoun_sequence",
-            range: { start: group(m, "a")[0], end: group(m, "b")[1] },
-            alternatives: [],
+          finding("englishSentenceStructure", "review_msg_pronoun_sequence", group(m, "a")[0], group(m, "b")[1], [], {
             warningOnly: true as const,
             context: tightAround(ctx, m),
           })
@@ -10120,11 +10868,7 @@ rules:
         owner: a
         when: a.toLowerCase() !== b.toLowerCase() && !hasUserOrCasedWord(ctx, m[0])
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_pronoun_sequence",
-            range: { start: group(m, "a")[0], end: group(m, "b")[1] },
-            alternatives: [a, b],
+          finding("englishSentenceStructure", "review_msg_pronoun_sequence", group(m, "a")[0], group(m, "b")[1], [a, b], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10151,11 +10895,7 @@ rules:
           - sound !== "either"
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_determiner_clash",
-            range: { start: group(m, "article")[0], end: group(m, "possessive")[1] },
-            alternatives: [owner, bare],
+          finding("englishSentenceStructure", "review_msg_determiner_clash", group(m, "article")[0], group(m, "possessive")[1], [owner, bare], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10205,11 +10945,7 @@ rules:
           - sound !== "either"
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_determiner_clash",
-            range: { start, end: group(m, "second")[1] },
-            alternatives,
+          finding("englishSentenceStructure", "review_msg_determiner_clash", start, group(m, "second")[1], alternatives, {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10228,11 +10964,7 @@ rules:
             hasVerbForm(following, "base")
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_double_modal",
-            range: { start: group(m, "first")[0], end: group(m, "second")[1] },
-            alternatives: [first, applyWordCase(second, detectWordCase(first))],
+          finding("englishSentenceStructure", "review_msg_double_modal", group(m, "first")[0], group(m, "second")[1], [first, applyWordCase(second, detectWordCase(first))], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10271,11 +11003,7 @@ rules:
           - "!(/^(?:can|could)/i.test(modal) && /able$/i.test(adjective))"
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_missing_be",
-            range: { start: group(m, "adjective")[0], end: tail },
-            alternatives: [`${applyWordCase("be", detectWordCase(adjective))} ${adjective}`],
+          finding("englishSentenceStructure", "review_msg_missing_be", group(m, "adjective")[0], tail, [`${applyWordCase("be", detectWordCase(adjective))} ${adjective}`], {
             context: tightAround(ctx, m),
           })
       # "a couple days", "a lot people": a quantity noun takes "of" before a plural. An -s word that is
@@ -10301,13 +11029,9 @@ rules:
             /^[ \t ]*(?:[.!?,;:)]|$|[ \t ]+(?:here|there|in|on|at|for|with|who|that|to|from|of)\b)/i.test(tail)
           - "!hasUserOrCasedWord(ctx, m[0])"
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_couple_of",
-            range: { start: headSpan[0], end },
-            alternatives: [
+          finding("englishSentenceStructure", "review_msg_couple_of", headSpan[0], end, [
               `${quantity} ${quantity === quantity.toUpperCase() ? "OF" : "of"}${ctx.text.slice(headSpan[1], end)}`,
-            ],
+            ], {
             context: tightAround(ctx, m),
           })
       # "many of people": "of" before a bare plural needs a determiner ("many of the people").
@@ -10316,11 +11040,7 @@ rules:
         # "make the most of chances" is an idiom.
         when: '!!pluralNoun(noun) && !wordEndsBefore(ctx, m.index, "the") && !hasUserOrCasedWord(ctx, m[0])'
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_partitive_of",
-            range: { start: group(m, "of")[0], end: group(m, "noun")[1] },
-            alternatives: [noun, `${of} ${applyWordCase("the", detectWordCase(of))} ${noun}`],
+          finding("englishSentenceStructure", "review_msg_partitive_of", group(m, "of")[0], group(m, "noun")[1], [noun, `${of} ${applyWordCase("the", detectWordCase(of))} ${noun}`], {
             requiresChoice: true as const,
             context: tightAround(ctx, m),
           })
@@ -10354,11 +11074,7 @@ rules:
               : !same && !/^it$/i.test(subject) && INVERSION_SUBJECTS.test(nextSubject ?? ""))
           - replacement !== null
         return: >-
-          ({
-            ruleId: "englishSentenceStructure",
-            messageKey: "review_msg_not_only_inversion",
-            range: { start, end },
-            alternatives: [replacement],
+          finding("englishSentenceStructure", "review_msg_not_only_inversion", start, end, [replacement], {
             context: tightAround(ctx, m),
           })
   # Independently selectable families (one check each), using explicit grammatical evidence.
@@ -11010,14 +11726,10 @@ rules:
         return: >-
           typo
             ? [
-                {
-                  ruleId: "englishTypoWhitelistCorrection",
-                  messageKey: "review_msg_typo",
-                  range: { start, end },
-                  alternatives: [typo],
+                finding("englishTypoWhitelistCorrection", "review_msg_typo", start, end, [typo], {
                   dictionaryWord: word,
                   bulkBlock: glued,
-                },
+                }),
               ]
             : contractionFindings(ctx, word, start, end, glued)
         else: "[]"
@@ -11052,14 +11764,10 @@ rules:
           !(pronounForm && DETERMINER_BEFORE.test(before)) &&
           !germanIm(word, before, ctx.text.slice(end, end + 40))
             ? [
-                {
-                  ruleId: "englishContractionNormalization",
-                  messageKey: "review_msg_contraction",
-                  range: { start, end },
-                  alternatives: [contraction],
+                finding("englishContractionNormalization", "review_msg_contraction", start, end, [contraction], {
                   context: { start: Math.max(0, ctx.text.lastIndexOf(" ", start - 2) + 1), end },
                   bulkBlock: pronounForm ? "ambiguous" : glued,
-                },
+                }),
               ]
             : contextFindings(ctx, word, start, end, before, glued)
       # Unlike typing, the next word is here: "i cant go" is "can't", "the cant" is not.
@@ -11075,28 +11783,20 @@ rules:
         return: >-
           inContext
             ? [
-                {
-                  ruleId: "englishContractionNormalization",
-                  messageKey: "review_msg_contraction",
-                  range: { start, end },
-                  alternatives: [inContext],
+                finding("englishContractionNormalization", "review_msg_contraction", start, end, [inContext], {
                   context: {
                     start: previousTokensStart(ctx.text, start, 1),
                     end: end + (/^[ \t]+\p{L}+(?:[ \t]+\p{L}+)?/u.exec(after)?.[0].length ?? 0),
                   },
                   bulkBlock: "context-dependent",
-                },
+                }),
               ]
             : ALOT_REGEX.test(word) && !ctx.dictionary.has("alot")
               ? [
-                  {
-                    ruleId: "englishAlotCorrection",
-                    messageKey: "review_msg_alot",
-                    range: { start, end },
-                    alternatives: [correctAlot(word)],
+                  finding("englishAlotCorrection", "review_msg_alot", start, end, [correctAlot(word)], {
                     dictionaryWord: word,
                     bulkBlock: glued,
-                  },
+                  }),
                 ]
               : []
     frames:
@@ -11291,11 +11991,7 @@ rules:
           lower: typed.toLowerCase()
         when: "!ctx.dictionary.has(lower) && !namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + typed.length },
-            alternatives: [caseLike(typed, table[lower])],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + typed.length, [caseLike(typed, table[lower])], {
             dictionaryWord: typed,
             bulkBlock: "context-dependent",
           })
@@ -11345,11 +12041,7 @@ rules:
           - 'mark !== ''"'' || quotedContraction(ctx.text, start)'
           - 'mark !== "`" || !backtickCode(ctx.text, start)'
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start, end: start + 1 },
-            alternatives: [withTextApostrophes(ctx.text, start, "'")],
+          finding(frame.ruleId, frame.messageKey, start, start + 1, [withTextApostrophes(ctx.text, start, "'")], {
             context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
             bulkBlock: certain ? undefined : "context-dependent",
           })
@@ -11426,11 +12118,7 @@ rules:
           # time ("À 20:40, cest terminé.") is still "c'est".
           - typed !== "CEST"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + typed.length },
-            alternatives: [caseLike(typed, withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS[lower]))],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + typed.length, [caseLike(typed, withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS[lower]))], {
             bulkBlock: "context-dependent",
           })
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_])(?<base>\\p{L}+)([\\u00B4`;\"])(?<end>t|s|m|d|ll|re|ve)(?![\\p{L}\\p{M}\\p{N}_])"
@@ -11496,13 +12184,9 @@ rules:
           - "!isNounMight(hit.match[1], ctx.text.slice(Math.max(0, hit.start - 24), hit.start))"
           - 'ctx.text.slice(ofStart, ofStart + 2).toLowerCase() === "of"'
         return: >-
-          ({
-            ruleId: "englishModalOfCorrection",
-            messageKey: "review_msg_modal_of",
-            range: { start: hit.start, end: ofStart + 2 },
-            alternatives: [
+          finding("englishModalOfCorrection", "review_msg_modal_of", hit.start, ofStart + 2, [
               `${ctx.source.slice(hit.start, ofStart)}${modalHaveWord(hit.match[1], ctx.text.slice(ofStart, ofStart + 2))}`,
-            ],
+            ], {
             context: { start: hit.start, end: hit.end },
           })
   - id: yourWelcome
@@ -11538,11 +12222,7 @@ rules:
           # "Thank you all for your welcome." is possessive too: the reply opens its clause.
           - opensClause(ctx.text, hit.start)
         return: >-
-          ({
-            ruleId: "englishYourWelcomeCorrection",
-            messageKey: "review_msg_your_welcome",
-            range: { start: hit.start, end: hit.end },
-            alternatives: [`${fixed[0]}${gap}${fixed[1]}`],
+          finding("englishYourWelcomeCorrection", "review_msg_your_welcome", hit.start, hit.end, [`${fixed[0]}${gap}${fixed[1]}`], {
             context: {
               start: Math.max(0, lastNonBlankBefore(ctx.text, hit.start)),
               end: Math.min(ctx.text.length, hit.end + 1),
@@ -11765,11 +12445,7 @@ rules:
           - "!(/^(?:we|you)$/.test(pronoun) && !negative && namesPronoun(word, next))"
           - "!!corrected && corrected !== verb.toLowerCase()"
         return: >-
-          ({
-            ruleId: "englishPronounVerbWhitelistAgreement",
-            messageKey: "review_msg_pronoun_verb",
-            range: { start: span[0], end: span[1] },
-            alternatives: [applyWordCase(corrected, detectWordCase(verb))],
+          finding("englishPronounVerbWhitelistAgreement", "review_msg_pronoun_verb", span[0], span[1], [applyWordCase(corrected, detectWordCase(verb))], {
             context: {
               start: Math.max(0, m.index - 96),
               end: Math.min(ctx.text.length, m.index + m[0].length + 2),
@@ -11931,52 +12607,6 @@ rules:
         seems: seem
         sound: sounds
         sounds: sound
-    sets:
-      AGREEMENT_COLLECTIVE:
-        [
-          team,
-          staff,
-          family,
-          police,
-          government,
-          committee,
-          crew,
-          band,
-          audience,
-          public,
-          class,
-          group,
-          majority,
-          folk,
-          blues,
-          rest,
-          number,
-          couple,
-          pair,
-          lot,
-          jury,
-          army,
-          navy,
-          board,
-          council,
-          club,
-          company,
-          firm,
-          management,
-          media,
-          data,
-          total,
-          variety,
-          range,
-          series,
-          species,
-          means,
-          news,
-          remainder,
-          masters,
-          woods,
-          belt,
-        ]
     defs:
       LINKING: /^(?:look|seem|sound|feel|appear)s?$/
       AGREE_AUXILIARY: >-
@@ -12165,17 +12795,13 @@ rules:
           # The noun number leaves out invariant nouns ("series", "news").
           - >-
             !!number &&
-            ![AGREEMENT_COLLECTIVE, ENGLISH_MASS_NOUNS, MASS_WITH_COUNT_SENSE].some((s) => s.has(forms.singular))
+            ![EN_COLLECTIVE, ENGLISH_MASS_NOUNS, MASS_WITH_COUNT_SENSE].some((s) => s.has(forms.singular))
           # "the general", "the final": an adjective may modify a noun in the verb slot.
           - "!englishWordInfo(noun)?.adjective"
           - 'number === "singular" ? !/^(?:these|those)$/.test(d) : !/^(?:this|that|its|every|each)$/.test(d)'
           - "!!fix && fix !== verb"
         return: >-
-          ({
-            ruleId: "englishSubjectVerbAgreement",
-            messageKey: "review_msg_pronoun_verb",
-            range: { start: span[0], end: span[1] },
-            alternatives: [fix],
+          finding("englishSubjectVerbAgreement", "review_msg_pronoun_verb", span[0], span[1], [fix], {
             context: {
               start: Math.max(0, m.index - 96),
               end: Math.min(ctx.text.length, m.index + m[0].length + 2),
@@ -12228,11 +12854,7 @@ rules:
           - "!singularQuantity || /^(?:[.!?]|$)/.test(ctx.text.slice(m.index + m[0].length))"
           - verb.toLowerCase() !== expected
         return: >-
-          ({
-            ruleId: "englishExistentialAgreement",
-            messageKey: "review_msg_existential_agreement",
-            range: { start: span[0], end: span[1] },
-            alternatives: [applyWordCase(expected, detectWordCase(verb))],
+          finding("englishExistentialAgreement", "review_msg_existential_agreement", span[0], span[1], [applyWordCase(expected, detectWordCase(verb))], {
             context: {
               start: Math.max(0, m.index - 96),
               end: Math.min(ctx.text.length, m.index + m[0].length + 2),
@@ -12272,11 +12894,7 @@ rules:
           - '!qverb || /(?:^|[.!?;:,(\n"“][ \t ]*|\b(?:and|but|or|so)[ \t ]+)$/i.test(before)'
           - start >= ctx.from && start < ctx.to
         return: >-
-          ({
-            ruleId: "englishExistentialAgreement",
-            messageKey: "review_msg_existential_agreement",
-            range: { start, end },
-            alternatives,
+          finding("englishExistentialAgreement", "review_msg_existential_agreement", start, end, alternatives, {
             requiresChoice: plural ? undefined : (true as const),
             context: {
               start: Math.max(0, m.index - 96),
@@ -12324,11 +12942,7 @@ rules:
           - 'article[0] !== "A" || SENTENCE_START_REGEX.test(beforeArticle)'
           - isArticleContext(beforeArticle)
         return: >-
-          ({
-            ruleId: "englishArticleAnCorrection",
-            messageKey: "review_msg_article",
-            range: { start: articleRange.start, end: hit.end },
-            alternatives: [`${corrected}${ctx.source.slice(articleRange.end, hit.end)}`],
+          finding("englishArticleAnCorrection", "review_msg_article", articleRange.start, hit.end, [`${corrected}${ctx.source.slice(articleRange.end, hit.end)}`], {
             context: { start: Math.max(0, hit.start - 24), end: hit.end },
           })
   - id: ordinal
@@ -12364,14 +12978,10 @@ rules:
               isAllCapsContext(ctx.text, start, end) ||
               overlapsSortedRanges(ctx.quotationRanges ?? [], { start, end })
               ? null
-              : {
-                  ruleId: "englishOrdinalSuffix",
-                  messageKey: "review_msg_ordinal_case",
-                  context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
-                  range: { start, end },
-                  alternatives: [`${digits}${expected}`],
-                  bulkBlock: "context-dependent",
-                }
+              : finding("englishOrdinalSuffix", "review_msg_ordinal_case", start, end, [`${digits}${expected}`], {
+                context: { start: Math.max(0, start - 24), end: Math.min(ctx.text.length, end + 24) },
+                bulkBlock: "context-dependent",
+              })
             : suffix === "rd" ||
                 (suffix === "st" &&
                   !/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)[ \t\u00a0]+$/i.test(
@@ -12467,11 +13077,7 @@ rules:
             /(?:(?<![\p{L}])(?:im|anfang|ende|mitte|seit|bis|ab|vom|zum|nächsten|letzten|diesen|kommenden)|\d{1,2}\.)[ \t\u00a0]+$/iu.test(before)
           - "!ctx.dictionary.has(typed) && !namedExampleBefore(ctx.text, m.index)"
         return: >-
-          ({
-            ruleId: frame.ruleId,
-            messageKey: frame.messageKey,
-            range: { start: m.index, end: m.index + 1 },
-            alternatives: [typed[0].toUpperCase()],
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + 1, [typed[0].toUpperCase()], {
             context: { start: Math.max(0, m.index - 24), end: m.index + typed.length },
             bulkBlock: "context-dependent",
           })
@@ -12496,11 +13102,7 @@ rules:
           moveSpace: ctx.insertSpaceAfterAutocomplete && /^\p{L}{2}/u.test(ctx.text.slice(end + 1, end + 3))
         # Newer language extensions stay individual-only.
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: mark === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma",
-            range: { start: m.index, end: end + 1 },
-            alternatives: [moveSpace ? `${mark} ` : mark],
+          finding("commaPeriodSpacing", mark === "؛" ? "review_msg_space_before_mark" : "review_msg_space_before_comma", m.index, end + 1, [moveSpace ? `${mark} ` : mark], {
             context: { start: m.index - 1, end: end + (moveSpace ? 2 : 1) },
             bulkBlock: mark === "؛" ? "context-dependent" : undefined,
           })
@@ -12527,11 +13129,7 @@ rules:
         scan: owned
         flags: gu
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_space_after_opening_mark",
-            range: { start: m.index - 1, end: m.index + m[0].length },
-            alternatives: [ctx.source[m.index - 1]],
+          finding("commaPeriodSpacing", "review_msg_space_after_opening_mark", m.index - 1, m.index + m[0].length, [ctx.source[m.index - 1]], {
             context: { start: m.index - 1, end: m.index + m[0].length + 1 },
             bulkBlock: "context-dependent",
           })
@@ -12544,11 +13142,7 @@ rules:
           end: m.index + m[0].length
           wordFollows: end < ctx.text.length && !/\s/.test(ctx.text[end])
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_wide_comma",
-            range: { start: m.index, end },
-            alternatives: [wordFollows ? ", " : ","],
+          finding("commaPeriodSpacing", "review_msg_wide_comma", m.index, end, [wordFollows ? ", " : ","], {
             context: { start: m.index - 1, end: end + 1 },
           })
       # "20%CPU" is "20% CPU". URL escapes ("%C3%A9", "%20Hello") have a letter or "%" before
@@ -12562,11 +13156,7 @@ rules:
           tokenEnd: ctx.text.slice(sign).search(/\s|$/) + sign
         when: '!/[\uFFFC@#/\\_=:;<>{}[\]$&+]/u.test(ctx.text.slice(tokenStart, tokenEnd))'
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_space_after_mark",
-            range: { start: sign, end: sign + 1 },
-            alternatives: ["% "],
+          finding("commaPeriodSpacing", "review_msg_space_after_mark", sign, sign + 1, ["% "], {
             context: { start: tokenStart, end: tokenEnd },
           })
       # Missing space after a comma between words: "one,two". Only between words
@@ -12582,11 +13172,7 @@ rules:
           - ctx.insertSpaceAfterAutocomplete
           - '!((token.match(/[,،]/g)?.length ?? 0) > 1 || /[\uFFFC@#/\\_=.:;]/u.test(token))'
         return: >-
-          ({
-            ruleId: "commaPeriodSpacing",
-            messageKey: "review_msg_space_after_comma",
-            range: { start: m.index, end: m.index + 1 },
-            alternatives: [`${ctx.source[m.index]} `],
+          finding("commaPeriodSpacing", "review_msg_space_after_comma", m.index, m.index + 1, [`${ctx.source[m.index]} `], {
             context: { start: tokenStart, end: tokenEnd },
           })
   - id: repeatedSpaces
@@ -12658,29 +13244,16 @@ rules:
         when: '!(isLang(ctx, "de") && /(?:^|[^\d.])\d{1,2}\.\d{1,2}$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))'
         return: >-
           /^\s+\p{Ll}/u.test(ctx.text.slice(m.index + 2, m.index + 12))
-            ? {
-                ruleId: "duplicatePunctuationCollapse",
-                messageKey: "review_msg_ellipsis_length",
-                range: { start: m.index, end: m.index + 2 },
-                alternatives: ["..."],
-              }
-            : {
-                ruleId: "duplicatePunctuationCollapse",
-                messageKey: "review_msg_duplicate_punctuation",
-                range: { start: m.index, end: m.index + 2 },
-                alternatives: [".", "..."],
-                requiresChoice: true,
-              }
+            ? finding("duplicatePunctuationCollapse", "review_msg_ellipsis_length", m.index, m.index + 2, ["..."])
+            : finding("duplicatePunctuationCollapse", "review_msg_duplicate_punctuation", m.index, m.index + 2, [".", "..."], {
+              requiresChoice: true,
+            })
       # A line of two dots alone is a short ellipsis or a stray period.
       - regex: "(?<=^|\\n)(?<target>\\.\\.)(?=[ \\t]*(?:\\r?\\n|$))"
         scan: owned
         flags: gu
         return: >-
-          ({
-            ruleId: "duplicatePunctuationCollapse",
-            messageKey: "review_msg_ellipsis_length",
-            range: { start: m.index, end: m.index + 2 },
-            alternatives: ["...", "."],
+          finding("duplicatePunctuationCollapse", "review_msg_ellipsis_length", m.index, m.index + 2, ["...", "."], {
             requiresChoice: true,
           })
       # An ellipsis has three dots: "So..... anyway". Digits
@@ -12691,11 +13264,7 @@ rules:
         flags: gu
         # Four dots can be a sentence period plus an ellipsis: one at a time.
         return: >-
-          ({
-            ruleId: "duplicatePunctuationCollapse",
-            messageKey: "review_msg_ellipsis_length",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: ["..."],
+          finding("duplicatePunctuationCollapse", "review_msg_ellipsis_length", m.index, m.index + m[0].length, ["..."], {
             bulkBlock: m[0].length === 4 ? "context-dependent" : undefined,
           })
   # "..." typed for an ellipsis.
@@ -12778,11 +13347,7 @@ rules:
           end: m.index + m[0].length
         when: '!(m[1] === "′" && m[3] === "″")'
         return: >-
-          ({
-            ruleId: "primeSymbols",
-            messageKey: "review_msg_prime_symbols",
-            range: { start: m.index, end },
-            alternatives: [`′${ctx.source.slice(m.index + 1, end - 1)}″`],
+          finding("primeSymbols", "review_msg_prime_symbols", m.index, end, [`′${ctx.source.slice(m.index + 1, end - 1)}″`], {
             context: { start: Math.max(0, m.index - 8), end: Math.min(ctx.text.length, end + 1) },
           })
       # Degrees then minutes with no seconds after them ("48°51'N").
@@ -12947,11 +13512,7 @@ rules:
         let:
           separator: resolveMeasurementLocale(ctx.lang)?.separator ?? " "
         return: >-
-          ({
-            ruleId: "measurementUnitFormatting",
-            messageKey: "review_msg_kelvin_degree",
-            range: { start: m.index, end: m.index + 2 },
-            alternatives: [/\p{N}/u.test(ctx.text[m.index - 1]) ? `${separator}K` : "K"],
+          finding("measurementUnitFormatting", "review_msg_kelvin_degree", m.index, m.index + 2, [/\p{N}/u.test(ctx.text[m.index - 1]) ? `${separator}K` : "K"], {
             context: { start: Math.max(0, m.index - 1), end: m.index + 2 },
           })
   # German puts a space between a number and its byte unit: "5kB" → "5 kB". The shared check
@@ -12975,11 +13536,7 @@ rules:
           end: m.index + m[0].length
         when: m.index >= ctx.from && m.index < ctx.to && !namedExampleBefore(ctx.text, m.index)
         return: >-
-          ({
-            ruleId: key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting",
-            messageKey: key,
-            range: { start: m.index, end },
-            alternatives,
+          finding(key === "review_msg_currency_spacing" ? "currencySpacing" : "measurementUnitFormatting", key, m.index, end, alternatives, {
             requiresChoice: alternatives.length > 1 || undefined,
             context: { start: Math.max(0, m.index - 30), end: end + 30 },
           })
@@ -13062,11 +13619,7 @@ rules:
           - ctx.lang === "en_US"
           - '!(m[3] === "$" && /\$[\p{L}\\{(_]/u.test(ctx.text.slice(lineStart, lineEnd)))'
         return: >-
-          ({
-            ruleId: "currencySpacing",
-            messageKey: "review_msg_currency_placement",
-            range: { start: m.index, end },
-            alternatives: [m[4] ? `${m[4]}¢` : `${m[3]}${m[1]}${m[2] ?? ""}`],
+          finding("currencySpacing", "review_msg_currency_placement", m.index, end, [m[4] ? `${m[4]}¢` : `${m[3]}${m[1]}${m[2] ?? ""}`], {
             context: { start: lineStart, end: lineEnd },
             bulkBlock: "context-dependent",
           })
@@ -13080,869 +13633,10 @@ rules:
     stage: 1
     style: match
     message: review_msg_future_date_past
-    sets:
-      DE_BOUNDARY:
-        [
-          dass,
-          ob,
-          wenn,
-          falls,
-          weil,
-          als,
-          bevor,
-          nachdem,
-          sobald,
-          bis,
-          und,
-          aber,
-          oder,
-          sondern,
-          denn,
-          damit,
-          obwohl,
-          während,
-        ]
-      DE_CONDITIONAL: [wenn, falls, ob]
-      FR_BOUNDARY:
-        [que, qu, si, quand, lorsque, lorsqu, et, mais, ou, car, donc, puis, dont, où, qui, comme]
-      FR_ES_CONDITIONAL: [si]
-      ES_DATE_BOUNDARY:
-        [que, si, cuando, porque, aunque, "y", e, pero, o, u, ni, mientras, donde, quien, como]
-      PT_BOUNDARY: [que, se, quando, porque, embora, e, mas, ou, enquanto, onde, quem, como]
-      PT_CONDITIONAL: [se]
-      PL_BOUNDARY:
-        [
-          że,
-          czy,
-          jeśli,
-          jeżeli,
-          gdy,
-          gdyby,
-          kiedy,
-          bo,
-          ponieważ,
-          aby,
-          żeby,
-          i,
-          ale,
-          lub,
-          albo,
-          oraz,
-          a,
-          który,
-          która,
-          które,
-          którzy,
-          jak,
-        ]
-      PL_CONDITIONAL: [jeśli, jeżeli, gdyby, czy]
-      AR_BOUNDARY: [أن, إن, إذا, لو, عندما, حتى, لأن, الذي, التي, الذين, لكن, ثم, بينما]
-      AR_CONDITIONAL: [إذا, لو, إن]
-      DE_HABEN: [habe, hast, hat, haben, habt, hatte, hattest, hatten, hattet]
-      DE_SEIN: [bin, bist, ist, sind, seid, war, warst, waren, wart]
-      DE_WERDEN: [werde, wirst, wird, werden, werdet]
-      DE_PRONOUNS: [ich, du, er, sie, wir, ihr]
-      DE_NOT_PARTICIPLE: [gegen, gesamt, insgesamt, gerecht]
-      FR_AVOIR: [ai, as, a, avons, avez, ont, avais, avait, avions, aviez, avaient]
-      FR_ETRE: [suis, es, est, sommes, êtes, sont, étais, était, étions, étiez, étaient]
-      FR_ADVERBS:
-        [
-          pas,
-          jamais,
-          déjà,
-          bien,
-          tout,
-          tous,
-          enfin,
-          aussi,
-          encore,
-          beaucoup,
-          rien,
-          plus,
-          toujours,
-          vraiment,
-          finalement,
-        ]
-      FR_NOT_PARTICIPLE:
-        [
-          plus,
-          tous,
-          nous,
-          vous,
-          sous,
-          jus,
-          dessus,
-          ainsi,
-          aussi,
-          ici,
-          parmi,
-          lui,
-          qui,
-          si,
-          ni,
-          tu,
-          du,
-          lit,
-          bien,
-          tout,
-          lundi,
-          mardi,
-          mercredi,
-          jeudi,
-          vendredi,
-          samedi,
-          midi,
-          aujourd,
-        ]
-      FR_MOTION:
-        [
-          allé,
-          venu,
-          parti,
-          arrivé,
-          rentré,
-          revenu,
-          sorti,
-          entré,
-          monté,
-          descendu,
-          tombé,
-          né,
-          mort,
-          resté,
-          retourné,
-          devenu,
-          parvenu,
-        ]
-      FR_SUBJECTS: [je, j, tu, il, elle, "on", nous, vous, ils, elles]
-      FR_OBJECTS: [ne, "n", "y", en, le, la, les, l, lui, leur, me, m, te, t, se, s, nous, vous]
-      FR_ALLER: [vais, vas, va, allons, allez, vont]
-      ES_HABER: [he, has, ha, hemos, habéis, han, había, habías, habíamos, habíais, habían]
-      ES_PAST_WORDS:
-        [
-          fui,
-          fue,
-          fuimos,
-          fuiste,
-          fueron,
-          estuve,
-          estuvo,
-          estuvimos,
-          estuvieron,
-          tuve,
-          tuvo,
-          tuvimos,
-          tuvieron,
-          hice,
-          hizo,
-          hicimos,
-          hicieron,
-          dije,
-          dijo,
-          dijimos,
-          dijeron,
-          vinimos,
-          vinieron,
-          pude,
-          pudo,
-          pudimos,
-          pudieron,
-          puse,
-          puso,
-          pusimos,
-          pusieron,
-          quise,
-          quiso,
-          supe,
-          supo,
-          traje,
-          trajo,
-          trajimos,
-          era,
-          eras,
-          éramos,
-          eran,
-          iba,
-          ibas,
-          íbamos,
-          iban,
-          vio,
-          vimos,
-          vieron,
-          dio,
-          dimos,
-          dieron,
-        ]
-      ES_NOT_PAST:
-        [
-          esté,
-          dé,
-          sé,
-          fe,
-          café,
-          bebé,
-          josé,
-          comité,
-          puré,
-          chalé,
-          té,
-          qué,
-          porqué,
-          dominó,
-          buró,
-          rococó,
-          mamá,
-          papá,
-        ]
-      ES_IR: [voy, vas, va, vamos, vais, van]
-      PT_PAST_WORDS:
-        [
-          fui,
-          foi,
-          fomos,
-          foram,
-          foste,
-          estive,
-          esteve,
-          estivemos,
-          estiveram,
-          tive,
-          teve,
-          tivemos,
-          tiveram,
-          fiz,
-          fez,
-          fizemos,
-          fizeram,
-          disse,
-          dissemos,
-          disseram,
-          vi,
-          viu,
-          vimos,
-          viram,
-          pude,
-          pôde,
-          pudemos,
-          puderam,
-          era,
-          eras,
-          éramos,
-          eram,
-          vim,
-          veio,
-          viemos,
-          vieram,
-          quis,
-          quisemos,
-          soube,
-          trouxe,
-          pus,
-          pôs,
-        ]
-      PT_NOT_PAST: [sei, lei, rei, grei, sou, estou, vou, dou]
-      PT_PLUPERFECT: [tinha, tinhas, tínhamos, tinham, havia, havíamos, haviam]
-      PT_IR: [vou, vais, vai, vamos, ides, vão]
-      PL_FUTURE: [będę, będziesz, będzie, będziemy, będziecie, będą]
-      PL_NOT_PAST:
-        [
-          kanał,
-          upał,
-          zapał,
-          dział,
-          udział,
-          materiał,
-          przedział,
-          podział,
-          rozdział,
-          pył,
-          wał,
-          szał,
-          skała,
-          siła,
-          mogiła,
-          ciało,
-          mało,
-          działo,
-          chwili,
-          fali,
-          sali,
-          stali,
-          cały,
-          mały,
-          biały,
-          stały,
-          trwały,
-          doskonały,
-          dojrzały,
-          wspaniały,
-          okazały,
-          śmiały,
-          siły,
-          skały,
-          mogiły,
-        ]
-      AR_PAST: [لقد, كان, كانت, كنا, كنت, كانوا, كنتم, قمنا, قمت, قام, قامت]
-      AR_FUTURE: [سوف, لن]
-      DE_PAST:
-        [
-          war,
-          waren,
-          ging,
-          gingen,
-          kam,
-          kamen,
-          sah,
-          sahen,
-          flog,
-          flogen,
-          fuhr,
-          fuhren,
-          schwamm,
-          schwammen,
-          lief,
-          liefen,
-          gab,
-          gaben,
-          nahm,
-          nahmen,
-          fand,
-          fanden,
-          blieb,
-          blieben,
-          schrieb,
-          schrieben,
-          sprach,
-          sprachen,
-          traf,
-          trafen,
-          aß,
-          aßen,
-          trank,
-          tranken,
-          saß,
-          saßen,
-          stand,
-          standen,
-          lag,
-          lagen,
-          rief,
-          riefen,
-          hielt,
-          hielten,
-          ließ,
-          ließen,
-          fiel,
-          fielen,
-          zog,
-          zogen,
-          bat,
-          baten,
-          schlief,
-          schliefen,
-          starb,
-          starben,
-          sang,
-          sangen,
-          sprang,
-          sprangen,
-          gewann,
-          gewannen,
-          begann,
-          begannen,
-          verlor,
-          verloren,
-          half,
-          halfen,
-          warf,
-          warfen,
-          wurde,
-          wurden,
-          brachte,
-          brachten,
-          dachte,
-          dachten,
-          kannte,
-          kannten,
-          nannte,
-          nannten,
-          rannte,
-          rannten,
-          wusste,
-          wussten,
-          ritt,
-          ritten,
-          stieg,
-          stiegen,
-          fing,
-          fingen,
-          bekam,
-          bekamen,
-          verließ,
-          verließen,
-          erhielt,
-          erhielten,
-          warst,
-          wart,
-        ]
-    maps:
-      DE_MONTHS:
-        januar: 1
-        jänner: 1
-        jan: 1
-        jän: 1
-        februar: 2
-        feb: 2
-        märz: 3
-        mär: 3
-        april: 4
-        apr: 4
-        mai: 5
-        juni: 6
-        jun: 6
-        juli: 7
-        jul: 7
-        august: 8
-        aug: 8
-        september: 9
-        sep: 9
-        sept: 9
-        oktober: 10
-        okt: 10
-        november: 11
-        nov: 11
-        dezember: 12
-        dez: 12
-      FR_MONTHS:
-        janvier: 1
-        février: 2
-        fevrier: 2
-        mars: 3
-        avril: 4
-        mai: 5
-        juin: 6
-        juillet: 7
-        août: 8
-        aout: 8
-        septembre: 9
-        octobre: 10
-        novembre: 11
-        décembre: 12
-        decembre: 12
-      ES_MONTHS:
-        enero: 1
-        febrero: 2
-        marzo: 3
-        abril: 4
-        mayo: 5
-        junio: 6
-        julio: 7
-        agosto: 8
-        septiembre: 9
-        octubre: 10
-        noviembre: 11
-        diciembre: 12
-        setiembre: 9
-      PT_MONTHS:
-        janeiro: 1
-        fevereiro: 2
-        março: 3
-        abril: 4
-        maio: 5
-        junho: 6
-        julho: 7
-        agosto: 8
-        setembro: 9
-        outubro: 10
-        novembro: 11
-        dezembro: 12
-        jan: 1
-        fev: 2
-        mar: 3
-        abr: 4
-        mai: 5
-        jun: 6
-        jul: 7
-        ago: 8
-        set: 9
-        out: 10
-        nov: 11
-        dez: 12
-      PL_MONTHS:
-        stycznia: 1
-        lutego: 2
-        marca: 3
-        kwietnia: 4
-        maja: 5
-        czerwca: 6
-        lipca: 7
-        sierpnia: 8
-        września: 9
-        października: 10
-        listopada: 11
-        grudnia: 12
-      AR_MONTHS:
-        يناير: 1
-        "كانون الثاني": 1
-        جانفي: 1
-        فبراير: 2
-        شباط: 2
-        فيفري: 2
-        مارس: 3
-        آذار: 3
-        أبريل: 4
-        ابريل: 4
-        إبريل: 4
-        نيسان: 4
-        أفريل: 4
-        مايو: 5
-        أيار: 5
-        ماي: 5
-        يونيو: 6
-        يونيه: 6
-        حزيران: 6
-        جوان: 6
-        يوليو: 7
-        يوليه: 7
-        تموز: 7
-        جويلية: 7
-        أغسطس: 8
-        اغسطس: 8
-        آب: 8
-        أوت: 8
-        سبتمبر: 9
-        أيلول: 9
-        أكتوبر: 10
-        اكتوبر: 10
-        "تشرين الأول": 10
-        نوفمبر: 11
-        "تشرين الثاني": 11
-        ديسمبر: 12
-        "كانون الأول": 12
-    defs:
-      # A clause break before or after a date phrase.
-      DATE_BREAK: /[!?;()\n"“”«»„،؛؟]|[.:](?=\s|$)|,/gu
-      DATE_WORD: /[\p{L}\p{M}]+(?:-[\p{L}\p{M}]+)*|\p{N}+(?:[.:]\p{N}+)*/gu
-      # The words of the clause around a date phrase at [start, end): the words before it,
-      # nearest last (at most 6), the words after it (at most 10), whether these reach the end
-      # of the clause, and the word that opens the clause, when a boundary word does. "Am
-      # 7.8.2031, …": a comma after a date that opens the sentence ends no clause.
-      clauseAround:
-        args: "text: string, start: number, end: number, boundary: ReadonlySet<string>"
-        let:
-          head: text.slice(Math.max(0, start - 160), start)
-          lastBreak: "[...head.matchAll(DATE_BREAK)].at(-1)"
-          clauseHead: "head.slice(lastBreak ? lastBreak.index + lastBreak[0].length : 0)"
-          headWords: clauseHead.match(DATE_WORD) ?? []
-          opens: headWords.map((w) => boundary.has(w.toLowerCase())).lastIndexOf(true)
-          before: headWords.slice(opens + 1).slice(-6)
-          fullTail: text.slice(end, end + 200)
-          tail: 'before.length ? fullTail : fullTail.replace(/^[ \t ]*,/, "")'
-          stop: tail.search(DATE_BREAK)
-          afterWords: "(stop >= 0 ? tail.slice(0, stop) : tail).match(DATE_WORD) ?? []"
-          ends: afterWords.findIndex((w) => boundary.has(w.toLowerCase()))
-          after: "ends >= 0 ? afterWords.slice(0, ends) : afterWords"
-          closed: "ends >= 0 || stop >= 0 || end + 200 >= text.length"
-        return: >-
-          ({
-            before,
-            after: after.length > 10 ? after.slice(0, 10) : after,
-            closed: after.length > 10 ? false : closed,
-            opener: opens >= 0 ? headWords[opens].toLowerCase() : undefined,
-          })
-      # "future", "past" (of the last three years) or null for every reading of the date. A
-      # slashed date can also be month first: "10/27/2031".
-      dateSideOf:
-        args: "year: number, month: number, day: number, swap: boolean"
-        type: '"future" | "past" | null'
-        let:
-          readings: "swap ? [[year, month, day], [year, day, month]] : [[year, month, day]]"
-          valid: readings.filter((r) => dayCount(r[0], r[1], r[2]) !== null)
-        return: >-
-          !valid.length
-            ? null
-            : valid.every((r) => dateSide(r[0], r[1], r[2]) === "future")
-              ? "future"
-              : valid.every((r) => recentPast(r[0], r[1], r[2]))
-                ? "past"
-                : null
-      # The warning of a date frame: the tense of the clause and the side of the date disagree.
-      dateTenseWarning:
-        args: 'm: RegExpExecArray, side: "future" | "past"'
-        type: RawFinding
-        let:
-          span: m.indices!.groups!.date
-        return: >-
-          ({
-            ruleId: "dateTenseConsistency",
-            messageKey: side === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future",
-            range: { start: span[0], end: span[1] },
-            alternatives: [],
-            warningOnly: true as const,
-          })
-      # A date frame of one language: groups `date`, `day`, `year`, and `month` (digits) or
-      # `name`. `side` is the side of the date; `clause` and `tense` are read only when it has
-      # one. Plans, reports and conditions are other clauses.
-      dateTenseFinding:
-        args: >-
-          m: RegExpExecArray, ctx: DetectContext, side: "future" | "past" | null,
-          conditional: ReadonlySet<string>, boundary: ReadonlySet<string>, lang: string
-        type: RawFinding | null
-        let:
-          clause: clauseAround(ctx.text, m.index, m.index + m[0].length, boundary)
-          verdict: >-
-            lang === "de"
-              ? germanTense(clause)
-              : lang === "fr"
-                ? frenchTense(clause)
-                : lang === "es"
-                  ? spanishTense(clause)
-                  : lang === "pt"
-                    ? portugueseTense(clause)
-                    : lang === "pl"
-                      ? polishTense(clause)
-                      : arabicTense(clause)
-        when:
-          - "!!side"
-          - "!(clause.opener && conditional.has(clause.opener))"
-          - "!!verdict && verdict !== side"
-        return: dateTenseWarning(m, side)
-      lowerAll:
-        args: "list: readonly string[]"
-        return: list.map((word) => word.toLowerCase())
-      # German: "wird … reisen"; "wird … gewesen sein" is a guess about the past. "Ich war am …
-      # schon ausgebucht": a planning verb names the date of the plan. A simple past next to its
-      # pronoun: "ich war am …", "am … schwamm ich".
-      germanTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          all: lowerAll([...clause.before, ...clause.after])
-          last: "clause.closed ? clause.after.at(-1) : undefined"
-          prev: clause.after.at(-2)
-          b: lowerAll(clause.before)
-          a: lowerAll(clause.after).slice(0, 6)
-        return: >-
-          all.some((w) => w.startsWith("würd"))
-            ? null
-            : all.some((w) => DE_WERDEN.has(w))
-              ? !last ||
-                !/^\p{Ll}+(?:en|ern|eln)$/u.test(last) ||
-                DE_PARTICIPLE.test(last) ||
-                (/^(?:sein|haben)$/.test(last) && !!prev && DE_PARTICIPLE.test(prev))
-                ? null
-                : "future"
-              : last && DE_ARRANGING.test(last)
-                ? null
-                : last &&
-                    DE_PARTICIPLE.test(last) &&
-                    !DE_NOT_PARTICIPLE.has(last) &&
-                    (all.some((w) => DE_HABEN.has(w)) ||
-                      (all.some((w) => DE_SEIN.has(w)) && DE_SEIN_PARTICIPLE.test(last)))
-                  ? "past"
-                  : (b.length >= 2 && DE_PRONOUNS.has(b.at(-2)!) && DE_PAST.has(b.at(-1)!)) ||
-                      a.some((w, i) => DE_PAST.has(w) && i + 1 < a.length && DE_PRONOUNS.has(a[i + 1]))
-                    ? "past"
-                    : null
-      # French: the past ("avons visité", "sommes partis", "avaient déjà signé"; "il y a" is
-      # "there is"), or the future ("nous viendrons", "il ne viendra pas", "nous allons signer";
-      # "aura signé" guesses about the past). A planning verb names the date of the plan.
-      frenchTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          verdict: wordScan(lowerAll(clause.before), 0, "fr") ?? wordScan(lowerAll(clause.after), 0, "fr")
-        return: 'verdict === "past" || verdict === "future" ? verdict : null'
-      frenchStep:
-        args: "list: readonly string[], i: number"
-        type: '"past" | "future" | "none" | undefined'
-        let:
-          w: list[i]
-          auxiliary: (FR_AVOIR.has(w) && list[i - 1] !== "y") || FR_ETRE.has(w)
-          part: "auxiliary ? list.find((x, k) => k > i && !FR_ADVERBS.has(x)) : undefined"
-          partOk: "!!part && FR_PARTICIPLE.test(part) && !FR_NOT_PARTICIPLE.has(part)"
-        return: >-
-          auxiliary && !partOk
-            ? undefined
-            : auxiliary && FR_ARRANGING.test(part!)
-              ? "none"
-              : auxiliary && (FR_AVOIR.has(w) || FR_MOTION.has(part!.replace(/(?<=[éiu])(?:e|s|es)$/u, "")))
-                ? "past"
-                : FR_SUBJECTS.has(w)
-                  ? frenchSubject(list, i)
-                  : undefined
-      frenchSubject:
-        args: "list: readonly string[], i: number"
-        type: '"future" | "none" | undefined'
-        let:
-          stop: list.findIndex((x, k) => k > i && (k > i + 3 || !FR_OBJECTS.has(x)))
-          j: "stop < 0 ? list.length : stop"
-          verb: list[j]
-          next: list[j + 1]
-        return: >-
-          verb && FR_FUTURE.test(verb)
-            ? /^(?:aur|ser)/.test(verb) && next && FR_PARTICIPLE.test(next)
-              ? "none"
-              : "future"
-            : verb && FR_ALLER.has(verb) && FR_INFINITIVE.test(next ?? "")
-              ? "future"
-              : undefined
-      # Spanish: "íbamos a firmar", "queríamos firmar": a plan, not the past. A conditional
-      # ("visitaríamos") is no past.
-      spanishTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          verdict: >-
-            wordScan(lowerAll(clause.before), 0, "es") ?? wordScan(lowerAll(clause.after), 0, "es")
-        return: 'verdict === "past" || verdict === "future" ? verdict : null'
-      spanishStep:
-        args: "list: readonly string[], i: number"
-        type: '"past" | "future" | "none" | undefined'
-        let:
-          w: list[i]
-          next: list[i + 1] ?? ""
-          part: 'next === "ya" ? list[i + 2] : next'
-          past: >-
-            ES_PAST_WORDS.has(w) || (ES_PAST.test(w) && !ES_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w))
-        return: >-
-          (ES_FUTURE.test(w) && !/^(?:atrás|detrás)$/.test(w)) ||
-          (ES_IR.has(w) && next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
-            ? "future"
-            : ES_HABER.has(w)
-              ? part && ES_PARTICIPLE.test(part)
-                ? ES_ARRANGING.test(part)
-                  ? "none"
-                  : "past"
-                : undefined
-              : !past || ES_INFINITIVE.test(next) || (next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
-                ? undefined
-                : ES_ARRANGING.test(w)
-                  ? "none"
-                  : "past"
-      # Portuguese: "queríamos visitar", "íamos assinar": a plan; "estávamos a visitar" is the
-      # past.
-      portugueseTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          verdict: >-
-            wordScan(lowerAll(clause.before), 0, "pt") ?? wordScan(lowerAll(clause.after), 0, "pt")
-        return: 'verdict === "past" || verdict === "future" ? verdict : null'
-      portugueseStep:
-        args: "list: readonly string[], i: number"
-        type: '"past" | "future" | "none" | undefined'
-        let:
-          w: list[i]
-          next: list[i + 1] ?? ""
-          past: >-
-            PT_PAST_WORDS.has(w) || (PT_PAST.test(w) && !PT_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w))
-        return: >-
-          (PT_FUTURE.test(w) && w !== "atrás") || (PT_IR.has(w) && PT_INFINITIVE.test(next))
-            ? "future"
-            : PT_PLUPERFECT.has(w)
-              ? PT_PARTICIPLE.test(next)
-                ? PT_ARRANGING.test(next)
-                  ? "none"
-                  : "past"
-                : undefined
-              : !past || PT_INFINITIVE.test(next)
-                ? undefined
-                : PT_ARRANGING.test(w)
-                  ? "none"
-                  : "past"
-      # The verdict at the first word of `list` from `i` that decides one, by the steps of
-      # `lang` (fr, es or pt): "none" for no tense.
-      wordScan:
-        args: "list: readonly string[], i: number, lang: string"
-        type: '"past" | "future" | "none" | undefined'
-        let:
-          verdict: 'lang === "fr" ? frenchStep(list, i) : lang === "es" ? spanishStep(list, i) : portugueseStep(list, i)'
-        when: i < list.length
-        return: "verdict !== undefined ? verdict : wordScan(list, i + 1, lang)"
-        else: undefined
-      # Polish: "miało się odbyć", "chcieliśmy pojechać": a plan, not the past.
-      polishTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          list: lowerAll([...clause.before, ...clause.after])
-          past: >-
-            list.find(
-              (w, i) =>
-                (PL_PAST_PERSON.test(w) || (PL_PAST.test(w) && !PL_NOT_PAST.has(w))) &&
-                !PL_INFINITIVE.test((list[i + 1] === "się" ? list[i + 2] : list[i + 1]) ?? ""),
-            )
-        return: >-
-          list.some((w) => PL_FUTURE.has(w))
-            ? "future"
-            : past === undefined || PL_ARRANGING.test(past)
-              ? null
-              : "past"
-      # Arabic: "كان من المقرر": "was planned for", a plan.
-      arabicTense:
-        args: "clause: { before: string[]; after: string[]; closed: boolean }"
-        type: '"past" | "future" | null'
-        let:
-          list: "[...clause.before, ...clause.after]"
-        return: >-
-          list.some((w) => AR_FUTURE.has(w))
-            ? "future"
-            : list.some((w, i) => AR_PAST.has(w) && list[i + 1] !== "من")
-              ? "past"
-              : null
-      DE_PARTICIPLE: >-
-        /^(?:(?:ab|an|auf|aus|bei|ein|fest|fort|heim|her|hin|los|mit|nach|statt|teil|vor|weg|weiter|zu|zurück|zusammen|um|durch|über)?ge\p{Ll}{2,}(?:t|en)|(?:be|emp|ent|er|miss|ver|zer)\p{Ll}{2,}t|\p{Ll}{3,}iert)$/u
-      DE_SEIN_PARTICIPLE: >-
-        /(?:gangen|fahren|flogen|kommen|laufen|schwommen|gereist|wesen|blieben|storben|fallen|zogen|sprungen|wandert|rannt|stiegen|folgt|passiert|schehen|wachsen|worden|ritten|segelt|wacht|kehrt)$/u
-      DE_ARRANGING: >-
-        /(?:plant|bucht|reserviert|bestellt|vereinbart|schoben|verlegt|gesetzt|festgelegt|beworben|gemeldet|terminiert|kündigt|geladen|vorgesehen|bestätigt|gesagt|organisiert|getragen|notiert|gemerkt|gelegt|beantragt|gefragt|genehmigt|versprochen|geboten|gewünscht|geöffnet|geschlossen|fixiert|datiert|befristet|begrenzt)$/u
-      FR_PARTICIPLE: >-
-        /^\p{Ll}{2,}(?:é|ée|és|ées|i|ie|is|ies|it|ite|u|ue|us|ues|ert|erte|ait|aite|eint|ainte)$/u
-      FR_ARRANGING: >-
-        /^(?:prévu|planifié|fixé|programmé|réservé|commandé|reporté|décalé|déplacé|annoncé|confirmé|convenu|organisé|inscrit|demandé|proposé|promis|annulé|invité|noté|calé|repoussé|avancé|retenu|bloqué|posé|pris)(?:e|s|es)?$/u
-      FR_FUTURE: >-
-        /^(?:\p{Ll}+(?:er|ir|dr|ttr|aîtr)|ser|aur|fer|ir|pourr|verr|devr|saur|courr|mourr|enverr|recevr|vivr|suivr|écrir|lir|dir|boir|croir|plair)(?:ai|as|a|ons|ez|ont)$/u
-      FR_INFINITIVE: >-
-        /^\p{Ll}{2,}(?:er|ir|re|oir)$/u
-      ES_PARTICIPLE: >-
-        /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|hecho|dicho|puesto|escrito|abierto|vuelto|roto|muerto|cubierto|resuelto|devuelto|descubierto|impreso|satisfecho)$/u
-      ES_PAST: >-
-        /^\p{Ll}{3,}(?:é|ó|aste|iste|aron|ieron|yeron|asteis|isteis|aba|abas|ábamos|abais|aban|íamos|íais|ían)$/u
-      ES_ARRANGING: >-
-        /^(?:re)?(?:program|previst|prev|plane|reserv|fij|pospu|aplaz|convoc|anunci|confirm|acord|organiz|cancel|ped|pid|solicit|promet|agend|cit|inscri|qued|traslad|cambi|mov|apunt)/u
-      ES_FUTURE: >-
-        /^(?:\p{Ll}{2,}(?:ré|rás|rá|réis|rán)|\p{Ll}+[ai]remos)$/u
-      ES_INFINITIVE: >-
-        /^\p{Ll}{2,}(?:ar|er|ir)$/u
-      DATE_CONDITIONAL: >-
-        /[aeií]r(?:íamos|íais|ían|íeis|iam)$/u
-      PT_PAST: >-
-        /^\p{Ll}{2,}(?:ei|ou|aste|este|iste|aram|eram|iram|ava|avas|ávamos|áveis|avam|íamos|íeis|iam)$/u
-      PT_PARTICIPLE: >-
-        /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|feito|dito|posto|escrito|aberto|vindo|ganho|gasto|pago|entregue|morto|coberto)$/u
-      PT_ARRANGING: >-
-        /^(?:re|des)?(?:marc|agend|planej|plane|program|reserv|adi|confirm|anunci|combin|cancel|convid|promet|solicit|ped|previ|prev|fix|inscrev|inscri|transfer|mud)/u
-      PT_FUTURE: >-
-        /^(?:\p{Ll}{2,}(?:rá|rás|rão)|\p{Ll}+[aei]rei|\p{Ll}+[ai]remos)$/u
-      PT_INFINITIVE: >-
-        /^(?:\p{Ll}{2,}(?:ar|er|ir|or)|pôr)$/u
-      PL_PAST_PERSON: >-
-        /^\p{Ll}{2,}(?:łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście)$/u
-      PL_PAST: >-
-        /^\p{Ll}{2,}(?:[aiyą]ł|[aiyę]ła|[aiyę]ło|[aiyę]li|[aiyę]ły)$/u
-      PL_ARRANGING: >-
-        /^(?:za)?(?:plan|rezerw|zarezerw|przełoż|przesun|umówi|umawia|ustal|zapisa|zaprosi|zamówi|ogłosi|potwierdzi|wyznaczy|zgłosi|zapowiedzi|odwoła|obieca|zaprogramowa|zaplanowa)/u
-      PL_INFINITIVE: >-
-        /^\p{Ll}{2,}(?:ć|c)$/u
     frames:
       - regex: "am{{DATE_SPACE}}(?:(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag),?{{DATE_SPACE}}(?:den{{DATE_SPACE}})?)?(?<date>(?<day>\\d{1,2})\\.(?:[ \\t\\u00a0]?(?<month>\\d{1,2})\\.[ \\t\\u00a0]?|[ \\t\\u00a0]*(?<name>januar|jänner|jan|jän|februar|feb|märz|mär|april|apr|mai|juni|jun|juli|jul|august|aug|september|sep|sept|oktober|okt|november|nov|dezember|dez)\\.?{{DATE_SPACE}})(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (DE_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, DE_CONDITIONAL, DE_BOUNDARY, "de")
+        return: dateTenseAt(m, ctx, DE_MONTHS, DE_CONDITIONAL, DE_BOUNDARY, "de")
   - id: dateTense.fr
     checks: [dateTenseConsistency]
     lang: fr
@@ -13952,18 +13646,10 @@ rules:
     frames:
       - regex: "le{{DATE_SPACE}}(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})(?:er)?{{DATE_SPACE}}(?<name>janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre){{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
+        return: dateTenseAt(m, ctx, FR_MONTHS, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
       - regex: "le{{DATE_SPACE}}(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche){{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
+        return: dateTenseAt(m, ctx, FR_MONTHS, FR_ES_CONDITIONAL, FR_BOUNDARY, "fr")
   - id: dateTense.es
     checks: [dateTenseConsistency]
     lang: es
@@ -13973,18 +13659,10 @@ rules:
     frames:
       - regex: "el{{DATE_SPACE}}(?:día{{DATE_SPACE}})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<day>\\d{1,2}){{DATE_SPACE}}de{{DATE_SPACE}}(?<name>enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre){{DATE_SPACE}}(?:de|del){{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
+        return: dateTenseAt(m, ctx, ES_MONTHS, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
       - regex: "el{{DATE_SPACE}}(?:día{{DATE_SPACE}})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?{{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
+        return: dateTenseAt(m, ctx, ES_MONTHS, FR_ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
   - id: dateTense.pt
     checks: [dateTenseConsistency]
     lang: pt
@@ -13994,25 +13672,13 @@ rules:
     frames:
       - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})[º°]?{{DATE_SPACE}}(?:de{{DATE_SPACE}})?(?<name>janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\\.?(?:{{DATE_SPACE}}de|,)?{{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt")
+        return: dateTenseAt(m, ctx, PT_MONTHS, PT_CONDITIONAL, PT_BOUNDARY, "pt")
       - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>(?<name>janeiro|fevereiro|março|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro|jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\\.?{{DATE_SPACE}}(?<day>\\d{1,2}),?{{DATE_SPACE}}(?<year>\\d{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt")
+        return: dateTenseAt(m, ctx, PT_MONTHS, PT_CONDITIONAL, PT_BOUNDARY, "pt")
       - regex: "(?:em|a|no{{DATE_SPACE}}dia|dia){{DATE_SPACE}}(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?{{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt")
+        return: dateTenseAt(m, ctx, PT_MONTHS, PT_CONDITIONAL, PT_BOUNDARY, "pt")
   - id: dateTense.pl
     checks: [dateTenseConsistency]
     lang: pl
@@ -14022,18 +13688,10 @@ rules:
     frames:
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(?:dnia|w{{DATE_SPACE}}dniu){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2}){{DATE_SPACE}}(?<name>stycznia|lutego|marca|kwietnia|maja|czerwca|lipca|sierpnia|września|października|listopada|grudnia){{DATE_SPACE}}(?<year>\\d{4}))(?:{{DATE_SPACE}}r\\.|{{DATE_SPACE}}roku)?{{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PL_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PL_CONDITIONAL, PL_BOUNDARY, "pl")
+        return: dateTenseAt(m, ctx, PL_MONTHS, PL_CONDITIONAL, PL_BOUNDARY, "pl")
       - regex: "(?<![\\p{L}\\p{N}.,/-])(?:(?:dnia|w{{DATE_SPACE}}dniu){{DATE_SPACE}})?(?<date>(?<day>\\d{1,2})\\.(?<month>\\d{1,2})\\.(?<year>\\d{4}))(?:{{DATE_SPACE}}r\\.|{{DATE_SPACE}}roku)?{{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(Number(g.year), g.name ? (PL_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, PL_CONDITIONAL, PL_BOUNDARY, "pl")
+        return: dateTenseAt(m, ctx, PL_MONTHS, PL_CONDITIONAL, PL_BOUNDARY, "pl")
   - id: dateTense.ar
     checks: [dateTenseConsistency]
     lang: ar
@@ -14043,8 +13701,4 @@ rules:
     frames:
       - regex: "(?:(?:في|يوم|بتاريخ){{DATE_SPACE}})?(?<date>(?<day>[0-9٠-٩۰-۹]{1,2}){{DATE_SPACE}}(?<name>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب){{DATE_SPACE}}(?<year>[0-9٠-٩۰-۹]{4})){{DATE_NOT_AFTER}}"
         owner: date
-        let:
-          g: m.groups!
-          side: >-
-            dateSideOf(digitValue(g.year), g.name ? (AR_MONTHS[g.name] ?? 0) : digitValue(g.month), digitValue(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, AR_CONDITIONAL, AR_BOUNDARY, "ar")
+        return: dateTenseAt(m, ctx, AR_MONTHS, AR_CONDITIONAL, AR_BOUNDARY, "ar")

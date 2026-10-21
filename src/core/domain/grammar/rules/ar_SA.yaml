@@ -286,13 +286,9 @@ defs:
       span: m.indices!.groups!.target
     when: ownsAt(ctx, span[0])
     return: >-
-      {
-        ruleId: frame.ruleId,
-        messageKey,
-        range: { start: span[0], end: span[1] },
-        alternatives: [alternative],
+      finding(frame.ruleId, messageKey, span[0], span[1], [alternative], {
         context: { start: m.index, end: m.index + m[0].length },
-      }
+      })
 
 rules:
   # The token frames: each frame matches the word that a token step tests first. The step reads
@@ -856,13 +852,9 @@ rules:
           - token
           - fixed
         return: >-
-          {
-            ruleId: frame.ruleId,
-            messageKey: "review_msg_arabic_jussive",
-            range: { start: token.start, end: token.end },
-            alternatives: [fixed],
+          finding(frame.ruleId, "review_msg_arabic_jussive", token.start, token.end, [fixed], {
             context: { start: token.start - lamma![0].length, end: token.end },
-          }
+          })
   - id: ar_SA.dates
     checks: [arabicDates]
     style: match
@@ -920,14 +912,10 @@ rules:
         when: years.length > 0 && !weekdays.includes(WEEKDAY_NUMBER.get(weekday)!)
         return: >-
           [
-            {
-              ruleId: frame.ruleId,
-              messageKey: "review_msg_weekday_no_year",
-              range: { start: m.index, end: m.index + weekday.length },
-              alternatives: weekdays.map((w) => WEEKDAYS[w][0]),
+            finding(frame.ruleId, "review_msg_weekday_no_year", m.index, m.index + weekday.length, weekdays.map((w) => WEEKDAYS[w][0]), {
               requiresChoice: true,
               context: range,
-            },
+            }),
           ]
         else: "[]"
       # A date in the wrong order: the fix puts its parts day first.
@@ -938,12 +926,7 @@ rules:
           gap: '/[ \t\u00a0]+/.exec(m[0])![0]'
         when: dateOwns(ctx, m)
         return: >-
-          {
-            ruleId: frame.ruleId,
-            messageKey: "review_msg_arabic_date_order",
-            range: { start: m.index, end: m.index + m[0].length },
-            alternatives: [parts.join(gap)],
-          }
+          finding(frame.ruleId, "review_msg_arabic_date_order", m.index, m.index + m[0].length, [parts.join(gap)])
     # A date-order finding (the last frames) that starts in an earlier finding is dropped.
     filter:
       let:
@@ -1009,13 +992,9 @@ rules:
         flags: gu
         when: dateOwns(ctx, m)
         return: >-
-          {
-            ruleId: frame.ruleId,
-            messageKey: "review_msg_arabic_impossible_date",
-            range: { start: m.index + m[0].length - target.length, end: m.index + m[0].length },
-            alternatives: [],
+          finding(frame.ruleId, "review_msg_arabic_impossible_date", m.index + m[0].length - target.length, m.index + m[0].length, [], {
             warningOnly: true,
-          }
+          })
       # An ISO date that no calendar has ("2025-02-30", "2023-02-29"). The year first makes the
       # form clear in each language. A fourth numeric part before or after ("1-2025-02-30",
       # "2025-02-30-7", "2025-02-30.1") makes it an ID, not a date. Arabic-Indic digits count too
