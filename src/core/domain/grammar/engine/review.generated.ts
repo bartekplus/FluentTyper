@@ -17624,7 +17624,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}\\-'’@/#.])(anti|ciber|pre|re|vice|hiper|inter|neuro|geo|nano|agro|sub|semi|multi|pos|infra|intra|seudo|pseudo|archi|hemi|co|fito|meso|hidro|termo|electro|cardio|psico|sero|ex|pro|des|post|poli|tele|video|foto|euro|afro|micro|macro|mini|ultra|super|súper|auto|radio|bio|eco|socio|mega|giga|kilo|zoo|extra|astro|hispano|anglo|franco|luso|físico|químico|cuasi)(?:(-)|[ \\t]+)(\\p{L}[\\p{L}\\p{M}]{2,})(?![\\p{L}\\p{N}\\-'’@/])",
     literals: [],
-    fixer: "es:prefixed",
+    fixer: "es:@es.prefixes/1",
     flags: "giu",
     scan: "owned",
     lookback: 16,
@@ -17632,7 +17632,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?:mal|\\p{Ll}*[ae])(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "es:splitCompounds",
+    fixer: "es:@es.splitCompounds/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -17640,7 +17640,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}\\-'\\u2019@/#.])([a-z\\u00F1]{2,5})-([a-z\\u00F1]{2,5})(?![\\p{L}\\p{N}\\-'\\u2019@/])",
     literals: [],
-    fixer: "es:doubled",
+    fixer: "es:@es.doubledCompounds/1",
     flags: "gu",
     scan: "owned",
     lookback: 16,

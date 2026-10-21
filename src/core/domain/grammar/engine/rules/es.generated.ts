@@ -2,8 +2,184 @@
 // The code of grammar/rules/es.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, MatchResult } from "../../library";
-import { namedExampleBefore } from "../../library";
+import type {
+  DetectContext,
+  FrameRef,
+  MatchResult,
+  RawFinding,
+  SpanishAround,
+} from "../../library";
+import {
+  ES_CLITICS,
+  ES_DETERMINER,
+  ES_NOUN_ENDING,
+  ES_PRENOMINAL,
+  esAround,
+  esAttribute,
+  esAttributeOf,
+  esCarryCase,
+  esFiniteVerb,
+  esGenderedForm,
+  esIsGenderedEntry,
+  esIsNoun,
+  esKeepsTyped,
+  esPlain,
+  esReadNoun,
+  esTokenAt,
+  esTokens,
+  namedExampleBefore,
+} from "../../library";
+
+export const ES_FREE_PREFIXES: ReadonlySet<string> = new Set([
+  "ex",
+  "pro",
+  "des",
+  "post",
+  "poli",
+  "tele",
+  "video",
+  "foto",
+  "euro",
+  "afro",
+  "micro",
+  "macro",
+  "mini",
+  "ultra",
+  "super",
+  "súper",
+  "auto",
+  "radio",
+  "bio",
+  "eco",
+  "socio",
+  "mega",
+  "giga",
+  "kilo",
+  "zoo",
+  "extra",
+  "astro",
+  "hispano",
+  "anglo",
+  "franco",
+  "luso",
+  "físico",
+  "químico",
+  "cuasi",
+]);
+
+export const ES_GRADING_PREFIXES: ReadonlySet<string> = new Set([
+  "pro",
+  "ultra",
+  "cuasi",
+  "super",
+  "súper",
+]);
+
+export const ES_RELATIONAL_PREFIXES: ReadonlySet<string> = new Set([
+  "hispano",
+  "anglo",
+  "franco",
+  "luso",
+  "físico",
+  "químico",
+]);
+
+export const ES_SIZE_PREFIXES: ReadonlySet<string> = new Set([
+  "macro",
+  "micro",
+  "mini",
+  "mega",
+  "maxi",
+]);
+
+export const ES_MASCULINE_DETERMINERS: ReadonlySet<string> = new Set([
+  "el",
+  "un",
+  "del",
+  "al",
+  "este",
+  "ese",
+  "aquel",
+  "los",
+  "unos",
+  "estos",
+  "esos",
+  "aquellos",
+]);
+
+// es.yaml def esFinding
+export function esFinding(
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  start: number,
+  end: number,
+  alternatives: string[],
+  extra?: Partial<RawFinding>,
+): RawFinding {
+  return { ruleId, messageKey, range: { start, end }, alternatives, ...extra };
+}
+
+// es.yaml def esResume
+export function esResume(frame: FrameRef, index: number) {
+  return frame.resume?.(index) === undefined;
+}
+
+// es.yaml def esJoinPrefix
+export function esJoinPrefix(prefix: string, word: string) {
+  const base = esPlain(prefix);
+  return /[aeiou]$/iu.test(base) && word.startsWith("r") && !word.startsWith("rr")
+    ? `${base}r${word}`
+    : `${base}${word}`;
+}
+
+// es.yaml rule es.prefixes def esKnownWord
+export function esKnownWord(word: string) {
+  return (
+    !(word.startsWith("des") && ES_NOUN_ENDING.test(word)) &&
+    (esIsNoun(word) || esIsGenderedEntry(word) || !!esGenderedForm(word))
+  );
+}
+
+// es.yaml rule es.splitCompounds def ES_MAL_VERBS
+export const ES_MAL_VERBS =
+  /^(?:interpret|gast|trat|cri|vend|her|entend|entiend|acostumbr)\p{L}+$/u;
+
+// es.yaml rule es.splitCompounds def esObjectCompound
+export function esObjectCompound(head: string, tail: string) {
+  const noun = esReadNoun(tail);
+  const nounHead = esReadNoun(head);
+  return noun &&
+    !noun.paired &&
+    (!nounHead || nounHead.gender === "f") &&
+    (noun.plural || esIsNoun(esJoinPrefix(head, tail)))
+    ? esJoinPrefix(head, tail)
+    : null;
+}
+
+// es.yaml rule es.splitCompounds def esSplitCompound
+export function esSplitCompound(
+  at: SpanishAround,
+  det: string,
+  head: string,
+  tail: string,
+  hyphen: boolean,
+) {
+  return ES_MASCULINE_DETERMINERS.has(det) && /[^aeiou][ae]$/u.test(head) && esFiniteVerb(head)
+    ? esObjectCompound(head, tail)
+    : !hyphen &&
+        (head === "sobre" || (head === "mal" && ES_MAL_VERBS.test(tail))) &&
+        !esIsNoun(tail) &&
+        !esAttribute(tail)
+      ? (esFiniteVerb(tail) && esFiniteVerb(esJoinPrefix(head, tail)) && !ES_CLITICS.has(tail)) ||
+        (head === "sobre" &&
+          ES_CLITICS.has(at.prev()) &&
+          esFiniteVerb(tail) &&
+          !esIsNoun(tail) &&
+          !ES_CLITICS.has(tail))
+        ? esJoinPrefix(head, tail)
+        : null
+      : null;
+}
 
 // es.yaml rule es.quotes def esQuoteMark
 export function esQuoteMark(start: number, replacement: string, pairEnd: number) {
@@ -27,6 +203,123 @@ export function esQuotePair(m: RegExpExecArray, ctx: DetectContext, open: string
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // es.yaml rule es.prefixes frame 1
+  "@es.prefixes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const prefix = m[1].toLowerCase();
+    const hyphen = m[2];
+    if (!hyphen && prefix === "ex") return null;
+    const word = m[3];
+    const lower = word.toLowerCase();
+    if (hyphen && ES_RELATIONAL_PREFIXES.has(prefix) && !esIsNoun(lower)) return null;
+    if (
+      hyphen &&
+      ES_RELATIONAL_PREFIXES.has(prefix) &&
+      /(?:ense|és|ano|ana|ino|ina)s?$|eses$/u.test(lower)
+    )
+      return null;
+    const before =
+      /(\p{L}+)[ \t]+$/u
+        .exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1]
+        .toLowerCase() ?? "";
+    const graded =
+      ES_GRADING_PREFIXES.has(prefix) &&
+      !!esGenderedForm(lower) &&
+      !esIsNoun(lower) &&
+      !ES_DETERMINER.has(before);
+    const det = ES_DETERMINER.get(before);
+    const noun = esReadNoun(lower);
+    const sized =
+      ES_SIZE_PREFIXES.has(prefix) &&
+      !!det &&
+      !!noun &&
+      !noun.paired &&
+      !esAttributeOf(lower) &&
+      !ES_PRENOMINAL.has(lower) &&
+      (noun.invariant || noun.plural === det.slot >= 2);
+    if (
+      !hyphen &&
+      ES_FREE_PREFIXES.has(prefix) &&
+      !graded &&
+      !sized &&
+      !esKnownWord(esJoinPrefix(prefix, word))
+    )
+      return null;
+    if (/^\p{Lu}/u.test(word)) return null;
+    const after = /^[ \t]{1,8}(\p{L}+)/u.exec(ctx.text.slice(m.index + m[0].length))?.[1] ?? "";
+    const apocope = /^(?:primer|tercer|gran|buen|mal|algún|ningún|alto|alta)$/u.test(word);
+    if (
+      !hyphen &&
+      (apocope || esAttribute(word)) &&
+      (esIsNoun(after.toLowerCase()) || esIsGenderedEntry(after.toLowerCase()))
+    )
+      return null;
+    if (prefix === "re" && /^(?:mayor|menor|bemol|sostenido)$/u.test(word)) return null;
+    if (
+      esKeepsTyped(ctx, m[1]) ||
+      ctx.dictionary.has(word) ||
+      namedExampleBefore(ctx.text, m.index)
+    )
+      return null;
+    return esFinding(
+      "spanishConfusions",
+      "review_msg_closed_compound",
+      m.index,
+      m.index + m[0].length,
+      [esCarryCase(m[1], esJoinPrefix(prefix, word))],
+      { bulkBlock: "context-dependent" },
+    );
+  },
+  // es.yaml rule es.splitCompounds frame 1
+  "@es.splitCompounds/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 1 && i + 1 < tokens.length)) return null;
+    const first = tokens[i];
+    const hyphen =
+      tokens[i + 1].text === "-" && first.end === tokens[i + 1].start && !!tokens[i + 2];
+    const second = hyphen ? tokens[i + 2] : tokens[i + 1];
+    if (!(first.word && (second.word || hyphen) && !second.broken && first.start >= ctx.from))
+      return null;
+    if (!(first.start < ctx.to)) return null;
+    if (hyphen && (ctx.text[second.end] === "-" || ctx.text[first.start - 1] === "-")) return null;
+    const gap = ctx.text.slice(first.end, second.start);
+    if (!(gap === " " || (hyphen && gap === "-"))) return null;
+    if (!(/^\p{Ll}+$/u.test(second.text) && /^\p{Ll}+$/u.test(first.text))) return null;
+    const at = esAround(tokens, i);
+    const quoted = /^[«“"]$/u.test(tokens[i - 1].text) && !tokens[i].broken;
+    const det = quoted ? esAround(tokens, i - 1).prev() : at.prev();
+    const joined = esSplitCompound(at, det, first.lower, second.lower, hyphen);
+    if (!(joined && !esKeepsTyped(ctx, first.lower) && !ctx.dictionary.has(second.lower)))
+      return null;
+    if (namedExampleBefore(ctx.text, first.start)) return null;
+    if (!esResume(frame, second.end)) return null;
+    return esFinding(
+      "spanishConfusions",
+      "review_msg_closed_compound",
+      first.start,
+      second.end,
+      [joined],
+      { bulkBlock: "context-dependent" },
+    );
+  },
+  // es.yaml rule es.doubledCompounds frame 1
+  "@es.doubledCompounds/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from && m[1] === m[2] && !ctx.dictionary.has(m[0].toLowerCase())))
+      return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: "spanishConfusions",
+      messageKey: "review_msg_closed_compound",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m[1]}${m[2]}`],
+      bulkBlock: "context-dependent",
+    };
+  },
   // es.yaml rule es.quotes frame 1
   "@es.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return esQuotePair(m, ctx, "«", "»");
