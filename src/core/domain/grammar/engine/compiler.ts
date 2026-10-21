@@ -118,6 +118,7 @@ const FRAME_KEYS = new Set([
   "owner",
   "gate",
   "gateFlags",
+  "lang",
 ]);
 const SCANS = new Set(["frame", "owned", "text", "polish"]);
 const BUILTIN_FRAGMENTS: Readonly<Record<string, string>> = {
@@ -455,13 +456,17 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
     if (!spec.checks?.length) errors.push(`${where}: "checks" names no check`);
     for (const id of spec.checks ?? [])
       if (!checks.has(id)) errors.push(`${where}: unknown check "${id}"`);
-    if ([spec.predicate, spec.pattern, spec.frames].filter((k) => k !== undefined).length !== 1)
+    // A frame rule may also name a predicate: it runs after the frames.
+    if (
+      [spec.pattern, spec.frames ?? spec.predicate].filter((k) => k !== undefined).length !== 1 ||
+      (spec.pattern !== undefined && spec.predicate !== undefined)
+    )
       errors.push(`${where}: give exactly one of "predicate", "pattern" and "frames"`);
     const check = checks.get(spec.checks?.[0]);
     const modes = spec.modes ?? ["review"];
     const lang = code(spec.lang ?? file.lang);
 
-    if (spec.predicate !== undefined) {
+    if (spec.predicate !== undefined && spec.frames === undefined) {
       if (modes.includes("live")) {
         if (modes.length > 1) errors.push(`${where}: a live predicate rule has only mode "live"`);
         if (livePredicates.has(spec.checks[0]))
@@ -601,6 +606,7 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           ...(entry.anyCheck ? { anyCheck: true as const } : {}),
           ...(entry.owner === undefined ? {} : { owner: entry.owner }),
           ...(entry.gate === undefined ? {} : { gate: entry.gate }),
+          ...(entry.lang === undefined ? {} : { lang: code(entry.lang) }),
           ...(entry.gateFlags === undefined ? {} : { gateFlags: entry.gateFlags }),
         });
         return frames.length - 1;
@@ -610,6 +616,13 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         checks: [...spec.checks],
         ...(lang ? { lang } : {}),
         frames: indexes,
+        ...(spec.predicate === undefined
+          ? {}
+          : {
+              predicate: spec.predicate.includes(":")
+                ? spec.predicate
+                : `${name}:${spec.predicate}`,
+            }),
         message: spec.message!,
         ...(spec.style && spec.style !== "frame" ? { style: spec.style } : {}),
         ...(spec.filter === undefined

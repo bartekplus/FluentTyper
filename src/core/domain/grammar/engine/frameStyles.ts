@@ -423,6 +423,7 @@ export function detectFrames(
   let words: Set<string> | undefined;
   for (const frame of frames) {
     if (ctx.rules && !frame.frame.anyCheck && !ctx.rules.has(frame.ruleId)) continue;
+    if (frame.frame.lang !== undefined && !isLang(ctx, frame.frame.lang)) continue;
     if (frame.gate && !mentions(ctx, frame.gate)) continue;
     if (frame.cue && !FRAME_AUDIT.all) {
       words ??= wordsNear(ctx);

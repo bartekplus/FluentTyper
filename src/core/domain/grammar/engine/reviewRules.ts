@@ -1,3 +1,4 @@
+import { detectAll } from "../review/phraseTemplates";
 import type { CatalogRuleId } from "../ruleCatalog";
 import { cacheable } from "../review/nativeReviewCache";
 import type { DetectContext, RawFinding, ReviewDetectorEntry } from "../review/reviewDetectors";
@@ -191,8 +192,17 @@ export function buildReviewDetectors(
   const entries = REVIEW_RULES.map((rule) => {
     let detect: Detector;
     if (rule.pattern !== undefined) detect = patternDetector(rule.pattern);
-    else if (rule.frames !== undefined) detect = frameRuleDetector(rule.id, fixers, filters);
-    else {
+    else if (rule.frames !== undefined) {
+      detect = frameRuleDetector(rule.id, fixers, filters);
+      if (rule.predicate !== undefined) {
+        // The frames, then the named predicate: one composite whose parts keep their findings
+        // when the other throws.
+        const after = named(predicates, rule.predicate);
+        if (!after) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
+        const frames = detect;
+        detect = (ctx) => detectAll(ctx, [frames, after]);
+      }
+    } else {
       const found = named(predicates, rule.predicate!);
       if (!found) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
       detect = found;

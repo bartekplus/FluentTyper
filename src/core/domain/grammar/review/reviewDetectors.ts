@@ -2,13 +2,7 @@ import { CUE_AND_QUOTE } from "./exampleCues";
 import { canonicalCasing } from "./canonicalCasing";
 import { phraseCorrections } from "./englishPhraseCorrections";
 import { FIXERS as DEGREE_FIXERS } from "./englishDegree";
-import {
-  FIXERS as LEXICON_FIXERS,
-  frenchElisions,
-  markedApostrophes,
-  quotedContraction,
-  splitWords,
-} from "./multilingualLexicon";
+import { FIXERS as LEXICON_FIXERS, quotedContraction } from "./multilingualLexicon";
 import { FIXERS as COUNT_FIXERS } from "./englishCountability";
 import { FIXERS as NUMBER_FIXERS } from "./englishNounNumber";
 import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
@@ -1713,12 +1707,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
   phraseTables: (ctx) => detectAll(ctx, [canonicalCasing, phraseCorrections]),
   quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
-  // The English word lists are the spellingWords frames; other languages have their own tables.
-  spelling: (ctx) =>
-    detectAll(
-      ctx,
-      ctx.lang === "en_US" ? [markedApostrophes] : [splitWords, frenchElisions, markedApostrophes],
-    ),
   modalOf,
   yourWelcome,
   theirThere,

@@ -1,8 +1,7 @@
 import { namedExampleBefore } from "./exampleCues";
 import { SPLIT_WORDS as POLISH_SPLIT_WORDS } from "./polish/compounds";
 import type { MatchFixer } from "../engine/reviewRules";
-import { caseLike, isLang, ownedMatches, TOKEN_END, WORD_START } from "./phraseTemplates";
-import type { DetectContext, RawFinding } from "./reviewDetectors";
+import { caseLike, TOKEN_END, WORD_START } from "./phraseTemplates";
 import { withTextApostrophes } from "./textRanges";
 
 /**
@@ -177,40 +176,40 @@ const SPLIT_TABLES = new Map(
   Object.entries(SPLIT_WORDS).map(([lang, entries]) => [lang, wordTable(entries)]),
 );
 
-/** Two words written as one ("napewno", "aveces"): the "alot" rule for other languages. */
-export function splitWords(ctx: DetectContext): RawFinding[] {
-  const table = SPLIT_TABLES.get(ctx.lang.slice(0, 2));
-  if (!table) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, table.regex)) {
+/**
+ * Two words written as one ("napewno", "aveces"): the "alot" rule for other languages. The
+ * frame of each language (the spelling rule of grammar/rules/common.yaml) lists its table.
+ */
+const splitWord =
+  (lang: string): MatchFixer =>
+  (m, ctx) => {
+    const table = SPLIT_TABLES.get(lang)!;
     const typed = m[0];
     const lower = typed.toLowerCase();
-    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
+    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) return null;
     const end = m.index + typed.length;
     const verb = SPLIT_VERB_OBJECT[lower];
     if (
       verb?.object.test(ctx.text.slice(end, end + 16)) &&
       !verb.adverbAfter.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
     )
-      continue;
+      return null;
     // "te aveces" is the verb "avezarse".
     if (
       lower === "aveces" &&
       /(?:^|\s)(?:me|te|se|nos|os)\s+$/iu.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
     )
-      continue;
+      return null;
     const replacement = table.map.get(lower)!;
-    findings.push({
+    return {
       ruleId: "englishAlotCorrection",
       messageKey: "review_msg_split_words",
       range: { start: m.index, end: m.index + typed.length },
       alternatives: [caseLike(typed, replacement)],
       dictionaryWord: typed,
       bulkBlock: "context-dependent",
-    });
-  }
-  return findings;
-}
+    };
+  };
 
 // ----------------------------------------------------------- French elision
 
@@ -234,27 +233,22 @@ const FRENCH_ELISIONS = wordTable({
 });
 
 /** "cest", "jai", "aujourdhui": a French elision missing its apostrophe. */
-export function frenchElisions(ctx: DetectContext): RawFinding[] {
-  if (!isLang(ctx, "fr")) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, FRENCH_ELISIONS.regex)) {
-    const typed = m[0];
-    const lower = typed.toLowerCase();
-    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) continue;
-    // "15:00 CEST": only the capital form is the time zone. A lowercase
-    // "cest" after a time ("À 20:40, cest terminé.") is still "c'est".
-    if (typed === "CEST") continue;
-    const replacement = withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS.map.get(lower)!);
-    findings.push({
-      ruleId: "englishContractionNormalization",
-      messageKey: "review_msg_contraction",
-      range: { start: m.index, end: m.index + typed.length },
-      alternatives: [caseLike(typed, replacement)],
-      bulkBlock: "context-dependent",
-    });
-  }
-  return findings;
-}
+const frenchElision: MatchFixer = (m, ctx) => {
+  const typed = m[0];
+  const lower = typed.toLowerCase();
+  if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) return null;
+  // "15:00 CEST": only the capital form is the time zone. A lowercase
+  // "cest" after a time ("À 20:40, cest terminé.") is still "c'est".
+  if (typed === "CEST") return null;
+  const replacement = withTextApostrophes(ctx.text, m.index, FRENCH_ELISIONS.map.get(lower)!);
+  return {
+    ruleId: "englishContractionNormalization",
+    messageKey: "review_msg_contraction",
+    range: { start: m.index, end: m.index + typed.length },
+    alternatives: [caseLike(typed, replacement)],
+    bulkBlock: "context-dependent",
+  };
+};
 
 // ------------------------------------------------- apostrophe look-alikes
 
@@ -291,19 +285,16 @@ export function quotedContraction(text: string, index: number): boolean {
 }
 
 /** "don´t", "I;m", "c´est", "gibt´s": an apostrophe typed as another mark. */
-export function markedApostrophes(ctx: DetectContext): RawFinding[] {
-  const lang = ctx.lang.slice(0, 2);
-  const regex = MARKED_APOSTROPHE[lang];
-  if (!regex) return [];
-  const findings: RawFinding[] = [];
-  for (const m of ownedMatches(ctx, regex)) {
+const markedApostrophe =
+  (lang: string): MatchFixer =>
+  (m, ctx) => {
     const mark = m[lang === "en" ? 2 : 1];
     const start = m.index + m[0].indexOf(mark, m.groups?.base.length ?? 0);
-    if (namedExampleBefore(ctx.text, start)) continue;
+    if (namedExampleBefore(ctx.text, start)) return null;
     if (mark === ";" && !SEMICOLON_BASES[m.groups!.end.toLowerCase()].test(m.groups!.base)) {
-      continue;
+      return null;
     }
-    if (mark === '"' && !quotedContraction(ctx.text, start)) continue;
+    if (mark === '"' && !quotedContraction(ctx.text, start)) return null;
     // "`code`s": a backtick pair on the line is Markdown code, not an apostrophe. Backticks
     // inside words only ("Won`t … You`re") open no code span.
     if (mark === "`") {
@@ -316,9 +307,9 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
         around.lastIndexOf("\n", at) + 1,
         lineEnd < 0 ? undefined : lineEnd,
       );
-      if (line.split("`").length > 2 && /(?<!\p{L})`|`(?!\p{L})/u.test(line)) continue;
+      if (line.split("`").length > 2 && /(?<!\p{L})`|`(?!\p{L})/u.test(line)) return null;
     }
-    findings.push({
+    return {
       ruleId: "englishContractionNormalization",
       messageKey: "review_msg_apostrophe_mark",
       range: { start, end: start + 1 },
@@ -326,10 +317,8 @@ export function markedApostrophes(ctx: DetectContext): RawFinding[] {
       context: { start: m.index, end: Math.min(ctx.text.length, m.index + m[0].length + 1) },
       // Only the English accent is certain; a semicolon or backtick may be meant.
       bulkBlock: lang === "en" && mark === "´" ? undefined : "context-dependent",
-    });
-  }
-  return findings;
-}
+    };
+  };
 
 // ------------------------------------------------- German days and months
 
@@ -355,4 +344,24 @@ const germanNounCapital: MatchFixer = (m, ctx) => {
 };
 
 /** The named frame fixes of the doubledDegree and properNouns rules (grammar/rules/common.yaml). */
-export const FIXERS = { comparativeMarker, germanNounCapital } satisfies Record<string, MatchFixer>;
+export const FIXERS = {
+  comparativeMarker,
+  germanNounCapital,
+  ...Object.fromEntries(
+    [...SPLIT_TABLES.keys()].map((lang) => [`splitWord_${lang}`, splitWord(lang)]),
+  ),
+  frenchElision,
+  ...Object.fromEntries(
+    Object.keys(MARKED_APOSTROPHE).map((lang) => [
+      `markedApostrophe_${lang}`,
+      markedApostrophe(lang),
+    ]),
+  ),
+} satisfies Record<string, MatchFixer>;
+
+/** The regexes of the spelling frames: a test keeps grammar/rules/common.yaml in step with them. */
+export const SPELLING_FRAME_REGEXES: readonly RegExp[] = [
+  ...[...SPLIT_TABLES.values()].map((table) => table.regex),
+  FRENCH_ELISIONS.regex,
+  ...Object.values(MARKED_APOSTROPHE),
+];

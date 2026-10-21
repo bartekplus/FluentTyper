@@ -151,6 +151,8 @@ export interface FrameSpec {
   gate?: string;
   /** The flags of `gate`. Default "gi". */
   gateFlags?: string;
+  /** The frame runs only on text of this language ("de", "pt_BR"): a rule of many languages. */
+  lang?: string;
 }
 
 /** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
@@ -331,4 +333,5 @@ export interface CompiledFrame {
   owner?: string;
   gate?: string;
   gateFlags?: string;
+  lang?: string;
 }
