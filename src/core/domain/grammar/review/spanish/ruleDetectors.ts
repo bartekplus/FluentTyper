@@ -8,7 +8,6 @@ import * as commas from "./commas";
 import * as confusions from "./confusions";
 import * as diacritics from "./diacritics";
 import * as frames from "./frames";
-import * as porque from "./porque";
 import * as typography from "./typography";
 import * as verbAccents from "./verbAccents";
 import * as verbAgreement from "./verbAgreement";
@@ -27,7 +26,6 @@ export const FIXERS = mergePredicates<Fixer>(
   verbAgreement.FIXERS,
   clauses.FIXERS,
   frames.FIXERS,
-  porque.FIXERS,
   commas.FIXERS,
   typography.FIXERS,
 );

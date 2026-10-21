@@ -17648,7 +17648,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?:sino|si|porqu[eé]s?|por)(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "es:porque",
+    fixer: "es:@es.porque/1",
     flags: "giu",
     scan: "owned",
   }),

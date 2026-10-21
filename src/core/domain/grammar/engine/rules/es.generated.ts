@@ -8,12 +8,15 @@ import type {
   MatchResult,
   RawFinding,
   SpanishAround,
+  SpanishToken,
+  SpanishTokens,
 } from "../../library";
 import {
   ES_CLITICS,
   ES_DETERMINER,
   ES_NOUN_ENDING,
   ES_PRENOMINAL,
+  ES_PREPOSITIONS,
   esAround,
   esAttribute,
   esAttributeOf,
@@ -21,10 +24,13 @@ import {
   esFiniteVerb,
   esGenderedForm,
   esIsGenderedEntry,
+  esIsInfinitive,
   esIsNoun,
   esKeepsTyped,
   esPlain,
   esReadNoun,
+  esReplaceToken,
+  esSubjunctiveLike,
   esTokenAt,
   esTokens,
   namedExampleBefore,
@@ -107,6 +113,104 @@ export const ES_MASCULINE_DETERMINERS: ReadonlySet<string> = new Set([
   "aquellos",
 ]);
 
+export const ES_SINGULAR_DETS: ReadonlySet<string> = new Set([
+  "el",
+  "un",
+  "del",
+  "al",
+  "su",
+  "este",
+  "ese",
+  "aquel",
+  "ningún",
+  "algún",
+  "otro",
+  "mi",
+  "tu",
+  "nuestro",
+  "vuestro",
+  "cuyo",
+]);
+
+export const ES_PLURAL_DETS: ReadonlySet<string> = new Set([
+  "los",
+  "unos",
+  "sus",
+  "estos",
+  "esos",
+  "aquellos",
+  "mis",
+  "tus",
+  "nuestros",
+  "vuestros",
+]);
+
+export const ES_TELL: ReadonlySet<string> = new Set([
+  "dime",
+  "dinos",
+  "decirme",
+  "decirnos",
+  "explícame",
+  "explícanos",
+  "explicarme",
+  "explicarnos",
+]);
+
+export const ES_NEED: ReadonlySet<string> = new Set([
+  "hay",
+  "había",
+  "habrá",
+  "habría",
+  "tengo",
+  "tienes",
+  "tiene",
+  "tenemos",
+  "tenéis",
+  "tienen",
+  "tenía",
+  "tenías",
+  "tenían",
+]);
+
+export const ES_REASON: ReadonlySet<string> = new Set([
+  "razón",
+  "razones",
+  "motivo",
+  "motivos",
+  "causa",
+  "causas",
+]);
+
+export const ES_PORQUE_CLOSED: ReadonlySet<string> = new Set([
+  "no",
+  "me",
+  "te",
+  "se",
+  "le",
+  "les",
+  "lo",
+  "la",
+  "los",
+  "las",
+  "nos",
+  "os",
+  "un",
+  "una",
+  "el",
+  "ya",
+  "muy",
+  "más",
+]);
+
+export const ES_ASKING_NOUNS: ReadonlySet<string> = new Set([
+  "pregunta",
+  "cuestión",
+  "duda",
+  "idea",
+  "misterio",
+  "incógnita",
+]);
+
 // es.yaml def esFinding
 export function esFinding(
   ruleId: RawFinding["ruleId"],
@@ -117,6 +221,11 @@ export function esFinding(
   extra?: Partial<RawFinding>,
 ): RawFinding {
   return { ruleId, messageKey, range: { start, end }, alternatives, ...extra };
+}
+
+// es.yaml def esSpan
+export function esSpan(ctx: DetectContext, first: SpanishToken, last: SpanishToken): SpanishToken {
+  return { ...first, end: last.end, text: ctx.text.slice(first.start, last.end) };
 }
 
 // es.yaml def esResume
@@ -179,6 +288,198 @@ export function esSplitCompound(
         ? esJoinPrefix(head, tail)
         : null
       : null;
+}
+
+// es.yaml rule es.porque def ES_KNOWING
+export const ES_KNOWING =
+  /^(?:sé|sabe|sabes|sabemos|saben|sabía|sabías|sabían|saber|supe|supo|sepa|sepas|sepan|entienda|entiendas|comprenda|pregunto|pregunta|preguntas|preguntan|preguntó|preguntaba|preguntarse|preguntarle|entiendo|entiendes|entiende|entender|comprendo|comprende|comprender|explica|explicar|explícame|explicarme|ignoro|averiguar|imagino|imagina|recuerdo|recuerda|dime|dinos|decirme|decirnos|aquí)$/u;
+
+// es.yaml rule es.porque def ES_FINITE_LOOK
+export const ES_FINITE_LOOK = /\p{L}{2,}(?:rá|rán|ré|rás|ría|rían|ríamos|remos)$/u;
+
+// es.yaml rule es.porque def esPorqueSpelling
+export function esPorqueSpelling(tokens: SpanishTokens, i: number) {
+  const token = tokens[i];
+  const next = tokens[i + 1];
+  return token.lower === "porque" || token.lower === "porqué"
+    ? { end: i, kind: token.lower }
+    : token.lower === "porques" || token.lower === "porqués"
+      ? { end: i, kind: "plural" }
+      : token.lower !== "por" || !next?.word || next.broken
+        ? null
+        : next.lower === "que"
+          ? { end: i + 1, kind: "por que" }
+          : next.lower === "qué"
+            ? { end: i + 1, kind: "por qué" }
+            : next.lower === "qués"
+              ? { end: i + 1, kind: "plural" }
+              : null;
+}
+
+// es.yaml rule es.porque def esPorqueVerbs
+export function esPorqueVerbs(tokens: SpanishTokens, j: number, end: number): number {
+  return j >= tokens.length || j >= end || tokens[j].broken || /^[?.!]$/u.test(tokens[j].text)
+    ? 0
+    : (tokens[j].word && esFiniteVerb(tokens[j].lower) && !ES_PORQUE_CLOSED.has(tokens[j].lower)
+        ? 1
+        : 0) + esPorqueVerbs(tokens, j + 1, end);
+}
+
+// es.yaml rule es.porque def esPorqueFix
+export function esPorqueFix(
+  tokens: SpanishTokens,
+  i: number,
+  spelling: { end: number; kind: string },
+): string[] | null {
+  const at = esAround(tokens, i);
+  const skip = /^\p{L}{3,}mente$/u.test(at.prev()) || at.prev() === "ya" ? 1 : 0;
+  const prev = at.prev(1 + skip);
+  const opens = tokens[i - 1]?.text === "¿" || (tokens[i - 2]?.text === "¿" && at.prev() === "y");
+  const asked =
+    ((prev === "es" || prev === "era") && ES_ASKING_NOUNS.has(at.prev(2 + skip))) ||
+    (prev === "de" && ES_ASKING_NOUNS.has(at.prev(2 + skip)));
+  const after = esAround(tokens, spelling.end);
+  const next = after.next();
+  const closes = after.endsAfter() || next === "de" || next === "del";
+  const negated = at.prev(2) === "no" || at.prev(3) === "no";
+  const verb = /^(?:él|ella|ellos|ellas|usted|yo|tú|se|me|te|le|les|lo|la|nos)$/u.test(next)
+    ? after.next(2)
+    : next;
+  const subject = at.prev(2 + skip) === "se" ? 3 + skip : 2 + skip;
+  return spelling.kind === "plural"
+    ? ES_PLURAL_DETS.has(prev) && tokens[i].lower !== "porqués"
+      ? ["porqués"]
+      : null
+    : ES_SINGULAR_DETS.has(prev)
+      ? spelling.kind !== "porqué" && closes
+        ? ["porqué"]
+        : null
+      : ES_PLURAL_DETS.has(prev)
+        ? closes
+          ? ["porqués"]
+          : null
+        : spelling.kind === "por qué"
+          ? null
+          : asked
+            ? ["por qué"]
+            : spelling.kind === "porqué"
+              ? opens || ES_KNOWING.test(prev)
+                ? ["por qué"]
+                : esFiniteVerb(prev) && next && !closes
+                  ? ["porque", "por qué"]
+                  : null
+              : spelling.kind === "por que"
+                ? opens || ES_KNOWING.test(prev) || ES_REASON.has(next)
+                  ? ["por qué"]
+                  : ES_NEED.has(prev) && negated && esIsInfinitive(next)
+                    ? ["por qué"]
+                    : (esFiniteVerb(prev) || esIsInfinitive(prev)) &&
+                        !esReadNoun(prev) &&
+                        !!verb &&
+                        esFiniteVerb(verb) &&
+                        !esSubjunctiveLike(verb)
+                      ? ["porque", "por qué"]
+                      : null
+                : spelling.kind === "porque" &&
+                    /^(?:razón|razones|motivo|motivos)$/u.test(prev) &&
+                    ES_DETERMINER.has(at.prev(2)) &&
+                    next &&
+                    ![3, 4].some((k) =>
+                      /^(?:(?:ten|tien|tuv|tend|d[aiáé])\p{L}*|con|sin)$/u.test(at.prev(k)),
+                    )
+                  ? ["por que"]
+                  : opens &&
+                      next &&
+                      !(esPorqueVerbs(tokens, spelling.end + 1, spelling.end + 16) > 1)
+                    ? ["por qué"]
+                    : ES_KNOWING.test(prev) && at.prev(subject) === "no" && next
+                      ? ["por qué"]
+                      : ES_TELL.has(prev) && next
+                        ? ["por qué"]
+                        : ES_NEED.has(prev) && negated && esIsInfinitive(next)
+                          ? ["por qué"]
+                          : null;
+}
+
+// es.yaml rule es.porque def esPorquePhrase
+export function esPorquePhrase(tokens: SpanishTokens, i: number) {
+  const spelling = esPorqueSpelling(tokens, i);
+  if (!(spelling && !tokens[spelling.end].broken)) return null;
+  const fix = esPorqueFix(tokens, i, spelling);
+  if (!fix) return null;
+  return { end: spelling.end, fix };
+}
+
+// es.yaml rule es.porque def esPorqueVerbAt
+export function esPorqueVerbAt(token: SpanishToken | undefined) {
+  return (
+    !!token?.word &&
+    !ES_PORQUE_CLOSED.has(token.lower) &&
+    esFiniteVerb(token.lower) &&
+    !esReadNoun(token.lower)
+  );
+}
+
+// es.yaml rule es.porque def esNegatedBefore
+export function esNegatedBefore(tokens: SpanishTokens, j: number, stop: number): boolean {
+  return j < 0 || j <= stop
+    ? false
+    : /^[.;:!?¿¡]$/u.test(tokens[j].text) || tokens[j + 1].broken
+      ? false
+      : tokens[j].lower === "no" || tokens[j].lower === "nunca" || tokens[j].lower === "tampoco"
+        ? true
+        : esNegatedBefore(tokens, j - 1, stop);
+}
+
+// es.yaml rule es.porque def esSinoWord
+export function esSinoWord(tokens: SpanishTokens, i: number, at: SpanishAround) {
+  const next = tokens[i + 1];
+  if (!(next?.word && !next.broken && next.lower !== "que")) return null;
+  if (ES_DETERMINER.has(at.prev()) || /^(?:hace|hacía|hay)$/u.test(next.lower)) return null;
+  if (ES_PREPOSITIONS.has(next.lower)) return null;
+  const verb = ES_CLITICS.has(next.lower) ? tokens[i + 2] : next;
+  if (!(verb && esPorqueVerbAt(verb) && !esSubjunctiveLike(verb.lower))) return null;
+  return {
+    end: i,
+    fix: at.starts || !esNegatedBefore(tokens, i - 1, i - 12) ? ["si no"] : ["si no", "sino que"],
+  };
+}
+
+// es.yaml rule es.porque def esSiNoScan
+export function esSiNoScan(tokens: SpanishTokens, j: number, end: number): boolean {
+  return j >= tokens.length || j >= end
+    ? false
+    : tokens[j].broken || /^[.;:!?]$/u.test(tokens[j].text)
+      ? true
+      : tokens[j].text === "," || ES_CLITICS.has(tokens[j].lower)
+        ? false
+        : tokens[j].lower === "para" && tokens[j + 1]?.lower === "de"
+          ? false
+          : !tokens[j].word ||
+              ES_PREPOSITIONS.has(tokens[j].lower) ||
+              ES_PORQUE_CLOSED.has(tokens[j].lower)
+            ? esSiNoScan(tokens, j + 1, end)
+            : ES_FINITE_LOOK.test(tokens[j].lower) ||
+                (esFiniteVerb(tokens[j].lower) && !esReadNoun(tokens[j].lower))
+              ? false
+              : esSiNoScan(tokens, j + 1, end);
+}
+
+// es.yaml rule es.porque def esSiNo
+export function esSiNo(tokens: SpanishTokens, i: number, at: SpanishAround) {
+  if (!(tokens[i].lower === "si" && at.next() === "no" && !tokens[i + 1].broken)) return null;
+  const after = tokens[i + 2];
+  const before = tokens[i - 1];
+  if (!(after?.word && !after.broken && before && !/^[.;:!?¿¡]$/u.test(before.text))) return null;
+  if (!(!tokens[i].broken && esNegatedBefore(tokens, i - 1, i - 12))) return null;
+  if (!(after.lower === "que" || esSiNoScan(tokens, i + 2, i + 10))) return null;
+  return { end: i + 1, fix: ["sino"] };
+}
+
+// es.yaml rule es.porque def esSino
+export function esSino(tokens: SpanishTokens, i: number) {
+  const at = esAround(tokens, i);
+  return tokens[i].lower === "sino" ? esSinoWord(tokens, i, at) : esSiNo(tokens, i, at);
 }
 
 // es.yaml rule es.quotes def esQuoteMark
@@ -319,6 +620,23 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives: [`${m[1]}${m[2]}`],
       bulkBlock: "context-dependent",
     };
+  },
+  // es.yaml rule es.porque frame 1
+  "@es.porque/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    if (!(tokens[i].word && tokens[i].start >= ctx.from && tokens[i].start < ctx.to)) return null;
+    const phrase = esSino(tokens, i) ?? esPorquePhrase(tokens, i);
+    if (!phrase) return null;
+    if (!esResume(frame, tokens[phrase.end].end)) return null;
+    return esReplaceToken(
+      ctx,
+      esSpan(ctx, tokens[i], tokens[phrase.end]),
+      phrase.fix,
+      "spanishConfusions",
+      "review_msg_spanish_confusion",
+    );
   },
   // es.yaml rule es.quotes frame 1
   "@es.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
