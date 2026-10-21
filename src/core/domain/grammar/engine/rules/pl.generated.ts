@@ -2,9 +2,321 @@
 // The code of grammar/rules/pl.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
+import type { DetectContext, MatchResult } from "../../library";
+import {
+  PL_VERB,
+  plAdjectiveForm,
+  plAdjectiveOf,
+  plCaseLike,
+  plFindingAt,
+  plFiniteVerb,
+  plImperativeVerb,
+  plImpersonalVerb,
+  plListedVerb,
+  plNounTags,
+  plPastByShape,
+  plUserOrNamed,
+  tagsAnd,
+} from "../../library";
+
+// pl.yaml rule pl.prepositionForms def PREPOSITION_LONG
+export const PREPOSITION_LONG = {
+  w: "we",
+  z: "ze",
+  od: "ode",
+  bez: "beze",
+  przez: "przeze",
+  przed: "przede",
+  nad: "nade",
+  pod: "pode",
+  spod: "spode",
+} as Readonly<Record<string, string>>;
+
+// pl.yaml rule pl.prepositionForms def PREPOSITION_SHORT
+export const PREPOSITION_SHORT = Object.fromEntries(
+  Object.entries(PREPOSITION_LONG).map(([short, long]) => [long, short]),
+) as Readonly<Record<string, string>>;
+
+// pl.yaml rule pl.prepositionForms def PREPOSITION_LONG_KEPT
+export const PREPOSITION_LONG_KEPT =
+  /^(?:mnie|mną|dwoje|troje|czworo|dnie|śnie|łzach|wszystkim|łba|złego|drzwi|krwi|mgle|lwie|lwa|lwem|sobą|wszystko)$/iu;
+
+// pl.yaml rule pl.prepositionForms def opensWithCluster
+export function opensWithCluster(word: string) {
+  const rest = word.replace(/^(?:ch|cz|dz|dź|dż|rz|sz)/iu, "c");
+  return !/^[aąeęioóuy]/iu.test(rest) && rest.length > 1 && !/^[aąeęioóuy]/iu.test(rest.slice(1));
+}
+
+// pl.yaml rule pl.prepositionForms def preferredForm
+export function preferredForm(prep: string, next: string, afterWord: boolean) {
+  const p = prep.toLowerCase();
+  const word = next.toLowerCase();
+  const pronoun = /^(?:mnie|mną)$/u.test(word);
+  return p === "s"
+    ? /^\p{Ll}/u.test(next) || afterWord
+      ? "z"
+      : null
+    : PREPOSITION_LONG[p]
+      ? p === "spod" && word === "łba"
+        ? "spode"
+        : pronoun
+          ? p === "przed" || p === "nad" || p === "pod" || p === "z"
+            ? word === "mną"
+              ? PREPOSITION_LONG[p]
+              : null
+            : word === "mnie"
+              ? PREPOSITION_LONG[p]
+              : null
+          : p === "w" && /^[wf]/u.test(word) && opensWithCluster(word)
+            ? "we"
+            : p === "z" && /^(?:[sśzźż]|sz|rz|wsz|wz|ws)/u.test(word) && opensWithCluster(word)
+              ? "ze"
+              : null
+      : preferredShort(p, next, word, pronoun);
+}
+
+// pl.yaml rule pl.prepositionForms def preferredShort
+export function preferredShort(p: string, next: string, word: string, pronoun: boolean) {
+  const short = PREPOSITION_SHORT[p];
+  if (!short || pronoun || PREPOSITION_LONG_KEPT.test(word)) return null;
+  return p === "we" && /^\p{Lu}/u.test(next) && /^[wf]/u.test(word) && !opensWithCluster(word)
+    ? "w"
+    : (p === "ze" && /^\p{Ll}/u.test(next)) ||
+        /^(?:[sśzźżwf]|rz)/u.test(word) ||
+        word.length < 2 ||
+        opensWithCluster(word)
+      ? null
+      : short;
+}
+
+// pl.yaml rule pl.conjunctions def CONJUNCTION_ENDINGS
+export const CONJUNCTION_ENDINGS = [
+  [/łbym$/u, "ł", "m"],
+  [/łabym$/u, "ła", "m"],
+  [/łbyś$/u, "ł", "ś"],
+  [/łabyś$/u, "ła", "ś"],
+  [/libyśmy$/u, "li", "śmy"],
+  [/łybyśmy$/u, "ły", "śmy"],
+  [/libyście$/u, "li", "ście"],
+  [/łybyście$/u, "ły", "ście"],
+  [/łem$/u, "ł", "m"],
+  [/łam$/u, "ła", "m"],
+  [/łeś$/u, "ł", "ś"],
+  [/łaś$/u, "ła", "ś"],
+  [/liśmy$/u, "li", "śmy"],
+  [/łyśmy$/u, "ły", "śmy"],
+  [/liście$/u, "li", "ście"],
+  [/łyście$/u, "ły", "ście"],
+] as readonly (readonly [RegExp, string, string])[];
+
+// pl.yaml rule pl.officialese def OFFICIALESE_DESTINATION
+export const OFFICIALESE_DESTINATION = {
+  a: "cel podróży",
+  ę: "cel podróży",
+  ą: "celem podróży",
+  i: ["celu podróży", "celów podróży"],
+  e: "cele podróży",
+  om: "celom podróży",
+  ami: "celami podróży",
+  ach: "celach podróży",
+} as Readonly<Record<string, string | string[]>>;
+
+// pl.yaml rule pl.fragments def FRAGMENT_SUBORDINATE
+export const FRAGMENT_SUBORDINATE =
+  /^(?:któr\p{L}*|gdzie|dokąd|skąd|kiedy|gdy|że|iż|aby|żeby|by|bo|ponieważ|gdyż|jeśli|jeżeli|gdyby|choć|chociaż|co|czego|czym|kto|kogo|jak|jaki\p{L}*|jakby|zanim|dopóki|odkąd|skoro)$/iu;
+
+// pl.yaml rule pl.fragments def FRAGMENT_COMMENT
+export const FRAGMENT_COMMENT =
+  /^(?:mówiąc|biorąc|licząc|wyłączając|sumując|reasumując|podsumowując|wliczając|uwzględniając|zakładając|abstrahując|pomijając|zaczynając|kończąc)$/iu;
+
+// pl.yaml rule pl.fragments def FRAGMENT_PREDICATIVE
+export const FRAGMENT_PREDICATIVE =
+  /^(?:to|jest|są|trzeba|można|warto|wolno|widać|słychać|szkoda|należy|brak|niech|oto|czas)$/iu;
+
+// pl.yaml rule pl.fragments def fragmentParticiple
+export function fragmentParticiple(word: string) {
+  return /^\p{L}{2,}ąc$/u.test(word) && !plNounTags(word) && !plAdjectiveOf(word);
+}
+
+// pl.yaml rule pl.fragments def fragmentVerbLike
+export function fragmentVerbLike(word: string) {
+  return (
+    FRAGMENT_PREDICATIVE.test(word) ||
+    /[ćc]$/u.test(word) ||
+    plFiniteVerb(word) ||
+    plListedVerb(word) ||
+    plPastByShape(word) ||
+    plImpersonalVerb(word) ||
+    tagsAnd(plNounTags(word), PL_VERB) !== 0 ||
+    (!plNounTags(word) && !plAdjectiveOf(word) && /[iy]$/u.test(word) && word.length > 2)
+  );
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // pl.yaml rule pl.prepositionForms frame 1
+  "@pl.prepositionForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prep = m.groups!.prep;
+    const next = m.groups!.next;
+    const after = m.index + m[0].length;
+    if (/^\p{Lu}{2,}/u.test(next) || /^\.[ \t ]*\p{Ll}/u.test(ctx.text.slice(after, after + 4)))
+      return null;
+    const wanted = preferredForm(
+      prep,
+      next,
+      /\p{Ll}[ \t ]+$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)),
+    );
+    if (!(wanted !== null && wanted !== prep.toLowerCase())) return null;
+    if (plUserOrNamed(ctx, prep)) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + prep.length,
+      [plCaseLike(prep, wanted)],
+      "polishPrepositionForms",
+      "review_msg_pl_preposition_form",
+    );
+  },
+  // pl.yaml rule pl.conjunctions frame 1
+  "@pl.conjunctions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const conj = m.groups!.conj;
+    const person = m.groups!.person;
+    const between = m.groups!.between;
+    const verb = m.groups!.verb;
+    if (plNounTags(verb.toLowerCase()) || plUserOrNamed(ctx, verb)) return null;
+    const ending = CONJUNCTION_ENDINGS.find(([regex]) => regex.test(verb));
+    if (!(ending !== undefined)) return null;
+    if (!(!person || person === ending[2])) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [
+        `${plCaseLike(conj, conj + (person || ending[2]))}${between} ${verb.replace(ending[0], ending[1])}`,
+      ],
+      "polishCaseAgreement",
+      "review_msg_pl_conjunction_ending",
+    );
+  },
+  // pl.yaml rule pl.conjunctions frame 2
+  "@pl.conjunctions/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (/(?:ł|ła|ło|li|ły)$/u.test(verb) || plUserOrNamed(ctx, verb)) return null;
+    const imperative = plImperativeVerb(verb);
+    if (!(imperative || plFiniteVerb(verb))) return null;
+    const start = m.index + m[0].length - verb.length;
+    return plFindingAt(
+      ctx,
+      start,
+      start + verb.length,
+      [],
+      "polishCaseAgreement",
+      imperative ? "review_msg_pl_imperative" : "review_msg_pl_conjunction_ending",
+    );
+  },
+  // pl.yaml rule pl.conjunctions frame 3
+  "@pl.conjunctions/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (!(plImperativeVerb(verb) && !plUserOrNamed(ctx, verb))) return null;
+    return plFindingAt(
+      ctx,
+      m.indices!.groups!.verb[0],
+      m.indices!.groups!.verb[1],
+      [],
+      "polishCaseAgreement",
+      "review_msg_pl_imperative",
+    );
+  },
+  // pl.yaml rule pl.officialese frame 1
+  "@pl.officialese/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    const ending = end.toLowerCase();
+    return [plAdjectiveForm("czołowy", ending), plAdjectiveForm("główny", ending)];
+  },
+  // pl.yaml rule pl.officialese frame 2
+  "@pl.officialese/2": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    return OFFICIALESE_DESTINATION[end.toLowerCase()];
+  },
+  // pl.yaml rule pl.officialese frame 4
+  "@pl.officialese/4": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    const tail = m.groups!.tail;
+    const next = /^[ \t ]{1,8}(\p{L}+)/u.exec(m.input.slice(m.index + m[0].length))?.[1];
+    if (
+      /^P/u.test(tail) ||
+      /^\p{Lu}/u.test(next ?? "") ||
+      (/ego$/u.test(next ?? "") && !/^(?:tego|jego|owego)$/iu.test(next!))
+    )
+      return null;
+    return noun;
+  },
+  // pl.yaml rule pl.officialese frame 8
+  "@pl.officialese/8": (m: RegExpExecArray): string | readonly string[] | null => {
+    const so = m.groups!.so;
+    return so ? ["właśnie tak", "owszem"] : ["właśnie", "owszem"];
+  },
+  // pl.yaml rule pl.fragments frame 1
+  "@pl.fragments/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!m[0].includes("ąc")) return null;
+    const words = [...m[0].matchAll(/[^,;:—–()]+/gu)]
+      .map((part) =>
+        [...part[0].matchAll(/\p{L}+/gu)].map((word) => ({
+          text: word[0],
+          lower: word[0].toLowerCase(),
+          start: m.index + part.index + word.index,
+        })),
+      )
+      .filter((part) => part.length > 0 && !FRAGMENT_SUBORDINATE.test(part[0].text))
+      .flat();
+    const participle = words.find(
+      (word) =>
+        fragmentParticiple(word.lower) &&
+        !FRAGMENT_COMMENT.test(word.lower) &&
+        !plUserOrNamed(ctx, word.text),
+    );
+    if (!(participle !== undefined)) return null;
+    if (words.some((word) => !fragmentParticiple(word.lower) && fragmentVerbLike(word.lower)))
+      return null;
+    return {
+      ...plFindingAt(
+        ctx,
+        participle.start,
+        participle.start + participle.text.length,
+        [],
+        "englishSentenceFragment",
+        "review_msg_sentence_fragment",
+      ),
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.questions frame 1
+  "@pl.questions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    if (/[,;:—–()"„”«»]/u.test(m[0])) return null;
+    const words = m[0].match(/\p{L}+/gu) ?? [];
+    if (!(words.length >= 2)) return null;
+    if (!(
+      first === "Czy" ||
+      words
+        .slice(1, 4)
+        .map((word) => word.toLowerCase())
+        .some(
+          (word) =>
+            /(?:sz|cie|eś|aś|ście)$/u.test(word) && !plNounTags(word) && !plAdjectiveOf(word),
+        )
+    ))
+      return null;
+    return plFindingAt(
+      ctx,
+      m.index + m[0].length - 1,
+      m.index + m[0].length,
+      ["?"],
+      "germanQuestionMarks",
+      "review_msg_question_mark",
+    );
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};

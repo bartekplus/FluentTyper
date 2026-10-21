@@ -20864,7 +20864,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'\\u2019.-])(?<prep>w|we|z|ze|s|od|ode|bez|beze|przez|przeze|przed|przede|nad|nade|pod|pode|spod|spode)(?<sp>[ \\t\\u00A0]+)(?<quote>[\"\\u201E\\u201C\\u00AB]?)(?<next>\\p{L}+)",
     literals: [],
-    fixer: "pl:prepositionForms",
+    fixer: "pl:@pl.prepositionForms/1",
     flags: "giu",
     scan: "polish",
   }),
@@ -22089,7 +22089,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])(?<conj>żeby|ażeby|aby|gdyby)(?<person>m|ś|śmy|ście)?(?<between>(?:[ \\t\\u00a0]{1,8}(?!(?:że|który|która|które|i|a|ale|lub|oraz)[ \\t\\u00a0])\\p{L}{1,15}){0,3}?)[ \\t\\u00a0]{1,8}(?<verb>\\p{L}{2,}(?:łbym|łabym|łbyś|łabyś|libyśmy|łybyśmy|libyście|łybyście|łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście))(?![\\p{L}])",
     literals: ["żeby", "ażeby", "aby", "gdyby"],
-    fixer: "pl:conjunctionEndings",
+    fixer: "pl:@pl.conjunctions/1",
     flags: "giu",
     scan: "polish",
   }),
@@ -22097,7 +22097,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])(?:żeby|ażeby|aby|by)(?:m|ś|śmy|ście)?[ \\t\\u00a0]{1,8}(?:(?:nie|się)[ \\t\\u00a0]{1,8})?(?<verb>\\p{L}{2,})(?![\\p{L}])",
     literals: [],
-    fixer: "pl:presentAfterConjunction",
+    fixer: "pl:@pl.conjunctions/2",
     flags: "giu",
     scan: "polish",
   }),
@@ -22105,7 +22105,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?:,[ \\t\\u00a0]{0,8}(?:że|iż)|(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))czy)[ \\t\\u00a0]{1,8}(?:(?:nie|się|mi|mu|go|ją|je|to|tę|tego|jej|im|nam|wam|ci|cię|mnie|nas|was|już|teraz)[ \\t\\u00a0]{1,8}){0,2}(?<verb>\\p{L}{2,})(?![\\p{L}])',
     literals: [],
-    fixer: "pl:imperativeAfterConjunction",
+    fixer: "pl:@pl.conjunctions/3",
     flags: "gdiu",
     scan: "polish",
   }),
@@ -22330,13 +22330,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>wiodąc(?<end>y|a|e|ego|ej|emu|ą|ym|ych|ymi))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!(?:[ \\t\\u00a0]{1,8}\\p{L}+)?[ \\t\\u00a0]{1,8}(?:do|ku|przez|poprzez|na|w|we|z|ze|od|wzdłuż|pod|nad|między|pomiędzy|obok|koło|prym|żywot\\p{L}*|życie|rej|tędy|dokąd|donikąd)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["wiodąc"],
-    fixer: "pl:officialeseWiodąc",
+    fixer: "pl:@pl.officialese/1",
   }),
   frame({
     pattern:
       "(?=destynacj)(?<!(?:^|[^\\p{L}])(?:\\p{L}{1,20}(?:a|ą|ej)|ta|tę|tą|tej)[ \\t\\u00a0]{1,8})(?<target>destynacj(?<end>a|ę|ą|i|e|om|ami|ach))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["destynacj"],
-    fixer: "pl:officialeseDestynacj",
+    fixer: "pl:@pl.officialese/2",
   }),
   frame({
     pattern:
@@ -22348,7 +22348,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<noun>genez(?:a|y|ie|ę|ą))[ \\t\\u00a0]{1,8}(?<tail>powstania))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["powstania"],
-    fixer: "pl:officialeseNoun",
+    fixer: "pl:@pl.officialese/4",
   }),
   frame({
     pattern:
@@ -22371,7 +22371,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0\\n]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>dokładnie(?<so>[ \\t\\u00a0]{1,8}tak)?)(?=[ \\t\\u00a0]{0,8}[!.](?![.]))',
     literals: ["dokładnie"],
-    fixer: "pl:officialeseDokładnie",
+    fixer: "pl:@pl.officialese/8",
   }),
   frame({
     pattern: "(?<target>i/lub|lub/i)(?![\\p{L}\\p{N}_/.-])",
@@ -22931,7 +22931,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?<=^|[.!?\\u2026][ \\t\\u00A0\\n]{1,8})\\p{Lu}[^.!?\\u2026\\n]{0,400}\\.(?=[ \\t\\u00A0\\n]{1,8}[\\p{Lu}\\u201E"\\u2014\\u2013-]|[ \\t\\u00A0\\n]*$)',
     literals: [],
-    fixer: "pl:fragments",
+    fixer: "pl:@pl.fragments/1",
     flags: "gu",
     scan: "polish",
   }),
@@ -22939,7 +22939,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=^|\\n|[.!?\\u2026][ \\t\\u00A0\\n]{1,8})(?<first>Czy|Dok\\u0105d|Dlaczego|Gdzie|Kiedy|Sk\\u0105d|Jak|Ile|Czemu|Kto|Co)(?![\\p{L}])[^.!?\\u2026\\n]{1,300}\\.(?=[ \\t\\u00A0\\n]{1,8}\\p{Lu}|[ \\t\\u00A0\\n]*$)",
     literals: [],
-    fixer: "pl:questions",
+    fixer: "pl:@pl.questions/1",
     flags: "gu",
     scan: "polish",
   }),

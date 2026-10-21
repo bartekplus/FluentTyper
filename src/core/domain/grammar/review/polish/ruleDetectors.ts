@@ -8,15 +8,10 @@ import * as commaFrames from "./commaFrames";
 import * as commas from "./commas";
 import * as compounds from "./compounds";
 import * as confusions from "./confusions";
-import * as conjunctions from "./conjunctions";
 import * as dates from "./dates";
 import * as degree from "./degree";
 import * as forms from "./forms";
-import * as fragments from "./fragments";
 import * as numbers from "./numbers";
-import * as officialese from "./officialese";
-import * as prepositions from "./prepositions";
-import * as questions from "./questions";
 import * as style from "./style";
 import * as subjects from "./subjects";
 import * as typography from "./typography";
@@ -33,15 +28,10 @@ export const FIXERS = mergePredicates<Fixer>(
   commas.FIXERS,
   compounds.FIXERS,
   confusions.FIXERS,
-  conjunctions.FIXERS,
   dates.FIXERS,
   degree.FIXERS,
   forms.FIXERS,
-  fragments.FIXERS,
   numbers.FIXERS,
-  officialese.FIXERS,
-  prepositions.FIXERS,
-  questions.FIXERS,
   style.FIXERS,
   typography.FIXERS,
   subjects.FIXERS,
