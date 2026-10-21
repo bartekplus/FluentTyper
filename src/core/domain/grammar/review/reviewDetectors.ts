@@ -376,10 +376,13 @@ function previousTokensStart(text: string, index: number, count: number): number
 function lowercaseStart(ctx: DetectContext, match: RegExpExecArray) {
   const wordStart = match.index;
   // A token must start after whitespace or at the text start.
-  if (wordStart > 0 && !/\s/.test(ctx.text[wordStart - 1])) return null;
+  if (wordStart > 0 && !isWhitespaceAt(ctx.text, wordStart - 1)) return null;
   const word = match[0];
   const letterIndex = wordStart + (SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0);
-  if (!isLowercaseLetter(ctx.text[letterIndex] ?? "")) return null;
+  // ASCII by code: only "a"-"z" are lowercase letters there.
+  const code = ctx.text.charCodeAt(letterIndex);
+  if (code < 128 ? code < 97 || code > 122 : !isLowercaseLetter(ctx.text[letterIndex] ?? ""))
+    return null;
   // Only a sentence start or a line start gives a finding: test it before the word tests.
   const sentence = startsSentence(ctx.text, wordStart, ctx.lang);
   if (!sentence && lineBreakBefore(ctx.text, wordStart) === null) return null;
