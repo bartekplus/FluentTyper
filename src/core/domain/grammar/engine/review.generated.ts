@@ -571,7 +571,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     message: "review_msg_phrase_correction",
     style: "match",
-    filter: "en:firstWorseFrame",
+    filter: "en:@en.fixedPhrases/filter",
     source: "en",
   },
   {
@@ -6329,120 +6329,120 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:he|she|it|someone|somebody|everyone|everybody|anyone|anybody|nobody)[ \\t\\u00a0]{1,8}(?<target>dose)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["dose"],
-    fixer: "en:doseSubject",
+    fixer: "en:@en.fixedPhrases/1",
     message: "review_msg_typo",
   }),
   frame({
     pattern:
       "(?:what|how|when|where|why|who|which)[ \\t\\u00a0]{1,8}(?<target>dose)[ \\t\\u00a0]{1,8}(?<next>\\p{L}[\\p{L}'’]*)(?:[ \\t\\u00a0]{1,8}(?<then>\\p{L}+))?",
     literals: ["dose"],
-    fixer: "en:doseWh",
+    fixer: "en:@en.fixedPhrases/2",
     message: "review_msg_typo",
   }),
   frame({
     pattern:
       "(?<target>dose)[ \\t\\u00a0]{1,8}(?:it|he|she|this|that|anyone|someone|anybody|everyone|everything|anything)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["dose"],
-    fixer: "en:doseQuestion",
+    fixer: "en:@en.fixedPhrases/3",
     message: "review_msg_typo",
   }),
   frame({
     pattern: "(?<target>worst)[ \\t\\u00a0]{1,8}than(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["worst"],
-    fixer: "en:worstToWorse",
+    fixer: "en:@en.fixedPhrases/4",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:by)[ \\t\\u00a0]{1,8})(?:much|far|a[ \\t\\u00a0]{1,8}lot|lots|even|way|slightly|somewhat|considerably|significantly)[ \\t\\u00a0]{1,8}(?<target>worst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["worst"],
-    fixer: "en:worstToWorse",
+    fixer: "en:@en.fixedPhrases/5",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?:get|gets|got|gotten|getting|become|becomes|became|becoming|grow|grows|grew|grown|growing)[ \\t\\u00a0]{1,8}worse[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?<target>worst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["worse"],
-    fixer: "en:worstToWorse",
+    fixer: "en:@en.fixedPhrases/6",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?:(?:get|gets|got|gotten|getting|become|becomes|became|becoming|grow|grows|grew|grown|growing)|(?:make|makes|made|making)[ \\t\\u00a0]{1,8}(?:it|them|things|this|that|everything|matters))[ \\t\\u00a0]{1,8}(?<target>worst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["worst"],
-    fixer: "en:worstGet",
+    fixer: "en:@en.fixedPhrases/7",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "at[ \\t\\u00a0]{1,8}(?<target>worse)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["worse"],
-    fixer: "en:worseToWorst",
+    fixer: "en:@en.fixedPhrases/8",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?<target>worse)[ \\t\\u00a0]{1,8}ever(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}since(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["worse"],
-    fixer: "en:worseToWorst",
+    fixer: "en:@en.fixedPhrases/9",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?<target>(?<how>how)[ \\t\\u00a0]{1,8}(?<subject>it|he|she|they|we|you|I|this|that|these|those|everything)[ \\t\\u00a0]{1,8}(?<verb>looks|look['’]s|look|looked)[ \\t\\u00a0]{1,8}like)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["looks", "look", "look", "looked"],
-    fixer: "en:howLooksLike",
+    fixer: "en:@en.fixedPhrases/10",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?<target>how)[ \\t\\u00a0]{1,8}(?:does|do|did|would|will|should|could|might)[ \\t\\u00a0]{1,8}(?:it|he|she|they|we|you|I|this|that|these|those)[ \\t\\u00a0]{1,8}look[ \\t\\u00a0]{1,8}like(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["look"],
-    fixer: "en:howDoesLike",
+    fixer: "en:@en.fixedPhrases/11",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?<make>make|makes|made|making)[ \\t\\u00a0]{1,8}(?:it|them|him|her|me|us|you|this|that|everything|things)[ \\t\\u00a0]{1,8}(?<target>seems|seemed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["seems", "seemed"],
-    fixer: "en:makeSeem",
+    fixer: "en:@en.fixedPhrases/12",
     message: "review_msg_causative_base",
     check: "englishVerbComplements",
   }),
   frame({
     pattern: "(?<target>nerve(?:[ \\t\\u00a0]{1,8}|-)wrecks?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["nerve"],
-    fixer: "en:nerveWreck",
+    fixer: "en:@en.fixedPhrases/13",
   }),
   frame({
     pattern: "(?<target>bullocks)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["bullocks"],
-    fixer: "en:bullocks",
+    fixer: "en:@en.fixedPhrases/14",
   }),
   frame({
     pattern:
       "(?<target>conform|conforms|conformed|conforming)[ \\t\\u00a0]{1,8}that(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|way|much|far|well)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["conform", "conforms", "conformed", "conforming"],
-    fixer: "en:conformThat",
+    fixer: "en:@en.fixedPhrases/15",
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:be|been|being|is|are|was|were)[ \\t\\u00a0]{1,8})(?<target>(?:constitute|constitutes|constituting)[ \\t\\u00a0]{1,8}as)[ \\t\\u00a0]{1,8}(?!(?:much|many|well|long|far|soon|little|few|such|follows?|part|is|are|was|were|it|they|we|he|she|i|you|in|of)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["constitute", "constitutes", "constituting"],
-    fixer: "en:constitutesAs",
+    fixer: "en:@en.fixedPhrases/16",
   }),
   frame({
     pattern:
       "(?:has|have|had|having|['’]ve)[ \\t\\u00a0]{1,8}(?<target>past)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["past"],
-    fixer: "en:hasPast",
+    fixer: "en:@en.fixedPhrases/17",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?<target>(?:over|under|pre|re)?payed)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:out|away|(?:(?:the|a|her|his|its|their)[ \\t\\u00a0]{1,8})?(?:decks?|seams?|hulls?|planking))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?![^.!?\\n]{0,40}\\bwith[ \\t\\u00a0]{1,8}(?:[a-z]+[ \\t\\u00a0]{1,8})?(?:tar|pitch|oakum|resin)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["payed"],
-    fixer: "en:payedPaid",
+    fixer: "en:@en.fixedPhrases/18",
     message: "review_msg_typo",
   }),
   frame({
@@ -6467,25 +6467,25 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "screeched",
       "screeching",
     ],
-    fixer: "en:toAHalt",
+    fixer: "en:@en.fixedPhrases/19",
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:there|then|thus|hence|here|now|which|whence|so)[ \\t\\u00a0]{1,8})(?<target>rise|rises|rising|rose|risen|rised|arise|arises|arising|arose|arisen|arised)[ \\t\\u00a0]{1,8}(?:the|a|this|that)[ \\t\\u00a0]{1,8}question(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["question"],
-    fixer: "en:raiseQuestion",
+    fixer: "en:@en.fixedPhrases/20",
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:interested|interest|differ|differs|differed|differing|vary|varies|varied|varying|lies|lie|lay|lying|lost|buried|mired|bogged|drowning|drowned|is|are|was|were|only)[ \\t\\u00a0]{1,8})in[ \\t\\u00a0]{1,8}(?:(?:more|greater|further|great|full|much[ \\t\\u00a0]{1,8}more)[ \\t\\u00a0]{1,8})?(?<target>details)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:of|about|on|regarding|that|which|like|such|from|in|for|to|and)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["details"],
-    fixer: "en:inDetail",
+    fixer: "en:@en.fixedPhrases/21",
   }),
   frame({
     pattern:
       "(?<target>now[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}day)(?:[ \\t\\u00a0]{1,8}(?=(?:a|an|the|we|i|you|he|she|it|they|people|many|most|everyone|everybody|lots|there|this|these|those|kids|children)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?=,))",
     literals: ["now"],
-    fixer: "en:nowadays",
+    fixer: "en:@en.fixedPhrases/22",
     message: "review_msg_closed_compound",
     check: "englishClosedCompounds",
   }),
@@ -6493,7 +6493,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "eat[ \\t\\u00a0]{1,8}it[ \\t\\u00a0]{1,8}(?<target>to)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["eat"],
-    fixer: "en:eatItToo",
+    fixer: "en:@en.fixedPhrases/23",
     message: "review_msg_to_too",
     check: "englishToToo",
   }),
@@ -6501,7 +6501,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "too[ \\t\\u00a0]{1,8}(?:big|good|small|late|early|hard|easy|much|many|long|short|old|young|slow|fast|hot|cold|important|complex|complicated|busy|tired|scared|afraid)[ \\t\\u00a0]{1,8}(?<target>too)[ \\t\\u00a0]{1,8}(?:be|fail|do|go|see|use|get|make|take|handle|ignore|read|understand|change|fix|run|work|say|tell|care|keep)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["too"],
-    fixer: "en:tooToInfinitive",
+    fixer: "en:@en.fixedPhrases/24",
     message: "review_msg_to_infinitive",
     check: "englishToToo",
   }),
@@ -6509,7 +6509,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:go|goes|going|gone|went|take|takes|took|taken|taking|push|pushes|pushed|pushing|carry|carried|carrying)[ \\t\\u00a0]{1,8}(?<target>to)[ \\t\\u00a0]{1,8}far(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["far"],
-    fixer: "en:toFar",
+    fixer: "en:@en.fixedPhrases/25",
     message: "review_msg_to_too",
     check: "englishToToo",
   }),
@@ -6530,7 +6530,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hard",
       "difficult",
     ],
-    fixer: "en:toBigFor",
+    fixer: "en:@en.fixedPhrases/26",
     message: "review_msg_to_too",
     check: "englishToToo",
   }),
@@ -6538,13 +6538,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:a|the|of|for|at|in|on|with|from|through|via|than|encouraged|encourage|encourages|did|do|does|use|uses|using|pure|mere|simple|much)[ \\t\\u00a0]{1,8}(?<target>wrote)[ \\t\\u00a0]{1,8}(?:learning|memori[sz]ation|memori[sz]ing|memory|repetition)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["learning", "memori", "memori", "memory", "repetition"],
-    fixer: "en:wroteRote",
+    fixer: "en:@en.fixedPhrases/27",
   }),
   frame({
     pattern:
       "(?<target>govt)(?<dot>\\.(?=[ \\t\\u00a0]{1,8}\\p{L}))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["govt"],
-    fixer: "en:govt",
+    fixer: "en:@en.fixedPhrases/28",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
   }),
@@ -6552,7 +6552,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:if[ \\t\\u00a0]{1,8}only|wish)[ \\t\\u00a0]{1,8}(?:I|he|she|it|there|this|that)[ \\t\\u00a0]{1,8}(?<target>was)[ \\t\\u00a0]{1,8}(?=\\p{L})",
     literals: ["only", "wish"],
-    fixer: "en:wishWere",
+    fixer: "en:@en.fixedPhrases/29",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
   }),

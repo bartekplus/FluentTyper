@@ -37,7 +37,6 @@ import * as dialects from "./dialects";
 import * as remaining from "./remaining";
 import * as usageTables from "./usageTables";
 import * as confusions2 from "./confusions2";
-import * as fixedPhrases from "./fixedPhrases";
 import * as grammarStyle1 from "./grammarStyle1";
 import * as grammarStyle2 from "./grammarStyle2";
 import * as idioms2 from "./idioms2";
@@ -99,7 +98,6 @@ export const FIXERS = mergePredicates<Fixer>(
   tenseSlots.FIXERS,
   grammarStyle1.FIXERS,
   grammarStyle2.FIXERS,
-  fixedPhrases.FIXERS,
   confusions1.FIXERS,
   confusions2.FIXERS,
   dialects.FIXERS,
@@ -131,7 +129,6 @@ export const FILTERS = mergePredicates<FindingsFilter>(
   articles.FILTERS,
   grammarStyle1.FILTERS,
   everydaySlots.FILTERS,
-  fixedPhrases.FILTERS,
   punctuation.FILTERS,
   confusionSlots.FILTERS,
 );

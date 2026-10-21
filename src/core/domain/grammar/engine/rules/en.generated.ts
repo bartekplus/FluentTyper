@@ -5,16 +5,22 @@ import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult, RawFinding } from "../../library";
 import {
   EN_VERB_FORMS,
+  applyWordCase,
   caseLike,
+  detectWordCase,
+  enBefore,
   enListedNoun,
   enListedWithoutPlural,
+  enNextWord,
   englishNounForms,
   englishWordInfo,
   finding,
+  group,
   hasUserOrCasedWord,
   hasVerbForm,
   lastNonBlankBefore,
   memoize,
+  remember,
   skipBackWhile,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
@@ -460,6 +466,138 @@ export const POSSESSIVE_MODALS: ReadonlySet<string> = new Set([
   "might",
 ]);
 
+export const FIXED_CONFORM: Readonly<Record<string, string>> = {
+  conform: "confirm",
+  conforms: "confirms",
+  conformed: "confirmed",
+  conforming: "confirming",
+};
+
+export const FIXED_RAISE: Readonly<Record<string, string>> = {
+  rise: "raise",
+  rises: "raises",
+  rising: "raising",
+  arise: "raise",
+  arises: "raises",
+  arising: "raising",
+};
+
+// en.yaml rule en.fixedPhrases def fixedFound
+export function fixedFound(
+  ctx: DetectContext,
+  frame: FrameRef,
+  m: RegExpExecArray,
+  start: number,
+  end: number,
+  alternatives: readonly string[],
+  recase: boolean,
+): RawFinding | null {
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  const typed = ctx.text.slice(start, end);
+  const cased = alternatives.map((alt) => (recase ? caseLike(typed, alt) : alt));
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range: { start, end },
+    alternatives: cased,
+    ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+    context: {
+      start: Math.max(0, m.index - 32),
+      end: Math.min(ctx.text.length, m.index + m[0].length + 16),
+    },
+  };
+}
+
+// en.yaml rule en.fixedPhrases def fixedTarget
+export function fixedTarget(
+  ctx: DetectContext,
+  frame: FrameRef,
+  m: RegExpExecArray,
+  alternatives: readonly string[],
+) {
+  const range = group(m, "target");
+  return fixedFound(ctx, frame, m, range[0], range[1], alternatives, true);
+}
+
+// en.yaml rule en.fixedPhrases def fixedSwap
+export function fixedSwap(
+  ctx: DetectContext,
+  frame: FrameRef,
+  m: RegExpExecArray,
+  replacement: string | null,
+  recase: boolean,
+) {
+  const range = group(m, "target");
+  return replacement ? fixedFound(ctx, frame, m, range[0], range[1], [replacement], recase) : null;
+}
+
+// en.yaml rule en.fixedPhrases def fixedTyped
+export function fixedTyped(ctx: DetectContext, m: RegExpExecArray) {
+  const range = group(m, "target");
+  return ctx.text.slice(range[0], range[1]);
+}
+
+// en.yaml rule en.fixedPhrases def fixedClauseStart
+export function fixedClauseStart(ctx: DetectContext, index: number) {
+  return /(?:^|[.!?;:\n])[ \t "“'‘(]*$/.test(enBefore(ctx, index, 96));
+}
+
+// en.yaml rule en.fixedPhrases def FIXED_CLOSED_CLASS
+export const FIXED_CLOSED_CLASS =
+  /^(?:if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|lately|here|there|yet|still|too|very|it|this|that)$/i;
+
+// en.yaml rule en.fixedPhrases def fixedNounLike
+export function fixedNounLike(word: string, unknownLong: boolean) {
+  if (!(word && !FIXED_CLOSED_CLASS.test(word))) return false;
+  const info = englishWordInfo(word.toLowerCase());
+  return info ? info.noun || info.plural : word.length > 6 && (unknownLong || /s$/i.test(word));
+}
+
+// en.yaml rule en.fixedPhrases def FIXED_NOUN_DOSE_NEXT
+export const FIXED_NOUN_DOSE_NEXT =
+  /^(?:of|is|was|are|were|has|had|have|should|would|will|can|could|may|might|must|per|for|and|or|to|in|on|at|level|levels|amount|size|range|form)$/i;
+
+// en.yaml rule en.fixedPhrases def FIXED_PRONOUN_NEXT
+export const FIXED_PRONOUN_NEXT = /^(?:it|he|she|this|that|they|we|you|i)$/i;
+
+// en.yaml rule en.fixedPhrases def FIXED_WORSE
+export const FIXED_WORSE = new WeakSet<RawFinding>();
+
+// en.yaml rule en.fixedPhrases def FIXED_HELD
+export const FIXED_HELD = new WeakSet<RawFinding>();
+
+// en.yaml rule en.fixedPhrases def fixedWorse
+export function fixedWorse(ctx: DetectContext, frame: FrameRef, m: RegExpExecArray, word: string) {
+  const range = group(m, "target");
+  const result = fixedFound(ctx, frame, m, range[0], range[1], [word], true);
+  return remember(
+    FIXED_WORSE,
+    result ??
+      remember(FIXED_HELD, {
+        ruleId: frame.ruleId,
+        messageKey: frame.messageKey,
+        range: { start: range[0], end: range[1] },
+        alternatives: [],
+      }),
+  );
+}
+
+// en.yaml rule en.fixedPhrases def FIXED_SITUATION
+export const FIXED_SITUATION =
+  /(?:\bmuch|\b(?:it|this|that|which)(?:['’]s|[ \t ]+(?:is|was|were|be|been|will[ \t ]+be))[ \t ]+(?:(?:a|such[ \t ]+a|quite[ \t ]+a|a[ \t ]+real|a[ \t ]+total|a[ \t ]+complete)[ \t ]+)?)[ \t ]*$/i;
+
+// en.yaml rule en.fixedPhrases def FIXED_NONSENSE_CUE
+export const FIXED_NONSENSE_CUE =
+  /(?:\b(?:complete|total|utter|absolute|pure|such|dogs|is|was|its|thats|what|bloody|just)|['’]s)[ \t ]+$/i;
+
+// en.yaml rule en.fixedPhrases def FIXED_TO_FAR_NEXT
+export const FIXED_TO_FAR_NEXT =
+  /^(?:with|for|on|in|this|and|but|when|because|like|away|off|out|flung)$/i;
+
+// en.yaml rule en.fixedPhrases def FIXED_SETTING_VERB
+export const FIXED_SETTING_VERB =
+  /\b(?:set|sets|setting|change|changes|changed|changing|switch|switched|resize|resized|scale|scaled|convert|converted|from|increase|increased|reduce|reduced|default|defaults|move|moved|grow|grows|grew|shrink|shrank)\b[^.!?;:\n]*$/i;
+
 // en.yaml rule en.irregularWordForms def lexInfoOf
 export const lexInfoOf = memoize(englishWordInfo, 20000);
 
@@ -769,6 +907,176 @@ export function lexNounInfo(word: string) {
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // en.yaml rule en.fixedPhrases frame 1
+  "@en.fixedPhrases/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedTarget(ctx, frame, m, ["does"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 2
+  "@en.fixedPhrases/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const next = m.groups!.next;
+    const then = m.groups!.then;
+    if (!(fixedClauseStart(ctx, m.index) && !FIXED_NOUN_DOSE_NEXT.test(next))) return null;
+    const pronoun = FIXED_PRONOUN_NEXT.test(next);
+    if (!(pronoun || !englishWordInfo(next.toLowerCase())?.plural)) return null;
+    if (pronoun && hasVerbForm((then ?? "").toLowerCase(), "third")) return null;
+    return fixedTarget(ctx, frame, m, ["does"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 3
+  "@en.fixedPhrases/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const verb = m.groups!.verb;
+    if (!(
+      fixedClauseStart(ctx, m.index) && !/^(?:back|up|off|out|down|too|twice|once)$/i.test(verb)
+    ))
+      return null;
+    if (!hasVerbForm(verb, "base")) return null;
+    return fixedTarget(ctx, frame, m, ["does"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 4
+  "@en.fixedPhrases/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedWorse(ctx, frame, m, "worse");
+  },
+  // en.yaml rule en.fixedPhrases frame 5
+  "@en.fixedPhrases/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedWorse(ctx, frame, m, "worse");
+  },
+  // en.yaml rule en.fixedPhrases frame 6
+  "@en.fixedPhrases/6": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedWorse(ctx, frame, m, "worse");
+  },
+  // en.yaml rule en.fixedPhrases frame 7
+  "@en.fixedPhrases/7": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (fixedNounLike(enNextWord(ctx, group(m, "target")[1]), true)) return null;
+    return fixedWorse(ctx, frame, m, "worse");
+  },
+  // en.yaml rule en.fixedPhrases frame 8
+  "@en.fixedPhrases/8": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedWorse(ctx, frame, m, "worst");
+  },
+  // en.yaml rule en.fixedPhrases frame 9
+  "@en.fixedPhrases/9": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedWorse(ctx, frame, m, "worst");
+  },
+  // en.yaml rule en.fixedPhrases frame 10
+  "@en.fixedPhrases/10": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const subject = m.groups!.subject;
+    const verb = m.groups!.verb;
+    const single = /^(?:it|he|she|this|that|everything)$/i.test(subject);
+    const agreed = /ed$/i.test(verb) ? "looked" : single ? "looks" : "look";
+    return fixedTarget(ctx, frame, m, [
+      `what ${subject} ${agreed} like`,
+      `how ${subject} ${agreed}`,
+    ]);
+  },
+  // en.yaml rule en.fixedPhrases frame 11
+  "@en.fixedPhrases/11": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedTarget(ctx, frame, m, ["what"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 12
+  "@en.fixedPhrases/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const make = m.groups!.make;
+    const prior = enBefore(ctx, m.index, 48);
+    if (/\b(?:who|whoever|whatever|what)[ \t ]+$/i.test(prior)) return null;
+    if (!(
+      !/^making$/i.test(make) ||
+      /\b(?:of|by|for|from|without|avoid|stop|keep|keeps|kept|is|are|was|were|be|been)[ \t ]+$/i.test(
+        prior,
+      )
+    ))
+      return null;
+    return fixedTarget(ctx, frame, m, ["seem"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 13
+  "@en.fixedPhrases/13": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    if (FIXED_SITUATION.test(enBefore(ctx, m.index, 48))) return null;
+    const parts = target.split(/[ \t -]+/);
+    const nervous = applyWordCase("nervous", detectWordCase(parts[0]));
+    return fixedTarget(ctx, frame, m, [`${nervous} ${parts[1]}`]);
+  },
+  // en.yaml rule en.fixedPhrases frame 14
+  "@en.fixedPhrases/14": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const end = group(m, "target")[1];
+    const exclamation =
+      (fixedClauseStart(ctx, m.index) || /["“'‘]$/.test(enBefore(ctx, m.index, 1))) &&
+      /^[ \t ]*!/.test(ctx.text.slice(end));
+    if (!(exclamation || FIXED_NONSENSE_CUE.test(enBefore(ctx, m.index, 48)))) return null;
+    return fixedTarget(ctx, frame, m, ["bollocks"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 15
+  "@en.fixedPhrases/15": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedSwap(ctx, frame, m, FIXED_CONFORM[fixedTyped(ctx, m).toLowerCase()] ?? null, true);
+  },
+  // en.yaml rule en.fixedPhrases frame 16
+  "@en.fixedPhrases/16": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedSwap(ctx, frame, m, fixedTyped(ctx, m).split(/[ \t ]+/)[0], true);
+  },
+  // en.yaml rule en.fixedPhrases frame 17
+  "@en.fixedPhrases/17": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const following = enNextWord(ctx, group(m, "target")[1]);
+    if (following && (fixedNounLike(following, true) || /^due$/i.test(following))) return null;
+    return fixedSwap(ctx, frame, m, "passed", true);
+  },
+  // en.yaml rule en.fixedPhrases frame 18
+  "@en.fixedPhrases/18": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedSwap(ctx, frame, m, fixedTyped(ctx, m).slice(0, -5) + "paid", true);
+  },
+  // en.yaml rule en.fixedPhrases frame 19
+  "@en.fixedPhrases/19": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const typed = fixedTyped(ctx, m);
+    return fixedSwap(ctx, frame, m, (typed === typed.toUpperCase() ? "A " : "a ") + typed, false);
+  },
+  // en.yaml rule en.fixedPhrases frame 20
+  "@en.fixedPhrases/20": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedSwap(
+      ctx,
+      frame,
+      m,
+      FIXED_RAISE[fixedTyped(ctx, m).toLowerCase()] ?? "raised",
+      true,
+    );
+  },
+  // en.yaml rule en.fixedPhrases frame 21
+  "@en.fixedPhrases/21": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedSwap(ctx, frame, m, "detail", true);
+  },
+  // en.yaml rule en.fixedPhrases frame 22
+  "@en.fixedPhrases/22": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedSwap(ctx, frame, m, "nowadays", true);
+  },
+  // en.yaml rule en.fixedPhrases frame 23
+  "@en.fixedPhrases/23": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedSwap(ctx, frame, m, "too", true);
+  },
+  // en.yaml rule en.fixedPhrases frame 24
+  "@en.fixedPhrases/24": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedSwap(ctx, frame, m, "to", true);
+  },
+  // en.yaml rule en.fixedPhrases frame 25
+  "@en.fixedPhrases/25": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const following = enNextWord(ctx, m.index + m[0].length);
+    if (!(following && !FIXED_TO_FAR_NEXT.test(following) && !fixedNounLike(following, false)))
+      return null;
+    return fixedTarget(ctx, frame, m, ["too"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 26
+  "@en.fixedPhrases/26": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (FIXED_SETTING_VERB.test(enBefore(ctx, m.index, 48))) return null;
+    return fixedTarget(ctx, frame, m, ["too"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 27
+  "@en.fixedPhrases/27": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedTarget(ctx, frame, m, ["rote"]);
+  },
+  // en.yaml rule en.fixedPhrases frame 28
+  "@en.fixedPhrases/28": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const dot = m.groups!.dot;
+    const range = group(m, "target");
+    return fixedFound(ctx, frame, m, range[0], dot ? range[1] + 1 : range[1], ["government"], true);
+  },
+  // en.yaml rule en.fixedPhrases frame 29
+  "@en.fixedPhrases/29": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    return fixedTarget(ctx, frame, m, ["were"]);
+  },
   // en.yaml rule en.idiomPhrases1 frame 5
   "@en.idiomPhrases1/5": (m: RegExpExecArray): string | readonly string[] | null => {
     const verb = m.groups!.verb;
@@ -913,7 +1221,17 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
 };
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
-export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
+export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // en.yaml rule en.fixedPhrases filter
+  "@en.fixedPhrases/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const seen = new Set<number>();
+    return findings.filter(
+      (f) =>
+        !FIXED_WORSE.has(f) ||
+        (!seen.has(f.range.start) && !!seen.add(f.range.start) && !FIXED_HELD.has(f)),
+    );
+  },
+};
 
 /** The Review detectors of rules with code, by rule ("@<rule id>"). */
 export const DETECTORS: Readonly<Record<string, Detector>> = {};

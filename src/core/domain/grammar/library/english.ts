@@ -61,3 +61,5 @@ export {
   englishListedWithoutPlural as enListedWithoutPlural,
 } from "../implementations/helpers/EnglishLexicon";
 export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/EnglishVerbForms";
+// Group 5: the text before an index and the word after it.
+export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";

@@ -137,127 +137,263 @@ rules:
       ]
     style: match
     message: review_msg_phrase_correction
-    filter: firstWorseFrame
+    # A worse/worst word keeps the finding of the first frame that matched it.
+    filter:
+      let:
+        seen: new Set<number>()
+      return: >-
+        findings.filter((f) => !FIXED_WORSE.has(f)
+          || (!seen.has(f.range.start) && !!seen.add(f.range.start) && !FIXED_HELD.has(f)))
+    # Context frames: forms that are also ordinary English elsewhere.
+    maps:
+      FIXED_CONFORM:
+        { conform: confirm, conforms: confirms, conformed: confirmed, conforming: confirming }
+      FIXED_RAISE:
+        {
+          rise: raise,
+          rises: raises,
+          rising: raising,
+          arise: raise,
+          arises: raises,
+          arising: raising,
+        }
+    defs:
+      # A finding for [start, end) with the check and message of the frame; each alternative
+      # takes the typed text's initial or all capitals.
+      fixedFound:
+        args: >-
+          ctx: DetectContext, frame: FrameRef, m: RegExpExecArray, start: number, end: number,
+          alternatives: readonly string[], recase: boolean
+        type: "RawFinding | null"
+        let:
+          typed: ctx.text.slice(start, end)
+          cased: "alternatives.map((alt) => (recase ? caseLike(typed, alt) : alt))"
+        when: "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          ({ ruleId: frame.ruleId, messageKey: frame.messageKey, range: { start, end }, alternatives: cased,
+            ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+            context: { start: Math.max(0, m.index - 32), end: Math.min(ctx.text.length, m.index + m[0].length + 16) } })
+      # The finding of the frame's target group.
+      fixedTarget:
+        args: "ctx: DetectContext, frame: FrameRef, m: RegExpExecArray, alternatives: readonly string[]"
+        let:
+          range: group(m, "target")
+        return: fixedFound(ctx, frame, m, range[0], range[1], alternatives, true)
+      # The target takes one replacement; null keeps the typed text.
+      fixedSwap:
+        args: "ctx: DetectContext, frame: FrameRef, m: RegExpExecArray, replacement: string | null, recase: boolean"
+        let:
+          range: group(m, "target")
+        return: "replacement ? fixedFound(ctx, frame, m, range[0], range[1], [replacement], recase) : null"
+      # The typed target group.
+      fixedTyped:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        let:
+          range: group(m, "target")
+        return: ctx.text.slice(range[0], range[1])
+      # Only spaces and opening marks between `index` and a stop, a line break or the text start.
+      fixedClauseStart:
+        args: "ctx: DetectContext, index: number"
+        return: '/(?:^|[.!?;:\n])[ \t "“''‘(]*$/.test(enBefore(ctx, index, 96))'
+      # Function words the lexicon also lists as nouns ("ifs and buts", "the ins and outs").
+      FIXED_CLOSED_CLASS: /^(?:if|in|on|at|to|for|with|by|of|off|out|up|down|over|than|and|or|but|so|as|when|because|since|after|before|until|now|then|again|lately|here|there|yet|still|too|very|it|this|that)$/i
+      # A word the lexicon knows as a noun; it omits long pure nouns, so unknown long words count.
+      fixedNounLike:
+        args: "word: string, unknownLong: boolean"
+        let:
+          info: englishWordInfo(word.toLowerCase())
+        when: word && !FIXED_CLOSED_CLASS.test(word)
+        return: "info ? info.noun || info.plural : word.length > 6 && (unknownLong || /s$/i.test(word))"
+        else: "false"
+      # "What dose of…", "what dose it takes" and "to dose it" stay nouns or verbs.
+      FIXED_NOUN_DOSE_NEXT: /^(?:of|is|was|are|were|has|had|have|should|would|will|can|could|may|might|must|per|for|and|or|to|in|on|at|level|levels|amount|size|range|form)$/i
+      FIXED_PRONOUN_NEXT: /^(?:it|he|she|this|that|they|we|you|i)$/i
+      # worse/worst: the first frame that matches a word decides it, also when it keeps the
+      # typed word (a user word or a cased word in its match). FIXED_HELD marks such a kept word.
+      FIXED_WORSE: new WeakSet<RawFinding>()
+      FIXED_HELD: new WeakSet<RawFinding>()
+      fixedWorse:
+        args: "ctx: DetectContext, frame: FrameRef, m: RegExpExecArray, word: string"
+        let:
+          range: group(m, "target")
+          result: fixedFound(ctx, frame, m, range[0], range[1], [word], true)
+        return: >-
+          remember(FIXED_WORSE, result ?? remember(FIXED_HELD, { ruleId: frame.ruleId, messageKey: frame.messageKey,
+            range: { start: range[0], end: range[1] }, alternatives: [] }))
+      # A person who is a "nerve wreck" is a "nervous wreck"; a situation ("It was a
+      # nerve-wreck", "so much nerve wreck") is left alone.
+      FIXED_SITUATION: '/(?:\bmuch|\b(?:it|this|that|which)(?:[''’]s|[ \t ]+(?:is|was|were|be|been|will[ \t ]+be))[ \t ]+(?:(?:a|such[ \t ]+a|quite[ \t ]+a|a[ \t ]+real|a[ \t ]+total|a[ \t ]+complete)[ \t ]+)?)[ \t ]*$/i'
+      FIXED_NONSENSE_CUE: '/(?:\b(?:complete|total|utter|absolute|pure|such|dogs|is|was|its|thats|what|bloody|just)|[''’]s)[ \t ]+$/i'
+      FIXED_TO_FAR_NEXT: /^(?:with|for|on|in|this|and|but|when|because|like|away|off|out|flung)$/i
+      # "set the font to big for headings" names a value; "from small to big" a range.
+      FIXED_SETTING_VERB: '/\b(?:set|sets|setting|change|changes|changed|changing|switch|switched|resize|resized|scale|scaled|convert|converted|from|increase|increased|reduce|reduced|default|defaults|move|moved|grow|grows|grew|shrink|shrank)\b[^.!?;:\n]*$/i'
     frames:
       # "dose" for "does": after a subject pronoun, in a clause-opening wh-question, or opening
       # a yes/no question. "What dose of…", "what dose it takes" and "to dose it" stay nouns or
       # verbs.
       - regex: "(?:he|she|it|someone|somebody|everyone|everybody|anyone|anybody|nobody){{S}}(?<target>dose){{E}}"
         message: review_msg_typo
-        fixer: doseSubject
+        return: fixedTarget(ctx, frame, m, ["does"])
       - regex: "(?:what|how|when|where|why|who|which){{S}}(?<target>dose){{S}}(?<next>\\p{L}[\\p{L}'’]*)(?:{{S}}(?<then>\\p{L}+))?"
         message: review_msg_typo
-        fixer: doseWh
+        let:
+          pronoun: FIXED_PRONOUN_NEXT.test(next)
+        when:
+          - fixedClauseStart(ctx, m.index) && !FIXED_NOUN_DOSE_NEXT.test(next)
+          - pronoun || !englishWordInfo(next.toLowerCase())?.plural
+          # "what dose it takes": a third-person verb after the pronoun keeps "dose" a noun.
+          - '!(pronoun && hasVerbForm((then ?? "").toLowerCase(), "third"))'
+        return: fixedTarget(ctx, frame, m, ["does"])
       - regex: "(?<target>dose){{S}}(?:it|he|she|this|that|anyone|someone|anybody|everyone|everything|anything){{S}}(?<verb>[a-z]+){{E}}"
         message: review_msg_typo
-        fixer: doseQuestion
+        when:
+          - fixedClauseStart(ctx, m.index) && !/^(?:back|up|off|out|down|too|twice|once)$/i.test(verb)
+          - hasVerbForm(verb, "base")
+        return: fixedTarget(ctx, frame, m, ["does"])
       # worse/worst: a comparative slot (much, far, get, make it …) or "at worst". The first
       # frame that matches a word decides it (filter firstWorseFrame).
       - regex: "(?<target>worst){{S}}than{{E}}"
         message: review_msg_contextual_grammar
-        fixer: worstToWorse
+        return: fixedWorse(ctx, frame, m, "worse")
       - regex: "{{notAfter:by}}(?:much|far|a{{S}}lot|lots|even|way|slightly|somewhat|considerably|significantly){{S}}(?<target>worst){{E}}"
         message: review_msg_contextual_grammar
-        fixer: worstToWorse
+        return: fixedWorse(ctx, frame, m, "worse")
       - regex: "(?:{{FIXEDPHRASES_GETS}}){{S}}worse{{S}}and{{S}}(?<target>worst){{E}}"
         message: review_msg_contextual_grammar
-        fixer: worstToWorse
+        return: fixedWorse(ctx, frame, m, "worse")
       - regex: "(?:(?:{{FIXEDPHRASES_GETS}})|(?:make|makes|made|making){{S}}(?:it|them|things|this|that|everything|matters)){{S}}(?<target>worst){{E}}"
         message: review_msg_contextual_grammar
-        fixer: worstGet
+        # "getting worst accuracy", "makes them worst case": a noun after it makes it a
+        # superlative.
+        when: '!fixedNounLike(enNextWord(ctx, group(m, "target")[1]), true)'
+        return: fixedWorse(ctx, frame, m, "worse")
       - regex: "at{{S}}(?<target>worse){{COMPLETE}}"
         message: review_msg_contextual_grammar
-        fixer: worseToWorst
+        return: fixedWorse(ctx, frame, m, "worst")
       # "the worse ever": a superlative slot; "got worse ever since" stays.
       - regex: "(?<target>worse){{S}}ever{{E}}(?!{{S}}since{{E}})"
         message: review_msg_contextual_grammar
-        fixer: worseToWorst
+        return: fixedWorse(ctx, frame, m, "worst")
       # "how it looks like": either "what it looks like" or "how it looks".
       - regex: "(?<target>(?<how>how){{S}}(?<subject>it|he|she|they|we|you|I|this|that|these|those|everything){{S}}(?<verb>looks|look['’]s|look|looked){{S}}like){{E}}"
         message: review_msg_contextual_grammar
-        fixer: howLooksLike
+        let:
+          single: /^(?:it|he|she|this|that|everything)$/i.test(subject)
+          agreed: '/ed$/i.test(verb) ? "looked" : single ? "looks" : "look"'
+        return: "fixedTarget(ctx, frame, m, [`what ${subject} ${agreed} like`, `how ${subject} ${agreed}`])"
       - regex: "(?<target>how){{S}}(?:does|do|did|would|will|should|could|might){{S}}(?:it|he|she|they|we|you|I|this|that|these|those){{S}}look{{S}}like{{E}}"
         message: review_msg_contextual_grammar
-        fixer: howDoesLike
+        return: fixedTarget(ctx, frame, m, ["what"])
       # "made it seems like": a causative make takes the base form. A relative clause before
       # it can make "seems" the main verb ("the one who made it seems tired").
       - regex: "(?<make>make|makes|made|making){{S}}(?:it|them|him|her|me|us|you|this|that|everything|things){{S}}(?<target>seems|seemed){{E}}"
         check: englishVerbComplements
         message: review_msg_causative_base
-        fixer: makeSeem
+        let:
+          prior: enBefore(ctx, m.index, 48)
+        when:
+          - '!/\b(?:who|whoever|whatever|what)[ \t ]+$/i.test(prior)'
+          - >-
+            !/^making$/i.test(make)
+            || /\b(?:of|by|for|from|without|avoid|stop|keep|keeps|kept|is|are|was|were|be|been)[ \t ]+$/i.test(prior)
+        return: fixedTarget(ctx, frame, m, ["seem"])
       # A person who is a "nerve wreck" is a "nervous wreck".
       - regex: "(?<target>nerve(?:{{S}}|-)wrecks?){{E}}"
-        fixer: nerveWreck
+        let:
+          parts: 'target.split(/[ \t -]+/)'
+          nervous: applyWordCase("nervous", detectWordCase(parts[0]))
+        when: "!FIXED_SITUATION.test(enBefore(ctx, m.index, 48))"
+        return: "fixedTarget(ctx, frame, m, [`${nervous} ${parts[1]}`])"
       # "bullocks" (young bulls) for "bollocks" (nonsense): after a predicate or an
       # intensifier, or as an exclamation. "a herd of bullocks" stays.
       - regex: "(?<target>bullocks){{E}}"
-        fixer: bullocks
+        let:
+          end: group(m, "target")[1]
+          exclamation: >-
+            (fixedClauseStart(ctx, m.index) || /["“'‘]$/.test(enBefore(ctx, m.index, 1)))
+            && /^[ \t ]*!/.test(ctx.text.slice(end))
+        when: exclamation || FIXED_NONSENSE_CUE.test(enBefore(ctx, m.index, 48))
+        return: fixedTarget(ctx, frame, m, ["bollocks"])
       # "conform that" is "confirm that"; "conforming that is supported" stays a relative
       # clause.
       - regex: "(?<target>conform|conforms|conformed|conforming){{S}}that{{E}}(?!{{S}}(?:is|are|was|were|has|have|had|will|would|can|could|should|may|might|must|way|much|far|well){{E}})"
-        fixer: conformThat
+        return: fixedSwap(ctx, frame, m, FIXED_CONFORM[fixedTyped(ctx, m).toLowerCase()] ?? null, true)
       # "constitutes as a" takes no "as"; "constituting as much as" and the passive stay.
       - regex: "{{notAfter:be|been|being|is|are|was|were}}(?<target>(?:constitute|constitutes|constituting){{S}}as){{S}}(?!(?:much|many|well|long|far|soon|little|few|such|follows?|part|is|are|was|were|it|they|we|he|she|i|you|in|of){{E}})"
-        fixer: constitutesAs
+        return: 'fixedSwap(ctx, frame, m, fixedTyped(ctx, m).split(/[ \t ]+/)[0], true)'
       # "time has past" is "passed"; "has past experience" keeps the adjective.
       - regex: "(?:has|have|had|having|['’]ve){{S}}(?<target>past){{E}}"
         message: review_msg_contextual_grammar
-        fixer: hasPast
+        # A noun after "has past" keeps "past" an adjective: "has past experience", "had past
+        # due".
+        let:
+          following: enNextWord(ctx, group(m, "target")[1])
+        when: "!(following && (fixedNounLike(following, true) || /^due$/i.test(following)))"
+        return: fixedSwap(ctx, frame, m, "passed", true)
       # "payed" is nautical: a rope payed out or away, a deck or seam payed with tar or pitch.
       - regex: "(?<target>(?:over|under|pre|re)?payed){{E}}(?!{{S}}(?:out|away|(?:(?:the|a|her|his|its|their){{S}})?(?:decks?|seams?|hulls?|planking)){{E}})(?![^.!?\\n]{0,40}\\bwith{{S}}(?:[a-z]+{{S}})?(?:tar|pitch|oakum|resin){{E}})"
         message: review_msg_typo
-        fixer: payedPaid
+        return: fixedSwap(ctx, frame, m, fixedTyped(ctx, m).slice(0, -5) + "paid", true)
       # "grind to halt" needs its article.
       - regex: "(?:grind|grinds|grinding|ground|grinded|come|comes|came|coming|bring|brings|brought|bringing|screech|screeches|screeched|screeching){{S}}to{{S}}(?<target>halt){{E}}"
-        fixer: toAHalt
+        # The replacement already carries the typed casing.
+        let:
+          typed: fixedTyped(ctx, m)
+        return: 'fixedSwap(ctx, frame, m, (typed === typed.toUpperCase() ? "A " : "a ") + typed, false)'
       # "rise/arise the question" is "raise"; "there arose the question" is an inversion.
       - regex: "{{notAfter:there|then|thus|hence|here|now|which|whence|so}}(?<target>rise|rises|rising|rose|risen|rised|arise|arises|arising|arose|arisen|arised){{S}}(?:the|a|this|that){{S}}question{{E}}"
-        fixer: raiseQuestion
+        return: fixedSwap(ctx, frame, m, FIXED_RAISE[fixedTyped(ctx, m).toLowerCase()] ?? "raised", true)
       # "explained in (more) details" is "detail"; "interested in more details" is a noun
       # phrase.
       - regex: "{{notAfter:interested|interest|differ|differs|differed|differing|vary|varies|varied|varying|lies|lie|lay|lying|lost|buried|mired|bogged|drowning|drowned|is|are|was|were|only}}in{{S}}(?:(?:more|greater|further|great|full|much{{S}}more){{S}})?(?<target>details){{E}}(?!{{S}}(?:of|about|on|regarding|that|which|like|such|from|in|for|to|and){{E}})"
-        fixer: inDetail
+        return: fixedSwap(ctx, frame, m, "detail", true)
       # "Now a day a calendar…" opening a clause; "We are now a day late" stays.
       - regex: "(?<target>now{{S}}a{{S}}day)(?:{{S}}(?=(?:a|an|the|we|i|you|he|she|it|they|people|many|most|everyone|everybody|lots|there|this|these|those|kids|children){{E}})|(?=,))"
         check: englishClosedCompounds
         message: review_msg_closed_compound
-        fixer: nowadays
+        return: fixedSwap(ctx, frame, m, "nowadays", true)
       # "have my cake and eat it to" is the adverb "too".
       - regex: "eat{{S}}it{{S}}(?<target>to){{COMPLETE}}"
         check: englishToToo
         message: review_msg_to_too
-        fixer: eatItToo
+        return: fixedSwap(ctx, frame, m, "too", true)
       # "too big too fail": the second "too" opens the infinitive.
       - regex: "too{{S}}(?:big|good|small|late|early|hard|easy|much|many|long|short|old|young|slow|fast|hot|cold|important|complex|complicated|busy|tired|scared|afraid){{S}}(?<target>too){{S}}(?:be|fail|do|go|see|use|get|make|take|handle|ignore|read|understand|change|fix|run|work|say|tell|care|keep){{E}}"
         check: englishToToo
         message: review_msg_to_infinitive
-        fixer: tooToInfinitive
+        return: fixedSwap(ctx, frame, m, "to", true)
       # "went to far compared to…": "too far" before a word that cannot start a place noun
       # phrase. The core to/too frame owns clause ends and its own follower list.
       - regex: "(?:go|goes|going|gone|went|take|takes|took|taken|taking|push|pushes|pushed|pushing|carry|carried|carrying){{S}}(?<target>to){{S}}far{{E}}"
         check: englishToToo
         message: review_msg_to_too
-        fixer: toFar
+        let:
+          following: enNextWord(ctx, m.index + m[0].length)
+        when: following && !FIXED_TO_FAR_NEXT.test(following) && !fixedNounLike(following, false)
+        return: fixedTarget(ctx, frame, m, ["too"])
       # "the form to big for small screens": degree "too" before an adjective and "for".
       - regex: "(?<target>to){{S}}(?:big|small|large|long|short|complex|complicated|expensive|heavy|slow|hard|difficult){{S}}for{{E}}"
         check: englishToToo
         message: review_msg_to_too
-        fixer: toBigFor
+        when: "!FIXED_SETTING_VERB.test(enBefore(ctx, m.index, 48))"
+        return: fixedTarget(ctx, frame, m, ["too"])
       # "wrote learning" after a determiner, preposition or another verb has no subject for
       # "wrote".
       - regex: "(?:a|the|of|for|at|in|on|with|from|through|via|than|encouraged|encourage|encourages|did|do|does|use|uses|using|pure|mere|simple|much){{S}}(?<target>wrote){{S}}(?:learning|memori[sz]ation|memori[sz]ing|memory|repetition){{E}}"
-        fixer: wroteRote
+        return: fixedTarget(ctx, frame, m, ["rote"])
       # "govt." is "government"; its period stays when it ends the sentence.
       - regex: "(?<target>govt)(?<dot>\\.(?={{S}}\\p{L}))?{{E}}"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        fixer: govt
+        let:
+          range: group(m, "target")
+        return: 'fixedFound(ctx, frame, m, range[0], dot ? range[1] + 1 : range[1], ["government"], true)'
       # Subjunctive "were" after "wish" or "if only" before a predicate; the elliptical "I only
       # wish it was." stays.
       - regex: "(?:if{{S}}only|wish){{S}}(?:I|he|she|it|there|this|that){{S}}(?<target>was){{S}}(?=\\p{L})"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        fixer: wishWere
+        return: fixedTarget(ctx, frame, m, ["were"])
   - id: en.confusedWords
     checks: [englishConfusedWords]
     style: match
