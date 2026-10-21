@@ -129,6 +129,44 @@ export function matchPhrase(text: string, phrase: PhraseEntry, at: number): RegE
   return WORD_ENDS.test(text) ? match : null;
 }
 
+/** The rows of one first word, by second word. Made on the first lookup of the list. */
+type SecondIndex = {
+  /** The list length when the index was made: a longer list makes a new index. */
+  length: number;
+  /** The rows without a second word. Null when no row of the list has a second word. */
+  open: PhraseEntry[] | null;
+  /** By second word: the rows with that second word or without one, in list order. */
+  bySecond: Map<string, PhraseEntry[] | undefined>;
+};
+const SECOND_INDEXES = new WeakMap<PhraseEntry[], SecondIndex>();
+
+/**
+ * The rows of `phrases`, in list order, that the next word after `end` does not rule out:
+ * a row with a second word needs that word next, unless the next word has no key.
+ */
+function rowsBeforeNext(phrases: PhraseEntry[], text: string, end: number): PhraseEntry[] {
+  let index = SECOND_INDEXES.get(phrases);
+  if (!index || index.length !== phrases.length) {
+    const seconded = phrases.filter((phrase) => phrase.second !== null);
+    index = {
+      length: phrases.length,
+      open: seconded.length ? phrases.filter((phrase) => phrase.second === null) : null,
+      bySecond: new Map(seconded.map((phrase) => [phrase.second!, undefined])),
+    };
+    SECOND_INDEXES.set(phrases, index);
+  }
+  if (!index.open) return phrases;
+  const next = nextWordKey(text, end);
+  if (next === null) return phrases;
+  if (!index.bySecond.has(next)) return index.open;
+  let rows = index.bySecond.get(next);
+  if (!rows) {
+    rows = phrases.filter((phrase) => phrase.second === null || phrase.second === next);
+    index.bySecond.set(next, rows);
+  }
+  return rows;
+}
+
 /**
  * The phrase rows of `INDEX` in the chunk [from, to) of `text`. Each word token of the engine
  * tokenizer (forEachWord) looks up the
@@ -177,13 +215,8 @@ export function scanRows(
     lookup: for (const at of elided ? [0, elided] : [0]) {
       const phrases = INDEX.get(wordKey(word.slice(at)));
       if (!phrases || !startsWord(text, start + at, lang)) continue;
-      let next: string | null | undefined;
-      for (const phrase of phrases) {
+      for (const phrase of rowsBeforeNext(phrases, text, start + word.length)) {
         if (!uses(phrase)) continue;
-        if (phrase.second !== null) {
-          next ??= nextWordKey(text, start + word.length);
-          if (next !== null && next !== phrase.second) continue;
-        }
         const match = matchPhrase(text, phrase, start + at);
         if (!match) continue;
         const end = accept(phrase, match[0], match.index);
