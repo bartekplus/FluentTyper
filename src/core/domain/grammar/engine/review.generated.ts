@@ -10071,28 +10071,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<subject>i|you|we|they|he|she|it)(?:[ \\t\\u00a0]{1,8}(?:have|has|had)|['’]ve)|(?:have|has|had)[ \\t\\u00a0]{1,8}(?:i|you|we|they|he|she|it|there))(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?<verb>was|were|are)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["was", "were", "are"],
-    fixer: "en:verbGroupPerfectWithPastBe",
+    fixer: "en:@en.verbGroups/1",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?:(?<pronoun>i|you|we|they|he|she|it)(?:[ \\t\\u00a0]{1,8}(?:have|has|had)|['’]ve)|[a-z]+[ \\t\\u00a0]{1,8}(?:has|have))(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?<verb>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbGroupPerfectWithThird",
+    fixer: "en:@en.verbGroups/2",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?:(?:i|you|we|they|he|she|it|who)(?:[ \\t\\u00a0]{1,8}(?:have|has|had)|['’]ve)|(?:will|would|could|should|must|might|may)[ \\t\\u00a0]{1,8}have)(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?<verb>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ing"],
-    fixer: "en:verbGroupPerfectWithIng",
+    fixer: "en:@en.verbGroups/3",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<be>was|were|is|are|wasn['’]t|weren['’]t|isn['’]t|aren['’]t)[ \\t\\u00a0]{1,8}(?<subject>it|they|these|those|this|that|you|we|he|she|i)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbGroupInvertedPassiveBase",
+    fixer: "en:@en.verbGroups/4",
     message: "review_msg_be_participle",
     owner: "verb",
   }),
@@ -10100,21 +10100,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:i|you|we|they|he|she|it|who)[ \\t\\u00a0]{1,8}(?:have|has|had)(?:n['’]t)?|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:[ \\t\\u00a0]{1,8}(?:not|never))?[ \\t\\u00a0]{1,8}have|(?:could|would|should|must|might)['’]ve|[a-z]+[ \\t\\u00a0]{1,8}(?:has|have|had))(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbGroupPerfectWithBase",
+    fixer: "en:@en.verbGroupsPerfectBase/1",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?:have|has)(?:n['’]t)?[ \\t\\u00a0]{1,8}(?:i|you|we|they|he|she|it|anyone|anybody|someone|somebody|everyone|[a-z]{2,})(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["have", "has"],
-    fixer: "en:verbGroupPerfectWithBase",
+    fixer: "en:@en.verbGroupsPerfectBase/2",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<be>be|been|being|is|are|was|were|am|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbGroupPassiveWithBase",
+    fixer: "en:@en.verbGroupsBareVerbs/1",
     owner: "verb",
   }),
   frame({
@@ -10137,28 +10137,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "shouldn",
       "mustn",
     ],
-    fixer: "en:verbGroupModalBeBase",
+    fixer: "en:@en.verbGroupsBareVerbs/2",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?:am|is|are|was|were|be|been|being|['’]m|['’]re|['’]s)(?:[ \\t\\u00a0]{1,8}(?:so|not|very|really|quite|already|still|never|totally|completely|pretty|just|more)){0,2}[ \\t\\u00a0]{1,8}(?<verb>use)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?=[a-z]+ing(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?:it|this|that|them|him|her|me|us|the|a|an|my|your|our|their|his|its|being)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["use"],
-    fixer: "en:verbGroupUsedTo",
+    fixer: "en:@en.verbGroupsBareVerbs/3",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?:get|gets|got|getting|gotten)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["get", "gets", "got", "getting", "gotten"],
-    fixer: "en:verbGroupGetWithBase",
+    fixer: "en:@en.verbGroupsBareVerbs/4",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<subject>[a-z]+)[ \\t\\u00a0]{1,8}(?<aux>does|do|did)(?:[ \\t\\u00a0]{1,8}not)?(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbGroupDoSupport",
+    fixer: "en:@en.verbGroupsBareVerbs/5",
     message: "review_msg_auxiliary_base",
     check: "englishAuxiliaryBaseVerb",
     owner: "verb",
@@ -10167,7 +10167,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:can|could|would|will|should|shall|may|might|must)[ \\t\\u00a0]{1,8}(?<subject>i|you|we|they|he|she|anyone|someone|anybody|everyone|somebody)(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|also|often|recently|finally|yet|ever|always|now|nearly|completely|actually|really|since|all|only|usually|sometimes|probably|definitely|certainly|indeed|still|greatly|naturally|affectionately|rapidly|exactly|[a-z]+ly|please)){0,2})[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["can", "could", "would", "will", "should", "shall", "may", "might", "must"],
-    fixer: "en:verbGroupInvertedModal",
+    fixer: "en:@en.verbGroupsBareVerbs/6",
     message: "review_msg_auxiliary_base",
     check: "englishAuxiliaryBaseVerb",
     owner: "verb",
@@ -10176,7 +10176,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<subject>[a-z]+)[ \\t\\u00a0]{1,8}(?<be>is|am|are)(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:also|only|always|often|usually|never|sometimes|really|just|still))?)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbGroupBeBeforeThird",
+    fixer: "en:@en.verbGroupsBareVerbs/7",
     message: "review_msg_sentence_structure",
     check: "englishSentenceStructure",
     owner: "be",
@@ -10185,7 +10185,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<subject>I|he|she|it|we|they)(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:never|already|just|not|also))?)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:verbGroupBareParticiple1",
+    fixer: "en:@en.verbGroupsBareVerbs/8",
     message: "review_msg_perfect_participle",
     owner: "verb",
   }),
@@ -10193,7 +10193,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<modal>could|would|should|might|must|may|can|will|to)[ \\t\\u00a0]{1,8}(?<target>been)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["been"],
-    fixer: "en:verbGroupBareParticiple2",
+    fixer: "en:@en.verbGroupsBareVerbs/9",
     message: "review_msg_perfect_participle",
   }),
   frame({

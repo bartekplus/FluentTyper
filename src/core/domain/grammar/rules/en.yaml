@@ -2393,88 +2393,738 @@ rules:
     style: match
     message: review_msg_perfect_participle
     filter: usSlots
+    sets:
+      # Base verbs that are mostly predicates or names ("weren't awake", "be home", "I am harry");
+      # "were shock by" belongs to an englishConfusedWords row.
+      VG_PREDICATE_WORDS:
+        [awake, home, harry, close, please, flatter, double, further, back, exempt, shock]
+    defs:
+      VG_SUBJECT_PRONOUN: /^(?:i|you|we|they|he|she|it|who|anyone|anybody|someone|somebody|everyone)$/
+      VG_OBJECT: /^(?:me|him|her|us|them|you|it)$/
+      # What comes before a fronted clause whose verb can follow do/be: "What it does makes sense".
+      VG_GAP: '/\b(?:what|whatever|whoever|all|everything|anything|something|nothing|which|who|how|where|why)\b[^.!?;:,\n]*$/i'
+      # A sentence start before the subject, maybe with an opening "And"/"But" (no closing quote).
+      VG_OPENS_SENTENCE: '/[.!?\n][ \t "“]*(?:(?:and|but|so|now|yes|well)[ \t ,]+)?$/i'
+      VG_OPENS_TEXT: '/(?:^|[.!?\n])[ \t "“]*(?:(?:and|but|so|now|yes|well)[ \t ,]+)?$/i'
+      VG_DETERMINER_OBJECT: /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|some|any|many|all|it|them|him|us|me)$/
+      # -ing words that name a thing someone has: "have meeting rooms", "had training".
+      VG_NOUN_LIKE: /^(?:meeting|training|building|clothing|feeling|thing|nothing|something|anything|everything|morning|evening|wedding|ceiling|spring|string|king|ring|wing)$/
+      # A base verb in its own spelling that no participle or past shares ("finish", not "put").
+      vgBareBase:
+        args: "word: string"
+        type: "{ lemma: string; verbOnly: boolean } | null"
+        let:
+          read: englishWordInfo(word)
+          participle: enParticipleOf(word)
+        when:
+          - "!(EN_FUNCTION_WORDS.has(word) || VG_PREDICATE_WORDS.has(word))"
+          - 'read?.verbs.some((v) => v.form === "base" && v.lemma === word)'
+          - '!read.verbs.some((v) => v.form !== "base" && v.form !== "third")'
+          - "!(!participle || participle === word)"
+        return: "({ lemma: word, verbOnly: !read.noun && !read.adjective && !read.adverb && !read.plural })"
+      vgPlain:
+        args: "ctx: DetectContext, word: string"
+        return: word === word.toLowerCase() && !ctx.dictionary.has(word)
+      # A finding of these rules; each rule keeps one finding per range (filter usSlotsOnePerRange).
+      vgFinding:
+        args: >-
+          ctx: DetectContext, ruleId: RawFinding["ruleId"], messageKey: RawFinding["messageKey"], start: number, end: number,
+          alternatives: string[], from: number, requiresChoice?: boolean
+        return: >-
+          finding(ruleId, messageKey, start, end, alternatives,
+          { ...(requiresChoice ? { requiresChoice: true as const } : {}), context: enEvidence(ctx, from, end) })
+      # "He has uses the laptop": an object must follow. A plural noun ("has needs that matter", "has
+      # kids my age") takes only an object pronoun as proof that it is the verb; after a noun subject
+      # only a pronoun object ("The group has already copies it").
+      vgThirdObject:
+        args: "ctx: DetectContext, m: RegExpExecArray, next: EnToken | undefined"
+        type: RawFinding | null
+        let:
+          verb: m.groups!.verb
+          read: englishWordInfo(verb)
+          third: 'read?.verbs.find((v) => v.form === "third")'
+          proof: >-
+            !m.groups!.pronoun ? /^(?:it|them|him|us|me)$/ : read!.plural ? /^(?:it|them|him|us|me)$/
+            : /^(?:the|a|an|my|your|his|her|our|their|its|this|these|those|it|them|him|us|me)$/
+          participle: enParticipleOf(third.lemma)
+          span: m.indices!.groups!.verb
+        when:
+          - third
+          - "!/^(?:has|is|was|does)$/.test(verb)"
+          - 'next?.kind === "word" && proof.test(next.lower)'
+          - participle
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], [participle], m.index)'
     frames:
       # "I have was there", "Where have you were?": a past of be after have is "been".
       - regex: "(?:(?<subject>i|you|we|they|he|she|it)(?:{{S}}(?:have|has|had)|['’]ve)|(?:have|has|had){{S}}(?:i|you|we|they|he|she|it|there)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>was|were|are){{E}}"
         owner: verb
-        fixer: verbGroupPerfectWithPastBe
+        # "All we have are memories", "What I had was luck": the subject closes an object gap. "The job I
+        # had was in Germany": a subject after a noun closes a relative clause. Only a subject that opens
+        # its sentence (or comes after an opening "And"/"But") counts.
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 96), m.index)
+          span: m.indices!.groups!.verb
+        when:
+          - "!(subject && !(m.index <= 96 ? VG_OPENS_TEXT : VG_OPENS_SENTENCE).test(before))"
+          - '!(!subject && !enAfterBreak(ctx, m.index) && !/\b(?:where|why|how|when|what)[ \t ]+$/i.test(before))'
+          - vgPlain(ctx, verb)
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], ["been"], m.index)'
       # "He has uses the laptop": an -s verb with its object after have.
       - regex: "(?:(?<pronoun>i|you|we|they|he|she|it)(?:{{S}}(?:have|has|had)|['’]ve)|[a-z]+{{S}}(?:has|have)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+s){{E}}"
         owner: verb
-        fixer: verbGroupPerfectWithThird
+        # "I have has the sensor…": a doubled have. Only at a clause start: "the transformer I have has a
+        # sensor" is a relative clause.
+        let:
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          span: m.indices!.groups!.verb
+        when: vgPlain(ctx, verb)
+        return: >-
+          verb === "has" && pronoun && (enAfterBreak(ctx, m.index) || /^(?:and|but|so|because|that|if|when)$/.test(enWordBefore(ctx, m.index))) &&
+          next?.kind === "word" && VG_DETERMINER_OBJECT.test(next.lower)
+          ? vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], ["had"], m.index)
+          : vgThirdObject(ctx, m, next)
       # "We've also cooking a cake", "will have compiling the data": have + an -ing form.
       - regex: "(?:(?:i|you|we|they|he|she|it|who)(?:{{S}}(?:have|has|had)|['’]ve)|(?:will|would|could|should|must|might|may){{S}}have){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+ing){{E}}"
         owner: verb
-        fixer: verbGroupPerfectWithIng
+        # A pronoun right before have belongs to the progressive check of englishParticiples; "have
+        # since adding" is a preposition phrase. "how much of a problem they will have compiling it":
+        # have trouble doing something. Its own object follows: "cooking a cake", "contacting many of
+        # you".
+        let:
+          adv: adverbs ?? ""
+          read: englishWordInfo(verb)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          lemma: englishLemma(verb, "ing")
+          participle: lemma && enParticipleOf(lemma)
+          span: m.indices!.groups!.verb
+        when:
+          - '!(!vgPlain(ctx, verb) || verb === "having" || VG_NOUN_LIKE.test(verb))'
+          - '!(!/^(?:will|would|could|should|must|might|may)\b/i.test(m[0]) && !adv.trim())'
+          - '!/\bsince\b/i.test(adv)'
+          - "!/^(?:concerning|regarding|including|following|considering|according|pending|excluding)$/.test(verb)"
+          - '!/\b(?:problem|problems|trouble|difficulty|difficulties|issues|time|fun|luck)\b[^.!?;:\n]*$/i.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))'
+          - '!(!read?.verbs.some((v) => v.form === "ing") || read.noun || read.adjective)'
+          - '!(next?.kind !== "word" || !VG_DETERMINER_OBJECT.test(next.lower))'
+          - participle
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], [participle, `been ${verb}`], m.index, true)'
       # "When was it send?", "Were they build last year?": an inverted passive with a bare verb.
       # "Were you use the old login?": a person and a verb before its object.
       - regex: "(?<be>was|were|is|are|wasn['’]t|weren['’]t|isn['’]t|aren['’]t){{S}}(?<subject>it|they|these|those|this|that|you|we|he|she|i){{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
         message: review_msg_be_participle
-        fixer: verbGroupInvertedPassiveBase
+        # "Is it work?" asks about a noun: a noun-or-verb needs a time or agent word after it. A person in
+        # a question takes no noun there, so an object or particle shows the verb. "Why is this happen?":
+        # the progressive fits as well as the passive.
+        let:
+          person: /^(?:you|we|he|she|i)$/i.test(subject)
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          base: vgBareBase(verb)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          tail: '/^(?:by|via|last|yesterday|already|yet)$/.test(next?.lower ?? "")'
+          personObject: >-
+            person && /^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|it|them|me|us|him|out|up|off|down)$/.test(next?.lower ?? "") &&
+            /^[^.!?\n]{0,80}\?/.test(ctx.text.slice(m.index + m[0].length))
+          participle: enParticipleOf(base.lemma)
+          ing: '/^(?:is|are|was|were)$/i.test(be) ? englishInflect(base.lemma, "ing") : null'
+          span: m.indices!.groups!.verb
+        when:
+          - vgPlain(ctx, verb)
+          - 'enAfterBreak(ctx, m.index) || /\b(?:where|why|how|when|what|who|whom|exactly|and|but)[ \t ]+$/i.test(before)'
+          - "!(!base || englishWordInfo(verb)?.adjective)"
+          - 'tail || personObject || (!person && base.verbOnly && (next?.kind === "end" || /^(?:to|on|in|at|with|from)$/.test(next?.lower ?? "")))'
+          - participle
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_be_participle", span[0], span[1], ing ? [participle, ing] : [participle], m.index, !!ing)'
   - id: en.verbGroupsPerfectBase
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
     style: match
     message: review_msg_perfect_participle
     filter: usSlotsOnePerRange
+    sets:
+      # Nouns that a person "has" bare, before a time phrase or a determiner: "I have work the next
+      # day", "We have practice this week".
+      VG_HAVE_NOUNS:
+        [
+          work,
+          practice,
+          class,
+          school,
+          lunch,
+          dinner,
+          breakfast,
+          time,
+          fun,
+          access,
+          control,
+          power,
+          trouble,
+          help,
+          need,
+          contact,
+          experience,
+          support,
+          care,
+          faith,
+          hope,
+          love,
+          respect,
+          permission,
+          rest,
+          sleep,
+          charge,
+          chance,
+          training,
+          rehearsal,
+          homework,
+          sex,
+          reason,
+          cause,
+          priority,
+        ]
+      # Verbs that take a that-clause: "studies have show that…".
+      VG_THAT_VERBS:
+        [
+          show,
+          prove,
+          suggest,
+          indicate,
+          notice,
+          hear,
+          learn,
+          decide,
+          agree,
+          mention,
+          note,
+          report,
+          claim,
+          state,
+          demonstrate,
+          realize,
+          realise,
+          discover,
+          explain,
+          confirm,
+          assume,
+        ]
+    defs:
+      VG_TIME_NOUNS: /^(?:day|days|week|weeks|weekend|morning|afternoon|evening|night|month|year|time|semester|term|summer|winter)$/
+      # Aspect adverbs that a perfect takes and a bare noun object does not: "has often rain", "have
+      # already hire".
+      VG_ASPECT: /\b(?:already|just|recently|finally|never|ever|often|nearly|previously|repeatedly)\b/i
+      # An object pronoun follows: the word before it is a verb. A determiner would not do: "I have
+      # work the next day", "you have evidence the shop knows".
+      vgObjectFollows:
+        args: "ctx: DetectContext, end: number"
+        let:
+          first: enTokensAfter(ctx, end, 1)[0]
+        return: 'first?.kind === "word" && VG_OBJECT.test(first.lower)'
+      # A determiner and a noun that is no time noun after a noun-or-verb base: "has hire several
+      # traders", "have see any problems". Not "I have work the next day". "you have evidence the
+      # shop knows…": the determiner opens a clause of its own. "that" is a determiner only before a
+      # noun: "have see that film", not "have word that rain…".
+      vgDeterminerFollows:
+        args: "ctx: DetectContext, end: number, verb: string"
+        let:
+          tokens: enTokensAfter(ctx, end, 3)
+          first: tokens[0]
+          second: tokens[1]
+          third: tokens[2]
+          read: 'third?.kind === "word" ? englishWordInfo(third.lower) : null'
+          clause: >-
+            third?.kind === "word" && (EN_AUXILIARIES.has(third.lower) || (!read?.plural && (/ed$/.test(third.lower) ||
+            !!read?.verbs.some((v) => v.form === "third" || v.form === "past"))))
+          that: >-
+            first?.kind === "word" && first.lower === "that" && second?.kind === "word" && !EN_FUNCTION_WORDS.has(second.lower) &&
+            !!englishWordInfo(second.lower)?.noun
+        when: "!(VG_HAVE_NOUNS.has(verb) || EN_MASS.has(verb))"
+        return: >-
+          first?.kind === "word" && (that ||
+          /^(?:the|a|an|this|these|those|my|your|his|her|our|their|its|several|all|any|some|many|every|each)$/.test(first.lower)) &&
+          !(second?.kind === "word" && VG_TIME_NOUNS.test(second.lower)) && !clause
+        else: "false"
+      # A particle and its object: "figure out the bug", "set up a meeting".
+      vgParticleObjectFollows:
+        args: "ctx: DetectContext, end: number"
+        let:
+          tokens: enTokensAfter(ctx, end, 2)
+          first: tokens[0]
+          second: tokens[1]
+        return: >-
+          first?.kind === "word" && /^(?:out|up|down|off|back|over)$/.test(first.lower) && second?.kind === "word" &&
+          /^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him|what|how|why)$/.test(second.lower)
+      # A preposition and an object pronoun after the word: "has yell at me", "have talk to him".
+      vgPrepositionObjectFollows:
+        args: "ctx: DetectContext, end: number"
+        let:
+          tokens: enTokensAfter(ctx, end, 2)
+          first: tokens[0]
+          second: tokens[1]
+        return: 'first?.kind === "word" && /^(?:at|to|with|about|from)$/.test(first.lower) && second?.kind === "word" && VG_OBJECT.test(second.lower)'
+      vgTokenRead:
+        args: "t: EnToken | undefined"
+        return: 't?.kind === "word" ? englishWordInfo(t.lower) : null'
+      vgMannerAdverb:
+        args: "t: EnToken | undefined"
+        let:
+          r: vgTokenRead(t)
+        return: "!!r?.adverb && !r.noun && !r.adjective && /ly$/.test(t!.lower)"
+      # What follows a noun-or-verb word after have rules the noun out: a manner adverb ("have change
+      # so drastically"), a that-clause ("have show that"), an object pronoun after a preposition
+      # ("has yell at me"), a determiner ("had launch the new phone"), a plural object after an
+      # irregular verb ("have see pictures"), or the clause end after a modal have or 've ("could
+      # have change,", "you've notice,").
+      vgVerbSlot:
+        args: "ctx: DetectContext, end: number, lemma: string, lead: string"
+        let:
+          tokens: enTokensAfter(ctx, end, 2)
+          first: tokens[0]
+          second: tokens[1]
+        when: "!(VG_HAVE_NOUNS.has(lemma) || EN_MASS.has(lemma))"
+        return: >-
+          vgMannerAdverb(first) || (/^(?:so|too)$/.test(first?.lower ?? "") && vgMannerAdverb(second)) ||
+          (first?.lower === "that" && VG_THAT_VERBS.has(lemma)) || vgPrepositionObjectFollows(ctx, end) ||
+          vgDeterminerFollows(ctx, end, lemma) || vgIrregularPluralObject(lemma, first) ||
+          ((!first || first.kind === "end" || first.kind === "comma") &&
+          /(?:(?:could|would|should|must|might|may|will)\s+have|['’]ve)$/.test(lead))
+        else: "false"
+      vgIrregularPluralObject:
+        args: "lemma: string, first: EnToken | undefined"
+        let:
+          forms: englishVerbForms(lemma)
+        return: >-
+          forms?.lemma === lemma && forms.participle !== lemma && forms.participle !== forms.past && !!vgTokenRead(first)?.plural
+      # The participle of a perfect with a bare verb. "I have like her for years": like before an
+      # object pronoun is the verb.
+      vgPerfectParticiple:
+        args: "ctx: DetectContext, m: RegExpExecArray, verb: string, subject: string | undefined, lead: string, nounSubject: boolean"
+        type: string | null
+        return: >-
+          verb === "be" ? "been" : verb === "do" ? "done"
+          : verb === "like" && vgObjectFollows(ctx, m.index + m[0].length) ? "liked"
+          : vgBareParticiple(ctx, m, verb, subject, lead, nounSubject)
+      # "Who do I have review it?": a causative have after do-support. Not after an inverted have:
+      # "Have Tom report to me" is causative. "Have you figure out the bug?": a particle and its
+      # object after a pronoun subject. "should have write access": a compound noun after the verb.
+      vgBareParticiple:
+        args: "ctx: DetectContext, m: RegExpExecArray, verb: string, subject: string | undefined, lead: string, nounSubject: boolean"
+        type: string | null
+        let:
+          base: vgBareBase(verb)
+          end: m.index + m[0].length
+          causative: '/\b(?:do|does|did)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
+          slot: "!causative && verb === base.lemma && !englishWordInfo(verb)?.plural && vgVerbSlot(ctx, end, base.lemma, lead)"
+          after: enTokensAfter(ctx, end, 1)[0]
+        when:
+          - base
+          - >-
+            !(!slot && !base.verbOnly && !vgObjectFollows(ctx, end) &&
+            !(!nounSubject && !subject && ((!VG_HAVE_NOUNS.has(verb) && VG_ASPECT.test(m.groups!.adverbs ?? "")) || vgPrepositionObjectFollows(ctx, end))) &&
+            !(!nounSubject && (!subject || VG_SUBJECT_PRONOUN.test(subject.toLowerCase())) && vgParticleObjectFollows(ctx, end)) &&
+            (nounSubject || causative || !vgDeterminerFollows(ctx, end, verb)))
+          - >-
+            !(!slot && after?.kind === "word" && !EN_FUNCTION_WORDS.has(after.lower) &&
+            !/^(?:two|three|four|five|six|seven|eight|nine|ten|twenty|hundreds|thousands)$/.test(after.lower) &&
+            (enNounOnly(after.lower) || englishWordInfo(after.lower)?.noun))
+          - "!(nounSubject && !base.verbOnly && !slot)"
+        return: enParticipleOf(base.lemma)
     frames:
       # "I have finish", "could have change", "Have you use…": a perfect with a bare verb.
       - regex: "(?:(?:i|you|we|they|he|she|it|who){{S}}(?:have|has|had)(?:n['’]t)?|(?:i|you|we|they|who)['’]ve|(?:could|would|should|must|might|may|will)(?:{{S}}(?:not|never))?{{S}}have|(?:could|would|should|must|might)['’]ve|[a-z]+{{S}}(?:has|have|had)){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: verbGroupPerfectWithBase
+        # The pattern is case-blind: an inverted subject must be a pronoun or a name with a capital.
+        # "Have Tom call me later.": with a name and no question mark, have is causative. "Have Tom and I
+        # done enough?": the question owns the participle. "have to", "have been", "had better" are
+        # other constructions. A noun subject before has/have needs a verb-only word ("The man has work
+        # at five"). A word with a capital that the lexicon does not know is a name, as good as a
+        # pronoun ("Tom has"). "The switches I have do not…": a relative clause ends at have.
+        let:
+          subject: '/^(?:have|has)(?:n[''’]t)?\s+(\S+)/i.exec(m[0])?.[1]'
+          lead: m[0].slice(0, m.indices!.groups!.adverbs[0] - m.index).toLowerCase()
+          name: /^[A-Z][a-z]+\s/.test(m[0]) && !englishWordInfo(lead.split(/\s+/)[0])
+          nounSubject: '/^[a-z]+\s+(?:has|have|had)$/.test(lead) && !/^(?:i|you|we|they|he|she|it|who)\s/.test(lead) && !name'
+          end: m.index + m[0].length
+          participle: vgPerfectParticiple(ctx, m, verb, subject, lead, nounSubject)
+          span: m.indices!.groups!.verb
+        when:
+          - "!(subject && /^(?:have|has)/i.test(m[0]) && !VG_SUBJECT_PRONOUN.test(subject) && !/^[A-Z][a-z]+$/.test(subject))"
+          - "!(subject && !enAfterBreak(ctx, m.index) && /^(?:have|has)/i.test(m[0]))"
+          - '!(subject && !VG_SUBJECT_PRONOUN.test(subject.toLowerCase()) && !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160)))'
+          - '!(!vgPlain(ctx, verb) || (/\bnot\b/.test(m[0]) && verb === "to"))'
+          - "!/^(?:to|been|better|got|gotten|had|done)$/.test(verb)"
+          - "!(nounSubject && /^(?:what|all|which|that|to|i|you|we|they|he|she|it|who|not)$/.test(lead.split(/\\s+/)[0]))"
+          - 'enTokensAfter(ctx, end, 1)[0]?.lower !== "not"'
+          - participle
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], [participle], m.index)'
       - regex: "(?:have|has)(?:n['’]t)?{{S}}(?:i|you|we|they|he|she|it|anyone|anybody|someone|somebody|everyone|[a-z]{2,}){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: verbGroupPerfectWithBase
+        # The pattern is case-blind: an inverted subject must be a pronoun or a name with a capital.
+        # "Have Tom call me later.": with a name and no question mark, have is causative. "Have Tom and I
+        # done enough?": the question owns the participle. "have to", "have been", "had better" are
+        # other constructions. A noun subject before has/have needs a verb-only word ("The man has work
+        # at five"). A word with a capital that the lexicon does not know is a name, as good as a
+        # pronoun ("Tom has"). "The switches I have do not…": a relative clause ends at have.
+        let:
+          subject: '/^(?:have|has)(?:n[''’]t)?\s+(\S+)/i.exec(m[0])?.[1]'
+          lead: m[0].slice(0, m.indices!.groups!.adverbs[0] - m.index).toLowerCase()
+          name: /^[A-Z][a-z]+\s/.test(m[0]) && !englishWordInfo(lead.split(/\s+/)[0])
+          nounSubject: '/^[a-z]+\s+(?:has|have|had)$/.test(lead) && !/^(?:i|you|we|they|he|she|it|who)\s/.test(lead) && !name'
+          end: m.index + m[0].length
+          participle: vgPerfectParticiple(ctx, m, verb, subject, lead, nounSubject)
+          span: m.indices!.groups!.verb
+        when:
+          - "!(subject && /^(?:have|has)/i.test(m[0]) && !VG_SUBJECT_PRONOUN.test(subject) && !/^[A-Z][a-z]+$/.test(subject))"
+          - "!(subject && !enAfterBreak(ctx, m.index) && /^(?:have|has)/i.test(m[0]))"
+          - '!(subject && !VG_SUBJECT_PRONOUN.test(subject.toLowerCase()) && !/^[^.!\n]*\?/.test(ctx.text.slice(m.index, m.index + 160)))'
+          - '!(!vgPlain(ctx, verb) || (/\bnot\b/.test(m[0]) && verb === "to"))'
+          - "!/^(?:to|been|better|got|gotten|had|done)$/.test(verb)"
+          - "!(nounSubject && /^(?:what|all|which|that|to|i|you|we|they|he|she|it|who|not)$/.test(lead.split(/\\s+/)[0]))"
+          - 'enTokensAfter(ctx, end, 1)[0]?.lower !== "not"'
+          - participle
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1], [participle], m.index)'
   - id: en.verbGroupsBareVerbs
     checks: [englishPerfectParticiples, englishAuxiliaryBaseVerb, englishSentenceStructure]
     style: match
     message: review_msg_be_participle
     filter: usSlots
+    sets:
+      # Nouns that a modal "be" takes as a predicate: "It will be fun", "It won't be work".
+      VG_BE_PREDICATES:
+        [
+          love,
+          work,
+          hope,
+          rain,
+          snow,
+          design,
+          support,
+          research,
+          change,
+          time,
+          business,
+          trouble,
+          risk,
+          cost,
+          need,
+          interest,
+          fun,
+          home,
+        ]
+      # Participles that are never a simple past, so a bare subject before them has no have/has.
+      VG_PARTICIPLE_ONLY:
+        [
+          done,
+          seen,
+          gone,
+          been,
+          begun,
+          taken,
+          written,
+          eaten,
+          given,
+          spoken,
+          broken,
+          known,
+          shown,
+          chosen,
+          driven,
+          ridden,
+          risen,
+          fallen,
+          forgotten,
+          gotten,
+          sung,
+          drunk,
+          swum,
+          rung,
+        ]
+    defs:
+      # A finite or -ing form after do-support or a modal, mapped to its base, or null.
+      vgBaseOf:
+        args: "word: string, nounToo: boolean"
+        type: string | null
+        let:
+          read: englishWordInfo(word)
+        when: read
+        return: >-
+          word.endsWith("ing") ? (read.noun || read.adjective ? null : englishLemma(word, "ing"))
+          : word.endsWith("s") ? vgThirdBase(word, read, nounToo) : vgPastBase(word, read, nounToo)
+      vgThirdBase:
+        args: "word: string, read: EnWordInfo, nounToo: boolean"
+        type: string | null
+        when:
+          - "!((read.plural || read.noun) && !nounToo)"
+          - 'read.verbs.some((v) => v.form === "third")'
+        return: 'englishVerbForms(word)?.third === word ? englishVerbForms(word)!.lemma : englishLemma(word, "third")'
+      vgPastBase:
+        args: "word: string, read: EnWordInfo, nounToo: boolean"
+        type: string | null
+        let:
+          forms: englishVerbForms(word)
+        when:
+          - "!((read.noun || read.adjective) && !nounToo)"
+          - "!(forms && (forms.ambiguous.includes(word) || forms.lemma === word))"
+        return: >-
+          forms?.past === word ? forms.lemma : !read.verbs.some((v) => v.form === "past" || v.form === "participle") ? null
+          : englishLemma(word, "past")
+      # "was recently release", "is completely rebuild": a manner or time adverb modifies a verb, so a
+      # word that is also a noun is the verb here. "All you do is install it", "what I want is…": a
+      # bare infinitive after a pseudo-cleft. "Let it be", "so be it": be before a pronoun. "The best
+      # art is stuff by local kids": a mass noun before "by" names the work. "You are not dismiss me",
+      # "I was believe that": a verb-only word before its object. A pronoun subject only: "His job is
+      # protect them" is a bare infinitive predicate. Before an object the progressive is the likelier
+      # repair.
+      vgPassive:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          verb: m.groups!.verb
+          base: vgBareBase(verb)
+          verbal: >-
+            /\b(?:recently|completely|fully|newly|successfully|already|properly|automatically|correctly|quickly|slowly|carefully|badly|poorly|widely|partially|accidentally|immediately|permanently)\b/i.test(m.groups!.adverbs
+            ?? "")
+          before: ctx.text.slice(Math.max(0, m.index - 96), m.index)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          word: 'next?.kind === "word" ? next.lower : ""'
+          agentNoun: enTokensAfter(ctx, m.index + m[0].length, 2)[1]
+          agent: '/^(?:by|via)$/.test(word) && agentNoun?.kind === "word"'
+          adjective: englishWordInfo(verb)?.adjective
+          object: >-
+            base.verbOnly && /^(?:that|me|him|us|them)$/.test(word) &&
+            /(?:^|[^\p{L}'’])(?:i|you|we|they|he|she)(?:\s+\p{L}+)?\s*$/u.test(ctx.text.slice(Math.max(0, m.index - 24), m.index).toLowerCase())
+          participle: enParticipleOf(base.lemma)
+          ing: '/^(?:is|are|was|were|am)/.test(m.groups!.be.toLowerCase()) && !agent ? englishInflect(base.lemma, "ing") : null'
+          span: m.indices!.groups!.verb
+        when:
+          - base
+          - '!(VG_GAP.test(before) || /\b(?:do|does|did|to)\b[^.!?;:,\n]*$/i.test(before))'
+          - "!(!base.verbOnly && !(verbal && !adjective) && (!agent || adjective))"
+          - "!(agent && !verbal && EN_MASS.has(verb))"
+          - >-
+            !(!agent && !object && !(next?.kind === "end" || next?.kind === "comma") &&
+            !/^(?:in|on|at|to|with|for|from|yet|there|as|because|yesterday|today|now|again|already|into|around|before|after|without|and|but|so|once|when)$/.test(word))
+          - participle
+        return: >-
+          vgFinding(ctx, "englishPerfectParticiples", "review_msg_be_participle", span[0], span[1],
+          ing ? (object ? [ing, participle] : [participle, ing]) : [participle], m.index, !!ing)
+      # "The research I did showed…": an object-gap relative after a noun. A regular past is the verb
+      # only before a closed word ("did walked there", "did always walked to"), not before the noun
+      # that it modifies ("did needed repairs").
+      vgAffirmativeDo:
+        args: "ctx: DetectContext, m: RegExpExecArray, verb: string, subject: string"
+        let:
+          head: enWordBefore(ctx, m.index)
+          forms: englishVerbForms(verb)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          read: englishWordInfo(verb)
+          regularPast: >-
+            !forms && /ed$/.test(verb) && !!read?.verbs.some((v) => v.form === "past" && !FEELING_VERBS.has(v.lemma)) &&
+            !read.adjective && !read.noun && (!next || next.kind === "end" || next.kind === "comma" || (next.kind === "word" &&
+            ((EN_FUNCTION_WORDS.has(next.lower) &&
+            !/^(?:the|a|an|my|your|his|her|our|their|its|this|that|these|those|some|any|no|every|each)$/.test(next.lower)) ||
+            (!!englishWordInfo(next.lower)?.adverb && !englishWordInfo(next.lower)?.noun))))
+        when:
+          - '!verb.endsWith("ing")'
+          - /^(?:i|you|we|they|he|she|it|this|that|someone|somebody|anyone|anybody|everyone|nobody)$/i.test(subject)
+          - "!(head && !EN_FUNCTION_WORDS.has(head) && (enNounOnly(head) || englishWordInfo(head)?.noun))"
+          - '!(!verb.endsWith("s") && !(forms && forms.past === verb && forms.participle !== verb) && !regularPast)'
+        return: "true"
+        else: "false"
+      vgBeenFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, have: string, next: EnToken | undefined"
+        type: RawFinding | null
+        let:
+          adverbs: m.groups!.adverbs
+          span: m.indices!.groups!.verb
+        when: '!(next?.kind !== "word" || /^(?:and|or|but)$/.test(next.lower))'
+        return: >-
+          vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", adverbs ? m.indices!.groups!.adverbs[0] : span[0],
+          span[1], [adverbs ? ` ${have}${adverbs} been` : `${have} been`], m.index)
+      vgPastFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, have: string, next: EnToken | undefined"
+        type: RawFinding | null
+        let:
+          verb: m.groups!.verb
+          forms: 'englishVerbForms(verb === "done" ? "do" : verb === "gone" ? "go" : verb === "seen" ? "see" : verb)'
+          lemma: 'forms?.participle === verb ? forms.lemma : englishLemma(verb, "past")'
+          past: lemma && englishVerbForms(lemma)?.past
+          adverbs: m.groups!.adverbs
+          span: m.indices!.groups!.verb
+        when:
+          - '!(!next || next.kind !== "word")'
+          - past
+        return: >-
+          vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", adverbs ? m.indices!.groups!.adverbs[0] : span[0],
+          span[1], adverbs ? [` ${have}${adverbs} ${verb}`, `${adverbs} ${past}`] : [`${have} ${verb}`, past], m.index, true)
     frames:
       # "The software was introduce", "It can be use by everyone": be + a bare verb as a passive.
       - regex: "(?<be>be|been|being|is|are|was|were|am|isn['’]t|aren['’]t|wasn['’]t|weren['’]t){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: verbGroupPassiveWithBase
+        # "We are please to announce": the participle adjective.
+        let:
+          span: m.indices!.groups!.verb
+        when: vgPlain(ctx, verb)
+        return: >-
+          verb === "please" && /^[ \t ]{1,8}(?:to|with|that)\b/i.test(ctx.text.slice(m.index + m[0].length))
+          ? vgFinding(ctx, "englishPerfectParticiples", "review_msg_be_participle", span[0], span[1], ["pleased"], m.index)
+          : vgPassive(ctx, m)
       # "It can't be check because…", "won't be fix until May": modal + be + a bare verb.
       - regex: "(?:can|could|will|would|should|must|might|may|can['’]t|cannot|couldn['’]t|won['’]t|wouldn['’]t|shouldn['’]t|mustn['’]t){{S}}be{{S}}(?<verb>[a-z]+)(?=[ \\t\\u00a0]*[.,!?;:]|[ \\t\\u00a0]*$|{{S}}(?:because|until|unless|yet|anymore|properly|correctly|automatically|manually|now|soon|today|by|in time){{E}})"
         owner: verb
-        fixer: verbGroupModalBeBase
+        # "It will be cold", "may be open": an adjective reading is the predicate. "would be
+        # arbitrage.", "You will be queen.": a noun reading closes the clause as well; only a cue after
+        # it ("can't be check because…") makes it the verb.
+        let:
+          base: vgBareBase(verb)
+          read: englishWordInfo(verb)
+          end0: m.index + m[0].length
+          participle: enParticipleOf(base.lemma)
+          span: m.indices!.groups!.verb
+        when:
+          - "!(!vgPlain(ctx, verb) || VG_BE_PREDICATES.has(verb))"
+          - "!(!base || read?.adjective || read?.adverb)"
+          - '!(!base.verbOnly && /^[ \t ]*(?:[.,!?;:]|$)/.test(ctx.text.slice(end0, end0 + 9)))'
+          - participle
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_be_participle", span[0], span[1], [participle], m.index)'
       # "I'm so use to it", "not use to working": be + "use to" is "used to".
       - regex: "(?:am|is|are|was|were|be|been|being|['’]m|['’]re|['’]s)(?:{{S}}(?:so|not|very|really|quite|already|still|never|totally|completely|pretty|just|more)){0,2}{{S}}(?<verb>use){{S}}to{{S}}(?=[a-z]+ing{{E}}|(?:it|this|that|them|him|her|me|us|the|a|an|my|your|our|their|his|its|being){{E}})"
         owner: verb
-        fixer: verbGroupUsedTo
+        let:
+          span: m.indices!.groups!.verb
+        when: vgPlain(ctx, verb)
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_be_participle", span[0], span[1], ["used"], m.index)'
       # "It got receive by everyone", "is getting spend": get + a bare verb as a passive.
       - regex: "(?:get|gets|got|getting|gotten){{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: verbGroupGetWithBase
+        let:
+          base: vgBareBase(verb)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          participle: enParticipleOf(base.lemma)
+          span: m.indices!.groups!.verb
+        when:
+          - vgPlain(ctx, verb)
+          - base?.verbOnly
+          - 'next?.kind === "end" || next?.kind === "comma" || next?.lower === "by"'
+          - participle
+        return: 'vgFinding(ctx, "englishPerfectParticiples", "review_msg_be_participle", span[0], span[1], [participle], m.index)'
       # "That does makes sense", "he does not has", "Peter did went": do-support + a non-base
       # verb.
       - regex: "(?<subject>[a-z]+){{S}}(?<aux>does|do|did)(?:{{S}}not)?{{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
         check: englishAuxiliaryBaseVerb
         message: review_msg_auxiliary_base
-        fixer: verbGroupDoSupport
+        # The subject is a pronoun or a noun: not "Why did…", "neither did…", "you can do…". "does not
+        # has" -> have, "doesn't usually does" -> do; "does is" is a cleft. "What it does makes sense": a
+        # fronted clause owns the second verb. "She did testing", "Sami does cycling", "They did needed
+        # repairs": lexical do takes nouns and participle adjectives, so the affirmative needs a pronoun
+        # subject and an -s or irregular past form. An -s word that is also a plural noun ("does makes
+        # sense", "doesn't necessarily means") is the verb when negated, or before to, an object
+        # pronoun, "sense" or an adjective; "does sounds solid": a linking verb before an adjective.
+        let:
+          negated: /\bnot\b/i.test(m[0])
+          before: ctx.text.slice(Math.max(0, m.index - 96), m.index)
+          after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          afterRead: 'after?.kind === "word" ? englishWordInfo(after.lower) : null'
+          verbEvidence: >-
+            negated || (after?.kind === "word" && (/^(?:that|it|them|me|us|him|you|sense)$/.test(after.lower) ||
+            (!!afterRead?.adjective && !afterRead.noun && !afterRead.verbs.length) ||
+            (/^(?:sounds|looks|seems|feels|smells|tastes)$/.test(verb) && !!afterRead?.adjective)))
+          lemma: 'verb === "has" ? "have" : verb === "does" ? "do" : vgBaseOf(verb, verbEvidence)'
+          span: m.indices!.groups!.verb
+        when:
+          - >-
+            !(!vgPlain(ctx, verb) || !(/^(?:i|you|we|they|he|she|it|this|that|someone|somebody|anyone|everyone|nobody|one)$/i.test(subject) ||
+            enNounOnly(subject.toLowerCase())))
+          - 'verb !== "thanks"'
+          - '!(/^(?:has|is|was|does|did|have)$/.test(verb) && verb !== "has" && !(verb === "does" && negated))'
+          - "!(!negated && (VG_GAP.test(before) || /^(?:who|which|that)$/i.test(enWordBefore(ctx, m.index))))"
+          - negated || vgAffirmativeDo(ctx, m, verb, subject)
+          - "!(!lemma || lemma === verb)"
+        return: 'vgFinding(ctx, "englishAuxiliaryBaseVerb", "review_msg_auxiliary_base", span[0], span[1], [caseLike(verb, lemma)], m.index)'
       # "Which car would you bought?", "can you please attached": an inverted modal question.
       - regex: "(?:can|could|would|will|should|shall|may|might|must){{S}}(?<subject>i|you|we|they|he|she|anyone|someone|anybody|everyone|somebody){{VERBGROUP_QUESTION_RUN}}{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
         check: englishAuxiliaryBaseVerb
         message: review_msg_auxiliary_base
-        fixer: verbGroupInvertedModal
+        # "the garbage can he had": a noun before the modal makes it a noun; "his garbage can he had":
+        # a noun with a determiner before it too; "the watering can he had": an -ing modifier makes a
+        # compound noun. "With all his might he pushed": a possessive makes might a noun. "It will he
+        # turned on": a subject before the modal, so no inversion ("he" is "be"). "When will he arrived":
+        # at a clause start the auxiliary check owns a past form right after the subject and gives the
+        # base or "be". It leaves -ing forms to this check. "Can anyone involved in…": a participle after
+        # an indefinite subject modifies it. "Can you fucking believe…": an -ing intensifier before the
+        # verb. "Can anyone lists the steps?": an -s word before a determiner or pronoun object is the
+        # verb, not a plural noun in apposition ("Can you folks help?").
+        let:
+          previous: enWordBefore(ctx, m.index)
+          second: 'previous ? enWordBefore(ctx, m.index - previous.length - 1) : ""'
+          after: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          object: 'after?.kind === "word" && /^(?:the|a|an|this|that|these|those|my|your|his|her|our|their|its|it|them|me|us|him)$/.test(after.lower)'
+          lemma: 'vgBaseOf(verb, object && verb.endsWith("s"))'
+          span: m.indices!.groups!.verb
+        when:
+          - vgPlain(ctx, verb)
+          - >-
+            !(previous && !EN_FUNCTION_WORDS.has(previous) && (englishWordInfo(previous)?.noun || enNounOnly(previous) || /ing$/.test(previous)) &&
+            /^(?:the|a|an|his|her|my|your|our|their|its|this|that)$/.test(second))
+          - "!/^(?:his|her|my|your|our|their|its|the|a|this|that|all|i|you|we|they|he|she|it)$/.test(previous)"
+          - >-
+            !(!verb.endsWith("ing") && !adverbs && /^(?:i|you|we|they|he|she)$/i.test(subject) &&
+            /(?:^|[.!?:;\n])[ \t "“]*(?:(?:how|what|why|when|where|who)[ \t ]+)?$/i.test(ctx.text.slice(Math.max(0, m.index - 24), m.index)))
+          - '!(/one|body$/.test(subject) && !verb.endsWith("s"))'
+          - '!(verb.endsWith("ing") && after?.kind === "word" && englishWordInfo(after.lower)?.verbs.some((v) => v.form === "base"))'
+          - "!(!lemma || lemma === verb)"
+        return: 'vgFinding(ctx, "englishAuxiliaryBaseVerb", "review_msg_auxiliary_base", span[0], span[1], [lemma], m.index)'
       # "Your order is requires approval", "She is always goes": be before an -s verb.
       - regex: "(?<subject>[a-z]+){{S}}(?<be>is|am|are)(?<adverbs>(?:{{S}}(?:also|only|always|often|usually|never|sometimes|really|just|still))?){{S}}(?<verb>[a-z]+s){{E}}"
         owner: be
         check: englishSentenceStructure
         message: review_msg_sentence_structure
-        fixer: verbGroupBeBeforeThird
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 96), m.index)
+          read: englishWordInfo(verb)
+        when:
+          - "!(!vgPlain(ctx, verb) || !vgPlain(ctx, be))"
+          - "!(!/^(?:i|you|we|they|he|she|it|this|that)$/i.test(subject) && !enNounOnly(subject.toLowerCase()))"
+          - "!VG_GAP.test(before)"
+          - 'read?.verbs.some((v) => v.form === "third")'
+          - "!((read.noun || read.plural || read.adjective) && !adverbs)"
+        return: >-
+          vgFinding(ctx, "englishSentenceStructure", "review_msg_sentence_structure", m.indices!.groups!.be[0], m.indices!.groups!.verb[1],
+          [`${adverbs.trim() ? `${adverbs.trim()} ` : ""}${verb}`], m.index)
       # "I seen it", "He done it", "You could been there": a participle with no have.
       - regex: "(?<subject>I|he|she|it|we|they)(?<adverbs>(?:{{S}}(?:never|already|just|not|also))?){{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
         message: review_msg_perfect_participle
-        fixer: verbGroupBareParticiple1
+        # "It's" spelled "it" is rare; "it" takes only a participle that never is a past. "Have Tom and I
+        # done enough?": an inverted perfect. "He been there", "I been to Rome": a perfect without have.
+        # "Okay, I done.": finished ("I'm done") or a perfect ("I have done").
+        let:
+          before: enWordBefore(ctx, m.index)
+          have: '/^(?:he|she|it)$/i.test(subject) ? "has" : "have"'
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          span: m.indices!.groups!.verb
+        when:
+          - '!(!vgPlain(ctx, verb) || (!VG_PARTICIPLE_ONLY.has(verb) && verb !== "been"))'
+          - '!(/^it$/i.test(subject) && (verb === "done" || verb === "been"))'
+          - '!/^(?:have|has|had)\b/i.test(ctx.text.slice(Math.max(0, m.index - 64), m.index).split(/[.!?]/).at(-1)!.trim())'
+          - >-
+            !(!enAfterBreak(ctx, m.index) && !/^(?:and|but|so|when|if|that|because|think|then|well)$/.test(before) &&
+            !/,[ \t ]*$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))
+        return: >-
+          verb === "been" ? vgBeenFinding(ctx, m, have, next)
+          : (!next || next.kind !== "word") && verb === "done" && !adverbs
+          ? vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1],
+          [`${/^i$/i.test(subject) ? "am" : /^(?:he|she)$/i.test(subject) ? "is" : "are"} done`, `${have} done`], m.index, true)
+          : vgPastFinding(ctx, m, have, next)
       # "could been", "can been", "used to been".
       - regex: "(?<modal>could|would|should|might|must|may|can|will|to){{S}}(?<target>been){{E}}"
         message: review_msg_perfect_participle
-        fixer: verbGroupBareParticiple2
+        let:
+          modalLower: modal.toLowerCase()
+          span: m.indices!.groups!.target
+        when: '!(modalLower === "to" && !/\bused[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)))'
+        return: >-
+          vgFinding(ctx, "englishPerfectParticiples", "review_msg_perfect_participle", span[0], span[1],
+          [/^(?:can|will|to)$/.test(modalLower) ? "be" : "have been"], m.index)
   - id: en.verbComplementSlots
     checks: [englishVerbComplements]
     style: match
@@ -2599,7 +3249,7 @@ rules:
             m.index - 40), m.index))
           - "!enObjectGapBefore(ctx.text.slice(Math.max(0, m.index - 48), m.index))"
           - "!enClauseAfter(ctx, m.index + m[0].length)"
-          - "!(verb === \"do\" && /^(?:not|you|we|they|i|he|she|it|it['’]s)$/.test(nextLower))"
+          - '!(verb === "do" && /^(?:not|you|we|they|i|he|she|it|it[''’]s)$/.test(nextLower))'
           - >-
             !(/s$/.test(headLower) && !/^(?:he|she|it|who|that|which|one|someone|everyone|nobody)$/.test(subjectWord) &&
             !/^[A-Z][a-z]+$/.test(ctx.text.slice(subjectAt - subjectWord.length - 1, subjectAt - 1)) &&
@@ -2892,7 +3542,7 @@ rules:
           span: "skip ? m.indices!.groups!.second : m.indices!.groups!.first"
         when:
           - "!ctx.dictionary.has(word) && detVerbOnly(word)"
-          - "!(/['’]s$/.test(det) ? !DET_VERB_NOUNS.has(word) : word === \"complain\")"
+          - '!(/[''’]s$/.test(det) ? !DET_VERB_NOUNS.has(word) : word === "complain")'
           - "!/^(?:this|that)$/.test(det)"
           - >-
             !(next?.kind === "word" &&
@@ -3594,7 +4244,7 @@ rules:
           base: 'verb === "like" || read?.verbs.some((v) => v.form === "base" && v.lemma === verb)'
           singular: /^(?:he|she)$/.test(subject.toLowerCase())
           lemma: "third ? third.lemma : verb"
-          aux: "singular ? \"doesn't\" : \"don't\""
+          aux: 'singular ? "doesn''t" : "don''t"'
         when:
           - '!((EN_FUNCTION_WORDS.has(verb) && verb !== "like") || NO_NOT_WORDS.has(verb) || (!base && !third))'
           - "!/^(?:doubt|matter|sooner|longer|more|less|way|problem|worries|thanks)$/.test(verb)"
@@ -3716,7 +4366,7 @@ rules:
         args: "tokens: EnToken[], i: number"
         let:
           t: tokens[i]
-          w: "t.lower.replaceAll(\"’\", \"'\")"
+          w: 't.lower.replaceAll("’", "''")'
           prev: 'tokens[i - 1]?.lower ?? ""'
         return: >-
           t.kind !== "word" ? 0 : WC_FINITE_AUX.test(w) ? 1
@@ -3933,7 +4583,7 @@ rules:
           number: enNounNumber(noun)
           read: englishWordInfo(noun)
           next: tokens[k + 1]
-          clauseRest: '/^[^.!?;]*/.exec(ctx.text.slice(head.end, head.end + 200))![0]'
+          clauseRest: "/^[^.!?;]*/.exec(ctx.text.slice(head.end, head.end + 200))![0]"
           singularVerb: 'verb === "exist" ? "exists" : verb === "were" ? "was" : "is"'
           span: m.indices!.groups!.verb
         when:
@@ -4023,11 +4673,6 @@ rules:
     message: review_msg_since_perfect
     filter: usSlots
     defs:
-      wcParticipleOf:
-        args: "lemma: string"
-        let:
-          forms: englishVerbForms(lemma)
-        return: 'forms?.lemma === lemma ? forms.participle : englishInflect(lemma, "past")'
       wcSincePerfect:
         args: "word: string, subject: string, singular: boolean, have: string"
         return: >-
@@ -4037,7 +4682,7 @@ rules:
         args: "word: string, singular: boolean, have: string"
         let:
           read: wcFinite(word)
-          participle: wcParticipleOf(read.lemma)
+          participle: enParticipleOf(read.lemma)
         when:
           - '!(!read || (read.tense === "third" && !singular) || (read.tense === "base" && singular))'
           - participle
@@ -4093,7 +4738,7 @@ rules:
           span: m.indices!.groups!.target
         when:
           - '!(target !== "it" && (target !== "It" || !atStart))'
-          - '!(!atStart && !quantity && !/^(?:and|or|times)$/.test(before))'
+          - "!(!atStart && !quantity && !/^(?:and|or|times)$/.test(before))"
           - "!(ctx.dictionary.has(noun) || WC_ADVERBIAL_NOUNS.test(noun) || !enNounOnly(noun))"
           - '!(quantity && !atStart && before === "of" && enNounOnly(noun) !== "plural")'
           - goesOn
@@ -6552,7 +7197,7 @@ rules:
         let:
           r: enReadWord(target)
         when:
-          - '!(!/^[A-Z][a-z]+[^s]$/.test(name) || enReadWord(name)?.noun || enNounOnly(name.toLowerCase()))'
+          - "!(!/^[A-Z][a-z]+[^s]$/.test(name) || enReadWord(name)?.noun || enNounOnly(name.toLowerCase()))"
           - '!(!r?.verbs.length || !r.verbs.every((v) => v.form === "base") || r.adjective)'
           - "!EN_FUNCTION_WORDS.has(target)"
         return: >-
@@ -6864,7 +7509,7 @@ rules:
             !(adj && !(enReadWord(adj)?.adjective && !enReadWord(adj)?.noun && !enReadWord(adj)?.verbs.length &&
             /^(?:if|that|because|when|while|since|so|but|and)$/.test(leading)))
           - '!ing || (!!r?.verbs.some((v) => v.form === "ing") && !r.noun && /^(?:if|that|because|when|while|so|but|and)$/.test(leading))'
-        return: "\"it's\""
+        return: '"it''s"'
       # "As usual, the will provide details", "The really would like…": they.
       - regex: "(?<target>the){{S}}(?:(?:really|probably|always|usually|never|also|just|quietly|still|already|often|sometimes){{S}}(?:would|will|should|could|can|won['’]t|wouldn['’]t|don['’]t|didn['’]t|do|did|have|are|were|finish|need|want|like|might)|(?:would|should|could|won['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|can['’]t|don['’]t|didn['’]t)|will{{S}}(?<verb>[a-z]+)){{E}}"
         cue: ["the"]
