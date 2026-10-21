@@ -20,6 +20,7 @@ import {
   deDaysInMonth,
   deEnglishLine,
   deEnglishWords,
+  deInvalidIsoDate,
   deLikeTyped,
   deTokensAfter,
   deTokensBefore,
@@ -8445,6 +8446,18 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       [],
       "review_msg_german_invalid_date",
     );
+  },
+  // de.yaml rule de.isoDates frame 1
+  "@de.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const range = deInvalidIsoDate(m, ctx);
+    if (!range) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range,
+      alternatives: [],
+      warningOnly: true,
+    };
   },
   // de.yaml rule de.dateDots frame 1
   "@de.dateDots/1": (m: RegExpExecArray): MatchResult => {

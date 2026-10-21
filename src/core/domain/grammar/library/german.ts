@@ -22,6 +22,7 @@ export {
   tokensAfter as deTokensAfter,
   tokensBefore as deTokensBefore,
 } from "../review/german/shared";
+export { invalidIsoDate as deInvalidIsoDate } from "../review/isoDates";
 export {
   contextYear as deContextYear,
   daysInMonth as deDaysInMonth,

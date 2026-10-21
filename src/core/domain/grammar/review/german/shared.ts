@@ -1,42 +1,9 @@
-import { wordSet, isLang } from "../phraseTemplates";
-import type { DetectContext } from "../reviewDetectors";
-
-export const isGerman = (ctx: DetectContext) => isLang(ctx, "de");
+// German text helpers of the rule library (library/german.ts): the tokens around a position,
+// English lines, and the casing of a typed word.
 
 /** `word` with a capital first letter when `typed` starts with one ("Wegen" → "Weil"). */
 export const likeTyped = (typed: string, word: string) =>
   /^\p{Lu}/u.test(typed) ? word[0].toUpperCase() + word.slice(1) : word;
-
-export { wordSet };
-
-/**
- * A gate to put first in a frame that starts with a word: it fails at once on whitespace, where
- * the lookbehinds after it would otherwise be tried at every position of a long run of spaces
- * (slow without the regex JIT). A match at the text's start is still allowed.
- */
-export const NOT_BLANK = "(?:^|(?=\\S))";
-
-/**
- * NOT_BLANK and a word start in two cheap tests: not after a letter, digit, mark, "_", "'", "@",
- * "/", "#", "\\", "-" or ".". (The shared WORD_START also lets a frame start at an English
- * clitic such as "'m"; no German frame starts there.)
- */
-export const WORD_GATE = `${NOT_BLANK}(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])`;
-
-/** A frame after WORD_GATE, then `end`. */
-export const gated = (source: string, end = "") =>
-  new RegExp(`${WORD_GATE}(?:${source})${end}`, "gdu");
-
-/** `word` as a pattern that takes either case of its first letter: "[sS]onne". */
-export const ci = (word: string) => `[${word[0]}${word[0].toUpperCase()}]${word.slice(1)}`;
-/** Words split by `separator`, as an alternation of ci patterns. */
-export const anyCase = (words: string, separator = " ") => words.split(separator).map(ci).join("|");
-/** Map entries: each space-separated word with `value`. */
-export const wordEntries = <T>(words: string, value: T) =>
-  words.split(" ").map((w): [string, T] => [w, value]);
-
-/** A token that ends a clause, or no token at all. */
-export const BOUNDARY = /^(?:[.!?:;,()"“”„«»–—\n-]|$)/;
 
 // Words (with "_", "/" or "-" joins: "Pädagog_in", "Partner/in", "Grammatik-Regeln"), line
 // breaks and single marks; a hyphen at a word edge ("Vor- und") stays a mark.
@@ -120,33 +87,6 @@ export function tokensAfter(text: string, index: number, n: number): string[] {
   return (text.slice(index, index + 16 * n).match(TOKEN) ?? []).slice(0, n);
 }
 
-// "darüber", "hierunter", "worüber": a preposition joined to da-, hier- or wo-.
-export const PRONOMINAL_ADVERB =
-  /^(?:da|dar|hier|wo|wor)(?:an|auf|aus|bei|durch|für|gegen|hinter|in|mit|nach|neben|über|um|unter|von|vor|zu|zwischen)$/u;
-
-export const PRONOUNS = wordSet("ich du er sie es wir ihr man sich mich dich uns euch mir dir");
-// Verbs that close a clause with a bare infinitive or a participle ("kannst du das ändern",
-// "diese habe ergeben").
-export const VERB_GOVERNORS = wordSet(
-  "kann kannst können könnt konnte konnten könnte könnten muss musst müssen müsst musste " +
-    "mussten müsste müssten soll sollst sollen sollt sollte sollten will willst wollen " +
-    "wollt wollte wollten darf darfst dürfen dürft durfte durften dürfte dürften mag " +
-    "möchte möchtest möchten werde wirst wird werden werdet würde würdest würden wurde " +
-    "wurden worden lass lasse lässt lassen ließ tu tue tut tun brauchst braucht brauchen " +
-    "habe hast hat haben habt hatte hatten hätte hätten bin bist ist sind seid war waren " +
-    "wäre wären sei konntest könntest könntet solltest solltet müsstest müsstet musstest " +
-    "wolltest wolltet dürftest dürftet durftest magst mögt mögen mochte mochten möchtet " +
-    "würdet wurdest",
-);
-
-/** Whether the clause has a verb that the word at its end can complete. */
-export function governedBefore(before: string[], at: number): boolean {
-  for (let i = at - 1; i >= 0 && !BOUNDARY.test(before[i]); i--) {
-    if (VERB_GOVERNORS.has(before[i].toLowerCase())) return true;
-  }
-  return false;
-}
-
 // English function words that are no German words in lowercase.
 const ENGLISH_LIST =
   "the and of with you your is are this that it to for be have has from but not they we my I people our";
@@ -154,7 +94,7 @@ const ENGLISH = new RegExp(
   `(?<![\\p{L}'’])(?:${ENGLISH_LIST.replaceAll(" ", "|")})(?![\\p{L}'’])`,
   "gu",
 );
-const ENGLISH_WORDS = wordSet(ENGLISH_LIST);
+const ENGLISH_WORDS = new Set(ENGLISH_LIST.split(" "));
 const LETTER_OR_APOSTROPHE = /[\p{L}'’]/u;
 
 /** How many English function words a span holds: quoted or embedded English material. */
