@@ -644,7 +644,9 @@ rules:
       - regex: "(?<=(?<![\\p{L}])(?:do|dla|od|u|bez|koło|obok|wokół|według|zamiast|oprócz|prócz|na|przez|o|za){{S}})(?<target>cię|go|mi){{NOT_LETTER}}"
         let:
           pronoun: target.toLowerCase()
-          preposition: '/(\p{L}+)[ \t ]+$/u.exec(m.input.slice(0, m.index))![1].toLowerCase()'
+          # The lookbehind puts the preposition (7 letters or less) and 1 to 8 spaces right before
+          # the match, after a character that is not a letter. Thus the last 15 characters hold it.
+          preposition: '/(\p{L}+)[ \t ]+$/u.exec(m.input.slice(Math.max(0, m.index - 15), m.index))![1].toLowerCase()'
         when: '!(pronoun === "mi" && (preposition === "do" || preposition === "za"))'
         return: CONFUSION_PRONOUN_LONG[pronoun]
       - regex: "(?<=(?<![\\p{L}])(?:ku|przeciw|przeciwko|wbrew){{S}})(?<target>mi|ci|mu){{NOT_LETTER}}"

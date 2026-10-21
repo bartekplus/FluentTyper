@@ -5365,7 +5365,7 @@ rules:
       # The nominative alone.
       ART_NOMINATIVE: '["nom"] as GermanCase[]'
       # Degree words between the article and its adjective ("eine sehr schönes Haus").
-      ART_DEGREE_WORD: /^(?:sehr|ganz|so|recht|ziemlich|besonders|wirklich|echt|total|äußerst|relativ|eher|zu)$/u
+      ART_DEGREE_WORD: /^(?:{{ARTICLE_DEGREE}})$/u
       # The determiners, either case of the first letter.
       ART_DETERMINER_WORDS: >-
         new RegExp("^(?:" + ["der die das dem den des", "ein eine einen einem einer eines kein keine keinen keinem keiner keines",
@@ -8117,7 +8117,6 @@ rules:
           nun,
           so,
         ]
-      Q_SUBJECTS: [ich, du, er, sie, es, wir, ihr, man, Sie]
       Q_OPENERS: [Und, Aber, Oder, Na, Also]
       # Particles of statements and exclamations: "Kann ich jedenfalls behaupten.", "Hat er doch".
       Q_STATEMENT: [doch, ja, jedenfalls, halt, eben, wohl]
@@ -8171,7 +8170,7 @@ rules:
           - '!(Q_PLURAL_2.has(low) && next !== "ihr")'
           - '!(/st$/.test(low) && low !== "ist" && next !== "du")'
         return: >-
-          (Q_SUBJECTS.has(next) || Q_DETERMINERS.test(next) || name) && !rest.some((w, k) => Q_STATEMENT.has(w) ||
+          (VERB_SUBJECTS.has(next) || Q_DETERMINERS.test(next) || name) && !rest.some((w, k) => Q_STATEMENT.has(w) ||
           (germanAuxiliary(w) && !(k === rest.length - 1 && /^(?:werden|haben|sein)$/.test(w))))
         else: "false"
       # A w-word (after its preposition) first: "An welchem Tag starb er", "Wessen Auto ist das".
@@ -8187,7 +8186,7 @@ rules:
           i5: 'Q_INSERTED.has(words[i4] ?? "") ? i4 + 1 : i4'
           rest: words.slice(i5)
           subjectAfter: >-
-            rest.length <= 3 && /^\p{Ll}+$/u.test(rest[0]) && (Q_SUBJECTS.has(rest[1] ?? "") || /^\p{Lu}/u.test(rest[1] ?? ""))
+            rest.length <= 3 && /^\p{Ll}+$/u.test(rest[0]) && (VERB_SUBJECTS.has(rest[1] ?? "") || /^\p{Lu}/u.test(rest[1] ?? ""))
         when:
           - i1 !== i0 || Q_W_WORDS.has(low)
           - '!(rest.length === 0 || rest.some((w) => Q_STATEMENT.has(w) || w === "für"))'

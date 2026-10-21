@@ -5,9 +5,9 @@ lang: es
 fragments:
   # Prefixes that are no word of their own, so a space after them is always a split.
   BOUND: "anti|ciber|pre|re|vice|hiper|inter|neuro|geo|nano|agro|sub|semi|multi|pos|infra|intra|seudo|pseudo|archi|hemi|co|fito|meso|hidro|termo|electro|cardio|psico|sero"
-  # Prefixes that are also words; ES_FREE_PREFIXES of es.prefixes holds the same list.
+  # Prefixes that are also words. ES_FREE_PREFIXES of es.prefixes reads this list.
   FREE: "ex|pro|des|post|poli|tele|video|foto|euro|afro|micro|macro|mini|ultra|super|súper|auto|radio|bio|eco|socio|mega|giga|kilo|zoo|extra|astro|hispano|anglo|franco|luso|físico|químico|cuasi"
-  # Month names; ES_MONTH_NAMES of es.typography holds the same list.
+  # Month names. ES_MONTH_NAMES of es.typography reads this list.
   MONTH_NAMES: "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre"
   # Short month names in numeric dates: "29-feb-2005".
   MONTH_SHORT: "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic"
@@ -284,7 +284,6 @@ rules:
       # After these a participle closing its clause is the attribute of "está".
       ES_ESTAR_RELATIVES: ["y", e, pero, cual, cuales, quien, quienes, donde, cuando]
       ES_ESTAR_INTERROGATIVES: [dónde, adónde, cómo, quién, quiénes, cuándo]
-      ES_ESTAR_SUBJECTS_3: [él, ella, usted]
       ES_ESTAR_COUNTS:
         [dos, tres, cuatro, cinco, seis, siete, ocho, nueve, diez, veinte, treinta, cien, mil]
       ES_ESTAR_SUBJECTS_2: [tú, vos]
@@ -414,7 +413,7 @@ rules:
       esEstarAtEnd:
         args: "at: SpanishAround, plural: boolean, prev: string, prev2: string"
         let:
-          subjects: "plural ? ES_ESTAR_SUBJECTS_2 : ES_ESTAR_SUBJECTS_3"
+          subjects: "plural ? ES_ESTAR_SUBJECTS_2 : ES_SINGULAR_PRONOUNS"
         when: at.endsAfter()
         return: >-
           prev === "no" ||
@@ -431,7 +430,7 @@ rules:
       esEstarSlot:
         args: "at: SpanishAround, plural: boolean, prev: string, prev2: string, next: string, reading: ReturnType<typeof esAttributeOf>"
         let:
-          subjects: "plural ? ES_ESTAR_SUBJECTS_2 : ES_ESTAR_SUBJECTS_3"
+          subjects: "plural ? ES_ESTAR_SUBJECTS_2 : ES_SINGULAR_PRONOUNS"
           # "la tienda esta cerrada": after a determiner and its noun, "esta" cannot start another
           # noun phrase (the colloquial "la chica esta" is followed by its verb).
           afterNoun: >-
@@ -2068,7 +2067,6 @@ rules:
       # Demonstratives are also subject pronouns ("este opera"): only after a preposition.
       ES_VA_DEMONSTRATIVES:
         [este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas]
-      ES_VA_SUBJECTS: [él, ella, usted]
       ES_VA_TENER:
         [tengo, tienes, tiene, tenemos, tienen, tenía, tenías, teníamos, tenían, tuve, tuvo]
       # Before these, an imperfect or conditional verb: "no sabía", "se hacía", "yo tenía".
@@ -2616,9 +2614,9 @@ rules:
         args: "at: SpanishAround, word: string, prev: string"
         let:
           pronounSubject: >-
-            (ES_VA_SUBJECTS.has(prev) && esOpensAt(at, 1)) ||
-            (ES_VA_SUBJECTS.has(at.prev(2)) && /^(?:no|le|les|lo|la|me|te|nos)$/u.test(prev) && esOpensAt(at, 2)) ||
-            (ES_VA_SUBJECTS.has(at.prev(3)) && at.prev(2) === "no" && /^(?:le|les|lo|la|me|te|nos|se)$/u.test(prev) &&
+            (ES_SINGULAR_PRONOUNS.has(prev) && esOpensAt(at, 1)) ||
+            (ES_SINGULAR_PRONOUNS.has(at.prev(2)) && /^(?:no|le|les|lo|la|me|te|nos)$/u.test(prev) && esOpensAt(at, 2)) ||
+            (ES_SINGULAR_PRONOUNS.has(at.prev(3)) && at.prev(2) === "no" && /^(?:le|les|lo|la|me|te|nos|se)$/u.test(prev) &&
               esOpensAt(at, 3))
           named: >-
             !pronounSubject && /o$/u.test(word) && !esParticiple(word) &&
@@ -2669,7 +2667,7 @@ rules:
       esVaStressed:
         args: "at: SpanishAround, word: string, prev: string"
         let:
-          governed: ES_VA_SUBJECTS.has(prev) && ES_PREPOSITIONS.has(at.prev(2))
+          governed: ES_SINGULAR_PRONOUNS.has(prev) && ES_PREPOSITIONS.has(at.prev(2))
           stressed: /^(\p{L}+)([ui])(a|as|an|e|es|en)$/u.exec(word)
           iar: >-
             stressed?.[2] === "i" &&
@@ -4319,46 +4317,6 @@ rules:
     # Spanish prefixes join the word they modify: "anti ruso" -> "antirruso", "ex-colonias" ->
     # "excolonias". Apart or hyphenated only before a capital, a number or a phrase.
     sets:
-      # Prefixes that are also words ("ex", "pro", "tele", "foto", "euro"): joined when hyphenated,
-      # or apart when the joined form is a word the dictionary knows ("micro biología"). The FREE
-      # fragment holds the same list.
-      ES_FREE_PREFIXES:
-        [
-          ex,
-          pro,
-          des,
-          post,
-          poli,
-          tele,
-          video,
-          foto,
-          euro,
-          afro,
-          micro,
-          macro,
-          mini,
-          ultra,
-          super,
-          súper,
-          auto,
-          radio,
-          bio,
-          eco,
-          socio,
-          mega,
-          giga,
-          kilo,
-          zoo,
-          extra,
-          astro,
-          hispano,
-          anglo,
-          franco,
-          luso,
-          físico,
-          químico,
-          cuasi,
-        ]
       # Free prefixes that join any adjective they grade: "pro democrático", "ultra conservador",
       # "cuasi perfecto"; the words themselves stand before nouns ("los pro y los contra").
       ES_GRADING_PREFIXES: [pro, ultra, cuasi, super, súper]
@@ -4366,6 +4324,9 @@ rules:
       ES_RELATIONAL_PREFIXES: [hispano, anglo, franco, luso, físico, químico]
       ES_SIZE_PREFIXES: [macro, micro, mini, mega, maxi]
     defs:
+      # Prefixes that are also words ("ex", "pro", "tele", "foto", "euro"): joined when hyphenated,
+      # or apart when the joined form is a word the dictionary knows ("micro biología").
+      ES_FREE_PREFIXES: new Set("{{FREE}}".split("|"))
       # A noun or adjective the dictionary lists: "microbiología", "hispanohablantes". A noun ending
       # alone ("-sión") says nothing after "des", which is also a misspelled "de" ("des discusión").
       esKnownWord:
@@ -5160,28 +5121,13 @@ rules:
     # Spanish writing conventions: "y" -> "e" before an /i/ sound and "o" -> "u" before /o/, years
     # without a thousands point, lowercase months and weekdays, invariable acronyms.
     sets:
-      ES_MONTH_NAMES:
-        [
-          enero,
-          febrero,
-          marzo,
-          abril,
-          mayo,
-          junio,
-          julio,
-          agosto,
-          septiembre,
-          setiembre,
-          octubre,
-          noviembre,
-          diciembre,
-        ]
       ES_WEEKDAYS: [lunes, martes, miércoles, jueves, viernes, sábado, domingo]
       # "este Verano", "cada Invierno"; "la Primavera de Praga" keeps its capital.
       ES_SEASONS: [primavera, verano, otoño, invierno]
       # Spanish acronyms that stay invariable in the plural ("las ONG", "los ERE").
       ES_ACRONYMS: [ong, tic, ere, ett, dni]
     defs:
+      ES_MONTH_NAMES: new Set("{{MONTH_NAMES}}".split("|"))
       esKnown:
         args: "word: string"
         return: esIsNoun(word) || !!esAttributeOf(word) || esIsGenderedEntry(word) || esVerbLike(word)
@@ -5330,13 +5276,14 @@ rules:
       ES_DATED: '/(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s{1,8}[*_~]{0,3}$/iu'
       # A label that makes the next number a code: "Pedido N° 12/34/2022", "Ref. 31/13/2020".
       ES_CODE_LABEL: '/(?:^|[\s(])(?:n[º°o]\.?|núm\.?|número|#|ref\.?|código|expediente)\s*:?\s{0,8}$/iu'
-      # Short month names in numeric dates: "29-feb-2005". The MONTH_SHORT fragment holds the same
-      # list.
+      # The short month names of the MONTH_SHORT fragment in month order. "sept" and "set" are
+      # other names of "sep": ES_SHORT_MONTH_ALIASES holds their number.
+      ES_SHORT_MONTHS: '"{{MONTH_SHORT}}".split("|").filter((name) => name !== "sept" && name !== "set")'
+      ES_SHORT_MONTH_ALIASES: "{ sept: 9, set: 9 } as Readonly<Record<string, number>>"
+      # The number of a short month name in a numeric date: "29-feb-2005".
       esShortMonth:
         args: "month: string"
-        return: >-
-          ({ sept: 9, set: 9 } as Readonly<Record<string, number>>)[month.toLowerCase()] ??
-          "ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic".split("|").indexOf(month.toLowerCase()) + 1
+        return: ES_SHORT_MONTH_ALIASES[month.toLowerCase()] ?? ES_SHORT_MONTHS.indexOf(month.toLowerCase()) + 1
       # A day the month does not have: "31 de abril", "29 de febrero de 2023".
       esDayFinding:
         args: "ctx: DetectContext, start: number, day: string, month: number, year: number | undefined"

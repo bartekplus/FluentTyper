@@ -162,8 +162,8 @@ defs:
   # "Mars" is also the planet and "Maj" a first name: only in a date.
   SV_DATE_ONLY: /^(?:Mars|Maj)$/
   SV_DATE_BEFORE: '/(?:\d\.?|(?<!\p{L})(?:i|av|sedan|från|till|under|början|slutet|mitten))[ \t\u00a0]+$/u'
-  # A finite verb, as the fragments EDGE and FINITE give it.
-  SV_HAS_FINITE: '/(?<![\p{L}\p{M}\p{N}_''’@/#\\-])(?:är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde|finns|fanns)(?![\p{L}\p{M}\p{N}_''’@/#\\-])/iu'
+  # A finite verb: the FINITE fragment, and "finns" and "fanns", between two EDGE limits.
+  SV_HAS_FINITE: /(?<!{{EDGE}})(?:{{FINITE}}|finns|fanns)(?!{{EDGE}})/iu
   # The word before `at`, "" after punctuation or at the start.
   svWordBefore:
     args: "text: string, at: number"

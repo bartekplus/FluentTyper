@@ -2034,7 +2034,7 @@ rules:
       SUBJECTLESS: '/(?:^|[.!?;:,\n]["''”’»)]*[ \t\u00a0]*|(?:^|[^\p{L}])(?:já|ontem|hoje|então|ainda|agora|aí|enfim|finalmente|não)[ \t\u00a0]+)$/iu'
       # "cheg-" or "falt-" as the verb, or as the participle after "tem", "está" and the like.
       ARRIVE_OR_LACK: '/^(?:\p{L}+[ \t\u00a0]+(?:\p{L}+[ \t\u00a0]+)?)?(?:cheg|falt)/iu'
-      PLURAL_DETERMINER_WORD: /^(?:mais|muitos|muitas|vários|várias|alguns|algumas|poucos|poucas|diversos|diversas|inúmeros|inúmeras|tantos|tantas|uns|umas|os|as|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|cem|[2-9]|\d{2,})$/
+      PLURAL_DETERMINER_WORD: /^(?:{{PLURAL_DETERMINER}})$/
       QUESTION_LEAD: "/^(?:sei|sabe|sabem|sabemos|saber|sabia|soube|decidir|decide|decidiu|decidimos|escolher|escolhe|escolheu|perguntar|pergunta|perguntou|ensinar|ensina|ensinou|aprender|aprende|aprendeu|entender|entende|explicar|explica|explicou|dizer|diz|disse|mostrar|mostra|mostrou|indicar|indica|definir|define|planejar|ideia|dúvida|noção|até|desde|de|para|sobre|é|era)$/iu"
       # "Vi eles faz um ano": a span of time after "fazer".
       ELAPSED: '/^[ \t\u00a0]{1,8}(?:\p{L}+[ \t\u00a0]{1,8})?(?:vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos|tempo)(?![\p{L}\p{M}\p{N}_''’@/#\\-])/iu'
@@ -2577,33 +2577,6 @@ rules:
           tipo,
           espécie,
         ]
-      VERB_PLURAL_LEADS:
-        [
-          os,
-          as,
-          uns,
-          umas,
-          estes,
-          estas,
-          esses,
-          essas,
-          aqueles,
-          aquelas,
-          meus,
-          minhas,
-          teus,
-          tuas,
-          seus,
-          suas,
-          nossos,
-          nossas,
-          alguns,
-          algumas,
-          muitos,
-          muitas,
-          vários,
-          várias,
-        ]
     maps:
       HOUR_VERBS:
         deu: deram
@@ -2631,6 +2604,7 @@ rules:
         é: { eu: sou, nós: somos, eles: são, elas: são, vocês: são }
         será: { eu: serei, nós: seremos, eles: serão, elas: serão, vocês: serão }
     defs:
+      VERB_PLURAL_LEADS: new Set("{{VERB_PLURAL_LEAD}}".split("|"))
       # "Os ficheiros cache são", "As palavras passe são": a word before a verb modifies the noun.
       VERB_AFTER_SUBJECT: '/^[ \t\u00a0]+(?:é|são|foi|foram|era|eram|está|estão|estava|estavam|tem|têm|vai|vão|fica|ficam|será|serão|parece|parecem)(?![\p{L}])/u'
       # "Algumas coisas é melhor que não sejam ditas": an impersonal "é melhor que".
@@ -3117,7 +3091,7 @@ rules:
         ]
     defs:
       # "Acontece muitas vezes", "ocorre dois dias depois": a span of time is no subject.
-      TIME_WORD: /^(?:vezes|anos|meses|semanas|dias|horas|minutos|segundos|tempos|décadas|séculos|instantes|momentos)$/
+      TIME_WORD: /^(?:{{TIME}})$/
     frames:
       # "a razão pelo qual" -> "pela qual": "o/a qual" agrees with the noun right before it.
       - regex: "(?<noun>\\p{L}{3,}){{S}}(?<target>(?<prep>pel|n|d|a|à)(?<article>o|a|os|as)?){{S}}(?<qual>qual|quais){{E}}"
@@ -3341,7 +3315,7 @@ rules:
       # "e eu" belongs to WE_SUBJECT; "em nós", "estes nós" (knots), "mais do que eu" are no subject.
       NOT_PRONOUN_SUBJECT: '/(?:(?:^|[^\p{L}])(?:e|em|estes|estas|esses|essas|aqueles|aquelas|dos|pelos|seus|meus|nossos|vários|muitos)|(?:do|mais|menos|melhor|pior|maior|menor|tanto|tão)[ \t\u00a0]+que)[ \t\u00a0]+$/iu'
       PERSON_DETERMINER: "/^(?:o|a|os|as|meu|minha|meus|minhas)$/i"
-      PERSON_PLURAL_LEAD: "/^(?:os|as|uns|umas|estes|estas|esses|essas|aqueles|aquelas|meus|minhas|seus|suas|nossos|nossas|alguns|algumas|muitos|muitas|vários|várias)$/i"
+      PERSON_PLURAL_LEAD: "/^(?:{{PLURAL_LEAD}})$/i"
       # Frames ignore case: a word that is no pronoun and follows no determiner is a name.
       namesCapitalized:
         args: "subject: string"
