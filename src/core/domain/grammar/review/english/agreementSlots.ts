@@ -495,8 +495,9 @@ function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): Raw
   // an opening phrase ("As such, each page…"); not after a list item ("The oceans, our wealth").
   // A word right before the match means no break stands there (see opensClause).
   const before = wordBefore(ctx, m.index);
+  const broke = !before && afterBreak(ctx, m.index);
   const opens =
-    (before ? CLAUSE_CUE.test(before) : afterBreak(ctx, m.index)) ||
+    (before ? CLAUSE_CUE.test(before) : broke) ||
     /(?:^|\n)[ \t]*[-*•][ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
     (commaBefore(ctx.text, m.index) &&
       OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)));
@@ -519,7 +520,7 @@ function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): Raw
     i < 4 &&
     tokens[i]?.kind === "word" &&
     (tokens[i].text === tokens[i].lower ||
-      (bare && i === 0 && /^[A-Z][a-z]+$/.test(tokens[i].text) && afterBreak(ctx, m.index)))
+      (bare && i === 0 && /^[A-Z][a-z]+$/.test(tokens[i].text) && broke))
   ) {
     const word = tokens[i].lower;
     if (
