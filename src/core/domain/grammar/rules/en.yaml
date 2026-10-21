@@ -6341,12 +6341,27 @@ rules:
     checks: [englishConfusedWords, englishPhraseCorrections, englishAuxiliaryBaseVerb, englishToToo]
     style: slot
     message: review_msg_typo
+    maps:
+      MISHEARD_VERB: { pic: pick, wright: write, rite: write, rote: wrote }
+    defs:
+      # A base verb with no noun or adjective reading: "write", "learn", "clarify".
+      plainBaseVerb:
+        args: "word: string"
+        let:
+          info: typoInfo(word)
+        return: >-
+          !!info?.verbs.some((v) => v.form === "base" && v.lemma === word.toLowerCase()) &&
+          !info.noun &&
+          !info.plural &&
+          !info.adjective &&
+          !EN_FUNCTION_WORDS.has(word.toLowerCase())
     frames:
       # "The route of the problem is unknown": root (a title keeps its capitals).
       - regex: "(?<![\\p{L}'’])(?<target>routes?){{S}}of{{S}}the{{S}}problems?{{E}}"
         message: review_msg_confused_word
         cue: ["route", "routes"]
-        fixer: misheardWordsRoutes
+        # Only the first letter may be a capital (a title keeps its capitals).
+        return: 'm[0].slice(1) === m[0].slice(1).toLowerCase() ? target.replace(/oute/i, "oot") : null'
       # "I walked passed the school", "get passed the issue": past after a verb of motion.
       - regex: "(?:walk|walks|walked|walking|drive|drives|drove|driving|run|runs|ran|running|go|goes|went|going|get|gets|got|getting|move|moved|moving|rush|rushed|fly|flew|flying|sped|race|raced){{S}}(?<target>passed){{S}}(?:the|a|an|my|your|his|her|our|their|this|that|it|them|him|me){{E}}"
         message: review_msg_confused_word
@@ -6356,37 +6371,44 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:I|we|you|they|to|will|would|can|could|should|please|just){{S}}(?<target>pic|wright|rite|rote){{S}}{{OBJECT}}{{E}}"
         check: englishPhraseCorrections
         cue: ["pic", "wright", "rite", "rote"]
-        fixer: misheardWordsPic
+        return: MISHEARD_VERB[target.toLowerCase()]
       # "Google dose not care", "Dose not seem right": does (not "a dose not exceeding").
       - regex: "(?<![\\p{L}'’])(?<target>dose){{S}}not{{S}}(?<verb>[a-z]+){{E}}"
         check: englishPhraseCorrections
         cue: ["dose"]
-        fixer: misheardWordsDose
+        let:
+          before: enWordBefore(ctx, m.index)
+        when: '!(EN_DETERMINERS.has(before) || /^\d/.test(before) || typoInfo(before)?.adjective)'
+        return: 'typoInfo(verb)?.verbs.some((v) => v.form === "base") ? "does" : null'
       # "I scrolled trough the file", "available trough Google": through.
       - regex: "(?<![\\p{L}'’])(?<target>trough){{S}}(?<next>the|a|an|my|your|this|it|them|all|\\p{L}+){{E}}"
         check: englishPhraseCorrections
         cue: ["trough"]
-        fixer: misheardWordsTrough
+        let:
+          before: enWordBefore(ctx, m.index)
+        # A name after it ("trough Google"); a lowercase noun makes a compound ("trough planters").
+        when: "!(next === next.toLowerCase() && !/^(?:the|a|an|my|your|this|it|them|all)$/.test(next))"
+        return: '!before || EN_DETERMINERS.has(before) || typoInfo(before)?.adjective ? null : "through"'
       # "He is of Asian decent": descent.
       - regex: "(?<![\\p{L}'’])of{{S}}(?<origin>\\p{L}+){{S}}(?<target>decent)(?=[ \\t\\u00a0]*[.,;!?)]|$)"
         message: review_msg_confused_word
         cue: ["decent"]
-        fixer: misheardWordsDecent
+        return: '/^\p{Lu}\p{Ll}/u.test(origin) ? "descent" : null'
       # "It is my strong believe that…", "Are there different believes?": belief.
       - regex: "(?<![\\p{L}'’])(?<lead>my|our|his|her|their|your|strong|firm|religious|core|personal|deep|different|common|popular|false){{S}}(?<target>believe|believes)(?={{S}}(?:that|is|are|was|were|in|about|of){{E}}|[ \\t\\u00a0]*[.,;!?])"
         message: review_msg_confused_word
         cue: ["believe", "believes"]
-        fixer: misheardWordsBelieve
+        return: '/s$/i.test(target) ? "beliefs" : "belief"'
       # "It happens on the Monday nigh", "I woke at nigh": night.
       - regex: "(?<![\\p{L}'’])(?:{{WEEKDAY}}|last|tomorrow|good|at|every|one){{S}}(?<target>nigh){{E}}"
         check: englishPhraseCorrections
         cue: ["nigh"]
-        fixer: misheardWordsNigh
+        return: '/^[ \t ]+(?:on|unto|impossible|invincible)\b/i.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 14)) ? null : "night"'
       # "We have not seen him sine Monday": since.
       - regex: "(?<![\\p{L}'’])(?<target>sine){{S}}(?:\\d|{{WEEKDAY}}|last|then|yesterday|january|february|march|april|may|june|july|august|september|october|november|december|the{{S}}beginning)"
         check: englishPhraseCorrections
         cue: ["sine"]
-        fixer: misheardWordsSine
+        return: '/^(?:a|the|of)$/.test(enWordBefore(ctx, m.index)) ? null : "since"'
       # "It was too son", "I would son be ready": soon.
       - regex: "(?<![\\p{L}'’])(?:too|so|very|as|would|will|how){{S}}(?<target>son)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:be|as|enough|after){{E}})"
         check: englishPhraseCorrections
@@ -6401,7 +6423,9 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>hoe){{S}}(?:do|does|did|is|are|was|can|could|to|much|many|long|about|would|should){{E}}"
         check: englishPhraseCorrections
         cue: ["hoe"]
-        fixer: misheardWordsHoe
+        let:
+          before: enWordBefore(ctx, m.index)
+        return: '(!before && enAfterBreak(ctx, m.index)) || /^(?:know|learn|see|ask|tell|show|wonder|explain|understand)$/.test(before) ? "how" : null'
       # "He stood besides me": beside; "Beside that, I have no idea": besides.
       - regex: "(?:stood|stand|stands|standing|sat|sit|sits|sitting|lay|lies|lying|walked|walks|knelt){{S}}(?<target>besides){{S}}(?:me|him|her|us|them|you|it|the|a|my|his|our|their){{E}}"
         message: review_msg_confused_word
@@ -6410,12 +6434,21 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>beside){{S}}(?:that|this)[ \\t\\u00a0]*,"
         message: review_msg_confused_word
         cue: ["beside"]
-        fixer: misheardWordsBeside
+        return: 'enAfterBreak(ctx, m.index) ? "besides" : null'
       # "Grate work!", "It's really grate.": great.
       - regex: "(?<![\\p{L}'’])(?:(?<lead>really|so|very|such{{S}}a|a){{S}})?(?<target>grate)(?={{S}}(?:work|job|idea|day|time|news|stuff|post|question){{E}}|[ \\t\\u00a0]*[.!])"
         check: englishPhraseCorrections
         cue: ["grate"]
-        fixer: misheardWordsGrate
+        let:
+          typed: lead?.toLowerCase()
+        return: >-
+          typed === "a"
+            ? /^[ \t ]*[.!]/.test(ctx.text.slice(m.index + m[0].length))
+              ? null
+              : "great"
+            : typed || enAfterBreak(ctx, m.index)
+              ? "great"
+              : null
       # "He is batter than me": better.
       - regex: "(?:is|are|was|were|be|much|far|even|way|lot|getting|got|feel|feels|felt){{S}}(?<target>batter){{S}}than{{E}}"
         check: englishPhraseCorrections
@@ -6425,7 +6458,13 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:have|has|had|haven['’]t|hasn['’]t|hadn['’]t|['’]ve|not|never|always|already|just){{S}}(?<target>bin){{S}}(?<next>[a-z]+){{E}}"
         check: englishPhraseCorrections
         cue: ["bin"]
-        fixer: misheardWordsBin
+        let:
+          word: next.toLowerCase()
+        return: >-
+          /^(?:there|here|to|in|so|very|really|told|done|able|busy|sick|away|out|at|on|with|for|since|ill|unable|asked|a|an|the)$/.test(word) ||
+          (typoInfo(word)?.verbs.some((v) => v.form === "ing" || v.form === "participle") && !typoInfo(word)?.noun)
+            ? "been"
+            : null
       # "I most do it tomorrow", "I most be unlucky": must.
       - regex: "(?<![\\p{L}'’])(?:I|we|you|they|he|she|it){{S}}(?<target>most){{S}}(?:be|have|do){{E}}"
         message: review_msg_confused_word
@@ -6435,7 +6474,7 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:I|we|they|he|she){{S}}(?<target>what){{S}}(?<verb>have|be|do|go|like|love|prefer|rather|never){{S}}(?<next>[a-z]+){{E}}"
         message: review_msg_confused_word
         cue: ["what"]
-        fixer: misheardWordsWhat
+        return: 'enAfterBreak(ctx, m.index) && next.toLowerCase() !== "you" ? "would" : null'
       # "Everyone is being testes", "Tom has testes negative": tested.
       - regex: "(?:be|being|been|is|was|were|are|has|have|had|get|got){{S}}(?<target>testes){{E}}"
         check: englishPhraseCorrections
@@ -6445,7 +6484,7 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:\\d+|one|two|three|four|five|ten|fifteen|twenty|thirty|few|several|many|couple{{S}}of){{S}}(?<target>minuets?){{E}}"
         check: englishPhraseCorrections
         cue: ["minuets", "minuet"]
-        fixer: misheardWordsMinuets
+        return: '/s$/i.test(target) ? "minutes" : "minute"'
       # "He is in vacation", "I'm at vacation": on vacation.
       - regex: "(?:is|am|are|was|were|be|been|['’]m|['’]re|['’]s)(?:{{S}}(?:probably|currently|still|now|already))?{{S}}(?<target>in|at){{S}}vacation(?=[ \\t\\u00a0]*[.,!?]|{{S}}(?:right|now|until|till|for|in|at|with|this|next|today){{E}})"
         check: englishPhraseCorrections
@@ -6461,7 +6500,7 @@ rules:
       - regex: "(?<target>Deer){{S}}(?:(?:Mr|Mrs|Ms|Dr|Prof)\\.?{{S}})?(?<name>\\p{L}+)[ \\t\\u00a0]*[,:]"
         check: englishPhraseCorrections
         cue: ["deer"]
-        fixer: misheardWordsDeer
+        return: 'enAfterBreak(ctx, m.index) && /^\p{Lu}/u.test(name) && target === "Deer" ? "Dear" : null'
       # "In principal, I agree": in principle.
       - regex: "(?<![\\p{L}'’])in{{S}}(?<target>principal)(?=[ \\t\\u00a0]*,|{{S}}(?:I|we|it|this|that|they|you|he|she|there){{E}})"
         message: review_msg_confused_word
@@ -6477,19 +6516,26 @@ rules:
       - regex: "(?<target>diffuse|diffuses|diffused|diffusing){{S}}(?:the{{S}}|a{{S}}|several{{S}}|two{{S}}|three{{S}}|many{{S}})?(?:bomb|bombs|mine|mines|device|explosive){{E}}"
         message: review_msg_confused_word
         cue: ["bomb", "bombs"]
-        fixer: misheardWordsDiffuse
+        return: 'target.toLowerCase().replace(/^dif/, "de")'
       # "The feature is about to implemented": about to be implemented.
       - regex: "(?<![\\p{L}'’])about{{S}}(?<target>to{{S}}(?<verb>[a-z]+ed))(?=[ \\t\\u00a0]*[.,;!?]|{{S}}(?:by|in|on|at|for|soon|next|today|tomorrow){{E}})"
         check: englishAuxiliaryBaseVerb
         message: review_msg_to_base
         cue: ["about"]
-        fixer: misheardWordsTo
+        let:
+          typed: verb.toLowerCase()
+          info: typoInfo(typed)
+          lemma: 'info?.verbs.find((v) => v.form === "past" || v.form === "participle")?.lemma'
+        when: '!(!lemma || info?.noun || info?.adjective || !englishInflect(lemma, "past"))'
+        return: "[`to be ${typed}`, `to ${lemma}`]"
       # "I would like her too do it": to before a base verb.
       - regex: "(?<![\\p{L}'’])(?<target>too){{S}}(?<verb>[a-z]+){{S}}(?:{{OBJECT}}|now|it){{E}}"
         check: englishToToo
         message: review_msg_to_infinitive
         cue: ["too"]
-        fixer: misheardWordsToo
+        # "like her too do it", "decided himself too start"; "The students too realize" is also.
+        when: /^(?:her|him|them|me|us|you|myself|himself|herself|themselves|ourselves|yourself)$/.test(enWordBefore(ctx, m.index))
+        return: 'plainBaseVerb(verb) || /^(?:do|start|go|be|have)$/.test(verb) ? "to" : null'
   - id: en.verbSlots
     checks:
       [

@@ -4,6 +4,7 @@ import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, FixResult, FrameRef, MatchResult } from "../../library";
 import {
+  EN_DETERMINERS,
   EN_FUNCTION_WORDS,
   EN_PERMISSION_AFTER,
   enAfterBreak,
@@ -14,6 +15,7 @@ import {
   enObjectGapBefore,
   enRecase,
   enWordBefore,
+  englishInflect,
   englishInitialSound,
   englishWordInfo,
   group,
@@ -227,6 +229,13 @@ export const TAKE_FOR_EAT: Readonly<Record<string, string>> = {
   eating: "taking",
 };
 
+export const MISHEARD_VERB: Readonly<Record<string, string>> = {
+  pic: "pick",
+  wright: "write",
+  rite: "write",
+  rote: "wrote",
+};
+
 // en.yaml rule en.idiomPhrases2 def IDIOM_OBJECT
 export const IDIOM_OBJECT = /^(?:him|her|them|us|me|you|it|my|your|his|their|our|its)$/i;
 
@@ -382,6 +391,18 @@ export function typoAdjective(word: string) {
 // en.yaml rule en.neighbourSlots def typoVerbForm
 export function typoVerbForm(word: string, form: string) {
   return !!typoInfo(word)?.verbs.some((v) => v.form === form);
+}
+
+// en.yaml rule en.misheardWords def plainBaseVerb
+export function plainBaseVerb(word: string) {
+  const info = typoInfo(word);
+  return (
+    !!info?.verbs.some((v) => v.form === "base" && v.lemma === word.toLowerCase()) &&
+    !info.noun &&
+    !info.plural &&
+    !info.adjective &&
+    !EN_FUNCTION_WORDS.has(word.toLowerCase())
+  );
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -1365,6 +1386,131 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.neighbourSlots/61": (m: RegExpExecArray): FixResult => {
     const noun = m.groups!.noun;
     return enNounOnly(noun) || typoInfo(noun)?.noun ? "illicit" : null;
+  },
+  // en.yaml rule en.misheardWords frame 1
+  "@en.misheardWords/1": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return m[0].slice(1) === m[0].slice(1).toLowerCase() ? target.replace(/oute/i, "oot") : null;
+  },
+  // en.yaml rule en.misheardWords frame 3
+  "@en.misheardWords/3": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return MISHEARD_VERB[target.toLowerCase()];
+  },
+  // en.yaml rule en.misheardWords frame 4
+  "@en.misheardWords/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const verb = m.groups!.verb;
+    const before = enWordBefore(ctx, m.index);
+    if (EN_DETERMINERS.has(before) || /^\d/.test(before) || typoInfo(before)?.adjective)
+      return null;
+    return typoInfo(verb)?.verbs.some((v) => v.form === "base") ? "does" : null;
+  },
+  // en.yaml rule en.misheardWords frame 5
+  "@en.misheardWords/5": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const next = m.groups!.next;
+    if (next === next.toLowerCase() && !/^(?:the|a|an|my|your|this|it|them|all)$/.test(next))
+      return null;
+    const before = enWordBefore(ctx, m.index);
+    return !before || EN_DETERMINERS.has(before) || typoInfo(before)?.adjective ? null : "through";
+  },
+  // en.yaml rule en.misheardWords frame 6
+  "@en.misheardWords/6": (m: RegExpExecArray): FixResult => {
+    const origin = m.groups!.origin;
+    return /^\p{Lu}\p{Ll}/u.test(origin) ? "descent" : null;
+  },
+  // en.yaml rule en.misheardWords frame 7
+  "@en.misheardWords/7": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return /s$/i.test(target) ? "beliefs" : "belief";
+  },
+  // en.yaml rule en.misheardWords frame 8
+  "@en.misheardWords/8": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /^[ \t ]+(?:on|unto|impossible|invincible)\b/i.test(
+      ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 14),
+    )
+      ? null
+      : "night";
+  },
+  // en.yaml rule en.misheardWords frame 9
+  "@en.misheardWords/9": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /^(?:a|the|of)$/.test(enWordBefore(ctx, m.index)) ? null : "since";
+  },
+  // en.yaml rule en.misheardWords frame 12
+  "@en.misheardWords/12": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const before = enWordBefore(ctx, m.index);
+    return (!before && enAfterBreak(ctx, m.index)) ||
+      /^(?:know|learn|see|ask|tell|show|wonder|explain|understand)$/.test(before)
+      ? "how"
+      : null;
+  },
+  // en.yaml rule en.misheardWords frame 14
+  "@en.misheardWords/14": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "besides" : null;
+  },
+  // en.yaml rule en.misheardWords frame 15
+  "@en.misheardWords/15": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const lead = m.groups!.lead;
+    const typed = lead?.toLowerCase();
+    return typed === "a"
+      ? /^[ \t ]*[.!]/.test(ctx.text.slice(m.index + m[0].length))
+        ? null
+        : "great"
+      : typed || enAfterBreak(ctx, m.index)
+        ? "great"
+        : null;
+  },
+  // en.yaml rule en.misheardWords frame 17
+  "@en.misheardWords/17": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    const word = next.toLowerCase();
+    return /^(?:there|here|to|in|so|very|really|told|done|able|busy|sick|away|out|at|on|with|for|since|ill|unable|asked|a|an|the)$/.test(
+      word,
+    ) ||
+      (typoInfo(word)?.verbs.some((v) => v.form === "ing" || v.form === "participle") &&
+        !typoInfo(word)?.noun)
+      ? "been"
+      : null;
+  },
+  // en.yaml rule en.misheardWords frame 19
+  "@en.misheardWords/19": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const next = m.groups!.next;
+    return enAfterBreak(ctx, m.index) && next.toLowerCase() !== "you" ? "would" : null;
+  },
+  // en.yaml rule en.misheardWords frame 21
+  "@en.misheardWords/21": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return /s$/i.test(target) ? "minutes" : "minute";
+  },
+  // en.yaml rule en.misheardWords frame 24
+  "@en.misheardWords/24": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const name = m.groups!.name;
+    return enAfterBreak(ctx, m.index) && /^\p{Lu}/u.test(name) && target === "Deer" ? "Dear" : null;
+  },
+  // en.yaml rule en.misheardWords frame 27
+  "@en.misheardWords/27": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.toLowerCase().replace(/^dif/, "de");
+  },
+  // en.yaml rule en.misheardWords frame 28
+  "@en.misheardWords/28": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    const typed = verb.toLowerCase();
+    const info = typoInfo(typed);
+    const lemma = info?.verbs.find((v) => v.form === "past" || v.form === "participle")?.lemma;
+    if (!lemma || info?.noun || info?.adjective || !englishInflect(lemma, "past")) return null;
+    return [`to be ${typed}`, `to ${lemma}`];
+  },
+  // en.yaml rule en.misheardWords frame 29
+  "@en.misheardWords/29": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const verb = m.groups!.verb;
+    if (
+      !/^(?:her|him|them|me|us|you|myself|himself|herself|themselves|ourselves|yourself)$/.test(
+        enWordBefore(ctx, m.index),
+      )
+    )
+      return null;
+    return plainBaseVerb(verb) || /^(?:do|start|go|be|have)$/.test(verb) ? "to" : null;
   },
 };
 
