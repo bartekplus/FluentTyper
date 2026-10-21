@@ -17,7 +17,7 @@ To add a rule, add an entry to the `rules` list of the rule file for the languag
   message: review_msg_contextual_grammar
 ```
 
-Then run `bun run compile:grammar`. The build runs the same step. No engine or dispatcher code changes.
+Then run `bun run compile:grammar` (`bun install`, `check`, `lint`, `typecheck`, `test` and `build` run it first). No engine or dispatcher code changes.
 
 - `checks` names the settings switch that controls the rule. Use an existing check, or add a check (see [Checks](#checks)).
 - `message` is a key of the Review explanation table (`review/reviewExplanations.ts`).
@@ -25,23 +25,23 @@ Then run `bun run compile:grammar`. The build runs the same step. No engine or d
 
 ## Files
 
-| Path                                                  | Content                                                                                |
-| ----------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| `src/core/domain/grammar/rules/common.yaml`           | The settings catalog (`checks`), shared rules, and the typing rules                    |
-| `src/core/domain/grammar/rules/<lang>.yaml`           | The rules and phrase tables of one language (`en`, `de`, `pt_BR`, ...)                 |
-| `src/core/domain/grammar/engine/compiler.ts`          | Validates the files and compiles them (pure, also used by tests)                       |
-| `src/core/domain/grammar/engine/*.generated.ts`       | The compiled output. Do not edit                                                       |
-| `src/core/domain/grammar/review/rules/*.generated.ts` | The code of each rule file (`<file>.live.generated.ts`: its typing rules). Do not edit |
-| `src/core/domain/grammar/engine/expressions.ts`       | Checks the expressions of the rule files                                               |
-| `src/core/domain/grammar/engine/ruleCode.ts`          | The code of a rule file: names, bindings, conditions, kinds of function                |
-| `src/core/domain/grammar/library.ts`, `library/*.ts`  | The rule library: the only TypeScript that rule code calls                             |
-| `src/core/domain/grammar/engine/tokenizer.ts`         | The single-pass tokenizer                                                              |
-| `src/core/domain/grammar/engine/matcher.ts`           | Pattern matching with the literal anchor index                                         |
-| `src/core/domain/grammar/engine/predicates.ts`        | Named token predicates                                                                 |
-| `src/core/domain/grammar/engine/phraseRows.ts`        | The phrase-table kind: row index and row matcher on the engine tokens                  |
-| `src/core/domain/grammar/engine/reviewTokens.ts`      | The tokens of a Review chunk: one pass for all rule kinds                              |
-| `src/core/domain/grammar/engine/reviewRules.ts`       | Builds the Review detectors from the compiled rules                                    |
-| `src/core/domain/grammar/engine/liveRules.ts`         | Builds the typing rules from the compiled rules                                        |
+| Path                                                  | Content                                                                                          |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/core/domain/grammar/rules/common.yaml`           | The settings catalog (`checks`), shared rules, and the typing rules                              |
+| `src/core/domain/grammar/rules/<lang>.yaml`           | The rules and phrase tables of one language (`en`, `de`, `pt_BR`, ...)                           |
+| `src/core/domain/grammar/engine/compiler.ts`          | Validates the files and compiles them (pure, also used by tests)                                 |
+| `src/core/domain/grammar/engine/*.generated.ts`       | The compiled rules. Generated, not in git                                                        |
+| `src/core/domain/grammar/review/rules/*.generated.ts` | The code of each rule file (`<file>.live.generated.ts`: its typing rules). Generated, not in git |
+| `src/core/domain/grammar/engine/expressions.ts`       | Checks the expressions of the rule files                                                         |
+| `src/core/domain/grammar/engine/ruleCode.ts`          | The code of a rule file: names, bindings, conditions, kinds of function                          |
+| `src/core/domain/grammar/library.ts`, `library/*.ts`  | The rule library: the only TypeScript that rule code calls                                       |
+| `src/core/domain/grammar/engine/tokenizer.ts`         | The single-pass tokenizer                                                                        |
+| `src/core/domain/grammar/engine/matcher.ts`           | Pattern matching with the literal anchor index                                                   |
+| `src/core/domain/grammar/engine/predicates.ts`        | Named token predicates                                                                           |
+| `src/core/domain/grammar/engine/phraseRows.ts`        | The phrase-table kind: row index and row matcher on the engine tokens                            |
+| `src/core/domain/grammar/engine/reviewTokens.ts`      | The tokens of a Review chunk: one pass for all rule kinds                                        |
+| `src/core/domain/grammar/engine/reviewRules.ts`       | Builds the Review detectors from the compiled rules                                              |
+| `src/core/domain/grammar/engine/liveRules.ts`         | Builds the typing rules from the compiled rules                                                  |
 
 The file order is `common`, `en`, `es`, `fr`, `hr`, `el`, `sv`, `pl`, `de`, `pt_BR`, `ar_SA`.
 
@@ -50,9 +50,10 @@ The file order is `common`, `en`, `es`, `fr`, `hr`, `el`, `sv`, `pl`, `de`, `pt_
 | Task                                            | Command                           |
 | ----------------------------------------------- | --------------------------------- |
 | Compile the rule files                          | `bun run compile:grammar`         |
+| Compile again even when no input changed        | `bun run compile:grammar --force` |
 | Fail when the generated modules are not current | `bun run compile:grammar --check` |
 
-`bun run build` compiles the files before it bundles. `bun run check` and the unit tests fail when a generated module is not current.
+The modules that the compiler writes from the rule files are not in git (`.gitignore`). `bun install` writes them (postinstall), and `bun run check`, `lint`, `typecheck`, `test` and `build` compile first. The compile writes only when its inputs changed (a hash in `review/rules/.inputs`). oxlint skips files that `.gitignore` names, so `bun run lint` lints the generated modules in a copy of `src/` (`scripts/lint-generated.ts`). The lexicon data modules (`*Lexicon.generated.ts` and the others that `bun run generate:lexicons` writes) stay in git.
 
 ## Checks
 

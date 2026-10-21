@@ -37,9 +37,10 @@ Background code and page code communicate through contracts. They must not impor
 
 ## Grammar Rule Engine
 
-Grammar rules are declared in `src/core/domain/grammar/rules/*.yaml` and compiled at build time into `src/core/domain/grammar/engine/*.generated.ts`. The engine builds the typing rules and the Review detectors from the compiled rules. To add or change a rule, see [grammar rules](grammar-rules.md).
+Grammar rules are declared in `src/core/domain/grammar/rules/*.yaml`, with their logic, and compiled at install and build time into `src/core/domain/grammar/engine/*.generated.ts` and `src/core/domain/grammar/review/rules/*.generated.ts` (not in git). The engine builds the typing rules and the Review detectors from the compiled rules. To add or change a rule, see [grammar rules](grammar-rules.md).
 
 - `engine/catalog.generated.ts` and `engine/live.generated.ts` are light: content scripts load them.
+- `review/rules/<file>.live.generated.ts` holds the typing rules of a rule file: content scripts load it, never the Review code of the rule files.
 - `engine/review.generated.ts` holds the Review rules and the phrase tables: only the background loads it.
 
 ## Review Clause Reader
