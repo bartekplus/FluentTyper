@@ -22,10 +22,8 @@ import * as agreementSlots from "./agreementSlots";
 import * as adverbSlots from "./adverbSlots";
 import * as confusionSlots from "./confusionSlots";
 import * as countSlots from "./countSlots";
-import * as negationSlots from "./negationSlots";
 import * as relativeSlots from "./relativeSlots";
 import * as questionSlots from "./questionSlots";
-import * as comparisonSlots from "./comparisonSlots";
 import * as collocationSlots from "./collocationSlots";
 import * as tenseSlots from "./tenseSlots";
 import * as noNotSlots from "./noNotSlots";
@@ -49,7 +47,6 @@ import * as everydaySlots from "./everydaySlots";
 import * as wordFormSlots from "./wordFormSlots";
 import * as typoSlots from "./typoSlots";
 import * as neighbourSlots from "./neighbourSlots";
-import * as prepositionSlots from "./prepositionSlots";
 import * as clauseFrames from "./clauseFrames";
 import * as slipFrames from "./slipFrames";
 import * as realWordFrames from "./realWordFrames";
@@ -81,7 +78,6 @@ export const FIXERS = mergePredicates<Fixer>(
   misheardWords.FIXERS,
   neighbourSlots.FIXERS,
   nounSlots.FIXERS,
-  prepositionSlots.FIXERS,
   realWordFrames.FIXERS,
   typoSlots.FIXERS,
   verbSlots.FIXERS,
@@ -95,7 +91,6 @@ export const FIXERS = mergePredicates<Fixer>(
   clauseSlots.FIXERS,
   collocationSlots.FIXERS,
   adverbSlots.FIXERS,
-  comparisonSlots.FIXERS,
   tenseSlots.FIXERS,
   grammarStyle1.FIXERS,
   grammarStyle2.FIXERS,
@@ -121,7 +116,6 @@ export const FIXERS = mergePredicates<Fixer>(
   contractionSlots.FIXERS,
   nounNumberSlots.FIXERS,
   countSlots.FIXERS,
-  negationSlots.FIXERS,
   noNotSlots.FIXERS,
   determinerSlots.FIXERS,
 );

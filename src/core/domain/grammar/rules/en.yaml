@@ -2761,14 +2761,66 @@ rules:
     style: match
     message: review_msg_double_negative
     filter: slotFindings
+    maps:
+      NEGATION_ANY:
+        { nothing: anything, nobody: anybody, nowhere: anywhere, neither: either, no: any }
+    defs:
+      # Words that end the negated clause before a second negative could belong to it.
+      NEGATION_CLAUSE_BREAK: /^(?:that|which|who|whom|whose|what|where|when|why|how|because|if|unless|but|and|or|so|than|as|while|until|whether|though|although|since|yet|nor|said|says|think|thought|know|knew|believe|believed|realize|realized|mean|meant)$/
+      # "no longer", "no matter", "no doubt": "no" there starts its own phrase.
+      NEGATION_NO_PHRASES: /^(?:one|longer|matter|more|less|doubt|further|sooner|way|thanks|end|wonder|problem|question|idea|less|other|sense|use)$/
     frames:
       # "I didn't see nothing", "Don't give me no excuses", "There wasn't nobody home".
       - regex: "{{NEGATIONSLOTS_NEGATED}}(?<between>(?:{{S}}[a-z]+){0,3}?){{S}}(?<target>nothing|nobody|nowhere|neither|no){{E}}"
-        fixer: negationDouble
+        let:
+          word: target.toLowerCase()
+          words: between.trim().toLowerCase().split(/\s+/).filter(Boolean)
+          last: words.at(-1) ?? ""
+          auxWord: aux.toLowerCase()
+          end: m.indices!.groups!.target[1]
+          # "nobody else was there": look past "else".
+          after: '/^[ \t ]+([A-Za-z]+)(?:[ \t ]+([A-Za-z]+))?/.exec(ctx.text.slice(end, end + 32))'
+          next: '(after?.[1] === "else" ? after[2] : after?.[1])?.toLowerCase()'
+          noRead: 'word === "no" ? englishWordInfo(next!) : null'
+          start: m.indices!.groups!.target[0]
+        when:
+          - "!words.some((w) => NEGATION_CLAUSE_BREAK.test(w))"
+          - "!hasUserOrCasedWord(ctx, m[0].slice(aux.length))"
+          # "not for nothing" (in vain), "say no", "not nothing" (litotes).
+          - "!/^(?:for|say|said|says|saying|answer|answered|vote|voted|take|took)$/.test(last)"
+          - '!(!words.length && word !== "no" && /\bnot$/i.test(aux))'
+          # "It isn't nothing", "that's not nothing": litotes after be; "there wasn't nobody" is not.
+          - >-
+            !(/^(?:is|are|was|were|am)/.test(auxWord) && !words.length) ||
+            /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 24), m.index))?.[1].toLowerCase() === "there"
+          # "We can't just do nothing": a modal over idle doing is standard; "didn't do nothing" is not.
+          - '!(word === "nothing" && /^(?:do|say|sit)$/.test(last) && !/^(?:do|does|did)/.test(auxWord))'
+          - 'word !== "no" || (!!next && !NEGATION_NO_PHRASES.test(next))'
+          # "Don't tell me no fan ever cried": what is told is a clause of its own.
+          - 'word !== "no" || !/^(?:tell|told|say|said|mean|think|guess)$/.test(words[0] ?? "")'
+          # "No" before a noun only: "don't give me no excuses".
+          - 'word !== "no" || !(noRead && !noRead.noun && !noRead.plural && !noRead.adjective)'
+          # "I didn't know nobody was home": the negative pronoun is the subject of its own clause.
+          - 'word === "no" || !next || !/^(?:is|was|were|are|has|had|have|can|could|will|would|should|did|does)$/.test(next)'
+          - 'word === "no" || !next || !englishWordInfo(next)?.verbs.some((v) => v.form === "third" || v.form === "past")'
+          # "don't want neither … nor …": either … or needs both words changed.
+          - 'word === "no" || !next || !(word === "neither" && /\bnor\b/i.test(ctx.text.slice(end, end + 80)))'
+        return: >-
+          ({ ruleId: "englishUsagePhrases", messageKey: "review_msg_double_negative",
+          range: { start, end }, alternatives: [caseLike(target, NEGATION_ANY[word])],
+          context: enEvidence(ctx, m.index, end) })
       # "She could not hardly hear", "I can't barely see": hardly is negative already. A
       # do-support negation ("didn't hardly sleep") needs the verb inflected and is left alone.
       - regex: "(?<target>(?<aux>can|could|will|would|should)(?:n['’]t|{{S}}not)|(?<can>can['’]t|cannot)|(?<will>won['’]t))(?={{S}}(?:hardly|scarcely|barely){{E}})"
-        fixer: negationHardly
+        let:
+          kept: 'aux ?? (can ? "can" : will ? "will" : "")'
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+        when: '!hasUserOrCasedWord(ctx, target.replace(/n[''’]t$/i, ""))'
+        return: >-
+          ({ ruleId: "englishUsagePhrases", messageKey: "review_msg_negated_hardly",
+          range: { start, end }, alternatives: [caseLike(target, kept.toLowerCase())],
+          context: enEvidence(ctx, start, end + 12) })
   - id: en.relativeAgreement
     checks: [englishSubjectVerbAgreement, englishPossibleErrors]
     style: match
@@ -2877,12 +2929,55 @@ rules:
     style: match
     message: review_msg_superlative_the
     filter: usSlots
+    defs:
+      # The plain adjective behind a regular -er or -est form ("hotter", "happiest"), or null.
+      comparisonPlain:
+        args: "word: string, suffix: string"
+        type: string | null
+        let:
+          read: englishWordInfo(word)
+          stem: word.slice(0, -suffix.length)
+        when:
+          - word.endsWith(suffix)
+          # "number" is a noun, not numb + -er.
+          - read?.adjective && !read.noun
+        # hard-er, nic-er, happi-er, bigg-er.
+        return: >-
+          [stem, `${stem}e`, /i$/.test(stem) ? `${stem.slice(0, -1)}y` : "",
+          /([b-df-hj-np-tv-z])\1$/.test(stem) ? stem.slice(0, -1) : ""].find((c) => c.length > 2 &&
+          englishWordInfo(c)?.adjective) ?? null
+      comparisonSuperlative:
+        args: "word: string"
+        return: 'word === "best" || word === "worst" || !!comparisonPlain(word, "est")'
+      # Superlatives that name a thing or a role without "the": "best friends", "best man", "best
+      # practice", "worst case", "best value", "highest priority".
+      COMPARISON_SET_PHRASES: /^(?:friends?|man|men|practices?|case|value|priority|quality|effort|seller|sellers|interests?|regards|wishes)$/
     frames:
       # "Kyoto is an oldest city": a/an before a superlative and its noun is "the". A bare one
       # after be ("is hottest city") is articles.ts's superlativeThe.
       - regex: "(?<article>an?){{S}}(?<adjective>best|worst|[a-z]+est){{S}}(?<noun>[a-z]+){{E}}"
         owner: article
-        fixer: comparisonSuperlativeArticle
+        let:
+          read: englishWordInfo(noun)
+          end: m.index + m[0].length
+          closes: '/^[ \t ]{0,8}(?:[.!?,;:]|$)/.test(ctx.text.slice(end, end + 10))'
+          isNoun: "read ? read.noun && !read.adverb && (!read.adjective || closes) : !!enNounOnly(noun)"
+          next: enTokensAfter(ctx, end, 1)[0]
+          nextWord: next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower)
+          after: "nextWord ? englishWordInfo(next.lower) : null"
+          start: m.indices!.groups!.article[0]
+          articleEnd: m.indices!.groups!.article[1]
+        when:
+          - comparisonSuperlative(adjective) && !COMPARISON_SET_PHRASES.test(noun) && !ctx.dictionary.has(noun)
+          - "!EN_FUNCTION_WORDS.has(noun) && !hasUserOrCasedWord(ctx, m[0])"
+          # "a best choice": a noun that is also an adjective must close the phrase.
+          - isNoun && !read?.verbs.some((v) => v.form === "participle" || v.form === "past")
+          # "a best in class service", "a latest cell phone": a classifier compound.
+          - "!nextWord || !(!after || after.noun || after.plural || enNounOnly(next.lower))"
+        return: >-
+          ({ ruleId: "englishPhraseCorrections", messageKey: "review_msg_superlative_the",
+          range: { start, end: articleEnd }, alternatives: [caseLike(article, "the")],
+          context: enEvidence(ctx, m.index, end) })
   - id: en.lessComparative
     checks: [englishDoubledDegree]
     style: match
@@ -2892,7 +2987,16 @@ rules:
       # "This is less harder", "the least hardest task": less/least take the plain adjective.
       - regex: "(?<!\\bat{{S}})(?<degree>less|least){{S}}(?<adjective>[a-z]+(?:er|est)){{E}}"
         owner: adjective
-        fixer: comparisonLessComparative
+        let:
+          plain: >-
+            comparisonPlain(adjective, "er") ??
+            (degree.toLowerCase() === "least" ? comparisonPlain(adjective, "est") : null)
+          start: m.indices!.groups!.adjective[0]
+          end: m.indices!.groups!.adjective[1]
+        when: plain && !hasUserOrCasedWord(ctx, adjective)
+        return: >-
+          finding("englishDoubledDegree", "review_msg_doubled_degree", start, end, [plain],
+          { context: enEvidence(ctx, m.index, end) })
   - id: en.comparisonThen
     checks: [englishThenThan]
     style: match
@@ -2901,7 +3005,12 @@ rules:
     frames:
       # "return more then one tag", "less then ten", "more then happy": then after a comparison.
       - regex: "(?:more|less|fewer|rather){{S}}(?<target>then){{S}}(?:\\d|(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|hundred|half|once|twice|enough|happy|willing|glad|ever|usual|expected|necessary){{E}})"
-        fixer: comparisonComparisonThen
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+        return: >-
+          ({ ruleId: "englishThenThan", messageKey: "review_msg_then_than", range: { start, end },
+          alternatives: [caseLike(target, "than")], context: enEvidence(ctx, m.index, end) })
   - id: en.collocations
     checks: [englishFixedPrepositions]
     style: match
@@ -5200,6 +5309,11 @@ rules:
     checks: [englishFixedPrepositions, englishContextualCompounds]
     style: slot
     message: review_msg_fixed_prepositions
+    defs:
+      PREPOSITION_MONTHS: /^(?:January|February|March|April|May|June|July|August|September|October|November|December|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)$/
+      prepositionIng:
+        args: "word: string"
+        return: '!!englishWordInfo(word.toLowerCase())?.verbs.some((v) => v.form === "ing")'
     frames:
       - regex: "(?:is|are|was|were|people|patients|someone|who|those|still|be|been){{S}}(?:suffering|suffer|suffered){{S}}(?<target>of){{E}}"
         cue: ["suffering", "suffer", "suffers", "suffered"]
@@ -5209,7 +5323,8 @@ rules:
         fix: ["about", "for"]
       - regex: "(?:accuse|accused|accuses|accusing){{S}}(?:{{PRONOUN}}|the{{S}}[a-z]+|[a-z]{2,}){{S}}(?<target>for){{S}}(?<verb>[a-z]+){{E}}"
         cue: ["accused", "accuse", "accuses", "accusing"]
-        fixer: prepositionSlotsFor
+        when: prepositionIng(verb)
+        return: '"of"'
       - regex: "addiction{{S}}(?<target>of){{S}}(?<noun>drugs|alcohol|gambling|nicotine|cocaine|heroin|opioids|sugar|caffeine|social{{S}}media|video{{S}}games|smoking|food){{E}}"
         cue: ["addiction"]
         fix: "to"
@@ -5244,11 +5359,12 @@ rules:
       # "By example, …", "On fact, …" at a clause start.
       - regex: "(?<target>by{{S}}example|on{{S}}fact)(?=[ \\t\\u00a0]*,)"
         cue: ["example", "fact"]
-        fixer: prepositionSlotsBy
+        when: enAfterBreak(ctx, m.index)
+        return: '/example/i.test(target) ? "for example" : "in fact"'
       # "their departure of New York": from a place.
       - regex: "departure{{S}}(?<target>of){{S}}(?<place>[a-z]{2,})"
         cue: ["departure"]
-        fixer: prepositionSlotsOf
+        return: 'PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place) ? null : "from"'
       # "entering in the room": enter takes the room directly.
       - regex: "(?:enter|enters|entered|entering){{S}}(?<target>in{{S}})(?=(?:the|a|my|his|her|our|their){{S}}(?:room|house|building|office|class|classroom|kitchen|car|shop|store|church|hall|hospital|bank|restaurant){{E}})"
         cue: ["enter", "enters", "entered", "entering"]
@@ -5286,7 +5402,7 @@ rules:
       # "Anne is waiting her patient": waiting for.
       - regex: "(?:am|is|are|was|were|be|been){{S}}(?<target>waiting){{S}}(?:her|his|my|your|their|our){{S}}(?<noun>[a-z]+){{E}}"
         cue: ["waiting"]
-        fixer: prepositionSlotsWaiting
+        return: 'enNounOnly(noun) || englishWordInfo(noun)?.noun ? "waiting for" : null'
       - regex: "contributions?{{S}}(?<target>on){{S}}(?!behalf{{E}})"
         cue: ["contribution", "contributions"]
         fix: "to"
@@ -5296,11 +5412,12 @@ rules:
       # "Prior leaving, he…": prior to.
       - regex: "(?<target>prior){{S}}(?<verb>[a-z]+ing){{E}}"
         cue: ["prior"]
-        fixer: prepositionSlotsPrior
+        when: prepositionIng(verb)
+        return: '"prior to"'
       # "knocked the door": on.
       - regex: "(?<target>knock|knocks|knocked|knocking){{S}}(?:the|his|her|their|my|our|your){{S}}(?:door|window|wall|gate){{E}}(?!{{S}}(?:down|open|off|over|in|out){{E}})"
         cue: ["knock", "knocks", "knocked", "knocking"]
-        fixer: prepositionSlotsKnock
+        return: "`${target} on`"
       # "Land reclamation is in the internet": on.
       - regex: "(?<target>in){{S}}(?:the{{S}})?(?:internet|Wikipedia|web){{E}}(?!{{S}}(?:age|era|world|of|industry|access|connection|cafe){{E}})"
         cue: ["internet", "wikipedia", "web", "website"]
@@ -5308,7 +5425,7 @@ rules:
       # "located on 11056 Main Street": at an address.
       - regex: "located{{S}}(?<target>on|in){{S}}[0-9]+{{S}}(?<street>[A-Za-z]+)"
         cue: ["located"]
-        fixer: prepositionSlotsOn
+        return: '/^[A-Z]/.test(street) ? "at" : null'
       # "She comes in car", "I came to plane": by.
       - regex: "(?:come|comes|came|go|goes|went|travel|travels|traveled|travelled|arrive|arrives|arrived|work|get|got)(?:{{S}}to{{S}}work)?{{S}}(?<target>in|to|with){{S}}(?:car|plane|train|bus|taxi|bike|boat|ship|subway)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:to|every|each|today|tomorrow|yesterday|and){{E}})"
         cue: ["car", "plane", "train", "bus", "taxi", "bike", "boat", "ship"]
@@ -5335,10 +5452,12 @@ rules:
             "volleyball",
             "chess",
           ]
-        fixer: prepositionSlotsDo
+        return: 'target ? "play" : "playing"'
       - regex: "(?:to{{S}}(?<target>do|make)|(?:like|love|enjoy|hate|about|for|by){{S}}(?<target2>doing|making)){{S}}a{{S}}(?<what>meeting|party){{E}}(?!{{S}}(?:list|lists|planner|hat|hats|favou?rs?|room|game|games|bus|line|leader|members?|notes|minutes|agenda|invite|invites|invitation){{E}})"
         cue: ["meeting", "party"]
-        fixer: prepositionSlotsDo2
+        let:
+          party: what.toLowerCase() === "party"
+        return: 'target ? (party ? "throw" : "have") : party ? "throwing" : "having"'
       # "Bring Suzanne at the party": to.
       - regex: "(?:bring|brought|brings|took|take|drove|drive|driven){{S}}(?:{{PRONOUN}}|[a-z]{2,}){{S}}(?<target>at|in){{S}}the{{S}}(?:party|meeting|office|house|wedding|airport|station|hospital|hotel|school){{E}}"
         cue: ["bring", "brought", "brings", "take", "took", "drove", "drive"]
@@ -5346,7 +5465,7 @@ rules:
       # "That accounts a rise in price": accounts for.
       - regex: "(?:that|this|it|which){{S}}(?<target>accounts|accounted){{S}}(?:a|an|the|most|much|half|about|nearly|almost){{E}}"
         cue: ["accounts", "account", "accounted"]
-        fixer: prepositionSlotsAccounts
+        return: "`${target} for`"
       # "The plant is at the kitchen": in a room.
       - regex: "(?:is|are|was|were|be|it['’]s|sits|stays){{S}}(?<target>at){{S}}the{{S}}(?:kitchen|bathroom|bedroom|garden|living{{S}}room)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:now|today|again|and){{E}})"
         cue: ["kitchen", "bathroom", "bedroom", "garden"]
@@ -5389,11 +5508,11 @@ rules:
       # "returning in the office", "returning in Montreal": to.
       - regex: "(?:return|returns|returned|returning){{S}}(?<target>in){{S}}(?:the{{S}}(?:office|city|country|house|hotel|room|school|station){{E}}|(?<place>[a-z]{2,}))"
         cue: ["return", "returned", "returning", "returns"]
-        fixer: prepositionSlotsIn
+        return: 'place && (PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place)) ? null : "to"'
       # "a trip in New York": to.
       - regex: "(?:a|the|our|my|his|her|their|on{{S}}a){{S}}trip{{S}}(?<target>in){{S}}(?<place>[a-z]{2,})"
         cue: ["trip"]
-        fixer: prepositionSlotsIn2
+        return: 'PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place) ? null : "to"'
       # "an exception of the rule": to.
       - regex: "(?:is|was|are|be|been|an){{S}}exception{{S}}(?<target>of){{S}}(?:the|this|that|our|these){{S}}(?:rule|rules|guideline|guidelines|policy|law){{E}}"
         cue: ["exception"]
@@ -5401,13 +5520,18 @@ rules:
       # "I have 25 years old": be.
       - regex: "(?<subject>I|he|she|we|they|you){{S}}(?<target>have|has){{S}}[0-9]{1,3}{{S}}years?{{S}}old{{E}}"
         cue: ["years", "old"]
-        fixer: prepositionSlotsHave
+        return: '/^I$/.test(subject) ? "am" : /^(?:he|she)$/i.test(subject) ? "is" : "are"'
       # "non standard", "anti communist": prefixed adjectives are hyphenated.
       - regex: "(?<!qua{{S}})(?<target>(?<prefix>non|anti){{S}}(?!(?:new|old|compos|sequitur|grata|stop|existent){{E}})(?<word>[a-z]+)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
         cue: ["non", "anti"]
-        fixer: prepositionSlotsPrefix
+        let:
+          read: englishWordInfo(word)
+          nonNoun: prefix.toLowerCase() === "non" && (read?.noun || !!enNounOnly(word))
+        return: >-
+          (read?.adjective || nonNoun) && !read?.verbs.some((v) => v.form !== "base")
+          ? `${prefix}-${word}` : null
   - id: en.clauseFrames
     checks:
       [

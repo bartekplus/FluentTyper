@@ -10924,13 +10924,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<aux>(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had)n['’]t|can['’]t|cannot|won['’]t|shan['’]t|(?:do|does|did|can|could|will|would|shall|should|must|may|might|is|are|was|were|am|have|has|had)[ \\t\\u00a0]{1,8}not|never)(?<between>(?:[ \\t\\u00a0]{1,8}[a-z]+){0,3}?)[ \\t\\u00a0]{1,8}(?<target>nothing|nobody|nowhere|neither|no)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:negationDouble",
+    fixer: "en:@en.doubleNegatives/1",
   }),
   frame({
     pattern:
       "(?<target>(?<aux>can|could|will|would|should)(?:n['’]t|[ \\t\\u00a0]{1,8}not)|(?<can>can['’]t|cannot)|(?<will>won['’]t))(?=[ \\t\\u00a0]{1,8}(?:hardly|scarcely|barely)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["can", "could", "will", "would", "should", "can", "cannot", "won"],
-    fixer: "en:negationHardly",
+    fixer: "en:@en.doubleNegatives/2",
   }),
   frame({
     pattern:
@@ -11041,21 +11041,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<article>an?)[ \\t\\u00a0]{1,8}(?<adjective>best|worst|[a-z]+est)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["best", "worst", "est"],
-    fixer: "en:comparisonSuperlativeArticle",
+    fixer: "en:@en.superlativeArticle/1",
     owner: "article",
   }),
   frame({
     pattern:
       "(?<!\\bat[ \\t\\u00a0]{1,8})(?<degree>less|least)[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+(?:er|est))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["less", "least"],
-    fixer: "en:comparisonLessComparative",
+    fixer: "en:@en.lessComparative/1",
     owner: "adjective",
   }),
   frame({
     pattern:
       "(?:more|less|fewer|rather)[ \\t\\u00a0]{1,8}(?<target>then)[ \\t\\u00a0]{1,8}(?:\\d|(?:one|two|three|four|five|six|seven|eight|nine|ten|twenty|hundred|half|once|twice|enough|happy|willing|glad|ever|usual|expected|necessary)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["more", "less", "fewer", "rather"],
-    fixer: "en:comparisonComparisonThen",
+    fixer: "en:@en.comparisonThen/1",
   }),
   frame({
     pattern:
@@ -14725,7 +14725,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:accuse|accused|accuses|accusing)[ \\t\\u00a0]{1,8}(?:(?:me|you|him|her|us|them|it)|the[ \\t\\u00a0]{1,8}[a-z]+|[a-z]{2,})[ \\t\\u00a0]{1,8}(?<target>for)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["accuse", "accused", "accuses", "accusing"],
-    fixer: "en:prepositionSlotsFor",
+    fixer: "en:@en.prepositionSlots/3",
     cue: ["accused", "accuse", "accuses", "accusing"],
   }),
   frame({
@@ -14800,13 +14800,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>by[ \\t\\u00a0]{1,8}example|on[ \\t\\u00a0]{1,8}fact)(?=[ \\t\\u00a0]*,)",
     literals: ["example", "fact"],
-    fixer: "en:prepositionSlotsBy",
+    fixer: "en:@en.prepositionSlots/14",
     cue: ["example", "fact"],
   }),
   frame({
     pattern: "departure[ \\t\\u00a0]{1,8}(?<target>of)[ \\t\\u00a0]{1,8}(?<place>[a-z]{2,})",
     literals: ["departure"],
-    fixer: "en:prepositionSlotsOf",
+    fixer: "en:@en.prepositionSlots/15",
     cue: ["departure"],
   }),
   frame({
@@ -14889,7 +14889,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:am|is|are|was|were|be|been)[ \\t\\u00a0]{1,8}(?<target>waiting)[ \\t\\u00a0]{1,8}(?:her|his|my|your|their|our)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["waiting"],
-    fixer: "en:prepositionSlotsWaiting",
+    fixer: "en:@en.prepositionSlots/25",
     cue: ["waiting"],
   }),
   frame({
@@ -14909,14 +14909,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>prior)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["prior"],
-    fixer: "en:prepositionSlotsPrior",
+    fixer: "en:@en.prepositionSlots/28",
     cue: ["prior"],
   }),
   frame({
     pattern:
       "(?<target>knock|knocks|knocked|knocking)[ \\t\\u00a0]{1,8}(?:the|his|her|their|my|our|your)[ \\t\\u00a0]{1,8}(?:door|window|wall|gate)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:down|open|off|over|in|out)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["knock", "knocks", "knocked", "knocking"],
-    fixer: "en:prepositionSlotsKnock",
+    fixer: "en:@en.prepositionSlots/29",
     cue: ["knock", "knocks", "knocked", "knocking"],
   }),
   frame({
@@ -14930,7 +14930,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "located[ \\t\\u00a0]{1,8}(?<target>on|in)[ \\t\\u00a0]{1,8}[0-9]+[ \\t\\u00a0]{1,8}(?<street>[A-Za-z]+)",
     literals: ["located"],
-    fixer: "en:prepositionSlotsOn",
+    fixer: "en:@en.prepositionSlots/31",
     cue: ["located"],
   }),
   frame({
@@ -14968,7 +14968,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "chess",
       "golf",
     ],
-    fixer: "en:prepositionSlotsDo",
+    fixer: "en:@en.prepositionSlots/35",
     cue: [
       "soccer",
       "football",
@@ -14984,7 +14984,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:to[ \\t\\u00a0]{1,8}(?<target>do|make)|(?:like|love|enjoy|hate|about|for|by)[ \\t\\u00a0]{1,8}(?<target2>doing|making))[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?<what>meeting|party)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:list|lists|planner|hat|hats|favou?rs?|room|game|games|bus|line|leader|members?|notes|minutes|agenda|invite|invites|invitation)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["meeting", "party"],
-    fixer: "en:prepositionSlotsDo2",
+    fixer: "en:@en.prepositionSlots/36",
     cue: ["meeting", "party"],
   }),
   frame({
@@ -15009,7 +15009,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:that|this|it|which)[ \\t\\u00a0]{1,8}(?<target>accounts|accounted)[ \\t\\u00a0]{1,8}(?:a|an|the|most|much|half|about|nearly|almost)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["accounts", "accounted"],
-    fixer: "en:prepositionSlotsAccounts",
+    fixer: "en:@en.prepositionSlots/38",
     cue: ["accounts", "account", "accounted"],
   }),
   frame({
@@ -15086,14 +15086,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:return|returns|returned|returning)[ \\t\\u00a0]{1,8}(?<target>in)[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}(?:office|city|country|house|hotel|room|school|station)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<place>[a-z]{2,}))",
     literals: ["return", "returns", "returned", "returning"],
-    fixer: "en:prepositionSlotsIn",
+    fixer: "en:@en.prepositionSlots/49",
     cue: ["return", "returned", "returning", "returns"],
   }),
   frame({
     pattern:
       "(?:a|the|our|my|his|her|their|on[ \\t\\u00a0]{1,8}a)[ \\t\\u00a0]{1,8}trip[ \\t\\u00a0]{1,8}(?<target>in)[ \\t\\u00a0]{1,8}(?<place>[a-z]{2,})",
     literals: ["trip"],
-    fixer: "en:prepositionSlotsIn2",
+    fixer: "en:@en.prepositionSlots/50",
     cue: ["trip"],
   }),
   frame({
@@ -15107,14 +15107,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<subject>I|he|she|we|they|you)[ \\t\\u00a0]{1,8}(?<target>have|has)[ \\t\\u00a0]{1,8}[0-9]{1,3}[ \\t\\u00a0]{1,8}years?[ \\t\\u00a0]{1,8}old(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["year"],
-    fixer: "en:prepositionSlotsHave",
+    fixer: "en:@en.prepositionSlots/52",
     cue: ["years", "old"],
   }),
   frame({
     pattern:
       "(?<!qua[ \\t\\u00a0]{1,8})(?<target>(?<prefix>non|anti)[ \\t\\u00a0]{1,8}(?!(?:new|old|compos|sequitur|grata|stop|existent)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<word>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["non", "anti"],
-    fixer: "en:prepositionSlotsPrefix",
+    fixer: "en:@en.prepositionSlots/53",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     cue: ["non", "anti"],
