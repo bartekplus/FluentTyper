@@ -379,6 +379,9 @@ function lowercaseStart(ctx: DetectContext, match: RegExpExecArray) {
   const word = match[0];
   const letterIndex = wordStart + (SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0);
   if (!isLowercaseLetter(ctx.text[letterIndex] ?? "")) return null;
+  // Only a sentence start or a line start gives a finding: test it before the word tests.
+  const sentence = startsSentence(ctx.text, wordStart, ctx.lang);
+  if (!sentence && lineBreakBefore(ctx.text, wordStart) === null) return null;
   const letterEnd = graphemeEnd(ctx.text, letterIndex);
   const letter = ctx.source.slice(letterIndex, letterEnd);
   const bare = word.replace(TRAILING_PUNCTUATION_REGEX, "");
@@ -388,7 +391,7 @@ function lowercaseStart(ctx: DetectContext, match: RegExpExecArray) {
   const upper = letter.toUpperCase();
   if (upper === letter) return null;
   const range = { start: letterIndex, end: letterEnd };
-  return { wordStart, range, upper, wordEnd: wordStart + bare.length };
+  return { wordStart, range, upper, wordEnd: wordStart + bare.length, sentence };
 }
 
 type LowercaseStart = NonNullable<ReturnType<typeof lowercaseStart>>;
@@ -397,9 +400,7 @@ type LowercaseStart = NonNullable<ReturnType<typeof lowercaseStart>>;
 const capitalizeStart: MatchFixer = (match, ctx) => {
   const word = lowercaseStart(ctx, match);
   if (!word) return null;
-  return startsSentence(ctx.text, word.wordStart, ctx.lang)
-    ? capitalizeSentenceStart(ctx, word)
-    : capitalizeAfterLineBreak(ctx, word);
+  return word.sentence ? capitalizeSentenceStart(ctx, word) : capitalizeAfterLineBreak(ctx, word);
 };
 
 /** A lowercase word that starts a sentence. */
