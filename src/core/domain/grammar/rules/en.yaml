@@ -5892,11 +5892,287 @@ rules:
     style: match
     message: review_msg_modal_of
     filter: outsideExamples
+    # The rule code of remaining.ts: rare phrase fixes, the phrase tables in views (quotations,
+    # soft wraps, capitals, a stray slash), slashed words and the opt-in checks.
+    sets:
+      REM_BARE_PLACES:
+        [
+          "bed",
+          "home",
+          "school",
+          "class",
+          "church",
+          "college",
+          "court",
+          "prison",
+          "jail",
+          "hospital",
+          "sea",
+          "work",
+          "town",
+          "time",
+          "foot",
+          "board",
+          "fire",
+          "hand",
+          "line",
+          "stage",
+          "camp",
+          "office",
+          "duty",
+          "air",
+        ]
+      REM_NOT_OBJECTS:
+        [
+          "it",
+          "them",
+          "him",
+          "her",
+          "us",
+          "me",
+          "you",
+          "this",
+          "that",
+          "these",
+          "those",
+          "something",
+          "nothing",
+          "everything",
+          "anything",
+          "one",
+          "all",
+          "home",
+          "back",
+          "out",
+          "up",
+          "down",
+          "away",
+          "there",
+          "here",
+        ]
+      # "The Putin's war": names that take "the" stay.
+      REM_THE_NAMES:
+        [
+          "hague",
+          "thames",
+          "bronx",
+          "vatican",
+          "kremlin",
+          "sahara",
+          "nile",
+          "rhine",
+          "danube",
+          "mediterranean",
+          "caribbean",
+          "gambia",
+          "congo",
+          "sudan",
+          "ukraine",
+          "crimea",
+          "midwest",
+          "quran",
+          "koran",
+          "louvre",
+          "alamo",
+          "riviera",
+          "yukon",
+          "mekong",
+          "volga",
+          "titanic",
+          "hobbit",
+        ]
+      REM_OBJECT_WHILE: [take, spend, have, need, give, be, last, require]
+      REM_CASING_ONLY: [englishCanonicalCasing]
+      REM_QUOTED_RULES: [englishPhraseCorrections, englishClosedCompounds, englishPossibleErrors]
+    maps:
+      # "scrap" discards; "scrape" extracts.
+      REM_SCRAPE: { scrap: scrape, scraps: scrapes, scrapped: scraped, scrapping: scraping }
+      REM_WEB_SCRAPE:
+        {
+          Scrapper: Scraper,
+          Scrappers: Scrapers,
+          Scrapping: Scraping,
+          Scrapped: Scraped,
+          Scraps: Scrapes,
+        }
+      REM_BE_FOR: { i: am, he: is, she: is, it: is }
+    defs:
+      # Only a subject, an adverb or the clause start may come before "could of": "great might
+      # of", "a must of".
+      REM_MODAL_LEAD: '/(?:^|[.!?;:,\n"“(][ \t\u00a0]*|\b(?:I|you|we|they|he|she|it|who|that|there|this|just|still|also|really|never|probably)[ \t\u00a0]+)$/i'
+      REM_LINKED_LIST_CONTEXT: '/\b(?:nodes?|pointers?|doubly|singly|traversal|traverse|insertion|deletion|data structures?)\b/i'
+      REM_GRAMMAR_CONTEXT: '/\b(?:nouns?|verbs?|adjectives?|adverbs?|pronouns?|prepositions?|conjunctions?|POS|tag(?:s|ging|ger)?|grammar|grammatical)\b/'
+      # Only extraction evidence decides: a "from" source, a site's markup, or what only a
+      # scraper collects. Whole sites are scraped only by a program: scrapping them is also just
+      # discarding them.
+      REM_SCRAPED_ONLY: "/^(?:html|urls|tweets|headlines|metadata|hyperlinks)$/"
+      REM_SITES: "/^(?:websites|sites|pages|webpages)$/"
+      REM_SCRAPER_CONTEXT: '/\b(?:python|scripts?|crawl(?:er|ers|ing)?|spiders?|beautifulsoup|selenium|puppeteer|playwright|scrapy|parsers?|parsing)\b/i'
+      REM_EXTRACTED: "/^(?:data|html|content|news|text|prices|information|info|results|links|urls|reviews|listings|articles|emails|images|tweets|headlines|metadata|hyperlinks)$/"
+      # Words that make a quotation a mention of its words rather than their use.
+      REM_MENTION: '/\b(?:wrote|writes?|written|writing|typed|ironic\w*|sarcas\w*|nonstandard|non-standard|incorrect\w*|wrong\w*|misspel\w*|instead|rather|should be|supposed to be|means?|meaning|stands? for|versus|vs|spell\w*|phrases?|words?|terms?|expressions?|idioms?|typos?|errors?|mistakes?|forms?|correct\w*|labels?|titles?|headings?|buttons?|names?|named|tags?|strings?|commands?)\b/i'
+      REM_LISTED_BEFORE: '/(?:["”''’»],[ \t]*|→[ \t]*|[-=]>[ \t]*|\([ \t]*)$/'
+      REM_LISTED_AFTER: '/^(?:[ \t]*(?:→|[-=]>)|,[ \t]*["“''‘«]|[ \t]*\))/'
+      # "Day One" is the journaling app; "day one" is the first day.
+      REM_JOURNAL_APP: '/\bjournal(?:s|ing)?\b[\s\S]{0,40}\bapps?\b|\bapps?\b[\s\S]{0,40}\bjournal/i'
+      REM_BE_BEFORE: '/(?:^|[^\p{L}''’])(?:am|is|are|was|were|be|been|being|[''’]m|[''’]re)[ \t ]+$/iu'
+      # "This policy effects employee morale": "effects" itself takes a change brought about
+      # ("effects change").
+      REM_BROUGHT_ABOUT: "/^(?:change|changes|reform|reforms|transformation|transformations|improvement|improvements|repair|repairs|cure|escape|rescue|transfer|transfers|entry|compromise|recovery|savings|closure|settlement)$/"
+      REM_NOT_FOUND_THING: "/^(?:about|if|whether|what|who|whom|whose|why|when|where|which|how|that|more|much|less|everything|anything|something|nothing|all|for|from|by|in|on|at|to|with|it|them|him|me|us|you|myself|yourself|himself|herself|themselves|ourselves|soon|later|now|today|tomorrow|tonight|yesterday|first|again|too|also|here|there|fast|quickly|eventually|exactly|together|and|or|but|so|then)$/"
+      REM_DETERMINERS: "/^(?:the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|each|every)$/"
+      REM_NOT_AFTER_DETERMINER: "/^(?:hard|next|following|same|other|day|week|month|year|morning|evening|night|time|moment|minute|second|way)$/"
+      # A copy of the mixed-case frame for matchAll.
+      REM_MIXED_WORDS: '/(?<![\p{L}\p{N}_''’@/#\\.-])\p{L}*\p{Ll}\p{Lu}\p{L}*(?![\p{L}\p{N}_''’@/#\\-])/gu'
+      REM_QUOTE_MARKS: '/["“”''‘’«»`]/'
+      # Words wrong on the left of a slash; the slash token is otherwise read as a path. "bias"
+      # needs a form of "be" before it ("I am bias/prefer…").
+      REM_SLASHED: >-
+        ({
+          infront: { to: "in front", ruleId: "englishClosedCompounds", messageKey: "review_msg_closed_compound" },
+          bias: { to: "biased", ruleId: "englishConfusedWords", messageKey: "review_msg_confused_word" },
+          deref: { to: "dereference", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
+          derefs: { to: "dereferences", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
+          dirs: { to: "directories", ruleId: "styleWordChoice", messageKey: "review_msg_word_choice" },
+        }) as Readonly<Record<string, { to: string; ruleId: RawFinding["ruleId"]; messageKey: RawFinding["messageKey"] }>>
+      # Slashed tokens that are prose, not paths: "w/o", "prev/next", a decade before a slash
+      # ("1970's/early"), the slashed words and the slash-token rows. Review's technical-token
+      # guard lets them through (review/reviewDiagnostics.ts reads it).
+      PROSE_SLASH_TOKEN: >-
+        new RegExp(`^(?:w\\/o|prev\\/next|\\p{Nd}{3}0['’]s\\/\\p{L}+|(?:${Object.keys(REM_SLASHED).join("|")})\\/\\p{L}+|dissemble\\/assemble|assemble\\/dissemble|chicken\\/egg)$`, "iu")
+      # The slashed token at `start` reads as a word in prose; review's path guard lets it through.
+      slashedProseWord:
+        args: "source: string, start: number, bare: string"
+        type: boolean
+        return: >-
+          /^\/\p{Ll}{3,}$/u.test(bare) && /\p{Ll},?[ \t]$/u.test(source.slice(Math.max(0, start - 3), start))
+          && /^[ \t]+\p{Ll}/u.test(source.slice(start + bare.length, start + bare.length + 3)) && !!englishWordInfo(bare.slice(1))
+      # A finding inside [start, end).
+      remInside:
+        args: "f: RawFinding, start: number, end: number"
+        return: f.range.start >= start && f.range.end <= end
+      # The sentence around [start, end), without the quotation itself.
+      remSentenceAround:
+        args: "ctx: DetectContext, start: number, end: number"
+        let:
+          before: ctx.text.slice(Math.max(0, start - 160), start)
+          after: ctx.text.slice(end, end + 160)
+          open: 'Math.max(before.lastIndexOf("."), before.lastIndexOf("!"), before.lastIndexOf("?"), before.lastIndexOf("\n"))'
+          close: after.search(/[.!?\n]/)
+        return: "`${before.slice(open + 1)} ${close < 0 ? after : after.slice(0, close)}`"
+      # The quotation and example ranges by their first and by their last character, one map
+      # per array: the frames match those characters and look the range up.
+      REM_BY_START: new WeakMap<readonly TextRange[], Map<number, TextRange>>()
+      REM_BY_LAST: new WeakMap<readonly TextRange[], Map<number, TextRange>>()
+      REM_NO_RANGES: "[] as readonly TextRange[]"
+      remRangeAt:
+        args: "byKey: WeakMap<readonly TextRange[], Map<number, TextRange>>, ranges: readonly TextRange[] | undefined, at: number"
+        return: remRangeMap(byKey, ranges ?? REM_NO_RANGES).get(at)
+      remRangeMap:
+        args: "byKey: WeakMap<readonly TextRange[], Map<number, TextRange>>, ranges: readonly TextRange[]"
+        let:
+          map: byKey.get(ranges)
+        return: >-
+          map ?? byKey.set(ranges, new Map(ranges.map((r) => [byKey === REM_BY_START ? r.start : r.end - 1, r] as const))).get(ranges)!
+      # The fixed-preposition frames ("inspired from") that a named example before them also
+      # hides.
+      remPhrasesAndFrames:
+        args: "view: DetectContext"
+        return: '[...phraseRows(view), ...enRuleFindings("en.idiomPhrases1", view)]'
+      # Lowercase "chrome extension" is the browser's add-on. Other checks read it in a view:
+      # whatever checks are on.
+      remChromeExtension:
+        args: "view: DetectContext"
+        return: 'enRuleFindings("en.chromeExtension", { ...view, rules: undefined })'
+      remNames:
+        args: "view: DetectContext"
+        return: "[...canonicalCasing(view), ...phraseRows(view), ...remChromeExtension(view)]"
+      remCasedChecks:
+        args: "view: DetectContext"
+        return: '[...enRuleFindings("en.confusedWords", { ...view, rules: undefined }), ...remChromeExtension(view)]'
+      remQuotedChecks:
+        args: "view: DetectContext"
+        return: '[...remPhrasesAndFrames(view), ...enRuleFindings("en.fixedPhrases", { ...view, rules: undefined })]'
+      # The distinct quotation insides each chunk checked, with their findings.
+      REM_CHECKED: "new WeakMap<DetectContext, Map<string, { at: number; found: RawFinding[] }>>()"
+      remShifted:
+        args: "found: RawFinding[], shift: number"
+        return: >-
+          found.map((f) => ({ ...f, range: { start: f.range.start + shift, end: f.range.end + shift },
+            context: f.context && { start: f.context.start + shift, end: f.context.end + shift } }))
+      # Only the quotation is read: everything around it is blanked.
+      remQuotedFindings:
+        args: >-
+          ctx: DetectContext, start: number, innerEnd: number, inner: string, left: number, right: number,
+          same: boolean, checked: Map<string, { at: number; found: RawFinding[] }>
+        let:
+          found: >-
+            enInView(ctx, start + 1, innerEnd,
+              [[left, " ".repeat(start + 1 - left)], [innerEnd, " ".repeat(right - innerEnd)]], remQuotedChecks, REM_QUOTED_RULES)
+              .filter((f) => remInside(f, start + 1, innerEnd))
+              .map((f) => ({ ...f, ruleId: "englishPossibleErrors" as const, messageKey: "review_msg_quoted_mention" as const }))
+        return: "same ? checked.set(inner, { at: start + 1, found }).get(inner)!.found : found"
+      # In all-caps text, write the fix in capitals.
+      remShouted:
+        args: "m: RegExpExecArray, word: string"
+        return: "m[0] === m[0].toUpperCase() ? word.toUpperCase() : word"
+      # A base verb that has no plural, adjective or adverb reading and is no determiner.
+      remBareVerb:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        return: >-
+          !!info?.verbs.some((v) => v.form === "base") && !info.plural && !info.adjective && !info.adverb
+          && !REM_NOT_FOUND_THING.test(word) && !REM_DETERMINERS.test(word)
+      remObjectWord:
+        args: "w: string, last: boolean"
+        let:
+          info: englishWordInfo(w)
+        return: "info ? (last ? info.noun : info.noun || info.adjective) : enListedNoun(w) !== null"
+      # Forms that are usually mistakes but can be correct English: each is offered only when
+      # the writer opts in to englishPossibleErrors, with the likely intended forms as choices.
+      remPossible:
+        args: >-
+          ctx: DetectContext, at: number, range: readonly [number, number], alternatives: string[],
+          key: RawFinding["messageKey"] | undefined
+        type: RawFinding
+        return: >-
+          ({ ruleId: "englishPossibleErrors", messageKey: key ?? "review_msg_possible_error",
+            range: { start: range[0], end: range[1] }, alternatives,
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+            context: { start: Math.max(0, at - 96), end: Math.min(ctx.text.length, range[1] + 32) } })
+      # The alternatives of the target group as a possible mistake.
+      remPossibleTarget:
+        args: "ctx: DetectContext, m: RegExpExecArray, alternatives: string[] | null"
+        return: alternatives && remPossible(ctx, m.index, group(m, "target"), alternatives, undefined)
+      remLowerFirst:
+        args: "word: string"
+        return: 'word !== "I" && englishWordInfo(word) ? word[0].toLowerCase() + word.slice(1) : word'
+      # A singular countable noun from the lexicon: a plural exists and it is no adjective.
+      remCountableSingular:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        when: word === word.toLowerCase() && !REM_NOT_OBJECTS.has(word)
+        return: >-
+          !info ? enListedNoun(word) === "singular" && !enListedWithoutPlural(word)
+          : info.noun && !info.plural && !info.adjective && !info.adverb && !info.verbs.some((v) => v.form !== "base")
+            && [`${word}s`, `${word}es`].some((form) => englishWordInfo(form)?.plural)
+        else: "false"
+      remFindOutWord:
+        args: "next: string"
+        let:
+          info: englishWordInfo(next)
+        return: "!!info && !info.adverb && (info.noun || info.adjective) && !/ly$/.test(next)"
     frames:
       # "could of" closing its clause; the core rule waits for the word after "of".
       - regex: "(?<target>(?<modal>could|would|should|must|might)(?:n['’]t)?{{S}}(?<of>of)){{COMPLETE}}"
         gate: "(?:ld|st|ht)(?:n['’]t)?[ \\t\\u00a0]+of\\b"
-        fixer: modalOfAtEnd
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          ofStart: m.indices!.groups!.of[0]
+        when: REM_MODAL_LEAD.test(before) && !isNounMight(modal, before)
+        return: "`${ctx.source.slice(m.index, ofStart)}${modalHaveWord(modal, of)}`"
   - id: en.bewareOf
     checks: [englishFixedPrepositions]
     style: match
@@ -5906,7 +6182,8 @@ rules:
       # "Beware on the step": the thing to beware of takes "of".
       - regex: "beware{{S}}(?<target>in|on|at){{S}}(?:the|that|this|these|those){{E}}"
         gate: beware
-        fixer: bewareOf
+        return: >-
+          style2OpensClause(ctx, m.index) ? caseLike(target, "of") : null
   - id: en.rarePhraseFixes
     checks: [englishPhraseCorrections]
     style: match
@@ -5916,19 +6193,36 @@ rules:
       # "They left in mass": all together is "en masse" after a verb of moving or quitting.
       - regex: "(?:{{MOVERS}}){{S}}(?<target>[io]n{{S}}mass)(?:{{COMPLETE}}|(?={{S}}(?:{{AFTER_MASS}}){{E}}))"
         gate: "\\b[io]n[ \\t\\u00a0]+mass\\b"
-        fixer: enMasse
+        return: >-
+          hasUserOrCasedWord(ctx, m[0]) ? null : caseLike(target, "en masse")
       # "link lists" are lists of links unless the text is about nodes and pointers.
       - regex: "(?<target>link){{S}}lists{{E}}"
         gate: "link[ \\t\\u00a0]+lists"
-        fixer: linkedLists
+        return: >-
+          REM_LINKED_LIST_CONTEXT.test(ctx.text.slice(Math.max(0, m.index - 160), m.index + m[0].length + 160))
+            ? caseLike(target, "linked") : null
       # "parts of speeches" are sections of speeches unless the text is about grammar.
       - regex: "(?<target>parts?{{S}}of{{S}}speeches){{E}}"
         gate: "of[ \\t\\u00a0]+speeches"
-        fixer: partsOfSpeech
+        # "one part of speeches" is one part of speech; "the part of speeches" is plural.
+        return: >-
+          !hasUserOrCasedWord(ctx, m[0])
+          && REM_GRAMMAR_CONTEXT.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120))
+            ? caseLike(target, /\b(?:one|a|an|each|every|this|that)[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+              ? "part of speech" : "parts of speech")
+            : null
       # "scrap" discards; "scrape" extracts.
       - regex: "(?<target>scrap(?:s|ped|ping)?){{S}}(?:(?:the|a|an|all|some|its|their|our|my|your|this|these|different|multiple|various|several|many|other){{S}})?(?<site>(?:website|site|page|webpage)['’]s{{S}})?(?<object>[a-z]+){{E}}(?<from>{{S}}from{{E}})?"
         gate: scrap
-        fixer: scrapeWeb
+        let:
+          lower: object.toLowerCase()
+          sites: >-
+            REM_SITES.test(lower)
+            && REM_SCRAPER_CONTEXT.test(ctx.text.slice(Math.max(0, m.index - 200), m.index + m[0].length + 200))
+        when:
+          - target === target.toLowerCase() || /^S[a-z]+$/.test(target)
+          - sites || (REM_EXTRACTED.test(lower) && (from || site || REM_SCRAPED_ONLY.test(lower)))
+        return: caseLike(target, REM_SCRAPE[target.toLowerCase()])
   - id: en.imitateOf
     checks: [stylePhrasing]
     style: match
@@ -5938,7 +6232,7 @@ rules:
       # "imitate the rhythm from their mentor": whose rhythm it is takes "of" (opt-in).
       - regex: "imitat(?:e|es|ed|ing){{S}}(?:the|every|that|this|their|his|her|its|our|your|my)(?:{{S}}[a-z]+){1,3}{{S}}(?<target>from){{S}}(?:the|their|his|her|its|our|your|my|\\p{L}{2,}['’]s){{E}}"
         gate: imitat
-        fixer: imitateOf
+        return: caseLike(target, "of")
   - id: en.quotedPhrases
     checks:
       [
@@ -5963,7 +6257,25 @@ rules:
         lookback: 1
         lang: en
         anyCheck: true
-        fixer: quotedPhrase
+        # Scare quotes ("tongue and cheek" jokes) and quoted speech are the writer's own
+        # words: the tables' quotation guard is meant for mentions, which a cue word gives
+        # away. A list of quoted forms or a mapping ("x" → "y") names them.
+        let:
+          range: remRangeAt(REM_BY_START, ctx.quotationRanges, m.index)
+          start: range.start
+          end: range.end
+          inner: ctx.text.slice(start + 1, end - 1)
+        when:
+          - range && !remRangeAt(REM_BY_START, ctx.exampleRanges, range.start)
+          - inner.length >= 3 && inner.length <= 48 && !/[\n.!?]/.test(inner)
+          - '/[\p{P}]/u.test(ctx.text[end - 1])'
+          - "!namedExampleBefore(ctx.text, start + 1) && !REM_MENTION.test(remSentenceAround(ctx, start, end))"
+          - >-
+            !REM_LISTED_BEFORE.test(ctx.text.slice(Math.max(0, start - 8), start))
+            && !REM_LISTED_AFTER.test(ctx.text.slice(end, end + 8))
+        return: >-
+          enInView(ctx, start + 1, end - 1, [[start, " "], [end - 1, " "]], phraseRows, ctx.rules)
+            .filter((f) => remInside(f, start + 1, end - 1))
   - id: en.afterExamples
     checks:
       [
@@ -5987,7 +6299,23 @@ rules:
         lookback: 1
         lang: en
         anyCheck: true
-        fixer: afterExample
+        # A named example's guard reaches 80 characters past its opening quote; once the
+        # quotation closes ('The name "Forge" is inspired from'), the prose after it is
+        # checked. The frame matches the punctuation mark that closes the example.
+        let:
+          range: remRangeAt(REM_BY_LAST, ctx.exampleRanges, m.index)
+          start: range.start
+          end: range.end
+          quotes: ctx.quotationRanges ?? []
+          lineEnd: ctx.text.indexOf("\n", end)
+          stop: "Math.min(ctx.to, end + 80, lineEnd < 0 ? ctx.text.length : lineEnd)"
+        when:
+          - range
+          - end >= ctx.from && end < ctx.to
+          - stop - end >= 4
+        return: >-
+          enInView(ctx, end, stop, [[start, " "]], remPhrasesAndFrames, ctx.rules)
+            .filter((f) => f.range.start >= end && !quotes.some((q) => f.range.start < q.end && f.range.end > q.start))
   - id: en.wrappedPhrases
     checks:
       [
@@ -6010,7 +6338,18 @@ rules:
         scan: owned
         flags: gu
         anyCheck: true
-        fixer: wrappedPhrase
+        # Fixed phrases broken across a soft wrap ("Double\nclick"). Phrases are short: start
+        # at a word boundary at most ~40 characters back.
+        let:
+          newline: m.index + m[0].indexOf("\n")
+          lineStart: ctx.text.lastIndexOf("\n", newline - 1) + 1
+          first: Math.max(lineStart, newline - 40)
+          space: ctx.text.indexOf(" ", first)
+          from: "first > lineStart ? space + 1 : first"
+        when: "!(first > lineStart && (space < 0 || space >= newline))"
+        return: >-
+          enInView(ctx, from, newline, [[newline, " "]], phraseRows, ctx.rules)
+            .filter((f) => f.range.start < newline && f.range.end > newline)
   - id: en.shoutedNames
     checks: [stylePhrasing]
     style: match
@@ -6021,7 +6360,15 @@ rules:
       - regex: "(?<target>(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])[A-Z]{2,}(?:[ \\t\\u00A0]+[A-Z]{2,})*(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-]))"
         scan: owned
         flags: gu
-        fixer: shoutedNames
+        # A short acronym ("API", "NASA") is no name written in capitals.
+        let:
+          start: m.index
+          end: start + m[0].length
+        when: m[0].length >= 5
+        return: >-
+          enInView(ctx, start, end, [[start, m[0].toLowerCase()]], remNames, REM_CASING_ONLY)
+            .filter((f) => remInside(f, start, end) && !f.alternatives.includes(ctx.text.slice(f.range.start, f.range.end)))
+            .map((f) => ({ ...f, ruleId: "stylePhrasing" as const, messageKey: "review_msg_name_casing" as const }))
   - id: en.chromeExtension
     checks: [englishCanonicalCasing]
     style: match
@@ -6030,7 +6377,8 @@ rules:
       # Lowercase "chrome extension" is the browser's add-on; "Chrome Extension" is offered too.
       - regex: "(?<target>(?<chrome>chrome){{S}}(?<ext>extensions?)){{E}}"
         gate: "chrome[ \\t\\u00a0]+extension"
-        fixer: chromeExtension
+        return: >-
+          chrome === "chrome" && ext === ext.toLowerCase() ? [`Chrome ${ext}`, `Chrome E${ext.slice(1)}`] : null
   - id: en.productCasing
     checks: [englishCanonicalCasing]
     style: match
@@ -6039,7 +6387,9 @@ rules:
       # "Day One" is the journaling app; "day one" is the first day.
       - regex: "(?<target>day{{S}}one){{E}}"
         gate: "day[ \\t\\u00a0]+one"
-        fixer: dayOne
+        return: >-
+          m[0] === m[0].toLowerCase() && REM_JOURNAL_APP.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + 140))
+            ? "Day One" : null
       # Apple writes "macOS" even at the start of a sentence.
       - regex: "(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])(?<target>MacO[Ss])(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-])"
         flags: dgu
@@ -6060,7 +6410,15 @@ rules:
         anyCheck: true
         gate: "\\/\\p{L}"
         gateFlags: gu
-        fixer: slashedWord
+        let:
+          word: target.toLowerCase()
+          slashed: REM_SLASHED[word]
+        when:
+          - "!(ctx.rules && !ctx.rules.has(slashed.ruleId))"
+          - target === word || /^[A-Z][a-z]+$/.test(target)
+          - "!ctx.dictionary.has(word)"
+          - '!(word === "bias" && !REM_BE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index)))'
+        return: found(ctx, m, slashed.ruleId, slashed.messageKey, [caseLike(target, slashed.to)])
   - id: en.thatThereTheir
     checks: [englishTheirThereTheyAre]
     style: match
@@ -6070,13 +6428,16 @@ rules:
       # The lookahead first: the clause lookbehind runs only where "is/was that" stands.
       - regex: "(?=(?:is|was){{S}}that{{S}})(?<=(?:^|[.!?][\"”’)]{0,3}{{S}}|\\n[ \\t]{0,8}))(?:is|was){{S}}that{{S}}(?<target>there){{S}}(?<noun>\\p{L}+)(?=[ \\t\\u00a0]*\\?)"
         gate: "that[ \\t\\u00a0]+there"
-        fixer: thatThere
+        let:
+          info: englishWordInfo(noun)
+        when: "!REM_NOT_FOUND_THING.test(noun)"
+        return: 'info?.noun && !info.plural && !info.adverb && !info.adjective ? remShouted(m, "their") : null'
       # "I saw their running through the park": a seen action, not a possession.
       - regex: "(?:saw|see|sees|seen|seeing|watched|noticed|spotted){{S}}(?<target>their){{S}}(?<ing>\\p{L}+ing){{S}}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off){{E}}"
         message: review_msg_confused_word
         gate: "their[ \\t\\u00a0]+\\p{L}+ing"
         gateFlags: giu
-        fixer: sawTheir
+        return: 'hasVerbForm(ing, "ing") ? [remShouted(m, "they''re"), remShouted(m, "them")] : null'
   - id: en.anNpm
     checks: [englishArticleAnCorrection]
     style: match
@@ -6085,7 +6446,8 @@ rules:
       # "npm" is spelled out letter by letter: "an npm package".
       - regex: "(?<target>a){{S}}npm{{E}}"
         gate: "\\ba[ \\t\\u00a0]+npm"
-        fixer: anNpm
+        return: >-
+          m[0].endsWith("npm") ? caseLike(target, "an") : null
   - id: en.brokeInVersion
     checks: [englishIrregularForms]
     style: match
@@ -6094,7 +6456,7 @@ rules:
       # "all are broke under 3.5.1": software is broken in a version; people are broke.
       - regex: "(?:is|are|was|were|be|been|being|got|gets|get){{S}}(?<target>broke){{S}}(?:again{{S}})?(?:under|on|in|since|after|with|from|for){{S}}v?\\p{Nd}+(?:\\.\\p{Nd}+)+{{E}}"
         gate: "broke[ \\t\\u00a0]"
-        fixer: brokeInVersion
+        return: caseLike(target, "broken")
   - id: en.effectsObject
     checks: [englishConfusedWords]
     style: match
@@ -6103,7 +6465,15 @@ rules:
       # "This policy effects employee morale": a singular subject acting on a bare object.
       - regex: "(?:this|that|the|our|their|his|her|its|my|your|each|every|any){{S}}(?<subject>\\p{L}{3,}){{S}}(?<target>effects){{S}}(?<object>\\p{L}+(?:{{S}}\\p{L}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))"
         gate: "effects[ \\t\\u00a0]"
-        fixer: effectsObject
+        let:
+          info: englishWordInfo(subject)
+          listed: enListedNoun(subject)
+          words: object.split(/[ \t ]+/)
+        when:
+          - 'info ? info.noun && !info.plural && !info.adjective : listed === "singular"'
+          - "!words.some((w) => REM_BROUGHT_ABOUT.test(w))"
+          - words.every((w, i) => remObjectWord(w, i === words.length - 1))
+        return: remShouted(m, "affects")
   - id: en.agreedVerb
     checks: [englishVerbComplements]
     style: match
@@ -6114,7 +6484,7 @@ rules:
       # object follows it, so "decided work was…" (a clause) stays.
       - regex: "(?:agree|agrees|agreed|decide|decides|decided){{S}}(?<target>\\p{L}+){{S}}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your){{E}}"
         gate: "(?:agree|decide)[sd]?[ \\t\\u00a0]"
-        fixer: agreedVerb
+        return: 'remBareVerb(target) ? `${remShouted(m, "to")} ${target}` : null'
   - id: en.webScrape
     checks: [englishPhraseCorrections]
     style: match
@@ -6125,7 +6495,7 @@ rules:
         flags: dgu
         gate: "[Ww]ebScrap"
         gateFlags: g
-        fixer: webScrape
+        return: REM_WEB_SCRAPE[target]
   - id: en.pluralMark
     checks: [englishClosedCompounds]
     style: match
@@ -6136,7 +6506,9 @@ rules:
         flags: dgu
         gate: "\\((?:s|ss)\\)"
         gateFlags: g
-        fixer: pluralMark
+        let:
+          word: '/\p{L}+$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))?.[0] ?? ""'
+        return: 'word === word.toLowerCase() && !!englishWordInfo(word)?.noun ? "(s)" : null'
   - id: en.slashPrefixed
     checks: [englishPhraseCorrections]
     style: match
@@ -6149,7 +6521,14 @@ rules:
         flags: gu
         gate: "\\s\\/\\p{Ll}"
         gateFlags: gu
-        fixer: slashPrefixed
+        # The fixed phrases a stray slash hides from the tables: "/backhand compliment".
+        let:
+          word: '/^\p{Ll}+/u.exec(ctx.text.slice(m.index + 1, m.index + 40))![0]'
+          start: m.index + 1
+        when: "slashedProseWord(ctx.text, m.index, `/${word}`)"
+        return: >-
+          enInView(ctx, start, start + word.length, [[m.index, " "]], phraseRows, ctx.rules)
+            .filter((f) => f.range.start === start)
   - id: en.possibleErrors
     checks: [englishPossibleErrors]
     style: match
@@ -6162,65 +6541,127 @@ rules:
         flags: gu
         gate: "\\p{Nd}(?:st|rd)"
         gateFlags: gu
-        fixer: oddOrdinal
+        let:
+          end: m.index + m[0].length
+          expected: ordinalSuffix(digits)
+        when: 'expected !== suffix && !/^[ \t]*\p{Nd}+[ \t]*lbs?\b/u.test(ctx.text.slice(end, end + 12))'
+        return: 'remPossible(ctx, m.index, [m.index, end], [`${digits}${expected}`], "review_msg_ordinal")'
       # "Their two options left.": "There are …" when what is left is counted.
       - regex: "(?<target>their){{S}}(?:two|three|four|five|six|seven|eight|nine|ten|no|several|many|\\p{Nd}+|a{{S}}few){{S}}(?<noun>\\p{L}+){{S}}left(?=[ \\t\\u00a0]*(?:[.!?]|$))"
         gate: "their[ \\t\\u00a0]"
-        fixer: theirLeft
+        return: >-
+          remPossibleTarget(ctx, m, style2OpensClause(ctx, m.index) && noun === noun.toLowerCase()
+            && !!englishWordInfo(noun)?.plural ? [caseLike(target, "there are")] : null)
       # "The cause it is unclear.": a pronoun repeating the subject before an adjective that
       # ends the sentence. "cause" may also have been "because".
       - regex: "(?<target>(?<det>the|this|that|our|my|your|their|his|her){{S}}(?<noun>\\p{L}+){{S}}it{{S}}(?<be>is|was)){{S}}(?<adj>\\p{L}+)(?=[ \\t\\u00a0]*(?:[.!?]|$))"
         gate: "\\bit[ \\t\\u00a0]+(?:is|was)\\b"
-        fixer: subjectIt
+        let:
+          nounInfo: englishWordInfo(noun)
+          alternatives: >-
+            [`${det} ${noun} ${be}`, ...(noun === "cause" && /^the$/i.test(det) ? [caseLike(det, `because it ${be}`)] : [])]
+        when:
+          - >-
+            style2OpensClause(ctx, m.index) && noun + adj === (noun + adj).toLowerCase()
+            && nounInfo?.noun && !nounInfo.plural
+          - englishWordInfo(adj)?.adjective
+        return: remPossible(ctx, m.index, group(m, "target"), alternatives, undefined)
       # "Stress can cause it is not obvious.": a clause missing "That", or a clause after "it".
       - regex: "(?<target>(?<subject>\\p{L}+){{S}}(?<modal>can|could|may|might|will|would|should|must|does|did){{S}}cause{{S}}it{{S}}(?<be>is|was)){{E}}"
         gate: "cause[ \\t\\u00a0]+it"
-        fixer: causeItIsPossible
+        return: >-
+          remPossibleTarget(ctx, m, style2OpensClause(ctx, m.index) && modal === modal.toLowerCase()
+            ? [`${caseLike(subject, "that")} ${remLowerFirst(subject)} ${modal} cause it ${be}`,
+              `${subject} ${modal} cause it, which ${be}`]
+            : null)
       # "The artist painted portrait in studio.": a lone countable noun after a past verb, with
       # a lone noun after its preposition or an adverb closing the sentence.
       - regex: "(?:the|a|an|this|that|my|our|their|his|her){{S}}\\p{L}+{{S}}(?<verb>\\p{L}+){{S}}(?<obj>\\p{L}+){{S}}(?:(?:in|on|at|under|near|into|onto|behind|beside){{S}}(?<place>\\p{L}+)|(?<adverb>\\p{L}+ly|outside|inside|nearby|indoors|outdoors))(?=[ \\t\\u00a0]*[.!?])"
         owner: obj
-        fixer: bareObjects
+        # People say "herb" and "ukulele" with the two articles: the first letter selects one.
+        let:
+          sound: englishInitialSound(obj)
+          vowel: 'sound === "either" ? /^[aeiou]/.test(obj) : sound === "vowel"'
+        when:
+          - style2OpensClause(ctx, m.index) && verb === verb.toLowerCase() && remCountableSingular(obj)
+          - hasVerbForm(verb, "past")
+          - "!(place && (REM_BARE_PLACES.has(place) || !remCountableSingular(place)))"
+          - "!(adverb && /ly$/.test(adverb) && !englishWordInfo(adverb)?.adverb)"
+        return: >-
+          [remPossible(ctx, m.index, group(m, "obj"), [`${vowel ? "an" : "a"} ${obj}`, `the ${obj}`], undefined),
+            ...(place ? [remPossible(ctx, m.index, group(m, "place"), [`the ${place}`], undefined)] : [])]
       # "They have writing today.": the progressive takes "be"; "have been writing" keeps
       # "have". The default rule leaves -ing words that are also nouns ("We have training
       # today") and a clause ending on the verb; this opt-in check offers both readings there.
       - regex: "(?<target>(?<subject>I|you|we|they|he|she|it){{S}}(?<have>have|has){{S}}(?<ing>\\p{L}+ing))(?={{S}}(?:today|now|tonight|tomorrow|again){{E}}|(?<end>[ \\t\\u00a0]*(?:[.!?]|$)))"
         gate: "\\bha(?:ve|s)[ \\t\\u00a0]+\\p{L}+ing\\b"
         gateFlags: giu
-        fixer: haveIng
+        let:
+          singular: /^(?:he|she|it)$/i.test(subject)
+        when:
+          - style2OpensClause(ctx, m.index) && have + ing === (have + ing).toLowerCase() && (have === "has") === singular
+          - "!(end === undefined && !NOUN_LIKE_ING.test(ing))"
+          - hasVerbForm(ing, "ing")
+        return: >-
+          remPossibleTarget(ctx, m,
+            [`${subject} ${REM_BE_FOR[subject.toLowerCase()] ?? "are"} ${ing}`, `${subject} ${have} been ${ing}`])
       # "It doesn't quiet.": "quite" closing a negated clause (the default rule needs a next
       # word).
       - regex: "\\p{L}+n['’]t{{S}}(?<target>quiet){{COMPLETE}}"
-        fixer: notQuiet
+        return: >-
+          remPossibleTarget(ctx, m, target === target.toLowerCase() ? ["quite"] : null)
       # "you have more good" -> "better", unless more good is weighed against harm.
       - regex: "(?<target>more{{S}}good){{COMPLETE}}"
-        fixer: moreGood
+        return: >-
+          remPossibleTarget(ctx, m, target === target.toLowerCase() ? ["better"] : null)
       # "they often sort after the total": a habit is "sought after" or "sort by"; "sort after
       # the join" (then) has no frequency adverb before it.
       - regex: "(?:often|usually|always|generally|typically|commonly|normally|sometimes|mostly){{S}}(?<target>sort{{S}}after){{S}}(?:the|a|an|their|its|his|her|our|my|your){{E}}"
-        fixer: sortAfter
+        return: >-
+          remPossibleTarget(ctx, m, target === target.toLowerCase() ? ["sought after", "sort by"] : null)
       # "scrap page", "scrapped pages": scraping extracts a page; scrapping discards it.
       - regex: "(?<target>scrap(?:s|ped|ping)?){{S}}(?:web{{S}})?(?:pages?|webpages?|websites?|sites?){{E}}"
-        fixer: scrapPages
+        return: >-
+          remPossibleTarget(ctx, m, target === target.toLowerCase() ? [REM_SCRAPE[target]] : null)
       # "I adore markdown": the formatting language is "Markdown"; a price cut keeps lowercase.
       - regex: "(?<!(?:a|an|the|this|that|any|no|big|huge|steep|deep|small|price|\\p{Nd}+%?){{S}})(?<target>markdown){{E}}(?!{{S}}(?:of|on|in|to|from|price|prices){{E}})"
-        fixer: markdownName
+        return: >-
+          remPossibleTarget(ctx, m, target === "markdown" ? ["Markdown"] : null)
       # "She wants finish early": "want" and "need" take "to" before a verb.
       - regex: "(?:want|wants|wanted|need|needs|needed){{S}}(?<target>\\p{L}+){{S}}(?:early|later|soon|now|today|tonight|tomorrow|first|quickly|again|together|immediately){{E}}"
-        fixer: wantsVerb
+        return: "remPossibleTarget(ctx, m, target === target.toLowerCase() && remBareVerb(target) ? [`to ${target}`] : null)"
       # "because affect is hidden": the noun is usually "effect" ("affect" is a mood in
       # psychology).
       - regex: "(?:because|since|although|though|while|if|when|and|but|so){{S}}(?<target>affect){{S}}(?:is|was|has|will|can|may|might|seems){{E}}"
-        fixer: affectNoun
+        return: >-
+          remPossibleTarget(ctx, m, target === target.toLowerCase() ? ["effect", "the effect"] : null)
       # "helps you weight small things": "weigh" measures; "weight" assigns a weight.
       - regex: "(?:help|helps|helped|helping|let|lets|make|makes){{S}}(?:you|me|us|them|him|her|people|users){{S}}(?<target>weight){{E}}"
-        fixer: weightVerb
+        return: >-
+          remPossibleTarget(ctx, m, target === target.toLowerCase() ? ["weigh"] : null)
       # "You boxes": "Your boxes", or "You box".
       - regex: "(?<target>you{{S}}(?<word>\\p{L}+s))(?=[ \\t\\u00a0]*(?:[.!?]|$)|{{S}}(?:are|were|look|seem){{E}})"
-        fixer: youPlural
+        # "You idiots are late": a plural of address. A plural noun that is also an -s verb
+        # ("You boxes") may have meant the verb.
+        let:
+          info: englishWordInfo(word)
+          third: 'info?.verbs.find((v) => v.form === "third")'
+          you: target.slice(0, 3)
+        when:
+          - style2OpensClause(ctx, m.index) && word === word.toLowerCase() && info?.plural
+          - >-
+            !/^(?:guys|folks|kids|boys|girls|ladies|idiots|fools|clowns|losers|cowards|liars|jerks|morons|geniuses|lads|chaps|dudes)$/.test(word)
+        return: >-
+          remPossibleTarget(ctx, m, [`${caseLike(you, "your")} ${word}`, ...(third ? [`${you} ${third.lemma}`] : [])])
       # "The Putin's war": a name's possessive takes no article. Names that take "the" stay.
       - regex: "(?<target>the{{S}})(?<name>\\p{L}+)['’]s{{S}}\\p{L}"
-        fixer: theName
+        # A title in capitals ("The Hobbit's Ending") is a name of its own.
+        let:
+          after: ctx.text.slice(m.index + m[0].length - 1, m.index + m[0].length)
+        when:
+          - '/^\p{Lu}\p{Ll}+$/u.test(name) && !/s$/.test(name) && !REM_THE_NAMES.has(name.toLowerCase())'
+          - "!englishWordInfo(name) && !enListedNoun(name)"
+        return: 'remPossibleTarget(ctx, m, after === after.toLowerCase() ? [""] : null)'
       # "I HoP we can…", "cHrOmE eXtEnSiOn": words typed with random capitals hide the default
       # checks, which abstain on cased words (names like "iPhone"). Read lowercased, they apply.
       - regex: "(?<target>(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])\\p{L}*\\p{Ll}\\p{Lu}\\p{L}*(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-]))"
@@ -6228,7 +6669,19 @@ rules:
         flags: gu
         gate: "\\p{Ll}\\p{Lu}"
         gateFlags: gu
-        fixer: mixedCase
+        # Only a dictionary word can hide a check ("aB" or "PoC" stay). Every mixed word
+        # around it is read lowercased: "cHrOmE eXtEnSiOn".
+        let:
+          start: m.index
+          end: start + m[0].length
+          from: Math.max(0, start - 64)
+        when: englishWordInfo(m[0])
+        return: >-
+          enInView(ctx, start, end,
+            [...ctx.text.slice(from, end + 64).matchAll(REM_MIXED_WORDS)].map((w) => [from + w.index, w[0].toLowerCase()] as const),
+            remCasedChecks, ctx.rules)
+            .filter((f) => f.range.start < end && f.range.end > start)
+            .map((f) => ({ ...f, ruleId: "englishPossibleErrors" as const }))
   - id: en.quotedMentions
     checks: [englishPossibleErrors]
     style: match
@@ -6240,7 +6693,29 @@ rules:
         flags: g
         scan: text
         lang: en
-        fixer: quotedMention
+        # Quoted wording is checked too: the tables' quotation and example guards keep a
+        # mention ("'chalk full' is nonstandard") as typed, and this opt-in check reads it
+        # anyway. A letter or two ("a", "x") holds no phrase. Away from the text's edges, the
+        # view is 256 blanks, the inside and 256 blanks: the same inside gives the same
+        # findings at a shift. Each distinct inside is checked one time a chunk.
+        let:
+          range: remRangeAt(REM_BY_START, ctx.quotationRanges, m.index)
+          start: range.start
+          end: range.end
+          innerEnd: "REM_QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end"
+          inner: ctx.text.slice(start + 1, innerEnd)
+          left: Math.max(0, start + 1 - 256)
+          right: Math.min(ctx.text.length, innerEnd + 256)
+          same: left === start + 1 - 256 && right === innerEnd + 256
+          checked: >-
+            REM_CHECKED.get(ctx) ?? REM_CHECKED.set(ctx, new Map<string, { at: number; found: RawFinding[] }>()).get(ctx)!
+          seen: "same ? checked.get(inner) : undefined"
+        when:
+          - range
+          - '(inner.match(/\p{L}/gu)?.length ?? 0) >= 3'
+        return: >-
+          seen ? remShifted(seen.found, start + 1 - seen.at)
+          : remQuotedFindings(ctx, start, innerEnd, inner, left, right, same, checked)
   - id: en.chromeTitle
     checks: [styleAlternativePhrasing]
     style: match
@@ -6250,7 +6725,8 @@ rules:
       # request.
       - regex: "(?<target>(?<chrome>chrome){{S}}(?<ext>extensions?)){{E}}"
         gate: "chrome[ \\t\\u00a0]+extension"
-        fixer: chromeTitle
+        return: >-
+          chrome === "Chrome" && ext === ext.toLowerCase() ? `Chrome E${ext.slice(1)}` : null
   - id: en.styleRewordings
     checks: [stylePhrasing]
     style: match
@@ -6260,12 +6736,19 @@ rules:
       # clause, "about", a pronoun or a time ("find out the next day").
       - regex: "(?<target>(?<verb>find|finds|finding){{S}}out){{S}}(?<next>\\p{L}+)(?:{{S}}(?<second>\\p{L}+))?"
         gate: "find(?:s|ing)?[ \\t\\u00a0]+out"
-        fixer: findOut
+        when:
+          - "!REM_NOT_FOUND_THING.test(next)"
+          - "REM_DETERMINERS.test(next) ? !!second && !REM_NOT_AFTER_DETERMINER.test(second) : remFindOutWord(next)"
+        return: verb
       # "After thinking a while, …": as an adverb right after its verb it is one word,
       # "awhile". "took a while", "spent a while", "be a while" keep the noun phrase.
       - regex: "(?<verb>\\p{L}{3,}){{S}}(?<target>a{{S}}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))"
         gate: "\\ba[ \\t\\u00a0]+while"
-        fixer: awhile
+        let:
+          verbs: englishWordInfo(verb)?.verbs ?? []
+        return: >-
+          verbs.some((v) => v.form === "ing" || v.form === "past") && !verbs.some((v) => REM_OBJECT_WHILE.has(v.lemma))
+            ? remShouted(m, "awhile") : null
       # The filler "I would argue that" (grammarStyle1) over a soft wrap.
       - regex: "(?<target>I{{S}}would{{S}}argue[ \\t]*\\n[ \\t]*that{{S}})(?=[A-Za-z])"
         gate: "argue[ \\t]*\\n"

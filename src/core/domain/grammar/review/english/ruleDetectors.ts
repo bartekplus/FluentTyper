@@ -1,6 +1,12 @@
 // The named Review detectors of grammar/rules/en.yaml; the rule file sets their checks,
 // languages and order.
-import { mergePredicates, type FindingsFilter, type Fixer } from "../../engine/reviewRules";
+import {
+  frameRuleDetector,
+  mergePredicates,
+  type FindingsFilter,
+  type Fixer,
+} from "../../engine/reviewRules";
+import { useRuleDetectors } from "../../library/english/views";
 import * as apostrophes from "./apostrophes";
 import * as properNames from "./properNames";
 import * as plainStyle from "./plainStyle";
@@ -32,7 +38,6 @@ import * as noNotSlots from "./noNotSlots";
 import * as clauseAgreementSlots from "./clauseAgreementSlots";
 import * as wordClassSlots from "./wordClassSlots";
 import * as dialects from "./dialects";
-import * as remaining from "./remaining";
 import * as usageTables from "./usageTables";
 import * as grammarStyle1 from "./grammarStyle1";
 import * as idioms2 from "./idioms2";
@@ -58,6 +63,9 @@ import * as clashFrames from "./clashFrames";
 
 export const PREDICATES = mergePredicates();
 
+// Group 5: rule code runs some frame rules of en.yaml in a view (library enRuleFindings).
+useRuleDetectors((id) => frameRuleDetector(id, { en: FIXERS }, { en: FILTERS }));
+
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
   idioms3.FIXERS,
@@ -80,7 +88,6 @@ export const FIXERS = mergePredicates<Fixer>(
   realWordFrames.FIXERS,
   typoSlots.FIXERS,
   verbSlots.FIXERS,
-  remaining.FIXERS,
   everydaySlots.FIXERS,
   wordFormSlots.FIXERS,
   verbGroupSlots.FIXERS,

@@ -86,3 +86,10 @@ export type {
   WordsAround as EnWordsAround,
 } from "./english/clauseWords";
 export { gluedAfter as enGluedAfter } from "../review/phraseTemplates";
+// Group 5: views, and the findings of a frame rule by its id (library/english/views.ts).
+export {
+  inView as enInView,
+  ruleFindings as enRuleFindings,
+  useRuleDetectors as enUseRuleDetectors,
+} from "./english/views";
+export type { ViewSwap as EnViewSwap } from "./english/views";

@@ -9014,14 +9014,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<modal>could|would|should|must|might)(?:n['’]t)?[ \\t\\u00a0]{1,8}(?<of>of))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["could", "would", "should", "must", "might"],
-    fixer: "en:modalOfAtEnd",
+    fixer: "en:@en.modalOfAtEnd/1",
     gate: "(?:ld|st|ht)(?:n['’]t)?[ \\t\\u00a0]+of\\b",
   }),
   frame({
     pattern:
       "beware[ \\t\\u00a0]{1,8}(?<target>in|on|at)[ \\t\\u00a0]{1,8}(?:the|that|this|these|those)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["beware"],
-    fixer: "en:bewareOf",
+    fixer: "en:@en.bewareOf/1",
     gate: "beware",
   }),
   frame({
@@ -9063,40 +9063,40 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "protested",
       "walked",
     ],
-    fixer: "en:enMasse",
+    fixer: "en:@en.rarePhraseFixes/1",
     gate: "\\b[io]n[ \\t\\u00a0]+mass\\b",
   }),
   frame({
     pattern: "(?<target>link)[ \\t\\u00a0]{1,8}lists(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["lists"],
-    fixer: "en:linkedLists",
+    fixer: "en:@en.rarePhraseFixes/2",
     gate: "link[ \\t\\u00a0]+lists",
   }),
   frame({
     pattern:
       "(?<target>parts?[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}speeches)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["speeches"],
-    fixer: "en:partsOfSpeech",
+    fixer: "en:@en.rarePhraseFixes/3",
     gate: "of[ \\t\\u00a0]+speeches",
   }),
   frame({
     pattern:
       "(?<target>scrap(?:s|ped|ping)?)[ \\t\\u00a0]{1,8}(?:(?:the|a|an|all|some|its|their|our|my|your|this|these|different|multiple|various|several|many|other)[ \\t\\u00a0]{1,8})?(?<site>(?:website|site|page|webpage)['’]s[ \\t\\u00a0]{1,8})?(?<object>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<from>[ \\t\\u00a0]{1,8}from(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?",
     literals: ["scrap"],
-    fixer: "en:scrapeWeb",
+    fixer: "en:@en.rarePhraseFixes/4",
     gate: "scrap",
   }),
   frame({
     pattern:
       "imitat(?:e|es|ed|ing)[ \\t\\u00a0]{1,8}(?:the|every|that|this|their|his|her|its|our|your|my)(?:[ \\t\\u00a0]{1,8}[a-z]+){1,3}[ \\t\\u00a0]{1,8}(?<target>from)[ \\t\\u00a0]{1,8}(?:the|their|his|her|its|our|your|my|\\p{L}{2,}['’]s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["imitat"],
-    fixer: "en:imitateOf",
+    fixer: "en:@en.imitateOf/1",
     gate: "imitat",
   }),
   frame({
     pattern: "[\"'“‘«„‚»‹”]",
     literals: [],
-    fixer: "en:quotedPhrase",
+    fixer: "en:@en.quotedPhrases/1",
     flags: "g",
     scan: "text",
     lookback: 1,
@@ -9106,7 +9106,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{P}",
     literals: [],
-    fixer: "en:afterExample",
+    fixer: "en:@en.afterExamples/1",
     flags: "gu",
     scan: "text",
     lookback: 1,
@@ -9116,7 +9116,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{L})[ \\t]*\\n[ \\t]*(?=\\p{Ll})",
     literals: [],
-    fixer: "en:wrappedPhrase",
+    fixer: "en:@en.wrappedPhrases/1",
     flags: "gu",
     scan: "owned",
     anyCheck: true,
@@ -9125,7 +9125,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])[A-Z]{2,}(?:[ \\t\\u00A0]+[A-Z]{2,})*(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-]))",
     literals: [],
-    fixer: "en:shoutedNames",
+    fixer: "en:@en.shoutedNames/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -9133,13 +9133,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<chrome>chrome)[ \\t\\u00a0]{1,8}(?<ext>extensions?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["extension"],
-    fixer: "en:chromeExtension",
+    fixer: "en:@en.chromeExtension/1",
     gate: "chrome[ \\t\\u00a0]+extension",
   }),
   frame({
     pattern: "(?<target>day[ \\t\\u00a0]{1,8}one)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["day"],
-    fixer: "en:dayOne",
+    fixer: "en:@en.productCasing/1",
     gate: "day[ \\t\\u00a0]+one",
   }),
   frame({
@@ -9155,7 +9155,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?<target>infront|bias|deref|derefs|dirs)(?=\\/\\p{L}+(?![\\p{L}\\p{N}_'’@/#\\\\.-]|\\.\\p{L}))",
     literals: ["infront", "bias", "deref", "derefs", "dirs"],
-    fixer: "en:slashedWord",
+    fixer: "en:@en.slashedWords/1",
     flags: "dgiu",
     scan: "owned",
     anyCheck: true,
@@ -9166,14 +9166,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?=(?:is|was)[ \\t\\u00a0]{1,8}that[ \\t\\u00a0]{1,8})(?<=(?:^|[.!?]["”’)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t]{0,8}))(?:is|was)[ \\t\\u00a0]{1,8}that[ \\t\\u00a0]{1,8}(?<target>there)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}+)(?=[ \\t\\u00a0]*\\?)',
     literals: ["there"],
-    fixer: "en:thatThere",
+    fixer: "en:@en.thatThereTheir/1",
     gate: "that[ \\t\\u00a0]+there",
   }),
   frame({
     pattern:
       "(?:saw|see|sees|seen|seeing|watched|noticed|spotted)[ \\t\\u00a0]{1,8}(?<target>their)[ \\t\\u00a0]{1,8}(?<ing>\\p{L}+ing)[ \\t\\u00a0]{1,8}(?:through|across|along|around|down|up|into|past|toward|towards|over|away|off)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["their"],
-    fixer: "en:sawTheir",
+    fixer: "en:@en.thatThereTheir/2",
     message: "review_msg_confused_word",
     gate: "their[ \\t\\u00a0]+\\p{L}+ing",
     gateFlags: "giu",
@@ -9181,35 +9181,35 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>a)[ \\t\\u00a0]{1,8}npm(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["npm"],
-    fixer: "en:anNpm",
+    fixer: "en:@en.anNpm/1",
     gate: "\\ba[ \\t\\u00a0]+npm",
   }),
   frame({
     pattern:
       "(?:is|are|was|were|be|been|being|got|gets|get)[ \\t\\u00a0]{1,8}(?<target>broke)[ \\t\\u00a0]{1,8}(?:again[ \\t\\u00a0]{1,8})?(?:under|on|in|since|after|with|from|for)[ \\t\\u00a0]{1,8}v?\\p{Nd}+(?:\\.\\p{Nd}+)+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["broke"],
-    fixer: "en:brokeInVersion",
+    fixer: "en:@en.brokeInVersion/1",
     gate: "broke[ \\t\\u00a0]",
   }),
   frame({
     pattern:
       "(?:this|that|the|our|their|his|her|its|my|your|each|every|any)[ \\t\\u00a0]{1,8}(?<subject>\\p{L}{3,})[ \\t\\u00a0]{1,8}(?<target>effects)[ \\t\\u00a0]{1,8}(?<object>\\p{L}+(?:[ \\t\\u00a0]{1,8}\\p{L}+){0,2})(?=[ \\t\\u00a0]*(?:[.!?;]|$))",
     literals: ["effects"],
-    fixer: "en:effectsObject",
+    fixer: "en:@en.effectsObject/1",
     gate: "effects[ \\t\\u00a0]",
   }),
   frame({
     pattern:
       "(?:agree|agrees|agreed|decide|decides|decided)[ \\t\\u00a0]{1,8}(?<target>\\p{L}+)[ \\t\\u00a0]{1,8}(?<next>at|on|in|with|by|for|from|before|after|early|later|soon|today|tonight|tomorrow|together|again|now|the|a|an|this|that|it|them|him|her|us|me|you|our|their|his|its|my|your)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["agree", "agrees", "agreed", "decide", "decides", "decided"],
-    fixer: "en:agreedVerb",
+    fixer: "en:@en.agreedVerb/1",
     gate: "(?:agree|decide)[sd]?[ \\t\\u00a0]",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}])[Ww]eb(?<target>Scrap(?:p(?:ers?|ing|ed))|Scraps(?=[ \\t\\u00A0]+(?:the|a|an|data|pages|sites|websites)\\b))(?![\\p{L}\\p{N}])",
     literals: ["scrap", "scraps"],
-    fixer: "en:webScrape",
+    fixer: "en:@en.webScrape/1",
     flags: "dgu",
     gate: "[Ww]ebScrap",
     gateFlags: "g",
@@ -9217,7 +9217,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{L})(?<target>[ \\t\\u00A0]+\\(s\\)|\\(ss\\))(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "en:pluralMark",
+    fixer: "en:@en.pluralMark/1",
     flags: "dgu",
     gate: "\\((?:s|ss)\\)",
     gateFlags: "g",
@@ -9225,7 +9225,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{Ll}[,]?[ \\t])(?<target>\\/)(?=\\p{Ll}{3,}[ \\t]+\\p{Ll})",
     literals: [],
-    fixer: "en:slashPrefixed",
+    fixer: "en:@en.slashPrefixed/1",
     flags: "gu",
     scan: "owned",
     gate: "\\s\\/\\p{Ll}",
@@ -9235,7 +9235,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=^|[\\s([])(?<target>(?<digits>\\p{Nd}{1,9})(?<suffix>st|rd))(?![\\p{L}\\p{N}_/@#\\\\-])",
     literals: [],
-    fixer: "en:oddOrdinal",
+    fixer: "en:@en.possibleErrors/1",
     flags: "gu",
     scan: "owned",
     gate: "\\p{Nd}(?:st|rd)",
@@ -9245,35 +9245,35 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>their)[ \\t\\u00a0]{1,8}(?:two|three|four|five|six|seven|eight|nine|ten|no|several|many|\\p{Nd}+|a[ \\t\\u00a0]{1,8}few)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}+)[ \\t\\u00a0]{1,8}left(?=[ \\t\\u00a0]*(?:[.!?]|$))",
     literals: ["their"],
-    fixer: "en:theirLeft",
+    fixer: "en:@en.possibleErrors/2",
     gate: "their[ \\t\\u00a0]",
   }),
   frame({
     pattern:
       "(?<target>(?<det>the|this|that|our|my|your|their|his|her)[ \\t\\u00a0]{1,8}(?<noun>\\p{L}+)[ \\t\\u00a0]{1,8}it[ \\t\\u00a0]{1,8}(?<be>is|was))[ \\t\\u00a0]{1,8}(?<adj>\\p{L}+)(?=[ \\t\\u00a0]*(?:[.!?]|$))",
     literals: [],
-    fixer: "en:subjectIt",
+    fixer: "en:@en.possibleErrors/3",
     gate: "\\bit[ \\t\\u00a0]+(?:is|was)\\b",
   }),
   frame({
     pattern:
       "(?<target>(?<subject>\\p{L}+)[ \\t\\u00a0]{1,8}(?<modal>can|could|may|might|will|would|should|must|does|did)[ \\t\\u00a0]{1,8}cause[ \\t\\u00a0]{1,8}it[ \\t\\u00a0]{1,8}(?<be>is|was))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["cause"],
-    fixer: "en:causeItIsPossible",
+    fixer: "en:@en.possibleErrors/4",
     gate: "cause[ \\t\\u00a0]+it",
   }),
   frame({
     pattern:
       "(?:the|a|an|this|that|my|our|their|his|her)[ \\t\\u00a0]{1,8}\\p{L}+[ \\t\\u00a0]{1,8}(?<verb>\\p{L}+)[ \\t\\u00a0]{1,8}(?<obj>\\p{L}+)[ \\t\\u00a0]{1,8}(?:(?:in|on|at|under|near|into|onto|behind|beside)[ \\t\\u00a0]{1,8}(?<place>\\p{L}+)|(?<adverb>\\p{L}+ly|outside|inside|nearby|indoors|outdoors))(?=[ \\t\\u00a0]*[.!?])",
     literals: [],
-    fixer: "en:bareObjects",
+    fixer: "en:@en.possibleErrors/5",
     owner: "obj",
   }),
   frame({
     pattern:
       "(?<target>(?<subject>I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?<have>have|has)[ \\t\\u00a0]{1,8}(?<ing>\\p{L}+ing))(?=[ \\t\\u00a0]{1,8}(?:today|now|tonight|tomorrow|again)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<end>[ \\t\\u00a0]*(?:[.!?]|$)))",
     literals: ["have", "has"],
-    fixer: "en:haveIng",
+    fixer: "en:@en.possibleErrors/6",
     gate: "\\bha(?:ve|s)[ \\t\\u00a0]+\\p{L}+ing\\b",
     gateFlags: "giu",
   }),
@@ -9281,13 +9281,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "\\p{L}+n['’]t[ \\t\\u00a0]{1,8}(?<target>quiet)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["quiet"],
-    fixer: "en:notQuiet",
+    fixer: "en:@en.possibleErrors/7",
   }),
   frame({
     pattern:
       "(?<target>more[ \\t\\u00a0]{1,8}good)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["more"],
-    fixer: "en:moreGood",
+    fixer: "en:@en.possibleErrors/8",
   }),
   frame({
     pattern:
@@ -9303,54 +9303,54 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "sometimes",
       "mostly",
     ],
-    fixer: "en:sortAfter",
+    fixer: "en:@en.possibleErrors/9",
   }),
   frame({
     pattern:
       "(?<target>scrap(?:s|ped|ping)?)[ \\t\\u00a0]{1,8}(?:web[ \\t\\u00a0]{1,8})?(?:pages?|webpages?|websites?|sites?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["scrap"],
-    fixer: "en:scrapPages",
+    fixer: "en:@en.possibleErrors/10",
   }),
   frame({
     pattern:
       "(?<!(?:a|an|the|this|that|any|no|big|huge|steep|deep|small|price|\\p{Nd}+%?)[ \\t\\u00a0]{1,8})(?<target>markdown)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:of|on|in|to|from|price|prices)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["markdown"],
-    fixer: "en:markdownName",
+    fixer: "en:@en.possibleErrors/11",
   }),
   frame({
     pattern:
       "(?:want|wants|wanted|need|needs|needed)[ \\t\\u00a0]{1,8}(?<target>\\p{L}+)[ \\t\\u00a0]{1,8}(?:early|later|soon|now|today|tonight|tomorrow|first|quickly|again|together|immediately)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["want", "wants", "wanted", "need", "needs", "needed"],
-    fixer: "en:wantsVerb",
+    fixer: "en:@en.possibleErrors/12",
   }),
   frame({
     pattern:
       "(?:because|since|although|though|while|if|when|and|but|so)[ \\t\\u00a0]{1,8}(?<target>affect)[ \\t\\u00a0]{1,8}(?:is|was|has|will|can|may|might|seems)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["affect"],
-    fixer: "en:affectNoun",
+    fixer: "en:@en.possibleErrors/13",
   }),
   frame({
     pattern:
       "(?:help|helps|helped|helping|let|lets|make|makes)[ \\t\\u00a0]{1,8}(?:you|me|us|them|him|her|people|users)[ \\t\\u00a0]{1,8}(?<target>weight)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["weight"],
-    fixer: "en:weightVerb",
+    fixer: "en:@en.possibleErrors/14",
   }),
   frame({
     pattern:
       "(?<target>you[ \\t\\u00a0]{1,8}(?<word>\\p{L}+s))(?=[ \\t\\u00a0]*(?:[.!?]|$)|[ \\t\\u00a0]{1,8}(?:are|were|look|seem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["you"],
-    fixer: "en:youPlural",
+    fixer: "en:@en.possibleErrors/15",
   }),
   frame({
     pattern: "(?<target>the[ \\t\\u00a0]{1,8})(?<name>\\p{L}+)['’]s[ \\t\\u00a0]{1,8}\\p{L}",
     literals: ["the"],
-    fixer: "en:theName",
+    fixer: "en:@en.possibleErrors/16",
   }),
   frame({
     pattern:
       "(?<target>(?<![\\p{L}\\p{N}_'\\u2019@/#\\\\.-])\\p{L}*\\p{Ll}\\p{Lu}\\p{L}*(?![\\p{L}\\p{N}_'\\u2019@/#\\\\-]))",
     literals: [],
-    fixer: "en:mixedCase",
+    fixer: "en:@en.possibleErrors/17",
     flags: "gu",
     scan: "owned",
     gate: "\\p{Ll}\\p{Lu}",
@@ -9359,7 +9359,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "[\"'“‘«„‚»‹”]",
     literals: [],
-    fixer: "en:quotedMention",
+    fixer: "en:@en.quotedMentions/1",
     flags: "g",
     scan: "text",
     lang: "en",
@@ -9368,21 +9368,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<chrome>chrome)[ \\t\\u00a0]{1,8}(?<ext>extensions?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["extension"],
-    fixer: "en:chromeTitle",
+    fixer: "en:@en.chromeTitle/1",
     gate: "chrome[ \\t\\u00a0]+extension",
   }),
   frame({
     pattern:
       "(?<target>(?<verb>find|finds|finding)[ \\t\\u00a0]{1,8}out)[ \\t\\u00a0]{1,8}(?<next>\\p{L}+)(?:[ \\t\\u00a0]{1,8}(?<second>\\p{L}+))?",
     literals: ["find", "finds", "finding"],
-    fixer: "en:findOut",
+    fixer: "en:@en.styleRewordings/1",
     gate: "find(?:s|ing)?[ \\t\\u00a0]+out",
   }),
   frame({
     pattern:
       "(?<verb>\\p{L}{3,})[ \\t\\u00a0]{1,8}(?<target>a[ \\t\\u00a0]{1,8}while)(?=[ \\t\\u00a0]*(?:[.,;!?]|$))",
     literals: ["while"],
-    fixer: "en:awhile",
+    fixer: "en:@en.styleRewordings/2",
     gate: "\\ba[ \\t\\u00a0]+while",
   }),
   frame({
