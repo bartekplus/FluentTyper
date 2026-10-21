@@ -63,6 +63,7 @@ import {
   pluralNoun,
   previousTokensStart,
   previousWord,
+  quoteMarkEdits,
   quotedSpan,
   recentPast,
   resumeScan,
@@ -5354,6 +5355,21 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // common.yaml rule phraseTables frame 1
   "@phraseTables/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return canonicalCasingAt(m, ctx);
+  },
+  // common.yaml rule typographicQuotes frame 1
+  "@typographicQuotes/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const pairs = !(ctx.lang.slice(0, 2) === "es" && (ctx.rules?.has("spanishQuotes") ?? true));
+    return quoteMarkEdits(ctx, m, pairs)
+      .filter(([at]) => at >= ctx.from && at < ctx.to)
+      .map(([at, replacement, context]) =>
+        finding(frame.ruleId, frame.messageKey, at, at + 1, [replacement], {
+          context: { start: context[0], end: context[1] + 1 },
+        }),
+      );
   },
   // common.yaml rule possessives frame 1
   "@possessives/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {

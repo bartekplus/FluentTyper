@@ -774,7 +774,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [450, 451],
     message: "review_msg_doubled_degree",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.moreMostDegree/filter",
     source: "en",
   },
   {
@@ -784,7 +784,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [452, 453, 454],
     message: "review_msg_auxiliary_base",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.didModalOf/filter",
     source: "en",
   },
   {
@@ -799,7 +799,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [455, 456, 457, 458, 459, 460],
     message: "review_msg_phrase_correction",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.splitWordsThingsIs/filter",
     source: "en",
   },
   {
@@ -809,7 +809,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [461, 462, 463, 464],
     message: "review_msg_sentence_structure",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.doubledBeDeterminers/filter",
     source: "en",
   },
   {
@@ -819,7 +819,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [465, 466, 467, 468],
     message: "review_msg_mass_noun",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.greekAndMassNouns/filter",
     source: "en",
   },
   {
@@ -829,7 +829,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [469, 470, 471, 472, 473],
     message: "review_msg_noun_count",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.numberNounForms/filter",
     source: "en",
   },
   {
@@ -839,7 +839,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [474],
     message: "review_msg_space_after_mark",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.missingSentenceSpace/filter",
     source: "en",
   },
   {
@@ -858,7 +858,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [476, 477, 478, 479, 480, 481, 482, 483],
     message: "review_msg_style_phrasing",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.optionalStyle/filter",
     source: "en",
   },
   {
@@ -868,7 +868,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [484],
     message: "review_msg_avoid_contractions",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.contractionStyle/filter",
     source: "en",
   },
   {
@@ -878,7 +878,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [485],
     message: "review_msg_oxford_comma",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.serialCommas/filter",
     source: "en",
   },
   {
@@ -996,7 +996,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [518],
     message: "review_msg_american_spelling",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.iseForms/filter",
     source: "en",
   },
   {
@@ -1024,7 +1024,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [521],
     message: "review_msg_irregular_form",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.irregularWordForms/filter",
     source: "en",
   },
   {
@@ -1034,7 +1034,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [522],
     message: "review_msg_noun_possessive",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.possessiveNouns/filter",
     source: "en",
   },
   {
@@ -1044,7 +1044,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [523],
     message: "review_msg_your_possessive",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.youNounOf/filter",
     source: "en",
   },
   {
@@ -1054,7 +1054,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [524],
     message: "review_msg_modal_of",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.modalOfAtEnd/filter",
     source: "en",
   },
   {
@@ -1064,7 +1064,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [525],
     message: "review_msg_fixed_prepositions",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.bewareOf/filter",
     source: "en",
   },
   {
@@ -1074,7 +1074,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [526, 527, 528, 529],
     message: "review_msg_phrase_correction",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.rarePhraseFixes/filter",
     source: "en",
   },
   {
@@ -1084,7 +1084,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [530],
     message: "review_msg_style_phrasing",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.imitateOf/filter",
     source: "en",
   },
   {
@@ -1337,7 +1337,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [594, 595, 596, 597],
     message: "review_msg_its_contraction",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.possessiveContractions/filter",
     source: "en",
   },
   {
@@ -1347,7 +1347,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [598, 599, 600, 601, 602, 603, 604, 605, 606, 607],
     message: "review_msg_to_too",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.toForToo/filter",
     source: "en",
   },
   {
@@ -1357,7 +1357,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [608],
     message: "review_msg_existential_agreement",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.existentialCount/filter",
     source: "en",
   },
   {
@@ -1367,7 +1367,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [609, 610, 611, 612, 613, 614, 615, 616, 617, 618, 619],
     message: "review_msg_noun_count",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.nounNumberSlots/filter",
     source: "en",
   },
   {
@@ -1377,7 +1377,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [620, 621, 622, 623],
     message: "review_msg_perfect_participle",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.verbGroups/filter",
     source: "en",
   },
   {
@@ -1387,7 +1387,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [624, 625],
     message: "review_msg_perfect_participle",
     style: "match",
-    filter: "en:usSlotsOnePerRange",
+    filter: "en:@en.verbGroupsPerfectBase/filter",
     source: "en",
   },
   {
@@ -1397,7 +1397,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [626, 627, 628, 629, 630, 631, 632, 633, 634],
     message: "review_msg_be_participle",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.verbGroupsBareVerbs/filter",
     source: "en",
   },
   {
@@ -1407,7 +1407,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [635, 636, 637, 638, 639, 640, 641],
     message: "review_msg_verb_complements",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.verbComplementSlots/filter",
     source: "en",
   },
   {
@@ -1417,7 +1417,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [642, 643, 644, 645, 646, 647, 648],
     message: "review_msg_clause_be",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.missingVerbs/filter",
     source: "en",
   },
   {
@@ -1427,7 +1427,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [649, 650],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.determinerConfusions/filter",
     source: "en",
   },
   {
@@ -1437,7 +1437,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [651],
     message: "review_msg_pronoun_verb",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.thirdPersonBase/filter",
     source: "en",
   },
   {
@@ -1447,7 +1447,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [652, 653],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.subjectAgreement/filter",
     source: "en",
   },
   {
@@ -1457,7 +1457,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [654],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.subjectAgreementIrregular/filter",
     source: "en",
   },
   {
@@ -1467,7 +1467,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [655, 656],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.subjectAgreementDemonstratives/filter",
     source: "en",
   },
   {
@@ -1477,7 +1477,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [657, 658, 659],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.subjectAgreementInverted/filter",
     source: "en",
   },
   {
@@ -1487,7 +1487,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [660, 661],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.subjectAgreementRelative/filter",
     source: "en",
   },
   {
@@ -1497,7 +1497,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [662],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.subjectAgreementName/filter",
     source: "en",
   },
   {
@@ -1507,7 +1507,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [663, 664, 665, 666],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.subjectAgreementQuantified/filter",
     source: "en",
   },
   {
@@ -1517,7 +1517,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [667],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.subjectAgreementDistant/filter",
     source: "en",
   },
   {
@@ -1527,7 +1527,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [668, 669],
     message: "review_msg_adverb_form",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.adjectiveForAdverb/filter",
     source: "en",
   },
   {
@@ -1537,7 +1537,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [670, 671, 672, 673, 674, 675],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.confusionPairs/filter",
     source: "en",
   },
   {
@@ -1547,7 +1547,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [676],
     message: "review_msg_then_than",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.thenAfterComparative/filter",
     source: "en",
   },
   {
@@ -1557,7 +1557,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [677, 678, 679, 680],
     message: "review_msg_were_where",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.wereWhere/filter",
     source: "en",
   },
   {
@@ -1567,7 +1567,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [681, 682, 683],
     message: "review_msg_countability",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.countNouns/filter",
     source: "en",
   },
   {
@@ -1577,7 +1577,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [684, 685],
     message: "review_msg_double_negative",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.doubleNegatives/filter",
     source: "en",
   },
   {
@@ -1587,7 +1587,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [686, 687, 688, 689, 690],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.relativeAgreement/filter",
     source: "en",
   },
   {
@@ -1597,7 +1597,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [691, 692],
     message: "review_msg_pronoun_verb",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.pronounForms/filter",
     source: "en",
   },
   {
@@ -1607,7 +1607,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [693],
     message: "review_msg_auxiliary_base",
     style: "match",
-    filter: "en:slotFindingsNoOverlap",
+    filter: "en:@en.questionAuxiliaries/filter",
     source: "en",
   },
   {
@@ -1617,7 +1617,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [694],
     message: "review_msg_question_auxiliary",
     style: "match",
-    filter: "en:slotFindingsNoOverlap",
+    filter: "en:@en.questionAuxiliaries.doModal/filter",
     source: "en",
   },
   {
@@ -1627,7 +1627,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [695],
     message: "review_msg_question_auxiliary",
     style: "match",
-    filter: "en:slotFindingsNoOverlap",
+    filter: "en:@en.questionAuxiliaries.didPerfect/filter",
     source: "en",
   },
   {
@@ -1637,7 +1637,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [696, 697],
     message: "review_msg_repeated_auxiliary",
     style: "match",
-    filter: "en:slotFindingsNoOverlap",
+    filter: "en:@en.questionAuxiliaries.repeated/filter",
     source: "en",
   },
   {
@@ -1647,7 +1647,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [698],
     message: "review_msg_causative_base",
     style: "match",
-    filter: "en:slotFindings",
+    filter: "en:@en.causativeThird/filter",
     source: "en",
   },
   {
@@ -1657,7 +1657,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [699],
     message: "review_msg_superlative_the",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.superlativeArticle/filter",
     source: "en",
   },
   {
@@ -1667,7 +1667,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [700],
     message: "review_msg_doubled_degree",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.lessComparative/filter",
     source: "en",
   },
   {
@@ -1677,7 +1677,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [701],
     message: "review_msg_then_than",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.comparisonThen/filter",
     source: "en",
   },
   {
@@ -1689,7 +1689,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     ],
     message: "review_msg_fixed_prepositions",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.collocations/filter",
     source: "en",
   },
   {
@@ -1699,7 +1699,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [721, 722, 723, 724, 725, 726, 727, 728],
     message: "review_msg_tense_time_word",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.tenseTimeWords/filter",
     source: "en",
   },
   {
@@ -1709,7 +1709,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [729, 730, 731],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:slotFindingsOncePerStart",
+    filter: "en:@en.noForNot/filter",
     source: "en",
   },
   {
@@ -1719,7 +1719,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [732],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlotsOnePerStart",
+    filter: "en:@en.clauseAgreement/filter",
     source: "en",
   },
   {
@@ -1729,7 +1729,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [733, 734, 735, 736],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.clauseAgreementAsides/filter",
     source: "en",
   },
   {
@@ -1739,7 +1739,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [737, 738],
     message: "review_msg_sentence_fragment",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.sentenceFragments/filter",
     source: "en",
   },
   {
@@ -1749,7 +1749,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [739],
     message: "review_msg_fixed_prepositions",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.forwardPreposition/filter",
     source: "en",
   },
   {
@@ -1759,7 +1759,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [740, 741],
     message: "review_msg_sentence_structure",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.bareBitArticles/filter",
     source: "en",
   },
   {
@@ -1769,7 +1769,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [742],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.itForIs/filter",
     source: "en",
   },
   {
@@ -1779,7 +1779,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [743],
     message: "review_msg_existential_agreement",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.existentialSingular/filter",
     source: "en",
   },
   {
@@ -1789,7 +1789,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [744, 745],
     message: "review_msg_auxiliary_base",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.modalQuestionForms/filter",
     source: "en",
   },
   {
@@ -1799,7 +1799,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [746],
     message: "review_msg_since_perfect",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.sinceWithSimpleTense/filter",
     source: "en",
   },
   {
@@ -1809,7 +1809,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [747],
     message: "review_msg_its_possessive",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.itBeforeNoun/filter",
     source: "en",
   },
   {
@@ -1819,7 +1819,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [748, 749, 750, 751, 752, 753, 754, 755, 756, 757],
     message: "review_msg_plural_apostrophe",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.apostrophes/filter",
     source: "en",
   },
   {
@@ -1829,7 +1829,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [758, 759],
     message: "review_msg_canonical_casing",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.productNames/filter",
     source: "en",
   },
   {
@@ -1839,7 +1839,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [760, 761, 762, 763],
     message: "review_msg_nationality_capital",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.properNouns/filter",
     source: "en",
   },
   {
@@ -1849,7 +1849,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [764, 765, 766, 767, 768, 769, 770, 771, 772, 773, 774, 775, 776],
     message: "review_msg_english_decimal",
     style: "match",
-    filter: "en:outsideExamples",
+    filter: "en:@en.notation/filter",
     source: "en",
   },
   {
@@ -1895,7 +1895,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [799, 800, 801, 802, 803, 804, 805],
     message: "review_msg_style_phrasing",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.plainStyle/filter",
     source: "en",
   },
   {
@@ -1905,7 +1905,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [806],
     message: "review_msg_passive_voice",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.passiveVoice/filter",
     source: "en",
   },
   {
@@ -1915,7 +1915,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [807, 808, 809, 810, 811, 812, 813],
     message: "review_msg_stray_comma",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.punctuation/filter",
     source: "en",
   },
   {
@@ -1925,7 +1925,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [814, 815, 816, 817, 818, 819],
     message: "review_msg_introductory_comma",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.introductoryCommas/filter",
     source: "en",
   },
   {
@@ -1935,7 +1935,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [820, 821, 822, 823],
     message: "review_msg_clause_comma",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.clauseCommas/filter",
     source: "en",
   },
   {
@@ -1945,7 +1945,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [824, 825],
     message: "review_msg_geographic_the",
     style: "match",
-    filter: "en:usOutsideExamples",
+    filter: "en:@en.geographicThe/filter",
     source: "en",
   },
   {
@@ -1955,7 +1955,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [826, 827, 828, 829],
     message: "review_msg_missing_article",
     style: "slot",
-    filter: "en:missingArticle",
+    filter: "en:@en.missingArticle/filter",
     source: "en",
   },
   {
@@ -1998,7 +1998,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [971, 972],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.clauseConfusions/filter",
     source: "en",
   },
   {
@@ -2008,7 +2008,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [973, 974],
     message: "review_msg_to_base",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.clauseAuxiliaries/filter",
     source: "en",
   },
   {
@@ -2018,7 +2018,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [975],
     message: "review_msg_fixed_prepositions",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.accordingTo/filter",
     source: "en",
   },
   {
@@ -2028,7 +2028,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [976],
     message: "review_msg_their_possessive",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.thereTheir/filter",
     source: "en",
   },
   {
@@ -2038,7 +2038,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [977],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.linkingSingular/filter",
     source: "en",
   },
   {
@@ -2048,7 +2048,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [978],
     message: "review_msg_noun_count",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.allSingular/filter",
     source: "en",
   },
   {
@@ -2058,7 +2058,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [979],
     message: "review_msg_clause_be",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.noAdjective/filter",
     source: "en",
   },
   {
@@ -2068,7 +2068,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [980, 981, 982],
     message: "review_msg_gerund_complement",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.verbFrames/filter",
     source: "en",
   },
   {
@@ -2078,7 +2078,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [983],
     message: "review_msg_existential_agreement",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.wasThereMany/filter",
     source: "en",
   },
   {
@@ -2088,7 +2088,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [984, 985, 986, 987, 988, 989, 990],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.everydayConfusions/filter",
     source: "en",
   },
   {
@@ -2098,7 +2098,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [991],
     message: "review_msg_irregular_form",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.gotItDone/filter",
     source: "en",
   },
   {
@@ -2108,7 +2108,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [992, 993],
     message: "review_msg_phrase_correction",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.everydayPhrases/filter",
     source: "en",
   },
   {
@@ -2118,7 +2118,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [994, 995, 996],
     message: "review_msg_compounds",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.splitCompounds/filter",
     source: "en",
   },
   {
@@ -2128,7 +2128,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [997],
     message: "review_msg_noun_count",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.moreSingular/filter",
     source: "en",
   },
   {
@@ -2138,7 +2138,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [998, 999],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.doSingular/filter",
     source: "en",
   },
   {
@@ -2148,7 +2148,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1000],
     message: "review_msg_subject_verb",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.haveName/filter",
     source: "en",
   },
   {
@@ -2158,7 +2158,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1001, 1002],
     message: "review_msg_your_you_are",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.youAre/filter",
     source: "en",
   },
   {
@@ -2168,7 +2168,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1003, 1004],
     message: "review_msg_noun_count",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.pluralSlots/filter",
     source: "en",
   },
   {
@@ -2178,7 +2178,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1005, 1006, 1007, 1008, 1009, 1010],
     message: "review_msg_confused_word",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.confusedSlots/filter",
     source: "en",
   },
   {
@@ -2188,7 +2188,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1011, 1012],
     message: "review_msg_compounds",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.compoundSlots/filter",
     source: "en",
   },
   {
@@ -2198,7 +2198,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1013, 1014],
     message: "review_msg_noun_possessive",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.possessiveSlots/filter",
     source: "en",
   },
   {
@@ -2208,7 +2208,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1015],
     message: "review_msg_to_too",
     style: "match",
-    filter: "en:usSlots",
+    filter: "en:@en.tooAll/filter",
     source: "en",
   },
   {
@@ -4138,7 +4138,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "[^\\n]+\\n?|\\n",
     literals: [],
-    fixer: "common:quoteLine",
+    fixer: "common:@typographicQuotes/1",
     flags: "g",
     scan: "text",
   }),
@@ -8314,14 +8314,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<marker>more|most)[ \\t\\u00a0]{1,8}(?<adj>[A-Za-z]+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["more", "most"],
-    fixer: "en:doubledMoreMost",
+    fixer: "en:@en.moreMostDegree/1",
     gate: "mo(?:re|st)\\b",
   }),
   frame({
     pattern:
       "(?<target>more[ \\t\\u00a0]{1,8}(?<adj>[A-Za-z]+))(?=[ \\t\\u00a0]{1,8}than(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["more"],
-    fixer: "en:moreBase",
+    fixer: "en:@en.moreMostDegree/2",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
     gate: "mo(?:re|st)\\b",
@@ -8330,7 +8330,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "did(?<negated>n['’]?t|[ \\t\\u00a0]{1,8}not)?(?:[ \\t\\u00a0]{1,8}(?:I|you|he|she|it|we|they))?(?:[ \\t\\u00a0]{1,8}(?:really|just|ever|even|actually|also))?[ \\t\\u00a0]{1,8}(?<target>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["did"],
-    fixer: "en:didBase",
+    fixer: "en:@en.didModalOf/1",
     owner: "none",
     gate: "did|helped",
   }),
@@ -8338,7 +8338,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "helped[ \\t\\u00a0]{1,8}(?<target>[A-Za-z]+)[ \\t\\u00a0]{1,8}(?:this|that|it|them|us|me|him|her|the|a|an|my|our|your|their|his|its)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["helped"],
-    fixer: "en:helpedBase",
+    fixer: "en:@en.didModalOf/2",
     owner: "none",
     gate: "did|helped",
   }),
@@ -8346,7 +8346,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "may[ \\t\\u00a0]{1,8}(?<target>of)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["may"],
-    fixer: "en:mayOf",
+    fixer: "en:@en.didModalOf/3",
     message: "review_msg_modal_of",
     check: "englishModalOfCorrection",
     gate: "may[ \\t\\u00a0]+of\\b",
@@ -8355,7 +8355,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<pronoun>you|we|they)[ \\t\\u00a0]{1,8}r)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![.'’])",
     literals: [],
-    fixer: "en:youR",
+    fixer: "en:@en.splitWordsThingsIs/1",
     check: "englishPhraseCorrections",
     gate: "[ \\t\\u00a0]r\\b",
   }),
@@ -8363,7 +8363,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>john)(?=[ \\t\\u00a0\\n]{1,8}hopkins(?<institution>-|[ \\t\\u00a0]{1,8}(?:university|hospital|medicine|medical|school)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?(?![\\p{L}]))",
     literals: ["john"],
-    fixer: "en:johnsHopkins",
+    fixer: "en:@en.splitWordsThingsIs/2",
     check: "englishPhraseCorrections",
     gate: "john",
   }),
@@ -8371,7 +8371,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<word>that|it|there|what|here|who|he|she|where|let)[ \\t\\u00a0]{1,8}s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![.'’])",
     literals: [],
-    fixer: "en:thatS",
+    fixer: "en:@en.splitWordsThingsIs/3",
     message: "review_msg_contraction",
     check: "englishContractionNormalization",
     gate: "[ \\t\\u00a0]s\\b",
@@ -8379,7 +8379,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "[ \\t\\u00a0][b-hj-z](?![\\p{L}\\p{N}_'\\u2019@/#\\\\-])",
     literals: [],
-    fixer: "en:splitLetter",
+    fixer: "en:@en.splitWordsThingsIs/4",
     flags: "dgu",
     owner: "none",
   }),
@@ -8387,7 +8387,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>no[ \\t\\u00a0]{1,8}body)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["body"],
-    fixer: "en:noBody",
+    fixer: "en:@en.splitWordsThingsIs/5",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     gate: "no[ \\t\\u00a0]+body",
@@ -8396,7 +8396,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<head>some|any|every|no)(?<things>things))(?=[ \\t\\u00a0]{1,8}(?:(?:really|just|still|always|not)[ \\t\\u00a0]{1,8})?[A-Za-z]+ing(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["things"],
-    fixer: "en:thingsIs",
+    fixer: "en:@en.splitWordsThingsIs/6",
     message: "review_msg_contraction",
     check: "englishContractionNormalization",
     gate: "things",
@@ -8405,21 +8405,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:is|are|was|were|am|be)|(?<=\\p{L})['’](?:s|re|m))(?:[ \\t\\u00a0]{1,8}(?<adverb>never|always|also|still|really|probably|definitely|certainly|already)(?=[ \\t\\u00a0]{1,8}be(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))?(?<target>[ \\t\\u00a0]{1,8}(?<second>(?:is|are|was|were|am|be)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:doubleBe",
+    fixer: "en:@en.doubledBeDeterminers/1",
     flags: "dgiu",
     gate: "\\b(?:is|are|was|were|am|be|['’](?:s|re|m))(?:[ \\t\\u00a0]+(?:never|always|also|still|really|probably|definitely|certainly|already))?[ \\t\\u00a0]+(?:is|are|was|were|am|be)\\b",
   }),
   frame({
     pattern: "(?<target>the[ \\t\\u00a0]{1,8}some)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["some"],
-    fixer: "en:theSome",
+    fixer: "en:@en.doubledBeDeterminers/2",
     gate: "the[ \\t\\u00a0]+some\\b",
   }),
   frame({
     pattern:
       "(?<target>the[ \\t\\u00a0]{1,8}(?:and|or|but|because|nor))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?=an?[ \\t\\u00a0]{1,8})(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}))(?<article>An?[ \\t\\u00a0]{1,8}(?:because|although|unless))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the", "because", "although", "unless"],
-    fixer: "en:danglingDeterminer",
+    fixer: "en:@en.doubledBeDeterminers/3",
     owner: "none",
     gate: "\\b(?:the|an?)[ \\t\\u00a0]+(?:and|or|but|because|nor|although|unless)\\b",
   }),
@@ -8427,7 +8427,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?<det>the|an?)[ \\t\\u00a0]{1,8}(?:(?<word>[a-z]+)(?=[ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<be>is|was|were|be|has)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![–—])))",
     literals: [],
-    fixer: "en:nounlessDeterminer",
+    fixer: "en:@en.doubledBeDeterminers/4",
     owner: "none",
     gate: "\\b(?:the|an?)[ \\t\\u00a0]+(?:[a-z]+[ \\t\\u00a0]+of|is|was|were|be|been|am|has)\\b",
   }),
@@ -8435,7 +8435,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/#\\\\-])(?:criterion|phenomenon|criteria|phenomena)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["criterion", "phenomenon", "criteria", "phenomena"],
-    fixer: "en:greekPlural",
+    fixer: "en:@en.greekAndMassNouns/1",
     flags: "dgiu",
     owner: "none",
     gate: "criteri|phenomen",
@@ -8461,7 +8461,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "clothing",
       "punctuation",
     ],
-    fixer: "en:massNoun",
+    fixer: "en:@en.greekAndMassNouns/2",
     flags: "dgiu",
     owner: "none",
     gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower",
@@ -8478,21 +8478,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hardwares",
       "horsepowers",
     ],
-    fixer: "en:massPlural",
+    fixer: "en:@en.greekAndMassNouns/3",
     gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower",
   }),
   frame({
     pattern:
       "(?<target>(?<noun>advices|informations|equipments))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["advices", "informations", "equipments"],
-    fixer: "en:judgedPlural",
+    fixer: "en:@en.greekAndMassNouns/4",
     gate: "advice|information|info|furniture|luggage|baggage|equipment|evidence|feedback|software|firmware|hardware|malware|ransomware|clothing|punctuation|horsepower",
   }),
   frame({
     pattern:
       "one[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:the|my|your|his|her|our|their|these|those)(?<words>(?:[ \\t\\u00a0]{1,8}(?!(?:of|and|or|that|which|who)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[A-Za-z][A-Za-z-]*){1,7})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["one"],
-    fixer: "en:oneOfPlural",
+    fixer: "en:@en.numberNounForms/1",
     owner: "none",
     gate: "one[ \\t\\u00a0]+of\\b",
   }),
@@ -8500,7 +8500,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@#.\\\\-])(?:(?<age>(?:my|his|her|their|our|your)[ \\t\\u00a0]{1,8}(?:(?:early|mid|late)[ \\t\\u00a0-]{1,8})?)(?<two>[1-9]0)|(?<when>(?:early|mid|late)[ \\t\\u00a0-]{1,8})(?<span>1[0-9]{2}0|20[0-9]0|[1-9]0)|(?<decade>1[0-9]{2}0|20[0-9]0|[1-9]0)(?=['’]s(?:[ \\t\\u00a0]{1,8}|-)(?:style|styled|era|music|fashion|vibes?|aesthetic|rock|pop|kids|look|design|tech|technology|cartoons|movies|films|songs|hits|culture|nostalgia|retro|sound)(?![\\p{L}])))(?<mark>['’])s(?![\\p{L}\\p{N}_'’@#\\\\])",
     literals: [],
-    fixer: "en:decade",
+    fixer: "en:@en.numberNounForms/2",
     flags: "dgiu",
     owner: "none",
     gate: "[0-9]['’]s",
@@ -8510,21 +8510,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>each)[ \\t\\u00a0]{1,8}(?:[2-9]|[1-9][0-9]+|two|three|four|five|six|seven|eight|nine|ten|twelve|twenty|hundred)[ \\t\\u00a0]{1,8}[a-z]+s(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["each"],
-    fixer: "en:eachCount",
+    fixer: "en:@en.numberNounForms/3",
     gate: "each|several|many|numerous",
   }),
   frame({
     pattern:
       "(?<target>(?<vague>several|many|numerous)[ \\t\\u00a0]{1,8}(?<count>two|three|four|five|six|seven|eight|nine|ten|twelve|twenty|hundred|[2-9]|[1-9][0-9]+))[ \\t\\u00a0]{1,8}[a-z]+s(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["several", "many", "numerous"],
-    fixer: "en:vagueCount",
+    fixer: "en:@en.numberNounForms/4",
     gate: "each|several|many|numerous",
   }),
   frame({
     pattern:
       "(?<![\\p{N}.,])(?<target>(?<n>[0-9]+)[ \\t\\u00a0]{1,8}(?<unit>day|week|month|year|hour|minute|mile|page|step|point))(?=-[a-z]|[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["day", "week", "month", "year", "hour", "minute", "mile", "page", "step", "point"],
-    fixer: "en:numberUnit",
+    fixer: "en:@en.numberNounForms/5",
     message: "review_msg_compounds",
     check: "englishContextualCompounds",
     gate: "[0-9][ \\t\\u00a0]+(?:day|week|month|year|hour|minute|mile|page|step|point)\\b",
@@ -8533,7 +8533,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?<=(?:^|[\\s(“"])\\p{L}*\\p{Ll}\\p{L})(?:(?<period>\\.)(?=(?:The|A|An|It|Its|I|So|But|And|This|That|These|Those|He|She|We|They|You|There|Then|What|When|Where|Why|How|If|My|Our|Your|His|Her|Their|Some|Many|One|No|Yes|Now|Also|However|After|Before|As|Each|Every|All)[ \\t\\u00a0,])|(?<mark>[?!])(?=\\p{Lu}\\p{Ll}*[ \\t\\u00a0,])|(?<semi>;)(?=\\p{Ll}{2,}[ \\t\\u00a0,]))',
     literals: [],
-    fixer: "en:missingSpace",
+    fixer: "en:@en.missingSentenceSpace/1",
     flags: "dgu",
     owner: "none",
     gate: "\\p{Ll}[.?!;]\\p{L}",
@@ -8543,7 +8543,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,:/#+–—-])(?<a>[0-9]+(?:\\.[0-9]+)?)(?<dash>[-—])(?<b>[0-9]+(?:\\.[0-9]+)?)(?![\\p{L}\\p{N}_]|[-–—/:][0-9]|[.,][0-9])",
     literals: [],
-    fixer: "en:numberRange",
+    fixer: "en:@en.numberRangeDashes/1",
     flags: "dgu",
     owner: "none",
     gate: "[0-9][-—][0-9]",
@@ -8570,7 +8570,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "fucker",
       "fuckers",
     ],
-    fixer: "en:styleWord",
+    fixer: "en:@en.optionalStyle/1",
     gate: "fav|favs|fave|faves|ppl|omg|rly|eli5|iykyk|iiuc|shit|fuck|fucking|fucked|fucker|fuckers",
   }),
   frame({
@@ -8584,7 +8584,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>increasingly[ \\t\\u00a0]{1,8}(?<degree>more|less))[ \\t\\u00a0]{1,8}(?<adj>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["increasingly"],
-    fixer: "en:increasingly",
+    fixer: "en:@en.optionalStyle/3",
     gate: "increasingly",
   }),
   frame({
@@ -8617,21 +8617,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "additionally",
       "hence",
     ],
-    fixer: "en:discourseMarker",
+    fixer: "en:@en.optionalStyle/5",
     gate: "however|therefore|meanwhile|furthermore|nevertheless|consequently|thus|instead|moreover|alternatively|frankly|nowadays|now[ \\t\\u00a0]+a[ \\t\\u00a0]+days|for[ \\t\\u00a0]+example|for[ \\t\\u00a0]+instance|on[ \\t\\u00a0]+the[ \\t\\u00a0]+other[ \\t\\u00a0]+hand|additionally|hence",
   }),
   frame({
     pattern:
       "(?<target>(?<number>[0-9]{1,2}(?::[0-5][0-9])?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)(?<meridiem>[ \\t\\u00a0]?(?:[ap]\\.m\\.|[AP]\\.M\\.|[ap]m|[AP]M))(?<tail>[ \\t\\u00a0]{1,8}(?:in[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:morning|afternoon|evening)|at[ \\t\\u00a0]{1,8}night)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["morning", "afternoon", "evening", "night"],
-    fixer: "en:timeOfDay",
+    fixer: "en:@en.optionalStyle/6",
     gate: "morning|afternoon|evening|night",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}.,_+-])(?<n>[0-9]+(?:\\.[0-9]+)?)(?:(?<sep>[ \\u00a0]|-)B|(?<sep2>[ \\u00a0]?|-)(?<unit>kB|MB|GB|TB|PB|EB|ZB|YB|RB|QB|KiB|MiB|GiB|TiB|PiB|EiB|ZiB|YiB|RiB|QiB|hr|hrs|min|mins|sec|secs|ms|msec|msecs))(?![\\p{L}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])",
     literals: [],
-    fixer: "en:unitWord",
+    fixer: "en:@en.optionalStyle/7",
     flags: "dgu",
     owner: "none",
     gate: "[0-9]",
@@ -8651,14 +8651,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "themselves",
       "oneself",
     ],
-    fixer: "en:selfVerb",
+    fixer: "en:@en.optionalStyle/8",
     gate: "self",
   }),
   frame({
     pattern:
       "(?<target>(?<word>[A-Za-z]+)['’](?<ending>t|m|re|ve|ll|d|s)(?:['’](?<have>ve))?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:contraction",
+    fixer: "en:@en.contractionStyle/1",
     gate: "['’]",
     gateFlags: "g",
   }),
@@ -8666,7 +8666,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=[\\p{L}\\p{N})])(?<comma>,)[ \\t\\u00a0]{1,8}(?<item>[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*(?:[ \\t\\u00a0]{1,8}[\\p{L}\\p{N}][\\p{L}\\p{N}'’-]*){0,2})(?<oxford>,)?[ \\t\\u00a0]{1,8}(?<conj>and|or|nor)[ \\t\\u00a0]{1,8}(?<after>[\\p{L}\\p{N}]+)",
     literals: [],
-    fixer: "en:serialComma",
+    fixer: "en:@en.serialCommas/1",
     flags: "dgu",
     anyCheck: true,
     owner: "none",
@@ -10516,64 +10516,64 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<lead>(?:will|would|can|could|should|shall|may|might|must|cannot|['’]ll|['’]d|(?:won|wouldn|can|couldn|shouldn|don|doesn|didn)['’]t)|to)(?:[ \\t\\u00a0]{1,8}(?:also|really|definitely|probably|surely|likely|never|not|always|soon|just|still|only|then|first))?|(?<subject>I|you|we|they)[ \\t\\u00a0]{1,8}(?:usually|always|often|never|sometimes|rarely|normally|also)|(?<inverted>(?:do|does|did)(?:n['’]t)?[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she)))[ \\t\\u00a0]{1,8}(?<target>by)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:confusionByBuy",
+    fixer: "en:@en.confusionPairs/1",
   }),
   frame({
     pattern: "(?<target>ever)[ \\t\\u00a0]{1,8}(?=[A-Za-z0-9])",
     literals: ["ever"],
-    fixer: "en:confusionEverEvery",
+    fixer: "en:@en.confusionPairs/2",
   }),
   frame({
     pattern:
       "(?:have|has|had|haven['’]t|hasn['’]t|you|this|it|they|we|i)[ \\t\\u00a0]{1,8}(?<target>every)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["every"],
-    fixer: "en:confusionEveryEver",
+    fixer: "en:@en.confusionPairs/3",
   }),
   frame({
     pattern:
       "(?:can|could|would|will|should|shall|might|may|did|do|does|have|has|had|don['’]?t|doesn['’]?t|didn['’]?t|won['’]t|wouldn['’]t|can['’]t|couldn['’]t)[ \\t\\u00a0]{1,8}(?:I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?<target>every)[ \\t\\u00a0]{1,8}(?!(?:day|days|time|times|morning|night|week|weekend|month|year|hour|minute|second|one|single|other|so|now|last|bit|once|few|two|three)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["every"],
-    fixer: "en:confusionEveryAfterSubject",
+    fixer: "en:@en.confusionPairs/4",
   }),
   frame({
     pattern:
       "(?:(?:do|does|did)(?:n['’]t|[ \\t\\u00a0]{1,8}not)|let(?:ting|s)?[ \\t\\u00a0]{1,8}(?:me|us|him|her|them|you))[ \\t\\u00a0]{1,8}(?<target>now)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["now"],
-    fixer: "en:confusionNowKnow",
+    fixer: "en:@en.confusionPairs/5",
   }),
   frame({
     pattern: "(?<target>an)[ \\t\\u00a0]{1,8}(?=[A-Za-z])",
     literals: [],
-    fixer: "en:confusionAnAnd",
+    fixer: "en:@en.confusionPairs/6",
   }),
   frame({
     pattern: "(?<target>then)[ \\t\\u00a0]{1,8}(?=[A-Za-z0-9])",
     literals: ["then"],
-    fixer: "en:confusionThenThan",
+    fixer: "en:@en.thenAfterComparative/1",
   }),
   frame({
     pattern:
       "(?:to|from)[ \\t\\u00a0]{1,8}(?<target>were)[ \\t\\u00a0]{1,8}(?=(?:I|you|he|she|it|we|they|the|this|that)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["were"],
-    fixer: "en:confusionToWere",
+    fixer: "en:@en.wereWhere/1",
   }),
   frame({
     pattern:
       "(?:if|wish|as[ \\t\\u00a0]{1,8}if|as[ \\t\\u00a0]{1,8}though)[ \\t\\u00a0]{1,8}(?:I|he|she|it|we|they|you)[ \\t\\u00a0]{1,8}(?<target>where)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["where"],
-    fixer: "en:confusionIfWhere",
+    fixer: "en:@en.wereWhere/2",
   }),
   frame({
     pattern:
       "(?<target>where)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["where"],
-    fixer: "en:confusionWhereIng",
+    fixer: "en:@en.wereWhere/3",
   }),
   frame({
     pattern:
       "(?<target>Where)[ \\t\\u00a0]{1,8}(?:you|they|we)(?:[ \\t\\u00a0]{1,8}(?:ever|really|also|all|both))?[ \\t\\u00a0]{1,8}(?<pred>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["where"],
-    fixer: "en:confusionWhereYou",
+    fixer: "en:@en.wereWhere/4",
   }),
   frame({
     pattern:
@@ -11440,7 +11440,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<q>two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|forty|fifty|hundred|dozens|hundreds|thousands|millions|many|several|few|numerous|various|multiple|these|those|both|all|some|(?:lots?|couple|number|plenty|dozens|all|most|some|many|several|both)[ \\t\\u00a0]{1,8}of|[2-9]|[1-9][0-9]+)(?:[ \\t\\u00a0]{1,8}(?<mod>[a-z]+))?[ \\t\\u00a0]{1,8}(?<w>[A-Za-z][A-Za-z&]*)['’]s(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:apostropheQuantifiedPlural",
+    fixer: "en:@en.apostrophes/1",
     owner: "w",
     gate: "['’]s|[a-z&]{64}",
     gateFlags: "giu",
@@ -11462,7 +11462,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "weren",
       "haven",
     ],
-    fixer: "en:apostrophePluralSubject",
+    fixer: "en:@en.apostrophes/2",
     owner: "w",
     gate: "['’]s|[a-z&]{64}",
     gateFlags: "giu",
@@ -11471,7 +11471,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<det>the|these|those|all|any|some|many|our|your|their|my)[ \\t\\u00a0]{1,8})?(?<w>[a-z]{3,})['’]s[ \\t\\u00a0]{1,8}(?:(?<pron>I|we|you|they|he|she|it)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+(?:['’]t)?)|(?<rel>that|who)[ \\t\\u00a0]{1,8}(?<verb2>[a-z]+(?:['’]t)?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:apostropheRelativePlural",
+    fixer: "en:@en.apostrophes/3",
     owner: "w",
     gate: "['’]s|[a-z&]{64}",
     gateFlags: "giu",
@@ -11480,7 +11480,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<subject>he|she|it|who|[a-z]{2,}|that)(?:[ \\t\\u00a0]{1,8}(?<adverb>really|just|also|always|never|often|still|only|usually|sometimes|actually|probably|rarely|even|simply))?[ \\t\\u00a0]{1,8}(?<v>[a-z]{2,})['’]s(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:apostropheVerb",
+    fixer: "en:@en.apostrophes/4",
     owner: "v",
     gate: "['’]s|[a-z&]{64}",
     gateFlags: "giu",
@@ -11488,7 +11488,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<w>[A-Za-z]+)(?<marks>['’]['’])(?:s|t|ll|re|ve|d|m)(?![\\p{L}\\p{N}'’])",
     literals: [],
-    fixer: "en:apostropheDoubled",
+    fixer: "en:@en.apostrophes/5",
     owner: "marks",
     gate: "['’]['’]",
   }),
@@ -11496,14 +11496,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<w>I|you|we|they|he|she|it|[a-z]{2,})(?<gap>['’][ \\t\\u00a0]{1,8}|[ \\t\\u00a0]{1,8}['’])(?<s>m|re|ve|ll|d|s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:apostropheSpaced",
+    fixer: "en:@en.apostrophes/6",
     owner: "gap",
     gate: "['’][ \\t\\u00a0]|[ \\t\\u00a0]['’]",
   }),
   frame({
     pattern: "(?<w>other)['’]s[ \\t\\u00a0]{1,8}(?<n>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["other"],
-    fixer: "en:apostropheOthers",
+    fixer: "en:@en.apostrophes/7",
     owner: "w",
     gate: "['’]s",
     gateFlags: "giu",
@@ -11512,19 +11512,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<d>this|last|next)[ \\t\\u00a0]{1,8}(?<t>week|weekend|month|year|morning|night|evening|afternoon|season|quarter|semester|summer|winter|autumn)s[ \\t\\u00a0]{1,8}(?<n>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["this", "last", "next"],
-    fixer: "en:apostropheTimeOwner",
+    fixer: "en:@en.apostrophes/8",
     owner: "t",
   }),
   frame({
     pattern: "(?<t>today|yesterday|tonight)s(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["today", "yesterday", "tonight"],
-    fixer: "en:apostropheDayOwner",
+    fixer: "en:@en.apostrophes/9",
     owner: "t",
   }),
   frame({
     pattern: "(?<w>who)['’]s[ \\t\\u00a0]{1,8}(?<n>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["who"],
-    fixer: "en:apostropheWhose",
+    fixer: "en:@en.apostrophes/10",
     owner: "w",
     gate: "['’]s",
     gateFlags: "giu",
@@ -11654,7 +11654,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}.,])(?:(?<sign>[$£€])(?<a>\\d{1,3}),(?<b>\\d{1,2})|(?<c>\\d{1,3}),(?<d>\\d{1,2})(?=[ \\u00a0]?(?:%|‰|percent|per cent|million|billion|trillion|thousand|[KMGT]B|kg|g|mg|km|m|cm|mm|ml|l|°)(?![\\p{L}\\p{N}])))(?![\\p{N},]|\\.\\p{N})",
     literals: [],
-    fixer: "en:decimalComma",
+    fixer: "en:@en.notation/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11664,7 +11664,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{N}.,])\\d{1,3}(?:\\.\\d{3}){2,3}(?:,\\d{1,2})?(?![\\p{N}]|[.,]\\p{N})",
     literals: [],
-    fixer: "en:dotGroups",
+    fixer: "en:@en.notation/2",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11674,7 +11674,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{N}.,])\\d{1,3}\\.\\d{3},\\d{1,2}(?![\\p{N}]|[.,]\\p{N})",
     literals: [],
-    fixer: "en:dotDecimal",
+    fixer: "en:@en.notation/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11684,7 +11684,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{N}.,])(\\d{1,3})\\.000(?=[ \\u00A0]+([a-z]+)(?![\\p{L}]))",
     literals: [],
-    fixer: "en:dotThousand",
+    fixer: "en:@en.notation/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11694,7 +11694,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{N}.,])(\\d{1,4})[ \\u00A0](st|nd|rd|th)(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "en:ordinalSplit",
+    fixer: "en:@en.notation/5",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11704,7 +11704,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=[A-Za-z])[\\uFF1F\\uFF01]",
     literals: [],
-    fixer: "en:fullWidthMark",
+    fixer: "en:@en.notation/6",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11715,7 +11715,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:[A-Z]\\.){1,4}[A-Z](?![\\p{L}\\p{N}.'’@/\\\\_-])|(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:e\\.g|i\\.e|a\\.k\\.a)(?![\\p{L}\\p{N}.'’@/\\\\_-])",
     literals: [],
-    fixer: "en:initialism",
+    fixer: "en:@en.notation/7",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11725,7 +11725,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}.])(?<core>P[Hh](?:\\. ?| )D|PHD|Phd|PhD)\\.?(?![\\p{L}])",
     literals: [],
-    fixer: "en:phd",
+    fixer: "en:@en.notation/8",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11735,7 +11735,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}.])(?<l>[BM])\\. ?(?<d>Sc|Eng|Ed|Phil|Arch|Com|Tech)\\.?(?![\\p{L}])",
     literals: [],
-    fixer: "en:degree",
+    fixer: "en:@en.notation/9",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11745,7 +11745,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}.])(?<d>BSc|MSc|BEng|MEng|MPhil|DPhil|MBA)\\.(?=[ \\u00A0]+\\p{Ll})",
     literals: ["bsc", "msc", "beng", "meng", "mphil", "dphil", "mba"],
-    fixer: "en:dottedDegree",
+    fixer: "en:@en.notation/10",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11756,7 +11756,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}.])(?:e\\.[ \\u00A0]g\\.|i\\.[ \\u00A0]e\\.|o['’][ \\u00A0]clock)(?![\\p{L}])",
     literals: [],
-    fixer: "en:spacedAbbreviation",
+    fixer: "en:@en.notation/11",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11811,7 +11811,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "saturday",
       "sunday",
     ],
-    fixer: "en:dateComma",
+    fixer: "en:@en.notation/12",
     flags: "dgu",
     scan: "owned",
     lookback: 64,
@@ -11822,7 +11822,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}:])(?<h>\\d{1,2}):(?<mm>[0-5]\\d)[ \\u00A0]o['’][ \\u00A0]?clock(?![\\p{L}])",
     literals: ["clock"],
-    fixer: "en:clockOclock",
+    fixer: "en:@en.notation/13",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11833,7 +11833,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)",
     literals: [],
-    fixer: "en:timesSign",
+    fixer: "en:@en.typography/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11843,7 +11843,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)",
     literals: [],
-    fixer: "en:arrowSign",
+    fixer: "en:@en.typography/2",
     flags: "gmu",
     scan: "owned",
     lookback: 64,
@@ -11853,7 +11853,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))",
     literals: [],
-    fixer: "en:legalSign",
+    fixer: "en:@en.typography/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11863,7 +11863,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)",
     literals: [],
-    fixer: "en:plusMinus",
+    fixer: "en:@en.typography/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11873,7 +11873,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|\\n|[.!?][ \\t]{1,8})H(?<n>[0-9])(?=:[ \\t])",
     literals: [],
-    fixer: "en:hypothesis",
+    fixer: "en:@en.typography/5",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11883,7 +11883,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "[\\u201E\\u201C]",
     literals: [],
-    fixer: "en:lowQuote",
+    fixer: "en:@en.typography/6",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11892,7 +11892,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d(?!\\d*[./:]\\d)|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))",
     literals: [],
-    fixer: "en:numberRangeDash",
+    fixer: "en:@en.typography/7",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11903,7 +11903,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December))(?:[ \\u00a0]+-[ \\u00a0]+|-)(?=(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December)\\b)",
     literals: [],
-    fixer: "en:nameRangeDash",
+    fixer: "en:@en.typography/8",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11913,7 +11913,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{Ll}) - (?=\\p{Ll})",
     literals: [],
-    fixer: "en:spacedHyphen",
+    fixer: "en:@en.typography/9",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11924,7 +11924,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)",
     literals: [],
-    fixer: "en:timesSign",
+    fixer: "en:@en.typographyFrench/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11934,7 +11934,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)",
     literals: [],
-    fixer: "en:arrowSign",
+    fixer: "en:@en.typographyFrench/2",
     flags: "gmu",
     scan: "owned",
     lookback: 64,
@@ -11944,7 +11944,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))",
     literals: [],
-    fixer: "en:legalSign",
+    fixer: "en:@en.typographyFrench/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11954,7 +11954,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)",
     literals: [],
-    fixer: "en:plusMinus",
+    fixer: "en:@en.typographyFrench/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11965,7 +11965,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)",
     literals: [],
-    fixer: "en:timesSign",
+    fixer: "en:@en.typographySpanish/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11975,7 +11975,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)",
     literals: [],
-    fixer: "en:arrowSign",
+    fixer: "en:@en.typographySpanish/2",
     flags: "gmu",
     scan: "owned",
     lookback: 64,
@@ -11985,7 +11985,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))",
     literals: [],
-    fixer: "en:legalSign",
+    fixer: "en:@en.typographySpanish/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11995,7 +11995,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)",
     literals: [],
-    fixer: "en:plusMinus",
+    fixer: "en:@en.typographySpanish/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12006,7 +12006,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)",
     literals: [],
-    fixer: "en:timesSign",
+    fixer: "en:@en.typographyPortuguese/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12016,7 +12016,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)",
     literals: [],
-    fixer: "en:arrowSign",
+    fixer: "en:@en.typographyPortuguese/2",
     flags: "gmu",
     scan: "owned",
     lookback: 64,
@@ -12026,7 +12026,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))",
     literals: [],
-    fixer: "en:legalSign",
+    fixer: "en:@en.typographyPortuguese/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12036,7 +12036,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)",
     literals: [],
-    fixer: "en:plusMinus",
+    fixer: "en:@en.typographyPortuguese/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12047,7 +12047,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d(?!\\d*[./:]\\d)|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))",
     literals: [],
-    fixer: "en:numberRangeDash",
+    fixer: "en:@en.typographyPortuguese/5",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12058,14 +12058,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<aux>are|is|am|was|do|does|did|have|has|can|could|will|would|should|must)[ \\t\\u00a0]{1,8}not[ \\t\\u00a0]{1,8}(?<subject>I|you|he|she|it|we|they|this|that|there|anyone|someone|everyone|anybody)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["not"],
-    fixer: "en:plainNegativeQuestion",
+    fixer: "en:@en.plainStyle/1",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<prep>with|to|from|for|of|in|on|by|about|without|against)[ \\t\\u00a0]{1,8}(?<who>who|whoever)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<rest>[ \\t\\u00a0]{1,8}(?:I|you|he|she|it|we|they|were|are|was|is)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?",
     literals: ["who", "whoever"],
-    fixer: "en:plainWhom",
+    fixer: "en:@en.plainStyle/2",
     owner: "who",
   }),
   frame({
@@ -12083,34 +12083,34 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "normally",
       "generally",
     ],
-    fixer: "en:plainAdverbAfterAux",
+    fixer: "en:@en.plainStyle/3",
     owner: "adv",
   }),
   frame({
     pattern:
       "(?<subject>I|you|he|she|it|we|they)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)[ \\t\\u00a0]{1,8}(?<adv>often|sometimes|always|usually|rarely|seldom|hardly)[ \\t\\u00a0]{1,8}(?<next>to|about|in|at|on|as|into|during|here|there)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["often", "sometimes", "always", "usually", "rarely", "seldom", "hardly"],
-    fixer: "en:plainAdverbBeforeVerb",
+    fixer: "en:@en.plainStyle/4",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<adj>[a-z]+)(?<target>[ \\t\\u00a0]{1,8}in[ \\t\\u00a0]{1,8}(?<dim>size|shape|colou?r|number|duration|taste|height|weight))(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:and|but|or|than|as)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["size", "shape", "colo", "number", "duration", "taste", "height", "weight"],
-    fixer: "en:plainInDimension",
+    fixer: "en:@en.plainStyle/5",
   }),
   frame({
     pattern:
       "(?:\\$[0-9][0-9,.]*(?<dollars>[ \\t\\u00a0]{1,8}dollars?)|more[ \\t\\u00a0]{1,8}than[ \\t\\u00a0]{1,8}[0-9][0-9,]*(?<plus>\\+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["dollar", "more"],
-    fixer: "en:plainDoubledAmount",
+    fixer: "en:@en.plainStyle/6",
     owner: "dollars|plus",
   }),
   frame({
     pattern:
       "(?:return|returns|returned|returning)[ \\t\\u00a0]{1,8}(?:it|them|me|you|him|her|us|(?:the|my|your|his|her|our|their|this|that|these|those)(?:[ \\t\\u00a0]{1,8}[a-z]+){1,2})(?<target>[ \\t\\u00a0]{1,8}back)[ \\t\\u00a0]{1,8}to(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["return", "returns", "returned", "returning"],
-    fixer: "en:plainReturnBack",
+    fixer: "en:@en.plainStyle/7",
   }),
   frame({
     pattern:
@@ -12122,21 +12122,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: '(?<=\\p{L}|\\p{N}|[)"\\u201D\\u2019])[,;](?=[.!?](?!\\.))',
     literals: [],
-    fixer: "en:punctuationCommaMark",
+    fixer: "en:@en.punctuation/1",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=[\\p{L}\\p{N}]),\\)",
     literals: [],
-    fixer: "en:punctuationCommaParen",
+    fixer: "en:@en.punctuation/2",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: '(?<=(?<![\\p{L}\\p{N}.])(?<word>\\p{Ll}{3,})\\.["\\u201D])\\.(?!\\.)',
     literals: [],
-    fixer: "en:punctuationPeriodQuotePeriod",
+    fixer: "en:@en.punctuation/3",
     flags: "gu",
     scan: "polish",
   }),
@@ -12144,7 +12144,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[.!?][\"\\u201D\\u2019)]?[ \\t\\u00A0]{1,8}|\\n[ \\t\\u00A0]{0,8}))(?:What|Where|When|Why|How|Who|Which)[ \\t\\u00A0]+(?:do|does|did|is|are|was|were|can|could|will|would|should|shall|have|has)(?:n['\\u2019]t)?[ \\t\\u00A0]+(?:I|you|he|she|we|they|it)(?![\\p{L}'\\u2019])[^.!?,;:\\n\"\\u201C\\u201D()]{0,80}\\.(?![.\\p{L}\\p{N}])",
     literals: ["what", "where", "when", "why", "how", "who", "which"],
-    fixer: "en:punctuationWhQuestion",
+    fixer: "en:@en.punctuation/4",
     flags: "gu",
     scan: "polish",
   }),
@@ -12152,7 +12152,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "\\bneither\\b(?<items>[^,.;:!?\\n]{1,60}),(?=[ \\u00A0]+nor\\b(?![^.;:!?\\n]*,[ \\u00A0]*nor\\b))",
     literals: ["neither"],
-    fixer: "en:punctuationLastMark",
+    fixer: "en:@en.punctuation/5",
     flags: "giu",
     scan: "polish",
   }),
@@ -12174,14 +12174,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "sure",
       "sure",
     ],
-    fixer: "en:punctuationComma",
+    fixer: "en:@en.punctuation/6",
     owner: "comma",
   }),
   frame({
     pattern:
       "(?:would be (?:great|nice|good|helpful|wonderful)|would appreciate it|would be grateful|would you mind)(?<comma>,)[ \\t\\u00a0]{1,8}if[ \\t\\u00a0]{1,8}(?:you|we|I|someone|anyone|somebody|anybody)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["would", "appreciate", "grateful", "would"],
-    fixer: "en:punctuationComma",
+    fixer: "en:@en.punctuation/7",
     owner: "comma",
   }),
   frame({
@@ -12224,7 +12224,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "instead",
       "likewise",
     ],
-    fixer: "en:introductoryOpener",
+    fixer: "en:@en.introductoryCommas/1",
     flags: "gu",
     scan: "polish",
   }),
@@ -12232,28 +12232,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:with|for|to|at|about|on|in|by|after|around|from|into|without|like)[ \\t\\u00a0]{1,8}(?<obj>it|you|me|him|her|them|us)(?<gap>[ \\t\\u00a0]{1,8})(?<subject>I|we|you|they|he|she|it)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+(?:['’][a-z]+)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:introductoryPhrase",
+    fixer: "en:@en.introductoryCommas/2",
     owner: "gap",
   }),
   frame({
     pattern:
       "(?<lead>If|if)[ \\t\\u00a0]{1,8}(?:I|we|you|they|he|she|it)[ \\t\\u00a0]{1,8}(?<aux>can|can['’]t|cannot|could|couldn['’]t|does|doesn['’]t|do|don['’]t|did|didn['’]t|is|isn['’]t|was|wasn['’]t|will|won['’]t|would|wouldn['’]t|have|haven['’]t|has|hasn['’]t)(?:[ \\t\\u00a0]{1,8}not)?(?<gap>[ \\t\\u00a0]{1,8})(?<subject>I|we|you|they|he|she|it|we['’]ll|I['’]ll|you['’]ll|they['’]ll|it['’]ll|I['’]m)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:introductoryCondition",
+    fixer: "en:@en.introductoryCommas/3",
     owner: "gap",
   }),
   frame({
     pattern:
       "(?<=(?:^|[.!?][\"”’)]?[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<w>(?:Hey|Hi|Hello) there|(?:Great|Awesome|Perfect|Cool|Nice|Excellent|Wonderful|Fantastic|Brilliant|Okay|Ok|Sure)(?=[ \\t\\u00a0]+(?:please|thanks|thank you)(?![\\p{L}'’])))(?<gap>[ \\t\\u00a0]+)(?=[\\p{L}])(?!(?:and|or|but)(?![\\p{L}]))",
     literals: [],
-    fixer: "en:introductoryGreeting",
+    fixer: "en:@en.introductoryCommas/4",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}'\\u2019])I[ \\t\\u00A0]+for[ \\t\\u00A0]+one(?=[ \\t\\u00A0]+[a-z])",
     literals: ["for"],
-    fixer: "en:introductoryIForOne",
+    fixer: "en:@en.introductoryCommas/5",
     flags: "gu",
     scan: "polish",
   }),
@@ -12261,28 +12261,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<w>Thanks|Thank you|Hi|Hello|Hey there|Happy Birthday|Good morning|Good night)(?<gap>[ \\t\\u00a0]{1,8})(?<name>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:introductoryNameAddress",
+    fixer: "en:@en.introductoryCommas/6",
     owner: "gap",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])[Tt]he[ \\t\\u00a0]{1,8}(?:more|less|fewer|[a-z]{2,}er)(?:[ \\t\\u00a0]{1,8}(?:I|we|you|he|she|they|it|one|people)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+))?(?<gap>[ \\t\\u00a0]{1,8})the[ \\t\\u00a0]{1,8}(?:more|less|fewer|[a-z]{2,}er)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:clauseCorrelative",
+    fixer: "en:@en.clauseCommas/1",
     owner: "gap",
   }),
   frame({
     pattern:
       "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00A0]+)(?:(?<neg>isn't|wasn't|aren't|weren't|don't|doesn't|didn't|won't|wouldn't|can't|couldn't|haven't|hasn't|shouldn't)[ \\t\\u00A0]+(?:I|you|he|she|it|we|they|there)|(?<pos>is|was|are|were|do|does|did|will|would|can|could|have|has|should)[ \\t\\u00A0]+(?:I|you|he|she|we|they|there|it(?<=(?:is|was)[ \\t\\u00A0]+it)))[ \\t\\u00A0]*\\?",
     literals: [],
-    fixer: "en:clauseTag",
+    fixer: "en:@en.clauseCommas/2",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=[\\p{L}\\p{N}])(?<gap>[ \\t\\u00a0]+)thanks(?=[ \\t\\u00a0]*[.!])",
     literals: ["thanks"],
-    fixer: "en:clauseClosingThanks",
+    fixer: "en:@en.clauseCommas/3",
     flags: "giu",
     scan: "polish",
   }),
@@ -12290,7 +12290,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=[\\p{L}\\p{N}%)'\\u2019])(?<gap>[ \\t\\u00a0]+)(?<conj>and|but|or|so|yet|although)(?=[ \\t\\u00a0])",
     literals: [],
-    fixer: "en:clauseJoiner",
+    fixer: "en:@en.clauseCommas/4",
     flags: "gu",
     scan: "polish",
   }),
@@ -12341,40 +12341,40 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "desert",
       "peninsula",
     ],
-    fixer: "en:articlesGeographic",
+    fixer: "en:@en.geographicThe/1",
     owner: "name",
   }),
   frame({
     pattern:
       "(?<be>is|are|was|were|be)(?<gap>[ \\t\\u00a0]{1,8})(?<adj>[a-z]+est|best|worst|least)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["est", "best", "worst", "least"],
-    fixer: "en:articlesSuperlative",
+    fixer: "en:@en.geographicThe/2",
     owner: "adj",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:is|was|am|are|were|be|been|become|becomes|became)[ \\t\\u00a0]{1,8}(?<target>(?:(?:very|really|quite|extremely|truly)[ \\t\\u00a0]{1,8})?(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<noun>(?!(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|[ \\t\\u00a0]{1,8}(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:articlesVery",
+    fixer: "en:@en.missingArticle/1",
     cue: ["is", "was", "am", "are", "were", "be", "been", "become", "became"],
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:at|by|in|for|about|from|into|near|under|behind|inside|beside|without)[ \\t\\u00a0]{1,8}(?<target>(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<noun>(?!(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|[ \\t\\u00a0]{1,8}(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:articlesAdj",
+    fixer: "en:@en.missingArticle/2",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:(?:have|has|had|['’]ve)[ \\t\\u00a0]{1,8}[a-z]+ed|have|has|had|need|needs|needed|want|wants|wanted|take|takes|took|give|gives|gave|find|finds|found|buy|buys|bought|make|makes|made|see|sees|saw|meet|meets|met|get|gets|got)[ \\t\\u00a0]{1,8}(?<target>(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<noun>(?!(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+))(?:(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|[ \\t\\u00a0]{1,8}(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?=[ \\t\\u00a0]{1,8}(?:a|an|the|my|his|her|their|our)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: [],
-    fixer: "en:articlesAdj2",
+    fixer: "en:@en.missingArticle/3",
   }),
   frame({
     pattern:
       "(?<target>such)[ \\t\\u00a0]{1,8}(?:(?<adj>[a-z]+)[ \\t\\u00a0]{1,8})?(?<noun>(?!(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[a-z]+)(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|[ \\t\\u00a0]{1,8}(?:of|for|to|in|at|on|with|who|that|and|but|or|because|when)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["such"],
-    fixer: "en:articlesSuch",
+    fixer: "en:@en.missingArticle/4",
     cue: ["such"],
   }),
   frame({
@@ -13665,45 +13665,45 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:keep|keeps|kept|keeping)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["keep", "keeps", "kept", "keeping"],
-    fixer: "en:everydayKeep",
+    fixer: "en:@en.verbFrames/1",
   }),
   frame({
     pattern:
       "(?:am|is|are|was|were|['’]m|['’]re|(?:it|that|he|she|there|what|who|this)['’]s)[ \\t\\u00a0]{1,8}going[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["going"],
-    fixer: "en:everydayGoing",
+    fixer: "en:@en.verbFrames/2",
     message: "review_msg_missing_to",
   }),
   frame({
     pattern:
       "(?:make|makes|made|making|let|lets|letting)[ \\t\\u00a0]{1,8}(?:me|you|him|her|us|them|someone|everyone|people)[ \\t\\u00a0]{1,8}(?<target>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["make", "makes", "made", "making", "let", "lets", "letting"],
-    fixer: "en:everydayCausative",
+    fixer: "en:@en.verbFrames/3",
     message: "review_msg_causative_base",
   }),
   frame({
     pattern:
       "(?<target>was|is)[ \\t\\u00a0]{1,8}there[ \\t\\u00a0]{1,8}(?:(?:too|so)[ \\t\\u00a0]{1,8})?(?<quantity>many|several|a[ \\t\\u00a0]{1,8}few|a[ \\t\\u00a0]{1,8}lot[ \\t\\u00a0]{1,8}of|lots[ \\t\\u00a0]{1,8}of|plenty[ \\t\\u00a0]{1,8}of|dozens[ \\t\\u00a0]{1,8}of)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:everydayWasThere",
+    fixer: "en:@en.wasThereMany/1",
   }),
   frame({
     pattern:
       "(?:go|goes|going|went|gone|read|reads|reading|look|looks|looking|looked|walk|walks|walked|walking|pass|passed|passing|get|got|getting|gets|flip|flipped|browse|browsed|scroll|scrolled|sift|search|searched|searching|dig|came|come|coming|run|ran|running|lived|living|break|broke|sailed|been)[ \\t\\u00a0]{1,8}(?<target>though)[ \\t\\u00a0]{1,8}(?:the|a|an|this|that|these|those|my|your|his|her|our|their|it|all|some|each|every)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["though"],
-    fixer: "en:everydayThough",
+    fixer: "en:@en.everydayConfusions/1",
   }),
   frame({
     pattern:
       "(?:give|gives|gave|giving|given|need|needs|needed|some|any|your|my|his|our|their|good|bad|great|expert|legal|medical|financial|professional|helpful|useful|no|for|the)[ \\t\\u00a0]{1,8}(?:me[ \\t\\u00a0]{1,8}|us[ \\t\\u00a0]{1,8}|him[ \\t\\u00a0]{1,8}|them[ \\t\\u00a0]{1,8}|you[ \\t\\u00a0]{1,8})?(?<target>advise)(?=[ \\t\\u00a0]{1,8}(?:on|about|for|from|regarding|please)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]*(?:[.,!?;:]|$))",
     literals: ["advise"],
-    fixer: "en:everydayAdvise",
+    fixer: "en:@en.everydayConfusions/2",
   }),
   frame({
     pattern:
       "(?<modal>would|will|could|should|might|may|must)(?:[ \\t\\u00a0]{1,8}(?:probably|definitely|certainly|also|really|surely))?[ \\t\\u00a0]{1,8}(?<target>we)[ \\t\\u00a0]{1,8}(?<next>very|so|really|quite|too|great|good|fine|helpful|useful|nice|possible|able|happy|glad|better|best|ready|available|appreciated|interesting|important|necessary)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["would", "will", "could", "should", "might", "may", "must"],
-    fixer: "en:everydayWeBe",
+    fixer: "en:@en.everydayConfusions/3",
   }),
   frame({
     pattern:
@@ -13724,105 +13724,105 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "shouldn",
       "didn",
     ],
-    fixer: "en:everydayUsUse",
+    fixer: "en:@en.everydayConfusions/4",
   }),
   frame({
     pattern:
       "(?<target>doe)[ \\t\\u00a0]{1,8}(?<subject>he|she|it|you|they|we|i)[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["doe"],
-    fixer: "en:everydayDoe",
+    fixer: "en:@en.everydayConfusions/5",
   }),
   frame({
     pattern:
       "(?:went|goes|go|going|gone|worked|works|work|working|ran|runs|run|running|performed|played|slept|shifted)[ \\t\\u00a0]{1,8}(?<target>good)(?=[ \\t\\u00a0]*(?:[.,!?;:]|$)|[ \\t\\u00a0]{1,8}(?:until|and|but|so|today|yesterday|overall|too|though|enough|at)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["good"],
-    fixer: "en:everydayWentGood",
+    fixer: "en:@en.everydayConfusions/6",
     message: "review_msg_adverb_form",
   }),
   frame({
     pattern:
       "the[ \\t\\u00a0]{1,8}(?<target>later)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:the|these|those|two|both)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["later"],
-    fixer: "en:everydayLatter",
+    fixer: "en:@en.everydayConfusions/7",
   }),
   frame({
     pattern:
       "(?:got|get|gets|getting)[ \\t\\u00a0]{1,8}(?:it|them|this|that|everything|all[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}it|most[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}it|(?:my|her|his|our|their|the|your)[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}(?<target>did)(?=[ \\t\\u00a0]*(?:[.,!?;:]|$)|[ \\t\\u00a0]{1,8}(?:yesterday|today|already|early|before|by|in|on|last|quickly|fast)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["got", "get", "gets", "getting"],
-    fixer: "en:everydayGotDid",
+    fixer: "en:@en.gotItDone/1",
   }),
   frame({
     pattern:
       "(?:kind|best|warm|warmest|warmer)[ \\t\\u00a0]{1,8}(?<target>regard)(?=[ \\t\\u00a0]*(?:[,!.]|$|\\n))",
     literals: ["regard"],
-    fixer: "en:everydayRegard",
+    fixer: "en:@en.everydayPhrases/1",
   }),
   frame({
     pattern:
       "(?<target>everyone|everybody)[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:you|us|them|the|these|those|my|our|your|their|his|her)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["everyone", "everybody"],
-    fixer: "en:everydayEveryOne",
+    fixer: "en:@en.everydayPhrases/2",
   }),
   frame({
     pattern:
       "(?:there(?:[ \\t\\u00a0]{1,8}(?:is|was)|['’]s)|is[ \\t\\u00a0]{1,8}there|was[ \\t\\u00a0]{1,8}there|find|found|no|know[ \\t\\u00a0]{1,8}of|have|has)[ \\t\\u00a0]{1,8}(?<target>anyway)[ \\t\\u00a0]{1,8}to(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["anyway"],
-    fixer: "en:everydayAnyWay",
+    fixer: "en:@en.splitCompounds/1",
   }),
   frame({
     pattern:
       "(?:(?:take|takes|took|taking|taken|need|needs|needed|have|has|had|having|spend|spent|spending|give|gave|given|giving|allow|allowed)[ \\t\\u00a0]{1,8}(?<target>sometime)(?=[ \\t\\u00a0]{1,8}(?:to|for|off|with|now|ago|alone|together|out|away|apart)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]*(?:[.,!?;:]|$))|for[ \\t\\u00a0]{1,8}(?<target2>sometime)(?=[ \\t\\u00a0]{1,8}(?:now|already|ago)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["sometime", "sometime"],
-    fixer: "en:everydaySomeTime",
+    fixer: "en:@en.splitCompounds/2",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<target>anymore)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["anymore"],
-    fixer: "en:everydayAnyMore",
+    fixer: "en:@en.splitCompounds/3",
   }),
   frame({
     pattern:
       "(?:more|fewer)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)[ \\t\\u00a0]{1,8}(?:are|were|have|do)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["more", "fewer"],
-    fixer: "en:everydayMoreSingular",
+    fixer: "en:@en.moreSingular/1",
   }),
   frame({
     pattern:
       "(?<target>do|don['’]t)[ \\t\\u00a0]{1,8}(?:anyone|anybody|someone|somebody|everyone|everybody|nobody|anything|something|everything|that|this|it|he|she)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:everydayDoSingular",
+    fixer: "en:@en.doSingular/1",
   }),
   frame({
     pattern:
       "(?<=,[ \\t\\u00a0]{1,8})(?<target>do|don['’]t)[ \\t\\u00a0]{1,8}(?:he|she|it)(?=[ \\t\\u00a0]*\\?)",
     literals: [],
-    fixer: "en:everydayDoTag",
+    fixer: "en:@en.doSingular/2",
   }),
   frame({
     pattern:
       "(?<target>have|haven['’]t)[ \\t\\u00a0]{1,8}(?<name>[a-z]{2,})[ \\t\\u00a0]{1,8}(?<part>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["have", "haven"],
-    fixer: "en:wordFormHaveName",
+    fixer: "en:@en.haveName/1",
   }),
   frame({
     pattern:
       "(?<before>[a-z]+)[ \\t\\u00a0]{1,8}(?<target>your)[ \\t\\u00a0]{1,8}(?<ing>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["your"],
-    fixer: "en:wordFormYourIng",
+    fixer: "en:@en.youAre/1",
   }),
   frame({
     pattern:
       "(?<target>your)[ \\t\\u00a0]{1,8}all[ \\t\\u00a0]{1,8}(?:set|done|good|ready|invited|welcome|right|wrong|fine|wrong|alone|over|here|there)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["your"],
-    fixer: "en:wordFormYourAll",
+    fixer: "en:@en.youAre/2",
   }),
   frame({
     pattern:
       "there(?:['’]re|[ \\t\\u00a0]{1,8}are|[ \\t\\u00a0]{1,8}were)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:wordFormThereAre",
+    fixer: "en:@en.pluralSlots/1",
   }),
   frame({
     pattern:
@@ -13838,72 +13838,72 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hundreds",
       "thousands",
     ],
-    fixer: "en:wordFormCountOf",
+    fixer: "en:@en.pluralSlots/2",
   }),
   frame({
     pattern:
       "(?:is|are|was|were|am|['’]re|['’]m)[ \\t\\u00a0]{1,8}(?<target>know)[ \\t\\u00a0]{1,8}(?<next>[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["know"],
-    fixer: "en:wordFormKnow",
+    fixer: "en:@en.confusedSlots/1",
   }),
   frame({
     pattern:
       "(?:several|many|some|few|both)[ \\t\\u00a0]{1,8}(?<target>other)(?=[ \\t\\u00a0]*(?:[.!?,;:]|$)|[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["other"],
-    fixer: "en:wordFormOther",
+    fixer: "en:@en.confusedSlots/2",
   }),
   frame({
     pattern:
       "(?<target>the)[ \\t\\u00a0]{1,8}(?:are|were)[ \\t\\u00a0]{1,8}(?:many|several|some|no|plenty|lots|a[ \\t\\u00a0]{1,8}lot|a[ \\t\\u00a0]{1,8}few|two|three|four|five|ten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["the"],
-    fixer: "en:wordFormTheAre",
+    fixer: "en:@en.confusedSlots/3",
   }),
   frame({
     pattern:
       "(?<target>I)(?:[ \\t\\u00a0]{1,8}(?:might|may|would|will|could|does|doesn['’]t|did|didn['’]t|wouldn['’]t|won['’]t)(?:[ \\t\\u00a0]{1,8}not)?)?[ \\t\\u00a0]{1,8}(?:make|makes|made)[ \\t\\u00a0]{1,8}sense[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["sense"],
-    fixer: "en:wordFormISense",
+    fixer: "en:@en.confusedSlots/4",
   }),
   frame({
     pattern:
       "(?:I|you|he|she|it|we|they|this|that|there)[ \\t\\u00a0]{1,8}(?<target>maybe)[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["maybe"],
-    fixer: "en:wordFormMaybe",
+    fixer: "en:@en.confusedSlots/5",
   }),
   frame({
     pattern: "(?<target>an)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:wordFormAnVerb",
+    fixer: "en:@en.confusedSlots/6",
   }),
   frame({
     pattern:
       "(?:a|an|the|another)[ \\t\\u00a0]{1,8}(?<target>must[ \\t\\u00a0]{1,8}(?<verb>see|read|have|do|visit|watch|try|buy|attend|hear|eat|own))[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["must"],
-    fixer: "en:wordFormMust",
+    fixer: "en:@en.compoundSlots/1",
   }),
   frame({
     pattern:
       "(?<=[0-9][ \\t\\u00a0]{1,8}|(?:two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[ \\t\\u00a0]{1,8})(?<target>(?:years|months|weeks|days)-old)(?=[ \\t\\u00a0]*(?:[.!?,;:)]|$)|[ \\t\\u00a0]{1,8}(?:and|but|when|at|in|by|now|today)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["years", "months", "weeks", "days"],
-    fixer: "en:wordFormYearsOld",
+    fixer: "en:@en.compoundSlots/2",
   }),
   frame({
     pattern:
       "the[ \\t\\u00a0]{1,8}(?<target>worlds)[ \\t\\u00a0]{1,8}(?:best|largest|biggest|greatest|most|first|oldest|fastest|richest|highest|tallest|leading|top|smallest|longest|deepest|strongest|happiest|favorite|favourite|population|economy|attention)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["worlds"],
-    fixer: "en:wordFormWorlds",
+    fixer: "en:@en.possessiveSlots/1",
   }),
   frame({
     pattern:
       "(?:wash|brush|clean|change|mind|lose|lost|keep|know|follow|raise|use|express|share|do|cross|count|in|of|on|for|to|with|about|into|from)[ \\t\\u00a0]{1,8}(?<target>ones)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ones"],
-    fixer: "en:wordFormOnes",
+    fixer: "en:@en.possessiveSlots/2",
   }),
   frame({
     pattern:
       "(?<target>too)[ \\t\\u00a0]{1,8}all[ \\t\\u00a0]{1,8}(?:the|of|my|our|your|their|his|her|these|those)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["too"],
-    fixer: "en:wordFormTooAll",
+    fixer: "en:@en.tooAll/1",
   }),
   frame({
     pattern:

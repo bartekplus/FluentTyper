@@ -6534,12 +6534,21 @@ rules:
     message: review_msg_typographic_quotes
     frames:
       # Each line that touches the chunk, from the chunk start (a regex cannot start before it).
-      # The fixer splits a long line into its segments and pairs the quote marks of each
-      # segment with a stack.
+      # quoteMarkEdits splits a long line into its segments and pairs the quote marks of each
+      # segment with a stack. Spanish «…» is the advice of spanishQuotes: when it is on, this
+      # rule fixes apostrophes only.
       - regex: "[^\\n]+\\n?|\\n"
         flags: g
         scan: text
-        fixer: quoteLine
+        let:
+          pairs: '!(ctx.lang.slice(0, 2) === "es" && (ctx.rules?.has("spanishQuotes") ?? true))'
+        return: >-
+          quoteMarkEdits(ctx, m, pairs)
+            .filter(([at]) => at >= ctx.from && at < ctx.to)
+            .map(([at, replacement, context]) =>
+              finding(frame.ruleId, frame.messageKey, at, at + 1, [replacement], {
+                context: { start: context[0], end: context[1] + 1 },
+              }))
   # Full bounded phrases, never a guess about arbitrary names or singular/plural ownership.
   - id: possessives
     checks: [englishItsContext, englishLetsContext, englishElsePossessive]
@@ -8514,7 +8523,7 @@ rules:
         message: review_msg_pique_interest
     cacheable: true
   # Finite predicative clauses establish degree, rather than quantity or noun modifiers.
-  # english/grammarStyle1.ts also runs this rule (englishDegree.ts, doubledDegree).
+  # Rule en.moreMostDegree of en.yaml also runs this rule (library enFrameRuleFindings).
   - id: doubledDegree
     checks: [englishDoubledDegree]
     lang: en

@@ -78,7 +78,6 @@ export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/
 export {
   englishCountNoun as enCountNoun,
   englishLexiconInflect as enLexiconInflect,
-  englishListedNoun as enListedNoun,
   englishNounPair as enNounPair,
 } from "../implementations/helpers/EnglishLexicon";
 // Group 6: the calendar of the date checks, and the named phrase tables of en.yaml.
@@ -93,13 +92,10 @@ export {
 export { enTable, useEnglishTables } from "./english/tables";
 // Group 5 (remaining, fixedPhrases, grammarStyle2, idioms1, confusions1, confusions2,
 // compoundForms, lexical): the listed nouns of the lexicon and the irregular verb table.
-export {
-  englishListedNoun as enListedNoun,
-  englishListedWithoutPlural as enListedWithoutPlural,
-} from "../implementations/helpers/EnglishLexicon";
-export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/EnglishVerbForms";
+export { englishListedWithoutPlural as enListedWithoutPlural } from "../implementations/helpers/EnglishLexicon";
+
 // Group 5: the text before an index and the word after it.
-export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";
+
 // Group 5: the word key (lowercase, ’ as ') and the tokens around a target in its text block
 // (library/english/blockTokens.ts).
 export { wordKey as enWordKey } from "../implementations/helpers/GenericRuleShared";
@@ -132,3 +128,8 @@ export {
 export type { ViewSwap as EnViewSwap } from "./english/views";
 // Group 5: a read through a cache that a rule file keeps (library/english/cache.ts).
 export { readThrough as enReadThrough } from "./english/cache";
+// Group 3 (grammarStyle1, articles, confusionSlots, everydaySlots, wordFormSlots, punctuation,
+// typography, apostrophes, plainStyle).
+
+// The findings of another frame rule (library/english/rules.ts).
+export { enFrameRuleFindings } from "./english/rules";
