@@ -398,6 +398,1426 @@ rules:
     checks: [englishConfusedWords]
     style: match
     message: review_msg_confused_word
+    # Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good advise" a
+    # noun slot. Every frame reads at most a few words on each side of the target, within its
+    # block (b[0] is the nearest word before, a[0] the nearest after).
+    sets:
+      CONF_SUBJECT: ["i", "you", "we", "they"]
+      CONF_THIRD: ["he", "she", "it"]
+      CONF_MODAL:
+        [
+          "can",
+          "could",
+          "will",
+          "would",
+          "shall",
+          "should",
+          "may",
+          "might",
+          "must",
+          "do",
+          "does",
+          "did",
+          "cannot",
+          "can't",
+          "couldn't",
+          "won't",
+          "wouldn't",
+          "shan't",
+          "shouldn't",
+          "mightn't",
+          "mustn't",
+          "don't",
+          "doesn't",
+          "didn't",
+        ]
+      CONF_NOUN_MODAL: ["can", "will", "may", "must", "might"]
+      CONF_HAVE:
+        [
+          "have",
+          "has",
+          "had",
+          "having",
+          "i've",
+          "you've",
+          "we've",
+          "they've",
+          "i'd",
+          "you'd",
+          "he'd",
+          "she'd",
+          "we'd",
+          "they'd",
+        ]
+      CONF_INDEFINITE:
+        ["everyone", "anyone", "anybody", "everybody", "someone", "somebody", "nobody"]
+      CONF_DETERMINER:
+        ["a", "an", "the", "my", "your", "his", "our", "their", "its", "this", "no", "every"]
+      CONF_OBJECT_START:
+        [
+          "the",
+          "a",
+          "an",
+          "my",
+          "your",
+          "his",
+          "her",
+          "its",
+          "our",
+          "their",
+          "this",
+          "that",
+          "these",
+          "those",
+          "me",
+          "him",
+          "us",
+          "them",
+          "you",
+          "it",
+          "everyone",
+          "everything",
+          "someone",
+          "something",
+          "anyone",
+          "anything",
+          "how",
+          "what",
+          "whether",
+          "which",
+          "who",
+          "all",
+          "some",
+          "any",
+          "every",
+          "each",
+          "no",
+          "both",
+        ]
+      CONF_OBJECT_PRONOUN: ["me", "him", "her", "us", "them", "you", "it"]
+      CONF_FUNCTION:
+        [
+          "i",
+          "you",
+          "we",
+          "they",
+          "he",
+          "she",
+          "it",
+          "me",
+          "him",
+          "us",
+          "them",
+          "the",
+          "a",
+          "an",
+          "this",
+          "that",
+          "these",
+          "those",
+          "my",
+          "your",
+          "our",
+          "their",
+          "his",
+          "her",
+          "its",
+          "and",
+          "or",
+          "but",
+          "so",
+          "then",
+          "if",
+          "when",
+          "what",
+          "where",
+          "how",
+          "why",
+          "who",
+          "which",
+          "not",
+          "to",
+          "of",
+          "in",
+          "on",
+          "at",
+          "by",
+          "for",
+          "from",
+          "with",
+        ]
+      CONF_ADVERB:
+        [
+          "not",
+          "never",
+          "always",
+          "also",
+          "just",
+          "really",
+          "only",
+          "still",
+          "even",
+          "often",
+          "usually",
+          "sometimes",
+          "maybe",
+          "ever",
+          "personally",
+          "definitely",
+          "probably",
+          "actually",
+          "already",
+          "certainly",
+          "simply",
+          "generally",
+          "typically",
+          "normally",
+          "honestly",
+          "truly",
+          "perhaps",
+          "absolutely",
+          "completely",
+          "totally",
+          "once",
+          "again",
+          "kinda",
+          "sorta",
+          "all",
+        ]
+      CONF_ADVERBISH:
+        [
+          "just",
+          "sure",
+          "still",
+          "even",
+          "well",
+          "only",
+          "very",
+          "so",
+          "too",
+          "quite",
+          "rather",
+          "pretty",
+          "kind",
+          "sort",
+          "first",
+          "last",
+          "please",
+          "right",
+          "enough",
+          "much",
+          "more",
+          "most",
+          "less",
+          "least",
+        ]
+      CONF_CONJUNCTION:
+        [
+          "if",
+          "when",
+          "what",
+          "that",
+          "so",
+          "and",
+          "but",
+          "because",
+          "as",
+          "than",
+          "where",
+          "how",
+          "why",
+          "unless",
+          "until",
+          "once",
+          "while",
+          "whether",
+          "since",
+          "or",
+          "though",
+          "although",
+          "before",
+          "after",
+          "cause",
+          "maybe",
+          "then",
+        ]
+      CONF_PREPOSITION_HEAD:
+        [
+          "according",
+          "due",
+          "prior",
+          "thanks",
+          "next",
+          "close",
+          "similar",
+          "compared",
+          "related",
+          "attached",
+          "opposed",
+          "contrary",
+          "back",
+          "up",
+          "down",
+          "from",
+          "way",
+          "path",
+          "key",
+          "answer",
+          "reply",
+          "response",
+          "addition",
+          "reference",
+          "regard",
+          "respect",
+          "relation",
+          "comparison",
+          "subject",
+          "prone",
+          "open",
+          "exposed",
+          "equal",
+        ]
+      CONF_TO_HEAD:
+        [
+          "want",
+          "wants",
+          "wanted",
+          "wanting",
+          "need",
+          "needs",
+          "needed",
+          "needing",
+          "have",
+          "has",
+          "had",
+          "having",
+          "able",
+          "try",
+          "tries",
+          "tried",
+          "trying",
+          "decide",
+          "decides",
+          "decided",
+          "supposed",
+          "ought",
+          "plan",
+          "plans",
+          "planned",
+          "like",
+          "liked",
+          "going",
+          "tend",
+          "tends",
+          "tended",
+          "seem",
+          "seems",
+          "seemed",
+          "start",
+          "starts",
+          "started",
+          "begin",
+          "began",
+          "remember",
+          "forget",
+          "forgot",
+          "refuse",
+          "refused",
+          "hope",
+          "hoped",
+          "wish",
+          "chose",
+          "choose",
+          "manage",
+          "managed",
+          "used",
+          "how",
+          "what",
+          "where",
+          "when",
+          "whether",
+          "why",
+          "continue",
+          "continued",
+          "learn",
+          "learned",
+          "afraid",
+          "easy",
+          "hard",
+          "help",
+          "helps",
+          "helped",
+          "important",
+          "possible",
+          "impossible",
+          "better",
+          "best",
+        ]
+      CONF_EFFECT_OBJECT:
+        [
+          "change",
+          "changes",
+          "reform",
+          "reforms",
+          "substitution",
+          "substitutions",
+          "transformation",
+          "transformations",
+          "improvement",
+          "improvements",
+          "repair",
+          "repairs",
+          "cure",
+          "escape",
+          "rescue",
+          "transfer",
+          "transfers",
+          "entry",
+          "compromise",
+          "reconciliation",
+          "merger",
+          "restoration",
+          "recovery",
+          "transaction",
+          "transactions",
+          "payment",
+          "payments",
+          "sale",
+          "sales",
+          "settlement",
+          "settlements",
+          "arrest",
+          "arrests",
+        ]
+      CONF_COLLOCATION:
+        [
+          "side",
+          "special",
+          "sound",
+          "placebo",
+          "ripple",
+          "snowball",
+          "greenhouse",
+          "domino",
+          "butterfly",
+          "halo",
+          "net",
+          "desired",
+          "intended",
+          "unintended",
+          "cumulative",
+          "opposite",
+          "adverse",
+          "visual",
+          "audio",
+          "cascading",
+          "chilling",
+          "lasting",
+          "overall",
+          "combined",
+          "positive",
+          "negative",
+        ]
+      CONF_PERSONAL_BE:
+        ["i'm", "im", "i'am", "he's", "she's", "we're", "you're", "they're", "theyre"]
+      CONF_FALL_STATE:
+        [
+          "ill",
+          "sick",
+          "silent",
+          "asleep",
+          "quiet",
+          "dead",
+          "flat",
+          "short",
+          "open",
+          "vacant",
+          "due",
+          "pregnant",
+          "still",
+          "hard",
+          "heavy",
+          "low",
+          "apart",
+          "behind",
+          "back",
+          "down",
+          "away",
+          "foul",
+          "unconscious",
+          "limp",
+          "loose",
+          "dark",
+          "empty",
+          "idle",
+          "mute",
+        ]
+      CONF_BOARDED:
+        [
+          "bus",
+          "train",
+          "plane",
+          "airplane",
+          "flight",
+          "call",
+          "boat",
+          "ferry",
+          "bike",
+          "horse",
+          "car",
+          "taxi",
+          "cab",
+          "subway",
+          "tram",
+          "meeting",
+          "stream",
+          "server",
+        ]
+      CONF_SEASONAL:
+        [
+          "dress",
+          "dresses",
+          "outfit",
+          "outfits",
+          "look",
+          "looks",
+          "vibe",
+          "vibes",
+          "day",
+          "days",
+          "weather",
+          "colors",
+          "colours",
+          "colour",
+          "color",
+          "feel",
+          "style",
+          "scent",
+          "salad",
+          "drink",
+          "drinks",
+          "cocktail",
+          "cocktails",
+          "evening",
+          "afternoon",
+          "morning",
+          "mood",
+          "palette",
+          "print",
+          "prints",
+          "fabric",
+          "hue",
+          "hues",
+          "tones",
+          "tone",
+          "flavor",
+          "flavour",
+          "sundress",
+          "breeze",
+          "night",
+          "nights",
+          "read",
+        ]
+      CONF_CLAUSE_COMPARATIVE:
+        [
+          "better",
+          "worse",
+          "more",
+          "less",
+          "later",
+          "earlier",
+          "sooner",
+          "rather",
+          "further",
+          "farther",
+          "other",
+          "latter",
+          "former",
+          "fewer",
+          "lesser",
+        ]
+      CONF_BE_FINITE: ["is", "are", "was", "were", "has", "have", "had"]
+      CONF_CLAUSE_VERB:
+        [
+          "think",
+          "thinks",
+          "thought",
+          "guess",
+          "know",
+          "knew",
+          "knows",
+          "hope",
+          "hoped",
+          "hopes",
+          "say",
+          "said",
+          "says",
+          "believe",
+          "believed",
+          "mean",
+          "means",
+          "meant",
+          "seem",
+          "seems",
+          "seemed",
+          "feel",
+          "feels",
+          "felt",
+          "sure",
+          "suppose",
+          "found",
+          "find",
+          "finds",
+          "realized",
+          "realised",
+          "noticed",
+          "heard",
+          "hear",
+          "saw",
+          "see",
+          "read",
+          "learned",
+          "discovered",
+          "figured",
+          "decided",
+          "assume",
+          "assumed",
+          "promise",
+          "bet",
+          "agree",
+          "agreed",
+          "admit",
+          "admitted",
+          "show",
+          "shows",
+          "showed",
+          "prove",
+          "proves",
+          "proved",
+          "confirm",
+          "confirms",
+          "confirmed",
+          "ensure",
+          "claim",
+          "claims",
+          "claimed",
+          "suggest",
+          "suggests",
+          "suggested",
+          "note",
+          "notes",
+          "noted",
+          "forget",
+          "forgot",
+          "remember",
+          "remembered",
+          "understand",
+          "understood",
+          "explain",
+          "explained",
+          "argue",
+          "argued",
+          "insist",
+          "insisted",
+          "doubt",
+          "doubted",
+          "suspect",
+          "suspected",
+          "wonder",
+          "wondered",
+          "check",
+          "checked",
+          "verify",
+          "verified",
+          "looks",
+          "sounds",
+          "is",
+          "was",
+        ]
+      CONF_LETS_CUE:
+        [
+          "so",
+          "then",
+          "now",
+          "ok",
+          "okay",
+          "well",
+          "first",
+          "next",
+          "finally",
+          "maybe",
+          "hey",
+          "end",
+          "guys",
+        ]
+      CONF_DEVICE:
+        [
+          "tv",
+          "television",
+          "lights",
+          "light",
+          "fan",
+          "radio",
+          "aircon",
+          "ac",
+          "heater",
+          "heating",
+          "stove",
+        ]
+    maps:
+      CONF_NOUN_FOR_VERB:
+        {
+          advice: "advise",
+          belief: "believe",
+          breath: "breathe",
+          intent: "intend",
+          emphasis: "emphasize",
+          response: "respond",
+          thing: "think",
+        }
+      CONF_VERB_FOR_NOUN:
+        { advise: "advice", believe: "belief", breathe: "breath", intend: "intent" }
+      CONF_BE_ADJECTIVE:
+        {
+          bias: "biased",
+          concern: "concerned",
+          prejudice: "prejudiced",
+          worry: "worried",
+          shock: "shocked",
+        }
+      CONF_BRAND:
+        { brandish: "brand", brandishes: "brands", brandished: "branded", brandishing: "branding" }
+      CONF_DENY:
+        {
+          deny: ["decline", "reject"],
+          denies: ["declines", "rejects"],
+          denied: ["declined", "rejected"],
+          denying: ["declining", "rejecting"],
+        }
+      CONF_TURN: { open: "turn on", opens: "turns on", opened: "turned on", opening: "turning on" }
+      CONF_HOP: { hope: hop, hopes: hops, hoped: hopped, hoping: hopping }
+    defs:
+      # Nothing, or clause punctuation, before.
+      CONF_BOUNDARY: '/^[.!?;:"“”([…￼*+#>|-]$/'
+      confOpens:
+        args: "t: EnBlockToken | undefined"
+        return: "!t || CONF_BOUNDARY.test(t.text)"
+      confEnds:
+        args: "t: EnBlockToken | undefined"
+        return: '!t || /^[.!?;:,)"”…]$/.test(t.text)'
+      # The number of tokens of `b` from `i` (up to `max`) that pass `test`.
+      confCount:
+        args: "b: EnBlockToken[], i: number, max: number, test: typeof confAdverbToken"
+        type: number
+        return: "i < max && test(b[i]) ? confCount(b, i + 1, max, test) : i"
+      confIsAdverb:
+        args: "w: string"
+        return: "CONF_ADVERB.has(w) || (/^[a-z]{3,}ly$/.test(w) && confLyAdverb(w))"
+      confLyAdverb:
+        args: "w: string"
+        let:
+          info: englishWordInfo(w)
+        return: "!info || info.adverb || (!info.noun && !info.verbs.length)"
+      confAdverbToken:
+        args: "t: EnBlockToken | undefined"
+        return: enIsBlockWord(t) && confIsAdverb(t.w)
+      # A plain adjective: no verb, adverb or quantifier reading ("good", "strong", "deep").
+      confPlainAdjective:
+        args: "w: string"
+        let:
+          info: englishWordInfo(w)
+        when: "!CONF_ADVERBISH.has(w) && !CONF_DETERMINER.has(w) && !CONF_FUNCTION.has(w)"
+        return: "!!info && info.adjective && !info.adverb && !info.verbs.length && !/ly$/.test(w)"
+        else: "false"
+      confHasVerb:
+        args: "w: string"
+        return: "!!englishWordInfo(w)?.verbs.length"
+      confHit:
+        args: "t: EnBlockToken, alts: string[]"
+        type: EnBlockHit
+        return: "{ start: t.start, end: t.end, alts }"
+      # The word that makes the slot after the adverbs before a target: subject, modal, to...
+      confCue:
+        args: "b: EnBlockToken[]"
+        type: "{ kind: string; at: number; adverbs: number } | null"
+        let:
+          i: confCount(b, 0, 3, confAdverbToken)
+          t: b[i]
+        # "Never breath a word" at a clause start.
+        return: >-
+          !enIsBlockWord(t)
+            ? (i > 0 && /^(?:never|always|just)$/.test(b[i - 1].w) ? { kind: "subject", at: i - 1, adverbs: i - 1 } : null)
+            : confCueAt(b, i, t)
+      confCueAt:
+        args: "b: EnBlockToken[], i: number, t: EnBlockToken"
+        type: "{ kind: string; at: number; adverbs: number } | null"
+        let:
+          w: t.w
+        # Imperatives: "Please advice me", "And never breath a word". "How will this outage
+        # effect…": an inverted question with a determiner + noun subject.
+        return: >-
+          CONF_SUBJECT.has(w) ? (confObjectYou(b, i, w) ? null : { kind: "subject", at: i, adverbs: i })
+          : CONF_THIRD.has(w) ? { kind: "third", at: i, adverbs: i }
+          : CONF_HAVE.has(w) ? { kind: "have", at: i, adverbs: i }
+          : CONF_MODAL.has(w) || /^[a-z]+'(?:d|ll)$/.test(w) ? (confModalNoun(b, i, w) ? null : { kind: "modal", at: i, adverbs: i })
+          : w === "to" ? { kind: "to", at: i, adverbs: i }
+          : w === "please" ? { kind: "subject", at: i, adverbs: i }
+          : i > 0 && /^(?:never|always|just)$/.test(b[i - 1].w) && (confOpens(t) || /^(?:and|but|so|then)$/.test(w))
+            ? { kind: "subject", at: i - 1, adverbs: i - 1 }
+          : confInvertedQuestion(b, i, w) ? { kind: "modal", at: 2, adverbs: 0 }
+          : CONF_INDEFINITE.has(w) || (w === "body" && b[i + 1]?.w === "every") ? { kind: "indefinite", at: i, adverbs: i }
+          : w === "who" ? { kind: "who", at: i, adverbs: i }
+          : null
+      # "give you advice": an object "you" after a verb.
+      confObjectYou:
+        args: "b: EnBlockToken[], i: number, w: string"
+        let:
+          p: b[i + 1]
+        when: w === "you" && enIsBlockWord(p)
+        return: >-
+          (!CONF_MODAL.has(p.w) && !CONF_CONJUNCTION.has(p.w) && !confIsAdverb(p.w) && confHasVerb(p.w))
+          || /^(?:to|for|with|of|thank)$/.test(p.w)
+        else: "false"
+      # "the will", "a can": a noun. Affirmative do is also the main verb: "do safe
+      # optimizations", "Do breath exercises". "Should intent be…?": an affirmative modal
+      # opening a question, with a noun subject.
+      confModalNoun:
+        args: "b: EnBlockToken[], i: number, w: string"
+        return: >-
+          (CONF_NOUN_MODAL.has(w) && enIsBlockWord(b[i + 1]) && /^(?:a|an|the|my|your|his|our|their|its|no|every)$/.test(b[i + 1].w))
+          || (/^(?:do|does|did)$/.test(w) && i === 0)
+          || (confOpens(b[i + 1]) && !/n't$|^cannot$/.test(w))
+      confInvertedQuestion:
+        args: "b: EnBlockToken[], i: number, w: string"
+        return: >-
+          i === 0 && !CONF_FUNCTION.has(w) && !englishWordInfo(w)?.adjective
+          && enIsBlockWord(b[1]) && /^(?:the|this|that|my|your|our|their|his|its)$/.test(b[1].w)
+          && enIsBlockWord(b[2]) && CONF_MODAL.has(b[2].w)
+          && ((enIsBlockWord(b[3]) && /^(?:how|why|when|where|what|which)$/.test(b[3].w))
+            || (confOpens(b[3]) && !/^(?:do|does|did)$/.test(b[2].w)))
+      # "to" as an infinitive marker before the target.
+      confInfinitiveTo:
+        args: "b: EnBlockToken[], c: { kind: string; at: number; adverbs: number }, next: EnBlockToken | undefined"
+        let:
+          head: b[c.at + 1]
+        when: enIsBlockWord(head) && !CONF_PREPOSITION_HEAD.has(head.w)
+        return: "c.adverbs > 0 || CONF_TO_HEAD.has(head.w) || (enIsBlockWord(next) && CONF_OBJECT_START.has(next.w))"
+        else: "false"
+      # A noun typed in a verb slot: "I thing", "can advice", "to breath some air".
+      confNounForVerb:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          c: confCue(b)
+        when:
+          - c && c.kind !== "have" && c.kind !== "third"
+          - '!(c.kind === "indefinite" && t.w !== "thing")'
+          - '!(c.kind === "who" && c.adverbs === 0)'
+          - '!(c.kind === "to" && (t.w === "response" || !confInfinitiveTo(b, c, a[0])))'
+          # "intent on": the adjective ("they were intent on winning").
+          - '!(t.w === "intent" && a[0]?.w === "on")'
+          # "Check two signs: i breath, ii pulse": a list numbered with roman letters.
+          - '!(b[c.at]?.text === "i" && a[0]?.w === "," && a[1]?.w === "ii")'
+        return: confHit(t, [CONF_NOUN_FOR_VERB[t.w]])
+      # A verb typed in a noun slot: "good advise", "my strong believe", "a breathe".
+      confVerbForNoun:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          i: "enIsBlockWord(b[0]) && confPlainAdjective(b[0].w) ? 1 : 0"
+          p: b[i]
+          # "Good advise", "potentially bad advise", "Take deep breathe"
+          noun: >-
+            (enIsBlockWord(p) && (CONF_DETERMINER.has(p.w) || /^(?:of|for|without)$/.test(p.w)))
+            || (i === 1 && (confOpens(p) || (enIsBlockWord(p)
+              && (confIsAdverb(p.w) || (confHasVerb(p.w) && !CONF_MODAL.has(p.w) && !CONF_SUBJECT.has(p.w))))))
+        when:
+          - "!(enIsBlockWord(a[0]) && CONF_OBJECT_START.has(a[0].w))"
+          - noun
+        return: confHit(t, [CONF_VERB_FOR_NOUN[t.w]])
+      # effect/affect in both directions.
+      confEffect:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          third: t.w === "effects"
+          next: a[0]
+          c: confCue(b)
+        when:
+          - enIsBlockWord(next) && !/^(?:of|on|in|is|was|are|were|that|for|and|or|to|from|has|have)$/.test(next.w)
+          - '!(a.slice(0, 3).some((x) => CONF_EFFECT_OBJECT.has(x.w)) || next.w === "a" || next.w === "an")'
+        return: >-
+          confEffectByCue(b, c, next, third) || confEffectBySubject(b, next, third)
+            ? confHit(t, [third ? "affects" : "affect"]) : null
+      confEffectByCue:
+        args: "b: EnBlockToken[], c: { kind: string; at: number; adverbs: number } | null, next: EnBlockToken, third: boolean"
+        return: >-
+          !!c && ((third ? c.kind === "third" : c.kind === "modal" || c.kind === "subject")
+            || (!third && c.kind === "to" && confInfinitiveTo(b, c, next) && CONF_OBJECT_START.has(next.w))
+            || (!third && c.kind === "to" && CONF_TO_HEAD.has(b[c.at + 1]?.w ?? "")))
+      # "droughts severely effect crop yields", "outages effect our customers". The subject
+      # opens its clause, maybe after a determiner and modifiers: "have side effects it…" does
+      # not. "see what status effects the spell gives": a wh-word leads the noun phrase.
+      confEffectBySubject:
+        args: "b: EnBlockToken[], next: EnBlockToken, third: boolean"
+        let:
+          i: confCount(b, 0, 2, confAdverbNotNot)
+          s: b[i]
+          info: englishWordInfo(s.w)
+          subject: "third ? info?.noun && !info.plural : info?.plural || (!info && /[^s]s$/.test(s.w))"
+          j: confCount(b, i + 1, i + 3, confModifier)
+        when:
+          - enIsBlockWord(s) && !CONF_DETERMINER.has(s.w)
+          - subject && !(i === 0 && !CONF_OBJECT_START.has(next.w))
+          - "!(enIsBlockWord(b[j]) && /^(?:what|which|whose)$/.test(b[j].w))"
+          - >-
+            confOpens(b[j]) || (enIsBlockWord(b[j])
+              && (CONF_DETERMINER.has(b[j].w) || CONF_CONJUNCTION.has(b[j].w) || /^(?:these|those)$/.test(b[j].w)))
+        return: "true"
+        else: "false"
+      confAdverbNotNot:
+        args: "t: EnBlockToken | undefined"
+        return: 'enIsBlockWord(t) && confIsAdverb(t.w) && t.w !== "not"'
+      # "Prolonged droughts", "Lighting conditions": participles modify the subject noun too.
+      confModifier:
+        args: "t: EnBlockToken | undefined"
+        let:
+          info: englishWordInfo(t.w)
+        when: enIsBlockWord(t) && !CONF_FUNCTION.has(t.w) && !CONF_HAVE.has(t.w) && !CONF_MODAL.has(t.w) && !CONF_BE_FINITE.has(t.w)
+        return: '!info || info.noun || info.plural || info.adjective || info.verbs.some((v) => v.form === "participle" || v.form === "ing")'
+        else: "false"
+      confAffect:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        return: 'confAffectNoun(b, a) ? confHit(t, [t.w === "affects" ? "effects" : "effect"]) : null'
+      # "affect on/of": only the noun takes these; "affects on average" is the verb. "have an
+      # affect", "had little affect", "will have the opposite affect". "put the plan into
+      # affect", "comes into affect"; "research into affect regulation" is the noun. "now in
+      # affect", "remains in affect". "Sound affects were added", "its sound affect remains".
+      confAffectNoun:
+        args: "b: EnBlockToken[], a: EnBlockToken[]"
+        let:
+          next: a[0]
+          i: confCount(b, 0, 3, confAffectModifier)
+        return: >-
+          (enIsBlockWord(next) && /^(?:on|upon|of)$/.test(next.w) && a[1]?.w !== "average")
+          || (i > 0 && enIsBlockWord(b[i]) && CONF_HAVE.has(b[i].w))
+          || (b[0]?.w === "into" && b.slice(1, 6).some((x) =>
+            /^(?:put|puts|putting|come|comes|came|coming|go|goes|went|going|gone|bring|brings|brought|bringing)$/.test(x.w)))
+          || (b[0]?.w === "in" && enIsBlockWord(b[1])
+            && /^(?:is|are|was|were|be|been|now|still|already|remain|remains|remained|stay|stays|stayed|currently|fully|come|comes|came)$/.test(b[1].w))
+          || (enIsBlockWord(b[0]) && CONF_COLLOCATION.has(b[0].w) && (!enIsBlockWord(next) || !CONF_OBJECT_START.has(next.w))
+            && (!enIsBlockWord(next)
+              || /^(?:is|are|was|were|remain|remains|remained|can|could|will|would|may|might|amplified|warms|included|include|includes|across|throughout|than)$/.test(next.w)
+              || confEnds(next)))
+      confAffectModifier:
+        args: "t: EnBlockToken | undefined"
+        return: >-
+          enIsBlockWord(t) && (CONF_DETERMINER.has(t.w) || /^(?:little|much|any|some|great|big)$/.test(t.w)
+            || confPlainAdjective(t.w) || !!englishWordInfo(t.w)?.adjective)
+      # "I'm bias", "he is worry about", "we were shock": a noun or verb where be needs the
+      # adjective. "you're worry is…" is "your worry"; "worry free" is a compound; "they're shock
+      # jocks", "worry warts": a noun compound.
+      confBeAdjective:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          i: confCount(b, 0, 2, confAdverbToken)
+          be: b[i]
+          personal: >-
+            CONF_PERSONAL_BE.has(be.w) || (/^(?:am|is|are|was|were)$/.test(be.w)
+              && enIsBlockWord(b[i + 1]) && /^(?:i|he|she|we|you|they)$/.test(b[i + 1].w))
+        when:
+          - enIsBlockWord(be)
+          - personal
+          - "!(enIsBlockWord(a[0]) && /^(?:is|was|are|were|has|have|had|will|can|free)$/.test(a[0].w))"
+          - "!(enIsBlockWord(a[0]) && englishWordInfo(a[0].w)?.plural)"
+        return: confHit(t, [CONF_BE_ADJECTIVE[t.w]])
+      # "modal + safe" is the verb save: "You should safe your work".
+      confSafe:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          next: a[0]
+          c: confCue(b)
+        when:
+          - enIsBlockWord(next) && !/^(?:to|from|for|and|or|enough|with|in|on|at|than|as|by|if|when|place|mode|side|now|here)$/.test(next.w)
+          - c && (c.kind === "modal" || (c.kind === "to" && confInfinitiveTo(b, c, next) && CONF_OBJECT_START.has(next.w)))
+        return: confHit(t, ["save"])
+      # "you weigh" at a clause end: "How much do you weight?" "weight" is also a verb ("we
+      # weight each sample"), so only a clause-final one after do/than.
+      confWeight:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        when:
+          - confEnds(a[0]) && enIsBlockWord(b[0]) && /^(?:i|you|we|they|he|she|it)$/.test(b[0].w)
+          - enIsBlockWord(b[1]) && /^(?:do|does|did|than|will|would|can|could|should|might|may)$/.test(b[1].w)
+        return: confHit(t, ["weigh"])
+      # "I bough a laptop": the past of buy after a subject or have.
+      confBough:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          c: confCue(b)
+        when: c && /^(?:subject|third|have)$/.test(c.kind) && enIsBlockWord(a[0])
+        return: confHit(t, ["bought"])
+      # "I fell like…", "please fell free", "didn't fell good": feel before its complements.
+      confFell:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          c: confCue(b)
+          n: a[0]
+        when:
+          - c && /^(?:subject|modal|who)$/.test(c.kind)
+          - enIsBlockWord(n)
+          - confFeel(n, a[1])
+        return: confHit(t, ["feel"])
+      confFeel:
+        args: "n: EnBlockToken, n1: EnBlockToken | undefined"
+        return: >-
+          n.w === "like" ? !enIsBlockWord(n1) || !/^(?:a|an|the|rain|dominoes|flies|stones?|rocks?)$/.test(n1.w)
+          : n.w === "free" || n.w === "that" ? true
+          : /^(?:i|i'm|i've|i'd|we|you|they|he|she|it's|that's|there's|this)$/.test(n.w) ? true
+          : n.w === "it" ? enIsBlockWord(n1) && hasVerbForm(n1.w, "third", "past")
+          : !CONF_FALL_STATE.has(n.w) && confAdjectiveOnly(n.w)
+      confAdjectiveOnly:
+        args: "w: string"
+        let:
+          info: englishWordInfo(w)
+        return: "!!info && info.adjective && !info.adverb"
+      # quiet for quite: before a degree-taking adjective at a clause end ("That was quiet
+      # remarkable."), or a verb after can't ("I can't quiet read it").
+      confQuiet:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0]
+          info: englishWordInfo(n.w)
+          verbal: 'info?.verbs.every((v) => v.form === "ing" || v.form === "participle")'
+          n1: a[1]
+        when: enIsBlockWord(n)
+        return: >-
+          (info && info.adjective && !info.noun && verbal && !CONF_ADVERBISH.has(n.w)
+            && (confEnds(n1) || /^(?:that|to|and|but|for|in|at)$/.test(n1.w)))
+          || (/n't$|^(?:not|never)$/.test(b[0]?.w ?? "") && hasVerbForm(n.w, "base") && !CONF_OBJECT_PRONOUN.has(n.w)
+            && !/^(?:down|up|people|things|everyone|everybody|them|us|the|a|an)$/.test(n.w) && !englishWordInfo(n.w)?.plural)
+            ? confHit(t, ["quite"]) : null
+      # "everything was find": fine after be at a clause end.
+      confFind:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          i: "enIsBlockWord(b[0]) && /^(?:all|totally|perfectly|just|really|also)$/.test(b[0].w) ? 1 : 0"
+          be: b[i]
+          n: a[0]
+        when:
+          - enIsBlockWord(be) && /^(?:am|is|are|was|were|be|been|i'm|im|it's|that's|we're|you're|they're|he's|she's)$/.test(be.w)
+          - confEnds(n) || /^(?:for|with|but|and|now|not|by|here|there|too|as|so|though|otherwise|either|without)$/.test(n.w)
+        return: confHit(t, ["fine"])
+      # hop/hope: "I hop we can", and hope for hop before a vehicle or call.
+      confHop:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        return: 't.w === "hop" || t.w === "hops" ? confHopeVerb(t, b, a) : confHopVerb(t, a)'
+      confHopeVerb:
+        args: "t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        when:
+          - enIsBlockWord(b[0]) && /^(?:i|we|they|you)$/.test(b[0].w)
+          - >-
+            enIsBlockWord(a[0])
+            && /^(?:we|you|i|they|he|she|that|this|everything|everyone|so|not|it'll|it's|you're|we're|they're)$/.test(a[0].w)
+        return: 'confHit(t, [t.w === "hop" ? "hope" : "hopes"])'
+      # "I hope on the train there's wifi": hope + a clause.
+      confHopVerb:
+        args: "t: EnBlockToken, a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          alt: CONF_HOP[t.w]
+        when:
+          - a[0]?.w === "on" && enIsBlockWord(a[1]) && /^(?:a|an|the|my|our|your|their|his|her)$/.test(a[1].w)
+          - enIsBlockWord(a[2]) && CONF_BOARDED.has(a[2].w)
+          - >-
+            !(enIsBlockWord(a[3])
+              && /^(?:we|you|i|they|he|she|it|there|there's|it's|everyone|someone|this|that)$/.test(a[3].w))
+          - alt
+        return: confHit(t, [alt])
+      # "Bob cant go", "Cant you…": can't before a bare verb or an inverted pronoun.
+      confCant:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0].w
+          inverted: confOpens(b[0]) && /^(?:you|we|i|they|he|she|it)$/.test(n)
+          v: "confIsAdverb(n) && enIsBlockWord(a[1]) ? a[1].w : n"
+        when: t.text !== "CANT" && enIsBlockWord(a[0])
+        return: >-
+          inverted || confCantVerb(b, v) ? { ...confHit(t, ["can't"]), key: "review_msg_contraction" } : null
+      # "the cant of the roof", "political cant".
+      confCantVerb:
+        args: "b: EnBlockToken[], v: string"
+        let:
+          info: englishWordInfo(v)
+        when:
+          - v !== "cant"
+          - 'info?.verbs.some((x) => x.form === "base") && !info.plural && !CONF_DETERMINER.has(v)'
+        return: "!(enIsBlockWord(b[0]) && (CONF_DETERMINER.has(b[0].w) || confPlainAdjective(b[0].w)))"
+        else: "false"
+      # rouge (make-up) for rogue: "lip rogue", "Rogue Lipstick--".
+      confRogue:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        return: 'b[0]?.w === "lip" || a[0]?.w === "lipstick" ? confHit(t, ["rouge"]) : null'
+      # "He roller skated home": the verb is hyphenated; "the roller skated" is a noun subject.
+      confRoller:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0]
+        when:
+          - n?.w === "skated"
+          - "!(enIsBlockWord(b[0]) && (CONF_DETERMINER.has(b[0].w) || confPlainAdjective(b[0].w)))"
+          - '/^[ \t ]+$/.test(ctx.text.slice(t.end, n.start))'
+        return: >-
+          { start: t.start, end: n.end, alts: [`${t.text}-${n.text}`], key: "review_msg_closed_compound" }
+      # summery (summer-like) where the noun summary is meant. "The weather is summery." / "is
+      # summery and warm": a predicate adjective.
+      confSummery:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        when:
+          - ctx.text[t.start - 1] !== "-"
+          - '!(enIsBlockWord(a[0]) && CONF_SEASONAL.has(a[0].w) && ctx.text[t.end] !== "-")'
+          - >-
+            !(enIsBlockWord(b[0])
+              && /^(?:very|so|too|quite|more|most|rather|really|pretty|feel|feels|felt|look|looks|looked|sound|sounds|seem|seems)$/.test(b[0].w))
+          - >-
+            !(enIsBlockWord(b[0]) && /^(?:is|was|are|were|be|been|it's|that's)$/.test(b[0].w)
+              && (confEnds(a[0]) || /^(?:and|but|with|today|again|now|outside)$/.test(a[0].w)))
+        return: confHit(t, ["summary"])
+      # "theses days", "I like theses apples": the demonstrative before a plural noun.
+      confTheses:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0]
+          info: englishWordInfo(n.w)
+          p: b[0]
+        when:
+          - enIsBlockWord(n)
+          - "info ? info.plural : /[^s]s$/.test(n.w)"
+          - >-
+            !(enIsBlockWord(p) && (CONF_DETERMINER.has(p.w)
+              || /^(?:these|those|some|many|several|two|three|both|all|her|doctoral|master's|masters|phd|other|such|their|whose)$/.test(p.w)
+              || /['’]s$/.test(p.w) || /^\d/.test(p.w) || confPlainAdjective(p.w)))
+        return: confHit(t, ["these"])
+      # "brandish him a traitor": brand someone.
+      confBrandish:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        when:
+          - enIsBlockWord(a[0]) && /^(?:him|her|them|us|me|you)$/.test(a[0].w)
+          - enIsBlockWord(a[1]) && /^(?:a|an|as|with)$/.test(a[1].w)
+        return: confHit(t, [CONF_BRAND[t.w]])
+      # "deny the offer": an offer is declined or rejected. "deny the offer was made": deny a
+      # claim.
+      confDeny:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          i: "enIsBlockWord(a[0]) && /^(?:the|an|your|their|his|her|my|our|this|that|any|every|all)$/.test(a[0].w) ? 1 : 0"
+          gerundSubject: >-
+            t.w === "denying" && (confOpens(b[0]) || (enIsBlockWord(b[0]) && confIsAdverb(b[0].w) && confOpens(b[1])))
+        when:
+          - enIsBlockWord(a[i]) && /^offers?$/.test(a[i].w)
+          - >-
+            !(!gerundSubject && enIsBlockWord(a[i + 1]) && /^(?:was|is|were|are|had|has|existed|exists|ever)$/.test(a[i + 1].w))
+        return: confHit(t, [...CONF_DENY[t.w]])
+      # dissemble (feign) for disassemble (take apart).
+      confDissemble:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0]
+          later: /\bassembl/i.test(ctx.text.slice(t.end, t.end + 80))
+          object: enIsBlockWord(n) && /^(?:the|a|an|my|this|that|it|them|these|those|his|her|our|their|your|from)$/.test(n.w)
+        when: later || object || ctx.text[t.end] === "/"
+        return: 'confHit(t, [t.w.replace(/^dissembl/, "disassembl")])'
+      # "whatever that I have": a relative pronoun after whatever/whoever/whenever.
+      confEverRelative:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          rel: a[0]
+          n: a[1]
+        when:
+          - enIsBlockWord(rel) && /^(?:that|which|who)$/.test(rel.w)
+          - enIsBlockWord(n)
+          - >-
+            !(rel.w === "that" && !/^(?:i|i've|i'm|i'd|you|we|they|he|she|you've|we've|they've)$/.test(n.w))
+          - '!(rel.w === "which" && /^(?:way|one|ones)$/.test(n.w))'
+          - '!(rel.w === "who" && t.w !== "whoever" && t.w !== "whatever")'
+        return: '{ start: t.end, end: rel.end, alts: [""] }'
+      # everyday as a subject or before a subject: "Everyday is the same", "everyday we adapt".
+      # "Everyday is…" opens a sentence capitalized; a product name would be quoted or cased.
+      # Shouted text: "MEET SOMEONE NEW EVERYDAY."
+      confEveryday:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0]
+          p: b[0]
+          ok: >-
+            (enIsBlockWord(n) && /^(?:is|was|feels?|seems?|brings|starts|begins)$/.test(n.w)
+              && ((confOpens(p) && /^[Ee]veryday$/.test(t.text))
+                || (enIsBlockWord(p) && /^(?:does|did|why|and|but|because|so)$/.test(p.w))))
+            || (enIsBlockWord(n) && /^(?:we|i|you|they|he|she)$/.test(n.w) && (confOpens(p) || p?.text === ","))
+            || (t.text === "EVERYDAY" && confEnds(n) && enIsBlockWord(p) && p.text === p.text.toUpperCase())
+        when:
+          - >-
+            !(enIsBlockWord(p)
+              && /^(?:the|an?|word|is|are|was|were|be|so|very|quite|more|most|less|such|of|called|named|my|your|our|their|his|her|its)$/.test(p.w))
+          - ok
+        return: '{ ...confHit(t, ["every day"]), key: "review_msg_every_day" }'
+      # An -er comparative of an adjective the lexicon knows: "taller", "bigger", "stupider".
+      # -er comparatives come from one-syllable adjectives and -y/-le/-ow ones: not "presenter".
+      confComparative:
+        args: "w: string"
+        let:
+          info: englishWordInfo(w)
+          stem: w.slice(0, -2)
+        when:
+          - w.length >= 5 && w.endsWith("er")
+          - info && !info.noun && !info.verbs.length
+          - '!((stem.match(/[aeiouy]+/g) ?? []).length > 1 && !/(?:i|l|ow)$/.test(stem) && w !== "stupider")'
+        return: '[stem, `${stem}e`, stem.replace(/(.)\1$/, "$1"), stem.replace(/i$/, "y")].some((base) => englishWordInfo(base)?.adjective)'
+        else: "false"
+      # "slower that the same build": that for than after an -er comparative. "no longer
+      # that…", "so much faster that…", and extraposed "make it clearer that…".
+      confThatThan:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          p: b[0]
+          n: a[0]
+        when:
+          - enIsBlockWord(p) && p.text === p.w && !CONF_CLAUSE_COMPARATIVE.has(p.w) && confComparative(p.w)
+          - '!(b[1]?.w === "no" || b.slice(1, 6).some((x) => /^(?:so|such)$/.test(x.w)))'
+          - >-
+            !(b.slice(1, 4).some((x) => x.w === "it" || x.w === "it's") && confFiniteClause(a))
+          - enIsBlockWord(n)
+          - confThanNext(n.w)
+        return: '{ ...confHit(t, ["than"]), key: "review_msg_then_than" }'
+      confFiniteClause:
+        args: "a: EnBlockToken[]"
+        let:
+          clause: a.slice(0, 8)
+          stop: clause.findIndex((x) => !enIsBlockWord(x))
+        return: >-
+          (stop < 0 ? clause : clause.slice(0, stop)).some((x) =>
+            CONF_MODAL.has(x.w) || CONF_BE_FINITE.has(x.w) || hasVerbForm(x.w, "past", "third"))
+      # "no longer that simple", "bigger that way".
+      confThanNext:
+        args: "w: string"
+        let:
+          info: englishWordInfo(w)
+        return: "!((info?.adjective && !info.noun) || info?.adverb || /^(?:way|much|is|was|it|i|you|we|they|he|she)$/.test(w))"
+      # "stupider then her", "better then no bread". "met her earlier then him" stays a
+      # sequence; right after an intransitive verb ("arrived earlier then him") it compares.
+      confThenThan:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          p: b[0]
+          n: a[0]
+          verb: "enIsBlockWord(b[1]) ? englishWordInfo(b[1].w) : null"
+          compared: >-
+            (confComparative(p.w) && (!/^(?:earlier|later)$/.test(p.w)
+              || (!!verb?.verbs.some((v) => v.form === "past") && !verb.noun && !verb.adjective)))
+            || /^(?:better|worse|more|less)$/.test(p.w) || (enIsBlockWord(b[1]) && /^(?:more|less)$/.test(b[1].w))
+          n1: a[1]
+          closes: confEnds(n1) || /^(?:but|and|at|in|on|too|or|for)$/.test(n1.w)
+        when:
+          - enIsBlockWord(p) && !ctx.text.slice(p.end, t.start).includes(",")
+          - enIsBlockWord(n)
+          - compared
+        return: >-
+          (/^(?:her|him|me|us|them|some|most|others|many|few|anyone|everyone)$/.test(n.w) && closes)
+          || (n.w === "no" && enIsBlockWord(n1) && /^(?:better|worse)$/.test(p.w))
+            ? { ...confHit(t, ["than"]), key: "review_msg_then_than" } : null
+      # its/it's in frames the core detector leaves out.
+      confIts:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0]
+        when: enIsBlockWord(n)
+        return: 't.w !== "its" ? confItsContraction(t, b, a, n) : confItsPossessive(t, b, a, n)'
+      confItsHit:
+        args: "t: EnBlockToken"
+        type: EnBlockHit
+        return: '{ ...confHit(t, ["its"]), key: "review_msg_its_possessive" }'
+      # "I guess its March 6.", "They doubt its Tesla this year."
+      confItsPossessive:
+        args: "t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[], n: EnBlockToken"
+        type: "EnBlockHit | null"
+        let:
+          rest: a.slice(1, 4)
+          tail: >-
+            confEnds(rest[0]) || (/^\d/.test(rest[0].text) && confEnds(rest[1]))
+            || (/^(?:this|next|last)$/.test(rest[0].w) && enIsBlockWord(rest[1]) && confEnds(rest[2]))
+        when:
+          - enIsBlockWord(b[0]) && /^(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)$/.test(b[0].w)
+          - '/^\p{Lu}\p{Ll}/u.test(n.text)'
+        return: >-
+          tail ? { ...confHit(t, ["it's"]), key: "review_msg_its_contraction" } : null
+      # "lost it's 7th chapter", "at it's 8th floor". "It's ancestor is still around." "The
+      # engine lost it's compression.": a verb that takes no clause, then one noun. "he
+      # recognizes it's Bob", "whose hands it's in": a name or a stranded preposition. "I like
+      # it's various colors". "Understand it's code, it's values, and it's purpose."
+      confItsContraction:
+        args: "t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[], n: EnBlockToken"
+        type: "EnBlockHit | null"
+        let:
+          ordinal: >-
+            /^\d+(?:st|nd|rd|th)$/.test(n.w) && enIsBlockWord(a[1]) && (englishWordInfo(a[1].w)?.noun ?? true)
+            && enIsBlockWord(b[0]) && !confOpens(b[0])
+            && !/^(?:think|guess|know|hope|say|said|says|believe|sure|suppose|mean|means|seems|now|so|and|but|because|that|if|when)$/.test(b[0].w)
+          info: englishWordInfo(n.w)
+          nounOnly: "!!info && (info.noun || info.plural) && !info.adjective && !info.adverb && !/(?:ing|ed)$/.test(n.w)"
+        return: >-
+          ordinal
+          || ((confOpens(b[0]) || b[0]?.text === ",") && enIsBlockWord(a[1]) && /^(?:is|was|has|are|were|have)$/.test(a[1].w)
+            && (nounOnly || (!info && !/(?:ing|ed|ly)$/.test(n.w)))
+            && !/^(?:time|everything|nothing|something|anything|one|what|who|this|that|here|there|now|all)$/.test(n.w))
+          || (nounOnly && n.text === n.w
+            && !/^(?:in|on|at|for|from|with|by|about|of|to|up|down|out|off|over|under|there|here)$/.test(n.w)
+            && confEnds(a[1]) && enIsBlockWord(b[0]) && !CONF_CLAUSE_VERB.has(b[0].w) && hasVerbForm(b[0].w, "past", "third"))
+          || (n.w === "various" && enIsBlockWord(a[1]) && !/^(?:who|that|which)$/.test(a[2]?.w ?? ""))
+          || (nounOnly && a[1]?.text === "," && (confListedIts(a[2]) || (a[2]?.w === "and" && confListedIts(a[3]))))
+          || (nounOnly && b[0]?.text === "," && confListedIts(b[2]))
+          || (nounOnly && b[0]?.w === "and" && b[1]?.text === "," && confListedIts(b[3]))
+            ? confItsHit(t) : null
+      confListedIts:
+        args: "x: EnBlockToken | undefined"
+        return: enIsBlockWord(x) && /^it's$/.test(x.w)
+      # lets/let's: "so lets push", "lets proceed", "The crutch let's him walk".
+      confLets:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0]
+        when: enIsBlockWord(n)
+        return: >-
+          t.w === "let's" ? confLetsObject(t, a, n) : confLetsVerb(t, b, a, n)
+      # "let's" + object pronoun: "it let's us do", "let's me do".
+      confLetsObject:
+        args: "t: EnBlockToken, a: EnBlockToken[], n: EnBlockToken"
+        type: "EnBlockHit | null"
+        when: /^(?:me|us|him|her|them|you)$/.test(n.w) && enIsBlockWord(a[1]) && hasVerbForm(a[1].w, "base")
+        return: confHit(t, ["lets"])
+      # "let Align = new…": a capitalized name after it is code or a title. "lets staff
+      # restore", "Let chance decide": a noun reading needs an object after the verb. "Let
+      # angle A be x": a capital letter after it is a variable, not an article.
+      confLetsVerb:
+        args: "t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[], n: EnBlockToken"
+        type: "EnBlockHit | null"
+        let:
+          info: englishWordInfo(n.w)
+        when:
+          - confOpens(b[0]) || (enIsBlockWord(b[0]) && CONF_LETS_CUE.has(b[0].w))
+          - '!(n.text !== n.w || n.w.length < 2 || a.slice(1, 3).some((x) => x.text === "="))'
+          - 'info?.verbs.some((v) => v.form === "base") && !info.plural && !CONF_OBJECT_START.has(n.w)'
+          - "!((info.noun || info.adjective) && !(enIsBlockWord(a[1]) && CONF_OBJECT_START.has(a[1].w) && a[1].text === a[1].w))"
+          - '!(t.w === "let" && (/^(?:go|slip|fly|pass|drop|fall|rip|loose|be|know)$/.test(n.w) || !confOpens(b[0])))'
+        return: >-
+          { ...confHit(t, ["let's"]), key: "review_msg_lets_contraction" }
+      # "you're PR was merged", "You're car is black": the possessive before a noun and a verb.
+      confYoure:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          n: a[0]
+          info: englishWordInfo(n.w)
+          noun: >-
+            /^[A-Z]{2,}$/.test(n.text)
+            || (!!info && (info.noun || info.plural) && !info.adjective && !info.adverb && !/(?:ing|ed)$/.test(n.w))
+        when:
+          - enIsBlockWord(n) && enIsBlockWord(a[1]) && /^(?:is|was|has|had|are|were)$/.test(a[1].w)
+          - noun && !/^(?:all|both|each|one|right|welcome|here|there|now|what|who)$/.test(n.w)
+        return: '{ ...confHit(t, ["your"]), key: "review_msg_your_possessive" }'
+      # "Were the best team." / "were a good team": we're at a clause start before a closed
+      # noun phrase.
+      confWere:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        let:
+          i: confCount(a, 1, 5, enIsBlockWord)
+        when:
+          - confOpens(b[0]) && enIsBlockWord(a[0]) && /^(?:a|an|the)$/.test(a[0].w)
+          - "!a.slice(1, i).some((x) => confWereBlocker(x.w))"
+          - "!(i < 3 || (a[i] && !/^[.!]$/.test(a[i].text)))"
+        return: confHit(t, ["we're"])
+      confWereBlocker:
+        args: "w: string"
+        let:
+          info: englishWordInfo(w)
+        return: >-
+          (!!info?.verbs.some((v) => v.form === "past" || v.form === "participle" || v.form === "third") && !info.noun)
+          || /(?:ed|ing)$/.test(w) || /^(?:there|here|you|we|they|it|he|she|i)$/.test(w)
+      # "open the TV": a device is turned on. "open the TV app", "opens the TV up to", "the fan
+      # control": only a clause boundary may follow.
+      confOpenDevice:
+        args: "ctx: DetectContext, t: EnBlockToken, b: EnBlockToken[], a: EnBlockToken[]"
+        type: "EnBlockHit | null"
+        when:
+          - >-
+            enIsBlockWord(a[0]) && /^(?:the|my|your|our|their|his|her)$/.test(a[0].w)
+            && enIsBlockWord(a[1]) && CONF_DEVICE.has(a[1].w)
+          - >-
+            !(enIsBlockWord(a[2])
+              && !/^(?:to|when|and|so|for|because|now|please|before|after|while|if|again|then|or)$/.test(a[2].w))
+        return: confHit(t, [CONF_TURN[t.w]])
+      # The handler of each target word.
+      CONF_HANDLERS: >-
+        ({
+          ...Object.fromEntries(Object.keys(CONF_NOUN_FOR_VERB).map((w) => [w, confNounForVerb])),
+          ...Object.fromEntries(Object.keys(CONF_VERB_FOR_NOUN).map((w) => [w, confVerbForNoun])),
+          ...Object.fromEntries(Object.keys(CONF_BE_ADJECTIVE).map((w) => [w, confBeAdjective])),
+          ...Object.fromEntries(Object.keys(CONF_BRAND).map((w) => [w, confBrandish])),
+          ...Object.fromEntries(Object.keys(CONF_DENY).map((w) => [w, confDeny])),
+          ...Object.fromEntries(Object.keys(CONF_TURN).map((w) => [w, confOpenDevice])),
+          effect: confEffect, effects: confEffect, affect: confAffect, affects: confAffect,
+          safe: confSafe, weight: confWeight, bough: confBough, fell: confFell, quiet: confQuiet, find: confFind,
+          hop: confHop, hops: confHop, hope: confHop, hopes: confHop, hoped: confHop, hoping: confHop,
+          cant: confCant, rogue: confRogue, roller: confRoller, summery: confSummery, theses: confTheses,
+          whatever: confEverRelative, whoever: confEverRelative, whenever: confEverRelative, wherever: confEverRelative,
+          everyday: confEveryday, that: confThatThan, then: confThenThan,
+          its: confIts, "it's": confIts, lets: confLets, "let's": confLets, let: confLets,
+          "you're": confYoure, were: confWere,
+        }) as Readonly<Record<string, typeof confNounForVerb>>
+      CONF_QUOTE: '/^["“”''‘’]$/'
+      # A quoted example: a quote within a word of each side ("I cant go" in a style guide).
+      confMentioned:
+        args: "ctx: DetectContext, h: EnBlockHit"
+        let:
+          b: enBlockTokensBefore(ctx, h.start).slice(0, 2)
+          a: enBlockTokensAfter(ctx, h.end).slice(0, 2)
+        return: "b.some((t) => CONF_QUOTE.test(t.text)) && a.some((t) => CONF_QUOTE.test(t.text))"
+      confMake:
+        args: >-
+          ctx: DetectContext, start: number, end: number, alternatives: string[],
+          messageKey: RawFinding["messageKey"] | undefined
+        type: "RawFinding | null"
+        let:
+          typed: ctx.source.slice(start, end)
+          cased: alternatives.map((alt) => caseLike(typed, alt))
+        when: "!cased.includes(typed)"
+        return: >-
+          finding("englishConfusedWords", messageKey ?? "review_msg_confused_word", start, end, cased, {
+            ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+            context: { start: Math.max(0, start - 80), end: Math.min(ctx.text.length, end + 80) } })
     frames:
       # Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good
       # advise" a noun slot. One alternative for each handler word of confusions1.ts; the word
@@ -405,7 +1825,21 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:brandishing|brandishes|brandished|prejudice|you['’]re|emphasis|response|brandish|whatever|whenever|wherever|everyday|let['’]s|believe|breathe|concern|denying|opening|effects|affects|summery|whoever|it['’]s|advice|belief|breath|intent|advise|intend|denies|denied|opened|effect|affect|weight|hoping|roller|theses|thing|worry|shock|opens|bough|quiet|hopes|hoped|rogue|bias|deny|open|safe|fell|find|hops|hope|cant|that|then|lets|were|hop|its|let|dissembl[a-z]*)(?![\\p{L}\\p{N}_'’@#\\\\])"
         flags: dgiu
         owner: none
-        fixer: confusedWord
+        # The target word owns the match. Mixed case names something; a user word is the
+        # user's.
+        let:
+          text: m[0]
+          w: enWordKey(text)
+          glue: ctx.text[m.index + text.length]
+          t: "{ text, w, start: m.index, end: m.index + text.length }"
+          handler: 'w.startsWith("dissembl") ? confDissemble : CONF_HANDLERS[w]'
+          h: handler(ctx, t, enBlockTokensBefore(ctx, t.start), enBlockTokensAfter(ctx, t.end))
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - applyWordCase(text, detectWordCase(text)) === text && !ctx.dictionary.has(w)
+          - '!((glue === "-" && w !== "summery") || (glue === "/" && !/^(?:dissembl|bias)/.test(w)))'
+          - h && !confMentioned(ctx, h)
+        return: confMake(ctx, h.start, h.end, h.alts, h.key)
   - id: en.contextualConfusions
     checks:
       [

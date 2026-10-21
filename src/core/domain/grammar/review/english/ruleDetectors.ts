@@ -10,7 +10,6 @@ import * as articles from "./articles";
 import * as slotConfusions from "./slotConfusions";
 import * as britishUsage from "./britishUsage";
 import * as typography from "./typography";
-import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
 import * as contractionSlots from "./contractionSlots";
 import * as degreeSlots from "./degreeSlots";
@@ -95,7 +94,6 @@ export const FIXERS = mergePredicates<Fixer>(
   comparisonSlots.FIXERS,
   tenseSlots.FIXERS,
   grammarStyle1.FIXERS,
-  confusions1.FIXERS,
   confusions2.FIXERS,
   dialects.FIXERS,
   usageTables.FIXERS,

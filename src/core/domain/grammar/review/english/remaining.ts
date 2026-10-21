@@ -16,7 +16,6 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { TextRange } from "../types";
 import type { MatchFixer } from "../../engine/reviewRules";
 import { style2OpensClause as opensClause } from "../../engine/rules/en.generated";
-import { confusedWords } from "./confusions1";
 import { fixedPhrases } from "./fixedPhrases";
 import { frameRuleDetector } from "../../engine/reviewRules";
 
@@ -382,6 +381,8 @@ const lowerTarget = (alternatives: string[]) =>
 // given.
 const MIXED_WORDS =
   /(?<![\p{L}\p{N}_'’@/#\\.-])\p{L}*\p{Ll}\p{Lu}\p{L}*(?![\p{L}\p{N}_'’@/#\\-])/gu;
+const confusedWordsRule = frameRuleDetector("en.confusedWords", {});
+const confusedWords = (view: DetectContext) => confusedWordsRule({ ...view, rules: undefined });
 const casedChecks = (view: DetectContext) => [...confusedWords(view), ...chromeExtension(view)];
 
 // Quoted wording is checked too: the tables' quotation and example guards keep a mention

@@ -63,3 +63,12 @@ export {
 export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/EnglishVerbForms";
 // Group 5: the text before an index and the word after it.
 export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";
+// Group 5: the word key (lowercase, ’ as ') and the tokens around a target in its text block
+// (library/english/blockTokens.ts).
+export { wordKey as enWordKey } from "../implementations/helpers/GenericRuleShared";
+export {
+  blockTokensAfter as enBlockTokensAfter,
+  blockTokensBefore as enBlockTokensBefore,
+  isBlockWord as enIsBlockWord,
+} from "./english/blockTokens";
+export type { BlockHit as EnBlockHit, BlockToken as EnBlockToken } from "./english/blockTokens";

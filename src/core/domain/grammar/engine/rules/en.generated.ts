@@ -2,7 +2,14 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, MatchResult, RawFinding } from "../../library";
+import type {
+  DetectContext,
+  EnBlockHit,
+  EnBlockToken,
+  FrameRef,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
   EN_VERB_FORMS,
   applyWordCase,
@@ -10,9 +17,13 @@ import {
   caseLike,
   detectWordCase,
   enBefore,
+  enBlockTokensAfter,
+  enBlockTokensBefore,
+  enIsBlockWord,
   enListedNoun,
   enListedWithoutPlural,
   enNextWord,
+  enWordKey,
   englishInflect,
   englishInitialSound,
   englishNounForms,
@@ -27,6 +38,726 @@ import {
   skipBackWhile,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const CONF_SUBJECT: ReadonlySet<string> = new Set(["i", "you", "we", "they"]);
+
+export const CONF_THIRD: ReadonlySet<string> = new Set(["he", "she", "it"]);
+
+export const CONF_MODAL: ReadonlySet<string> = new Set([
+  "can",
+  "could",
+  "will",
+  "would",
+  "shall",
+  "should",
+  "may",
+  "might",
+  "must",
+  "do",
+  "does",
+  "did",
+  "cannot",
+  "can't",
+  "couldn't",
+  "won't",
+  "wouldn't",
+  "shan't",
+  "shouldn't",
+  "mightn't",
+  "mustn't",
+  "don't",
+  "doesn't",
+  "didn't",
+]);
+
+export const CONF_NOUN_MODAL: ReadonlySet<string> = new Set([
+  "can",
+  "will",
+  "may",
+  "must",
+  "might",
+]);
+
+export const CONF_HAVE: ReadonlySet<string> = new Set([
+  "have",
+  "has",
+  "had",
+  "having",
+  "i've",
+  "you've",
+  "we've",
+  "they've",
+  "i'd",
+  "you'd",
+  "he'd",
+  "she'd",
+  "we'd",
+  "they'd",
+]);
+
+export const CONF_INDEFINITE: ReadonlySet<string> = new Set([
+  "everyone",
+  "anyone",
+  "anybody",
+  "everybody",
+  "someone",
+  "somebody",
+  "nobody",
+]);
+
+export const CONF_DETERMINER: ReadonlySet<string> = new Set([
+  "a",
+  "an",
+  "the",
+  "my",
+  "your",
+  "his",
+  "our",
+  "their",
+  "its",
+  "this",
+  "no",
+  "every",
+]);
+
+export const CONF_OBJECT_START: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "this",
+  "that",
+  "these",
+  "those",
+  "me",
+  "him",
+  "us",
+  "them",
+  "you",
+  "it",
+  "everyone",
+  "everything",
+  "someone",
+  "something",
+  "anyone",
+  "anything",
+  "how",
+  "what",
+  "whether",
+  "which",
+  "who",
+  "all",
+  "some",
+  "any",
+  "every",
+  "each",
+  "no",
+  "both",
+]);
+
+export const CONF_OBJECT_PRONOUN: ReadonlySet<string> = new Set([
+  "me",
+  "him",
+  "her",
+  "us",
+  "them",
+  "you",
+  "it",
+]);
+
+export const CONF_FUNCTION: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "we",
+  "they",
+  "he",
+  "she",
+  "it",
+  "me",
+  "him",
+  "us",
+  "them",
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "our",
+  "their",
+  "his",
+  "her",
+  "its",
+  "and",
+  "or",
+  "but",
+  "so",
+  "then",
+  "if",
+  "when",
+  "what",
+  "where",
+  "how",
+  "why",
+  "who",
+  "which",
+  "not",
+  "to",
+  "of",
+  "in",
+  "on",
+  "at",
+  "by",
+  "for",
+  "from",
+  "with",
+]);
+
+export const CONF_ADVERB: ReadonlySet<string> = new Set([
+  "not",
+  "never",
+  "always",
+  "also",
+  "just",
+  "really",
+  "only",
+  "still",
+  "even",
+  "often",
+  "usually",
+  "sometimes",
+  "maybe",
+  "ever",
+  "personally",
+  "definitely",
+  "probably",
+  "actually",
+  "already",
+  "certainly",
+  "simply",
+  "generally",
+  "typically",
+  "normally",
+  "honestly",
+  "truly",
+  "perhaps",
+  "absolutely",
+  "completely",
+  "totally",
+  "once",
+  "again",
+  "kinda",
+  "sorta",
+  "all",
+]);
+
+export const CONF_ADVERBISH: ReadonlySet<string> = new Set([
+  "just",
+  "sure",
+  "still",
+  "even",
+  "well",
+  "only",
+  "very",
+  "so",
+  "too",
+  "quite",
+  "rather",
+  "pretty",
+  "kind",
+  "sort",
+  "first",
+  "last",
+  "please",
+  "right",
+  "enough",
+  "much",
+  "more",
+  "most",
+  "less",
+  "least",
+]);
+
+export const CONF_CONJUNCTION: ReadonlySet<string> = new Set([
+  "if",
+  "when",
+  "what",
+  "that",
+  "so",
+  "and",
+  "but",
+  "because",
+  "as",
+  "than",
+  "where",
+  "how",
+  "why",
+  "unless",
+  "until",
+  "once",
+  "while",
+  "whether",
+  "since",
+  "or",
+  "though",
+  "although",
+  "before",
+  "after",
+  "cause",
+  "maybe",
+  "then",
+]);
+
+export const CONF_PREPOSITION_HEAD: ReadonlySet<string> = new Set([
+  "according",
+  "due",
+  "prior",
+  "thanks",
+  "next",
+  "close",
+  "similar",
+  "compared",
+  "related",
+  "attached",
+  "opposed",
+  "contrary",
+  "back",
+  "up",
+  "down",
+  "from",
+  "way",
+  "path",
+  "key",
+  "answer",
+  "reply",
+  "response",
+  "addition",
+  "reference",
+  "regard",
+  "respect",
+  "relation",
+  "comparison",
+  "subject",
+  "prone",
+  "open",
+  "exposed",
+  "equal",
+]);
+
+export const CONF_TO_HEAD: ReadonlySet<string> = new Set([
+  "want",
+  "wants",
+  "wanted",
+  "wanting",
+  "need",
+  "needs",
+  "needed",
+  "needing",
+  "have",
+  "has",
+  "had",
+  "having",
+  "able",
+  "try",
+  "tries",
+  "tried",
+  "trying",
+  "decide",
+  "decides",
+  "decided",
+  "supposed",
+  "ought",
+  "plan",
+  "plans",
+  "planned",
+  "like",
+  "liked",
+  "going",
+  "tend",
+  "tends",
+  "tended",
+  "seem",
+  "seems",
+  "seemed",
+  "start",
+  "starts",
+  "started",
+  "begin",
+  "began",
+  "remember",
+  "forget",
+  "forgot",
+  "refuse",
+  "refused",
+  "hope",
+  "hoped",
+  "wish",
+  "chose",
+  "choose",
+  "manage",
+  "managed",
+  "used",
+  "how",
+  "what",
+  "where",
+  "when",
+  "whether",
+  "why",
+  "continue",
+  "continued",
+  "learn",
+  "learned",
+  "afraid",
+  "easy",
+  "hard",
+  "help",
+  "helps",
+  "helped",
+  "important",
+  "possible",
+  "impossible",
+  "better",
+  "best",
+]);
+
+export const CONF_EFFECT_OBJECT: ReadonlySet<string> = new Set([
+  "change",
+  "changes",
+  "reform",
+  "reforms",
+  "substitution",
+  "substitutions",
+  "transformation",
+  "transformations",
+  "improvement",
+  "improvements",
+  "repair",
+  "repairs",
+  "cure",
+  "escape",
+  "rescue",
+  "transfer",
+  "transfers",
+  "entry",
+  "compromise",
+  "reconciliation",
+  "merger",
+  "restoration",
+  "recovery",
+  "transaction",
+  "transactions",
+  "payment",
+  "payments",
+  "sale",
+  "sales",
+  "settlement",
+  "settlements",
+  "arrest",
+  "arrests",
+]);
+
+export const CONF_COLLOCATION: ReadonlySet<string> = new Set([
+  "side",
+  "special",
+  "sound",
+  "placebo",
+  "ripple",
+  "snowball",
+  "greenhouse",
+  "domino",
+  "butterfly",
+  "halo",
+  "net",
+  "desired",
+  "intended",
+  "unintended",
+  "cumulative",
+  "opposite",
+  "adverse",
+  "visual",
+  "audio",
+  "cascading",
+  "chilling",
+  "lasting",
+  "overall",
+  "combined",
+  "positive",
+  "negative",
+]);
+
+export const CONF_PERSONAL_BE: ReadonlySet<string> = new Set([
+  "i'm",
+  "im",
+  "i'am",
+  "he's",
+  "she's",
+  "we're",
+  "you're",
+  "they're",
+  "theyre",
+]);
+
+export const CONF_FALL_STATE: ReadonlySet<string> = new Set([
+  "ill",
+  "sick",
+  "silent",
+  "asleep",
+  "quiet",
+  "dead",
+  "flat",
+  "short",
+  "open",
+  "vacant",
+  "due",
+  "pregnant",
+  "still",
+  "hard",
+  "heavy",
+  "low",
+  "apart",
+  "behind",
+  "back",
+  "down",
+  "away",
+  "foul",
+  "unconscious",
+  "limp",
+  "loose",
+  "dark",
+  "empty",
+  "idle",
+  "mute",
+]);
+
+export const CONF_BOARDED: ReadonlySet<string> = new Set([
+  "bus",
+  "train",
+  "plane",
+  "airplane",
+  "flight",
+  "call",
+  "boat",
+  "ferry",
+  "bike",
+  "horse",
+  "car",
+  "taxi",
+  "cab",
+  "subway",
+  "tram",
+  "meeting",
+  "stream",
+  "server",
+]);
+
+export const CONF_SEASONAL: ReadonlySet<string> = new Set([
+  "dress",
+  "dresses",
+  "outfit",
+  "outfits",
+  "look",
+  "looks",
+  "vibe",
+  "vibes",
+  "day",
+  "days",
+  "weather",
+  "colors",
+  "colours",
+  "colour",
+  "color",
+  "feel",
+  "style",
+  "scent",
+  "salad",
+  "drink",
+  "drinks",
+  "cocktail",
+  "cocktails",
+  "evening",
+  "afternoon",
+  "morning",
+  "mood",
+  "palette",
+  "print",
+  "prints",
+  "fabric",
+  "hue",
+  "hues",
+  "tones",
+  "tone",
+  "flavor",
+  "flavour",
+  "sundress",
+  "breeze",
+  "night",
+  "nights",
+  "read",
+]);
+
+export const CONF_CLAUSE_COMPARATIVE: ReadonlySet<string> = new Set([
+  "better",
+  "worse",
+  "more",
+  "less",
+  "later",
+  "earlier",
+  "sooner",
+  "rather",
+  "further",
+  "farther",
+  "other",
+  "latter",
+  "former",
+  "fewer",
+  "lesser",
+]);
+
+export const CONF_BE_FINITE: ReadonlySet<string> = new Set([
+  "is",
+  "are",
+  "was",
+  "were",
+  "has",
+  "have",
+  "had",
+]);
+
+export const CONF_CLAUSE_VERB: ReadonlySet<string> = new Set([
+  "think",
+  "thinks",
+  "thought",
+  "guess",
+  "know",
+  "knew",
+  "knows",
+  "hope",
+  "hoped",
+  "hopes",
+  "say",
+  "said",
+  "says",
+  "believe",
+  "believed",
+  "mean",
+  "means",
+  "meant",
+  "seem",
+  "seems",
+  "seemed",
+  "feel",
+  "feels",
+  "felt",
+  "sure",
+  "suppose",
+  "found",
+  "find",
+  "finds",
+  "realized",
+  "realised",
+  "noticed",
+  "heard",
+  "hear",
+  "saw",
+  "see",
+  "read",
+  "learned",
+  "discovered",
+  "figured",
+  "decided",
+  "assume",
+  "assumed",
+  "promise",
+  "bet",
+  "agree",
+  "agreed",
+  "admit",
+  "admitted",
+  "show",
+  "shows",
+  "showed",
+  "prove",
+  "proves",
+  "proved",
+  "confirm",
+  "confirms",
+  "confirmed",
+  "ensure",
+  "claim",
+  "claims",
+  "claimed",
+  "suggest",
+  "suggests",
+  "suggested",
+  "note",
+  "notes",
+  "noted",
+  "forget",
+  "forgot",
+  "remember",
+  "remembered",
+  "understand",
+  "understood",
+  "explain",
+  "explained",
+  "argue",
+  "argued",
+  "insist",
+  "insisted",
+  "doubt",
+  "doubted",
+  "suspect",
+  "suspected",
+  "wonder",
+  "wondered",
+  "check",
+  "checked",
+  "verify",
+  "verified",
+  "looks",
+  "sounds",
+  "is",
+  "was",
+]);
+
+export const CONF_LETS_CUE: ReadonlySet<string> = new Set([
+  "so",
+  "then",
+  "now",
+  "ok",
+  "okay",
+  "well",
+  "first",
+  "next",
+  "finally",
+  "maybe",
+  "hey",
+  "end",
+  "guys",
+]);
+
+export const CONF_DEVICE: ReadonlySet<string> = new Set([
+  "tv",
+  "television",
+  "lights",
+  "light",
+  "fan",
+  "radio",
+  "aircon",
+  "ac",
+  "heater",
+  "heating",
+  "stove",
+]);
 
 export const KIND_IF_CONDITIONS: ReadonlySet<string> = new Set([
   "possible",
@@ -835,6 +1566,59 @@ export const FIXED_RAISE: Readonly<Record<string, string>> = {
   arising: "raising",
 };
 
+export const CONF_NOUN_FOR_VERB: Readonly<Record<string, string>> = {
+  advice: "advise",
+  belief: "believe",
+  breath: "breathe",
+  intent: "intend",
+  emphasis: "emphasize",
+  response: "respond",
+  thing: "think",
+};
+
+export const CONF_VERB_FOR_NOUN: Readonly<Record<string, string>> = {
+  advise: "advice",
+  believe: "belief",
+  breathe: "breath",
+  intend: "intent",
+};
+
+export const CONF_BE_ADJECTIVE: Readonly<Record<string, string>> = {
+  bias: "biased",
+  concern: "concerned",
+  prejudice: "prejudiced",
+  worry: "worried",
+  shock: "shocked",
+};
+
+export const CONF_BRAND: Readonly<Record<string, string>> = {
+  brandish: "brand",
+  brandishes: "brands",
+  brandished: "branded",
+  brandishing: "branding",
+};
+
+export const CONF_DENY: Readonly<Record<string, readonly string[]>> = {
+  deny: ["decline", "reject"],
+  denies: ["declines", "rejects"],
+  denied: ["declined", "rejected"],
+  denying: ["declining", "rejecting"],
+};
+
+export const CONF_TURN: Readonly<Record<string, string>> = {
+  open: "turn on",
+  opens: "turns on",
+  opened: "turned on",
+  opening: "turning on",
+};
+
+export const CONF_HOP: Readonly<Record<string, string>> = {
+  hope: "hop",
+  hopes: "hops",
+  hoped: "hopped",
+  hoping: "hopping",
+};
+
 export const COMPOUND_PHRASAL_NOUNS: Readonly<Record<string, readonly string[]>> = {
   "warm up": ["warm-up"],
   "mock up": ["mock-up"],
@@ -1085,6 +1869,1135 @@ export const FIXED_TO_FAR_NEXT =
 // en.yaml rule en.fixedPhrases def FIXED_SETTING_VERB
 export const FIXED_SETTING_VERB =
   /\b(?:set|sets|setting|change|changes|changed|changing|switch|switched|resize|resized|scale|scaled|convert|converted|from|increase|increased|reduce|reduced|default|defaults|move|moved|grow|grows|grew|shrink|shrank)\b[^.!?;:\n]*$/i;
+
+// en.yaml rule en.confusedWords def CONF_BOUNDARY
+export const CONF_BOUNDARY = /^[.!?;:"“”([…￼*+#>|-]$/;
+
+// en.yaml rule en.confusedWords def confOpens
+export function confOpens(t: EnBlockToken | undefined) {
+  return !t || CONF_BOUNDARY.test(t.text);
+}
+
+// en.yaml rule en.confusedWords def confEnds
+export function confEnds(t: EnBlockToken | undefined) {
+  return !t || /^[.!?;:,)"”…]$/.test(t.text);
+}
+
+// en.yaml rule en.confusedWords def confCount
+export function confCount(
+  b: EnBlockToken[],
+  i: number,
+  max: number,
+  test: typeof confAdverbToken,
+): number {
+  return i < max && test(b[i]) ? confCount(b, i + 1, max, test) : i;
+}
+
+// en.yaml rule en.confusedWords def confIsAdverb
+export function confIsAdverb(w: string) {
+  return CONF_ADVERB.has(w) || (/^[a-z]{3,}ly$/.test(w) && confLyAdverb(w));
+}
+
+// en.yaml rule en.confusedWords def confLyAdverb
+export function confLyAdverb(w: string) {
+  const info = englishWordInfo(w);
+  return !info || info.adverb || (!info.noun && !info.verbs.length);
+}
+
+// en.yaml rule en.confusedWords def confAdverbToken
+export function confAdverbToken(t: EnBlockToken | undefined) {
+  return enIsBlockWord(t) && confIsAdverb(t.w);
+}
+
+// en.yaml rule en.confusedWords def confPlainAdjective
+export function confPlainAdjective(w: string) {
+  if (!(!CONF_ADVERBISH.has(w) && !CONF_DETERMINER.has(w) && !CONF_FUNCTION.has(w))) return false;
+  const info = englishWordInfo(w);
+  return !!info && info.adjective && !info.adverb && !info.verbs.length && !/ly$/.test(w);
+}
+
+// en.yaml rule en.confusedWords def confHasVerb
+export function confHasVerb(w: string) {
+  return !!englishWordInfo(w)?.verbs.length;
+}
+
+// en.yaml rule en.confusedWords def confHit
+export function confHit(t: EnBlockToken, alts: string[]): EnBlockHit {
+  return { start: t.start, end: t.end, alts };
+}
+
+// en.yaml rule en.confusedWords def confCue
+export function confCue(b: EnBlockToken[]): { kind: string; at: number; adverbs: number } | null {
+  const i = confCount(b, 0, 3, confAdverbToken);
+  const t = b[i];
+  return !enIsBlockWord(t)
+    ? i > 0 && /^(?:never|always|just)$/.test(b[i - 1].w)
+      ? { kind: "subject", at: i - 1, adverbs: i - 1 }
+      : null
+    : confCueAt(b, i, t);
+}
+
+// en.yaml rule en.confusedWords def confCueAt
+export function confCueAt(
+  b: EnBlockToken[],
+  i: number,
+  t: EnBlockToken,
+): { kind: string; at: number; adverbs: number } | null {
+  const w = t.w;
+  return CONF_SUBJECT.has(w)
+    ? confObjectYou(b, i, w)
+      ? null
+      : { kind: "subject", at: i, adverbs: i }
+    : CONF_THIRD.has(w)
+      ? { kind: "third", at: i, adverbs: i }
+      : CONF_HAVE.has(w)
+        ? { kind: "have", at: i, adverbs: i }
+        : CONF_MODAL.has(w) || /^[a-z]+'(?:d|ll)$/.test(w)
+          ? confModalNoun(b, i, w)
+            ? null
+            : { kind: "modal", at: i, adverbs: i }
+          : w === "to"
+            ? { kind: "to", at: i, adverbs: i }
+            : w === "please"
+              ? { kind: "subject", at: i, adverbs: i }
+              : i > 0 &&
+                  /^(?:never|always|just)$/.test(b[i - 1].w) &&
+                  (confOpens(t) || /^(?:and|but|so|then)$/.test(w))
+                ? { kind: "subject", at: i - 1, adverbs: i - 1 }
+                : confInvertedQuestion(b, i, w)
+                  ? { kind: "modal", at: 2, adverbs: 0 }
+                  : CONF_INDEFINITE.has(w) || (w === "body" && b[i + 1]?.w === "every")
+                    ? { kind: "indefinite", at: i, adverbs: i }
+                    : w === "who"
+                      ? { kind: "who", at: i, adverbs: i }
+                      : null;
+}
+
+// en.yaml rule en.confusedWords def confObjectYou
+export function confObjectYou(b: EnBlockToken[], i: number, w: string) {
+  const p = b[i + 1];
+  if (!(w === "you" && enIsBlockWord(p))) return false;
+  return (
+    (!CONF_MODAL.has(p.w) &&
+      !CONF_CONJUNCTION.has(p.w) &&
+      !confIsAdverb(p.w) &&
+      confHasVerb(p.w)) ||
+    /^(?:to|for|with|of|thank)$/.test(p.w)
+  );
+}
+
+// en.yaml rule en.confusedWords def confModalNoun
+export function confModalNoun(b: EnBlockToken[], i: number, w: string) {
+  return (
+    (CONF_NOUN_MODAL.has(w) &&
+      enIsBlockWord(b[i + 1]) &&
+      /^(?:a|an|the|my|your|his|our|their|its|no|every)$/.test(b[i + 1].w)) ||
+    (/^(?:do|does|did)$/.test(w) && i === 0) ||
+    (confOpens(b[i + 1]) && !/n't$|^cannot$/.test(w))
+  );
+}
+
+// en.yaml rule en.confusedWords def confInvertedQuestion
+export function confInvertedQuestion(b: EnBlockToken[], i: number, w: string) {
+  return (
+    i === 0 &&
+    !CONF_FUNCTION.has(w) &&
+    !englishWordInfo(w)?.adjective &&
+    enIsBlockWord(b[1]) &&
+    /^(?:the|this|that|my|your|our|their|his|its)$/.test(b[1].w) &&
+    enIsBlockWord(b[2]) &&
+    CONF_MODAL.has(b[2].w) &&
+    ((enIsBlockWord(b[3]) && /^(?:how|why|when|where|what|which)$/.test(b[3].w)) ||
+      (confOpens(b[3]) && !/^(?:do|does|did)$/.test(b[2].w)))
+  );
+}
+
+// en.yaml rule en.confusedWords def confInfinitiveTo
+export function confInfinitiveTo(
+  b: EnBlockToken[],
+  c: { kind: string; at: number; adverbs: number },
+  next: EnBlockToken | undefined,
+) {
+  const head = b[c.at + 1];
+  if (!(enIsBlockWord(head) && !CONF_PREPOSITION_HEAD.has(head.w))) return false;
+  return (
+    c.adverbs > 0 ||
+    CONF_TO_HEAD.has(head.w) ||
+    (enIsBlockWord(next) && CONF_OBJECT_START.has(next.w))
+  );
+}
+
+// en.yaml rule en.confusedWords def confNounForVerb
+export function confNounForVerb(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const c = confCue(b);
+  if (!(c && c.kind !== "have" && c.kind !== "third")) return null;
+  if (c.kind === "indefinite" && t.w !== "thing") return null;
+  if (c.kind === "who" && c.adverbs === 0) return null;
+  if (c.kind === "to" && (t.w === "response" || !confInfinitiveTo(b, c, a[0]))) return null;
+  if (t.w === "intent" && a[0]?.w === "on") return null;
+  if (b[c.at]?.text === "i" && a[0]?.w === "," && a[1]?.w === "ii") return null;
+  return confHit(t, [CONF_NOUN_FOR_VERB[t.w]]);
+}
+
+// en.yaml rule en.confusedWords def confVerbForNoun
+export function confVerbForNoun(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  if (enIsBlockWord(a[0]) && CONF_OBJECT_START.has(a[0].w)) return null;
+  const i = enIsBlockWord(b[0]) && confPlainAdjective(b[0].w) ? 1 : 0;
+  const p = b[i];
+  const noun =
+    (enIsBlockWord(p) && (CONF_DETERMINER.has(p.w) || /^(?:of|for|without)$/.test(p.w))) ||
+    (i === 1 &&
+      (confOpens(p) ||
+        (enIsBlockWord(p) &&
+          (confIsAdverb(p.w) ||
+            (confHasVerb(p.w) && !CONF_MODAL.has(p.w) && !CONF_SUBJECT.has(p.w))))));
+  if (!noun) return null;
+  return confHit(t, [CONF_VERB_FOR_NOUN[t.w]]);
+}
+
+// en.yaml rule en.confusedWords def confEffect
+export function confEffect(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const third = t.w === "effects";
+  const next = a[0];
+  if (!(
+    enIsBlockWord(next) &&
+    !/^(?:of|on|in|is|was|are|were|that|for|and|or|to|from|has|have)$/.test(next.w)
+  ))
+    return null;
+  if (a.slice(0, 3).some((x) => CONF_EFFECT_OBJECT.has(x.w)) || next.w === "a" || next.w === "an")
+    return null;
+  const c = confCue(b);
+  return confEffectByCue(b, c, next, third) || confEffectBySubject(b, next, third)
+    ? confHit(t, [third ? "affects" : "affect"])
+    : null;
+}
+
+// en.yaml rule en.confusedWords def confEffectByCue
+export function confEffectByCue(
+  b: EnBlockToken[],
+  c: { kind: string; at: number; adverbs: number } | null,
+  next: EnBlockToken,
+  third: boolean,
+) {
+  return (
+    !!c &&
+    ((third ? c.kind === "third" : c.kind === "modal" || c.kind === "subject") ||
+      (!third &&
+        c.kind === "to" &&
+        confInfinitiveTo(b, c, next) &&
+        CONF_OBJECT_START.has(next.w)) ||
+      (!third && c.kind === "to" && CONF_TO_HEAD.has(b[c.at + 1]?.w ?? "")))
+  );
+}
+
+// en.yaml rule en.confusedWords def confEffectBySubject
+export function confEffectBySubject(b: EnBlockToken[], next: EnBlockToken, third: boolean) {
+  const i = confCount(b, 0, 2, confAdverbNotNot);
+  const s = b[i];
+  if (!(enIsBlockWord(s) && !CONF_DETERMINER.has(s.w))) return false;
+  const info = englishWordInfo(s.w);
+  const subject = third
+    ? info?.noun && !info.plural
+    : info?.plural || (!info && /[^s]s$/.test(s.w));
+  if (!(subject && !(i === 0 && !CONF_OBJECT_START.has(next.w)))) return false;
+  const j = confCount(b, i + 1, i + 3, confModifier);
+  if (enIsBlockWord(b[j]) && /^(?:what|which|whose)$/.test(b[j].w)) return false;
+  if (!(
+    confOpens(b[j]) ||
+    (enIsBlockWord(b[j]) &&
+      (CONF_DETERMINER.has(b[j].w) ||
+        CONF_CONJUNCTION.has(b[j].w) ||
+        /^(?:these|those)$/.test(b[j].w)))
+  ))
+    return false;
+  return true;
+}
+
+// en.yaml rule en.confusedWords def confAdverbNotNot
+export function confAdverbNotNot(t: EnBlockToken | undefined) {
+  return enIsBlockWord(t) && confIsAdverb(t.w) && t.w !== "not";
+}
+
+// en.yaml rule en.confusedWords def confModifier
+export function confModifier(t: EnBlockToken | undefined) {
+  if (!(
+    enIsBlockWord(t) &&
+    !CONF_FUNCTION.has(t.w) &&
+    !CONF_HAVE.has(t.w) &&
+    !CONF_MODAL.has(t.w) &&
+    !CONF_BE_FINITE.has(t.w)
+  ))
+    return false;
+  const info = englishWordInfo(t.w);
+  return (
+    !info ||
+    info.noun ||
+    info.plural ||
+    info.adjective ||
+    info.verbs.some((v) => v.form === "participle" || v.form === "ing")
+  );
+}
+
+// en.yaml rule en.confusedWords def confAffect
+export function confAffect(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  return confAffectNoun(b, a) ? confHit(t, [t.w === "affects" ? "effects" : "effect"]) : null;
+}
+
+// en.yaml rule en.confusedWords def confAffectNoun
+export function confAffectNoun(b: EnBlockToken[], a: EnBlockToken[]) {
+  const next = a[0];
+  const i = confCount(b, 0, 3, confAffectModifier);
+  return (
+    (enIsBlockWord(next) && /^(?:on|upon|of)$/.test(next.w) && a[1]?.w !== "average") ||
+    (i > 0 && enIsBlockWord(b[i]) && CONF_HAVE.has(b[i].w)) ||
+    (b[0]?.w === "into" &&
+      b
+        .slice(1, 6)
+        .some((x) =>
+          /^(?:put|puts|putting|come|comes|came|coming|go|goes|went|going|gone|bring|brings|brought|bringing)$/.test(
+            x.w,
+          ),
+        )) ||
+    (b[0]?.w === "in" &&
+      enIsBlockWord(b[1]) &&
+      /^(?:is|are|was|were|be|been|now|still|already|remain|remains|remained|stay|stays|stayed|currently|fully|come|comes|came)$/.test(
+        b[1].w,
+      )) ||
+    (enIsBlockWord(b[0]) &&
+      CONF_COLLOCATION.has(b[0].w) &&
+      (!enIsBlockWord(next) || !CONF_OBJECT_START.has(next.w)) &&
+      (!enIsBlockWord(next) ||
+        /^(?:is|are|was|were|remain|remains|remained|can|could|will|would|may|might|amplified|warms|included|include|includes|across|throughout|than)$/.test(
+          next.w,
+        ) ||
+        confEnds(next)))
+  );
+}
+
+// en.yaml rule en.confusedWords def confAffectModifier
+export function confAffectModifier(t: EnBlockToken | undefined) {
+  return (
+    enIsBlockWord(t) &&
+    (CONF_DETERMINER.has(t.w) ||
+      /^(?:little|much|any|some|great|big)$/.test(t.w) ||
+      confPlainAdjective(t.w) ||
+      !!englishWordInfo(t.w)?.adjective)
+  );
+}
+
+// en.yaml rule en.confusedWords def confBeAdjective
+export function confBeAdjective(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const i = confCount(b, 0, 2, confAdverbToken);
+  const be = b[i];
+  if (!enIsBlockWord(be)) return null;
+  const personal =
+    CONF_PERSONAL_BE.has(be.w) ||
+    (/^(?:am|is|are|was|were)$/.test(be.w) &&
+      enIsBlockWord(b[i + 1]) &&
+      /^(?:i|he|she|we|you|they)$/.test(b[i + 1].w));
+  if (!personal) return null;
+  if (enIsBlockWord(a[0]) && /^(?:is|was|are|were|has|have|had|will|can|free)$/.test(a[0].w))
+    return null;
+  if (enIsBlockWord(a[0]) && englishWordInfo(a[0].w)?.plural) return null;
+  return confHit(t, [CONF_BE_ADJECTIVE[t.w]]);
+}
+
+// en.yaml rule en.confusedWords def confSafe
+export function confSafe(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const next = a[0];
+  if (!(
+    enIsBlockWord(next) &&
+    !/^(?:to|from|for|and|or|enough|with|in|on|at|than|as|by|if|when|place|mode|side|now|here)$/.test(
+      next.w,
+    )
+  ))
+    return null;
+  const c = confCue(b);
+  if (!(
+    c &&
+    (c.kind === "modal" ||
+      (c.kind === "to" && confInfinitiveTo(b, c, next) && CONF_OBJECT_START.has(next.w)))
+  ))
+    return null;
+  return confHit(t, ["save"]);
+}
+
+// en.yaml rule en.confusedWords def confWeight
+export function confWeight(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  if (!(confEnds(a[0]) && enIsBlockWord(b[0]) && /^(?:i|you|we|they|he|she|it)$/.test(b[0].w)))
+    return null;
+  if (!(
+    enIsBlockWord(b[1]) &&
+    /^(?:do|does|did|than|will|would|can|could|should|might|may)$/.test(b[1].w)
+  ))
+    return null;
+  return confHit(t, ["weigh"]);
+}
+
+// en.yaml rule en.confusedWords def confBough
+export function confBough(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const c = confCue(b);
+  if (!(c && /^(?:subject|third|have)$/.test(c.kind) && enIsBlockWord(a[0]))) return null;
+  return confHit(t, ["bought"]);
+}
+
+// en.yaml rule en.confusedWords def confFell
+export function confFell(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const c = confCue(b);
+  if (!(c && /^(?:subject|modal|who)$/.test(c.kind))) return null;
+  const n = a[0];
+  if (!enIsBlockWord(n)) return null;
+  if (!confFeel(n, a[1])) return null;
+  return confHit(t, ["feel"]);
+}
+
+// en.yaml rule en.confusedWords def confFeel
+export function confFeel(n: EnBlockToken, n1: EnBlockToken | undefined) {
+  return n.w === "like"
+    ? !enIsBlockWord(n1) || !/^(?:a|an|the|rain|dominoes|flies|stones?|rocks?)$/.test(n1.w)
+    : n.w === "free" || n.w === "that"
+      ? true
+      : /^(?:i|i'm|i've|i'd|we|you|they|he|she|it's|that's|there's|this)$/.test(n.w)
+        ? true
+        : n.w === "it"
+          ? enIsBlockWord(n1) && hasVerbForm(n1.w, "third", "past")
+          : !CONF_FALL_STATE.has(n.w) && confAdjectiveOnly(n.w);
+}
+
+// en.yaml rule en.confusedWords def confAdjectiveOnly
+export function confAdjectiveOnly(w: string) {
+  const info = englishWordInfo(w);
+  return !!info && info.adjective && !info.adverb;
+}
+
+// en.yaml rule en.confusedWords def confQuiet
+export function confQuiet(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const n = a[0];
+  if (!enIsBlockWord(n)) return null;
+  const info = englishWordInfo(n.w);
+  const verbal = info?.verbs.every((v) => v.form === "ing" || v.form === "participle");
+  const n1 = a[1];
+  return (info &&
+    info.adjective &&
+    !info.noun &&
+    verbal &&
+    !CONF_ADVERBISH.has(n.w) &&
+    (confEnds(n1) || /^(?:that|to|and|but|for|in|at)$/.test(n1.w))) ||
+    (/n't$|^(?:not|never)$/.test(b[0]?.w ?? "") &&
+      hasVerbForm(n.w, "base") &&
+      !CONF_OBJECT_PRONOUN.has(n.w) &&
+      !/^(?:down|up|people|things|everyone|everybody|them|us|the|a|an)$/.test(n.w) &&
+      !englishWordInfo(n.w)?.plural)
+    ? confHit(t, ["quite"])
+    : null;
+}
+
+// en.yaml rule en.confusedWords def confFind
+export function confFind(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const i =
+    enIsBlockWord(b[0]) && /^(?:all|totally|perfectly|just|really|also)$/.test(b[0].w) ? 1 : 0;
+  const be = b[i];
+  if (!(
+    enIsBlockWord(be) &&
+    /^(?:am|is|are|was|were|be|been|i'm|im|it's|that's|we're|you're|they're|he's|she's)$/.test(be.w)
+  ))
+    return null;
+  const n = a[0];
+  if (!(
+    confEnds(n) ||
+    /^(?:for|with|but|and|now|not|by|here|there|too|as|so|though|otherwise|either|without)$/.test(
+      n.w,
+    )
+  ))
+    return null;
+  return confHit(t, ["fine"]);
+}
+
+// en.yaml rule en.confusedWords def confHop
+export function confHop(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  return t.w === "hop" || t.w === "hops" ? confHopeVerb(t, b, a) : confHopVerb(t, a);
+}
+
+// en.yaml rule en.confusedWords def confHopeVerb
+export function confHopeVerb(
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  if (!(enIsBlockWord(b[0]) && /^(?:i|we|they|you)$/.test(b[0].w))) return null;
+  if (!(
+    enIsBlockWord(a[0]) &&
+    /^(?:we|you|i|they|he|she|that|this|everything|everyone|so|not|it'll|it's|you're|we're|they're)$/.test(
+      a[0].w,
+    )
+  ))
+    return null;
+  return confHit(t, [t.w === "hop" ? "hope" : "hopes"]);
+}
+
+// en.yaml rule en.confusedWords def confHopVerb
+export function confHopVerb(t: EnBlockToken, a: EnBlockToken[]): EnBlockHit | null {
+  if (!(
+    a[0]?.w === "on" &&
+    enIsBlockWord(a[1]) &&
+    /^(?:a|an|the|my|our|your|their|his|her)$/.test(a[1].w)
+  ))
+    return null;
+  if (!(enIsBlockWord(a[2]) && CONF_BOARDED.has(a[2].w))) return null;
+  if (
+    enIsBlockWord(a[3]) &&
+    /^(?:we|you|i|they|he|she|it|there|there's|it's|everyone|someone|this|that)$/.test(a[3].w)
+  )
+    return null;
+  const alt = CONF_HOP[t.w];
+  if (!alt) return null;
+  return confHit(t, [alt]);
+}
+
+// en.yaml rule en.confusedWords def confCant
+export function confCant(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  if (!(t.text !== "CANT" && enIsBlockWord(a[0]))) return null;
+  const n = a[0].w;
+  const inverted = confOpens(b[0]) && /^(?:you|we|i|they|he|she|it)$/.test(n);
+  const v = confIsAdverb(n) && enIsBlockWord(a[1]) ? a[1].w : n;
+  return inverted || confCantVerb(b, v)
+    ? { ...confHit(t, ["can't"]), key: "review_msg_contraction" }
+    : null;
+}
+
+// en.yaml rule en.confusedWords def confCantVerb
+export function confCantVerb(b: EnBlockToken[], v: string) {
+  if (!(v !== "cant")) return false;
+  const info = englishWordInfo(v);
+  if (!(info?.verbs.some((x) => x.form === "base") && !info.plural && !CONF_DETERMINER.has(v)))
+    return false;
+  return !(enIsBlockWord(b[0]) && (CONF_DETERMINER.has(b[0].w) || confPlainAdjective(b[0].w)));
+}
+
+// en.yaml rule en.confusedWords def confRogue
+export function confRogue(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  return b[0]?.w === "lip" || a[0]?.w === "lipstick" ? confHit(t, ["rouge"]) : null;
+}
+
+// en.yaml rule en.confusedWords def confRoller
+export function confRoller(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const n = a[0];
+  if (!(n?.w === "skated")) return null;
+  if (enIsBlockWord(b[0]) && (CONF_DETERMINER.has(b[0].w) || confPlainAdjective(b[0].w)))
+    return null;
+  if (!/^[ \t ]+$/.test(ctx.text.slice(t.end, n.start))) return null;
+  return {
+    start: t.start,
+    end: n.end,
+    alts: [`${t.text}-${n.text}`],
+    key: "review_msg_closed_compound",
+  };
+}
+
+// en.yaml rule en.confusedWords def confSummery
+export function confSummery(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  if (!(ctx.text[t.start - 1] !== "-")) return null;
+  if (enIsBlockWord(a[0]) && CONF_SEASONAL.has(a[0].w) && ctx.text[t.end] !== "-") return null;
+  if (
+    enIsBlockWord(b[0]) &&
+    /^(?:very|so|too|quite|more|most|rather|really|pretty|feel|feels|felt|look|looks|looked|sound|sounds|seem|seems)$/.test(
+      b[0].w,
+    )
+  )
+    return null;
+  if (
+    enIsBlockWord(b[0]) &&
+    /^(?:is|was|are|were|be|been|it's|that's)$/.test(b[0].w) &&
+    (confEnds(a[0]) || /^(?:and|but|with|today|again|now|outside)$/.test(a[0].w))
+  )
+    return null;
+  return confHit(t, ["summary"]);
+}
+
+// en.yaml rule en.confusedWords def confTheses
+export function confTheses(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const n = a[0];
+  if (!enIsBlockWord(n)) return null;
+  const info = englishWordInfo(n.w);
+  if (!(info ? info.plural : /[^s]s$/.test(n.w))) return null;
+  const p = b[0];
+  if (
+    enIsBlockWord(p) &&
+    (CONF_DETERMINER.has(p.w) ||
+      /^(?:these|those|some|many|several|two|three|both|all|her|doctoral|master's|masters|phd|other|such|their|whose)$/.test(
+        p.w,
+      ) ||
+      /['’]s$/.test(p.w) ||
+      /^\d/.test(p.w) ||
+      confPlainAdjective(p.w))
+  )
+    return null;
+  return confHit(t, ["these"]);
+}
+
+// en.yaml rule en.confusedWords def confBrandish
+export function confBrandish(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  if (!(enIsBlockWord(a[0]) && /^(?:him|her|them|us|me|you)$/.test(a[0].w))) return null;
+  if (!(enIsBlockWord(a[1]) && /^(?:a|an|as|with)$/.test(a[1].w))) return null;
+  return confHit(t, [CONF_BRAND[t.w]]);
+}
+
+// en.yaml rule en.confusedWords def confDeny
+export function confDeny(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const i =
+    enIsBlockWord(a[0]) &&
+    /^(?:the|an|your|their|his|her|my|our|this|that|any|every|all)$/.test(a[0].w)
+      ? 1
+      : 0;
+  if (!(enIsBlockWord(a[i]) && /^offers?$/.test(a[i].w))) return null;
+  const gerundSubject =
+    t.w === "denying" &&
+    (confOpens(b[0]) || (enIsBlockWord(b[0]) && confIsAdverb(b[0].w) && confOpens(b[1])));
+  if (
+    !gerundSubject &&
+    enIsBlockWord(a[i + 1]) &&
+    /^(?:was|is|were|are|had|has|existed|exists|ever)$/.test(a[i + 1].w)
+  )
+    return null;
+  return confHit(t, [...CONF_DENY[t.w]]);
+}
+
+// en.yaml rule en.confusedWords def confDissemble
+export function confDissemble(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const n = a[0];
+  const later = /\bassembl/i.test(ctx.text.slice(t.end, t.end + 80));
+  const object =
+    enIsBlockWord(n) &&
+    /^(?:the|a|an|my|this|that|it|them|these|those|his|her|our|their|your|from)$/.test(n.w);
+  if (!(later || object || ctx.text[t.end] === "/")) return null;
+  return confHit(t, [t.w.replace(/^dissembl/, "disassembl")]);
+}
+
+// en.yaml rule en.confusedWords def confEverRelative
+export function confEverRelative(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const rel = a[0];
+  if (!(enIsBlockWord(rel) && /^(?:that|which|who)$/.test(rel.w))) return null;
+  const n = a[1];
+  if (!enIsBlockWord(n)) return null;
+  if (rel.w === "that" && !/^(?:i|i've|i'm|i'd|you|we|they|he|she|you've|we've|they've)$/.test(n.w))
+    return null;
+  if (rel.w === "which" && /^(?:way|one|ones)$/.test(n.w)) return null;
+  if (rel.w === "who" && t.w !== "whoever" && t.w !== "whatever") return null;
+  return { start: t.end, end: rel.end, alts: [""] };
+}
+
+// en.yaml rule en.confusedWords def confEveryday
+export function confEveryday(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const n = a[0];
+  const p = b[0];
+  if (
+    enIsBlockWord(p) &&
+    /^(?:the|an?|word|is|are|was|were|be|so|very|quite|more|most|less|such|of|called|named|my|your|our|their|his|her|its)$/.test(
+      p.w,
+    )
+  )
+    return null;
+  const ok =
+    (enIsBlockWord(n) &&
+      /^(?:is|was|feels?|seems?|brings|starts|begins)$/.test(n.w) &&
+      ((confOpens(p) && /^[Ee]veryday$/.test(t.text)) ||
+        (enIsBlockWord(p) && /^(?:does|did|why|and|but|because|so)$/.test(p.w)))) ||
+    (enIsBlockWord(n) &&
+      /^(?:we|i|you|they|he|she)$/.test(n.w) &&
+      (confOpens(p) || p?.text === ",")) ||
+    (t.text === "EVERYDAY" && confEnds(n) && enIsBlockWord(p) && p.text === p.text.toUpperCase());
+  if (!ok) return null;
+  return { ...confHit(t, ["every day"]), key: "review_msg_every_day" };
+}
+
+// en.yaml rule en.confusedWords def confComparative
+export function confComparative(w: string) {
+  if (!(w.length >= 5 && w.endsWith("er"))) return false;
+  const info = englishWordInfo(w);
+  if (!(info && !info.noun && !info.verbs.length)) return false;
+  const stem = w.slice(0, -2);
+  if ((stem.match(/[aeiouy]+/g) ?? []).length > 1 && !/(?:i|l|ow)$/.test(stem) && w !== "stupider")
+    return false;
+  return [stem, `${stem}e`, stem.replace(/(.)\1$/, "$1"), stem.replace(/i$/, "y")].some(
+    (base) => englishWordInfo(base)?.adjective,
+  );
+}
+
+// en.yaml rule en.confusedWords def confThatThan
+export function confThatThan(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const p = b[0];
+  if (!(
+    enIsBlockWord(p) &&
+    p.text === p.w &&
+    !CONF_CLAUSE_COMPARATIVE.has(p.w) &&
+    confComparative(p.w)
+  ))
+    return null;
+  if (b[1]?.w === "no" || b.slice(1, 6).some((x) => /^(?:so|such)$/.test(x.w))) return null;
+  if (b.slice(1, 4).some((x) => x.w === "it" || x.w === "it's") && confFiniteClause(a)) return null;
+  const n = a[0];
+  if (!enIsBlockWord(n)) return null;
+  if (!confThanNext(n.w)) return null;
+  return { ...confHit(t, ["than"]), key: "review_msg_then_than" };
+}
+
+// en.yaml rule en.confusedWords def confFiniteClause
+export function confFiniteClause(a: EnBlockToken[]) {
+  const clause = a.slice(0, 8);
+  const stop = clause.findIndex((x) => !enIsBlockWord(x));
+  return (stop < 0 ? clause : clause.slice(0, stop)).some(
+    (x) => CONF_MODAL.has(x.w) || CONF_BE_FINITE.has(x.w) || hasVerbForm(x.w, "past", "third"),
+  );
+}
+
+// en.yaml rule en.confusedWords def confThanNext
+export function confThanNext(w: string) {
+  const info = englishWordInfo(w);
+  return !(
+    (info?.adjective && !info.noun) ||
+    info?.adverb ||
+    /^(?:way|much|is|was|it|i|you|we|they|he|she)$/.test(w)
+  );
+}
+
+// en.yaml rule en.confusedWords def confThenThan
+export function confThenThan(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const p = b[0];
+  if (!(enIsBlockWord(p) && !ctx.text.slice(p.end, t.start).includes(","))) return null;
+  const n = a[0];
+  if (!enIsBlockWord(n)) return null;
+  const verb = enIsBlockWord(b[1]) ? englishWordInfo(b[1].w) : null;
+  const compared =
+    (confComparative(p.w) &&
+      (!/^(?:earlier|later)$/.test(p.w) ||
+        (!!verb?.verbs.some((v) => v.form === "past") && !verb.noun && !verb.adjective))) ||
+    /^(?:better|worse|more|less)$/.test(p.w) ||
+    (enIsBlockWord(b[1]) && /^(?:more|less)$/.test(b[1].w));
+  if (!compared) return null;
+  const n1 = a[1];
+  const closes = confEnds(n1) || /^(?:but|and|at|in|on|too|or|for)$/.test(n1.w);
+  return (/^(?:her|him|me|us|them|some|most|others|many|few|anyone|everyone)$/.test(n.w) &&
+    closes) ||
+    (n.w === "no" && enIsBlockWord(n1) && /^(?:better|worse)$/.test(p.w))
+    ? { ...confHit(t, ["than"]), key: "review_msg_then_than" }
+    : null;
+}
+
+// en.yaml rule en.confusedWords def confIts
+export function confIts(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const n = a[0];
+  if (!enIsBlockWord(n)) return null;
+  return t.w !== "its" ? confItsContraction(t, b, a, n) : confItsPossessive(t, b, a, n);
+}
+
+// en.yaml rule en.confusedWords def confItsHit
+export function confItsHit(t: EnBlockToken): EnBlockHit {
+  return { ...confHit(t, ["its"]), key: "review_msg_its_possessive" };
+}
+
+// en.yaml rule en.confusedWords def confItsPossessive
+export function confItsPossessive(
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+  n: EnBlockToken,
+): EnBlockHit | null {
+  if (!(
+    enIsBlockWord(b[0]) &&
+    /^(?:think|thinks|hope|hopes|guess|assume|doubt|suppose|believe|bet)$/.test(b[0].w)
+  ))
+    return null;
+  if (!/^\p{Lu}\p{Ll}/u.test(n.text)) return null;
+  const rest = a.slice(1, 4);
+  const tail =
+    confEnds(rest[0]) ||
+    (/^\d/.test(rest[0].text) && confEnds(rest[1])) ||
+    (/^(?:this|next|last)$/.test(rest[0].w) && enIsBlockWord(rest[1]) && confEnds(rest[2]));
+  return tail ? { ...confHit(t, ["it's"]), key: "review_msg_its_contraction" } : null;
+}
+
+// en.yaml rule en.confusedWords def confItsContraction
+export function confItsContraction(
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+  n: EnBlockToken,
+): EnBlockHit | null {
+  const ordinal =
+    /^\d+(?:st|nd|rd|th)$/.test(n.w) &&
+    enIsBlockWord(a[1]) &&
+    (englishWordInfo(a[1].w)?.noun ?? true) &&
+    enIsBlockWord(b[0]) &&
+    !confOpens(b[0]) &&
+    !/^(?:think|guess|know|hope|say|said|says|believe|sure|suppose|mean|means|seems|now|so|and|but|because|that|if|when)$/.test(
+      b[0].w,
+    );
+  const info = englishWordInfo(n.w);
+  const nounOnly =
+    !!info &&
+    (info.noun || info.plural) &&
+    !info.adjective &&
+    !info.adverb &&
+    !/(?:ing|ed)$/.test(n.w);
+  return ordinal ||
+    ((confOpens(b[0]) || b[0]?.text === ",") &&
+      enIsBlockWord(a[1]) &&
+      /^(?:is|was|has|are|were|have)$/.test(a[1].w) &&
+      (nounOnly || (!info && !/(?:ing|ed|ly)$/.test(n.w))) &&
+      !/^(?:time|everything|nothing|something|anything|one|what|who|this|that|here|there|now|all)$/.test(
+        n.w,
+      )) ||
+    (nounOnly &&
+      n.text === n.w &&
+      !/^(?:in|on|at|for|from|with|by|about|of|to|up|down|out|off|over|under|there|here)$/.test(
+        n.w,
+      ) &&
+      confEnds(a[1]) &&
+      enIsBlockWord(b[0]) &&
+      !CONF_CLAUSE_VERB.has(b[0].w) &&
+      hasVerbForm(b[0].w, "past", "third")) ||
+    (n.w === "various" && enIsBlockWord(a[1]) && !/^(?:who|that|which)$/.test(a[2]?.w ?? "")) ||
+    (nounOnly &&
+      a[1]?.text === "," &&
+      (confListedIts(a[2]) || (a[2]?.w === "and" && confListedIts(a[3])))) ||
+    (nounOnly && b[0]?.text === "," && confListedIts(b[2])) ||
+    (nounOnly && b[0]?.w === "and" && b[1]?.text === "," && confListedIts(b[3]))
+    ? confItsHit(t)
+    : null;
+}
+
+// en.yaml rule en.confusedWords def confListedIts
+export function confListedIts(x: EnBlockToken | undefined) {
+  return enIsBlockWord(x) && /^it's$/.test(x.w);
+}
+
+// en.yaml rule en.confusedWords def confLets
+export function confLets(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const n = a[0];
+  if (!enIsBlockWord(n)) return null;
+  return t.w === "let's" ? confLetsObject(t, a, n) : confLetsVerb(t, b, a, n);
+}
+
+// en.yaml rule en.confusedWords def confLetsObject
+export function confLetsObject(
+  t: EnBlockToken,
+  a: EnBlockToken[],
+  n: EnBlockToken,
+): EnBlockHit | null {
+  if (!(
+    /^(?:me|us|him|her|them|you)$/.test(n.w) &&
+    enIsBlockWord(a[1]) &&
+    hasVerbForm(a[1].w, "base")
+  ))
+    return null;
+  return confHit(t, ["lets"]);
+}
+
+// en.yaml rule en.confusedWords def confLetsVerb
+export function confLetsVerb(
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+  n: EnBlockToken,
+): EnBlockHit | null {
+  if (!(confOpens(b[0]) || (enIsBlockWord(b[0]) && CONF_LETS_CUE.has(b[0].w)))) return null;
+  if (n.text !== n.w || n.w.length < 2 || a.slice(1, 3).some((x) => x.text === "=")) return null;
+  const info = englishWordInfo(n.w);
+  if (!(info?.verbs.some((v) => v.form === "base") && !info.plural && !CONF_OBJECT_START.has(n.w)))
+    return null;
+  if (
+    (info.noun || info.adjective) &&
+    !(enIsBlockWord(a[1]) && CONF_OBJECT_START.has(a[1].w) && a[1].text === a[1].w)
+  )
+    return null;
+  if (
+    t.w === "let" &&
+    (/^(?:go|slip|fly|pass|drop|fall|rip|loose|be|know)$/.test(n.w) || !confOpens(b[0]))
+  )
+    return null;
+  return { ...confHit(t, ["let's"]), key: "review_msg_lets_contraction" };
+}
+
+// en.yaml rule en.confusedWords def confYoure
+export function confYoure(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  const n = a[0];
+  if (!(enIsBlockWord(n) && enIsBlockWord(a[1]) && /^(?:is|was|has|had|are|were)$/.test(a[1].w)))
+    return null;
+  const info = englishWordInfo(n.w);
+  const noun =
+    /^[A-Z]{2,}$/.test(n.text) ||
+    (!!info &&
+      (info.noun || info.plural) &&
+      !info.adjective &&
+      !info.adverb &&
+      !/(?:ing|ed)$/.test(n.w));
+  if (!(noun && !/^(?:all|both|each|one|right|welcome|here|there|now|what|who)$/.test(n.w)))
+    return null;
+  return { ...confHit(t, ["your"]), key: "review_msg_your_possessive" };
+}
+
+// en.yaml rule en.confusedWords def confWere
+export function confWere(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  if (!(confOpens(b[0]) && enIsBlockWord(a[0]) && /^(?:a|an|the)$/.test(a[0].w))) return null;
+  const i = confCount(a, 1, 5, enIsBlockWord);
+  if (a.slice(1, i).some((x) => confWereBlocker(x.w))) return null;
+  if (i < 3 || (a[i] && !/^[.!]$/.test(a[i].text))) return null;
+  return confHit(t, ["we're"]);
+}
+
+// en.yaml rule en.confusedWords def confWereBlocker
+export function confWereBlocker(w: string) {
+  const info = englishWordInfo(w);
+  return (
+    (!!info?.verbs.some(
+      (v) => v.form === "past" || v.form === "participle" || v.form === "third",
+    ) &&
+      !info.noun) ||
+    /(?:ed|ing)$/.test(w) ||
+    /^(?:there|here|you|we|they|it|he|she|i)$/.test(w)
+  );
+}
+
+// en.yaml rule en.confusedWords def confOpenDevice
+export function confOpenDevice(
+  ctx: DetectContext,
+  t: EnBlockToken,
+  b: EnBlockToken[],
+  a: EnBlockToken[],
+): EnBlockHit | null {
+  if (!(
+    enIsBlockWord(a[0]) &&
+    /^(?:the|my|your|our|their|his|her)$/.test(a[0].w) &&
+    enIsBlockWord(a[1]) &&
+    CONF_DEVICE.has(a[1].w)
+  ))
+    return null;
+  if (
+    enIsBlockWord(a[2]) &&
+    !/^(?:to|when|and|so|for|because|now|please|before|after|while|if|again|then|or)$/.test(a[2].w)
+  )
+    return null;
+  return confHit(t, [CONF_TURN[t.w]]);
+}
+
+// en.yaml rule en.confusedWords def CONF_HANDLERS
+export const CONF_HANDLERS = {
+  ...Object.fromEntries(Object.keys(CONF_NOUN_FOR_VERB).map((w) => [w, confNounForVerb])),
+  ...Object.fromEntries(Object.keys(CONF_VERB_FOR_NOUN).map((w) => [w, confVerbForNoun])),
+  ...Object.fromEntries(Object.keys(CONF_BE_ADJECTIVE).map((w) => [w, confBeAdjective])),
+  ...Object.fromEntries(Object.keys(CONF_BRAND).map((w) => [w, confBrandish])),
+  ...Object.fromEntries(Object.keys(CONF_DENY).map((w) => [w, confDeny])),
+  ...Object.fromEntries(Object.keys(CONF_TURN).map((w) => [w, confOpenDevice])),
+  effect: confEffect,
+  effects: confEffect,
+  affect: confAffect,
+  affects: confAffect,
+  safe: confSafe,
+  weight: confWeight,
+  bough: confBough,
+  fell: confFell,
+  quiet: confQuiet,
+  find: confFind,
+  hop: confHop,
+  hops: confHop,
+  hope: confHop,
+  hopes: confHop,
+  hoped: confHop,
+  hoping: confHop,
+  cant: confCant,
+  rogue: confRogue,
+  roller: confRoller,
+  summery: confSummery,
+  theses: confTheses,
+  whatever: confEverRelative,
+  whoever: confEverRelative,
+  whenever: confEverRelative,
+  wherever: confEverRelative,
+  everyday: confEveryday,
+  that: confThatThan,
+  then: confThenThan,
+  its: confIts,
+  "it's": confIts,
+  lets: confLets,
+  "let's": confLets,
+  let: confLets,
+  "you're": confYoure,
+  were: confWere,
+} as Readonly<Record<string, typeof confNounForVerb>>;
+
+// en.yaml rule en.confusedWords def CONF_QUOTE
+export const CONF_QUOTE = /^["“”'‘’]$/;
+
+// en.yaml rule en.confusedWords def confMentioned
+export function confMentioned(ctx: DetectContext, h: EnBlockHit) {
+  const b = enBlockTokensBefore(ctx, h.start).slice(0, 2);
+  const a = enBlockTokensAfter(ctx, h.end).slice(0, 2);
+  return b.some((t) => CONF_QUOTE.test(t.text)) && a.some((t) => CONF_QUOTE.test(t.text));
+}
+
+// en.yaml rule en.confusedWords def confMake
+export function confMake(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  alternatives: string[],
+  messageKey: RawFinding["messageKey"] | undefined,
+): RawFinding | null {
+  const typed = ctx.source.slice(start, end);
+  const cased = alternatives.map((alt) => caseLike(typed, alt));
+  if (cased.includes(typed)) return null;
+  return finding(
+    "englishConfusedWords",
+    messageKey ?? "review_msg_confused_word",
+    start,
+    end,
+    cased,
+    {
+      ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+      context: { start: Math.max(0, start - 80), end: Math.min(ctx.text.length, end + 80) },
+    },
+  );
+}
 
 // en.yaml rule en.sentenceFrames def STYLE2_CLOSED
 export const STYLE2_CLOSED = new Set([
@@ -1881,6 +3794,22 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.fixedPhrases frame 29
   "@en.fixedPhrases/29": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return fixedTarget(ctx, frame, m, ["were"]);
+  },
+  // en.yaml rule en.confusedWords frame 1
+  "@en.confusedWords/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    const text = m[0];
+    const w = enWordKey(text);
+    if (!(applyWordCase(text, detectWordCase(text)) === text && !ctx.dictionary.has(w)))
+      return null;
+    const glue = ctx.text[m.index + text.length];
+    if ((glue === "-" && w !== "summery") || (glue === "/" && !/^(?:dissembl|bias)/.test(w)))
+      return null;
+    const t = { text, w, start: m.index, end: m.index + text.length };
+    const handler = w.startsWith("dissembl") ? confDissemble : CONF_HANDLERS[w];
+    const h = handler(ctx, t, enBlockTokensBefore(ctx, t.start), enBlockTokensAfter(ctx, t.end));
+    if (!(h && !confMentioned(ctx, h))) return null;
+    return confMake(ctx, h.start, h.end, h.alts, h.key);
   },
   // en.yaml rule en.idiomPhrases1 frame 5
   "@en.idiomPhrases1/5": (m: RegExpExecArray): string | readonly string[] | null => {

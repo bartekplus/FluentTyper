@@ -6560,7 +6560,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:brandishing|brandishes|brandished|prejudice|you['’]re|emphasis|response|brandish|whatever|whenever|wherever|everyday|let['’]s|believe|breathe|concern|denying|opening|effects|affects|summery|whoever|it['’]s|advice|belief|breath|intent|advise|intend|denies|denied|opened|effect|affect|weight|hoping|roller|theses|thing|worry|shock|opens|bough|quiet|hopes|hoped|rogue|bias|deny|open|safe|fell|find|hops|hope|cant|that|then|lets|were|hop|its|let|dissembl[a-z]*)(?![\\p{L}\\p{N}_'’@#\\\\])",
     literals: [],
-    fixer: "en:confusedWord",
+    fixer: "en:@en.confusedWords/1",
     flags: "dgiu",
     owner: "none",
   }),
