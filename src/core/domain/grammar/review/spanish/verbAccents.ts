@@ -1,3 +1,4 @@
+import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
 import {
   atToken,
@@ -134,7 +135,9 @@ function agreesWithNext(at: Around, accented: string): boolean {
   return (noun.gender === "f") === own.feminine;
 }
 
-const DEMONSTRATIVE_FORM: Record<string, { feminine: boolean | null; plural: boolean }> = {};
+const DEMONSTRATIVE_FORM: Record<string, { feminine: boolean | null; plural: boolean }> = wordTable(
+  {},
+);
 for (const [forms, feminine] of [
   ["este ese aquel", false],
   ["esta esa aquella", true],
@@ -629,13 +632,13 @@ const LEADING = words("otra otro otras otros misma mismo tercera segunda primera
 
 // Future and imperfect forms whose plain spelling is a noun: "sera" (a basket), "veras" (de
 // veras), "venia" (leave). A subject, "no" or a sentence start before them makes them verbs.
-const PLAIN_TWINS: Record<string, string> = {
+const PLAIN_TWINS: Record<string, string> = wordTable({
   sera: "será",
   seras: "serás",
   serian: "serían",
   veras: "verás",
   venia: "venía",
-};
+});
 const SUBJECT_OR_NO = words(
   "yo tú él ella usted ellos ellas ustedes eso esto estos esos aquellos no ya nunca también " +
     "tampoco",
@@ -660,7 +663,7 @@ const NUMBERS = words(
 // Nouns with a stressed "i" in hiatus whose plain spelling is a preterite since 2010 ("lio",
 // "rio", "frio" from "liar", "reír", "freír"). A determiner or a verb that takes the noun
 // before them makes them nouns.
-const HIATUS_NOUNS: Record<string, string> = { lio: "lío", rio: "río", frio: "frío" };
+const HIATUS_NOUNS: Record<string, string> = wordTable({ lio: "lío", rio: "río", frio: "frío" });
 const BEFORE_HIATUS_NOUN = words(
   "del al menudo tremendo gran buen qué vaya mucho poco tanto más menos muy ni hace hacía " +
     "hizo hará tengo tienes tiene tenemos tienen tenía tenían hay había paso pasa pasé pasamos",

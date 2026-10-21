@@ -1,3 +1,4 @@
+import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
 import type { RawFinding } from "../reviewDetectors";
 import {
@@ -421,7 +422,11 @@ function subjunctiveReading(at: Around): boolean {
 const NOT_AFTER_DEMONSTRATIVE = words(
   "nada cada nunca ahora fuera afuera cerca encima arriba contra mañana media toda apenas",
 );
-const DEMONSTRATIVE: Record<string, string> = { está: "esta", estás: "estas", esté: "este" };
+const DEMONSTRATIVE: Record<string, string> = wordTable({
+  está: "esta",
+  estás: "estas",
+  esté: "este",
+});
 
 /** "de está manera", "Está misma mañana", "Estás casas": the verb where a determiner goes. */
 function demonstrativeReading(at: Around): boolean {
