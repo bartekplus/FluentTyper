@@ -75,7 +75,8 @@ test("a frame's code: a condition runs after the bindings it reads and the one a
   const set = compile({
     lang: "en",
     defs: { LIMIT: "3", short: { args: "w: string", return: "w.length < LIMIT" } },
-    sets: { STOP: ["a", "an"] },
+    // A string set: the words split on whitespace (a YAML ">-" scalar).
+    sets: { STOP: ["a", "an"], MORE: "the this\n  that " },
     rules: [
       {
         id: "en.code",
@@ -106,7 +107,7 @@ test("a frame's code: a condition runs after the bindings it reads and the one a
     { kind: "when", source: "short(after)" },
   ]);
   expect(set.frames[0].fixer).toBe("en:@en.code/1");
-  expect(set.code.en.sets).toEqual({ STOP: ["a", "an"] });
+  expect(set.code.en.sets).toEqual({ STOP: ["a", "an"], MORE: ["the", "this", "that"] });
   expect(set.code.en.defs.map((def) => def.name)).toEqual(["LIMIT", "short"]);
 });
 

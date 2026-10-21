@@ -134,38 +134,10 @@ rules:
     message: review_msg_pt_accent_paronym
     sets:
       # Time words open a sentence as an adverb: "Sábado continuo", "Este ano pratico mais".
-      TIME_NOUNS:
-        [
-          ano,
-          anos,
-          mês,
-          meses,
-          dia,
-          dias,
-          semana,
-          semanas,
-          sábado,
-          domingo,
-          verão,
-          inverno,
-          outono,
-          semestre,
-          trimestre,
-          momento,
-          tempo,
-          período,
-          fim,
-          resto,
-          turno,
-          amanhã,
-          hoje,
-          ontem,
-          agora,
-          depois,
-          cedo,
-          tarde,
-          logo,
-        ]
+      TIME_NOUNS: >-
+        ano anos mês meses dia dias semana semanas sábado domingo verão inverno outono semestre
+        trimestre momento tempo período fim resto turno amanhã hoje ontem agora depois cedo tarde
+        logo
     defs:
       # The verb ending of each subject pronoun.
       PERSON_ENDING: >-
@@ -886,36 +858,10 @@ rules:
     message: review_msg_pt_crase
     sets:
       # Infinitives look like these nouns and adjectives, which can follow a crase ("à mulher").
-      FEMININE_R:
-        [
-          mulher,
-          colher,
-          militar,
-          titular,
-          auxiliar,
-          familiar,
-          circular,
-          similar,
-          celular,
-          escolar,
-          popular,
-          particular,
-          exemplar,
-          singular,
-          regular,
-          preliminar,
-          complementar,
-          lunar,
-          solar,
-          polar,
-          nuclear,
-          secular,
-          vulgar,
-          peculiar,
-          hospitalar,
-          curricular,
-          disciplinar,
-        ]
+      FEMININE_R: >-
+        mulher colher militar titular auxiliar familiar circular similar celular escolar popular
+        particular exemplar singular regular preliminar complementar lunar solar polar nuclear
+        secular vulgar peculiar hospitalar curricular disciplinar
     defs:
       # The text before a clause start: a sentence mark or a line break, then spaces or quotes.
       CLAUSE_START: '/(?:^|[.!?:;][ \t\r\n\u00a0"”»)]{0,8}|\n[ \t\u00a0]{0,8})$/'
@@ -1094,76 +1040,13 @@ rules:
         por: { o: pelo, a: pela, os: pelos }
     sets:
       # Words ending like an infinitive that are nouns or adjectives after an article.
-      NOUN_R:
-        [
-          ser,
-          seres,
-          mulher,
-          mulheres,
-          poder,
-          poderes,
-          lugar,
-          lugares,
-          ar,
-          lar,
-          lares,
-          qualquer,
-          olhar,
-          olhares,
-          mar,
-          mares,
-          líder,
-          líderes,
-          câncer,
-          celular,
-          celulares,
-          prazer,
-          prazeres,
-          caráter,
-          dever,
-          deveres,
-          saber,
-          saberes,
-          titular,
-          titulares,
-          jantar,
-          jantares,
-          par,
-          pares,
-          bar,
-          bares,
-          militar,
-          militares,
-          familiar,
-          familiares,
-          açúcar,
-          parlamentar,
-          parlamentares,
-          altar,
-          altares,
-          dólar,
-          dólares,
-          colher,
-          colheres,
-          talher,
-          talheres,
-          pilar,
-          pilares,
-          radar,
-          luar,
-          patamar,
-          polegar,
-          escolar,
-          escolares,
-          similar,
-          similares,
-          popular,
-          populares,
-          particular,
-          particulares,
-          exemplar,
-          exemplares,
-        ]
+      NOUN_R: >-
+        ser seres mulher mulheres poder poderes lugar lugares ar lar lares qualquer olhar olhares
+        mar mares líder líderes câncer celular celulares prazer prazeres caráter dever deveres saber
+        saberes titular titulares jantar jantares par pares bar bares militar militares familiar
+        familiares açúcar parlamentar parlamentares altar altares dólar dólares colher colheres
+        talher talheres pilar pilares radar luar patamar polegar escolar escolares similar similares
+        popular populares particular particulares exemplar exemplares
       # Right after the article these are nouns ("do ser humano"); further on, verbs ("de a casa ser").
       VERB_LATER: [ser, poder, dever, saber, olhar, jantar]
     defs:
@@ -1749,23 +1632,8 @@ rules:
       SUBJECTS: [eu, tu, ele, ela, você, nós, eles, elas, vocês]
       # "Como é que ele descobriu é um mistério", "O que ele quer eu não sei": an indirect question
       # inside a statement has a second verb of its own.
-      STATEMENT_VERB:
-        [
-          é,
-          era,
-          foi,
-          será,
-          sei,
-          sabe,
-          sabem,
-          sabemos,
-          saber,
-          pergunto,
-          mistério,
-          depende,
-          interessa,
-          importa,
-        ]
+      STATEMENT_VERB: >-
+        é era foi será sei sabe sabem sabemos saber pergunto mistério depende interessa importa
     defs:
       # A conjunction or the start of a clause before the expression needs no comma.
       NO_COMMA_BEFORE: "/^(?:e|mas|ou|nem|que|pois|porém|se|quando|como|onde|porque|então|logo|assim|também)$/iu"
@@ -2155,23 +2023,8 @@ rules:
       # "muita/pouca/tanta" are never the adverb: before a plural they disagree ("muita coisas").
       QUANTIFIERS: [muita, pouca, tanta]
       # Nouns that name a word, color or kind before another word: "a palavra brasileiro".
-      NAMING:
-        [
-          palavra,
-          palavras,
-          termo,
-          termos,
-          nome,
-          nomes,
-          expressão,
-          verbo,
-          adjetivo,
-          cor,
-          tom,
-          estilo,
-          tipo,
-          marca,
-        ]
+      NAMING: >-
+        palavra palavras termo termos nome nomes expressão verbo adjetivo cor tom estilo tipo marca
     maps:
       VERB_NUMBER:
         {
@@ -2489,73 +2342,15 @@ rules:
     sets:
       # Time spans and words that open an adverbial, not a subject: "Este ano vão abrir", "Os
       # alunos dia 5 voltam", "Os jogadores fora de campo".
-      VERB_NOT_SUBJECT_NOUNS:
-        [
-          vezes,
-          anos,
-          meses,
-          semanas,
-          dias,
-          horas,
-          minutos,
-          segundos,
-          tempos,
-          décadas,
-          séculos,
-          instantes,
-          momentos,
-          ano,
-          dia,
-          mês,
-          semana,
-          vez,
-          hora,
-          minuto,
-          segundo,
-          século,
-          momento,
-          período,
-          tempo,
-          fim,
-          verão,
-          inverno,
-          outono,
-          primavera,
-          sábado,
-          domingo,
-          gente,
-          resto,
-          pé,
-          cavalo,
-        ]
+      VERB_NOT_SUBJECT_NOUNS: >-
+        vezes anos meses semanas dias horas minutos segundos tempos décadas séculos instantes
+        momentos ano dia mês semana vez hora minuto segundo século momento período tempo fim verão
+        inverno outono primavera sábado domingo gente resto pé cavalo
       # Nouns of quantity, whose verb may agree with their complement ("a maioria das escolas estão").
-      DISTANT_COLLECTIVE:
-        [
-          maioria,
-          minoria,
-          metade,
-          parte,
-          resto,
-          porção,
-          porcentagem,
-          percentagem,
-          totalidade,
-          quantidade,
-          número,
-          grupo,
-          conjunto,
-          série,
-          dezena,
-          centena,
-          milhar,
-          milhão,
-          milhões,
-          bilhão,
-          bilhões,
-          par,
-          tipo,
-          espécie,
-        ]
+      DISTANT_COLLECTIVE: >-
+        maioria minoria metade parte resto porção porcentagem percentagem totalidade quantidade
+        número grupo conjunto série dezena centena milhar milhão milhões bilhão bilhões par tipo
+        espécie
     maps:
       HOUR_VERBS:
         deu: deram
@@ -2744,51 +2539,10 @@ rules:
     message: review_msg_pt_subjunctive
     sets:
       # "Espero que a sala limpa esteja pronta": an adjective, not the verb, when one of these follows.
-      VERB_NEXT:
-        [
-          seja,
-          sejam,
-          esteja,
-          estejam,
-          fique,
-          fiquem,
-          fosse,
-          fossem,
-          estivesse,
-          estivessem,
-          ficasse,
-          ficassem,
-          é,
-          são,
-          está,
-          estão,
-          era,
-          eram,
-          foi,
-          foram,
-          fica,
-          ficam,
-          ficou,
-          parece,
-          parecem,
-          pareça,
-          continue,
-          tenha,
-          tenham,
-          tem,
-          têm,
-          possa,
-          possam,
-          pode,
-          podem,
-          deve,
-          devem,
-          vá,
-          vai,
-          vão,
-          venha,
-          venham,
-        ]
+      VERB_NEXT: >-
+        seja sejam esteja estejam fique fiquem fosse fossem estivesse estivessem ficasse ficassem é
+        são está estão era eram foi foram fica ficam ficou parece parecem pareça continue tenha
+        tenham tem têm possa possam pode podem deve devem vá vai vão venha venham
     defs:
       # "no caso", "o mesmo que", "acho ainda que": these read as conjunctions only opening a clause.
       CLAUSE_ONLY: "/^(?:caso|ainda|mesmo|antes)/i"
@@ -2839,171 +2593,22 @@ rules:
     message: review_msg_pt_noun_agreement
     sets:
       # Stems of adjectives that follow a copula: "correto", "alta".
-      ADJECTIVE_STEMS:
-        [
-          corret,
-          errad,
-          cert,
-          bonit,
-          fei,
-          alt,
-          baix,
-          gord,
-          magr,
-          pront,
-          nov,
-          velh,
-          chei,
-          vazi,
-          ric,
-          lind,
-          car,
-          barat,
-          limp,
-          suj,
-          abert,
-          quiet,
-          calm,
-          nervos,
-          ansios,
-          sóbri,
-          séri,
-          perfeit,
-          complet,
-          incomplet,
-          curt,
-          long,
-          larg,
-          estreit,
-          branc,
-          pret,
-          vermelh,
-          amarel,
-          rox,
-          escur,
-          clar,
-          fri,
-          sec,
-          molhad,
-          salgad,
-          gostos,
-          delicios,
-          famos,
-          perigos,
-          segur,
-          sozinh,
-          viv,
-          mort,
-          simpátic,
-          antipátic,
-          rápid,
-          lent,
-          pequen,
-          únic,
-          rar,
-          estranh,
-          esquisit,
-          chat,
-          obrigatóri,
-          necessári,
-          proibid,
-          ótim,
-          péssim,
-          maravilhos,
-          brav,
-          furios,
-          satisfeit,
-          orgulhos,
-          louc,
-          maluc,
-          tranquil,
-          exaust,
-          surpres,
-          curios,
-          confus,
-          distraíd,
-          preocupad,
-          ocupad,
-          cansad,
-          animad,
-          apaixonad,
-          casad,
-          solteir,
-          atrasad,
-          preparad,
-          convencid,
-          encantad,
-          lotad,
-          assustad,
-          envergonhad,
-          zangad,
-          irritad,
-          emocionad,
-          chatead,
-          decepcionad,
-          contrári,
-          honest,
-          sincer,
-          generos,
-          teimos,
-          preguiços,
-          ciumen,
-          agressiv,
-          atent,
-          educad,
-          grat,
-        ]
+      ADJECTIVE_STEMS: >-
+        corret errad cert bonit fei alt baix gord magr pront nov velh chei vazi ric lind car barat
+        limp suj abert quiet calm nervos ansios sóbri séri perfeit complet incomplet curt long larg
+        estreit branc pret vermelh amarel rox escur clar fri sec molhad salgad gostos delicios famos
+        perigos segur sozinh viv mort simpátic antipátic rápid lent pequen únic rar estranh esquisit
+        chat obrigatóri necessári proibid ótim péssim maravilhos brav furios satisfeit orgulhos louc
+        maluc tranquil exaust surpres curios confus distraíd preocupad ocupad cansad animad
+        apaixonad casad solteir atrasad preparad convencid encantad lotad assustad envergonhad
+        zangad irritad emocionad chatead decepcionad contrári honest sincer generos teimos preguiços
+        ciumen agressiv atent educad grat
       # Nouns spelled like a participle, which follow "ser" bare: "A crise é resultado de".
-      NOUNS_IN_DO:
-        [
-          resultad,
-          estad,
-          mercad,
-          soldad,
-          advogad,
-          deputad,
-          delegad,
-          cuidad,
-          pecad,
-          legad,
-          recad,
-          significad,
-          partid,
-          sentid,
-          pedid,
-          ruíd,
-          tecid,
-          marid,
-          vestid,
-          ouvid,
-          apelid,
-          bocad,
-          dad,
-          lad,
-          prad,
-          gad,
-          fad,
-          senad,
-          reinad,
-          eleitorad,
-          mandad,
-          atentad,
-          cunhad,
-          namorad,
-          aliad,
-          comunicad,
-          atestad,
-          diplomad,
-          doutorad,
-          mestrad,
-          feriad,
-          ditad,
-          sobrad,
-          telhad,
-          gramad,
-          machad,
-          bordad,
-        ]
+      NOUNS_IN_DO: >-
+        resultad estad mercad soldad advogad deputad delegad cuidad pecad legad recad significad
+        partid sentid pedid ruíd tecid marid vestid ouvid apelid bocad dad lad prad gad fad senad
+        reinad eleitorad mandad atentad cunhad namorad aliad comunicad atestad diplomad doutorad
+        mestrad feriad ditad sobrad telhad gramad machad bordad
       # "A gente está cansado": "a gente" is "we".
       NOT_PREDICATE_SUBJECT: [gente, maioria, minoria, metade, parte, porcentagem]
     defs:
@@ -3045,25 +2650,9 @@ rules:
         a: [ao, à, aos, às]
     sets:
       # Pronominal verbs that govern "a": "Refere-se as práticas" lacks a crase, the noun is no subject.
-      GOVERNS_A_SE:
-        [
-          refere,
-          dirige,
-          candidata,
-          dedica,
-          submete,
-          adapta,
-          acostuma,
-          habitua,
-          apega,
-          destina,
-          resume,
-          limita,
-          restringe,
-          assemelha,
-          equipara,
-          alia,
-        ]
+      GOVERNS_A_SE: >-
+        refere dirige candidata dedica submete adapta acostuma habitua apega destina resume limita
+        restringe assemelha equipara alia
     defs:
       # "Acontece muitas vezes", "ocorre dois dias depois": a span of time is no subject.
       TIME_WORD: /^(?:{{TIME}})$/
@@ -3259,33 +2848,12 @@ rules:
     sets:
       # Imperfects of crer, ler, ver and rir spelled like presents of criar, liar, viar, riar.
       OTHER_IMPERFECTS: [cria, crias, criam, lia, lias, liam, via, vias, viam, ria, rias, riam]
-      KNOWN_SUBJECT_WORDS:
-        [eu, e, tu, ele, ela, você, eles, elas, vocês, o, a, os, as, meu, minha, meus, minhas]
+      KNOWN_SUBJECT_WORDS: >-
+        eu e tu ele ela você eles elas vocês o a os as meu minha meus minhas
       # Heads that may agree with the plural after them: "A maioria dos alunos passaram".
-      PERSON_COLLECTIVE:
-        [
-          maioria,
-          minoria,
-          parte,
-          metade,
-          grupo,
-          porcentagem,
-          percentagem,
-          conjunto,
-          série,
-          totalidade,
-          resto,
-          número,
-          quantidade,
-          multidão,
-          bando,
-          dezena,
-          centena,
-          milhar,
-          milhão,
-          bilhão,
-          trilhão,
-        ]
+      PERSON_COLLECTIVE: >-
+        maioria minoria parte metade grupo porcentagem percentagem conjunto série totalidade resto
+        número quantidade multidão bando dezena centena milhar milhão bilhão trilhão
     defs:
       # "e eu" belongs to WE_SUBJECT; "em nós", "estes nós" (knots), "mais do que eu" are no subject.
       NOT_PRONOUN_SUBJECT: '/(?:(?:^|[^\p{L}])(?:e|em|estes|estas|esses|essas|aqueles|aquelas|dos|pelos|seus|meus|nossos|vários|muitos)|(?:do|mais|menos|melhor|pior|maior|menor|tanto|tão)[ \t\u00a0]+que)[ \t\u00a0]+$/iu'
@@ -3361,27 +2929,9 @@ rules:
       GERUND_ENDING: { ando: ar, endo: er, indo: ir }
     sets:
       # Words that end like a finite form but are none after an auxiliary.
-      AUXILIARY_NOT_VERBS:
-        [
-          para,
-          nada,
-          cada,
-          casa,
-          toda,
-          fora,
-          pra,
-          agora,
-          parte,
-          sorte,
-          mente,
-          corte,
-          porte,
-          forte,
-          norte,
-          peste,
-          vale,
-          sede,
-        ]
+      AUXILIARY_NOT_VERBS: >-
+        para nada cada casa toda fora pra agora parte sorte mente corte porte forte norte peste vale
+        sede
     defs:
       # A finite form after an auxiliary: the infinitive of the -a, -e or -i form.
       auxiliaryInfinitive:

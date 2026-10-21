@@ -227,6 +227,9 @@ A file, and each of its rules, can define helpers for its code. All the names of
 ```yaml
 sets:
   STOP: [a, an, the] # a ReadonlySet<string>
+  OPENERS: >- # a long set: one string, split on whitespace
+    however moreover therefore
+    meanwhile
 maps:
   OPPOSITE: { left: right, right: left } # a Readonly<Record<string, string>>
 defs:
@@ -235,6 +238,8 @@ defs:
     args: "ctx: DetectContext, m: RegExpExecArray"
     return: 'ctx.text.slice(Math.max(0, m.index - 120), m.index).split(/[.!?;,:\n]/).at(-1) ?? ""'
 ```
+
+A set is a list, or one string of words that the compiler splits on whitespace. Prettier writes a long list one word per line, so give a long set as a folded string (`>-`). Use a list when a word holds a space.
 
 A function def can also have `let`, `when`, `else` (what it gives when a `when` fails; default `null`) and `type` (its result type; a recursive def needs it).
 

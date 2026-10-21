@@ -404,664 +404,83 @@ rules:
     sets:
       CONF_SUBJECT: ["i", "you", "we", "they"]
       CONF_THIRD: ["he", "she", "it"]
-      CONF_MODAL:
-        [
-          "can",
-          "could",
-          "will",
-          "would",
-          "shall",
-          "should",
-          "may",
-          "might",
-          "must",
-          "do",
-          "does",
-          "did",
-          "cannot",
-          "can't",
-          "couldn't",
-          "won't",
-          "wouldn't",
-          "shan't",
-          "shouldn't",
-          "mightn't",
-          "mustn't",
-          "don't",
-          "doesn't",
-          "didn't",
-        ]
-      CONF_HAVE:
-        [
-          "have",
-          "has",
-          "had",
-          "having",
-          "i've",
-          "you've",
-          "we've",
-          "they've",
-          "i'd",
-          "you'd",
-          "he'd",
-          "she'd",
-          "we'd",
-          "they'd",
-        ]
-      CONF_INDEFINITE:
-        ["everyone", "anyone", "anybody", "everybody", "someone", "somebody", "nobody"]
-      CONF_DETERMINER:
-        ["a", "an", "the", "my", "your", "his", "our", "their", "its", "this", "no", "every"]
-      CONF_OBJECT_START:
-        [
-          "the",
-          "a",
-          "an",
-          "my",
-          "your",
-          "his",
-          "her",
-          "its",
-          "our",
-          "their",
-          "this",
-          "that",
-          "these",
-          "those",
-          "me",
-          "him",
-          "us",
-          "them",
-          "you",
-          "it",
-          "everyone",
-          "everything",
-          "someone",
-          "something",
-          "anyone",
-          "anything",
-          "how",
-          "what",
-          "whether",
-          "which",
-          "who",
-          "all",
-          "some",
-          "any",
-          "every",
-          "each",
-          "no",
-          "both",
-        ]
-      CONF_FUNCTION:
-        [
-          "i",
-          "you",
-          "we",
-          "they",
-          "he",
-          "she",
-          "it",
-          "me",
-          "him",
-          "us",
-          "them",
-          "the",
-          "a",
-          "an",
-          "this",
-          "that",
-          "these",
-          "those",
-          "my",
-          "your",
-          "our",
-          "their",
-          "his",
-          "her",
-          "its",
-          "and",
-          "or",
-          "but",
-          "so",
-          "then",
-          "if",
-          "when",
-          "what",
-          "where",
-          "how",
-          "why",
-          "who",
-          "which",
-          "not",
-          "to",
-          "of",
-          "in",
-          "on",
-          "at",
-          "by",
-          "for",
-          "from",
-          "with",
-        ]
-      CONF_ADVERB:
-        [
-          "not",
-          "never",
-          "always",
-          "also",
-          "just",
-          "really",
-          "only",
-          "still",
-          "even",
-          "often",
-          "usually",
-          "sometimes",
-          "maybe",
-          "ever",
-          "personally",
-          "definitely",
-          "probably",
-          "actually",
-          "already",
-          "certainly",
-          "simply",
-          "generally",
-          "typically",
-          "normally",
-          "honestly",
-          "truly",
-          "perhaps",
-          "absolutely",
-          "completely",
-          "totally",
-          "once",
-          "again",
-          "kinda",
-          "sorta",
-          "all",
-        ]
-      CONF_ADVERBISH:
-        [
-          "just",
-          "sure",
-          "still",
-          "even",
-          "well",
-          "only",
-          "very",
-          "so",
-          "too",
-          "quite",
-          "rather",
-          "pretty",
-          "kind",
-          "sort",
-          "first",
-          "last",
-          "please",
-          "right",
-          "enough",
-          "much",
-          "more",
-          "most",
-          "less",
-          "least",
-        ]
-      CONF_CONJUNCTION:
-        [
-          "if",
-          "when",
-          "what",
-          "that",
-          "so",
-          "and",
-          "but",
-          "because",
-          "as",
-          "than",
-          "where",
-          "how",
-          "why",
-          "unless",
-          "until",
-          "once",
-          "while",
-          "whether",
-          "since",
-          "or",
-          "though",
-          "although",
-          "before",
-          "after",
-          "cause",
-          "maybe",
-          "then",
-        ]
-      CONF_PREPOSITION_HEAD:
-        [
-          "according",
-          "due",
-          "prior",
-          "thanks",
-          "next",
-          "close",
-          "similar",
-          "compared",
-          "related",
-          "attached",
-          "opposed",
-          "contrary",
-          "back",
-          "up",
-          "down",
-          "from",
-          "way",
-          "path",
-          "key",
-          "answer",
-          "reply",
-          "response",
-          "addition",
-          "reference",
-          "regard",
-          "respect",
-          "relation",
-          "comparison",
-          "subject",
-          "prone",
-          "open",
-          "exposed",
-          "equal",
-        ]
-      CONF_TO_HEAD:
-        [
-          "want",
-          "wants",
-          "wanted",
-          "wanting",
-          "need",
-          "needs",
-          "needed",
-          "needing",
-          "have",
-          "has",
-          "had",
-          "having",
-          "able",
-          "try",
-          "tries",
-          "tried",
-          "trying",
-          "decide",
-          "decides",
-          "decided",
-          "supposed",
-          "ought",
-          "plan",
-          "plans",
-          "planned",
-          "like",
-          "liked",
-          "going",
-          "tend",
-          "tends",
-          "tended",
-          "seem",
-          "seems",
-          "seemed",
-          "start",
-          "starts",
-          "started",
-          "begin",
-          "began",
-          "remember",
-          "forget",
-          "forgot",
-          "refuse",
-          "refused",
-          "hope",
-          "hoped",
-          "wish",
-          "chose",
-          "choose",
-          "manage",
-          "managed",
-          "used",
-          "how",
-          "what",
-          "where",
-          "when",
-          "whether",
-          "why",
-          "continue",
-          "continued",
-          "learn",
-          "learned",
-          "afraid",
-          "easy",
-          "hard",
-          "help",
-          "helps",
-          "helped",
-          "important",
-          "possible",
-          "impossible",
-          "better",
-          "best",
-        ]
-      CONF_EFFECT_OBJECT:
-        [
-          "change",
-          "changes",
-          "reform",
-          "reforms",
-          "substitution",
-          "substitutions",
-          "transformation",
-          "transformations",
-          "improvement",
-          "improvements",
-          "repair",
-          "repairs",
-          "cure",
-          "escape",
-          "rescue",
-          "transfer",
-          "transfers",
-          "entry",
-          "compromise",
-          "reconciliation",
-          "merger",
-          "restoration",
-          "recovery",
-          "transaction",
-          "transactions",
-          "payment",
-          "payments",
-          "sale",
-          "sales",
-          "settlement",
-          "settlements",
-          "arrest",
-          "arrests",
-        ]
-      CONF_COLLOCATION:
-        [
-          "side",
-          "special",
-          "sound",
-          "placebo",
-          "ripple",
-          "snowball",
-          "greenhouse",
-          "domino",
-          "butterfly",
-          "halo",
-          "net",
-          "desired",
-          "intended",
-          "unintended",
-          "cumulative",
-          "opposite",
-          "adverse",
-          "visual",
-          "audio",
-          "cascading",
-          "chilling",
-          "lasting",
-          "overall",
-          "combined",
-          "positive",
-          "negative",
-        ]
-      CONF_PERSONAL_BE:
-        ["i'm", "im", "i'am", "he's", "she's", "we're", "you're", "they're", "theyre"]
-      CONF_FALL_STATE:
-        [
-          "ill",
-          "sick",
-          "silent",
-          "asleep",
-          "quiet",
-          "dead",
-          "flat",
-          "short",
-          "open",
-          "vacant",
-          "due",
-          "pregnant",
-          "still",
-          "hard",
-          "heavy",
-          "low",
-          "apart",
-          "behind",
-          "back",
-          "down",
-          "away",
-          "foul",
-          "unconscious",
-          "limp",
-          "loose",
-          "dark",
-          "empty",
-          "idle",
-          "mute",
-        ]
-      CONF_BOARDED:
-        [
-          "bus",
-          "train",
-          "plane",
-          "airplane",
-          "flight",
-          "call",
-          "boat",
-          "ferry",
-          "bike",
-          "horse",
-          "car",
-          "taxi",
-          "cab",
-          "subway",
-          "tram",
-          "meeting",
-          "stream",
-          "server",
-        ]
-      CONF_SEASONAL:
-        [
-          "dress",
-          "dresses",
-          "outfit",
-          "outfits",
-          "look",
-          "looks",
-          "vibe",
-          "vibes",
-          "day",
-          "days",
-          "weather",
-          "colors",
-          "colours",
-          "colour",
-          "color",
-          "feel",
-          "style",
-          "scent",
-          "salad",
-          "drink",
-          "drinks",
-          "cocktail",
-          "cocktails",
-          "evening",
-          "afternoon",
-          "morning",
-          "mood",
-          "palette",
-          "print",
-          "prints",
-          "fabric",
-          "hue",
-          "hues",
-          "tones",
-          "tone",
-          "flavor",
-          "flavour",
-          "sundress",
-          "breeze",
-          "night",
-          "nights",
-          "read",
-        ]
-      CONF_CLAUSE_COMPARATIVE:
-        [
-          "better",
-          "worse",
-          "more",
-          "less",
-          "later",
-          "earlier",
-          "sooner",
-          "rather",
-          "further",
-          "farther",
-          "other",
-          "latter",
-          "former",
-          "fewer",
-          "lesser",
-        ]
+      CONF_MODAL: >-
+        can could will would shall should may might must do does did cannot can't couldn't won't
+        wouldn't shan't shouldn't mightn't mustn't don't doesn't didn't
+      CONF_HAVE: >-
+        have has had having i've you've we've they've i'd you'd he'd she'd we'd they'd
+      CONF_INDEFINITE: >-
+        everyone anyone anybody everybody someone somebody nobody
+      CONF_DETERMINER: >-
+        a an the my your his our their its this no every
+      CONF_OBJECT_START: >-
+        the a an my your his her its our their this that these those me him us them you it everyone
+        everything someone something anyone anything how what whether which who all some any every
+        each no both
+      CONF_FUNCTION: >-
+        i you we they he she it me him us them the a an this that these those my your our their his
+        her its and or but so then if when what where how why who which not to of in on at by for
+        from with
+      CONF_ADVERB: >-
+        not never always also just really only still even often usually sometimes maybe ever
+        personally definitely probably actually already certainly simply generally typically
+        normally honestly truly perhaps absolutely completely totally once again kinda sorta all
+      CONF_ADVERBISH: >-
+        just sure still even well only very so too quite rather pretty kind sort first last please
+        right enough much more most less least
+      CONF_CONJUNCTION: >-
+        if when what that so and but because as than where how why unless until once while whether
+        since or though although before after cause maybe then
+      CONF_PREPOSITION_HEAD: >-
+        according due prior thanks next close similar compared related attached opposed contrary
+        back up down from way path key answer reply response addition reference regard respect
+        relation comparison subject prone open exposed equal
+      CONF_TO_HEAD: >-
+        want wants wanted wanting need needs needed needing have has had having able try tries tried
+        trying decide decides decided supposed ought plan plans planned like liked going tend tends
+        tended seem seems seemed start starts started begin began remember forget forgot refuse
+        refused hope hoped wish chose choose manage managed used how what where when whether why
+        continue continued learn learned afraid easy hard help helps helped important possible
+        impossible better best
+      CONF_EFFECT_OBJECT: >-
+        change changes reform reforms substitution substitutions transformation transformations
+        improvement improvements repair repairs cure escape rescue transfer transfers entry
+        compromise reconciliation merger restoration recovery transaction transactions payment
+        payments sale sales settlement settlements arrest arrests
+      CONF_COLLOCATION: >-
+        side special sound placebo ripple snowball greenhouse domino butterfly halo net desired
+        intended unintended cumulative opposite adverse visual audio cascading chilling lasting
+        overall combined positive negative
+      CONF_PERSONAL_BE: >-
+        i'm im i'am he's she's we're you're they're theyre
+      CONF_FALL_STATE: >-
+        ill sick silent asleep quiet dead flat short open vacant due pregnant still hard heavy low
+        apart behind back down away foul unconscious limp loose dark empty idle mute
+      CONF_BOARDED: >-
+        bus train plane airplane flight call boat ferry bike horse car taxi cab subway tram meeting
+        stream server
+      CONF_SEASONAL: >-
+        dress dresses outfit outfits look looks vibe vibes day days weather colors colours colour
+        color feel style scent salad drink drinks cocktail cocktails evening afternoon morning mood
+        palette print prints fabric hue hues tones tone flavor flavour sundress breeze night nights
+        read
+      CONF_CLAUSE_COMPARATIVE: >-
+        better worse more less later earlier sooner rather further farther other latter former fewer
+        lesser
       CONF_BE_FINITE: ["is", "are", "was", "were", "has", "have", "had"]
-      CONF_CLAUSE_VERB:
-        [
-          "think",
-          "thinks",
-          "thought",
-          "guess",
-          "know",
-          "knew",
-          "knows",
-          "hope",
-          "hoped",
-          "hopes",
-          "say",
-          "said",
-          "says",
-          "believe",
-          "believed",
-          "mean",
-          "means",
-          "meant",
-          "seem",
-          "seems",
-          "seemed",
-          "feel",
-          "feels",
-          "felt",
-          "sure",
-          "suppose",
-          "found",
-          "find",
-          "finds",
-          "realized",
-          "realised",
-          "noticed",
-          "heard",
-          "hear",
-          "saw",
-          "see",
-          "read",
-          "learned",
-          "discovered",
-          "figured",
-          "decided",
-          "assume",
-          "assumed",
-          "promise",
-          "bet",
-          "agree",
-          "agreed",
-          "admit",
-          "admitted",
-          "show",
-          "shows",
-          "showed",
-          "prove",
-          "proves",
-          "proved",
-          "confirm",
-          "confirms",
-          "confirmed",
-          "ensure",
-          "claim",
-          "claims",
-          "claimed",
-          "suggest",
-          "suggests",
-          "suggested",
-          "note",
-          "notes",
-          "noted",
-          "forget",
-          "forgot",
-          "remember",
-          "remembered",
-          "understand",
-          "understood",
-          "explain",
-          "explained",
-          "argue",
-          "argued",
-          "insist",
-          "insisted",
-          "doubt",
-          "doubted",
-          "suspect",
-          "suspected",
-          "wonder",
-          "wondered",
-          "check",
-          "checked",
-          "verify",
-          "verified",
-          "looks",
-          "sounds",
-          "is",
-          "was",
-        ]
-      CONF_LETS_CUE:
-        [
-          "so",
-          "then",
-          "now",
-          "ok",
-          "okay",
-          "well",
-          "first",
-          "next",
-          "finally",
-          "maybe",
-          "hey",
-          "end",
-          "guys",
-        ]
-      CONF_DEVICE:
-        [
-          "tv",
-          "television",
-          "lights",
-          "light",
-          "fan",
-          "radio",
-          "aircon",
-          "ac",
-          "heater",
-          "heating",
-          "stove",
-        ]
+      CONF_CLAUSE_VERB: >-
+        think thinks thought guess know knew knows hope hoped hopes say said says believe believed
+        mean means meant seem seems seemed feel feels felt sure suppose found find finds realized
+        realised noticed heard hear saw see read learned discovered figured decided assume assumed
+        promise bet agree agreed admit admitted show shows showed prove proves proved confirm
+        confirms confirmed ensure claim claims claimed suggest suggests suggested note notes noted
+        forget forgot remember remembered understand understood explain explained argue argued
+        insist insisted doubt doubted suspect suspected wonder wondered check checked verify
+        verified looks sounds is was
+      CONF_LETS_CUE: >-
+        so then now ok okay well first next finally maybe hey end guys
+      CONF_DEVICE: >-
+        tv television lights light fan radio aircon ac heater heating stove
     maps:
       CONF_NOUN_FOR_VERB:
         {
@@ -1853,880 +1272,121 @@ rules:
     # Typo-like confusions resolved by the words around one trigger word. Closed-class word
     # sets; open-class decisions go through the lexicon.
     sets:
-      CONF2_DET:
-        [
-          "the",
-          "a",
-          "an",
-          "this",
-          "that",
-          "these",
-          "those",
-          "my",
-          "your",
-          "his",
-          "her",
-          "its",
-          "our",
-          "their",
-          "each",
-          "every",
-          "no",
-          "another",
-        ]
+      CONF2_DET: >-
+        the a an this that these those my your his her its our their each every no another
       CONF2_WH: ["what", "where", "which", "who", "whom", "whose", "how", "why", "when"]
-      CONF2_MODALS:
-        [
-          "will",
-          "would",
-          "could",
-          "should",
-          "can",
-          "can't",
-          "cannot",
-          "might",
-          "must",
-          "mustn't",
-          "shouldn't",
-          "won't",
-          "wouldn't",
-          "couldn't",
-          "may",
-          "shall",
-        ]
-      CONF2_BE:
-        [
-          "am",
-          "is",
-          "are",
-          "was",
-          "were",
-          "be",
-          "been",
-          "being",
-          "isn't",
-          "aren't",
-          "wasn't",
-          "weren't",
-          "ain't",
-        ]
+      CONF2_MODALS: >-
+        will would could should can can't cannot might must mustn't shouldn't won't wouldn't
+        couldn't may shall
+      CONF2_BE: >-
+        am is are was were be been being isn't aren't wasn't weren't ain't
       CONF2_HAVE: ["have", "has", "had", "haven't", "hasn't", "hadn't"]
-      CONF2_ADVERBS:
-        [
-          "not",
-          "never",
-          "just",
-          "really",
-          "also",
-          "still",
-          "always",
-          "only",
-          "even",
-          "actually",
-          "sometimes",
-          "often",
-          "usually",
-          "rarely",
-          "seldom",
-          "certainly",
-          "definitely",
-          "probably",
-          "already",
-        ]
-      CONF2_PREPOSITIONS:
-        [
-          "of",
-          "for",
-          "about",
-          "with",
-          "from",
-          "into",
-          "onto",
-          "at",
-          "by",
-          "against",
-          "between",
-          "among",
-          "without",
-          "toward",
-          "towards",
-          "under",
-          "through",
-          "during",
-          "despite",
-          "to",
-          "on",
-          "in",
-          "upon",
-          "via",
-          "over",
-          "across",
-          "along",
-          "around",
-          "behind",
-          "beside",
-          "near",
-          "after",
-          "before",
-          "since",
-          "until",
-          "till",
-          "inside",
-          "outside",
-          "beyond",
-          "below",
-          "above",
-          "within",
-          "throughout",
-          "unlike",
-        ]
-      CONF2_TIME:
-        [
-          "today",
-          "tonight",
-          "tomorrow",
-          "yesterday",
-          "morning",
-          "afternoon",
-          "evening",
-          "night",
-          "nights",
-          "time",
-          "times",
-          "years",
-          "year",
-          "months",
-          "month",
-          "weeks",
-          "week",
-          "days",
-          "day",
-          "hours",
-          "hour",
-          "minutes",
-          "decades",
-          "ages",
-          "once",
-          "twice",
-          "early",
-          "late",
-          "last",
-          "next",
-          "soon",
-          "forever",
-          "overnight",
-          "recently",
-          "daily",
-          "north",
-          "south",
-          "east",
-          "west",
-          "home",
-          "abroad",
-          "online",
-          "offline",
-          "upstairs",
-          "downstairs",
-          "inland",
-          "overseas",
-          "downtown",
-          "uptown",
-          "onward",
-          "onwards",
-          "straight",
-          "ahead",
-        ]
-      CONF2_BARE_CLAUSE:
-        [
-          "think",
-          "know",
-          "hope",
-          "believe",
-          "say",
-          "guess",
-          "suppose",
-          "feel",
-          "wish",
-          "mean",
-          "see",
-          "hear",
-          "suggest",
-          "insist",
-          "find",
-          "ensure",
-          "notice",
-          "assume",
-          "bet",
-          "admit",
-          "doubt",
-          "swear",
-          "fear",
-          "reckon",
-          "figure",
-          "understand",
-          "learn",
-          "remember",
-          "forget",
-          "realize",
-          "realise",
-          "prove",
-          "imagine",
-          "pretend",
-          "seem",
-          "appear",
-          "look",
-          "sound",
-          "agree",
-          "argue",
-          "claim",
-          "decide",
-          "expect",
-          "explain",
-          "hold",
-          "note",
-          "predict",
-          "read",
-          "report",
-          "reveal",
-          "state",
-          "worry",
-          "confirm",
-          "verify",
-          "make",
-          "trust",
-          "wonder",
-          "deny",
-          "recall",
-          "watch",
-          "be",
-          "have",
-          "do",
-          "get",
-          "go",
-          "come",
-          "need",
-          "dare",
-        ]
-      CONF2_OBJECT_FIRST:
-        [
-          "tell",
-          "show",
-          "remind",
-          "promise",
-          "assure",
-          "convince",
-          "teach",
-          "inform",
-          "warn",
-          "let",
-          "help",
-        ]
-      CONF2_PLACE_LEMMAS:
-        [
-          "go",
-          "come",
-          "get",
-          "arrive",
-          "stay",
-          "live",
-          "work",
-          "sit",
-          "stand",
-          "wait",
-          "sleep",
-          "eat",
-          "die",
-          "lie",
-          "meet",
-          "stop",
-          "remain",
-          "park",
-          "settle",
-          "belong",
-          "exist",
-          "happen",
-          "drive",
-          "fly",
-          "walk",
-          "run",
-          "ride",
-          "travel",
-          "head",
-          "return",
-          "sail",
-          "swim",
-          "hike",
-          "rush",
-          "hurry",
-          "move",
-          "relocate",
-          "commute",
-          "visit",
-        ]
-      CONF2_COMPOUND_PARTICIPLES:
-        [
-          "owned",
-          "operated",
-          "run",
-          "based",
-          "driven",
-          "focused",
-          "oriented",
-          "led",
-          "funded",
-          "backed",
-          "made",
-          "built",
-          "minded",
-        ]
+      CONF2_ADVERBS: >-
+        not never just really also still always only even actually sometimes often usually rarely
+        seldom certainly definitely probably already
+      CONF2_PREPOSITIONS: >-
+        of for about with from into onto at by against between among without toward towards under
+        through during despite to on in upon via over across along around behind beside near after
+        before since until till inside outside beyond below above within throughout unlike
+      CONF2_TIME: >-
+        today tonight tomorrow yesterday morning afternoon evening night nights time times years
+        year months month weeks week days day hours hour minutes decades ages once twice early late
+        last next soon forever overnight recently daily north south east west home abroad online
+        offline upstairs downstairs inland overseas downtown uptown onward onwards straight ahead
+      CONF2_BARE_CLAUSE: >-
+        think know hope believe say guess suppose feel wish mean see hear suggest insist find ensure
+        notice assume bet admit doubt swear fear reckon figure understand learn remember forget
+        realize realise prove imagine pretend seem appear look sound agree argue claim decide expect
+        explain hold note predict read report reveal state worry confirm verify make trust wonder
+        deny recall watch be have do get go come need dare
+      CONF2_OBJECT_FIRST: >-
+        tell show remind promise assure convince teach inform warn let help
+      CONF2_PLACE_LEMMAS: >-
+        go come get arrive stay live work sit stand wait sleep eat die lie meet stop remain park
+        settle belong exist happen drive fly walk run ride travel head return sail swim hike rush
+        hurry move relocate commute visit
+      CONF2_COMPOUND_PARTICIPLES: >-
+        owned operated run based driven focused oriented led funded backed made built minded
       CONF2_THERE_PREPOSITIONS: ["about", "to", "of", "from", "with", "for", "into", "on", "by"]
-      CONF2_LOCATIVE_LEAD:
-        [
-          "out",
-          "up",
-          "down",
-          "over",
-          "in",
-          "back",
-          "away",
-          "here",
-          "near",
-          "far",
-          "right",
-          "straight",
-          "just",
-        ]
+      CONF2_LOCATIVE_LEAD: >-
+        out up down over in back away here near far right straight just
       CONF2_CONJUNCTIONS: ["and", "but", "so", "yet", "while", "whereas", "because", "although"]
-      CONF2_COLD_COMPOUNDS:
-        [
-          "build",
-          "call",
-          "email",
-          "brew",
-          "press",
-          "start",
-          "boot",
-          "read",
-          "pitch",
-          "shoulder",
-          "plunge",
-          "smoke",
-          "roll",
-          "cut",
-          "message",
-          "text",
-          "contact",
-          "approach",
-        ]
-      CONF2_PLEAS_INTRANSITIVE:
-        [
-          "go",
-          "are",
-          "were",
-          "have",
-          "had",
-          "do",
-          "remain",
-          "seem",
-          "become",
-          "fall",
-          "come",
-          "continue",
-          "grow",
-          "mount",
-        ]
-      CONF2_BOARDING_PLACES:
-        [
-          "school",
-          "schools",
-          "house",
-          "college",
-          "academy",
-          "hostel",
-          "hall",
-          "inn",
-          "ship",
-          "home",
-          "family",
-          "dorm",
-          "dormitory",
-          "farm",
-        ]
-      CONF2_DIRECTIONS:
-        ["left", "right", "top", "bottom", "side", "sides", "edge", "edges", "inside", "outside"]
-      CONF2_THREAT_COMPOUNDS:
-        [
-          "model",
-          "models",
-          "modeling",
-          "modelling",
-          "hunt",
-          "hunting",
-          "assess",
-          "assessment",
-          "intelligence",
-          "actor",
-          "actors",
-          "level",
-          "levels",
-          "vector",
-          "vectors",
-          "landscape",
-          "surface",
-        ]
-      CONF2_THOUGHT_NEXT:
-        [
-          "i",
-          "you",
-          "we",
-          "they",
-          "he",
-          "she",
-          "it",
-          "that",
-          "this",
-          "there",
-          "so",
-          "about",
-          "of",
-          "the",
-          "a",
-          "maybe",
-          "it's",
-          "i'd",
-          "i'll",
-          "you'd",
-          "he'd",
-          "she'd",
-          "they'd",
-          "we'd",
-          "i'm",
-          "you're",
-          "they're",
-          "we're",
-          "he's",
-          "she's",
-          "there's",
-          "that's",
-          "he'll",
-          "she'll",
-          "they'll",
-          "we'll",
-          "you'll",
-        ]
+      CONF2_COLD_COMPOUNDS: >-
+        build call email brew press start boot read pitch shoulder plunge smoke roll cut message
+        text contact approach
+      CONF2_PLEAS_INTRANSITIVE: >-
+        go are were have had do remain seem become fall come continue grow mount
+      CONF2_BOARDING_PLACES: >-
+        school schools house college academy hostel hall inn ship home family dorm dormitory farm
+      CONF2_DIRECTIONS: >-
+        left right top bottom side sides edge edges inside outside
+      CONF2_THREAT_COMPOUNDS: >-
+        model models modeling modelling hunt hunting assess assessment intelligence actor actors
+        level levels vector vectors landscape surface
+      CONF2_THOUGHT_NEXT: >-
+        i you we they he she it that this there so about of the a maybe it's i'd i'll you'd he'd
+        she'd they'd we'd i'm you're they're we're he's she's there's that's he'll she'll they'll
+        we'll you'll
       CONF2_MUCH_NEXT: ["more", "less", "longer", "further", "better", "worse", "bigger"]
-      CONF2_MUCH_CLAUSE:
-        [
-          "i",
-          "you",
-          "we",
-          "they",
-          "he",
-          "she",
-          "it",
-          "to",
-          "do",
-          "does",
-          "did",
-          "have",
-          "has",
-          "had",
-          "will",
-          "would",
-          "should",
-          "can",
-          "could",
-        ]
-      CONF2_INTENSIFIERS:
-        [
-          "really",
-          "very",
-          "so",
-          "super",
-          "quite",
-          "too",
-          "extremely",
-          "incredibly",
-          "totally",
-          "pretty",
-          "truly",
-          "especially",
-        ]
-      CONF2_EXCITED_LINK:
-        ["feel", "feels", "felt", "get", "gets", "got", "getting", "seem", "seems", "seemed"]
+      CONF2_MUCH_CLAUSE: >-
+        i you we they he she it to do does did have has had will would should can could
+      CONF2_INTENSIFIERS: >-
+        really very so super quite too extremely incredibly totally pretty truly especially
+      CONF2_EXCITED_LINK: >-
+        feel feels felt get gets got getting seem seems seemed
       CONF2_READY_NOT: ["willing", "early"]
-      CONF2_WAIST_NOT:
-        [
-          "the",
-          "a",
-          "an",
-          "this",
-          "that",
-          "these",
-          "those",
-          "about",
-          "around",
-          "approximately",
-          "roughly",
-          "nearly",
-          "almost",
-          "over",
-          "under",
-          "just",
-          "only",
-          "less",
-          "more",
-          "some",
-          "up",
-        ]
-      CONF2_WASTE_ADJECTIVES:
-        [
-          "total",
-          "complete",
-          "huge",
-          "big",
-          "massive",
-          "utter",
-          "absolute",
-          "pure",
-          "real",
-          "colossal",
-          "enormous",
-          "terrible",
-          "horrible",
-          "awful",
-          "needless",
-          "unnecessary",
-          "great",
-          "such",
-          "entire",
-          "giant",
-        ]
-      CONF2_THINK_KNOW:
-        ["think", "thinks", "thought", "thinking", "know", "knows", "knew", "known", "knowing"]
+      CONF2_WAIST_NOT: >-
+        the a an this that these those about around approximately roughly nearly almost over under
+        just only less more some up
+      CONF2_WASTE_ADJECTIVES: >-
+        total complete huge big massive utter absolute pure real colossal enormous terrible horrible
+        awful needless unnecessary great such entire giant
+      CONF2_THINK_KNOW: >-
+        think thinks thought thinking know knows knew known knowing
       CONF2_OFF_IDIOMS: ["top", "cuff", "record", "wall", "bat", "beaten", "coast", "shore"]
-      CONF2_PRIZE_LEAD:
-        [
-          "a",
-          "the",
-          "several",
-          "many",
-          "two",
-          "three",
-          "four",
-          "five",
-          "some",
-          "first",
-          "second",
-          "third",
-          "top",
-          "big",
-          "major",
-          "cash",
-          "grand",
-          "another",
-          "any",
-          "no",
-        ]
+      CONF2_PRIZE_LEAD: >-
+        a the several many two three four five some first second third top big major cash grand
+        another any no
       CONF2_WIN: ["win", "wins", "won", "winning"]
-      CONF2_LOSE_OBJECT:
-        [
-          "it",
-          "them",
-          "him",
-          "her",
-          "me",
-          "us",
-          "you",
-          "everything",
-          "anything",
-          "something",
-          "weight",
-          "money",
-          "time",
-          "data",
-          "track",
-          "sight",
-          "interest",
-          "hope",
-          "control",
-          "focus",
-          "my",
-          "your",
-          "his",
-          "our",
-          "their",
-          "all",
-        ]
-      CONF2_SETTING_VERBS:
-        [
-          "set",
-          "sets",
-          "switch",
-          "switched",
-          "change",
-          "changed",
-          "turn",
-          "turned",
-          "adjust",
-          "adjusted",
-          "go",
-          "went",
-          "move",
-          "moved",
-          "shift",
-        ]
-      CONF2_THEM_PREPOSITIONS:
-        [
-          "to",
-          "with",
-          "against",
-          "between",
-          "among",
-          "amongst",
-          "from",
-          "into",
-          "onto",
-          "toward",
-          "towards",
-          "about",
-          "via",
-          "upon",
-          "beside",
-          "behind",
-          "at",
-        ]
-      CONF2_THEM_NEXT:
-        [
-          "the",
-          "a",
-          "an",
-          "my",
-          "your",
-          "his",
-          "her",
-          "our",
-          "their",
-          "this",
-          "that",
-          "these",
-          "those",
-          "for",
-          "about",
-          "in",
-          "on",
-          "at",
-          "via",
-          "with",
-          "during",
-          "when",
-          "how",
-          "what",
-          "why",
-          "where",
-          "as",
-          "today",
-          "tomorrow",
-          "tonight",
-          "later",
-          "again",
-          "back",
-          "up",
-          "down",
-          "out",
-          "off",
-          "to",
-        ]
-      CONF2_CUES:
-        [
-          "said",
-          "says",
-          "say",
-          "heard",
-          "hear",
-          "think",
-          "thought",
-          "guess",
-          "hope",
-          "know",
-          "knew",
-          "suspect",
-          "sure",
-          "maybe",
-          "perhaps",
-          "because",
-          "since",
-          "if",
-          "when",
-          "that",
-        ]
-      CONF2_PLACE_VERBS:
-        [
-          "put",
-          "place",
-          "leave",
-          "set",
-          "move",
-          "keep",
-          "store",
-          "drop",
-          "hang",
-          "stick",
-          "lay",
-          "park",
-          "position",
-        ]
+      CONF2_LOSE_OBJECT: >-
+        it them him her me us you everything anything something weight money time data track sight
+        interest hope control focus my your his our their all
+      CONF2_SETTING_VERBS: >-
+        set sets switch switched change changed turn turned adjust adjusted go went move moved shift
+      CONF2_THEM_PREPOSITIONS: >-
+        to with against between among amongst from into onto toward towards about via upon beside
+        behind at
+      CONF2_THEM_NEXT: >-
+        the a an my your his her our their this that these those for about in on at via with during
+        when how what why where as today tomorrow tonight later again back up down out off to
+      CONF2_CUES: >-
+        said says say heard hear think thought guess hope know knew suspect sure maybe perhaps
+        because since if when that
+      CONF2_PLACE_VERBS: >-
+        put place leave set move keep store drop hang stick lay park position
       CONF2_PLACE_NEXT: ["to", "beside", "next", "near", "by", "for", "until", "and", "so"]
       CONF2_LINKING_LEMMAS: ["look", "feel", "seem", "act", "sound", "get", "stay", "become"]
       CONF2_SPEECH_LEMMAS: ["speak", "talk", "sing", "shout", "yell", "play", "laugh", "whisper"]
-      CONF2_WERE_PREDICATES:
-        [
-          "able",
-          "aware",
-          "allowed",
-          "sure",
-          "ready",
-          "happy",
-          "right",
-          "wrong",
-          "lucky",
-          "done",
-          "finished",
-          "serious",
-          "awake",
-          "busy",
-          "okay",
-          "ok",
-          "alright",
-          "there",
-        ]
+      CONF2_WERE_PREDICATES: >-
+        able aware allowed sure ready happy right wrong lucky done finished serious awake busy okay
+        ok alright there
       CONF2_HEART_ADVERBS: [ever, never, not, already, just, all, also]
       CONF2_NOT: [not]
       CONF2_AUX_MORE: ["do", "does", "did", "don't", "doesn't", "didn't", "to"]
-      CONF2_CLOSED_MORE:
-        [
-          "and",
-          "or",
-          "but",
-          "so",
-          "if",
-          "as",
-          "than",
-          "then",
-          "there",
-          "here",
-          "now",
-          "that",
-          "some",
-          "any",
-          "all",
-          "both",
-          "more",
-          "most",
-          "less",
-          "much",
-          "many",
-          "such",
-          "own",
-          "same",
-          "other",
-          "else",
-          "itself",
-          "themselves",
-          "yet",
-          "too",
-          "very",
-        ]
-      CONF2_THERE_BLOCK_MORE:
-        [
-          "be",
-          "have",
-          "do",
-          "see",
-          "watch",
-          "hear",
-          "notice",
-          "find",
-          "think",
-          "know",
-          "believe",
-          "say",
-          "guess",
-          "suppose",
-          "feel",
-          "hope",
-          "mean",
-          "seem",
-          "appear",
-          "look",
-          "sound",
-          "tell",
-          "show",
-          "prove",
-          "imagine",
-          "wish",
-          "bet",
-          "swear",
-          "claim",
-        ]
-      CONF2_SHUT_AUX_MORE:
-        [
-          "to",
-          "did",
-          "didn't",
-          "don't",
-          "doesn't",
-          "please",
-          "i'll",
-          "we'll",
-          "you'll",
-          "they'll",
-          "he'll",
-          "she'll",
-        ]
+      CONF2_CLOSED_MORE: >-
+        and or but so if as than then there here now that some any all both more most less much many
+        such own same other else itself themselves yet too very
+      CONF2_THERE_BLOCK_MORE: >-
+        be have do see watch hear notice find think know believe say guess suppose feel hope mean
+        seem appear look sound tell show prove imagine wish bet swear claim
+      CONF2_SHUT_AUX_MORE: >-
+        to did didn't don't doesn't please i'll we'll you'll they'll he'll she'll
       CONF2_SHUT_OBJECT_MORE: ["it", "them", "everything", "all", "any", "some"]
-      CONF2_RELAY_LEAD_MORE:
-        [
-          "please",
-          "often",
-          "always",
-          "still",
-          "usually",
-          "generally",
-          "mostly",
-          "heavily",
-          "really",
-          "also",
-          "just",
-          "to",
-          "don't",
-          "doesn't",
-          "didn't",
-          "not",
-          "never",
-          "i",
-          "you",
-          "we",
-          "they",
-        ]
-      CONF2_THEM_LEAD_MORE:
-        [
-          "i",
-          "you",
-          "we",
-          "they",
-          "he",
-          "she",
-          "to",
-          "please",
-          "don't",
-          "didn't",
-          "not",
-          "also",
-          "just",
-          "let's",
-          "and",
-        ]
+      CONF2_RELAY_LEAD_MORE: >-
+        please often always still usually generally mostly heavily really also just to don't doesn't
+        didn't not never i you we they
+      CONF2_THEM_LEAD_MORE: >-
+        i you we they he she to please don't didn't not also just let's and
       CONF2_FINITE_MORE: ["do", "does", "did", "'re"]
     defs:
       CONF2_AUX: "new Set([...CONF2_MODALS, ...CONF2_BE, ...CONF2_HAVE, ...CONF2_AUX_MORE])"
@@ -3517,39 +2177,9 @@ rules:
     message: review_msg_phrase_correction
     sets:
       # Closed-class words that cannot fill the adjective slot of "on a … basis".
-      NOT_BASIS_ADJECTIVE:
-        [
-          a,
-          an,
-          the,
-          this,
-          that,
-          these,
-          those,
-          which,
-          what,
-          whose,
-          each,
-          every,
-          its,
-          his,
-          her,
-          their,
-          our,
-          my,
-          your,
-          any,
-          some,
-          no,
-          one,
-          such,
-          same,
-          another,
-          either,
-          neither,
-          whichever,
-          whatever,
-        ]
+      NOT_BASIS_ADJECTIVE: >-
+        a an the this that these those which what whose each every its his her their our my your any
+        some no one such same another either neither whichever whatever
     maps:
       EMAIL_VERB: { send: email, sends: emails, sent: emailed, sending: emailing }
     defs:
@@ -3841,80 +2471,14 @@ rules:
     message: review_msg_phrase_correction
     sets:
       # Determiners and object pronouns: an object, not a verb, comes after them.
-      DETERMINER_OR_OBJECT:
-        [
-          the,
-          a,
-          an,
-          this,
-          that,
-          these,
-          those,
-          my,
-          your,
-          his,
-          her,
-          its,
-          our,
-          their,
-          some,
-          any,
-          all,
-          every,
-          each,
-          it,
-          them,
-          me,
-          him,
-          us,
-          you,
-        ]
+      DETERMINER_OR_OBJECT: >-
+        the a an this that these those my your his her its our their some any all every each it them
+        me him us you
       # Words that open a clause's subject: "it looks like that the team…".
-      LOOKS_LIKE_SUBJECT:
-        [
-          the,
-          a,
-          an,
-          this,
-          that,
-          these,
-          those,
-          my,
-          your,
-          his,
-          her,
-          its,
-          our,
-          their,
-          some,
-          any,
-          all,
-          every,
-          each,
-          it,
-          you,
-          we,
-          they,
-          he,
-          she,
-          i,
-          there,
-          many,
-          most,
-          no,
-          both,
-          nobody,
-          nothing,
-          everyone,
-          everybody,
-          everything,
-          someone,
-          somebody,
-          something,
-          anyone,
-          anybody,
-          anything,
-        ]
+      LOOKS_LIKE_SUBJECT: >-
+        the a an this that these those my your his her its our their some any all every each it you
+        we they he she i there many most no both nobody nothing everyone everybody everything
+        someone somebody something anyone anybody anything
     maps:
       MAKE_FOR_DO: { do: make, does: makes, did: made, doing: making, done: made }
       OURS_FOR_OBJECT: { me: mine, you: yours, us: ours, him: his, them: theirs }
@@ -4034,31 +2598,9 @@ rules:
     sets:
       # "how come", "how dare you" and "how people…" are not a missing "to". Auxiliaries open a
       # question ("How have these changes helped?"), not a how-to.
-      NOT_HOW_TO:
-        [
-          come,
-          dare,
-          do,
-          does,
-          did,
-          go,
-          people,
-          be,
-          say,
-          mean,
-          will,
-          can,
-          may,
-          might,
-          must,
-          shall,
-          should,
-          would,
-          could,
-          have,
-          has,
-          had,
-        ]
+      NOT_HOW_TO: >-
+        come dare do does did go people be say mean will can may might must shall should would could
+        have has had
     frames:
       - regex: "how{{S}}(?<target>\\p{L}+){{S}}(?<next>\\p{L}+){{E}}"
         let:
@@ -5874,125 +4416,21 @@ rules:
     # Closed-class word sets; open-class decisions go through the lexicon.
     sets:
       STYLE2_PRONOUNS: [i, you, we, they, he, she, it, me, him, us, them]
-      STYLE2_AUX:
-        [
-          is,
-          are,
-          was,
-          were,
-          be,
-          been,
-          am,
-          has,
-          have,
-          had,
-          will,
-          would,
-          can,
-          could,
-          should,
-          shall,
-          may,
-          might,
-          must,
-          do,
-          does,
-          did,
-        ]
-      STYLE2_PREPOSITIONS:
-        [
-          of,
-          for,
-          about,
-          with,
-          from,
-          into,
-          onto,
-          at,
-          by,
-          to,
-          on,
-          in,
-          up,
-          out,
-          off,
-          over,
-          back,
-          down,
-          away,
-          under,
-          through,
-          during,
-          after,
-          before,
-          since,
-          until,
-          like,
-          as,
-          than,
-        ]
-      STYLE2_OTHER_CLOSED:
-        [
-          and,
-          or,
-          but,
-          so,
-          if,
-          then,
-          there,
-          here,
-          now,
-          not,
-          too,
-          very,
-          also,
-          just,
-          still,
-          all,
-          both,
-          some,
-          any,
-          who,
-          whom,
-          whose,
-          which,
-          what,
-          where,
-          when,
-          why,
-          how,
-          forward,
-          forwards,
-          ahead,
-        ]
-      STYLE2_NOT_PLURAL_SUBJECT:
-        [
-          news,
-          series,
-          species,
-          means,
-          lots,
-          tons,
-          loads,
-          plenty,
-          kudos,
-          physics,
-          mathematics,
-          economics,
-          politics,
-          thanks,
-          sometimes,
-          afterwards,
-          nowadays,
-          besides,
-          overseas,
-          upstairs,
-          downstairs,
-          indoors,
-          outdoors,
-        ]
-      STYLE2_NOT_MODIFIER:
-        [more, most, less, least, much, many, few, enough, further, other, same, own]
+      STYLE2_AUX: >-
+        is are was were be been am has have had will would can could should shall may might must do
+        does did
+      STYLE2_PREPOSITIONS: >-
+        of for about with from into onto at by to on in up out off over back down away under through
+        during after before since until like as than
+      STYLE2_OTHER_CLOSED: >-
+        and or but so if then there here now not too very also just still all both some any who whom
+        whose which what where when why how forward forwards ahead
+      STYLE2_NOT_PLURAL_SUBJECT: >-
+        news series species means lots tons loads plenty kudos physics mathematics economics
+        politics thanks sometimes afterwards nowadays besides overseas upstairs downstairs indoors
+        outdoors
+      STYLE2_NOT_MODIFIER: >-
+        more most less least much many few enough further other same own
     defs:
       STYLE2_CLOSED: "new Set([...CONF2_DET, ...STYLE2_PRONOUNS, ...STYLE2_AUX, ...STYLE2_PREPOSITIONS, ...STYLE2_OTHER_CLOSED])"
       # A noun or adjective that is not only a verb; an unlisted lowercase word is a long pure noun.
@@ -6489,97 +4927,24 @@ rules:
     # irregular forms, missing possessive apostrophes and misplaced spaces.
     sets:
       # Function words the lexicon has no part of speech for.
-      LEXICAL_FUNCTION_WORDS:
-        [as, his, her, hers, into, only, its, us, is, unto, per, amongst, ok, vs]
+      LEXICAL_FUNCTION_WORDS: >-
+        as his her hers into only its us is unto per amongst ok vs
       # The regular -ed spelled on an irregular verb ("eated", "writed", "runned"). Valid
       # variants stay out: "kneeled" and "betted" are dictionary-accepted pasts the lexicon lacks.
       LEXICAL_VALID_VARIANTS: [kneeled, betted]
       # The regular plural on an irregular noun ("childs", "womans").
-      LEXICAL_IRREGULAR_NOUNS:
-        [
-          child,
-          woman,
-          man,
-          ox,
-          foot,
-          tooth,
-          goose,
-          mouse,
-          louse,
-          leaf,
-          loaf,
-          shelf,
-          wolf,
-          knife,
-          wife,
-          half,
-          thief,
-          calf,
-          life,
-          grandchild,
-          gentleman,
-          person,
-        ]
+      LEXICAL_IRREGULAR_NOUNS: >-
+        child woman man ox foot tooth goose mouse louse leaf loaf shelf wolf knife wife half thief
+        calf life grandchild gentleman person
       # Two-letter words a moved space may produce; the dictionary's rarer ones (em, en) stay out.
-      LEXICAL_SHORT_WORDS:
-        [
-          a,
-          i,
-          am,
-          an,
-          as,
-          at,
-          be,
-          by,
-          do,
-          go,
-          he,
-          if,
-          in,
-          is,
-          it,
-          me,
-          my,
-          no,
-          of,
-          oh,
-          ok,
-          on,
-          or,
-          so,
-          to,
-          up,
-          us,
-          we,
-        ]
+      LEXICAL_SHORT_WORDS: >-
+        a i am an as at be by do go he if in is it me my no of oh ok on or so to up us we
       # Function words glued to the next word ("thisinstead"). Words that also start ordinary
       # compounds (in, on, up, out, over) stay out ("inline", "onboarding", "uptime"), and so do
       # "of" and "as", which start British spellings and deliberate tokens ("offences", "aswell").
-      LEXICAL_GLUED:
-        [
-          this,
-          that,
-          the,
-          these,
-          those,
-          and,
-          but,
-          with,
-          from,
-          is,
-          was,
-          are,
-          were,
-          have,
-          has,
-          had,
-          will,
-          would,
-          could,
-          should,
-          not,
-          than,
-        ]
+      LEXICAL_GLUED: >-
+        this that the these those and but with from is was are were have has had will would could
+        should not than
       # A capitalized unknown word is more often a name ("Haslam", "Andover", "Isham"): only a
       # determiner head splits it ("Thisway").
       LEXICAL_CAPITAL_GLUED: [this, that, the, these, those]
@@ -6844,277 +5209,38 @@ rules:
       # Plurals that commonly modify another noun without owning it: "the sales team", "a sports
       # car", "the settings page". Words in -ics and -ings behave the same way and are caught
       # by the owner check.
-      POSSESSIVE_ATTRIBUTIVE:
-        [
-          sales,
-          sports,
-          arts,
-          savings,
-          goods,
-          arms,
-          customs,
-          clothes,
-          glasses,
-          jobs,
-          systems,
-          operations,
-          parts,
-          news,
-          needs,
-          claims,
-          works,
-          means,
-          series,
-          species,
-          rights,
-          services,
-          products,
-          events,
-          admissions,
-          materials,
-          weapons,
-          drugs,
-          awards,
-          games,
-          records,
-          accounts,
-          payments,
-          skills,
-          drinks,
-          numbers,
-          contents,
-          crafts,
-          letters,
-          ways,
-          sciences,
-          studies,
-          affairs,
-          relations,
-          resources,
-          utilities,
-          securities,
-          futures,
-          options,
-          assets,
-          results,
-          comments,
-          users,
-          tools,
-          files,
-          tests,
-          items,
-          orders,
-          notes,
-          tickets,
-          members,
-          images,
-          docs,
-          logs,
-          tasks,
-          fireworks,
-          antiques,
-          antiquities,
-          communications,
-          munitions,
-          insights,
-          stats,
-          standards,
-          arrivals,
-          departures,
-          earnings,
-          valuables,
-          humanities,
-        ]
+      POSSESSIVE_ATTRIBUTIVE: >-
+        sales sports arts savings goods arms customs clothes glasses jobs systems operations parts
+        news needs claims works means series species rights services products events admissions
+        materials weapons drugs awards games records accounts payments skills drinks numbers
+        contents crafts letters ways sciences studies affairs relations resources utilities
+        securities futures options assets results comments users tools files tests items orders
+        notes tickets members images docs logs tasks fireworks antiques antiquities communications
+        munitions insights stats standards arrivals departures earnings valuables humanities
       POSSESSIVE_IRREGULAR_OWNERS: [children, women, men]
       POSSESSIVE_SINGLE_DETERMINERS: [a, an, every, each, another]
       # Plural nouns that name a class before its members: "the metals tin and zinc".
-      POSSESSIVE_CLASS_OWNERS:
-        [
-          metals,
-          minerals,
-          elements,
-          gases,
-          colors,
-          colours,
-          letters,
-          words,
-          numbers,
-          names,
-          cities,
-          countries,
-          languages,
-          species,
-          planets,
-          months,
-          genres,
-          terms,
-          values,
-          variables,
-          commands,
-        ]
-      POSSESSIVE_PREPOSITIONS:
-        [
-          in,
-          on,
-          at,
-          of,
-          with,
-          from,
-          to,
-          into,
-          onto,
-          for,
-          by,
-          about,
-          under,
-          over,
-          through,
-          near,
-          behind,
-          inside,
-          outside,
-          without,
-          within,
-          across,
-          around,
-          among,
-          between,
-          beside,
-          toward,
-          towards,
-          against,
-        ]
-      POSSESSIVE_PERCEPTION:
-        [see, saw, seen, seeing, hear, heard, hearing, watch, watched, watching, notice, noticed]
+      POSSESSIVE_CLASS_OWNERS: >-
+        metals minerals elements gases colors colours letters words numbers names cities countries
+        languages species planets months genres terms values variables commands
+      POSSESSIVE_PREPOSITIONS: >-
+        in on at of with from to into onto for by about under over through near behind inside
+        outside without within across around among between beside toward towards against
+      POSSESSIVE_PERCEPTION: >-
+        see saw seen seeing hear heard hearing watch watched watching notice noticed
       # Closed-class words the dictionary also lists as nouns ("the haves", "an are", "a she"):
       # never the owned noun. "the children she knew", "the pickers are paid", "the players all
       # played". Then adverbs the dictionary lists as nouns ("I talked to the students
       # yesterday") and adjectives that follow their noun ("the commissioners present signed").
-      POSSESSIVE_NOT_HEADS:
-        [
-          i,
-          you,
-          he,
-          she,
-          it,
-          we,
-          they,
-          me,
-          him,
-          her,
-          us,
-          them,
-          who,
-          whom,
-          whose,
-          which,
-          that,
-          what,
-          this,
-          these,
-          those,
-          all,
-          both,
-          each,
-          either,
-          neither,
-          none,
-          some,
-          any,
-          many,
-          much,
-          more,
-          most,
-          few,
-          several,
-          such,
-          own,
-          same,
-          other,
-          others,
-          and,
-          but,
-          or,
-          nor,
-          yet,
-          so,
-          if,
-          then,
-          than,
-          as,
-          is,
-          are,
-          was,
-          were,
-          am,
-          be,
-          been,
-          being,
-          have,
-          has,
-          had,
-          do,
-          does,
-          did,
-          will,
-          would,
-          can,
-          could,
-          shall,
-          should,
-          may,
-          might,
-          must,
-          not,
-          no,
-          yesterday,
-          today,
-          tonight,
-          tomorrow,
-          overnight,
-          first,
-          once,
-          home,
-          outside,
-          inside,
-          upstairs,
-          downstairs,
-          aside,
-          back,
-          forward,
-          last,
-          next,
-          daily,
-          weekly,
-          monthly,
-          yearly,
-          nightly,
-          online,
-          offline,
-          sometimes,
-          always,
-          often,
-          never,
-          usually,
-          also,
-          still,
-          already,
-          just,
-          even,
-          only,
-          ever,
-          seldom,
-          rarely,
-          present,
-          involved,
-          concerned,
-          available,
-          responsible,
-          mentioned,
-          listed,
-          affected,
-          attending,
-        ]
+      POSSESSIVE_NOT_HEADS: >-
+        i you he she it we they me him her us them who whom whose which that what this these those
+        all both each either neither none some any many much more most few several such own same
+        other others and but or nor yet so if then than as is are was were am be been being have has
+        had do does did will would can could shall should may might must not no yesterday today
+        tonight tomorrow overnight first once home outside inside upstairs downstairs aside back
+        forward last next daily weekly monthly yearly nightly online offline sometimes always often
+        never usually also still already just even only ever seldom rarely present involved
+        concerned available responsible mentioned listed affected attending
       POSSESSIVE_SINGULAR_FINITE: [is, was, has, does]
       POSSESSIVE_PLURAL_FINITE: [are, were, have, do]
     defs:
@@ -7207,92 +5333,17 @@ rules:
     # The rule code of remaining.ts: rare phrase fixes, the phrase tables in views (quotations,
     # soft wraps, capitals, a stray slash), slashed words and the opt-in checks.
     sets:
-      REM_BARE_PLACES:
-        [
-          "bed",
-          "home",
-          "school",
-          "class",
-          "church",
-          "college",
-          "court",
-          "prison",
-          "jail",
-          "hospital",
-          "sea",
-          "work",
-          "town",
-          "time",
-          "foot",
-          "board",
-          "fire",
-          "hand",
-          "line",
-          "stage",
-          "camp",
-          "office",
-          "duty",
-          "air",
-        ]
-      REM_NOT_OBJECTS:
-        [
-          "it",
-          "them",
-          "him",
-          "her",
-          "us",
-          "me",
-          "you",
-          "this",
-          "that",
-          "these",
-          "those",
-          "something",
-          "nothing",
-          "everything",
-          "anything",
-          "one",
-          "all",
-          "home",
-          "back",
-          "out",
-          "up",
-          "down",
-          "away",
-          "there",
-          "here",
-        ]
+      REM_BARE_PLACES: >-
+        bed home school class church college court prison jail hospital sea work town time foot
+        board fire hand line stage camp office duty air
+      REM_NOT_OBJECTS: >-
+        it them him her us me you this that these those something nothing everything anything one
+        all home back out up down away there here
       # "The Putin's war": names that take "the" stay.
-      REM_THE_NAMES:
-        [
-          "hague",
-          "thames",
-          "bronx",
-          "vatican",
-          "kremlin",
-          "sahara",
-          "nile",
-          "rhine",
-          "danube",
-          "mediterranean",
-          "caribbean",
-          "gambia",
-          "congo",
-          "sudan",
-          "ukraine",
-          "crimea",
-          "midwest",
-          "quran",
-          "koran",
-          "louvre",
-          "alamo",
-          "riviera",
-          "yukon",
-          "mekong",
-          "volga",
-          "titanic",
-          "hobbit",
-        ]
+      REM_THE_NAMES: >-
+        hague thames bronx vatican kremlin sahara nile rhine danube mediterranean caribbean gambia
+        congo sudan ukraine crimea midwest quran koran louvre alamo riviera yukon mekong volga
+        titanic hobbit
       REM_OBJECT_WHILE: [take, spend, have, need, give, be, last, require]
       REM_CASING_ONLY: [englishCanonicalCasing]
       REM_QUOTED_RULES: [englishPhraseCorrections, englishClosedCompounds, englishPossibleErrors]
@@ -8080,24 +6131,8 @@ rules:
     sets:
       # First words that are also everyday nouns ("a sign in front", "the work out of the way",
       # "your back up straight"): these need a noun after the particle ("the sign up form").
-      COMPOUND_NOUN_HEADS:
-        [
-          drive,
-          left,
-          hold,
-          count,
-          touch,
-          close,
-          set,
-          sign,
-          check,
-          work,
-          stand,
-          cut,
-          round,
-          lift,
-          push,
-        ]
+      COMPOUND_NOUN_HEADS: >-
+        drive left hold count touch close set sign check work stand cut round lift push
       # "a chin up", "the back up": these also read as a body part with an adverb after a
       # possessive ("keep your chin up"), so only an article may come before them.
       COMPOUND_ARTICLE_HEADS: [back, chin]
@@ -9001,282 +7036,48 @@ rules:
     # from the generated lexicon: a possessive needs a noun phrase, a contraction a predicate.
     sets:
       # Words after which a clause, and so a subject, can start.
-      CONTRACTION_CUE:
-        [
-          and,
-          or,
-          but,
-          so,
-          plus,
-          yes,
-          yeah,
-          yep,
-          well,
-          oh,
-          wow,
-          hey,
-          yay,
-          ah,
-          glad,
-          hope,
-          hoping,
-          trust,
-          imagine,
-          believe,
-          dunno,
-          once,
-          while,
-          whether,
-          where,
-          now,
-          here,
-          see,
-          hear,
-          sorry,
-          until,
-          unless,
-          though,
-          god,
-          although,
-          bet,
-          figure,
-          feel,
-          say,
-          think,
-          thought,
-          guess,
-          know,
-          knew,
-          sure,
-          maybe,
-          perhaps,
-          because,
-          since,
-          if,
-          when,
-          that,
-          what,
-          how,
-          why,
-          mean,
-          means,
-          confirm,
-        ]
+      CONTRACTION_CUE: >-
+        and or but so plus yes yeah yep well oh wow hey yay ah glad hope hoping trust imagine
+        believe dunno once while whether where now here see hear sorry until unless though god
+        although bet figure feel say think thought guess know knew sure maybe perhaps because since
+        if when that what how why mean means confirm
       # Stricter cue for a following name or time: "Hey, its Katie" but not "Paris and its Louvre".
-      NAME_CUE:
-        [
-          think,
-          hope,
-          guess,
-          bet,
-          hey,
-          yay,
-          yes,
-          yeah,
-          yep,
-          oh,
-          wow,
-          ok,
-          okay,
-          well,
-          sure,
-          maybe,
-          god,
-          thought,
-          here,
-        ]
+      NAME_CUE: >-
+        think hope guess bet hey yay yes yeah yep oh wow ok okay well sure maybe god thought here
       # Words that end an exclamation after a predicate: "It's cool man!", "It's crazy, yeah!"
       PREDICATE_TAGS: [man, dude, bro, mate, guys, yeah, ugh, lol, haha, right]
       # Prenominal words: "its only purpose", "its very existence", "your best".
-      NOT_HEAD:
-        [
-          own,
-          only,
-          first,
-          last,
-          next,
-          other,
-          same,
-          whole,
-          entire,
-          main,
-          usual,
-          former,
-          latter,
-          very,
-          kind,
-          sort,
-          favorite,
-          best,
-          worst,
-          most,
-          least,
-          every,
-          each,
-          both,
-        ]
+      NOT_HEAD: >-
+        own only first last next other same whole entire main usual former latter very kind sort
+        favorite best worst most least every each both
       # Adverbs that end a predicate on their own ("it's already there.", "you're all set").
       ENDING_ADVERBS: [all, there, here, not, already, so, still, too, now, again, away]
       # Prepositions that never open a noun phrase after a possessive ("its in there", "your at it").
-      PREDICATE_PREPOSITIONS:
-        [
-          in,
-          at,
-          by,
-          from,
-          with,
-          without,
-          into,
-          onto,
-          between,
-          among,
-          through,
-          during,
-          until,
-          against,
-          within,
-          toward,
-          towards,
-          upon,
-          despite,
-          throughout,
-          under,
-        ]
+      PREDICATE_PREPOSITIONS: >-
+        in at by from with without into onto between among through during until against within
+        toward towards upon despite throughout under
       # After these the possessive can still own a compound ("its on switch", "your about page").
-      PARTICLE_FOLLOW:
-        [
-          there,
-          here,
-          top,
-          of,
-          for,
-          to,
-          in,
-          on,
-          at,
-          with,
-          from,
-          again,
-          now,
-          already,
-          the,
-          a,
-          an,
-          my,
-          your,
-          our,
-          his,
-          her,
-          their,
-          this,
-          that,
-          me,
-          him,
-          us,
-          them,
-          you,
-          it,
-        ]
+      PARTICLE_FOLLOW: >-
+        there here top of for to in on at with from again now already the a an my your our his her
+        their this that me him us them you it
       # What may follow a predicate adjective or participle, never a noun it modifies.
-      AFTER_PREDICATE:
-        [
-          to,
-          than,
-          for,
-          enough,
-          as,
-          if,
-          when,
-          because,
-          now,
-          then,
-          today,
-          tonight,
-          again,
-          outside,
-          inside,
-          here,
-          there,
-          though,
-          too,
-          with,
-          about,
-          at,
-          of,
-          in,
-          on,
-          by,
-          from,
-          that,
-          so,
-          already,
-          yet,
-          anymore,
-          right,
-          out,
-          away,
-          back,
-          off,
-          up,
-          down,
-          around,
-          over,
-          lately,
-          anyway,
-          please,
-          like,
-          let,
-          without,
-        ]
+      AFTER_PREDICATE: >-
+        to than for enough as if when because now then today tonight again outside inside here there
+        though too with about at of in on by from that so already yet anymore right out away back
+        off up down around over lately anyway please like let without
       # Predicate words the lexicon gives no adjective reading.
-      PREDICATIVE:
-        [welcome, okay, ok, alone, afraid, awake, asleep, hurt, done, gone, better, worse]
+      PREDICATIVE: >-
+        welcome okay ok alone afraid awake asleep hurt done gone better worse
       # What an -ing predicate takes besides a closed word: "you're feeling better".
       AFTER_ING: [better, worse, well, fine, good, great, bad, okay]
       # After these a later verb belongs to another clause.
-      PREDICATE_CLAUSE_STOP:
-        [
-          that,
-          which,
-          who,
-          whom,
-          because,
-          if,
-          when,
-          and,
-          but,
-          so,
-          as,
-          than,
-          while,
-          since,
-          until,
-          where,
-        ]
-      PREDICATE_FINITE:
-        [
-          is,
-          are,
-          was,
-          were,
-          has,
-          had,
-          does,
-          did,
-          am,
-          will,
-          would,
-          can,
-          could,
-          shall,
-          should,
-          may,
-          might,
-          must,
-        ]
+      PREDICATE_CLAUSE_STOP: >-
+        that which who whom because if when and but so as than while since until where
+      PREDICATE_FINITE: >-
+        is are was were has had does did am will would can could shall should may might must
       # Conjunctions after which "your thinking of…" opens a clause rather than naming a noun phrase.
-      CLAUSE_SUBORDINATORS:
-        [if, when, while, because, once, unless, whether, hope, though, although, so, mean, means]
+      CLAUSE_SUBORDINATORS: >-
+        if when while because once unless whether hope though although so mean means
       # Before a possessive + gerund these are prepositions or coordinate noun phrases: "since its
       # founding in 1859", "and its teaching that…".
       GERUND_PREPOSITIONS: [since, until, till, after, before, as]
@@ -9286,157 +7087,28 @@ rules:
       # Particles that end a predicate only before a closing word: "it's cold outside" but not "its
       # powerful outside counsel".
       PREDICATE_PARTICLES: [outside, inside, out, up, down, off, over, around, back, away]
-      PREDICATE_DEGREE:
-        [
-          so,
-          very,
-          really,
-          pretty,
-          too,
-          quite,
-          extremely,
-          totally,
-          completely,
-          absolutely,
-          way,
-          much,
-          far,
-        ]
+      PREDICATE_DEGREE: >-
+        so very really pretty too quite extremely totally completely absolutely way much far
       # Words that can follow "you" or "it" as an apposition or adverb, not as an owned noun.
-      NOT_OWNED:
-        [
-          today,
-          tonight,
-          tomorrow,
-          yesterday,
-          now,
-          then,
-          again,
-          too,
-          also,
-          first,
-          last,
-          next,
-          instead,
-          anyway,
-          either,
-          though,
-          once,
-          twice,
-          soon,
-          later,
-          early,
-          right,
-          back,
-          home,
-          there,
-          here,
-          all,
-          both,
-          two,
-          three,
-          guys,
-          people,
-          folks,
-          kids,
-          lot,
-          sir,
-          madam,
-          dear,
-          man,
-          dude,
-          buddy,
-          mate,
-          pal,
-          bro,
-          ladies,
-          gentlemen,
-          kindly,
-          personally,
-          directly,
-          alone,
-          yourself,
-          itself,
-          myself,
-          everyday,
-          sometime,
-          someday,
-          upstairs,
-          downstairs,
-          outdoors,
-          indoors,
-          backwards,
-          forwards,
-          afterwards,
-          overseas,
-          abroad,
-          day,
-          night,
-          week,
-          something,
-          anything,
-          nothing,
-          everything,
-          someone,
-          anyone,
-          everyone,
-          nobody,
-          nowhere,
-          somewhere,
-          anywhere,
-          everywhere,
-          auto,
-        ]
+      NOT_OWNED: >-
+        today tonight tomorrow yesterday now then again too also first last next instead anyway
+        either though once twice soon later early right back home there here all both two three guys
+        people folks kids lot sir madam dear man dude buddy mate pal bro ladies gentlemen kindly
+        personally directly alone yourself itself myself everyday sometime someday upstairs
+        downstairs outdoors indoors backwards forwards afterwards overseas abroad day night week
+        something anything nothing everything someone anyone everyone nobody nowhere somewhere
+        anywhere everywhere auto
       # Vocatives after a preposition: "This is for you mom!"
-      VOCATIVES:
-        [
-          mom,
-          dad,
-          mum,
-          mommy,
-          daddy,
-          honey,
-          baby,
-          babe,
-          darling,
-          sweetie,
-          sweetheart,
-          love,
-          son,
-          sis,
-          kid,
-          boss,
-          grandma,
-          grandpa,
-          granny,
-        ]
-      OWNER_PREPOSITIONS:
-        [for, on, of, from, in, about, at, by, into, under, without, toward, towards, over]
+      VOCATIVES: >-
+        mom dad mum mommy daddy honey baby babe darling sweetie sweetheart love son sis kid boss
+        grandma grandpa granny
+      OWNER_PREPOSITIONS: >-
+        for on of from in about at by into under without toward towards over
       # "go for it attitude": an idiom ending in "it" used as a modifier.
       IT_IDIOM_VERBS: [go, goes, going, went]
-      FINITE_AFTER_NOUN:
-        [
-          is,
-          was,
-          will,
-          would,
-          can,
-          could,
-          should,
-          may,
-          might,
-          must,
-          has,
-          had,
-          does,
-          did,
-          "isn't",
-          "wasn't",
-          "won't",
-          "wouldn't",
-          "can't",
-          "couldn't",
-        ]
+      FINITE_AFTER_NOUN: >-
+        is was will would can could should may might must has had does did isn't wasn't won't
+        wouldn't can't couldn't
     defs:
       # Cues after which a noun-like predicate adjective still reads as a clause: "since it's cold out".
       ADJECTIVE_CUES: 'new Set([...CLAUSE_SUBORDINATORS, "since", "until", ""])'
@@ -10063,124 +7735,23 @@ rules:
       return: usSlots(ctx, findings)
     sets:
       # Words that count or group and never take the number themselves: "a hundred years".
-      NN_NUMERAL_NOUNS:
-        [
-          hundred,
-          thousand,
-          million,
-          billion,
-          trillion,
-          dozen,
-          couple,
-          few,
-          lot,
-          lots,
-          number,
-          pair,
-          score,
-          handful,
-          bunch,
-          total,
-          majority,
-        ]
-      NN_NUMBER_WORDS:
-        [
-          two,
-          three,
-          four,
-          five,
-          six,
-          seven,
-          eight,
-          nine,
-          ten,
-          eleven,
-          twelve,
-          thirteen,
-          fourteen,
-          fifteen,
-          sixteen,
-          seventeen,
-          eighteen,
-          nineteen,
-          twenty,
-          thirty,
-          forty,
-          fifty,
-          sixty,
-          seventy,
-          eighty,
-          ninety,
-        ]
+      NN_NUMERAL_NOUNS: >-
+        hundred thousand million billion trillion dozen couple few lot lots number pair score
+        handful bunch total majority
+      NN_NUMBER_WORDS: >-
+        two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen
+        seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety
       NN_COUNTERS: [many, several, various, numerous, multiple, few, these, those]
       # Closed words that end a noun phrase before them.
-      NN_ENDERS:
-        [
-          of,
-          in,
-          on,
-          at,
-          for,
-          with,
-          from,
-          about,
-          by,
-          into,
-          than,
-          that,
-          which,
-          who,
-          whom,
-          where,
-          when,
-          because,
-          if,
-          as,
-          ago,
-          though,
-          too,
-          later,
-          now,
-          today,
-          yesterday,
-          tomorrow,
-          tonight,
-          again,
-          here,
-          there,
-          anyway,
-          instead,
-          yet,
-          but,
-          so,
-        ]
+      NN_ENDERS: >-
+        of in on at for with from about by into than that which who whom where when because if as
+        ago though too later now today yesterday tomorrow tonight again here there anyway instead
+        yet but so
       # Nouns used as adverbs, units or currencies after a number: "ten tomorrow", "512 bit", "160
       # euro".
-      NN_NOT_COUNTED:
-        [
-          today,
-          tomorrow,
-          tonight,
-          yesterday,
-          now,
-          time,
-          way,
-          kind,
-          sort,
-          type,
-          percent,
-          bit,
-          byte,
-          euro,
-          yen,
-          yuan,
-          won,
-          baht,
-          rand,
-          max,
-          min,
-          foot,
-        ]
+      NN_NOT_COUNTED: >-
+        today tomorrow tonight yesterday now time way kind sort type percent bit byte euro yen yuan
+        won baht rand max min foot
       NN_PRONOUN_POSSESSIVES: [yours, hers, ours, theirs, its, mine, whose]
     defs:
       NN_COUNT_LABELS: '/\b(?:page|step|item|version|level|chapter|section|figure|table|number|no|line|row|column|volume|issue|part|phase|stage|round|game|episode|season|class|grade|room|floor|gate|platform|exit|route|channel|size|model|type|option|question|rule|article|act|scene|week|day|year|top|windows|iphone|ios|android|python|java|v|vol|ch|fig|pp|p)[ \t .#]*$/i'
@@ -10674,8 +8245,8 @@ rules:
     sets:
       # Base verbs that are mostly predicates or names ("weren't awake", "be home", "I am harry");
       # "were shock by" belongs to an englishConfusedWords row.
-      VG_PREDICATE_WORDS:
-        [awake, home, harry, close, please, flatter, double, further, back, exempt, shock]
+      VG_PREDICATE_WORDS: >-
+        awake home harry close please flatter double further back exempt shock
     defs:
       VG_SUBJECT_PRONOUN: /^(?:i|you|we|they|he|she|it|who|anyone|anybody|someone|somebody|everyone)$/
       # What comes before a fronted clause whose verb can follow do/be: "What it does makes sense".
@@ -10820,69 +8391,14 @@ rules:
     sets:
       # Nouns that a person "has" bare, before a time phrase or a determiner: "I have work the next
       # day", "We have practice this week".
-      VG_HAVE_NOUNS:
-        [
-          work,
-          practice,
-          class,
-          school,
-          lunch,
-          dinner,
-          breakfast,
-          time,
-          fun,
-          access,
-          control,
-          power,
-          trouble,
-          help,
-          need,
-          contact,
-          experience,
-          support,
-          care,
-          faith,
-          hope,
-          love,
-          respect,
-          permission,
-          rest,
-          sleep,
-          charge,
-          chance,
-          training,
-          rehearsal,
-          homework,
-          sex,
-          reason,
-          cause,
-          priority,
-        ]
+      VG_HAVE_NOUNS: >-
+        work practice class school lunch dinner breakfast time fun access control power trouble help
+        need contact experience support care faith hope love respect permission rest sleep charge
+        chance training rehearsal homework sex reason cause priority
       # Verbs that take a that-clause: "studies have show that…".
-      VG_THAT_VERBS:
-        [
-          show,
-          prove,
-          suggest,
-          indicate,
-          notice,
-          hear,
-          learn,
-          decide,
-          agree,
-          mention,
-          note,
-          report,
-          claim,
-          state,
-          demonstrate,
-          realize,
-          realise,
-          discover,
-          explain,
-          confirm,
-          assume,
-        ]
+      VG_THAT_VERBS: >-
+        show prove suggest indicate notice hear learn decide agree mention note report claim state
+        demonstrate realize realise discover explain confirm assume
     defs:
       VG_TIME_NOUNS: /^(?:day|days|week|weeks|weekend|morning|afternoon|evening|night|month|year|time|semester|term|summer|winter)$/
       # Aspect adverbs that a perfect takes and a bare noun object does not: "has often rain", "have
@@ -11047,55 +8563,13 @@ rules:
       return: usSlots(ctx, findings)
     sets:
       # Nouns that a modal "be" takes as a predicate: "It will be fun", "It won't be work".
-      VG_BE_PREDICATES:
-        [
-          love,
-          work,
-          hope,
-          rain,
-          snow,
-          design,
-          support,
-          research,
-          change,
-          time,
-          business,
-          trouble,
-          risk,
-          cost,
-          need,
-          interest,
-          fun,
-          home,
-        ]
+      VG_BE_PREDICATES: >-
+        love work hope rain snow design support research change time business trouble risk cost need
+        interest fun home
       # Participles that are never a simple past, so a bare subject before them has no have/has.
-      VG_PARTICIPLE_ONLY:
-        [
-          done,
-          seen,
-          gone,
-          been,
-          begun,
-          taken,
-          written,
-          eaten,
-          given,
-          spoken,
-          broken,
-          known,
-          shown,
-          chosen,
-          driven,
-          ridden,
-          risen,
-          fallen,
-          forgotten,
-          gotten,
-          sung,
-          drunk,
-          swum,
-          rung,
-        ]
+      VG_PARTICIPLE_ONLY: >-
+        done seen gone been begun taken written eaten given spoken broken known shown chosen driven
+        ridden risen fallen forgotten gotten sung drunk swum rung
     defs:
       # A finite or -ing form after do-support or a modal, mapped to its base, or null.
       vgBaseOf:
@@ -11625,62 +9099,16 @@ rules:
     # Clauses whose subject has no verb: "It very easy", "I not sure", "There a lot of ways",
     # "Can we able to", "would very helpful", and no/not mixed up next to a verb or noun.
     sets:
-      MV_ADVERB_RUN:
-        [
-          not,
-          really,
-          very,
-          so,
-          still,
-          also,
-          only,
-          just,
-          totally,
-          too,
-          much,
-          always,
-          probably,
-          rarely,
-          never,
-          definitely,
-          already,
-          partially,
-          properly,
-          completely,
-          pretty,
-          quite,
-          now,
-          first,
-          maybe,
-          currently,
-          actually,
-          finally,
-          more,
-          less,
-        ]
+      MV_ADVERB_RUN: >-
+        not really very so still also only just totally too much always probably rarely never
+        definitely already partially properly completely pretty quite now first maybe currently
+        actually finally more less
       # Predicate words the lexicon gives no adjective reading.
-      MV_PREDICATIVE:
-        [afraid, able, unable, sure, glad, sorry, worth, alone, awake, asleep, okay, ok]
+      MV_PREDICATIVE: >-
+        afraid able unable sure glad sorry worth alone awake asleep okay ok
       # "wan" (pale) is far more often "want" with a lost letter: "I wan this".
-      MV_NOT_PREDICATE:
-        [
-          just,
-          likely,
-          often,
-          soon,
-          together,
-          alone,
-          only,
-          still,
-          even,
-          sure,
-          best,
-          most,
-          least,
-          all,
-          intent,
-          wan,
-        ]
+      MV_NOT_PREDICATE: >-
+        just likely often soon together alone only still even sure best most least all intent wan
     maps:
       MV_BE: { i: am, you: are, we: are, they: are, he: is, she: is, it: is, this: is }
     defs:
@@ -12225,37 +9653,9 @@ rules:
     # Subject-verb number agreement with noun-phrase subjects the lexicon can number: "The dogs
     # barks", "Some people thinks", "Do your father live…?", "These includes", "This are".
     sets:
-      AS_CLAUSE_PREPOSITIONS:
-        [
-          of,
-          in,
-          on,
-          at,
-          for,
-          with,
-          from,
-          about,
-          by,
-          near,
-          under,
-          over,
-          between,
-          among,
-          across,
-          inside,
-          outside,
-          within,
-          behind,
-          beside,
-          without,
-          during,
-          against,
-          around,
-          along,
-          through,
-          toward,
-          towards,
-        ]
+      AS_CLAUSE_PREPOSITIONS: >-
+        of in on at for with from about by near under over between among across inside outside
+        within behind beside without during against around along through toward towards
       AS_CLAUSE_QUANTIFIERS: [all, some, many, most, several, both, few, any, no, each, every]
       AS_CLAUSE_NUMBERS: [two, three, four, five, six, seven, eight, nine, ten]
       AS_CLAUSE_PRONOUNS: [me, him, us, them, it]
@@ -13170,38 +10570,9 @@ rules:
     sets:
       # Colour and shade words combine with each other ("dark blue"), and these adjectives are
       # adverbs too ("fast", "hard", "late", "well").
-      ADVERB_NOT_BASE:
-        [
-          dark,
-          light,
-          bright,
-          pale,
-          deep,
-          red,
-          blue,
-          green,
-          yellow,
-          black,
-          white,
-          brown,
-          grey,
-          gray,
-          pink,
-          orange,
-          purple,
-          fast,
-          hard,
-          late,
-          early,
-          well,
-          long,
-          low,
-          high,
-          straight,
-          free,
-          sure,
-          dead,
-        ]
+      ADVERB_NOT_BASE: >-
+        dark light bright pale deep red blue green yellow black white brown grey gray pink orange
+        purple fast hard late early well long low high straight free sure dead
       ADVERB_COMPOUND_VERBS:
         [
           cold call,
@@ -13640,20 +11011,9 @@ rules:
     sets:
       # grammarStyle1's massNouns counts these right after a count word; here only behind
       # adjectives.
-      COUNT_COUNTED_ELSEWHERE:
-        [
-          advice,
-          information,
-          furniture,
-          luggage,
-          baggage,
-          equipment,
-          evidence,
-          feedback,
-          software,
-          hardware,
-          clothing,
-        ]
+      COUNT_COUNTED_ELSEWHERE: >-
+        advice information furniture luggage baggage equipment evidence feedback software hardware
+        clothing
     maps:
       COUNT_MASS_COUNT: { many: much, few: little, several: some, fewer: less }
     defs:
@@ -15079,48 +12439,10 @@ rules:
     sets:
       # Quantity and focus words that "not" correctly negates: "not enough", "not only", "not
       # one".
-      NO_NOT_WORDS:
-        [
-          enough,
-          only,
-          even,
-          one,
-          two,
-          three,
-          four,
-          five,
-          six,
-          seven,
-          eight,
-          nine,
-          ten,
-          eleven,
-          twelve,
-          twenty,
-          hundred,
-          thousand,
-          million,
-          dozen,
-          few,
-          several,
-          much,
-          many,
-          all,
-          every,
-          quite,
-          so,
-          too,
-          just,
-          really,
-          always,
-          yet,
-          nearly,
-          exactly,
-          merely,
-          necessarily,
-          least,
-          half,
-        ]
+      NO_NOT_WORDS: >-
+        enough only even one two three four five six seven eight nine ten eleven twelve twenty
+        hundred thousand million dozen few several much many all every quite so too just really
+        always yet nearly exactly merely necessarily least half
     maps:
       NO_NOT_MODAL:
         { can: cannot, will: will not, could: could not, would: would not, should: should not }
@@ -16108,474 +13430,53 @@ rules:
       return: usOutsideExamples(ctx, findings)
     sets:
       # Words after which a plural noun ends its phrase: a verb, a relative, a preposition...
-      APOS_PHRASE_ENDS:
-        [
-          that,
-          who,
-          which,
-          whom,
-          whose,
-          and,
-          or,
-          but,
-          nor,
-          are,
-          were,
-          have,
-          had,
-          has,
-          will,
-          would,
-          can,
-          could,
-          should,
-          may,
-          might,
-          must,
-          do,
-          did,
-          "don't",
-          "didn't",
-          "aren't",
-          "weren't",
-          "haven't",
-          "won't",
-          "can't",
-          "couldn't",
-          "wouldn't",
-          to,
-          in,
-          on,
-          at,
-          for,
-          with,
-          from,
-          of,
-          by,
-          into,
-          onto,
-          about,
-          over,
-          under,
-          ago,
-          later,
-          before,
-          after,
-          so,
-          as,
-          than,
-          i,
-          you,
-          we,
-          they,
-          he,
-          she,
-          it,
-          me,
-          him,
-          them,
-          us,
-          there,
-          here,
-          then,
-          now,
-          too,
-          also,
-          all,
-          both,
-          each,
-          still,
-          just,
-          already,
-          is,
-          was,
-          "isn't",
-          "wasn't",
-          need,
-          needed,
-          seem,
-          seemed,
-          look,
-          looked,
-          go,
-          went,
-          come,
-          came,
-          get,
-          got,
-          out,
-        ]
+      APOS_PHRASE_ENDS: >-
+        that who which whom whose and or but nor are were have had has will would can could should
+        may might must do did don't didn't aren't weren't haven't won't can't couldn't wouldn't to
+        in on at for with from of by into onto about over under ago later before after so as than i
+        you we they he she it me him them us there here then now too also all both each still just
+        already is was isn't wasn't need needed seem seemed look looked go went come came get got
+        out
       # Plurals that are not a singular + s, and nouns whose 's is a common possessive or
       # contraction.
-      APOS_NOT_PLURALS:
-        [
-          people,
-          men,
-          women,
-          children,
-          folk,
-          police,
-          staff,
-          cattle,
-          personnel,
-          data,
-          media,
-          alumni,
-          everyone,
-          someone,
-          anyone,
-          nobody,
-          everybody,
-          somebody,
-          anybody,
-          "one's",
-          let,
-          it,
-          what,
-          that,
-          who,
-          there,
-          here,
-        ]
+      APOS_NOT_PLURALS: >-
+        people men women children folk police staff cattle personnel data media alumni everyone
+        someone anyone nobody everybody somebody anybody one's let it what that who there here
       # Capitalized words before a count that are no label: "The 3 SMEs", "All 5 CEOs".
-      APOS_LABEL_FREE:
-        [
-          the,
-          a,
-          an,
-          all,
-          these,
-          those,
-          some,
-          over,
-          about,
-          only,
-          nearly,
-          almost,
-          around,
-          with,
-          for,
-          in,
-          at,
-          by,
-          of,
-          and,
-          or,
-        ]
+      APOS_LABEL_FREE: >-
+        the a an all these those some over about only nearly almost around with for in at by of and
+        or
       # Not after "and"/"or": "the plum and peach's are shorter" leaves the owned noun out.
-      APOS_BARE_SUBJECT_BEFORE:
-        [
-          most,
-          all,
-          some,
-          many,
-          where,
-          when,
-          if,
-          because,
-          think,
-          thought,
-          believe,
-          guess,
-          so,
-          why,
-          how,
-          whether,
-          while,
-          unless,
-        ]
-      APOS_OBJECT_SLOT:
-        [
-          about,
-          of,
-          to,
-          in,
-          on,
-          for,
-          with,
-          from,
-          at,
-          by,
-          into,
-          among,
-          between,
-          are,
-          were,
-          is,
-          was,
-          all,
-          any,
-          none,
-          many,
-          some,
-          most,
-          each,
-          see,
-          saw,
-          like,
-          read,
-          fix,
-          fixed,
-          tested,
-          check,
-          checked,
-        ]
-      APOS_CLAUSE_VERB:
-        [
-          had,
-          have,
-          has,
-          did,
-          do,
-          does,
-          was,
-          were,
-          is,
-          are,
-          will,
-          would,
-          can,
-          could,
-          made,
-          make,
-          got,
-          get,
-          use,
-          used,
-          tested,
-          wrote,
-          write,
-          need,
-          needed,
-          want,
-          wanted,
-          know,
-          knew,
-          see,
-          saw,
-          found,
-          find,
-          "don't",
-          "didn't",
-          "doesn't",
-          "can't",
-          "won't",
-          "haven't",
-          "hasn't",
-        ]
-      APOS_AFTER_VERB:
-        [
-          to,
-          the,
-          a,
-          an,
-          my,
-          your,
-          his,
-          her,
-          our,
-          their,
-          its,
-          this,
-          that,
-          these,
-          those,
-          it,
-          him,
-          them,
-          me,
-          us,
-          you,
-          all,
-          over,
-          up,
-          out,
-          on,
-          off,
-          in,
-          into,
-          for,
-          with,
-          about,
-          back,
-          away,
-          down,
-          not,
-          too,
-          so,
-          very,
-          like,
-          well,
-          really,
-          just,
-          quite,
-          much,
-          more,
-          less,
-        ]
-      APOS_OWNER_DETERMINERS:
-        [
-          each,
-          one,
-          the,
-          an,
-          any,
-          every,
-          no,
-          some,
-          this,
-          that,
-          my,
-          your,
-          his,
-          her,
-          our,
-          their,
-          its,
-          another,
-        ]
-      APOS_NOT_OWNED:
-        [
-          are,
-          were,
-          have,
-          has,
-          had,
-          will,
-          would,
-          can,
-          could,
-          should,
-          may,
-          might,
-          must,
-          is,
-          was,
-          been,
-          be,
-          do,
-          does,
-          did,
-          i,
-          you,
-          we,
-          they,
-          he,
-          she,
-          it,
-          of,
-          in,
-          on,
-          at,
-          for,
-          with,
-          to,
-          from,
-          and,
-          or,
-          but,
-          that,
-          which,
-          who,
-          as,
-          so,
-          than,
-          since,
-          by,
-          about,
-          ago,
-          before,
-          after,
-          later,
-          went,
-          came,
-          passed,
-          flew,
-          now,
-          then,
-        ]
+      APOS_BARE_SUBJECT_BEFORE: >-
+        most all some many where when if because think thought believe guess so why how whether
+        while unless
+      APOS_OBJECT_SLOT: >-
+        about of to in on for with from at by into among between are were is was all any none many
+        some most each see saw like read fix fixed tested check checked
+      APOS_CLAUSE_VERB: >-
+        had have has did do does was were is are will would can could made make got get use used
+        tested wrote write need needed want wanted know knew see saw found find don't didn't doesn't
+        can't won't haven't hasn't
+      APOS_AFTER_VERB: >-
+        to the a an my your his her our their its this that these those it him them me us you all
+        over up out on off in into for with about back away down not too so very like well really
+        just quite much more less
+      APOS_OWNER_DETERMINERS: >-
+        each one the an any every no some this that my your his her our their its another
+      APOS_NOT_OWNED: >-
+        are were have has had will would can could should may might must is was been be do does did
+        i you we they he she it of in on at for with to from and or but that which who as so than
+        since by about ago before after later went came passed flew now then
       APOS_DETERMINERS_BEFORE: [the, these, those, my, your, his, her, our, their, its, for, over]
-      APOS_FINITE_AFTER:
-        [is, are, was, were, has, have, had, will, would, can, could, does, do, did]
-      APOS_PREPOSITIONS:
-        [
-          by,
-          for,
-          to,
-          with,
-          from,
-          of,
-          about,
-          under,
-          in,
-          on,
-          at,
-          against,
-          through,
-          without,
-          among,
-          between,
-        ]
-      APOS_NOT_WHOSE:
-        [
-          who,
-          what,
-          that,
-          this,
-          there,
-          here,
-          home,
-          next,
-          up,
-          out,
-          in,
-          on,
-          off,
-          online,
-          back,
-          still,
-          also,
-          not,
-          now,
-          just,
-          really,
-          already,
-          always,
-          never,
-          often,
-          going,
-          coming,
-          done,
-          gone,
-          been,
-          got,
-          had,
-          friends,
-          boss,
-          ready,
-          right,
-          wrong,
-          sure,
-          afraid,
-          able,
-          the,
-          a,
-          an,
-          my,
-          your,
-          his,
-          her,
-          our,
-          their,
-          its,
-          anybody,
-          somebody,
-          someone,
-          anyone,
-          everyone,
-          everybody,
-          nobody,
-        ]
+      APOS_FINITE_AFTER: >-
+        is are was were has have had will would can could does do did
+      APOS_PREPOSITIONS: >-
+        by for to with from of about under in on at against through without among between
+      APOS_NOT_WHOSE: >-
+        who what that this there here home next up out in on off online back still also not now just
+        really already always never often going coming done gone been got had friends boss ready
+        right wrong sure afraid able the a an my your his her our their its anybody somebody someone
+        anyone everyone everybody nobody
     maps:
       # A lookup by a typed word checks Object.hasOwn: "constructor" is a key of every object.
       APOS_ENDINGS:
@@ -16878,98 +13779,31 @@ rules:
       # Product names that are also verbs: "to excel", "to react".
       NAMES_VERBS: [excel, google, kindle, react]
       # The nouns that only the product has.
-      NAMES_EXCEL_NOUNS:
-        [
-          file,
-          files,
-          sheet,
-          sheets,
-          spreadsheet,
-          spreadsheets,
-          workbook,
-          workbooks,
-          document,
-          documents,
-          formula,
-          formulas,
-          table,
-          tables,
-          macro,
-          macros,
-          chart,
-          charts,
-          skills,
-        ]
+      NAMES_EXCEL_NOUNS: >-
+        file files sheet sheets spreadsheet spreadsheets workbook workbooks document documents
+        formula formulas table tables macro macros chart charts skills
       NAMES_WORD_NOUNS: [document, documents, doc, docs, docx, file, files, template, templates]
-      NAMES_OUTLOOK_NOUNS:
-        [mail, mails, email, emails, inbox, calendar, invite, invites, account, app, client]
+      NAMES_OUTLOOK_NOUNS: >-
+        mail mails email emails inbox calendar invite invites account app client
       NAMES_CHROME_NOUNS: [browser, devtools, tab, tabs]
       NAMES_OPERA_NOUNS: [browser]
-      NAMES_GOOGLE_NOUNS:
-        [
-          doc,
-          account,
-          accounts,
-          assistant,
-          scholar,
-          earth,
-          workspace,
-          trends,
-          traffic,
-          results,
-          ranking,
-          rankings,
-        ]
-      NAMES_TWITTER_NOUNS:
-        [account, accounts, feed, handle, post, posts, followers, thread, threads]
+      NAMES_GOOGLE_NOUNS: >-
+        doc account accounts assistant scholar earth workspace trends traffic results ranking
+        rankings
+      NAMES_TWITTER_NOUNS: >-
+        account accounts feed handle post posts followers thread threads
       NAMES_SLACK_NOUNS: [channel, channels, workspace, workspaces, app, bot]
       NAMES_KINDLE_NOUNS: [app, device, tablet, edition, store, paperwhite, unlimited, reader]
-      NAMES_REACT_NOUNS:
-        [app, apps, component, components, hook, hooks, native, router, developer, plugin]
-      NAMES_MAC_NOUNS:
-        [app, apps, user, users, computer, computers, laptop, laptops, version, keyboard]
-      NAMES_WINDOWS_NOUNS:
-        [
-          "10",
-          "11",
-          "7",
-          "8",
-          xp,
-          vista,
-          server,
-          update,
-          updates,
-          pc,
-          pcs,
-          laptop,
-          laptops,
-          machine,
-          machines,
-          user,
-          users,
-          computer,
-          computers,
-          version,
-          defender,
-          explorer,
-          store,
-        ]
-      NAMES_APPLE_NOUNS:
-        [
-          inc,
-          employee,
-          employees,
-          stock,
-          shares,
-          products,
-          device,
-          devices,
-          account,
-          store,
-          stores,
-          silicon,
-          pencil,
-        ]
+      NAMES_REACT_NOUNS: >-
+        app apps component components hook hooks native router developer plugin
+      NAMES_MAC_NOUNS: >-
+        app apps user users computer computers laptop laptops version keyboard
+      NAMES_WINDOWS_NOUNS: >-
+        10 11 7 8 xp vista server update updates pc pcs laptop laptops machine machines user users
+        computer computers version defender explorer store
+      NAMES_APPLE_NOUNS: >-
+        inc employee employees stock shares products device devices account store stores silicon
+        pencil
     maps:
       NAMES_PRODUCT:
         {
@@ -17035,152 +13869,25 @@ rules:
       return: usOutsideExamples(ctx, findings)
     sets:
       # Nationalities, languages and religions are proper adjectives in English.
-      NAMES_PEOPLES:
-        [
-          english,
-          french,
-          german,
-          spanish,
-          italian,
-          portuguese,
-          russian,
-          chinese,
-          japanese,
-          korean,
-          arabic,
-          hindi,
-          hebrew,
-          greek,
-          swedish,
-          norwegian,
-          finnish,
-          icelandic,
-          irish,
-          scottish,
-          welsh,
-          british,
-          american,
-          canadian,
-          mexican,
-          brazilian,
-          argentinian,
-          australian,
-          european,
-          african,
-          asian,
-          indian,
-          pakistani,
-          egyptian,
-          israeli,
-          iranian,
-          iraqi,
-          turkish,
-          ukrainian,
-          hungarian,
-          romanian,
-          bulgarian,
-          serbian,
-          croatian,
-          czech,
-          slovak,
-          vietnamese,
-          indonesian,
-          filipino,
-          nigerian,
-          kenyan,
-          belgian,
-          austrian,
-          latin,
-          christian,
-          muslim,
-          jewish,
-          buddhist,
-          hindu,
-          islamic,
-          protestant,
-          dutch,
-          polish,
-        ]
+      NAMES_PEOPLES: >-
+        english french german spanish italian portuguese russian chinese japanese korean arabic
+        hindi hebrew greek swedish norwegian finnish icelandic irish scottish welsh british american
+        canadian mexican brazilian argentinian australian european african asian indian pakistani
+        egyptian israeli iranian iraqi turkish ukrainian hungarian romanian bulgarian serbian
+        croatian czech slovak vietnamese indonesian filipino nigerian kenyan belgian austrian latin
+        christian muslim jewish buddhist hindu islamic protestant dutch polish
       # Lowercase in set phrases: "french fries", "go dutch", "nail polish".
-      NAMES_FRENCH_AFTER:
-        [
-          fries,
-          fry,
-          toast,
-          door,
-          doors,
-          window,
-          windows,
-          horn,
-          press,
-          braid,
-          braids,
-          kiss,
-          manicure,
-        ]
+      NAMES_FRENCH_AFTER: >-
+        fries fry toast door doors window windows horn press braid braids kiss manicure
       NAMES_DUTCH_BEFORE: [go, goes, going, went, double]
       # "polish" is mostly the verb and the noun: only as a language or a people.
-      NAMES_POLISH_NOUNS:
-        [
-          people,
-          language,
-          government,
-          citizen,
-          citizens,
-          nationality,
-          president,
-          army,
-          border,
-          history,
-          culture,
-          cuisine,
-          food,
-          city,
-          cities,
-          town,
-          national,
-          translation,
-          version,
-          lessons,
-          lesson,
-          class,
-          teacher,
-          speaker,
-          speakers,
-          word,
-          words,
-          name,
-          names,
-          origin,
-          descent,
-          family,
-          friend,
-          friends,
-        ]
-      NAMES_POLISH_VERBS:
-        [
-          speak,
-          speaks,
-          speaking,
-          spoke,
-          learn,
-          learns,
-          learning,
-          learned,
-          learnt,
-          study,
-          studies,
-          studying,
-          translate,
-          translated,
-          into,
-          from,
-          am,
-          is,
-          are,
-          was,
-          were,
-        ]
+      NAMES_POLISH_NOUNS: >-
+        people language government citizen citizens nationality president army border history
+        culture cuisine food city cities town national translation version lessons lesson class
+        teacher speaker speakers word words name names origin descent family friend friends
+      NAMES_POLISH_VERBS: >-
+        speak speaks speaking spoke learn learns learning learned learnt study studies studying
+        translate translated into from am is are was were
     maps:
       # Places whose names are also ordinary words ("china", "turkey", "long island").
       NAMES_PLACE_WORDS:
@@ -17254,33 +13961,9 @@ rules:
     # lacks it: most prose has no notation, and these regexes open with lookbehinds the engine
     # tries at every position.
     sets:
-      TYPOGRAPHY_MEASURES:
-        [
-          seconds,
-          minutes,
-          hours,
-          days,
-          meters,
-          metres,
-          grams,
-          liters,
-          litres,
-          miles,
-          kilometers,
-          kilometres,
-          inches,
-          feet,
-          pounds,
-          ounces,
-          degrees,
-          volts,
-          amps,
-          watts,
-          points,
-          percent,
-          units,
-          years,
-        ]
+      TYPOGRAPHY_MEASURES: >-
+        seconds minutes hours days meters metres grams liters litres miles kilometers kilometres
+        inches feet pounds ounces degrees volts amps watts points percent units years
     maps:
       TYPOGRAPHY_FULL_WIDTH: { "？": "?", "！": "!" }
       TYPOGRAPHY_ARROWS: { "-->": "→", "->": "→", "<-": "←", "<->": "↔", "<=>": "⇔", "=>": "⇒" }
@@ -17651,8 +14334,8 @@ rules:
       PLAIN_CONTRACTED: { am: "aren't", can: "can't", will: "won't" }
     sets:
       PLAIN_QUESTION_LEADS: [why, how, what, where, when, who]
-      PLAIN_PARTITIVES:
-        [many, some, all, most, none, each, both, few, several, one, two, three, neither, either]
+      PLAIN_PARTITIVES: >-
+        many some all most none each both few several one two three neither either
     defs:
       # "big in size", "few in number", "bitter in taste": the adjective already names the
       # dimension.
@@ -17763,107 +14446,19 @@ rules:
       return: usOutsideExamples(ctx, findings)
     sets:
       # Participles that usually tell a state ("is closed", "was tired"): passive only with "by".
-      PASSIVE_STATIVE:
-        [
-          closed,
-          located,
-          used,
-          interested,
-          married,
-          based,
-          required,
-          concerned,
-          involved,
-          supposed,
-          tired,
-          excited,
-          bored,
-          worried,
-          pleased,
-          surprised,
-          satisfied,
-          disappointed,
-          scared,
-          finished,
-          done,
-          gone,
-          dressed,
-          prepared,
-          divorced,
-          engaged,
-          retired,
-          qualified,
-          related,
-          situated,
-          equipped,
-          entitled,
-          allowed,
-          accustomed,
-          aimed,
-          amazed,
-          annoyed,
-          ashamed,
-          confused,
-          convinced,
-          determined,
-          delighted,
-          embarrassed,
-          exhausted,
-          frightened,
-          impressed,
-          known,
-          lost,
-          obliged,
-          opened,
-          puzzled,
-          relieved,
-          shocked,
-          stuck,
-          tied,
-          trained,
-          united,
-          crowded,
-          experienced,
-          advanced,
-          complicated,
-          detailed,
-          limited,
-          mixed,
-          named,
-          needed,
-          noted,
-          organized,
-          organised,
-          paid,
-          parked,
-          registered,
-          reserved,
-          fixed,
-          set,
-          covered,
-          filled,
-          packed,
-          broken,
-        ]
+      PASSIVE_STATIVE: >-
+        closed located used interested married based required concerned involved supposed tired
+        excited bored worried pleased surprised satisfied disappointed scared finished done gone
+        dressed prepared divorced engaged retired qualified related situated equipped entitled
+        allowed accustomed aimed amazed annoyed ashamed confused convinced determined delighted
+        embarrassed exhausted frightened impressed known lost obliged opened puzzled relieved
+        shocked stuck tied trained united crowded experienced advanced complicated detailed limited
+        mixed named needed noted organized organised paid parked registered reserved fixed set
+        covered filled packed broken
       # Verbs that take a clause: "it is thought that", "he is said to".
-      PASSIVE_REPORTING:
-        [
-          said,
-          thought,
-          believed,
-          known,
-          considered,
-          expected,
-          reported,
-          claimed,
-          assumed,
-          estimated,
-          alleged,
-          shown,
-          found,
-          announced,
-          understood,
-        ]
+      PASSIVE_REPORTING: >-
+        said thought believed known considered expected reported claimed assumed estimated alleged
+        shown found announced understood
     frames:
       # A form of "be" with a past participle ("was caused by", "is said to", "have been
       # finalized"). A note, not a fix: turning it active needs the doer.
@@ -17957,67 +14552,12 @@ rules:
     sets:
       # "However large errors can occur" reads as "in whatever way large": only before a
       # subject.
-      PUNCT_SUBJECT_STARTS:
-        [
-          i,
-          you,
-          he,
-          she,
-          it,
-          we,
-          they,
-          this,
-          that,
-          these,
-          those,
-          there,
-          the,
-          a,
-          an,
-          my,
-          your,
-          his,
-          her,
-          our,
-          their,
-          its,
-        ]
+      PUNCT_SUBJECT_STARTS: >-
+        i you he she it we they this that these those there the a an my your his her our their its
       PUNCT_NOT_NAMES: [again, all, everyone, everybody, guys, folks, so, very, for, to, and, you]
-      PUNCT_FINITE:
-        [
-          am,
-          is,
-          are,
-          was,
-          were,
-          have,
-          has,
-          had,
-          do,
-          does,
-          did,
-          will,
-          would,
-          can,
-          could,
-          should,
-          may,
-          might,
-          must,
-          need,
-          want,
-          think,
-          know,
-          see,
-          get,
-          got,
-          noticed,
-          figured,
-          created,
-          mean,
-          like,
-          became,
-        ]
+      PUNCT_FINITE: >-
+        am is are was were have has had do does did will would can could should may might must need
+        want think know see get got noticed figured created mean like became
     defs:
       # The comma goes before the space after the phrase.
       punctIntroductory:
@@ -18090,276 +14630,39 @@ rules:
     filter:
       return: usOutsideExamples(ctx, findings)
     sets:
-      PUNCT_BEFORE_THANKS:
-        [
-          it,
-          that,
-          this,
-          them,
-          good,
-          great,
-          perfect,
-          fine,
-          awesome,
-          helpful,
-          nice,
-          cool,
-          works,
-          worked,
-          helped,
-          helps,
-          done,
-          fixed,
-        ]
-      PUNCT_AUX:
-        [
-          am,
-          is,
-          are,
-          was,
-          were,
-          has,
-          have,
-          had,
-          do,
-          does,
-          did,
-          will,
-          would,
-          can,
-          could,
-          shall,
-          should,
-          may,
-          might,
-          must,
-          "isn't",
-          "aren't",
-          "wasn't",
-          "weren't",
-          "hasn't",
-          "haven't",
-          "hadn't",
-          "don't",
-          "doesn't",
-          "didn't",
-          "won't",
-          "wouldn't",
-          "can't",
-          cannot,
-          "couldn't",
-          "shouldn't",
-          "mustn't",
-        ]
-      PUNCT_OPENING_SUBJECTS:
-        [
-          i,
-          you,
-          he,
-          she,
-          it,
-          we,
-          they,
-          this,
-          that,
-          there,
-          these,
-          those,
-          the,
-          my,
-          your,
-          his,
-          her,
-          our,
-          their,
-          its,
-          some,
-          most,
-          many,
-          all,
-          both,
-          each,
-          every,
-          no,
-          one,
-          nobody,
-          everyone,
-          everybody,
-          someone,
-          somebody,
-          nothing,
-          everything,
-          something,
-        ]
-      PUNCT_DETERMINERS:
-        [
-          the,
-          my,
-          your,
-          his,
-          her,
-          our,
-          their,
-          its,
-          this,
-          these,
-          those,
-          some,
-          every,
-          each,
-          no,
-          most,
-          many,
-          several,
-        ]
+      PUNCT_BEFORE_THANKS: >-
+        it that this them good great perfect fine awesome helpful nice cool works worked helped
+        helps done fixed
+      PUNCT_AUX: >-
+        am is are was were has have had do does did will would can could shall should may might must
+        isn't aren't wasn't weren't hasn't haven't hadn't don't doesn't didn't won't wouldn't can't
+        cannot couldn't shouldn't mustn't
+      PUNCT_OPENING_SUBJECTS: >-
+        i you he she it we they this that there these those the my your his her our their its some
+        most many all both each every no one nobody everyone everybody someone somebody nothing
+        everything something
+      PUNCT_DETERMINERS: >-
+        the my your his her our their its this these those some every each no most many several
       # A subordinate opening or an embedded clause makes the coordinator ambiguous: "I think
       # Tom and I agree", "Tell me if you go and I will come". Only when a clause follows the
       # word.
-      PUNCT_SUBORDINATE:
-        [
-          if,
-          whether,
-          when,
-          whenever,
-          because,
-          since,
-          while,
-          although,
-          though,
-          unless,
-          until,
-          till,
-          before,
-          after,
-          where,
-          which,
-          who,
-          whom,
-          whose,
-          what,
-          how,
-          why,
-          than,
-          once,
-          either,
-          neither,
-          between,
-          whereas,
-          that,
-          think,
-          thought,
-          believe,
-          believed,
-          know,
-          knew,
-          guess,
-          hope,
-          hoped,
-          say,
-          said,
-          says,
-          feel,
-          felt,
-          suppose,
-          expect,
-          mean,
-          wonder,
-          wondered,
-          realize,
-          realized,
-          assume,
-          assumed,
-          heard,
-          tell,
-          told,
-          sure,
-          wish,
-        ]
+      PUNCT_SUBORDINATE: >-
+        if whether when whenever because since while although though unless until till before after
+        where which who whom whose what how why than once either neither between whereas that think
+        thought believe believed know knew guess hope hoped say said says feel felt suppose expect
+        mean wonder wondered realize realized assume assumed heard tell told sure wish
       # After a subordinator these leave nothing for it to govern: "I know that", "once before".
       PUNCT_INERT: [it, that, this, them, so, too, then, before, yet, again, now]
       # Words that cannot end a complete first clause before the coordinator.
-      PUNCT_NOT_CLAUSE_END:
-        [
-          to,
-          of,
-          for,
-          with,
-          at,
-          by,
-          from,
-          in,
-          on,
-          into,
-          about,
-          as,
-          the,
-          a,
-          an,
-          my,
-          your,
-          his,
-          her,
-          our,
-          their,
-          its,
-          both,
-          either,
-          neither,
-          between,
-          than,
-          rather,
-          more,
-          less,
-          not,
-          just,
-          only,
-          even,
-          very,
-          too,
-          so,
-          and,
-          or,
-          but,
-          i,
-          he,
-          she,
-          we,
-          they,
-        ]
-      PUNCT_LEAD_ADVERBS:
-        [
-          so,
-          therefore,
-          then,
-          again,
-          hopefully,
-          instead,
-          now,
-          thus,
-          still,
-          also,
-          immediately,
-          honestly,
-        ]
-      PUNCT_MID_ADVERBS:
-        [
-          often,
-          just,
-          really,
-          also,
-          never,
-          already,
-          still,
-          always,
-          only,
-          actually,
-          probably,
-          usually,
-          even,
-          then,
-          all,
-          both,
-        ]
+      PUNCT_NOT_CLAUSE_END: >-
+        to of for with at by from in on into about as the a an my your his her our their its both
+        either neither between than rather more less not just only even very too so and or but i he
+        she we they
+      PUNCT_LEAD_ADVERBS: >-
+        so therefore then again hopefully instead now thus still also immediately honestly
+      PUNCT_MID_ADVERBS: >-
+        often just really also never already still always only actually probably usually even then
+        all both
       PUNCT_WH: [what, why, how, when, where, who, which]
     defs:
       PUNCT_QUESTION_OPENING: /^(?:is|isn't|was|wasn't|are|aren't|were|weren't|do|don't|does|doesn't|did|didn't|will|won't|would|wouldn't|can|can't|could|couldn't|have|haven't|has|hasn't|should|shouldn't|shall|may|might|must|what|who|whom|whose|which|where|when|why|how)\b/i
@@ -18626,70 +14929,13 @@ rules:
     sets:
       ARTICLES_NOT_SUPERLATIVES: [best, worst]
       # "-est" words that are no superlative.
-      ARTICLES_EST_WORDS:
-        [
-          honest,
-          modest,
-          earnest,
-          forest,
-          interest,
-          manifest,
-          request,
-          guest,
-          chest,
-          west,
-          nest,
-          test,
-          protest,
-          contest,
-          digest,
-          arrest,
-          harvest,
-          invest,
-          suggest,
-        ]
-      ARTICLES_NOT_NOUNS:
-        [
-          friends,
-          friend,
-          known,
-          able,
-          suited,
-          placed,
-          left,
-          used,
-          the,
-          a,
-          an,
-          to,
-          of,
-          in,
-          on,
-          at,
-          for,
-          and,
-          or,
-          but,
-          than,
-          if,
-          when,
-          so,
-          as,
-          that,
-          because,
-          while,
-          since,
-          though,
-          then,
-          here,
-          there,
-          now,
-          today,
-          ever,
-          yet,
-          too,
-          also,
-        ]
+      ARTICLES_EST_WORDS: >-
+        honest modest earnest forest interest manifest request guest chest west nest test protest
+        contest digest arrest harvest invest suggest
+      ARTICLES_NOT_NOUNS: >-
+        friends friend known able suited placed left used the a an to of in on at for and or but
+        than if when so as that because while since though then here there now today ever yet too
+        also
       # Set phrases that take no article: "It is best practice to…", "He was best man", "worst
       # case", "the path of least resistance".
       ARTICLES_ARTICLELESS:
@@ -18774,60 +15020,12 @@ rules:
     sets:
       # Count nouns with no mass or set-phrase use ("by mistake", "in person", "for example",
       # "in life" and "at school" leave theirs out).
-      ARTICLES_COUNT_NOUNS:
-        [
-          friend,
-          problem,
-          answer,
-          question,
-          airport,
-          river,
-          kitchen,
-          lobby,
-          brother,
-          sister,
-          soldier,
-          job,
-          apartment,
-          garden,
-          bridge,
-          station,
-          restaurant,
-          village,
-          neighbor,
-          neighbour,
-          doctor,
-          lawyer,
-          nurse,
-          driver,
-          singer,
-          colleague,
-          boss,
-          cousin,
-          uncle,
-          aunt,
-          chair,
-          bag,
-          computer,
-          laptop,
-          camera,
-          dog,
-          cat,
-          horse,
-          bird,
-          flower,
-          song,
-          movie,
-          photo,
-          envelope,
-          umbrella,
-          wallet,
-          idea,
-          suggestion,
-          decision,
-          hotel,
-          ticket,
-        ]
+      ARTICLES_COUNT_NOUNS: >-
+        friend problem answer question airport river kitchen lobby brother sister soldier job
+        apartment garden bridge station restaurant village neighbor neighbour doctor lawyer nurse
+        driver singer colleague boss cousin uncle aunt chair bag computer laptop camera dog cat
+        horse bird flower song movie photo envelope umbrella wallet idea suggestion decision hotel
+        ticket
     defs:
       articlesArticle:
         args: "word: string"
@@ -21315,40 +17513,12 @@ rules:
     sets:
       # Pronouns that the lexicon reads as nouns: "She like everyone was tired" is "like" the
       # preposition.
-      CLAUSE_NOT_LIKED:
-        [
-          all,
-          none,
-          one,
-          everyone,
-          everybody,
-          someone,
-          somebody,
-          anyone,
-          anybody,
-          nobody,
-          nothing,
-          something,
-          anything,
-          everything,
-        ]
-      CLAUSE_COLLECTIVE:
-        [
-          staff,
-          police,
-          personnel,
-          cattle,
-          clergy,
-          crew,
-          team,
-          family,
-          government,
-          audience,
-          faculty,
-          public,
-          youth,
-          people,
-        ]
+      CLAUSE_NOT_LIKED: >-
+        all none one everyone everybody someone somebody anyone anybody nobody nothing something
+        anything everything
+      CLAUSE_COLLECTIVE: >-
+        staff police personnel cattle clergy crew team family government audience faculty public
+        youth people
     maps:
       CLAUSE_SINGULAR_VERBS: { are: is, were: was, have: has }
       CLAUSE_COMPARATIVE:
@@ -21638,121 +17808,17 @@ rules:
     message: review_msg_confused_word
     sets:
       # Nouns that "it's" takes as a predicate: "it's time", "it's fun", "it's times like these".
-      SLIP_ITS_PREDICATES:
-        [
-          time,
-          times,
-          fun,
-          okay,
-          ok,
-          love,
-          home,
-          work,
-          money,
-          business,
-          nonsense,
-          lunchtime,
-          bedtime,
-          midnight,
-          noon,
-          news,
-          thanks,
-          lots,
-          tons,
-          days,
-          years,
-          hours,
-          minutes,
-          weeks,
-          months,
-          ages,
-          me,
-          him,
-          her,
-          us,
-          them,
-          dinner,
-          lunch,
-          breakfast,
-          supper,
-          tea,
-          none,
-        ]
+      SLIP_ITS_PREDICATES: >-
+        time times fun okay ok love home work money business nonsense lunchtime bedtime midnight
+        noon news thanks lots tons days years hours minutes weeks months ages me him her us them
+        dinner lunch breakfast supper tea none
       # Verbs that take a clause: "I think it's time", "said it's done".
-      SLIP_CLAUSE_VERBS:
-        [
-          think,
-          thinks,
-          thought,
-          thinking,
-          know,
-          knew,
-          knows,
-          guess,
-          guessing,
-          believe,
-          believes,
-          hope,
-          hopes,
-          hoping,
-          say,
-          says,
-          said,
-          saying,
-          feel,
-          feels,
-          felt,
-          mean,
-          means,
-          meant,
-          suppose,
-          see,
-          saw,
-          hear,
-          heard,
-          find,
-          found,
-          realize,
-          realise,
-          notice,
-          wish,
-          bet,
-          seem,
-          seems,
-          seemed,
-          figure,
-          assume,
-          understand,
-          admit,
-          agree,
-          claim,
-          show,
-          shows,
-          showed,
-          prove,
-          read,
-          learn,
-          learned,
-          remember,
-          forget,
-          check,
-          decide,
-          ensure,
-          doubt,
-          explain,
-          imagine,
-          swear,
-          promise,
-          expect,
-          reckon,
-          worry,
-          tell,
-          told,
-          sure,
-          glad,
-          sorry,
-          afraid,
-        ]
+      SLIP_CLAUSE_VERBS: >-
+        think thinks thought thinking know knew knows guess guessing believe believes hope hopes
+        hoping say says said saying feel feels felt mean means meant suppose see saw hear heard find
+        found realize realise notice wish bet seem seems seemed figure assume understand admit agree
+        claim show shows showed prove read learn learned remember forget check decide ensure doubt
+        explain imagine swear promise expect reckon worry tell told sure glad sorry afraid
     defs:
       SLIP_TOO_DEGREE: /^(?:{{TOO_DEGREE}})$/
       SLIP_MOTION: /^(?:drove|drive|drives|driving|ran|run|runs|went|go|goes|came|come|comes|got|get|gets)$/

@@ -67,242 +67,30 @@ fragments:
 sets:
   # Never a pronoun: the genitive article, ein-words and possessives with a short ending, and the
   # preposition-article contractions.
-  ARTICLES:
-    [
-      des,
-      ein,
-      eine,
-      einen,
-      einem,
-      kein,
-      keine,
-      keinen,
-      keinem,
-      keinerlei,
-      mein,
-      meine,
-      meinen,
-      meinem,
-      dein,
-      deine,
-      deinen,
-      deinem,
-      sein,
-      seine,
-      seinen,
-      seinem,
-      ihre,
-      ihren,
-      ihrem,
-      unser,
-      unsere,
-      unseren,
-      unserem,
-      euer,
-      eure,
-      euren,
-      eurem,
-      am,
-      im,
-      zum,
-      zur,
-      beim,
-      vom,
-      ins,
-      ans,
-      aufs,
-      ums,
-      durchs,
-      fürs,
-      übers,
-      unters,
-      vors,
-      hinterm,
-      überm,
-      unterm,
-    ]
+  ARTICLES: >-
+    des ein eine einen einem kein keine keinen keinem keinerlei mein meine meinen meinem dein deine
+    deinen deinem sein seine seinen seinem ihre ihren ihrem unser unsere unseren unserem euer eure
+    euren eurem am im zum zur beim vom ins ans aufs ums durchs fürs übers unters vors hinterm überm
+    unterm
   # Articles and demonstratives that also stand alone as pronouns ("die kosten viel").
-  DEMONSTRATIVES:
-    [
-      der,
-      die,
-      das,
-      den,
-      dem,
-      dies,
-      diese,
-      dieser,
-      diesen,
-      diesem,
-      dieses,
-      jene,
-      jener,
-      jenen,
-      jenem,
-      jenes,
-      welche,
-      welcher,
-      welchen,
-      welchem,
-      welches,
-      solche,
-      solcher,
-      solchen,
-      solchem,
-      solches,
-    ]
-  PREPOSITIONS:
-    [
-      in,
-      an,
-      auf,
-      aus,
-      bei,
-      mit,
-      nach,
-      von,
-      vor,
-      zu,
-      für,
-      gegen,
-      ohne,
-      durch,
-      um,
-      über,
-      unter,
-      hinter,
-      neben,
-      zwischen,
-      seit,
-      wegen,
-      trotz,
-      während,
-      statt,
-      anstatt,
-      per,
-      pro,
-      laut,
-      gemäß,
-      dank,
-      samt,
-      bis,
-      ab,
-      außer,
-      innerhalb,
-      außerhalb,
-      oberhalb,
-      unterhalb,
-      mittels,
-      entlang,
-    ]
+  DEMONSTRATIVES: >-
+    der die das den dem dies diese dieser diesen diesem dieses jene jener jenen jenem jenes welche
+    welcher welchen welchem welches solche solcher solchen solchem solches
+  PREPOSITIONS: >-
+    in an auf aus bei mit nach von vor zu für gegen ohne durch um über unter hinter neben zwischen
+    seit wegen trotz während statt anstatt per pro laut gemäß dank samt bis ab außer innerhalb
+    außerhalb oberhalb unterhalb mittels entlang
   # Verbs that close a clause with a bare infinitive or a participle ("kannst du das ändern",
   # "diese habe ergeben").
-  VERB_GOVERNORS:
-    [
-      kann,
-      kannst,
-      können,
-      könnt,
-      konnte,
-      konnten,
-      könnte,
-      könnten,
-      muss,
-      musst,
-      müssen,
-      müsst,
-      musste,
-      mussten,
-      müsste,
-      müssten,
-      soll,
-      sollst,
-      sollen,
-      sollt,
-      sollte,
-      sollten,
-      will,
-      willst,
-      wollen,
-      wollt,
-      wollte,
-      wollten,
-      darf,
-      darfst,
-      dürfen,
-      dürft,
-      durfte,
-      durften,
-      dürfte,
-      dürften,
-      mag,
-      möchte,
-      möchtest,
-      möchten,
-      werde,
-      wirst,
-      wird,
-      werden,
-      werdet,
-      würde,
-      würdest,
-      würden,
-      wurde,
-      wurden,
-      worden,
-      lass,
-      lasse,
-      lässt,
-      lassen,
-      ließ,
-      tu,
-      tue,
-      tut,
-      tun,
-      brauchst,
-      braucht,
-      brauchen,
-      habe,
-      hast,
-      hat,
-      haben,
-      habt,
-      hatte,
-      hatten,
-      hätte,
-      hätten,
-      bin,
-      bist,
-      ist,
-      sind,
-      seid,
-      war,
-      waren,
-      wäre,
-      wären,
-      sei,
-      konntest,
-      könntest,
-      könntet,
-      solltest,
-      solltet,
-      müsstest,
-      müsstet,
-      musstest,
-      wolltest,
-      wolltet,
-      dürftest,
-      dürftet,
-      durftest,
-      magst,
-      mögt,
-      mögen,
-      mochte,
-      mochten,
-      möchtet,
-      würdet,
-      wurdest,
-    ]
+  VERB_GOVERNORS: >-
+    kann kannst können könnt konnte konnten könnte könnten muss musst müssen müsst musste mussten
+    müsste müssten soll sollst sollen sollt sollte sollten will willst wollen wollt wollte wollten
+    darf darfst dürfen dürft durfte durften dürfte dürften mag möchte möchtest möchten werde wirst
+    wird werden werdet würde würdest würden wurde wurden worden lass lasse lässt lassen ließ tu tue
+    tut tun brauchst braucht brauchen habe hast hat haben habt hatte hatten hätte hätten bin bist
+    ist sind seid war waren wäre wären sei konntest könntest könntet solltest solltet müsstest
+    müsstet musstest wolltest wolltet dürftest dürftet durftest magst mögt mögen mochte mochten
+    möchtet würdet wurdest
   # Personal and reflexive pronouns.
   PRONOUNS: [ich, du, er, sie, es, wir, ihr, man, sich, mich, dich, uns, euch, mir, dir]
 defs:
@@ -407,270 +195,47 @@ rules:
     sets:
       # Particles of separable verbs; "um" and "mit" are left out ("um zu gehen" is "in order to
       # go"), and "zu" ("zu zu muten") needs the joined verb to be known like the others.
-      COMPOUND_PARTICLES:
-        [
-          ab,
-          an,
-          auf,
-          aus,
-          bei,
-          ein,
-          fest,
-          fort,
-          her,
-          herab,
-          heran,
-          herauf,
-          heraus,
-          herbei,
-          herein,
-          herüber,
-          herum,
-          herunter,
-          hervor,
-          hin,
-          hinab,
-          hinauf,
-          hinaus,
-          hinein,
-          hinüber,
-          hinunter,
-          hinweg,
-          los,
-          nach,
-          nieder,
-          vor,
-          voran,
-          voraus,
-          vorbei,
-          vorüber,
-          weg,
-          weiter,
-          wieder,
-          zurück,
-          zusammen,
-          zu,
-          bereit,
-          statt,
-          teil,
-          kennen,
-          fertig,
-          frei,
-          zufrieden,
-          wohl,
-          hoch,
-          dar,
-          empor,
-          entgegen,
-          unter,
-          zurecht,
-        ]
+      COMPOUND_PARTICLES: >-
+        ab an auf aus bei ein fest fort her herab heran herauf heraus herbei herein herüber herum
+        herunter hervor hin hinab hinauf hinaus hinein hinüber hinunter hinweg los nach nieder vor
+        voran voraus vorbei vorüber weg weiter wieder zurück zusammen zu bereit statt teil kennen
+        fertig frei zufrieden wohl hoch dar empor entgegen unter zurecht
       # Adverbs ending in -t, unlike the finite verbs whose particle comes next ("fängt an zu").
-      NOT_FINITE:
-        [
-          nicht,
-          jetzt,
-          erst,
-          oft,
-          fast,
-          meist,
-          zuletzt,
-          sonst,
-          selbst,
-          gut,
-          recht,
-          weit,
-          halt,
-          damit,
-          dort,
-          mit,
-          seit,
-          womit,
-          somit,
-          leicht,
-          vielleicht,
-          direkt,
-          exakt,
-        ]
+      NOT_FINITE: >-
+        nicht jetzt erst oft fast meist zuletzt sonst selbst gut recht weit halt damit dort mit seit
+        womit somit leicht vielleicht direkt exakt
       # Words that make the particle part of another phrase: "den weg", "gerade aus", "da nach",
       # "immer hin", "außen vor", "all zu".
-      NOT_PARTICLE_AFTER:
-        [
-          der,
-          die,
-          das,
-          den,
-          dem,
-          des,
-          ein,
-          eine,
-          einen,
-          einem,
-          einer,
-          eines,
-          kein,
-          keine,
-          keinen,
-          keinem,
-          mein,
-          meinen,
-          meinem,
-          dein,
-          deinen,
-          deinem,
-          sein,
-          seinen,
-          seinem,
-          ihren,
-          ihrem,
-          unseren,
-          unserem,
-          gerade,
-          da,
-          hier,
-          wo,
-          dort,
-          all,
-          immer,
-          außen,
-          bergauf,
-          bergab,
-        ]
+      NOT_PARTICLE_AFTER: >-
+        der die das den dem des ein eine einen einem einer eines kein keine keinen keinem mein
+        meinen meinem dein deinen deinem sein seinen seinem ihren ihrem unseren unserem gerade da
+        hier wo dort all immer außen bergauf bergab
       # Particles no main verb leaves right before a zu-infinitive ("Er fängt an zu laufen", "Sie
       # hat vor zu gehen" do), so they open the infinitive with no comma: "kein Grund los zu
       # brüllen", "Ist es gut unter zu gehen?".
-      CLAUSE_PARTICLES:
-        [
-          herab,
-          heran,
-          herauf,
-          heraus,
-          herbei,
-          herein,
-          herüber,
-          herum,
-          herunter,
-          hervor,
-          hinab,
-          hinauf,
-          hinaus,
-          hinein,
-          hinüber,
-          hinunter,
-          hinweg,
-          los,
-          unter,
-          nieder,
-          empor,
-          zurecht,
-          zu,
-        ]
+      CLAUSE_PARTICLES: >-
+        herab heran herauf heraus herbei herein herüber herum herunter hervor hinab hinauf hinaus
+        hinein hinüber hinunter hinweg los unter nieder empor zurecht zu
       # Forms of "sein", which takes no particle ("ist kein Grund los zu brüllen").
       COMPOUND_COPULAS: [ist, sind, war, waren, bin, bist, seid, wäre, wären, sei]
       # Verbs that take a noun after "zum" or "beim" as a fixed phrase ("zum Ausdruck bringen",
       # "beim Wort nehmen", "zum Opfer fallen").
-      COMPOUND_LIGHT_VERBS:
-        [
-          bringen,
-          kommen,
-          stellen,
-          nehmen,
-          machen,
-          haben,
-          werden,
-          fallen,
-          führen,
-          gelangen,
-          setzen,
-          ziehen,
-          rufen,
-          zwingen,
-          bewegen,
-          dienen,
-          geben,
-          halten,
-          nennen,
-          treiben,
-          reichen,
-          schicken,
-        ]
+      COMPOUND_LIGHT_VERBS: >-
+        bringen kommen stellen nehmen machen haben werden fallen führen gelangen setzen ziehen rufen
+        zwingen bewegen dienen geben halten nennen treiben reichen schicken
       # Full verbs that take a bare infinitive of their own ("Wir fahren zum Hafen angeln", "Sie
       # lernt beim Meister kochen").
-      COMPOUND_BARE_VERBS:
-        [
-          gehen,
-          fahren,
-          kommen,
-          laufen,
-          lassen,
-          sehen,
-          hören,
-          fühlen,
-          spüren,
-          bleiben,
-          lernen,
-          lehren,
-          helfen,
-          schicken,
-          legen,
-          sein,
-        ]
+      COMPOUND_BARE_VERBS: >-
+        gehen fahren kommen laufen lassen sehen hören fühlen spüren bleiben lernen lehren helfen
+        schicken legen sein
       # Adjectives that take no ending ("ein lila Kleid", "eine super Idee") or that make a fixed
       # phrase with a noun ("ein wenig Zeit", "ein gut Stück"), and adverbs that the dictionary
       # also lists as adjectives ("Die erst Mitte Mai gefundene …").
-      PAIR_UNINFLECTED:
-        [
-          lila,
-          rosa,
-          pink,
-          beige,
-          orange,
-          oliv,
-          super,
-          klasse,
-          prima,
-          spitze,
-          extra,
-          top,
-          mega,
-          okay,
-          live,
-          online,
-          offline,
-          cool,
-          fair,
-          gratis,
-          egal,
-          pleite,
-          schuld,
-          quitt,
-          wenig,
-          viel,
-          mehr,
-          genug,
-          ganz,
-          gut,
-          klein,
-          halt,
-          solch,
-          welch,
-          manch,
-          paar,
-          bisschen,
-          recht,
-          echt,
-          voll,
-          erst,
-          sicher,
-          natürlich,
-          wirklich,
-          ziemlich,
-          bestimmt,
-          eben,
-          kaum,
-          fast,
-          gleich,
-        ]
+      PAIR_UNINFLECTED: >-
+        lila rosa pink beige orange oliv super klasse prima spitze extra top mega okay live online
+        offline cool fair gratis egal pleite schuld quitt wenig viel mehr genug ganz gut klein halt
+        solch welch manch paar bisschen recht echt voll erst sicher natürlich wirklich ziemlich
+        bestimmt eben kaum fast gleich
     maps:
       EMAIL_FORMS: { Emails: E-Mails, E-Mailadresse: E-Mail-Adresse }
     defs:
@@ -1251,451 +816,85 @@ rules:
       return: "findings.filter((f) => !NOUN_FINDINGS.has(f) || !nounEnds.has(blankStart(ctx.text, f.range.start)))"
     sets:
       # Determiners that are as often a whole noun phrase: "keiner macht", "alle liefen".
-      NC_QUANTIFIERS:
-        [
-          alle,
-          allen,
-          aller,
-          alles,
-          viele,
-          vielen,
-          vieler,
-          einige,
-          einigen,
-          einiger,
-          mehrere,
-          mehreren,
-          beide,
-          beiden,
-          wenige,
-          wenigen,
-          andere,
-          anderen,
-          meisten,
-          manche,
-          mancher,
-          manchen,
-          manchem,
-          manches,
-          jede,
-          jeder,
-          jeden,
-          jedem,
-          jedes,
-          einer,
-          eines,
-          keiner,
-          keines,
-          meiner,
-          meines,
-          deiner,
-          deines,
-          seiner,
-          seines,
-          ihrer,
-          ihres,
-          unserer,
-          unseres,
-          eurer,
-          eures,
-          ihr,
-        ]
-      NC_NUMBERS:
-        [
-          zwei,
-          drei,
-          vier,
-          fünf,
-          sechs,
-          sieben,
-          acht,
-          neun,
-          zehn,
-          elf,
-          zwölf,
-          zwanzig,
-          dreißig,
-          hundert,
-          tausend,
-        ]
+      NC_QUANTIFIERS: >-
+        alle allen aller alles viele vielen vieler einige einigen einiger mehrere mehreren beide
+        beiden wenige wenigen andere anderen meisten manche mancher manchen manchem manches jede
+        jeder jeden jedem jedes einer eines keiner keines meiner meines deiner deines seiner seines
+        ihrer ihres unserer unseres eurer eures ihr
+      NC_NUMBERS: >-
+        zwei drei vier fünf sechs sieben acht neun zehn elf zwölf zwanzig dreißig hundert tausend
       # Lowercase words with an adjective ending that are not adjectives.
-      NC_NOT_ADJECTIVES:
-        [
-          gerne,
-          alleine,
-          lange,
-          heute,
-          ohne,
-          ferne,
-          nahe,
-          gestern,
-          morgen,
-          oben,
-          unten,
-          außen,
-          innen,
-          hinten,
-          vorne,
-          zusammen,
-          trotzdem,
-          seitdem,
-          außerdem,
-          ebenso,
-          eben,
-          wieder,
-          immer,
-          nimmer,
-          sondern,
-          aber,
-          oder,
-          weder,
-          später,
-          früher,
-          näher,
-          weiter,
-          selten,
-          offen,
-          gegen,
-          neben,
-          unter,
-          hinter,
-          über,
-          wider,
-          bisschen,
-          ihnen,
-          denen,
-          deren,
-          dessen,
-          wessen,
-          habe,
-          hatte,
-          hätte,
-          werde,
-          wurde,
-          würde,
-          wäre,
-          sei,
-          könne,
-          müsse,
-          solle,
-          wolle,
-          dürfe,
-          möge,
-          wisse,
-          gebe,
-          hier,
-          eher,
-          gerade,
-        ]
+      NC_NOT_ADJECTIVES: >-
+        gerne alleine lange heute ohne ferne nahe gestern morgen oben unten außen innen hinten vorne
+        zusammen trotzdem seitdem außerdem ebenso eben wieder immer nimmer sondern aber oder weder
+        später früher näher weiter selten offen gegen neben unter hinter über wider bisschen ihnen
+        denen deren dessen wessen habe hatte hätte werde wurde würde wäre sei könne müsse solle
+        wolle dürfe möge wisse gebe hier eher gerade
       # The finite verb after a sentence-initial noun phrase ("Der zugriff wurde …").
-      NC_AUXILIARIES:
-        [
-          ist,
-          sind,
-          war,
-          waren,
-          wird,
-          werden,
-          wurde,
-          wurden,
-          hat,
-          haben,
-          hatte,
-          hatten,
-          kann,
-          können,
-          konnte,
-          konnten,
-          muss,
-          müssen,
-          musste,
-          mussten,
-          soll,
-          sollen,
-          sollte,
-          sollten,
-          will,
-          wollen,
-          wollte,
-          wollten,
-          darf,
-          dürfen,
-          durfte,
-          durften,
-          mag,
-          möchte,
-          möchten,
-          würde,
-          würden,
-          wäre,
-          wären,
-          sei,
-          seien,
-          hätte,
-          hätten,
-          bleibt,
-          blieb,
-          gibt,
-          gab,
-        ]
+      NC_AUXILIARIES: >-
+        ist sind war waren wird werden wurde wurden hat haben hatte hatten kann können konnte
+        konnten muss müssen musste mussten soll sollen sollte sollten will wollen wollte wollten
+        darf dürfen durfte durften mag möchte möchten würde würden wäre wären sei seien hätte hätten
+        bleibt blieb gibt gab
       NC_COORDINATORS: [und, oder, sowie, bzw]
       # Genitive determiners after a noun ("der angriff des Gegners"); "der", "meiner" are also
       # datives ("Diese stellen meiner Frau Wein").
       NC_GENITIVES: [des, eines, meines, deines, seines, unseres, eures, dieses, jenes]
       NC_DEGREE_WORDS: [wirklich, sehr, ganz, ziemlich, besonders, äußerst, echt, total, so, recht]
-      NC_CLAUSE_LINKS:
-        [
-          und,
-          oder,
-          aber,
-          denn,
-          doch,
-          sondern,
-          dass,
-          weil,
-          ob,
-          wenn,
-          als,
-          obwohl,
-          damit,
-          bevor,
-          nachdem,
-          während,
-          bis,
-          falls,
-          sobald,
-          solange,
-          da,
-          wie,
-          wo,
-          was,
-          wer,
-          sodass,
-        ]
+      NC_CLAUSE_LINKS: >-
+        und oder aber denn doch sondern dass weil ob wenn als obwohl damit bevor nachdem während bis
+        falls sobald solange da wie wo was wer sodass
       # Genitive or dative determiners after a noun ("die Grenzen meiner Sprache").
-      NC_GENITIVE_LIKE:
-        [
-          von,
-          vom,
-          der,
-          des,
-          dieser,
-          dieses,
-          jener,
-          jenes,
-          meiner,
-          meines,
-          deiner,
-          deines,
-          seiner,
-          seines,
-          ihrer,
-          ihres,
-          unserer,
-          unseres,
-          eurer,
-          eures,
-          einer,
-          eines,
-        ]
+      NC_GENITIVE_LIKE: >-
+        von vom der des dieser dieses jener jenes meiner meines deiner deines seiner seines ihrer
+        ihres unserer unseres eurer eures einer eines
       # Nouns that end a clause as the particle of a separable verb: "er steht kopf", "sie gibt
       # nichts preis", "das findet statt", "er hält stand".
-      NC_VERB_PARTICLE_NOUNS:
-        [kopf, preis, statt, stand, eis, haus, hof, maß, not, acht, kehrt, hohn]
+      NC_VERB_PARTICLE_NOUNS: >-
+        kopf preis statt stand eis haus hof maß not acht kehrt hohn
       # Object pronouns before a demonstrative that is the article of an object ("mir die treue").
-      NC_OBJECT_PRONOUNS:
-        [mir, dir, ihm, ihr, uns, euch, ihnen, sich, sie, es, er, wir, ich, du, man]
+      NC_OBJECT_PRONOUNS: >-
+        mir dir ihm ihr uns euch ihnen sich sie es er wir ich du man
       NC_HABEN: [habe, hast, hat, haben, habt, hatte, hattest, hatten, hattet, hätte, hätten]
       NC_SECOND_EXCEPTIONS: [halt, stand, statt, teil, preis, acht]
       # Lowercase words the dictionary lists only as nouns that are also adverbs ("wir sind zuhause").
       NC_BARE_EXCEPTIONS: [zuhause, topp]
       NC_VERB_PARTICLES: [los, ab, an, auf, aus, ein, mit, vor, weg, zu, zurück, hin, her, fest]
       # Frequent German function words that are no noun, adjective or verb form.
-      NC_FUNCTION_WORDS:
-        [
-          nicht,
-          auch,
-          noch,
-          schon,
-          nur,
-          viel,
-          wenig,
-          mehr,
-          genug,
-          etwas,
-          nichts,
-          kein,
-          gern,
-          gerne,
-          bitte,
-          immer,
-          wieder,
-          dann,
-          jetzt,
-          heute,
-          hier,
-          da,
-          dort,
-          ja,
-          doch,
-          mal,
-          gerade,
-          nie,
-          oft,
-          ihm,
-          ihnen,
-          ihn,
-          uns,
-          euch,
-          selbst,
-          bloß,
-          eben,
-          halt,
-          wohl,
-          kaum,
-          fast,
-          sogar,
-          gar,
-          ganz,
-          endlich,
-          bereits,
-          meist,
-          erst,
-          zuerst,
-        ]
+      NC_FUNCTION_WORDS: >-
+        nicht auch noch schon nur viel wenig mehr genug etwas nichts kein gern gerne bitte immer
+        wieder dann jetzt heute hier da dort ja doch mal gerade nie oft ihm ihnen ihn uns euch
+        selbst bloß eben halt wohl kaum fast sogar gar ganz endlich bereits meist erst zuerst
       NC_MAIN_CLAUSE_LINKS: [und, oder, aber, denn, doch, sondern]
-      NC_SUBORDINATORS:
-        [dass, weil, wenn, ob, obwohl, damit, nachdem, bevor, falls, sobald, solange, sodass]
-      NC_WH_WORDS:
-        [
-          wie,
-          wo,
-          was,
-          wer,
-          wen,
-          wem,
-          wann,
-          warum,
-          weshalb,
-          wieso,
-          weswegen,
-          wohin,
-          woher,
-          womit,
-          wodurch,
-          worauf,
-          woran,
-          worüber,
-          wofür,
-        ]
+      NC_SUBORDINATORS: >-
+        dass weil wenn ob obwohl damit nachdem bevor falls sobald solange sodass
+      NC_WH_WORDS: >-
+        wie wo was wer wen wem wann warum weshalb wieso weswegen wohin woher womit wodurch worauf
+        woran worüber wofür
       # Words in the noun-or-adjective list that are function words or particles here: "sein",
       # "ein", "unter", "weiß" (knows), "fern" (sieht fern), "klein" (sieht klein aus).
-      NC_EITHER_EXCEPTIONS:
-        [weiß, fern, fest, frei, klein, groß, dicht, nah, nahe, hoch, tief, weit]
+      NC_EITHER_EXCEPTIONS: >-
+        weiß fern fest frei klein groß dicht nah nahe hoch tief weit
       # Comparatives used as adverbs before a particle or adjective ("lieber fern").
       NC_ADVERB_COMPARATIVES: [lieber, eher, besser, mehr, weniger, länger, weiter, öfter]
       # Lowercase is standard or allowed: "am besten", "die meisten", "alles andere", "etwas
       # mehr", "ohne weiteres", "bei weitem".
-      NOMINAL_LOWERCASE_OK:
-        [
-          anderen,
-          andere,
-          anderes,
-          einen,
-          einzige,
-          einzigen,
-          meisten,
-          wenigsten,
-          mindesten,
-          ganzen,
-          beiden,
-          weiteres,
-          mehr,
-          weniger,
-          viele,
-          vieles,
-          einiges,
-          solches,
-          folgendes,
-          mögliche,
-          dasselbe,
-          denselben,
-          demselben,
-          letzten,
-          nächsten,
-          ersten,
-          selben,
-          selbigen,
-          gleichen,
-        ]
+      NOMINAL_LOWERCASE_OK: >-
+        anderen andere anderes einen einzige einzigen meisten wenigsten mindesten ganzen beiden
+        weiteres mehr weniger viele vieles einiges solches folgendes mögliche dasselbe denselben
+        demselben letzten nächsten ersten selben selbigen gleichen
       # Words in -es that are determiners or pronouns, not adjectives.
-      NOMINAL_NOT_NEUTER:
-        [
-          alles,
-          etwas,
-          nichts,
-          dieses,
-          jenes,
-          welches,
-          manches,
-          solches,
-          folgendes,
-          vieles,
-          weniges,
-          anderes,
-          einiges,
-          beides,
-          jedes,
-          keines,
-          meines,
-          deines,
-          seines,
-          ihres,
-          unseres,
-          eures,
-          eines,
-          dasselbe,
-        ]
-      NOMINAL_DEGREE:
-        [sehr, ganz, wirklich, total, allzu, besonders, ziemlich, richtig, echt, so, recht, selbst]
+      NOMINAL_NOT_NEUTER: >-
+        alles etwas nichts dieses jenes welches manches solches folgendes vieles weniges anderes
+        einiges beides jedes keines meines deines seines ihres unseres eures eines dasselbe
+      NOMINAL_DEGREE: >-
+        sehr ganz wirklich total allzu besonders ziemlich richtig echt so recht selbst
       # Words before a name or a title: "heißt Fröhlich", "und Ehrlich".
-      NAME_CUES:
-        [
-          heißt,
-          heiße,
-          heißen,
-          hieß,
-          hießen,
-          nennt,
-          nannte,
-          genannt,
-          namens,
-          titel,
-          und,
-          oder,
-          sowie,
-          bzw,
-          von,
-        ]
+      NAME_CUES: >-
+        heißt heiße heißen hieß hießen nennt nannte genannt namens titel und oder sowie bzw von
       CAPITAL_PARTICLES: [aus, vor, an, ab, zu]
-      CAPITAL_SUBORDINATORS:
-        [
-          weil,
-          dass,
-          wenn,
-          während,
-          ob,
-          als,
-          obwohl,
-          damit,
-          bevor,
-          nachdem,
-          sobald,
-          falls,
-          da,
-          seit,
-          seitdem,
-        ]
+      CAPITAL_SUBORDINATORS: >-
+        weil dass wenn während ob als obwohl damit bevor nachdem sobald falls da seit seitdem
       # Names of two adjectives and a noun, each adjective capitalized.
       NAME_TRIPLES:
         [
@@ -1707,48 +906,14 @@ rules:
         ]
       # Adjective and noun pairs that are no names, so the adjective stays lowercase inside a
       # sentence: "grüner Tee", "künstliche Intelligenz", "mit freundlichen Grüßen".
-      LOWER_PAIRS:
-        [
-          grün:Tee,
-          schwarz:Tee,
-          klein:Einmaleins,
-          groß:Einmaleins,
-          olympisch:Feuer,
-          linear:Algebra,
-          analytisch:Geometrie,
-          englisch:Rasen,
-          künstlich:Intelligenz,
-          sozial:Netzwerk,
-          sozial:Netzwerke,
-          sozial:Medien,
-          erneuerbar:Energien,
-          erneuerbar:Energie,
-          öffentlich:Dienst,
-          mittler:Reife,
-          rot:Faden,
-          kalt:Buffet,
-          höher:Gewalt,
-          freundlich:Grüße,
-          freundlich:Grüßen,
-          herzlich:Grüße,
-          herzlich:Grüßen,
-          lieb:Grüße,
-          lieb:Grüßen,
-          best:Grüße,
-          best:Grüßen,
-          neu:Jahr,
-          recht:Winkel,
-          spitz:Winkel,
-          stumpf:Winkel,
-          offen:Tür,
-          elektrisch:Feld,
-          elektrisch:Feldstärke,
-          elektrisch:Strom,
-          magnetisch:Feld,
-          mittler:Bildungsabschluss,
-          mittler:Bildungsabschlüsse,
-          gesund:Menschenverstand,
-        ]
+      LOWER_PAIRS: >-
+        grün:Tee schwarz:Tee klein:Einmaleins groß:Einmaleins olympisch:Feuer linear:Algebra
+        analytisch:Geometrie englisch:Rasen künstlich:Intelligenz sozial:Netzwerk sozial:Netzwerke
+        sozial:Medien erneuerbar:Energien erneuerbar:Energie öffentlich:Dienst mittler:Reife
+        rot:Faden kalt:Buffet höher:Gewalt freundlich:Grüße freundlich:Grüßen herzlich:Grüße
+        herzlich:Grüßen lieb:Grüße lieb:Grüßen best:Grüße best:Grüßen neu:Jahr recht:Winkel
+        spitz:Winkel stumpf:Winkel offen:Tür elektrisch:Feld elektrisch:Feldstärke elektrisch:Strom
+        magnetisch:Feld mittler:Bildungsabschluss mittler:Bildungsabschlüsse gesund:Menschenverstand
     maps:
       # Stems of irregular comparatives and superlatives: "beste", "besseres", "höchste", "nächste".
       NOMINAL_IRREGULAR: { be: gut, besser: gut, höch: hoch, näch: nah }
@@ -3140,8 +2305,8 @@ rules:
       PREP_QUANTIFIER_STEMS: [all, and, viel, wenig, einig, beid, mehrer, sämtlich, ganz, jed]
       # ein-words take no ending in the masculine and neuter nominative ("ein", "mein", "unser").
       PREP_EIN_WORDS: [ein, kein, mein, dein, sein, ihr, unser, euer]
-      PREP_STEMS:
-        [ein, kein, mein, dein, sein, ihr, unser, eur, euer, dies, jen, jed, welch, solch, all]
+      PREP_STEMS: >-
+        ein kein mein dein sein ihr unser eur euer dies jen jed welch solch all
     maps:
       # The case each preposition governs.
       PREP_CASES:
@@ -3570,51 +2735,12 @@ rules:
     message: review_msg_contextual_grammar
     sets:
       # Adjectives that comment on a "dass" clause after them: "Schön, dass du da bist".
-      THAT_ADJECTIVES:
-        [
-          gut,
-          schön,
-          super,
-          toll,
-          schade,
-          klasse,
-          prima,
-          wichtig,
-          komisch,
-          seltsam,
-          klar,
-          logisch,
-          merkwürdig,
-          erstaunlich,
-          interessant,
-          traurig,
-          spannend,
-          praktisch,
-          blöd,
-          ärgerlich,
-        ]
+      THAT_ADJECTIVES: >-
+        gut schön super toll schade klasse prima wichtig komisch seltsam klar logisch merkwürdig
+        erstaunlich interessant traurig spannend praktisch blöd ärgerlich
       # Adverbs after "da" + preposition that show the pronominal adverb: "da nach nicht" (danach).
-      DA_ADVERBS:
-        [
-          nicht,
-          auch,
-          noch,
-          schon,
-          gar,
-          kaum,
-          nie,
-          nur,
-          immer,
-          sofort,
-          bitte,
-          doch,
-          ja,
-          selbst,
-          wohl,
-          eben,
-          erst,
-          bald,
-        ]
+      DA_ADVERBS: >-
+        nicht auch noch schon gar kaum nie nur immer sofort bitte doch ja selbst wohl eben erst bald
     maps:
       SEIN_FOR:
         {
@@ -4537,284 +3663,44 @@ rules:
     sets:
       # Adjective lemmas that also work as adverbs before a noun phrase ("ein völlig Fremder", "die
       # erst Mitte der 1920er erschienene"), and invariable ones.
-      ADJ_ADVERBIAL:
-        [
-          erst,
-          ganz,
-          gleich,
-          sehr,
-          recht,
-          fast,
-          viel,
-          wenig,
-          mehr,
-          weniger,
-          genug,
-          eben,
-          allein,
-          halb,
-          besonders,
-          ziemlich,
-          völlig,
-          ausgerechnet,
-          lila,
-          rosa,
-          prima,
-          super,
-          klasse,
-          sexy,
-          beige,
-          orange,
-          extra,
-          genügend,
-          maximal,
-          minimal,
-          hauptsächlich,
-        ]
+      ADJ_ADVERBIAL: >-
+        erst ganz gleich sehr recht fast viel wenig mehr weniger genug eben allein halb besonders
+        ziemlich völlig ausgerechnet lila rosa prima super klasse sexy beige orange extra genügend
+        maximal minimal hauptsächlich
       # Adjectives that often open a compound noun ("Rotwein", "Süßwasser", "Neuwagen"), and
       # superlative stems that only stand in one ("Mindestlohn", "Höchstform"): written apart
       # before a noun, the compound is offered too.
-      ADJ_COMPOUND_FIRST:
-        [
-          rot,
-          blau,
-          grün,
-          gelb,
-          schwarz,
-          grau,
-          braun,
-          bunt,
-          süß,
-          sauer,
-          bitter,
-          mager,
-          trocken,
-          weich,
-          hart,
-          frisch,
-          alt,
-          neu,
-          falsch,
-          klein,
-          groß,
-          hoch,
-          tief,
-          kurz,
-          voll,
-          leer,
-          fein,
-          echt,
-          mehrfach,
-          doppelt,
-          universal,
-          exklusiv,
-          alternativ,
-          brachial,
-          schwarzweiß,
-          best,
-          mindest,
-          höchst,
-          kleinst,
-          größt,
-          national,
-          zentral,
-          parallel,
-          rund,
-          warm,
-          kalt,
-          schwer,
-          frei,
-          direkt,
-          dunkel,
-          hell,
-          privat,
-          fertig,
-          nackt,
-          geheim,
-          negativ,
-          positiv,
-          komplett,
-          original,
-          gesamt,
-          total,
-          extrem,
-          flüssig,
-          fest,
-          eigen,
-          digital,
-          fremd,
-          passiv,
-          aktiv,
-          primär,
-          spezial,
-          normal,
-          initiativ,
-          pauschal,
-          regional,
-        ]
+      ADJ_COMPOUND_FIRST: >-
+        rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich hart frisch
+        alt neu falsch klein groß hoch tief kurz voll leer fein echt mehrfach doppelt universal
+        exklusiv alternativ brachial schwarzweiß best mindest höchst kleinst größt national zentral
+        parallel rund warm kalt schwer frei direkt dunkel hell privat fertig nackt geheim negativ
+        positiv komplett original gesamt total extrem flüssig fest eigen digital fremd passiv aktiv
+        primär spezial normal initiativ pauschal regional
       # The colour, taste and texture ones and the stems are no adverbs either, so they are checked
       # with no article before them ("trinkt rot Wein").
-      ADJ_COMPOUND_ALONE:
-        [
-          rot,
-          blau,
-          grün,
-          gelb,
-          schwarz,
-          grau,
-          braun,
-          bunt,
-          süß,
-          sauer,
-          bitter,
-          mager,
-          trocken,
-          weich,
-          brachial,
-          universal,
-          schwarzweiß,
-          best,
-          mindest,
-          höchst,
-          kleinst,
-          größt,
-          digital,
-          fremd,
-          gesamt,
-          flüssig,
-          passiv,
-          initiativ,
-          spezial,
-        ]
+      ADJ_COMPOUND_ALONE: >-
+        rot blau grün gelb schwarz grau braun bunt süß sauer bitter mager trocken weich brachial
+        universal schwarzweiß best mindest höchst kleinst größt digital fremd gesamt flüssig passiv
+        initiativ spezial
       # Adjectives that are also clause adverbs ("hat das sicher Potenzial").
-      ADJ_CLAUSE_ADVERBS:
-        [
-          sicher,
-          bestimmt,
-          wirklich,
-          echt,
-          total,
-          ganz,
-          voll,
-          komplett,
-          extrem,
-          direkt,
-          einfach,
-          gern,
-          oft,
-          selten,
-          gleich,
-          sofort,
-          kaum,
-          natürlich,
-          klar,
-          leicht,
-          schwer,
-          genau,
-          eigentlich,
-          ziemlich,
-          richtig,
-          absolut,
-          fast,
-          wahrscheinlich,
-          vielleicht,
-          tatsächlich,
-          ernsthaft,
-          ständig,
-          häufig,
-          frei,
-        ]
+      ADJ_CLAUSE_ADVERBS: >-
+        sicher bestimmt wirklich echt total ganz voll komplett extrem direkt einfach gern oft selten
+        gleich sofort kaum natürlich klar leicht schwer genau eigentlich ziemlich richtig absolut
+        fast wahrscheinlich vielleicht tatsächlich ernsthaft ständig häufig frei
       # Words the adjective filter accepts that are articles, prepositions or fixed in idioms.
-      ADJ_NOT_ADJECTIVES:
-        [
-          ein,
-          eine,
-          einer,
-          unter,
-          ober,
-          laut,
-          eigen,
-          inner,
-          äußer,
-          hinter,
-          vorder,
-          mittler,
-          weiß,
-          weiss,
-        ]
+      ADJ_NOT_ADJECTIVES: >-
+        ein eine einer unter ober laut eigen inner äußer hinter vorder mittler weiß weiss
       # Inflected words that are no adjective here: quantifiers, ordinals, pronouns; lemmas in -e
       # and colloquial invariable ones ("Das war spitze", "Das ist blöde").
-      ADJ_NOT_PREDICATIVE:
-        [
-          viele,
-          vielen,
-          wenige,
-          wenigen,
-          alle,
-          allen,
-          beide,
-          beiden,
-          einige,
-          einigen,
-          andere,
-          anderen,
-          manche,
-          erste,
-          ersten,
-          zweite,
-          dritte,
-          letzte,
-          letzten,
-          nächste,
-          nächsten,
-          meine,
-          deine,
-          seine,
-          ihre,
-          unsere,
-          eure,
-          keine,
-          gleiche,
-          gleichen,
-          selbe,
-          selben,
-          spitze,
-          klasse,
-          blöde,
-          irre,
-          öde,
-          feige,
-          träge,
-          rege,
-          trübe,
-          bange,
-          lose,
-          leise,
-          müde,
-          böse,
-        ]
-      ADJ_EMPTY_SUBJECT:
-        [
-          es,
-          hier,
-          dort,
-          dann,
-          danach,
-          nun,
-          jetzt,
-          heute,
-          morgen,
-          dabei,
-          dadurch,
-          damit,
-          zudem,
-          außerdem,
-          zuerst,
-          anschließend,
-          künftig,
-          bald,
-          oft,
-        ]
+      ADJ_NOT_PREDICATIVE: >-
+        viele vielen wenige wenigen alle allen beide beiden einige einigen andere anderen manche
+        erste ersten zweite dritte letzte letzten nächste nächsten meine deine seine ihre unsere
+        eure keine gleiche gleichen selbe selben spitze klasse blöde irre öde feige träge rege trübe
+        bange lose leise müde böse
+      ADJ_EMPTY_SUBJECT: >-
+        es hier dort dann danach nun jetzt heute morgen dabei dadurch damit zudem außerdem zuerst
+        anschließend künftig bald oft
     maps:
       # Determiner → the ending its adjective takes when the noun is singular.
       ADJ_ENDINGS:
@@ -5218,159 +4104,27 @@ rules:
       # Subject pronouns of a masculine object ("Ich habe ein Tisch reserviert").
       ART_SUBJECTS: [ich, du, er, wir, man]
       # Words after the object that keep the clause open: a participle, an infinitive, an adverb.
-      ART_OBJECT_FOLLOWERS:
-        [
-          heute,
-          morgen,
-          gestern,
-          allerdings,
-          auch,
-          noch,
-          schon,
-          nicht,
-          gern,
-          gerne,
-          bereits,
-          mal,
-          wieder,
-          jetzt,
-          sofort,
-          dort,
-          hier,
-          da,
-          nie,
-          immer,
-          bitte,
-          doch,
-          endlich,
-          erst,
-          zu,
-        ]
+      ART_OBJECT_FOLLOWERS: >-
+        heute morgen gestern allerdings auch noch schon nicht gern gerne bereits mal wieder jetzt
+        sofort dort hier da nie immer bitte doch endlich erst zu
       ART_SUBJECT_PRONOUNS: [ich, du, er, sie, es, wir, ihr, man]
-      ART_SUBORDINATORS:
-        [dass, weil, wenn, ob, als, obwohl, damit, nachdem, bevor, falls, da, sobald]
-      ART_MODALS:
-        [
-          kann,
-          kannst,
-          können,
-          könnt,
-          will,
-          willst,
-          wollen,
-          wollt,
-          muss,
-          musst,
-          müssen,
-          müsst,
-          soll,
-          sollst,
-          sollen,
-          sollt,
-          möchte,
-          möchtest,
-          möchten,
-          darf,
-          darfst,
-          dürfen,
-          werde,
-          wirst,
-          wird,
-          werden,
-          würde,
-          würden,
-        ]
-      ART_POSTPOSITIONS:
-        [nach, zufolge, gegenüber, entgegen, zuliebe, entsprechend, gemäß, nahe, halber, wegen]
-      ART_MEASURES:
-        [
-          mal,
-          stück,
-          weile,
-          jahr,
-          tag,
-          woche,
-          monat,
-          stunde,
-          minute,
-          sekunde,
-          moment,
-          augenblick,
-          abend,
-          morgen,
-          nachmittag,
-          nacht,
-          wochenende,
-          leben,
-          zeit,
-          ende,
-          stockwerk,
-          viertelstunde,
-          halbjahr,
-        ]
+      ART_SUBORDINATORS: >-
+        dass weil wenn ob als obwohl damit nachdem bevor falls da sobald
+      ART_MODALS: >-
+        kann kannst können könnt will willst wollen wollt muss musst müssen müsst soll sollst sollen
+        sollt möchte möchtest möchten darf darfst dürfen werde wirst wird werden würde würden
+      ART_POSTPOSITIONS: >-
+        nach zufolge gegenüber entgegen zuliebe entsprechend gemäß nahe halber wegen
+      ART_MEASURES: >-
+        mal stück weile jahr tag woche monat stunde minute sekunde moment augenblick abend morgen
+        nachmittag nacht wochenende leben zeit ende stockwerk viertelstunde halbjahr
       # Verbs after which a bare noun phrase is the subject or object: "es gibt", "ist", "hat".
-      ART_BARE_AFTER:
-        [
-          ist,
-          sind,
-          war,
-          waren,
-          gibt,
-          gab,
-          hat,
-          habe,
-          haben,
-          hatte,
-          hatten,
-          wird,
-          werden,
-          bietet,
-          bieten,
-          braucht,
-          brauchen,
-          suche,
-          suchen,
-          wünsche,
-          wünschen,
-          wurde,
-          wurden,
-          kann,
-          können,
-          konnte,
-          konnten,
-          soll,
-          sollen,
-          sollte,
-          sollten,
-          muss,
-          müssen,
-          musste,
-          mussten,
-          will,
-          wollen,
-          wollte,
-          wollten,
-          darf,
-          dürfen,
-          wäre,
-          wären,
-        ]
-      ART_TIME_SPANS:
-        [
-          Tag,
-          Jahr,
-          Woche,
-          Monat,
-          Sommer,
-          Winter,
-          Herbst,
-          Frühling,
-          Abend,
-          Morgen,
-          Nacht,
-          Wochenende,
-          Leben,
-        ]
+      ART_BARE_AFTER: >-
+        ist sind war waren gibt gab hat habe haben hatte hatten wird werden bietet bieten braucht
+        brauchen suche suchen wünsche wünschen wurde wurden kann können konnte konnten soll sollen
+        sollte sollten muss müssen musste mussten will wollen wollte wollten darf dürfen wäre wären
+      ART_TIME_SPANS: >-
+        Tag Jahr Woche Monat Sommer Winter Herbst Frühling Abend Morgen Nacht Wochenende Leben
     maps:
       ART_RELATIVE_FOR: { m: der, f: die, n: das }
       ART_WRONG_RELATIVE: { m: [die, das], f: [das], n: [der, die] }
@@ -5976,36 +4730,9 @@ rules:
     message: review_msg_german_suspended_hyphen
     sets:
       # Words that open a compound as a modifier: particles and adjective stems.
-      SUSPENDED_PARTICLES:
-        [
-          vor,
-          nach,
-          ober,
-          unter,
-          ein,
-          aus,
-          an,
-          ab,
-          in,
-          im,
-          ex,
-          auf,
-          zu,
-          hin,
-          her,
-          rück,
-          vorder,
-          hinter,
-          über,
-          inner,
-          außer,
-          innen,
-          außen,
-          nah,
-          fern,
-          hoch,
-          tief,
-        ]
+      SUSPENDED_PARTICLES: >-
+        vor nach ober unter ein aus an ab in im ex auf zu hin her rück vorder hinter über inner
+        außer innen außen nah fern hoch tief
     defs:
       # Singular finite verbs after a subject: "wurde", "ist", "hat".
       SUSPENDED_SINGULAR_VERBS: /^(?:ist|war|wird|wurde|hat|hatte|kann|muss|soll|darf|bleibt|gilt|steht|liegt|geht|kommt)$/
@@ -6393,627 +5120,110 @@ rules:
       return: "findings.filter((f) => !seen.has(f.range.end) && !!seen.add(f.range.end))"
     sets:
       # Conjunctions that always open a subordinate clause.
-      COMMA_SUBORDINATORS:
-        [
-          dass,
-          weil,
-          obwohl,
-          obgleich,
-          obschon,
-          wenngleich,
-          nachdem,
-          sobald,
-          sofern,
-          falls,
-          indem,
-          sodass,
-          bevor,
-          wohingegen,
-          ob,
-          wenn,
-          sondern,
-        ]
+      COMMA_SUBORDINATORS: >-
+        dass weil obwohl obgleich obschon wenngleich nachdem sobald sofern falls indem sodass bevor
+        wohingegen ob wenn sondern
       # Words that join with the conjunction after them, or set it off before themselves.
-      COMMA_JOINED:
-        [
-          und,
-          oder,
-          sowie,
-          bzw,
-          beziehungsweise,
-          aber,
-          sondern,
-          denn,
-          doch,
-          jedoch,
-          als,
-          so,
-          ohne,
-          statt,
-          anstatt,
-          außer,
-          kaum,
-          bis,
-          auf,
-          je,
-          nur,
-          auch,
-          selbst,
-          sogar,
-          gerade,
-          eben,
-          schon,
-          besonders,
-          insbesondere,
-          allem,
-          zwar,
-          zumal,
-          nicht,
-          einfach,
-          allein,
-          bloß,
-          lediglich,
-          umso,
-          desto,
-          erst,
-          egal,
-          gleich,
-          dann,
-          immer,
-          jedes,
-          halt,
-          also,
-          wie,
-          ja,
-          etwa,
-          vielleicht,
-          teils,
-          ob,
-          weil,
-          dass,
-          wenn,
-          nämlich,
-          speziell,
-          vornehmlich,
-          hauptsächlich,
-          vermutlich,
-          wahrscheinlich,
-          sonst,
-          zum,
-          rund,
-          recht,
-          noch,
-          kurz,
-          lang,
-          lange,
-          bald,
-          unmittelbar,
-          direkt,
-          knapp,
-          beispiel,
-          spätestens,
-          frühestens,
-          sofort,
-          nachdem,
-        ]
+      COMMA_JOINED: >-
+        und oder sowie bzw beziehungsweise aber sondern denn doch jedoch als so ohne statt anstatt
+        außer kaum bis auf je nur auch selbst sogar gerade eben schon besonders insbesondere allem
+        zwar zumal nicht einfach allein bloß lediglich umso desto erst egal gleich dann immer jedes
+        halt also wie ja etwa vielleicht teils ob weil dass wenn nämlich speziell vornehmlich
+        hauptsächlich vermutlich wahrscheinlich sonst zum rund recht noch kurz lang lange bald
+        unmittelbar direkt knapp beispiel spätestens frühestens sofort nachdem
       # "wenn möglich", "falls nötig": a shortened clause, set off or not.
-      COMMA_ELLIPTICAL:
-        [möglich, nötig, notwendig, erforderlich, gewünscht, ja, nein, nicht, überhaupt]
+      COMMA_ELLIPTICAL: >-
+        möglich nötig notwendig erforderlich gewünscht ja nein nicht überhaupt
       # Infinitive groups after these take a comma in either order.
       COMMA_INFINITIVE_LEADS: [um, ohne, statt, anstatt]
       # Verbs that take "um" as their preposition: "es geht um", "er bat um", "sich um etwas
       # kümmern"; and "um" for an amount: "um zwei Tage verschieben".
-      COMMA_UM_VERBS:
-        [
-          geht,
-          ging,
-          gehen,
-          ginge,
-          handelt,
-          handelte,
-          handeln,
-          handle,
-          bitte,
-          bittet,
-          bat,
-          baten,
-          bitten,
-          kämpfen,
-          kämpft,
-          kämpfte,
-          sorgen,
-          sorgt,
-          sorgte,
-          kümmern,
-          kümmert,
-          kümmerte,
-          streiten,
-          streitet,
-          bewerben,
-          bewirbt,
-          bewarb,
-          werben,
-          wirbt,
-          warb,
-          drehte,
-          dreht,
-          drehen,
-          bemühen,
-          bemüht,
-          bemühte,
-          beneiden,
-          beneidet,
-          verzögern,
-          verschieben,
-          erhöhen,
-          senken,
-          verlängern,
-          verkürzen,
-          steigern,
-          reduzieren,
-          verringern,
-          vergrößern,
-          verkleinern,
-          anheben,
-        ]
+      COMMA_UM_VERBS: >-
+        geht ging gehen ginge handelt handelte handeln handle bitte bittet bat baten bitten kämpfen
+        kämpft kämpfte sorgen sorgt sorgte kümmern kümmert kümmerte streiten streitet bewerben
+        bewirbt bewarb werben wirbt warb drehte dreht drehen bemühen bemüht bemühte beneiden
+        beneidet verzögern verschieben erhöhen senken verlängern verkürzen steigern reduzieren
+        verringern vergrößern verkleinern anheben
       COMMA_IMPERSONAL_UM: [geht, ging, gehen, ginge, handelt, handelte, handeln, handle]
       # Verbs that report an opinion or knowledge before a clause without "dass": "ich glaube, …".
-      COMMA_OPINIONS:
-        [
-          glaube,
-          glaub,
-          glauben,
-          glaubt,
-          denke,
-          denk,
-          denken,
-          denkt,
-          dachte,
-          dachten,
-          hoffe,
-          hoff,
-          hoffen,
-          hofft,
-          finde,
-          find,
-          finden,
-          findet,
-          befürchte,
-          befürchten,
-          befürchtet,
-          fürchte,
-          fürchten,
-          vermute,
-          vermuten,
-          vermutet,
-          schätze,
-          schätzen,
-          wette,
-          wetten,
-          weiß,
-          wissen,
-          wisst,
-          behauptet,
-          behaupten,
-          meine,
-          meinen,
-          meint,
-        ]
+      COMMA_OPINIONS: >-
+        glaube glaub glauben glaubt denke denk denken denkt dachte dachten hoffe hoff hoffen hofft
+        finde find finden findet befürchte befürchten befürchtet fürchte fürchten vermute vermuten
+        vermutet schätze schätzen wette wetten weiß wissen wisst behauptet behaupten meine meinen
+        meint
       COMMA_SUBJECTS: [ich, wir, ihr, sie, er, man, du]
       COMMA_SINGULAR_SUBJECTS: [ich, du, er, es, man]
       # Asking for an opinion: "Meinst du, das klappt?"
-      COMMA_OPINION_QUESTIONS:
-        [
-          glaubst,
-          glaubt,
-          glauben,
-          meinst,
-          meint,
-          meinen,
-          denkst,
-          denkt,
-          denken,
-          findest,
-          findet,
-          finden,
-        ]
+      COMMA_OPINION_QUESTIONS: >-
+        glaubst glaubt glauben meinst meint meinen denkst denkt denken findest findet finden
       COMMA_QUESTION_SUBJECTS: [du, ihr, Sie]
       # Fillers between the verb and its clause: "ich glaube übrigens, …", "ich denke mal, …".
       COMMA_FILLERS: [mal, übrigens, ja, schon, auch, eher, persönlich, halt, eigentlich, doch]
       # Finite verbs that show a main clause has begun.
-      COMMA_FINITE:
-        [
-          ist,
-          sind,
-          war,
-          waren,
-          wird,
-          werden,
-          wurde,
-          wurden,
-          hat,
-          haben,
-          hatte,
-          hatten,
-          kann,
-          können,
-          konnte,
-          konnten,
-          muss,
-          müssen,
-          musste,
-          mussten,
-          soll,
-          sollen,
-          sollte,
-          sollten,
-          will,
-          wollen,
-          wollte,
-          wollten,
-          darf,
-          dürfen,
-          durfte,
-          mag,
-          möchte,
-          möchten,
-          würde,
-          würden,
-          wäre,
-          wären,
-          sei,
-          seien,
-          gibt,
-          gab,
-          geht,
-          ging,
-          gehen,
-          kommt,
-          kam,
-          kommen,
-          gefällt,
-          gefallen,
-          braucht,
-          brauchen,
-          macht,
-          steht,
-          liegt,
-          läuft,
-          funktioniert,
-          klappt,
-          bleibt,
-          passt,
-          stimmt,
-          reicht,
-          hilft,
-          fehlt,
-          fehlen,
-        ]
+      COMMA_FINITE: >-
+        ist sind war waren wird werden wurde wurden hat haben hatte hatten kann können konnte
+        konnten muss müssen musste mussten soll sollen sollte sollten will wollen wollte wollten
+        darf dürfen durfte mag möchte möchten würde würden wäre wären sei seien gibt gab geht ging
+        gehen kommt kam kommen gefällt gefallen braucht brauchen macht steht liegt läuft
+        funktioniert klappt bleibt passt stimmt reicht hilft fehlt fehlen
       # Verbs of asking and knowing before an indirect w-question: "er fragt, wie …".
-      COMMA_ASKING:
-        [
-          weiß,
-          weißt,
-          wisst,
-          wissen,
-          wusste,
-          wussten,
-          fragt,
-          fragte,
-          fragten,
-          frage,
-          fragen,
-          erkundigte,
-          erkundigt,
-          verstehe,
-          verstehst,
-          versteht,
-          verstanden,
-          überlege,
-          überlegt,
-          überlegen,
-        ]
-      COMMA_W_WORDS:
-        [
-          was,
-          wer,
-          wen,
-          wem,
-          wie,
-          wo,
-          wann,
-          warum,
-          wieso,
-          weshalb,
-          weswegen,
-          woran,
-          wohin,
-          woher,
-          womit,
-          wofür,
-          worüber,
-          wovon,
-          wozu,
-        ]
+      COMMA_ASKING: >-
+        weiß weißt wisst wissen wusste wussten fragt fragte fragten frage fragen erkundigte
+        erkundigt verstehe verstehst versteht verstanden überlege überlegt überlegen
+      COMMA_W_WORDS: >-
+        was wer wen wem wie wo wann warum wieso weshalb weswegen woran wohin woher womit wofür
+        worüber wovon wozu
       # Words that may stand between the asking verb and the question: "weiß nicht mehr, wie".
-      COMMA_ASK_FILLERS:
-        [
-          nicht,
-          noch,
-          auch,
-          gar,
-          genau,
-          schon,
-          mal,
-          selbst,
-          mehr,
-          nie,
-          ich,
-          du,
-          er,
-          sie,
-          es,
-          wir,
-          ihr,
-          man,
-          mich,
-          dich,
-          sich,
-          uns,
-          euch,
-          mir,
-          dir,
-          ihm,
-          ihnen,
-          jetzt,
-          nun,
-          ja,
-          leider,
-          wirklich,
-          überhaupt,
-        ]
+      COMMA_ASK_FILLERS: >-
+        nicht noch auch gar genau schon mal selbst mehr nie ich du er sie es wir ihr man mich dich
+        sich uns euch mir dir ihm ihnen jetzt nun ja leider wirklich überhaupt
       COMMA_OBJECT_PRONOUNS: [mich, dich, sich, uns, euch, mir, dir, ihm, ihn, es]
       # Prepositions that open an indirect question with "was", "wem" or "wen": "an was", "mit wem".
-      COMMA_QUESTION_PREPOSITIONS:
-        [an, auf, für, mit, von, über, um, zu, bei, aus, nach, gegen, durch]
+      COMMA_QUESTION_PREPOSITIONS: >-
+        an auf für mit von über um zu bei aus nach gegen durch
       # Verbs an adjective before an indirect question or "wie" clause is the predicate of.
       COMMA_PREDICATE_VERBS: [ist, war, wäre, sei, sind, waren, bleibt, finde, findet, fand, finden]
       # Words that make "Adjektiv wie …" a comparison.
       COMMA_COMPARING: [so, genauso, ebenso, zu, doppelt, halb, fast, gleich]
       # Capitalized words that open a clause without being its subject.
-      COMMA_NOT_SUBJECTS:
-        [
-          wenn,
-          was,
-          wer,
-          wie,
-          wo,
-          wann,
-          warum,
-          als,
-          dass,
-          weil,
-          ob,
-          und,
-          aber,
-          doch,
-          denn,
-          so,
-          da,
-          dann,
-          dort,
-          hier,
-          heute,
-          jetzt,
-          nun,
-          auch,
-          nur,
-          noch,
-          schon,
-          bitte,
-          danke,
-          ja,
-          nein,
-          vielleicht,
-          leider,
-          außerdem,
-          alle,
-          daher,
-          deshalb,
-          deswegen,
-          damals,
-          trotzdem,
-          gestern,
-          morgen,
-          also,
-          zuerst,
-          später,
-          viele,
-          einige,
-          manche,
-          beide,
-          jeder,
-          jede,
-          jedes,
-          keiner,
-          niemand,
-          jemand,
-        ]
+      COMMA_NOT_SUBJECTS: >-
+        wenn was wer wie wo wann warum als dass weil ob und aber doch denn so da dann dort hier
+        heute jetzt nun auch nur noch schon bitte danke ja nein vielleicht leider außerdem alle
+        daher deshalb deswegen damals trotzdem gestern morgen also zuerst später viele einige manche
+        beide jeder jede jedes keiner niemand jemand
       COMMA_IRREGULAR: [sein, tun, haben, werden, wissen]
       # Words that announce an infinitive group the clause's verb governs: "Es geht darum, …", "Es
       # kommt darauf an, …", "Ich denke nicht daran, …".
       COMMA_CORRELATES: [darum, daran, darauf, dazu, davon, darüber, darin, davor]
       # Particles that close the main clause after the correlate ("kommt darauf an"), when they
       # make a verb with one of the clause's verbs.
-      COMMA_CORRELATE_PARTICLES:
-        [an, ab, hin, aus, auf, ein, vor, nach, mit, zu, fest, hinaus, zurück]
+      COMMA_CORRELATE_PARTICLES: >-
+        an ab hin aus auf ein vor nach mit zu fest hinaus zurück
       # Verbs before an adjective or participle that an infinitive group the "es" stands for
       # completes: "Er ist es gewohnt, …", "Es macht mich traurig, …", "Es fällt mir schwer, …".
-      COMMA_ES_LINKS:
-        [
-          ist,
-          war,
-          wäre,
-          sei,
-          sind,
-          waren,
-          bin,
-          bist,
-          seid,
-          wird,
-          wurde,
-          würde,
-          macht,
-          machte,
-          fällt,
-          fiel,
-          habe,
-          hast,
-          hat,
-          haben,
-          hatte,
-          hatten,
-        ]
+      COMMA_ES_LINKS: >-
+        ist war wäre sei sind waren bin bist seid wird wurde würde macht machte fällt fiel habe hast
+        hat haben hatte hatten
       # Verbs whose object "es" is the infinitive group: "Er liebt es, lange zu schlafen".
-      COMMA_ES_OBJECT_VERBS:
-        [
-          liebe,
-          liebst,
-          liebt,
-          lieben,
-          liebte,
-          hasse,
-          hasst,
-          hassen,
-          hasste,
-          genieße,
-          genießt,
-          genießen,
-          genoss,
-          vermeide,
-          vermeidet,
-          vermeiden,
-          vermied,
-          bevorzuge,
-          bevorzugt,
-          bevorzugen,
-        ]
+      COMMA_ES_OBJECT_VERBS: >-
+        liebe liebst liebt lieben liebte hasse hasst hassen hasste genieße genießt genießen genoss
+        vermeide vermeidet vermeiden vermied bevorzuge bevorzugt bevorzugen
       # A copula after "es" ("Es ist schwer(,) das zu sagen") leaves the comma optional.
       COMMA_CLAUSE_COPULAS: [ist, war, wäre, sei, sind, waren, bin, bist, seid, wird, wurde, würde]
       # Words between the verb and the adjective: "Es war Frauen damals nicht möglich".
-      COMMA_ES_FILLERS:
-        [
-          es,
-          mich,
-          dich,
-          ihn,
-          ihm,
-          ihr,
-          uns,
-          euch,
-          ihnen,
-          mir,
-          dir,
-          sich,
-          nicht,
-          nie,
-          immer,
-          noch,
-          schon,
-          auch,
-          damals,
-          heute,
-          jetzt,
-          oft,
-          wirklich,
-          gar,
-          so,
-          sehr,
-          ganz,
-          echt,
-          ziemlich,
-          recht,
-          doch,
-          ja,
-          eben,
-          eigentlich,
-          wohl,
-          einfach,
-        ]
+      COMMA_ES_FILLERS: >-
+        es mich dich ihn ihm ihr uns euch ihnen mir dir sich nicht nie immer noch schon auch damals
+        heute jetzt oft wirklich gar so sehr ganz echt ziemlich recht doch ja eben eigentlich wohl
+        einfach
       # Degree words that modify the next adjective, which would be the group's ("gut möglich").
       COMMA_ES_DEGREE: [gut, ganz, sehr, so, recht, ziemlich, echt, viel, wenig, zu]
       # What may open a relative clause right after its pronoun, but no article's noun phrase: a
       # preposition, a personal pronoun or an adverb ("der im Keller steht", "die ich kenne").
-      COMMA_RELATIVE_OPENERS:
-        [
-          im,
-          in,
-          am,
-          an,
-          auf,
-          aus,
-          bei,
-          beim,
-          mit,
-          nach,
-          von,
-          vom,
-          zu,
-          zum,
-          zur,
-          für,
-          über,
-          unter,
-          vor,
-          hinter,
-          neben,
-          seit,
-          gegen,
-          durch,
-          ohne,
-          ich,
-          du,
-          er,
-          sie,
-          es,
-          wir,
-          ihr,
-          man,
-          mich,
-          dich,
-          ihn,
-          uns,
-          euch,
-          mir,
-          dir,
-          ihm,
-          ihnen,
-          sich,
-          nicht,
-          schon,
-          gestern,
-          heute,
-          morgen,
-          immer,
-          oft,
-          nie,
-          gerade,
-          jetzt,
-          hier,
-          dort,
-          damals,
-          noch,
-          auch,
-          bereits,
-          wirklich,
-          kaum,
-          selten,
-          da,
-          nebenan,
-          drüben,
-          oben,
-          unten,
-        ]
+      COMMA_RELATIVE_OPENERS: >-
+        im in am an auf aus bei beim mit nach von vom zu zum zur für über unter vor hinter neben
+        seit gegen durch ohne ich du er sie es wir ihr man mich dich ihn uns euch mir dir ihm ihnen
+        sich nicht schon gestern heute morgen immer oft nie gerade jetzt hier dort damals noch auch
+        bereits wirklich kaum selten da nebenan drüben oben unten
     maps:
       # Pairs that take the comma before their first word: "…, auch wenn", "…, ohne dass".
       COMMA_PAIRS:
@@ -7609,191 +5819,36 @@ rules:
     message: review_msg_german_verb_agreement
     sets:
       # Imperatives that a "du" may follow: "Sei du still", "Lies du vor".
-      VERB_IMPERATIVES:
-        [
-          sei,
-          hab,
-          habe,
-          werd,
-          werde,
-          tu,
-          tue,
-          lauf,
-          laufe,
-          fahr,
-          fahre,
-          gib,
-          nimm,
-          sieh,
-          lies,
-          sprich,
-          hilf,
-          iss,
-          schlaf,
-          schlafe,
-          trag,
-          trage,
-          halt,
-          halte,
-          lass,
-          lasse,
-          geh,
-          gehe,
-          komm,
-          komme,
-          wisse,
-        ]
+      VERB_IMPERATIVES: >-
+        sei hab habe werd werde tu tue lauf laufe fahr fahre gib nimm sieh lies sprich hilf iss
+        schlaf schlafe trag trage halt halte lass lasse geh gehe komm komme wisse
       # "sie", "es" and "ihr" may also be objects ("Ihr habe ich …").
       VERB_OBJECT_TOO: [sie, es, ihr]
       VERB_SUBJECTS: [ich, du, er, sie, es, man, wir, ihr, Sie]
       # Words that open a sentence before its verb: "Was macht du?", "Dann sagt du es".
-      VERB_OPENERS:
-        [
-          was,
-          wie,
-          wo,
-          wann,
-          warum,
-          wieso,
-          weshalb,
-          wohin,
-          woher,
-          womit,
-          wozu,
-          worüber,
-          dann,
-          da,
-          jetzt,
-          nun,
-          so,
-          also,
-          heute,
-          morgen,
-          gestern,
-          damals,
-          danach,
-          trotzdem,
-          deshalb,
-        ]
+      VERB_OPENERS: >-
+        was wie wo wann warum wieso weshalb wohin woher womit wozu worüber dann da jetzt nun so also
+        heute morgen gestern damals danach trotzdem deshalb
       # Words that open a new clause or link two: the repeat may belong to it ("Es ist, wie es ist").
-      VERB_CLAUSE_LINKS:
-        [
-          und,
-          oder,
-          aber,
-          sondern,
-          denn,
-          sowie,
-          bzw,
-          wie,
-          was,
-          wer,
-          wo,
-          wann,
-          warum,
-          wieso,
-          weshalb,
-          dass,
-          ob,
-          weil,
-          wenn,
-          falls,
-          obwohl,
-          je,
-          desto,
-          umso,
-          der,
-          die,
-          das,
-          dem,
-          den,
-          denen,
-          dessen,
-          deren,
-          welche,
-          welcher,
-        ]
-      VERB_SUBORDINATORS:
-        [
-          dass,
-          ob,
-          weil,
-          wenn,
-          falls,
-          obwohl,
-          warum,
-          wieso,
-          weshalb,
-          wie,
-          was,
-          wer,
-          wo,
-          wann,
-          nachdem,
-          bevor,
-          sobald,
-        ]
+      VERB_CLAUSE_LINKS: >-
+        und oder aber sondern denn sowie bzw wie was wer wo wann warum wieso weshalb dass ob weil
+        wenn falls obwohl je desto umso der die das dem den denen dessen deren welche welcher
+      VERB_SUBORDINATORS: >-
+        dass ob weil wenn falls obwohl warum wieso weshalb wie was wer wo wann nachdem bevor sobald
       # Infinitives that follow their own finite form: "Sie werden Ärzte werden", "das kann sein".
-      VERB_SELF_GOVERNED:
-        [sein, haben, werden, können, müssen, wollen, sollen, dürfen, mögen, lassen, wissen]
-      VERB_LINKS:
-        [
-          und,
-          oder,
-          aber,
-          sondern,
-          denn,
-          sowie,
-          bzw,
-          wie,
-          was,
-          wer,
-          wo,
-          wann,
-          warum,
-          wieso,
-          weshalb,
-          dass,
-          ob,
-          weil,
-          wenn,
-          falls,
-          obwohl,
-          je,
-          desto,
-          umso,
-          nachdem,
-          bevor,
-          sobald,
-          damit,
-          als,
-        ]
+      VERB_SELF_GOVERNED: >-
+        sein haben werden können müssen wollen sollen dürfen mögen lassen wissen
+      VERB_LINKS: >-
+        und oder aber sondern denn sowie bzw wie was wer wo wann warum wieso weshalb dass ob weil
+        wenn falls obwohl je desto umso nachdem bevor sobald damit als
       VERB_NOT_BETWEEN: [ich, du, er, sie, es, wir, ihr, man, und, oder]
       # Bare stems that are no ich-form with its "-e" dropped often enough to doubt ("Seh ich auch
       # so", "Geb dir recht"), so they count as imperatives at a sentence start.
       VERB_BARE_ONLY: [sprech, les, ess, vergess, werf, brech, mess, stehl, fress, sterb]
       # Words that follow an imperative but no dropped "ich" form at once: "Les dir das durch".
-      VERB_AFTER_BARE:
-        [
-          dir,
-          mir,
-          dich,
-          mich,
-          uns,
-          euch,
-          doch,
-          bitte,
-          endlich,
-          weniger,
-          mehr,
-          lieber,
-          ruhig,
-          einfach,
-          schnell,
-          langsam,
-          leiser,
-          lauter,
-        ]
+      VERB_AFTER_BARE: >-
+        dir mir dich mich uns euch doch bitte endlich weniger mehr lieber ruhig einfach schnell
+        langsam leiser lauter
       # Words that open a sentence before an imperative: "Bitte gib …", "Dann bewirb dich".
       VERB_IMPERATIVE_OPENERS: [bitte, dann, nun, jetzt, also, und, einfach]
     maps:
@@ -8095,58 +6150,16 @@ rules:
     style: match
     message: review_msg_question_mark
     sets:
-      Q_W_WORDS:
-        [
-          wer,
-          wen,
-          wem,
-          wessen,
-          was,
-          wann,
-          wo,
-          wohin,
-          woher,
-          warum,
-          wieso,
-          weshalb,
-          weswegen,
-          wie,
-          welche,
-          welcher,
-          welchen,
-          welchem,
-          welches,
-          womit,
-          wofür,
-          woran,
-          worauf,
-          worüber,
-          wovon,
-          wozu,
-          inwiefern,
-        ]
+      Q_W_WORDS: >-
+        wer wen wem wessen was wann wo wohin woher warum wieso weshalb weswegen wie welche welcher
+        welchen welchem welches womit wofür woran worauf worüber wovon wozu inwiefern
       # A preposition before the w-word: "Ab wann", "Mit wem", "An welchem Tag".
       Q_W_PREPOSITIONS: [ab, bis, seit, mit, von, an, auf, für, in, aus, bei, nach, zu, um, über]
       # Words that may stand between the w-word and its verb: "Wie viel kostet das".
       Q_DEGREES: [viel, viele, lange, oft, spät, alt, groß, weit, hoch, teuer, schnell, sehr]
       # A sentence that is only a w-word and particles: "Warum eigentlich nicht."
-      Q_PARTICLES:
-        [
-          denn,
-          eigentlich,
-          nicht,
-          überhaupt,
-          endlich,
-          bloß,
-          nur,
-          schon,
-          noch,
-          genau,
-          dann,
-          jetzt,
-          nun,
-          so,
-        ]
+      Q_PARTICLES: >-
+        denn eigentlich nicht überhaupt endlich bloß nur schon noch genau dann jetzt nun so
       Q_OPENERS: [Und, Aber, Oder, Na, Also]
       # Particles of statements and exclamations: "Kann ich jedenfalls behaupten.", "Hat er doch".
       Q_STATEMENT: [doch, ja, jedenfalls, halt, eben, wohl]
@@ -8442,44 +6455,9 @@ rules:
     style: match
     message: review_msg_typographic_symbol
     sets:
-      CHEMICAL_ELEMENTS:
-        [
-          H,
-          He,
-          Li,
-          Be,
-          B,
-          C,
-          N,
-          O,
-          F,
-          Ne,
-          Na,
-          Mg,
-          Al,
-          Si,
-          P,
-          S,
-          Cl,
-          Ar,
-          K,
-          Ca,
-          Mn,
-          Fe,
-          Co,
-          Ni,
-          Cu,
-          Zn,
-          Br,
-          Ag,
-          Sn,
-          I,
-          Ba,
-          Pt,
-          Au,
-          Hg,
-          Pb,
-        ]
+      CHEMICAL_ELEMENTS: >-
+        H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Mn Fe Co Ni Cu Zn Br Ag Sn I Ba Pt Au Hg
+        Pb
       # One element with a count only as a gas.
       CHEMICAL_GASES: [H2, O2, N2, O3, Cl2, H², O², N², O³]
     maps:
@@ -8870,17 +6848,9 @@ rules:
           wohl temperiert,
         ]
       # The joined pairs the Duden writes apart ("tief betrübt").
-      APART_PAIRS:
-        [
-          tiefbetrübt,
-          tiefhängend,
-          hochkompliziert,
-          vielbeschäftigt,
-          nichtrostend,
-          freistehend,
-          rotlackiert,
-          neubekehrt,
-        ]
+      APART_PAIRS: >-
+        tiefbetrübt tiefhängend hochkompliziert vielbeschäftigt nichtrostend freistehend rotlackiert
+        neubekehrt
     defs:
       # The Greek "ph" and its German "f", in each casing.
       PH_SPELLINGS: >-
@@ -9096,20 +7066,8 @@ rules:
         must: [have]
     sets:
       # Written as one word, these are wrong too; "Plugin", "Popup", "Setup" and "Startup" are in use.
-      PHRASAL_JOINED_WRONG:
-        [
-          checkin,
-          checkout,
-          makeup,
-          standup,
-          drivein,
-          pushup,
-          comingout,
-          followup,
-          kickoff,
-          breakeven,
-          musthave,
-        ]
+      PHRASAL_JOINED_WRONG: >-
+        checkin checkout makeup standup drivein pushup comingout followup kickoff breakeven musthave
     frames:
       # A capital first part (a German noun), then the particle: apart, with a hyphen, or joined.
       - regex: "{{WG}}(?<target>(?<verb>[C]heck|[M]ake|[S]tand|[B]urn|[P]op|[A]dd|[P]lug|[L]og|[D]rive|[B]uy|[K]ick|[F]ollow|[P]ush|[C]oming|[R]oll|[S]et|[S]it|[W]arm|[C]ool|[S]tart|[T]ake|[P]ick|[W]alk|[K]nock|[T]each|[B]reak|[M]ust)(?<sep>[ \\t]+|-)?(?<particle>[iI]n|[oO]ut|[uU]p|[oO]n|[oO]ff|[dD]own|[eE]ven|[hH]ave)(?<plural>s)?)(?![\\p{L}\\p{N}-])(?![ \\t]+\\p{Lu})"
