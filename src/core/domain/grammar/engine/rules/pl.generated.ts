@@ -4,20 +4,70 @@ import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, MatchResult } from "../../library";
 import {
+  PL_FEMININE,
+  PL_MASCULINE,
+  PL_NEUTER,
   PL_VERB,
+  namedExampleBefore,
   plAdjectiveForm,
   plAdjectiveOf,
   plCaseLike,
+  plCases,
   plFindingAt,
   plFiniteVerb,
   plImperativeVerb,
   plImpersonalVerb,
   plListedVerb,
   plNounTags,
+  plOnlyNoun,
   plPastByShape,
+  plPlaceForm,
+  plSentenceStart,
   plUserOrNamed,
   tagsAnd,
+  tagsCases,
 } from "../../library";
+
+export const FORMS_NA_PLACES: Readonly<Record<string, string>> = {
+  węgier: "na Węgry",
+  białorusi: "na Białoruś",
+  syberii: "na Syberię",
+  moraw: "na Morawy",
+  antarktydy: "na Antarktydę",
+  kubę: "na Kubę",
+  kuby: "na Kubę",
+  malty: "na Maltę",
+  islandii: "na Islandię",
+  sycylii: "na Sycylię",
+  sardynii: "na Sardynię",
+  korsyki: "na Korsykę",
+  krymu: "na Krym",
+  kaszub: "na Kaszuby",
+  mazur: "na Mazury",
+  podhala: "na Podhale",
+  śląska: "na Śląsk",
+  wołoszczyzny: "na Wołoszczyznę",
+  filipin: "na Filipiny",
+  madagaskaru: "na Madagaskar",
+  hawaje: "na Hawaje",
+  hawajów: "na Hawaje",
+};
+
+export const SILENT_SHORT: Readonly<Record<string, string>> = {
+  ego: "go",
+  go: "go",
+  emu: "mu",
+  mu: "mu",
+  em: "m",
+  m: "m",
+};
+
+// pl.yaml def PREPOSITIONS
+export const PREPOSITIONS =
+  "w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed";
+
+// pl.yaml def PREPOSITION_WORDS
+export const PREPOSITION_WORDS = new Set(PREPOSITIONS.split("|"));
 
 // pl.yaml rule pl.prepositionForms def PREPOSITION_LONG
 export const PREPOSITION_LONG = {
@@ -88,6 +138,139 @@ export function preferredShort(p: string, next: string, word: string, pronoun: b
       ? null
       : short;
 }
+
+// pl.yaml rule pl.wordForms def silentEnding
+export function silentEnding(name: string, end: string): string | undefined {
+  return /[^aeiouy]ie$/u.test(name)
+    ? SILENT_SHORT[end]
+      ? name + SILENT_SHORT[end]
+      : ""
+    : /[^aeiouy]e$/u.test(name)
+      ? end === "m"
+        ? /ke$/u.test(name)
+          ? ""
+          : name + "'em"
+        : end === "ie" && /[nvmbpf]e$/u.test(name)
+          ? name.slice(0, -1) + "ie"
+          : ""
+      : /e$/u.test(name)
+        ? ""
+        : /[^aeiouy]y$/u.test(name) && end === "m"
+          ? name + "m"
+          : undefined;
+}
+
+// pl.yaml rule pl.quotes def quotePair
+export function quotePair(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  open: string,
+  close: string,
+  fixOpen: boolean,
+  marks: number,
+) {
+  const end = m.index + m[0].length;
+  const closeFinding = plFindingAt(
+    ctx,
+    end - marks,
+    end,
+    [close],
+    "polishQuotes",
+    "review_msg_pl_typography",
+  );
+  return fixOpen
+    ? [
+        plFindingAt(
+          ctx,
+          m.index,
+          m.index + marks,
+          [open],
+          "polishQuotes",
+          "review_msg_pl_typography",
+        ),
+        closeFinding,
+      ]
+    : [closeFinding];
+}
+
+// pl.yaml rule pl.typography def typographySwap
+export function typographySwap(m: RegExpExecArray, ctx: DetectContext, fixed: string | null) {
+  if (!(fixed !== null && fixed !== m[0])) return null;
+  return plFindingAt(
+    ctx,
+    m.index,
+    m.index + m[0].length,
+    [fixed],
+    "polishTypography",
+    "review_msg_pl_typography",
+  );
+}
+
+// pl.yaml rule pl.rangeDashes def RANGE_ID_BEFORE
+export const RANGE_ID_BEFORE =
+  /(?<![\p{L}])(?:nr|tel|fax|faks|nip|pesel|regon|krs|isbn|issn|sygn|kod|kodu|kodem)\.?[  ]*$/iu;
+
+// pl.yaml rule pl.rangeDashes def RANGE_SCORE_BEFORE
+export const RANGE_SCORE_BEFORE =
+  /(?<![\p{L}])(?:wynik|wygra|przegra|remis|mecz|pokona|zwycięż|zakończ|prowadz|set|bramk|gol|punkt|spotkani|starci)\p{L}*(?:[  ]+\p{L}+){0,4}[  ]+$/iu;
+
+// pl.yaml rule pl.rangeDashes def RANGE_SCORE_AFTER
+export const RANGE_SCORE_AFTER = /^[  ]+(?:dla|po)(?![\p{L}])/u;
+
+// pl.yaml rule pl.commaFrames def COMMA_ASIDE_PHRASE
+export const COMMA_ASIDE_PHRASE =
+  /^(?:po (?:pierwsze|drugie|trzecie|czwarte|piąte|ostatnie|prostu|kolei|czym|co)|z (?:jednej|drugiej|innej|mojej|twojej|naszej) strony|w (?:końcu|ogóle|sumie|skrócie|zasadzie|rezultacie|efekcie|praktyce|rzeczywistości|istocie|gruncie rzeczy|każdym razie|przeciwnym razie|takim razie|tym razie|tym przypadku|tym wypadku|związku z tym|dodatku|zamian|zamian za to|ten sposób|szczególności|przeciwieństwie|porównaniu|skrócie|razie czego|razie potrzeby|razie wątpliwości|międzyczasie|tym czasie)|na (?:szczęście|nieszczęście|koniec|początek|przykład|razie|pewno|marginesie|wstępie|zakończenie|dodatek|ogół|odwrót|wszelki wypadek|domiar złego|przyszłość|tym etapie|wszelki)|przede wszystkim|mimo (?:to|wszystko)|pomimo to|bez (?:wątpienia|względu|dwóch zdań)|dla (?:przykładu|porządku|jasności|ścisłości)|ponad (?:to|wszystko)|poza tym|z (?:tego|tej) (?:powodu|przyczyny)|od (?:razu|tego czasu|teraz|dziś|jutra)|do (?:tego|rzeczy)|przy (?:tym|okazji)|za (?:to|chwilę|moment)|o (?:dziwo|ile))$/u;
+
+// pl.yaml rule pl.commaFrames def COMMA_OPENS_CLAUSE
+export const COMMA_OPENS_CLAUSE =
+  /^(?:gdy|kiedy|jak|jeśli|jeżeli|że|iż|żeby|aby|by|bo|gdzie|dokąd|skąd|co|kto|czy|choć|chociaż|zanim|odkąd|dopóki|póki|skoro|ponieważ|gdyż|zwłaszcza|szczególnie|czyli|oraz|i|a|ale|lecz|albo|lub|bądź|ani|natomiast|jednak|więc|zatem|tj|np|tzn|około|mniej|więcej|między|jako|niż|tak|to|któr\p{L}*|jak\p{L}*|czyj\p{L}*)$/u;
+
+// pl.yaml rule pl.capitals def capitalWords
+export function capitalWords(word: string) {
+  return word
+    .split(/(?<=[ \t -])/u)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join("");
+}
+
+// pl.yaml rule pl.capitals def HOLIDAY_BEFORE
+export const HOLIDAY_BEFORE =
+  /(?:Wielk\p{Ll}+|Tłust\p{Ll}+|Biał\p{Ll}+|Czarn\p{Ll}+|Zielon\p{Ll}+)[ \t ]+$/u;
+
+// pl.yaml rule pl.capitals def HOLIDAY_AFTER
+export const HOLIDAY_AFTER =
+  /^[ \t ]+(?:Palmow|Wielkanocn|Popielcow|Miłosierdzi|Zesłani|Bożego|Zielon|Świąt)/u;
+
+// pl.yaml rule pl.capitals def DAY_CONTEXT
+export const DAY_CONTEXT =
+  /(?:\p{N}\.?|(?<![\p{L}])(?:w|we|co|od|do|na|przez|po|przed|z|ze|około|każd\p{Ll}*|ten|tę|ta|tej|zeszł\p{Ll}*|przyszł\p{Ll}*|następn\p{Ll}*|ostatni\p{Ll}*|najbliższ\p{Ll}*|początku|końcu|połowie))[ \t ]+$/u;
+
+// pl.yaml rule pl.capitals def CASING_AGREEING
+export const CASING_AGREEING = [
+  [/owi$/u, /(?:i|y)?emu$/u],
+  [/u$/u, /(?:i|y)?(?:ego|emu)$|(?:i|y)m$/u],
+  [/(?:em|ie)$/u, /(?:i|y)m$/u],
+  [/(?:e|o)$/u, /i?e$/u],
+  [/a$/u, /(?:i|y)?ego$/u],
+  [/(?:[^aeiouyąęó])$/u, /(?:i|y)$/u],
+] as readonly (readonly [RegExp, RegExp])[];
+
+// pl.yaml rule pl.capitals def casingAgrees
+export function casingAgrees(noun: string, adjective: string) {
+  const n = noun.toLowerCase();
+  const a = adjective.toLowerCase().split("-").at(-1)!;
+  const row = CASING_AGREEING.find(([ending]) => ending.test(n));
+  return !!row && row[1].test(a);
+}
+
+// pl.yaml rule pl.capitals def FEMININE_AGREEING
+export const FEMININE_AGREEING = [
+  [/a$/u, /a$/u],
+  [/o$/u, /a$/u],
+  [/[iy]$/u, /ej$/u],
+  [/e$/u, /ej$/u],
+  [/[ęą]$/u, /ą$/u],
+] as readonly (readonly [RegExp, RegExp])[];
 
 // pl.yaml rule pl.conjunctions def CONJUNCTION_ENDINGS
 export const CONJUNCTION_ENDINGS = [
@@ -176,6 +359,596 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "polishPrepositionForms",
       "review_msg_pl_preposition_form",
     );
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 1
+  "@pl.wordFormsFrames/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const place = m.groups!.place;
+    return FORMS_NA_PLACES[place.toLowerCase()];
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 2
+  "@pl.wordFormsFrames/2": (m: RegExpExecArray): string | readonly string[] | null => {
+    const stem = m.groups!.stem;
+    const end = m.groups!.end;
+    return stem + (end.toLowerCase() === "im" ? "ie" : "e");
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 3
+  "@pl.wordFormsFrames/3": (m: RegExpExecArray): string | readonly string[] | null => {
+    const stem = m.groups!.stem;
+    const end = m.groups!.end;
+    return stem + (end.toLowerCase() === "im" ? "ie" : "e");
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 4
+  "@pl.wordFormsFrames/4": (m: RegExpExecArray): string | readonly string[] | null => {
+    const abbr = m.groups!.abbr;
+    return abbr;
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 5
+  "@pl.wordFormsFrames/5": (m: RegExpExecArray): string | readonly string[] | null => {
+    const abbr = m.groups!.abbr;
+    return abbr;
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 6
+  "@pl.wordFormsFrames/6": (m: RegExpExecArray): string | readonly string[] | null => {
+    const abbr = m.groups!.abbr;
+    return abbr;
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 7
+  "@pl.wordFormsFrames/7": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target + ".";
+  },
+  // pl.yaml rule pl.wordFormsFrames frame 9
+  "@pl.wordFormsFrames/9": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target + ".";
+  },
+  // pl.yaml rule pl.wordForms frame 1
+  "@pl.wordForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = m.groups!.name;
+    const end = m.groups!.end;
+    const silent = silentEnding(name, end);
+    if (
+      !(silent !== undefined
+        ? !!silent && !plUserOrNamed(ctx, name)
+        : !/(?:ques|les|ges|ois|eux|aux|oix|ault|eau|[^aeiouy]y)$/u.test(name) &&
+          !(/^(?:i|im|ie|iem)$/u.test(end) && /y$/u.test(name)) &&
+          !plUserOrNamed(ctx, name))
+    )
+      return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [silent || name + end],
+      "englishPhraseCorrections",
+      "review_msg_pl_inflected_name",
+    );
+  },
+  // pl.yaml rule pl.wordForms frame 2
+  "@pl.wordForms/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const name = m.groups!.name;
+    const mark = m.groups!.mark;
+    const end = m.groups!.end;
+    if (!mark && name.length < 3) return null;
+    if (mark && /^(?:ie|y)$/u.test(end)) return null;
+    if (/^(?:PL|EU|USA|UK|OK)$/u.test(name) && !mark) return null;
+    if (ctx.dictionary.has(m[0].toLowerCase())) return null;
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [name + "-" + end],
+      "englishPhraseCorrections",
+      "review_msg_pl_inflected_name",
+    );
+  },
+  // pl.yaml rule pl.quotes frame 1
+  "@pl.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "„", "”", true, 1);
+  },
+  // pl.yaml rule pl.quotes frame 2
+  "@pl.quotes/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "„", "”", true, 1);
+  },
+  // pl.yaml rule pl.quotes frame 3
+  "@pl.quotes/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "„", "”", false, 1);
+  },
+  // pl.yaml rule pl.quotes frame 4
+  "@pl.quotes/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "„", "”", true, 1);
+  },
+  // pl.yaml rule pl.quotes frame 5
+  "@pl.quotes/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return quotePair(m, ctx, "»", "«", true, 2);
+  },
+  // pl.yaml rule pl.typography frame 1
+  "@pl.typography/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const open = m.groups!.open;
+    const close = m.groups!.close;
+    if (!(open !== close)) return null;
+    const spaced = m[0].slice(1, -1);
+    return plFindingAt(
+      ctx,
+      m.index,
+      m.index + m[0].length,
+      [open + spaced + open, close + spaced + close],
+      "polishTypography",
+      "review_msg_pl_typography",
+    );
+  },
+  // pl.yaml rule pl.typography frame 2
+  "@pl.typography/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, m[0] === " = " ? null : " = ");
+  },
+  // pl.yaml rule pl.typography frame 3
+  "@pl.typography/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} × ${m[2]}`);
+  },
+  // pl.yaml rule pl.typography frame 4
+  "@pl.typography/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "%");
+  },
+  // pl.yaml rule pl.typography frame 5
+  "@pl.typography/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]},${m[2]}`);
+  },
+  // pl.yaml rule pl.typography frame 6
+  "@pl.typography/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "©");
+  },
+  // pl.yaml rule pl.typography frame 7
+  "@pl.typography/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "®");
+  },
+  // pl.yaml rule pl.typography frame 8
+  "@pl.typography/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "™");
+  },
+  // pl.yaml rule pl.typography frame 9
+  "@pl.typography/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, m[0].replace(/[–—]/, "-"));
+  },
+  // pl.yaml rule pl.typography frame 10
+  "@pl.typography/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} ${m[2]} ${m[3]}`);
+  },
+  // pl.yaml rule pl.typography frame 11
+  "@pl.typography/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} do ${m[2]}`);
+  },
+  // pl.yaml rule pl.typography frame 12
+  "@pl.typography/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "; ");
+  },
+  // pl.yaml rule pl.typography frame 13
+  "@pl.typography/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, ") ");
+  },
+  // pl.yaml rule pl.typography frame 14
+  "@pl.typography/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, ";");
+  },
+  // pl.yaml rule pl.typography frame 15
+  "@pl.typography/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, " „");
+  },
+  // pl.yaml rule pl.typography frame 16
+  "@pl.typography/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "…");
+  },
+  // pl.yaml rule pl.typography frame 17
+  "@pl.typography/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} g`);
+  },
+  // pl.yaml rule pl.typography frame 18
+  "@pl.typography/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]} r.`);
+  },
+  // pl.yaml rule pl.typography frame 19
+  "@pl.typography/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[1]},${m[2]}`);
+  },
+  // pl.yaml rule pl.typography frame 20
+  "@pl.typography/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "-");
+  },
+  // pl.yaml rule pl.typography frame 21
+  "@pl.typography/21": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, m[1]);
+  },
+  // pl.yaml rule pl.typography frame 22
+  "@pl.typography/22": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, ` ${m[0]}`);
+  },
+  // pl.yaml rule pl.typography frame 23
+  "@pl.typography/23": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, `${m[0]} `);
+  },
+  // pl.yaml rule pl.typography frame 24
+  "@pl.typography/24": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, "");
+  },
+  // pl.yaml rule pl.typography frame 25
+  "@pl.typography/25": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "m.in."));
+  },
+  // pl.yaml rule pl.typography frame 26
+  "@pl.typography/26": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "z o.o."));
+  },
+  // pl.yaml rule pl.typography frame 27
+  "@pl.typography/27": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."));
+  },
+  // pl.yaml rule pl.typography frame 28
+  "@pl.typography/28": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."));
+  },
+  // pl.yaml rule pl.typography frame 29
+  "@pl.typography/29": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "n.e."));
+  },
+  // pl.yaml rule pl.typography frame 30
+  "@pl.typography/30": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "dz. cyt."));
+  },
+  // pl.yaml rule pl.typography frame 31
+  "@pl.typography/31": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "op. cit."));
+  },
+  // pl.yaml rule pl.typography frame 32
+  "@pl.typography/32": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "m.in."));
+  },
+  // pl.yaml rule pl.typography frame 33
+  "@pl.typography/33": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "m.in."));
+  },
+  // pl.yaml rule pl.typography frame 34
+  "@pl.typography/34": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "ds."));
+  },
+  // pl.yaml rule pl.typography frame 35
+  "@pl.typography/35": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return typographySwap(m, ctx, plCaseLike(m[0], "p.n.e."));
+  },
+  // pl.yaml rule pl.rangeDashes frame 1
+  "@pl.rangeDashes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (m.index < ctx.from || namedExampleBefore(ctx.text, m.index)) return null;
+    const a = m[1];
+    const dash = m[2];
+    const b = m[3];
+    if (a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4)) return null;
+    if (a.length === 2 && b.length === 3) return null;
+    if (!((a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)) > Number(a)))
+      return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 12);
+    if (
+      RANGE_ID_BEFORE.test(before) ||
+      RANGE_SCORE_BEFORE.test(before) ||
+      RANGE_SCORE_AFTER.test(after)
+    )
+      return null;
+    return {
+      ruleId: "emdashShortcut",
+      messageKey: "review_msg_range_dash",
+      range: { start: m.index + a.length, end: m.index + a.length + dash.length },
+      alternatives: ["–"],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // pl.yaml rule pl.commaFrames frame 1
+  "@pl.commaFrames/1": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 2
+  "@pl.commaFrames/2": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 3
+  "@pl.commaFrames/3": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 4
+  "@pl.commaFrames/4": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim();
+  },
+  // pl.yaml rule pl.commaFrames frame 5
+  "@pl.commaFrames/5": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 6
+  "@pl.commaFrames/6": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim();
+  },
+  // pl.yaml rule pl.commaFrames frame 7
+  "@pl.commaFrames/7": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim();
+  },
+  // pl.yaml rule pl.commaFrames frame 8
+  "@pl.commaFrames/8": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim().replace(/\s+/gu, " ") + ", ";
+  },
+  // pl.yaml rule pl.commaFrames frame 9
+  "@pl.commaFrames/9": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    if (plFiniteVerb(target) || /^(?:tylko|ma|mam|mamy|chodzi|wiem|ten|to|ta|się)$/u.test(target))
+      return null;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 10
+  "@pl.commaFrames/10": (m: RegExpExecArray, ctx: DetectContext): string | null => {
+    const target = m.groups!.target;
+    if (
+      /^(?:czy|i|a|albo|lub|ani|oraz|nie|że|to|tak(?:i|a|ie|iego|iej|iemu|ą|im|ich|imi))$/u.test(
+        target,
+      )
+    )
+      return null;
+    const sentence = ctx.text
+      .slice(Math.max(0, m.index - 60), m.index)
+      .split(/[.!?;:,\n]/u)
+      .at(-1)!;
+    if (/(?:^|[^\p{L}])(?:po)?między(?![\p{L}])/iu.test(sentence)) return null;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 11
+  "@pl.commaFrames/11": (m: RegExpExecArray): string | null => {
+    const phrase = m.groups!.phrase;
+    const noun = m.groups!.noun;
+    const rest = m.groups!.rest;
+    const lower = phrase.toLowerCase().replace(/\s+/gu, " ");
+    if (COMMA_ASIDE_PHRASE.test(lower)) return null;
+    if (!(plOnlyNoun(plNounTags(noun.toLowerCase()), true) || /^\p{Lu}\p{Ll}+$/u.test(noun)))
+      return null;
+    const words = rest.toLowerCase().match(/\p{L}+/gu) ?? [];
+    const first = words[0] ?? "";
+    if (COMMA_OPENS_CLAUSE.test(first) || /ąc$/u.test(first)) return null;
+    if (PREPOSITION_WORDS.has(first)) return null;
+    const verb = words.findIndex((word) => plFiniteVerb(word));
+    if (
+      tagsAnd(tagsCases(plNounTags(noun.toLowerCase())), tagsCases(plNounTags(first))) &&
+      words
+        .slice(1, verb < 0 ? undefined : verb)
+        .some((word) => /^(?:i|oraz|lub|albo|ani)$/u.test(word))
+    )
+      return null;
+    return words.some((word) => plFiniteVerb(word) || plImpersonalVerb(word) || /ć$/u.test(word))
+      ? ""
+      : null;
+  },
+  // pl.yaml rule pl.commaFrames frame 12
+  "@pl.commaFrames/12": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 13
+  "@pl.commaFrames/13": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return ", " + target.trim();
+  },
+  // pl.yaml rule pl.commaFrames frame 14
+  "@pl.commaFrames/14": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 15
+  "@pl.commaFrames/15": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 16
+  "@pl.commaFrames/16": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 17
+  "@pl.commaFrames/17": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 18
+  "@pl.commaFrames/18": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 19
+  "@pl.commaFrames/19": (m: RegExpExecArray): string | null => {
+    const det = m.groups!.det;
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    const aside = m.groups!.aside;
+    const tags = plNounTags(noun.toLowerCase());
+    if (!(plOnlyNoun(tags) && tagsAnd(tags, plCases("Ns")) !== 0)) return null;
+    if (!det && tagsAnd(tags, plCases("Vs"))) return null;
+    if (
+      !(
+        [PL_MASCULINE, PL_FEMININE, PL_NEUTER].filter((gender) => tagsAnd(tags, gender)).length ===
+        1
+      )
+    )
+      return null;
+    if (
+      aside &&
+      /^(?:powiedzia|mówi|twierdz|doda|zauważy|podkreśli|stwierdzi|zaznaczy|napisa|wyjaśni|przyzna|uważa|sądz|odpowiedzia|zapewni)/u.test(
+        verb,
+      )
+    )
+      return null;
+    return verb === "to" || plFiniteVerb(verb) ? "" : null;
+  },
+  // pl.yaml rule pl.commaFrames frame 20
+  "@pl.commaFrames/20": (m: RegExpExecArray, ctx: DetectContext): string | null => {
+    const left = m.groups!.left;
+    const conj = m.groups!.conj;
+    const right = m.groups!.right;
+    const sentence = ctx.text
+      .slice(Math.max(0, m.index - 120), m.index)
+      .split(/[.!?;:\n]/u)
+      .at(-1)!;
+    if (new RegExp(`(?<![\\p{L}])${conj}(?![\\p{L}])`, "iu").test(sentence)) return null;
+    const a = plNounTags(left);
+    const b = plNounTags(right);
+    return plOnlyNoun(a) && plOnlyNoun(b) && tagsAnd(tagsCases(a), tagsCases(b))
+      ? ""
+      : conj === "ani" || conj === "ni" || !plFiniteVerb(right) || sentence.includes(",")
+        ? null
+        : (sentence.match(/\p{L}+/gu) ?? []).some((word) => plFiniteVerb(word.toLowerCase()))
+          ? ""
+          : null;
+  },
+  // pl.yaml rule pl.commaFrames frame 21
+  "@pl.commaFrames/21": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return target + ",";
+  },
+  // pl.yaml rule pl.commaFrames frame 22
+  "@pl.commaFrames/22": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 23
+  "@pl.commaFrames/23": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 24
+  "@pl.commaFrames/24": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 25
+  "@pl.commaFrames/25": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 26
+  "@pl.commaFrames/26": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 27
+  "@pl.commaFrames/27": (): string | null => {
+    return "";
+  },
+  // pl.yaml rule pl.commaFrames frame 28
+  "@pl.commaFrames/28": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return "," + target;
+  },
+  // pl.yaml rule pl.commaFrames frame 29
+  "@pl.commaFrames/29": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    return "," + target;
+  },
+  // pl.yaml rule pl.commaFrames frame 30
+  "@pl.commaFrames/30": (m: RegExpExecArray): string | null => {
+    const target = m.groups!.target;
+    const after = m.groups!.after;
+    return "," + target + (after === "," ? "" : ",");
+  },
+  // pl.yaml rule pl.commaFrames frame 31
+  "@pl.commaFrames/31": (m: RegExpExecArray): string | null => {
+    const verb = m.groups!.verb;
+    const target = m.groups!.target;
+    return /ć$/u.test(verb) || plFiniteVerb(verb) ? "," + target : null;
+  },
+  // pl.yaml rule pl.commaFrames frame 32
+  "@pl.commaFrames/32": (): string | null => {
+    return "to,";
+  },
+  // pl.yaml rule pl.capitals frame 1
+  "@pl.capitals/1": (m: RegExpExecArray, ctx: DetectContext): string | null => {
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    const after = ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 24);
+    if (
+      plSentenceStart(ctx.text, m.index) ||
+      HOLIDAY_BEFORE.test(before) ||
+      HOLIDAY_AFTER.test(after)
+    )
+      return null;
+    if (/^[ \t ]*[:–—-]/u.test(after) || /(?:^|\n)[ \t ]*[-•*]?[ \t ]*$/u.test(before)) return null;
+    if (!DAY_CONTEXT.test(before)) return null;
+    if (
+      !/^(?:Poniedział|Wtor|Środ|Czwart|Piąt|Sobot|Niedziel|Stycz|Lut[yemu]|Marc|Marz[ec]|Kwietni|Kwiecień|Czerw|Lip(?:iec|ca|cu|cem)|Sierp|Wrze[sś]|Październik|Listopad|Grud)/u.test(
+        m[0],
+      )
+    )
+      return null;
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 2
+  "@pl.capitals/2": (m: RegExpExecArray): string | null => {
+    return capitalWords(m[0]);
+  },
+  // pl.yaml rule pl.capitals frame 3
+  "@pl.capitals/3": (m: RegExpExecArray): string | null => {
+    const noun = m.groups!.noun;
+    const adj = m.groups!.adj;
+    return casingAgrees(noun, adj) ? capitalWords(m[0]) : null;
+  },
+  // pl.yaml rule pl.capitals frame 4
+  "@pl.capitals/4": (m: RegExpExecArray): string | null => {
+    const words = m[0].split(/[ \t ]+/u);
+    const ending = FEMININE_AGREEING.find(([nounEnd]) => nounEnd.test(words[0]))?.[1];
+    return /^(?:Sri|Now|now|Wielk)/u.test(words[0]) || ending?.test(words[1])
+      ? capitalWords(m[0])
+      : null;
+  },
+  // pl.yaml rule pl.capitals frame 5
+  "@pl.capitals/5": (m: RegExpExecArray): string | null => {
+    return capitalWords(m[0]);
+  },
+  // pl.yaml rule pl.capitals frame 6
+  "@pl.capitals/6": (m: RegExpExecArray): string | null => {
+    return capitalWords(m[0]);
+  },
+  // pl.yaml rule pl.capitals frame 7
+  "@pl.capitals/7": (m: RegExpExecArray): string | null => {
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 8
+  "@pl.capitals/8": (m: RegExpExecArray): string | null => {
+    const noun = m.groups!.noun;
+    return casingAgrees(noun, m[0]) ? m[0].toLowerCase() : null;
+  },
+  // pl.yaml rule pl.capitals frame 9
+  "@pl.capitals/9": (m: RegExpExecArray): string | null => {
+    return m[0]
+      .toLowerCase()
+      .replace(/^hertz/, "herc")
+      .replace(/^ohm/, "om")
+      .replace(/^watt/, "wat")
+      .replace(/^volt/, "wolt");
+  },
+  // pl.yaml rule pl.capitals frame 10
+  "@pl.capitals/10": (m: RegExpExecArray): string | null => {
+    return m[0].replace(/[„"”]/gu, "").replace("Ty", "ty");
+  },
+  // pl.yaml rule pl.capitals frame 11
+  "@pl.capitals/11": (): string | null => {
+    return "ci";
+  },
+  // pl.yaml rule pl.capitals frame 12
+  "@pl.capitals/12": (m: RegExpExecArray): string | null => {
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 13
+  "@pl.capitals/13": (m: RegExpExecArray): string | null => {
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 14
+  "@pl.capitals/14": (m: RegExpExecArray): string | null => {
+    return capitalWords(m[0]);
+  },
+  // pl.yaml rule pl.capitals frame 15
+  "@pl.capitals/15": (m: RegExpExecArray): string | null => {
+    return m[0].toLowerCase();
+  },
+  // pl.yaml rule pl.capitals frame 16
+  "@pl.capitals/16": (m: RegExpExecArray): string | null => {
+    return plPlaceForm(m[0]) ? capitalWords(m[0]) : null;
   },
   // pl.yaml rule pl.conjunctions frame 1
   "@pl.conjunctions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

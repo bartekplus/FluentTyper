@@ -20895,49 +20895,49 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hawaje",
       "hawajów",
     ],
-    fixer: "pl:formsDo",
+    fixer: "pl:@pl.wordFormsFrames/1",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|tym|każdym|jednym|nim|kim|czym)[ \\t\\u00a0]{1,8})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=(?:[ \\t\\u00a0]{1,8}(?:również|także|też|zawsze|zatem|więc))?[ \\t\\u00a0]{1,8}(?:jest|było|byłoby|będzie)(?:[ \\t\\u00a0]{1,8}to)?[ \\t\\u00a0]*,?[ \\t\\u00a0]*(?:że|aby|żeby|by|iż|gdy|jeśli)(?![\\p{L}]))",
     literals: [],
-    fixer: "pl:formsStem",
+    fixer: "pl:@pl.wordFormsFrames/2",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?=\\p{L})(?<=(?:jest|było|byłoby|będzie)[ \\t\\u00a0]{1,8})(?<target>(?<stem>\\p{L}{3,}?)(?<end>ym|im))(?=[ \\t\\u00a0]*,[ \\t\\u00a0]*(?:aby|żeby|by|że|iż)(?![\\p{L}]))",
     literals: [],
-    fixer: "pl:formsStem2",
+    fixer: "pl:@pl.wordFormsFrames/3",
     message: "review_msg_contextual_grammar",
   }),
   frame({
     pattern:
       "(?<!(?:^|[^\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8})(?<target>(?<abbr>nr|mln|mld|ha|kg|km|cm|mm)\\.)(?=[ \\t\\u00a0]+(?:\\p{L}|\\d))",
     literals: [],
-    fixer: "pl:formsAbbr",
+    fixer: "pl:@pl.wordFormsFrames/4",
     verbatim: true,
   }),
   frame({
     pattern:
       "(?<=\\p{N}[ \\t\\u00a0]{1,8})(?<target>(?<abbr>m|g|mg|ml|dag)\\.)(?=[ \\t\\u00a0]+\\p{L})",
     literals: [],
-    fixer: "pl:formsAbbr2",
+    fixer: "pl:@pl.wordFormsFrames/5",
     verbatim: true,
   }),
   frame({
     pattern:
       "(?<target>(?<abbr>dr|mgr|dyr)\\.)(?=[ \\t\\u00a0]{1,8}(?:hab\\.[ \\t\\u00a0]{1,8})?(?:\\p{L}{2,}[ \\t\\u00a0]{1,8})?\\p{L}+(?:ski|cki|dzki|ska|cka|dzka)(?![\\p{L}]))",
     literals: [],
-    fixer: "pl:formsAbbr3",
+    fixer: "pl:@pl.wordFormsFrames/6",
     verbatim: true,
   }),
   frame({
     pattern:
       "(?<target>dr|mgr|dyr)(?=[ \\t\\u00a0]{1,8}(?:\\p{L}{2,}[ \\t\\u00a0]{1,8})?\\p{L}+(?:skiego|ckiego|dzkiego|skiemu|ckiemu|dzkiemu|skim|ckim|dzkim|owi)(?![\\p{L}]))",
     literals: [],
-    fixer: "pl:formsDr",
+    fixer: "pl:@pl.wordFormsFrames/7",
     verbatim: true,
   }),
   frame({
@@ -20951,7 +20951,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>np|tzw|itd|itp|m\\.in|p\\.n\\.e|n\\.e|proc|godz)(?![\\p{L}\\p{N}.])(?=[ \\t\\u00a0,;:)?!]|$)",
     literals: [],
-    fixer: "pl:formsNp",
+    fixer: "pl:@pl.wordFormsFrames/9",
     verbatim: true,
   }),
   frame({
@@ -20964,7 +20964,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}'\\u2019-])(?<name>\\p{Lu}\\p{Ll}+)(?<mark>['\\u2019])(?<end>a|u|owi|em|iem|ie|om|\\u00F3w|ach|ami|y|i|ego|emu|go|mu|m|im|ym)(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pl:inflectedNames",
+    fixer: "pl:@pl.wordForms/1",
     flags: "gu",
     scan: "polish",
   }),
@@ -20972,7 +20972,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}'\\u2019-])(?<name>\\p{Lu}{2,}|\\p{Lu}\\p{Ll}?\\p{Lu}+)(?<mark>['\\u2019])?(?<end>a|u|owi|em|ie|om|\\u00F3w|ach|ami|y|ach)(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pl:acronymEndings",
+    fixer: "pl:@pl.wordForms/2",
     flags: "gu",
     scan: "polish",
   }),
@@ -21312,7 +21312,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?<![\\p{L}\\p{N}"])"(?=[\\p{L}\\p{N}])([^"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])"(?![\\p{L}\\p{N}])',
     literals: [],
-    fixer: "pl:straightQuotes",
+    fixer: "pl:@pl.quotes/1",
     flags: "gu",
     scan: "polish",
   }),
@@ -21320,7 +21320,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '\\u201C(?=[\\p{L}\\p{N}])([^\\u201C\\u201D"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\\u201D',
     literals: [],
-    fixer: "pl:englishQuotes",
+    fixer: "pl:@pl.quotes/2",
     flags: "gu",
     scan: "polish",
   }),
@@ -21328,7 +21328,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '\\u201E(?=[\\p{L}\\p{N}])([^\\u201E\\u201C\\u201D"\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\\u201C',
     literals: [],
-    fixer: "pl:germanClose",
+    fixer: "pl:@pl.quotes/3",
     flags: "gu",
     scan: "polish",
   }),
@@ -21336,14 +21336,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "\\u201A(?=[\\p{L}\\p{N}])([^\\u201A\\u2018\\u2019\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])\\u2019",
     literals: [],
-    fixer: "pl:singleLowQuotes",
+    fixer: "pl:@pl.quotes/4",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<!<)>>(?=[\\p{L}\\p{N}])([^<>\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])<<(?!<)",
     literals: [],
-    fixer: "pl:angleQuotes",
+    fixer: "pl:@pl.quotes/5",
     flags: "gu",
     scan: "polish",
   }),
@@ -21351,14 +21351,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=[ \\t\\u00a0])(?<open>[—–])[ \\t\\u00a0](?<inner>[^—–.!?\\n]{1,80}?)[ \\t\\u00a0](?<close>[—–])(?=[ \\t\\u00a0])",
     literals: [],
-    fixer: "pl:dashPair",
+    fixer: "pl:@pl.typography/1",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\p{N})[ \\t]*=[ \\t]*(?=\\p{N})",
     literals: [],
-    fixer: "pl:equalsSpaced",
+    fixer: "pl:@pl.typography/2",
     flags: "gu",
     scan: "polish",
   }),
@@ -21366,14 +21366,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?!0x)(\\p{N}{1,5})(?:[ \\t]?x[ \\t]?|X)(\\p{N}{1,5})(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pl:timesSign",
+    fixer: "pl:@pl.typography/3",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\p{N})[ \\u00a0]%",
     literals: [],
-    fixer: "pl:percentClose",
+    fixer: "pl:@pl.typography/4",
     flags: "gu",
     scan: "polish",
   }),
@@ -21381,28 +21381,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(\\p{N}{1,6})\\.(\\p{N}{1,2})(?=[ \\u00a0]?(?:z\\u0142|z\\u0142otych|gr|%|proc\\.|kg|km|cm|mm|ml)(?![\\p{L}]))",
     literals: [],
-    fixer: "pl:decimalComma",
+    fixer: "pl:@pl.typography/5",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "\\(C\\)(?=[ \\u00a0]+(?:\\p{N}|\\p{Lu}))",
     literals: [],
-    fixer: "pl:copyrightSign",
+    fixer: "pl:@pl.typography/6",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\p{L})\\(R\\)",
     literals: [],
-    fixer: "pl:registeredSign",
+    fixer: "pl:@pl.typography/7",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\p{L}[ \\u00a0]?)\\(TM\\)",
     literals: [],
-    fixer: "pl:trademarkSign",
+    fixer: "pl:@pl.typography/8",
     flags: "gu",
     scan: "polish",
   }),
@@ -21410,14 +21410,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}\\u2013\\u2014-])\\p{N}{2}[\\u2013\\u2014]\\p{N}{3}(?=[ \\u00a0]+\\p{Lu}\\p{Ll})",
     literals: [],
-    fixer: "pl:postalHyphen",
+    fixer: "pl:@pl.typography/9",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{N}.])(\\p{N}{1,2})[.-]([IVX]{1,4})[.-](\\p{N}{4})(?![\\p{N}])",
     literals: [],
-    fixer: "pl:romanDate",
+    fixer: "pl:@pl.typography/10",
     flags: "gu",
     scan: "polish",
   }),
@@ -21425,56 +21425,56 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])([Oo]d[ \\u00a0]+\\p{N}+(?:,\\p{N}+)?)[ \\u00a0]*[\\u2013\\u2014-][ \\u00a0]*(\\p{N}+)(?![\\p{N}])",
     literals: [],
-    fixer: "pl:odDoRange",
+    fixer: "pl:@pl.typography/11",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\p{Ll}{2})[;](?=\\p{Ll}{2})",
     literals: [],
-    fixer: "pl:spaceAfterSemicolon",
+    fixer: "pl:@pl.typography/12",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\([^()\\n]{2,80}\\p{Ll})\\)(?=\\p{Ll}{3})",
     literals: [],
-    fixer: "pl:spaceAfterBracket",
+    fixer: "pl:@pl.typography/13",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\p{L})[ \\t]+;(?=[ \\t])",
     literals: [],
-    fixer: "pl:spaceBeforeSemicolon",
+    fixer: "pl:@pl.typography/14",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\p{L}[.!?])\\u201E(?=\\p{L})",
     literals: [],
-    fixer: "pl:spaceBeforeQuote",
+    fixer: "pl:@pl.typography/15",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "\\u2026\\.(?!\\.)",
     literals: [],
-    fixer: "pl:doubleEllipsis",
+    fixer: "pl:@pl.typography/16",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{N}.,])(\\p{N}{1,4})g(?=[ \\u00a0]+\\p{Ll}{3,})",
     literals: [],
-    fixer: "pl:gramSpace",
+    fixer: "pl:@pl.typography/17",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{N}.,])(\\p{N}{3,4})r\\.(?![\\p{L}])",
     literals: [],
-    fixer: "pl:yearSpace",
+    fixer: "pl:@pl.typography/18",
     flags: "gu",
     scan: "polish",
   }),
@@ -21482,21 +21482,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}][ \\u00a0]?,[ \\u00a0]?|[\\p{N}.,])(\\p{N}{1,3}), (\\p{N}{1,2})(?=[ \\u00a0]?(?:%|proc\\.|procent))",
     literals: [],
-    fixer: "pl:decimalCommaSpace",
+    fixer: "pl:@pl.typography/19",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=(?<![\\p{L}])\\p{Ll}{2,}[ouy])[\\u2013\\u2014](?=,)",
     literals: [],
-    fixer: "pl:hangingPrefix",
+    fixer: "pl:@pl.typography/20",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}.])([Aa]d)\\.(?=[ \\u00a0]+\\(?\\p{N})",
     literals: [],
-    fixer: "pl:adWord",
+    fixer: "pl:@pl.typography/21",
     flags: "gu",
     scan: "polish",
   }),
@@ -21504,98 +21504,98 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{L}{2})[\\u2013\\u2014](?=[ \\u00a0](?!(?:i|oraz|lub|albo|czy|a)[ \\u00a0])\\p{L})",
     literals: [],
-    fixer: "pl:dashSpaceBefore",
+    fixer: "pl:@pl.typography/22",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=\\p{L}[ \\u00a0])[\\u2013\\u2014](?=\\p{L}{2})",
     literals: [],
-    fixer: "pl:dashSpaceAfter",
+    fixer: "pl:@pl.typography/23",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<=(?<![\\p{L}.])\\p{Ll}{5,})\\.(?=,)",
     literals: [],
-    fixer: "pl:dotBeforeComma",
+    fixer: "pl:@pl.typography/24",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])m\\.[ \\t\\u00a0]+in\\.",
     literals: [],
-    fixer: "pl:abbrMIn",
+    fixer: "pl:@pl.typography/25",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])z[ \\t\\u00a0]+o\\.[ \\t\\u00a0]+o\\.",
     literals: [],
-    fixer: "pl:abbrZoo",
+    fixer: "pl:@pl.typography/26",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])p\\.[ \\t\\u00a0]*n\\.[ \\t\\u00a0]+e\\.?(?![\\p{L}])",
     literals: [],
-    fixer: "pl:abbrPne",
+    fixer: "pl:@pl.typography/27",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])p\\.[ \\t\\u00a0]+n\\.[ \\t\\u00a0]*e\\.?(?![\\p{L}])",
     literals: [],
-    fixer: "pl:abbrPne",
+    fixer: "pl:@pl.typography/28",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}.][ \\t\\u00a0]?)n\\.[ \\t\\u00a0]+e\\.?(?![\\p{L}])",
     literals: [],
-    fixer: "pl:abbrNe",
+    fixer: "pl:@pl.typography/29",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])dz\\.cyt\\.",
     literals: ["cyt"],
-    fixer: "pl:abbrDzCyt",
+    fixer: "pl:@pl.typography/30",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])op\\.cit\\.",
     literals: ["cit"],
-    fixer: "pl:abbrOpCit",
+    fixer: "pl:@pl.typography/31",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])m\\.im\\.?(?![\\p{L}])",
     literals: [],
-    fixer: "pl:abbrMIn",
+    fixer: "pl:@pl.typography/32",
     flags: "giu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])m\\.in(?![\\p{L}.])",
     literals: [],
-    fixer: "pl:abbrMIn",
+    fixer: "pl:@pl.typography/33",
     flags: "giu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}.])d\\.s\\.?(?![\\p{L}.])",
     literals: [],
-    fixer: "pl:abbrDs",
+    fixer: "pl:@pl.typography/34",
     flags: "gu",
     scan: "polish",
   }),
   frame({
     pattern: "(?<![\\p{L}])p\\.n\\.e(?![\\p{L}.])",
     literals: [],
-    fixer: "pl:abbrPne",
+    fixer: "pl:@pl.typography/35",
     flags: "gu",
     scan: "polish",
   }),
@@ -21603,7 +21603,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,:/#+\\u2013\\u2014-])(\\d{1,4})([-\\u2014])(\\d{1,4})(?![\\p{L}\\p{N}_]|[-\\u2013\\u2014/:.,]\\p{N})",
     literals: [],
-    fixer: "pl:rangeDash",
+    fixer: "pl:@pl.rangeDashes/1",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -21688,73 +21688,73 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "powiedzieć",
       "pokazać",
     ],
-    fixer: "pl:commaFramesWiem",
+    fixer: "pl:@pl.commaFrames/1",
     flags: "dgiu",
   }),
   frame({
     pattern:
       "(?<![\\p{L}])(?<target>ktoś|coś|ten|ta|ci|tego|tym|temu|wszystko|wszystkiego|wszystkim|wszystkiemu|każdy|nic|niczego)(?=[ \\t\\u00a0]{1,8}(?:kto|kogo|komu|kim|czego|czym|czemu|co|czyj\\p{L}*)[ \\t\\u00a0]{1,8}[^.!?\\n]*[.!…]?)(?![ \\t\\u00a0]{1,8}(?:kto|kogo|komu|kim|czego|czym|czemu|co|czyj\\p{L}*)[ \\t\\u00a0]{1,8}[^.!?\\n]*\\?)(?![ \\t\\u00a0]{1,8}co[ \\t\\u00a0]{1,8}(?:do|nieco|niemiara|najmniej|najwyżej|prawda|innego|chwila|dzień|roku|rusz|raz)(?![\\p{L}\\p{N}]))(?![ \\t\\u00a0]{1,8}\\p{L}+[ \\t\\u00a0]{1,8}\\p{L}+ć(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "pl:commaFramesKtoś",
+    fixer: "pl:@pl.commaFrames/2",
     flags: "dgiu",
   }),
   frame({
     pattern:
       "(?<![\\p{L}])(?<target>tego|(?<=(?:na|o|przez|za|w|pod|nad|przed)[ \\t\\u00a0]{1,8})to|tym|temu|pytanie|pytania|pytaniu|kwestia|kwestii|kwestię)(?=[ \\t\\u00a0]{1,8}(?:czy|gdzie|kiedy|dlaczego|skąd|dokąd|ile|co)[ \\t\\u00a0]{1,8}\\p{L})(?![ \\t\\u00a0]{1,8}\\p{L}+[ \\t\\u00a0]{1,8}(?:tamto|tamtego|tamtym|owo|owego|owym|inne|innego|innym|nie|indziej)(?![\\p{L}\\p{N}]))(?![ \\t\\u00a0]{1,8}co[ \\t\\u00a0]{1,8}(?:do|nieco|niemiara|najmniej|najwyżej|prawda|innego|chwila|rusz|raz)(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "pl:commaFramesTego",
+    fixer: "pl:@pl.commaFrames/3",
     flags: "dgiu",
   }),
   frame({
     pattern:
       "(?<=(?<![\\p{L}])zarówno(?:[ \\t\\u00a0]{1,8}[^,.!?;:\\s]+){1,4})(?<target>[ \\t\\u00a0]{1,8}jak)(?=[ \\t\\u00a0]{1,8}(?:i|też|również|także)(?![\\p{L}\\p{N}]))",
     literals: ["jak"],
-    fixer: "pl:commaFramesT",
+    fixer: "pl:@pl.commaFrames/4",
     flags: "dgiu",
   }),
   frame({
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Tam|Tu|Tutaj)(?=[ \\t\\u00a0]{1,8}(?:gdzie|dokąd|skąd)(?![\\p{L}\\p{N}]))',
     literals: [],
-    fixer: "pl:commaFramesTam",
+    fixer: "pl:@pl.commaFrames/5",
   }),
   frame({
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))Im[ \\t\\u00a0]{1,8}(?:[^,.!?;\\n ]+[ \\t\\u00a0]{1,8}){0,4}?(?!(?:o|w|we|po|przy|na|nad|pod|przed|za|z|ze)[ \\t\\u00a0]{1,8}tym)[^,.!?;\\n ]+(?<target>[ \\t\\u00a0]{1,8}tym)(?![\\p{L}\\p{N}])',
     literals: ["tym"],
-    fixer: "pl:commaFramesT2",
+    fixer: "pl:@pl.commaFrames/6",
   }),
   frame({
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))Tak[ \\t\\u00a0]{1,8}jak[ \\t\\u00a0]{1,8}(?:[^,.!?;\\n ]+[ \\t\\u00a0]{1,8}){0,4}?[^,.!?;\\n ]+(?<target>[ \\t\\u00a0]{1,8}tak)(?=[ \\t\\u00a0]{1,8}(?:i|też|samo)(?![\\p{L}\\p{N}]))',
     literals: ["tak"],
-    fixer: "pl:commaFramesT3",
+    fixer: "pl:@pl.commaFrames/7",
   }),
   frame({
     pattern:
       "(?<=(?<![\\p{L}])(?!czy(?![\\p{L}\\p{N}]))\\p{Ll}+)(?<target>[ \\t\\u00a0]{1,8}tak[ \\t\\u00a0]{1,8}czy[ \\t\\u00a0]{1,8}(?:inaczej|siak|owak)[ \\t\\u00a0]{1,8})(?=\\p{L})",
     literals: ["inaczej", "siak", "owak"],
-    fixer: "pl:commaFramesT4",
+    fixer: "pl:@pl.commaFrames/8",
     message: "review_msg_pl_comma_aside",
   }),
   frame({
     pattern:
       "(?<![\\p{L}])nie[ \\t\\u00a0]{1,8}(?:(?:jest|są|był|była|było|były|byli|jako|dla|do|na|w|z|o)[ \\t\\u00a0]{1,8})?(?<target>\\p{L}+)(?=[ \\t\\u00a0]{1,8}tylko[ \\t\\u00a0]{1,8}\\p{L})",
     literals: ["nie"],
-    fixer: "pl:commaFramesP",
+    fixer: "pl:@pl.commaFrames/9",
     flags: "dgiu",
   }),
   frame({
     pattern:
       "(?<![\\p{L}])(?<target>\\p{Ll}{2,})(?=[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?:nie[ \\t\\u00a0]{1,8}\\p{L}|to[ \\t\\u00a0]{1,8}(?:z[ \\t\\u00a0]{1,8}powodu|dzięki|dlatego|ze[ \\t\\u00a0]{1,8}względu|przez|z[ \\t\\u00a0]{1,8}uwagi)(?![\\p{L}\\p{N}])))",
     literals: [],
-    fixer: "pl:commaFramesP2",
+    fixer: "pl:@pl.commaFrames/10",
   }),
   frame({
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<phrase>(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}+))(?<target>,)(?=[ \\t\\u00a0]{1,8}(?<rest>\\p{L}[^,;:()"„”—–\\n]*)[.!?])',
     literals: [],
-    fixer: "pl:commaFramesT5",
+    fixer: "pl:@pl.commaFrames/11",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
     flags: "dgiu",
@@ -21763,7 +21763,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])(?:po)?między[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8}){0,2}\\p{L}+(?<target>,)[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}\\p{L}",
     literals: ["między"],
-    fixer: "pl:commaFramesT6",
+    fixer: "pl:@pl.commaFrames/12",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
     flags: "dgiu",
@@ -21772,7 +21772,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])(?<first>ani|albo|bądź)[ \\t\\u00a0]{1,8}(?!(?:co|jak)[ \\t\\u00a0]{1,8}bądź)(?:[^,.!?;\\n ]+[ \\t\\u00a0]{1,8}){0,1}?[^,.!?;\\n ]+(?<target>[ \\t\\u00a0]{1,8}\\k<first>)(?![\\p{L}\\p{N}])",
     literals: ["ani", "albo", "bądź"],
-    fixer: "pl:commaFramesT7",
+    fixer: "pl:@pl.commaFrames/13",
     message: "review_msg_pl_comma_aside",
     flags: "dgiu",
   }),
@@ -21794,14 +21794,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "siak",
       "owak",
     ],
-    fixer: "pl:commaFramesCo",
+    fixer: "pl:@pl.commaFrames/14",
     message: "review_msg_pl_comma_aside",
   }),
   frame({
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Jak[ \\t\\u00a0]{1,8}(?:widać|wiadomo|się[ \\t\\u00a0]{1,8}okazało))(?=[ \\t\\u00a0]{1,8}\\p{L}[^,;:\\n.!?]*[.!?])(?![ \\t\\u00a0]{1,8}(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed|że|iż|później|potem|wcześniej|dotąd|dziś|dzisiaj|wczoraj)(?![\\p{L}\\p{N}]))',
     literals: ["widać", "wiadomo", "okazało"],
-    fixer: "pl:commaFramesJak",
+    fixer: "pl:@pl.commaFrames/15",
     message: "review_msg_pl_comma_aside",
   }),
   frame({
@@ -21821,7 +21821,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "otóż",
       "dodatkowo",
     ],
-    fixer: "pl:commaFramesT8",
+    fixer: "pl:@pl.commaFrames/16",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21829,7 +21829,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{Ll}[ \\t\\u00a0]{1,8})(?:więc|jednak|zatem)(?<target>,)(?=[ \\t\\u00a0]{1,8}\\p{Ll}+(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,2}[.!?])",
     literals: ["więc", "jednak", "zatem"],
-    fixer: "pl:commaFramesT9",
+    fixer: "pl:@pl.commaFrames/17",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21837,7 +21837,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}])(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8}(?:który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy))(?<target>,)(?=[ \\t\\u00a0]{1,8}\\p{Ll}[^,;:\\n]*[.!?])",
     literals: [],
-    fixer: "pl:commaFramesT10",
+    fixer: "pl:@pl.commaFrames/18",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21845,7 +21845,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?:(?<det>każdy|każda|każde|Każdy|Każda|Każde|ten|ta|Ten|Ta)[ \\t\\u00a0]{1,8})?(?<noun>\\p{L}\\p{Ll}+)(?<target>,)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+)(?![\\p{L}\\p{N}])(?<aside>,)?',
     literals: [],
-    fixer: "pl:commaFramesT11",
+    fixer: "pl:@pl.commaFrames/19",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21853,7 +21853,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}])(?<left>\\p{Ll}{3,})(?<target>,)[ \\t\\u00a0]{1,8}(?<conj>ani|ni|lub|albo|bądź|oraz|i)[ \\t\\u00a0]{1,8}(?<right>\\p{Ll}{3,})(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pl:commaFramesT12",
+    fixer: "pl:@pl.commaFrames/20",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21861,13 +21861,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))(?<target>Oto)(?=[ \\t\\u00a0]{1,8}(?:(?:w|we|z|ze|na|do|od|ode|po|za|przy|przed|przede|nad|nade|pod|pode|dla|bez|u|ku|przez|przeze|między|o|wśród|spod|znad|zza|sprzed)[ \\t\\u00a0]{1,8})?(?:co|czego|czemu|czym|kto|kogo|komu|kim|gdzie|dlaczego|dokąd|skąd)[ \\t\\u00a0]{1,8}\\p{L})',
     literals: ["oto"],
-    fixer: "pl:commaFramesOto",
+    fixer: "pl:@pl.commaFrames/21",
   }),
   frame({
     pattern:
       "(?<=(?<![\\p{L}])tym[ \\t\\u00a0]{1,8}bardziej)(?<target>,)(?=[ \\t\\u00a0]{1,8}(?:że|iż)(?![\\p{L}\\p{N}]))(?![ \\t\\u00a0]{1,8}(?:że|iż)[ \\t\\u00a0]{1,8}(?:jeżeli|jeśli|gdy|kiedy|gdyby|choć|chociaż)(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "pl:commaFramesT13",
+    fixer: "pl:@pl.commaFrames/22",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21875,7 +21875,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}])(?:wątpliwości|wątpliwość|zastrzeżenia|zastrzeżeń|uwagi|uwag|pewności|pewność|zdania|pytania|pytań|obawy|obaw|sugestie|sugestii|ustalenia|ustaleń|jasności|zgody))(?<target>,)(?=[ \\t\\u00a0]{1,8}co[ \\t\\u00a0]{1,8}do[ \\t\\u00a0]{1,8}(?!któr)\\p{L})",
     literals: [],
-    fixer: "pl:commaFramesT14",
+    fixer: "pl:@pl.commaFrames/23",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21883,7 +21883,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?=\\p{L})(?<=(?:^|[.!?…:;]["”’»)]{0,3}[ \\t\\u00a0]{1,8}|\\n[ \\t\\u00a0]{0,8}))Oto(?<target>,)(?=[ \\t\\u00a0]{1,8}jak(?![\\p{L}\\p{N}]))',
     literals: ["oto"],
-    fixer: "pl:commaFramesT15",
+    fixer: "pl:@pl.commaFrames/24",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21891,7 +21891,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{Ll})(?<target>,)(?=[ \\t\\u00a0]{1,8}(?:dlaczego|czemu|po[ \\t\\u00a0]{1,8}co|skąd|dokąd|gdzie)[ \\t\\u00a0]{0,8}[.!?…])",
     literals: [],
-    fixer: "pl:commaFramesT16",
+    fixer: "pl:@pl.commaFrames/25",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21899,7 +21899,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}])(?:w[ \\t\\u00a0]{1,8}trakcie|w[ \\t\\u00a0]{1,8}czasie|w[ \\t\\u00a0]{1,8}wyniku|w[ \\t\\u00a0]{1,8}ramach|na[ \\t\\u00a0]{1,8}skutek|z[ \\t\\u00a0]{1,8}powodu|na[ \\t\\u00a0]{1,8}podstawie|za[ \\t\\u00a0]{1,8}pomocą|przy[ \\t\\u00a0]{1,8}pomocy|w[ \\t\\u00a0]{1,8}celu|w[ \\t\\u00a0]{1,8}zakresie|podczas|dzięki|wobec|wskutek|według|spośród|pośród))(?<target>,)(?=[ \\t\\u00a0]{1,8}(?:który|która|które|którego|której|któremu|którą|którym|których|którymi|którzy)(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "pl:commaFramesT17",
+    fixer: "pl:@pl.commaFrames/26",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21907,7 +21907,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{Ll}(?:ł|ła|ło|li|ły))(?<target>,)(?=[ \\t\\u00a0]{1,8}się[ \\t\\u00a0]{1,8}\\p{Ll})",
     literals: [],
-    fixer: "pl:commaFramesT18",
+    fixer: "pl:@pl.commaFrames/27",
     message: "review_msg_pl_extra_comma",
     check: "polishMisplacedComma",
   }),
@@ -21915,32 +21915,32 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{Ll})(?<!(?:^|[^\\p{L}])(?:choć|chociaż|i|a|ale|że|bo|lecz|oraz|gdy|kiedy|lub|albo))(?<target>[ \\t\\u00a0]{1,8}(?:a[ \\t\\u00a0]{1,8}(?:mianowicie|zwłaszcza|szczególnie)|w[ \\t\\u00a0]{1,8}miarę[ \\t\\u00a0]{1,8}jak))(?![\\p{L}\\p{N}])(?![ \\t\\u00a0]{1,8}naj)",
     literals: ["mianowicie", "zwłaszcza", "szczególnie", "miarę"],
-    fixer: "pl:commaFramesT19",
+    fixer: "pl:@pl.commaFrames/28",
   }),
   frame({
     pattern:
       "(?<target>[ \\t\\u00a0]{1,8}o[ \\t\\u00a0]{1,8}tyle)(?![\\p{L}\\p{N}])(?<=(?:^|[.!?…][ \\t\\u00a0]{1,8}|\\n)O[ \\t\\u00a0]{1,8}ile[^.!?;\\n]{3,300}\\p{L}[ \\t\\u00a0]{1,8}o[ \\t\\u00a0]{1,8}tyle)",
     literals: ["tyle"],
-    fixer: "pl:commaFramesT20",
+    fixer: "pl:@pl.commaFrames/29",
   }),
   frame({
     pattern:
       "(?<=\\p{Ll})(?<target>[ \\t\\u00a0]{1,8}innymi[ \\t\\u00a0]{1,8}słowy)(?<after>[ \\t\\u00a0]{1,8}(?=\\p{Ll})|,)",
     literals: ["innymi"],
-    fixer: "pl:commaFramesT21",
+    fixer: "pl:@pl.commaFrames/30",
     message: "review_msg_pl_comma_aside",
   }),
   frame({
     pattern:
       "(?<![\\p{L}])(?<verb>\\p{Ll}{2,20})(?<target>[ \\t\\u00a0]{1,8}i[ \\t\\u00a0]{1,8}(?:koniec|kropka))(?=[ \\t\\u00a0]{0,8}[.!])",
     literals: ["koniec", "kropka"],
-    fixer: "pl:commaFramesT22",
+    fixer: "pl:@pl.commaFrames/31",
   }),
   frame({
     pattern:
       "(?<=(?<![\\p{L}])(?:na|o|od|z|do|przez|za|po)[ \\t\\u00a0]{1,8})(?<target>to)(?=[ \\t\\u00a0]{1,8}(?:gdzie|kiedy|czy|ile|dlaczego|kto|którędy|skąd|dokąd)(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "pl:commaFramesTo",
+    fixer: "pl:@pl.commaFrames/32",
   }),
   frame({
     pattern:
@@ -21967,13 +21967,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "listopad",
       "grud",
     ],
-    fixer: "pl:casingPoniedział",
+    fixer: "pl:@pl.capitals/1",
   }),
   frame({
     pattern:
       "(?<![\\p{L}])(?:wielk\\p{L}+[ \\t\\u00a0]{1,8}(?:piąt\\p{L}+|sobot\\p{L}+|czwart\\p{L}+)|tłust\\p{L}+[ \\t\\u00a0]{1,8}czwart\\p{L}+|niedziel\\p{L}+[ \\t\\u00a0]{1,8}(?:palmow|wielkanocn)\\p{L}+|poniedział\\p{L}+[ \\t\\u00a0]{1,8}wielkanocn\\p{L}+|środ\\p{L}+[ \\t\\u00a0]{1,8}popielcow\\p{L}+)(?![\\p{L}\\p{N}])",
     literals: ["wielk", "czwart", "niedziel", "poniedział", "popielcow"],
-    fixer: "pl:casingFrame",
+    fixer: "pl:@pl.capitals/2",
     flags: "giu",
   }),
   frame({
@@ -21993,7 +21993,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "indyjsk",
       "arktyczn",
     ],
-    fixer: "pl:casingFrame2",
+    fixer: "pl:@pl.capitals/3",
     flags: "giu",
   }),
   frame({
@@ -22011,79 +22011,79 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "zelandi",
       "brytani",
     ],
-    fixer: "pl:casingFrame3",
+    fixer: "pl:@pl.capitals/4",
   }),
   frame({
     pattern:
       "(?<![\\p{L}-])\\p{Lu}\\p{Ll}+-(?:biał(?:a|ej|ą)|zdr(?:ój|oju|ojem|oje)|koźl(?:e|a|u|em))(?![\\p{L}\\p{N}])",
     literals: ["biał", "zdr", "koźl"],
-    fixer: "pl:casingFrame4",
+    fixer: "pl:@pl.capitals/5",
   }),
   frame({
     pattern:
       "(?=[zwśp])(?<=(?<![\\p{L}])Europ(?:a|y|ie|ę|ą)[ \\t\\u00a0]{1,8})(?:zachodni|wschodni|środkow|północn|południow)(?:a|ej|ą)(?![\\p{L}\\p{N}])",
     literals: ["zachodni", "wschodni", "środkow", "północn", "południow"],
-    fixer: "pl:casingFrame5",
+    fixer: "pl:@pl.capitals/6",
   }),
   frame({
     pattern:
       "(?=\\p{Lu})(?<=(?<![\\p{L}])po[ \\t\\u00a0]{1,8})\\p{Lu}\\p{Ll}+sku(?![\\p{L}\\p{N}])",
     literals: ["sku"],
-    fixer: "pl:casingFrame6",
+    fixer: "pl:@pl.capitals/7",
   }),
   frame({
     pattern:
       "(?=\\p{Lu})(?<=(?<![\\p{L}])(?<noun>język\\p{Ll}*|województw\\p{Ll}*|powiat\\p{Ll}*|powiecie)[ \\t\\u00a0]{1,8})\\p{Lu}\\p{Ll}+(?:sk|ck)\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+(?:sk|ck)\\p{Ll}+)?(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pl:casingFrame7",
+    fixer: "pl:@pl.capitals/8",
   }),
   frame({
     pattern:
       "(?=[HOWV])(?<=(?:\\p{N}|kilku\\p{L}*|stu|tysięcy|wielu)[ \\t\\u00a0]{1,8})(?:Hertz|Herc|Ohm|Watt|Volt)(?:ów|y|a|e)?(?![\\p{L}\\p{N}])",
     literals: ["hertz", "herc", "ohm", "watt", "volt"],
-    fixer: "pl:casingFrame8",
+    fixer: "pl:@pl.capitals/9",
     flags: "giu",
   }),
   frame({
     pattern: '(?<![\\p{L}])(?:na|per)[ \\t\\u00a0]{1,8}[„"]?Ty[”"]?(?![\\p{L}\\p{N}])',
     literals: [],
-    fixer: "pl:casingFrame9",
+    fixer: "pl:@pl.capitals/10",
   }),
   frame({
     pattern:
       "(?=C)(?<=\\p{Ll}[ \\t\\u00a0]{1,8})Ci(?=,?[ \\t\\u00a0]{1,8}(?:którzy|co)(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "pl:casingFrame10",
+    fixer: "pl:@pl.capitals/11",
   }),
   frame({
     pattern:
       "(?=N)(?<=(?<![\\p{L}])\\p{Ll}{1,20}[ \\t\\u00a0]{1,8})Na(?:szymi|szego|szemu|szych|szej|szym|sza|sze|szą|sz|mi|m|s)(?=[ \\t\\u00a0]{1,8}\\p{Ll}|[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: [],
-    fixer: "pl:casingFrame11",
+    fixer: "pl:@pl.capitals/12",
   }),
   frame({
     pattern:
       "(?=U)(?<=\\p{L},?[ \\t\\u00a0]{1,8})(?:Ul\\.|Ulic(?:a|y|ę|ą|e))(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll})",
     literals: [],
-    fixer: "pl:casingFrame12",
+    fixer: "pl:@pl.capitals/13",
   }),
   frame({
     pattern:
       "(?<![\\p{L}])(?:al\\.|alej(?:e|ach|ami|om)|alei)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?:skie|ckie|dzkie|skich|ckich|dzkich|skim|ckim|skimi|ckimi)(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "pl:casingFrame13",
+    fixer: "pl:@pl.capitals/14",
   }),
   frame({
     pattern:
       "(?=[NP])(?<=\\p{Lu}\\p{Ll}+[ \\t\\u00a0]{1,8})(?:Nad|Pod)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+)",
     literals: ["nad", "pod"],
-    fixer: "pl:casingFrame14",
+    fixer: "pl:@pl.capitals/15",
   }),
   frame({
     pattern:
       "(?=\\p{Ll})(?<=(?<![\\p{L}\\p{N}_'’.@/-])(?:[wW]|[wW]e|[dD]o|[zZ]|[zZ]e|[nN]a|[oO]d|[oO]de|[pP]rzez|[pP]od|[nN]ad|[pP]rzy|[kK]oło|[oO]koło|[sS]pod|[zZ]nad|[uU]|[dD]la|[oO]bok|[wW]okół|[nN]iedaleko|[kK]u|[pP]rzed|[zZ]a|[mM]iędzy|[pP]omiędzy)[ \\t\\u00a0]{1,8})\\p{Ll}+(?:-\\p{Ll}+)?(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "pl:casingFrame15",
+    fixer: "pl:@pl.capitals/16",
   }),
   frame({
     pattern:
