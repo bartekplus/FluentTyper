@@ -17556,7 +17556,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:constructor|qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas)(?![\\p{L}\\p{M}])",
+      "(?:qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas)(?![\\p{L}\\p{M}])",
     literals: [],
     fixer: "es:diacritics",
     flags: "giu",
@@ -17586,7 +17586,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:constructor|a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy)(?![\\p{L}\\p{M}])",
+      "(?:a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy)(?![\\p{L}\\p{M}])",
     literals: [],
     fixer: "es:confusions",
     flags: "giu",

@@ -1,3 +1,4 @@
+import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
 import type { RawFinding } from "../reviewDetectors";
 import {
@@ -311,10 +312,10 @@ function thirdPerson(infinitive: string): string[] {
 }
 
 /** "nos acomodarnos" -> "nos acomodamos": the clitic written twice around an infinitive. */
-const FIRST_PLURAL: Record<string, string> = { ar: "amos", er: "emos", ir: "imos" };
+const FIRST_PLURAL: Record<string, string> = wordTable({ ar: "amos", er: "emos", ir: "imos" });
 
 // "le ha dado", "te he encontrado": the "haber" a clitic before a participle needs.
-const PERFECT_FOR: Record<string, string[]> = {
+const PERFECT_FOR: Record<string, string[]> = wordTable({
   me: ["he", "ha"],
   te: ["ha", "he"],
   se: ["ha", "han"],
@@ -322,11 +323,11 @@ const PERFECT_FOR: Record<string, string[]> = {
   les: ["ha", "he"],
   nos: ["ha", "hemos"],
   os: ["ha", "habéis"],
-};
+});
 
 // Irregular verb forms that are also nouns: "le vino", "le traje", "les dije".
 const VERB_NOUNS = words("vino traje dije puse tuve hice vine fui cupo");
-const ARTICLE: Record<string, [string, string]> = { m: ["el", "los"], f: ["la", "las"] };
+const ARTICLE: Record<string, [string, string]> = wordTable({ m: ["el", "los"], f: ["la", "las"] });
 
 type Fix = { span: [number, number]; fixes: string[]; key: RawFinding["messageKey"] };
 
