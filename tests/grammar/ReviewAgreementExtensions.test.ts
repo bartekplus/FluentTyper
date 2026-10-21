@@ -1,10 +1,8 @@
 import { expect, test } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
+import { AGREEMENT_CORRECTIONS } from "../../src/core/domain/grammar/review/rules/common.generated";
 import { scanReviewChunk } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
-import {
-  EnglishPronounVerbWhitelistAgreementRule,
-  AGREEMENT_CORRECTIONS,
-} from "../../src/core/domain/grammar/implementations/EnglishPronounVerbWhitelistAgreementRule";
 import { knownEnglishNounNumber } from "../../src/core/domain/grammar/implementations/helpers/EnglishNounNumber";
 import type {
   ReviewOptions,
@@ -168,7 +166,7 @@ test("existing six typing mappings and their Review ownership stay unchanged", (
     ["she are", "she is"],
     ["it are", "it is"],
   ]);
-  const typing = new EnglishPronounVerbWhitelistAgreementRule();
+  const typing = liveRule("englishPronounVerbWhitelistAgreement");
   for (const [source] of pronounErrors)
     expect(
       typing.apply({ beforeCursor: source + " ", afterCursor: "", hints: { lang: "en_US" } }),
@@ -191,7 +189,7 @@ test.each([
   ["Then i\nis here ", "Then i\nam here "],
   ["SHE\nARE here ", "SHE\nIS here "],
 ])("the typing rule keeps the typed gap and a variable i: %j", (input, expected) => {
-  const edit = new EnglishPronounVerbWhitelistAgreementRule().apply({
+  const edit = liveRule("englishPronounVerbWhitelistAgreement").apply({
     beforeCursor: input,
     afterCursor: "",
     hints: { lang: "en_US", inputAction: "insert" },

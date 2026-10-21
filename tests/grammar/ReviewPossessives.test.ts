@@ -1,14 +1,14 @@
 import { expect, test } from "bun:test";
 import {
+  normalizeContractionInContext,
+  normalizeContractionToken,
+} from "../../src/core/domain/grammar/review/rules/common.generated";
+import {
   finalizeReview,
   scanReviewChunk,
 } from "../../src/core/domain/grammar/review/reviewDiagnostics";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { TYPING_RULE_IDS } from "../../src/core/domain/grammar/ruleCatalog";
-import {
-  normalizeContractionInContext,
-  normalizeContractionToken,
-} from "../../src/core/domain/grammar/implementations/EnglishContractionNormalizationRule";
 import type {
   ReviewOptions,
   ReviewSourceSnapshot,

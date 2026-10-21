@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { FRAME_SETS } from "../../src/core/domain/grammar/review/english/idioms5";
+import { FRAME_SETS } from "../../src/core/domain/grammar/engine/frameStyles";
 import { frame, FRAME_AUDIT } from "../../src/core/domain/grammar/review/phraseTemplates";
 import { languageRules, scanResult } from "./reviewHarness";
 

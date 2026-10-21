@@ -248,7 +248,7 @@ Fixture files (all under `tests/grammar/`):
 
 ## Shared helpers
 
-- **Abbreviation lists** (`CapitalizeSentenceStartRule.ts`, used by typing and Review):
+- **Abbreviation lists** (`library/typing/sentences.ts`, used by typing and Review):
   per language; words that often end a sentence in their own language are left out
   (en "no"; fr "art", "vol", "ex", "bd", "prof"; de "art", "dir", "tab", "mag"; pl
   "gen", "por", "im", "min", "ok", "zł", "gr"; es "col"; sv "kap", "kr", "sek"; hr

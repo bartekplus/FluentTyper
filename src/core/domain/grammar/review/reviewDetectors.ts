@@ -1,11 +1,4 @@
 import type { CatalogRuleId } from "../ruleCatalog";
-import {
-  articleAnLastWord,
-  modalOfLastWord,
-  pronounVerbLastWord,
-  theirThereLastWord,
-  yourWelcomeLastWord,
-} from "./rules/common.generated";
 import { phraseCorrections } from "./englishPhraseCorrections";
 import { usePhraseRows } from "../library/common/engine";
 import { useRuleDetectors } from "../library/english/views";
@@ -76,19 +69,6 @@ export type ReviewDetectorEntry = {
   lang?: string;
 };
 
-/**
- * For each phrase frame of common.yaml (modalOf, yourWelcome, theirThere, pronounVerb, articleAn):
- * the quick test of the word that ends a window, before its pattern runs. A fuzz test keeps each
- * test true wherever its pattern matches.
- */
-export const PHRASE_LAST_WORD = {
-  modalOf: modalOfLastWord,
-  yourWelcome: yourWelcomeLastWord,
-  theirThere: theirThereLastWord,
-  pronounVerb: pronounVerbLastWord,
-  articleAn: articleAnLastWord,
-} satisfies Record<string, (text: string, start: number, end: number) => boolean>;
-
 // Library helpers that run engine parts: the library cannot load the engine (an import cycle).
 // The phrase rows that the phraseTables rule of common.yaml reads (library phraseRows).
 usePhraseRows(phraseCorrections);
@@ -100,8 +80,3 @@ useRuleDetectors((id) => ruleDetector(id));
  * their patterns, frames and code. Rules absent here are excluded from review (see reviewCatalog).
  */
 export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors();
-
-/** Per-language entries: they may add context detectors to shared rules or serve their own. */
-export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = REVIEW_DETECTORS.filter(
-  (entry) => entry.source !== "common" && entry.source !== "en",
-);

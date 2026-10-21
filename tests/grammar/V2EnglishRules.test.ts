@@ -1,13 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { context, edit } from "./grammarTestUtils";
-import { EnglishPronounICapitalizationRule } from "../../src/core/domain/grammar/implementations/EnglishPronounICapitalizationRule";
-import { EnglishContractionNormalizationRule } from "../../src/core/domain/grammar/implementations/EnglishContractionNormalizationRule";
-import { EnglishTypoWhitelistCorrectionRule } from "../../src/core/domain/grammar/implementations/EnglishTypoWhitelistCorrectionRule";
 
 describe("V2 english grammar rules", () => {
   describe("EnglishPronounICapitalizationRule", () => {
     test("capitalizes standalone i and apostrophe contractions in English context", () => {
-      const rule = new EnglishPronounICapitalizationRule();
+      const rule = liveRule("englishPronounICapitalization");
 
       // A lone "i " could still be a loop variable; the following word decides.
       expect(rule.apply(context("i ", { lang: "en_US" }))).toBeNull();
@@ -24,7 +22,7 @@ describe("V2 english grammar rules", () => {
     });
 
     test("skips non-English and code-like contexts", () => {
-      const rule = new EnglishPronounICapitalizationRule();
+      const rule = liveRule("englishPronounICapitalization");
 
       expect(rule.apply(context("i ", { lang: "pl_PL" }))).toBeNull();
       expect(rule.apply(context("i ", { lang: "fr_FR" }))).toBeNull();
@@ -34,7 +32,7 @@ describe("V2 english grammar rules", () => {
     });
 
     test("applies only after a token boundary delimiter", () => {
-      const rule = new EnglishPronounICapitalizationRule();
+      const rule = liveRule("englishPronounICapitalization");
       expect(rule.apply(context("i", { lang: "en_US", inputAction: "insert" }))).toBeNull();
       // A bare "i." could still become "i.e."; the decision waits one character.
       expect(rule.apply(context("i.", { lang: "en_US", inputAction: "insert" }))).toBeNull();
@@ -47,7 +45,7 @@ describe("V2 english grammar rules", () => {
 
   describe("EnglishContractionNormalizationRule", () => {
     test("normalizes contraction forms and preserves case", () => {
-      const rule = new EnglishContractionNormalizationRule();
+      const rule = liveRule("englishContractionNormalization");
 
       expect(rule.apply(context("im ", { lang: "en_US", inputAction: "insert" }))).toEqual(
         edit("I'm ", 3),
@@ -59,7 +57,7 @@ describe("V2 english grammar rules", () => {
     });
 
     test("preserves ambiguous id forms", () => {
-      const rule = new EnglishContractionNormalizationRule();
+      const rule = liveRule("englishContractionNormalization");
 
       expect(rule.apply(context("ID ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
       expect(rule.apply(context("Id ", { lang: "en_US", inputAction: "insert" }))).toBeNull();
@@ -67,13 +65,13 @@ describe("V2 english grammar rules", () => {
     });
 
     test("does not normalize in a non-English context", () => {
-      const rule = new EnglishContractionNormalizationRule();
+      const rule = liveRule("englishContractionNormalization");
       expect(rule.apply(context("im ", { lang: "pl_PL" }))).toBeNull();
       expect(rule.apply(context("im ", { lang: "fr_FR" }))).toBeNull();
     });
 
     test("applies only after a token boundary delimiter", () => {
-      const rule = new EnglishContractionNormalizationRule();
+      const rule = liveRule("englishContractionNormalization");
       expect(rule.apply(context("im", { lang: "en_US", inputAction: "insert" }))).toBeNull();
       expect(rule.apply(context("im.", { lang: "en_US", inputAction: "insert" }))).toEqual(
         edit("I'm.", 3),
@@ -83,7 +81,7 @@ describe("V2 english grammar rules", () => {
 
   describe("EnglishTypoWhitelistCorrectionRule", () => {
     test("corrects known typos and preserves case", () => {
-      const rule = new EnglishTypoWhitelistCorrectionRule();
+      const rule = liveRule("englishTypoWhitelistCorrection");
 
       expect(rule.apply(context("teh ", { lang: "en_US", inputAction: "insert" }))).toEqual(
         edit("the ", 4),
@@ -95,7 +93,7 @@ describe("V2 english grammar rules", () => {
     });
 
     test("skips words in user dictionary and code-like contexts", () => {
-      const rule = new EnglishTypoWhitelistCorrectionRule();
+      const rule = liveRule("englishTypoWhitelistCorrection");
       expect(rule.apply(context("teh ", { lang: "en_US", userDictionary: ["teh"] }))).toBeNull();
       expect(rule.apply(context("obj.teh ", { lang: "en_US" }))).toBeNull();
       expect(rule.apply(context("teh ", { lang: "pl_PL" }))).toBeNull();
@@ -103,7 +101,7 @@ describe("V2 english grammar rules", () => {
     });
 
     test("applies only after a token boundary delimiter", () => {
-      const rule = new EnglishTypoWhitelistCorrectionRule();
+      const rule = liveRule("englishTypoWhitelistCorrection");
       expect(rule.apply(context("teh", { lang: "en_US", inputAction: "insert" }))).toBeNull();
       expect(rule.apply(context("teh.", { lang: "en_US", inputAction: "insert" }))).toEqual(
         edit("the.", 4),
@@ -113,8 +111,8 @@ describe("V2 english grammar rules", () => {
 
   test("Object.prototype names are ordinary words, not lookup hits", () => {
     const rules = [
-      new EnglishContractionNormalizationRule(),
-      new EnglishTypoWhitelistCorrectionRule(),
+      liveRule("englishContractionNormalization"),
+      liveRule("englishTypoWhitelistCorrection"),
     ];
     for (const rule of rules) {
       for (const word of ["constructor ", "toString ", "__proto__ ", "hasOwnProperty "]) {

@@ -8,7 +8,7 @@ This is a conservative offline notation formatter, not numerical conversion, a n
 
 ## Behavior and boundaries
 
-The grammar catalog registers `measurementUnitFormatting` (UI: **Measurement unit formatting**). The pure rule and bounded parser live in `src/core/domain/grammar/implementations/MeasurementUnitFormattingRule.ts` and `src/core/domain/grammar/measurement/`. The rule uses the shared grammar engine, edit sequencing, settings toggle, stable writing-language updates, and editor transactions.
+The grammar catalog registers `measurementUnitFormatting` (UI: **Measurement unit formatting**). The rule is declared in `src/core/domain/grammar/rules/common.yaml` (`measurementUnitFormatting.live`). The bounded parser is in `src/core/domain/grammar/measurement/`. The rule uses the shared grammar engine, edit sequencing, settings toggle, stable writing-language updates, and editor transactions.
 
 Only a completed expression followed by a typed space/newline can receive a missing U+00A0 NO-BREAK SPACE. An adapter must positively identify an editable prose context. The insertion preserves the exact number, unit spelling/case, operator order, exponent scope, and trailing delimiter. Numbers are never converted to JavaScript Number. Existing ordinary space, NBSP, and narrow NBSP remain unchanged.
 
@@ -30,7 +30,7 @@ The live writing-language registry is checked by the generator and tests. The ni
 
 ## Currency spacing
 
-`currencySpacing` (UI: **Currency spacing**, default on, `src/core/domain/grammar/implementations/CurrencySpacingRule.ts`) reuses the same number reader, locale profiles, prose guard, and strict edit path. It inserts the locale's U+00A0 between an amount and a currency marker written directly after it: `Cena: 120zł ` → `Cena: 120 zł `, `Budget: 250EUR ` → `Budget: 250 EUR `, `Cena: 19,99zł ` → `Cena: 19,99 zł `.
+`currencySpacing` (UI: **Currency spacing**, default on, `currencySpacing.live` in `src/core/domain/grammar/rules/common.yaml`) reuses the same number reader, locale profiles, prose guard, and strict edit path. It inserts the locale's U+00A0 between an amount and a currency marker written directly after it: `Cena: 120zł ` → `Cena: 120 zł `, `Budget: 250EUR ` → `Budget: 250 EUR `, `Cena: 19,99zł ` → `Cena: 19,99 zł `.
 
 Markers are an exact, case-sensitive allowlist: common ISO 4217 codes (codes that are also words or acronyms, such as `ALL`, `TRY`, `CAD`, are excluded) plus the suffix symbols `€`, `zł`, and `kr`. It never reorders (`€100`, `$100` stay), converts (`$` ↔ `USD`), or regroups (`1,000` ↔ `1.000`). Grouped amounts such as `1.000EUR`, ranges, lowercase or unknown markers, and existing separators are left unchanged. Text inside Markdown code (backtick spans and fences), detected code editor fields, and anything typed with code mode on is left alone, which applies to measurement units as well; the rule itself does not guess at code. Tests: `tests/grammar/CurrencySpacing.test.ts`.
 

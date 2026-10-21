@@ -1,10 +1,13 @@
 import { expect, test } from "bun:test";
-import { PHRASES, STYLE } from "../../src/core/domain/grammar/review/english/usageTables";
+import { table } from "../../src/core/domain/grammar/review/english/tables";
+
+const PHRASES = table("usageTables.phrases");
+const STYLE = table("usageTables.style");
 import type { PhraseRow } from "../../src/core/domain/grammar/review/englishPhraseTables";
 import type { ReviewDiagnostic } from "../../src/core/domain/grammar/review/types";
 import { ALL_RULES, scan as reviewScan } from "./reviewHarness";
 
-// english/usageTables.ts: split contractions, holiday apostrophes and optional plain style.
+// en.yaml tables usageTables.*: split contractions, holiday apostrophes and optional plain style.
 // All sentences are our own.
 function scan(text: string, ruleId: string): ReviewDiagnostic[] {
   return reviewScan(text, { enabledRules: ALL_RULES }).filter((d) => d.ruleId === ruleId);

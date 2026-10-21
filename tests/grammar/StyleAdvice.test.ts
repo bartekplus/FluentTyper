@@ -81,6 +81,15 @@ test.each([
   expect(scan(text, { enabledRules: ["styleRedundancy"] }).diagnostics).toEqual([]);
 });
 
+test.each(["”ATM machine”", "»ATM machine»", "»ATM machine«"])(
+  "a pair in the quotation marks %s is quoted wording; a pair outside them gets its finding",
+  (quoted) => {
+    const text = `Use your PIN number. The sign says ${quoted}.`;
+    const diagnostics = scan(text, { enabledRules: ["styleRedundancy"] }).diagnostics;
+    expect(diagnostics.map((diagnostic) => diagnostic.original)).toEqual(["PIN number"]);
+  },
+);
+
 test("style acronym matching observes dictionaries, scope, language and incomplete sources", () => {
   const text = "Use your PIN number.";
   expect(scan(text, { userDictionary: ["PIN"] }).diagnostics).toEqual([]);

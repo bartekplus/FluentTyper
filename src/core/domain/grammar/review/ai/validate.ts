@@ -1,4 +1,4 @@
-import { startsSentence } from "../../implementations/CapitalizeSentenceStartRule";
+import { startsSentence } from "../../library/typing/sentences";
 import { damerauLevenshteinDistance } from "../../../editDistance";
 import {
   isTechnicalToken,
