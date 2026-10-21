@@ -3,10 +3,7 @@
 import { mergePredicates, type Fixer, type FindingsFilter } from "../../engine/reviewRules";
 import * as adjectives from "./adjectives";
 import * as agreement from "./agreement";
-import * as dates from "./dates";
 import * as determiners from "./determiners";
-import * as elision from "./elision";
-import * as gender from "./gender";
 import * as homophones from "./homophones";
 import * as hyphenation from "./hyphenation";
 import * as imperative from "./imperative";
@@ -38,10 +35,7 @@ export const FIXERS = mergePredicates<Fixer>(
   questions.FIXERS,
   negation.FIXERS,
   invariables.FIXERS,
-  gender.FIXERS,
-  elision.FIXERS,
   determiners.FIXERS,
-  dates.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/fr.yaml (`filter:`). */

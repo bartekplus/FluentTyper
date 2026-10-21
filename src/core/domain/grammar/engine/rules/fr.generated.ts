@@ -2,30 +2,399 @@
 // The code of grammar/rules/fr.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, FrenchToken, MatchResult } from "../../library";
+import type {
+  DetectContext,
+  FrameRef,
+  FrenchGender,
+  FrenchToken,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
   IL,
   ILS,
+  JE,
+  PREPOSITIONS,
+  SENTENCE_START,
   SUBJECT_PRONOUNS,
   TU,
   VOUS,
+  accentedNoun,
   adjectiveReadings,
   carryCase,
+  contextYear,
+  daysInMonth,
   finding,
   finitePersons,
+  hAspire,
   hasPerson,
+  invalidIsoDate,
+  isDictionaryCompound,
+  isFrenchWord,
   isInflectedNoun,
   isNounLemma,
   isVerbHomograph,
   namedExampleBefore,
+  nearestDayOn,
   nounGender,
   pluralSingulars,
   skipWords,
+  sontForSon,
   tokensAfter,
   tokensBefore,
   verbReadings,
+  weekdayOf,
   wordFinding,
+  yearsFor,
 } from "../../library";
+
+export const NO_ELISION: ReadonlySet<string> = new Set([
+  "oui",
+  "onze",
+  "onzième",
+  "onzièmes",
+  "ouistiti",
+  "uhlan",
+  "ululement",
+]);
+
+export const NOT_A_WORD_AFTER: ReadonlySet<string> = new Set([
+  "à",
+  "a",
+  "ou",
+  "où",
+  "et",
+  "est",
+  "en",
+  "au",
+  "aux",
+]);
+
+export const ELISION_ARTICLES: ReadonlySet<string> = new Set([
+  "le",
+  "la",
+  "les",
+  "un",
+  "une",
+  "du",
+  "des",
+  "ce",
+]);
+
+export const NOT_AFTER_ARTICLE: ReadonlySet<string> = new Set([
+  "il",
+  "ils",
+  "elle",
+  "elles",
+  "on",
+  "aussi",
+  "encore",
+  "avec",
+  "ici",
+  "ensuite",
+  "alors",
+  "après",
+  "aujourd'hui",
+]);
+
+export const VARIABLE_LETTERS: ReadonlySet<string> = new Set(["c", "d", "l", "m", "n", "s", "t"]);
+
+export const QUE_COMPOUNDS: ReadonlySet<string> = new Set(["lorsque", "puisque", "quoique"]);
+
+export const BEFORE_QUE_COMPOUND: ReadonlySet<string> = new Set([
+  "il",
+  "ils",
+  "elle",
+  "elles",
+  "on",
+  "un",
+  "une",
+]);
+
+export const PRONOUN_AFTER: ReadonlySet<string> = new Set(["en", "y"]);
+
+export const GLUED_LOOKALIKES: ReadonlySet<string> = new Set([
+  "ma",
+  "ta",
+  "sa",
+  "mon",
+  "ton",
+  "son",
+  "mes",
+  "tes",
+  "ses",
+  "les",
+  "des",
+  "dès",
+  "lui",
+  "leur",
+  "leurs",
+  "là",
+  "quel",
+  "quelle",
+  "quels",
+  "quelles",
+  "quoi",
+  "qui",
+  "quand",
+  "quant",
+  "quelque",
+  "quelques",
+  "quiconque",
+  "davantage",
+  "dont",
+  "dans",
+  "donc",
+  "devant",
+  "depuis",
+  "derrière",
+  "déjà",
+  "demain",
+  "dedans",
+  "dehors",
+  "jamais",
+  "jusque",
+  "jusqu",
+  "lorsque",
+  "loin",
+  "longtemps",
+  "maintenant",
+  "moins",
+  "même",
+  "mêmes",
+  "malgré",
+  "mais",
+  "ni",
+  "non",
+  "nous",
+  "toujours",
+  "tout",
+  "toute",
+  "tous",
+  "toutes",
+  "trop",
+  "très",
+  "tard",
+  "tôt",
+  "tant",
+  "selon",
+  "sans",
+  "sous",
+  "sur",
+  "si",
+  "soit",
+  "sauf",
+  "seulement",
+  "souvent",
+  "lequel",
+  "laquelle",
+  "lesquels",
+  "lesquelles",
+  "duquel",
+  "desquels",
+  "auquel",
+  "le",
+  "la",
+  "de",
+  "du",
+  "ne",
+  "me",
+  "te",
+  "se",
+  "ce",
+  "je",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "ils",
+  "elles",
+  "notre",
+  "votre",
+  "nos",
+  "vos",
+  "mien",
+  "tien",
+  "sien",
+  "tandis",
+  "tantôt",
+  "dorénavant",
+  "désormais",
+  "jadis",
+  "lors",
+]);
+
+export const S_AFTER: ReadonlySet<string> = new Set(["il", "ils", "en", "y", "est", "était"]);
+
+export const D_AFTER: ReadonlySet<string> = new Set([
+  "un",
+  "une",
+  "en",
+  "où",
+  "autres",
+  "abord",
+  "accord",
+  "ailleurs",
+]);
+
+export const QU_AFTER: ReadonlySet<string> = new Set([
+  "il",
+  "ils",
+  "elle",
+  "elles",
+  "on",
+  "un",
+  "une",
+  "en",
+  "aucun",
+  "aucune",
+  "avec",
+  "à",
+  "au",
+  "aux",
+  "ont",
+  "ici",
+  "alors",
+  "ainsi",
+  "après",
+  "avant",
+  "entre",
+]);
+
+export const SIL_DETERMINERS: ReadonlySet<string> = new Set([
+  "le",
+  "les",
+  "un",
+  "des",
+  "du",
+  "au",
+  "aux",
+  "ce",
+  "ces",
+  "son",
+  "ses",
+  "mon",
+  "ton",
+  "leur",
+]);
+
+export const SIL_CLITICS: ReadonlySet<string> = new Set([
+  "ne",
+  "n'",
+  "te",
+  "t'",
+  "vous",
+  "nous",
+  "me",
+  "m'",
+  "le",
+  "la",
+  "les",
+  "l'",
+  "lui",
+  "leur",
+  "y",
+  "en",
+  "se",
+  "s'",
+]);
+
+export const SINGULAR_MASCULINE: ReadonlySet<string> = new Set([
+  "un",
+  "le",
+  "ce",
+  "cet",
+  "mon",
+  "ton",
+  "son",
+  "notre",
+  "votre",
+  "leur",
+  "du",
+  "au",
+]);
+
+export const GENDER_NOT_HEADS: ReadonlySet<string> = new Set([
+  "tout",
+  "bien",
+  "mieux",
+  "plus",
+  "moins",
+  "très",
+  "trop",
+  "peu",
+  "mini",
+  "maxi",
+  "post",
+  "pré",
+  "anti",
+  "ex",
+  "super",
+  "hyper",
+  "ultra",
+  "vice",
+]);
+
+export const GENDER_CLITICS: ReadonlySet<string> = new Set([
+  "me",
+  "m'",
+  "te",
+  "t'",
+  "se",
+  "s'",
+  "lui",
+  "leur",
+  "y",
+  "en",
+  "ne",
+  "n'",
+]);
+
+export const GENDER_FEMININE: ReadonlySet<string> = new Set([
+  "une",
+  "la",
+  "cette",
+  "ma",
+  "ta",
+  "sa",
+  "aucune",
+]);
+
+export const NEVER_PRONOUNS: ReadonlySet<string> = new Set([
+  "cette",
+  "cet",
+  "mon",
+  "ton",
+  "du",
+  "au",
+  "aucun",
+  "aucune",
+]);
+
+export const LA_ADVERB_FOLLOWERS: ReadonlySet<string> = new Set([
+  "depuis",
+  "pour",
+  "avec",
+  "dans",
+  "chez",
+  "parmi",
+  "devant",
+  "derrière",
+  "maintenant",
+  "aujourd'hui",
+  "hier",
+  "demain",
+  "déjà",
+  "encore",
+  "toujours",
+  "aussi",
+  "quand",
+  "mais",
+  "car",
+  "parce",
+  "et",
+  "ou",
+]);
 
 export const CLITIC_SUBJECTS: ReadonlySet<string> = new Set(["je", "tu", "il", "ils", "on"]);
 
@@ -793,6 +1162,61 @@ export const PERSONAL_SUBJECTS: ReadonlySet<string> = new Set([
   "elles",
 ]);
 
+export const ELIDED: Readonly<Record<string, string>> = {
+  je: "j",
+  me: "m",
+  te: "t",
+  se: "s",
+  le: "l",
+  la: "l",
+  ne: "n",
+  de: "d",
+  que: "qu",
+  lorsque: "lorsqu",
+  puisque: "puisqu",
+  quoique: "quoiqu",
+};
+
+export const FULL_FORM: Readonly<Record<string, string>> = {
+  j: "je",
+  d: "de",
+  m: "me",
+  t: "te",
+  s: "se",
+  n: "ne",
+  qu: "que",
+};
+
+export const LIAISON_FORMS: Readonly<Record<string, string>> = {
+  ce: "cet",
+  vieux: "vieil",
+  beau: "bel",
+  nouveau: "nouvel",
+  fou: "fol",
+  mou: "mol",
+};
+
+export const GENDER_SWAP: Readonly<Record<string, readonly string[] | readonly (string | null)[]>> =
+  {
+    un: ["une", "une"],
+    une: ["un", "un"],
+    le: ["la", null],
+    la: ["le", null],
+    ce: ["cette", "cette"],
+    cet: ["cette", "cette"],
+    cette: ["ce", "cet"],
+    du: ["de la", null],
+    au: ["à la", null],
+    mon: ["ma", null],
+    ton: ["ta", null],
+    son: ["sa", null],
+    ma: ["mon", "mon"],
+    ta: ["ton", "ton"],
+    sa: ["son", "son"],
+    aucun: ["aucune", "aucune"],
+    aucune: ["aucun", "aucun"],
+  };
+
 export const COUNTRY_PREPOSITIONS: Readonly<Record<string, string>> = {
   France: "en",
   Belgique: "en",
@@ -1037,6 +1461,223 @@ export const BARE_POSSESSIVE: Readonly<Record<string, readonly string[]>> = {
   "32": ["leur", "leur", "leurs"],
 };
 
+// fr.yaml rule fr.elision def ELISION_VOWEL
+export const ELISION_VOWEL = /^[aeiouâàäéèêëîïôöûùüœæ]/i;
+
+// fr.yaml rule fr.elision def apostropheNear
+export function apostropheNear(ctx: DetectContext, index: number) {
+  const nearby = ctx.text.slice(Math.max(0, index - 300), index + 300);
+  return nearby.includes("’") && !nearby.includes("'") ? "’" : "'";
+}
+
+// fr.yaml rule fr.elision def silIsElided
+export function silIsElided(ctx: DetectContext, m: RegExpExecArray) {
+  const before = tokensBefore(ctx.text, m.index, 1)[0];
+  if (before && SIL_DETERMINERS.has(before.w)) return false;
+  const next = tokensAfter(ctx.text, m.index + m[0].length, 1)[0];
+  if (!next) return false;
+  return (
+    SIL_CLITICS.has(next.w) ||
+    ["est", "a", "fait", "faut"].includes(next.w) ||
+    (hasPerson(finitePersons(next.w), IL + ILS) && !isVerbHomograph(next.w))
+  );
+}
+
+// fr.yaml rule fr.dates def FRENCH_MONTHS
+export const FRENCH_MONTHS = [
+  ["janvier"],
+  ["février", "fevrier"],
+  ["mars"],
+  ["avril"],
+  ["mai"],
+  ["juin"],
+  ["juillet"],
+  ["août", "aout"],
+  ["septembre"],
+  ["octobre"],
+  ["novembre"],
+  ["décembre", "decembre"],
+];
+
+// fr.yaml rule fr.dates def FRENCH_WEEKDAYS
+export const FRENCH_WEEKDAYS = [
+  "dimanche",
+  "lundi",
+  "mardi",
+  "mercredi",
+  "jeudi",
+  "vendredi",
+  "samedi",
+];
+
+// fr.yaml rule fr.dates def DATE_CODE_LABEL
+export const DATE_CODE_LABEL =
+  /(?:^|[\s(])(?:n[°o]\.?|num\.?|numéro|#|réf\.?|code|dossier|tome|vol\.?|volume)\s*:?\s{0,8}$/iu;
+
+// fr.yaml rule fr.dates def DATED_BEFORE
+export const DATED_BEFORE = /(?:^|[^\p{L}])(?:le|du|au|né|née)[ \t]+[*_~]{0,3}$/iu;
+
+// fr.yaml rule fr.dates def DATE_PLURAL_BEFORE
+export const DATE_PLURAL_BEFORE =
+  /(?:^|[^\p{L}])(?:les|des|ces|mes|tes|ses|nos|vos|leurs)[ \t]+$/iu;
+
+// fr.yaml rule fr.dates def frenchMonthIndex
+export function frenchMonthIndex(month: string) {
+  return /^\d+$/.test(month)
+    ? Number(month) - 1
+    : FRENCH_MONTHS.findIndex((names) => names.includes(month.toLowerCase()));
+}
+
+// fr.yaml rule fr.dates def impossibleFrenchDate
+export function impossibleFrenchDate(m: RegExpExecArray): RawFinding {
+  return {
+    ruleId: "frenchDates",
+    messageKey: "review_msg_fr_date",
+    range: {
+      start: Math.min(m.indices!.groups!.day[0], m.index + (m.groups!.weekday?.length ?? 0)),
+      end: m.index + m[0].length,
+    },
+    alternatives: [],
+    warningOnly: true,
+  };
+}
+
+// fr.yaml rule fr.dates def fullFrenchDate
+export function fullFrenchDate(ctx: DetectContext, m: RegExpExecArray) {
+  const day = m.groups!.day;
+  const month = m.groups!.month;
+  const year = m.groups!.year;
+  const before = ctx.text.slice(Math.max(0, m.index - 16), m.index);
+  return !/^\d+$/.test(month)
+    ? day.length <= 2 && !DATE_PLURAL_BEFORE.test(before) && !DATE_CODE_LABEL.test(before)
+    : (m.groups!.sep ?? "/") === "/" &&
+        year?.length === 4 &&
+        Number(day) <= 39 &&
+        Number(month) <= 39 &&
+        !DATE_CODE_LABEL.test(before);
+}
+
+// fr.yaml rule fr.dates def frenchWeekdayNoYear
+export function frenchWeekdayNoYear(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  month: number,
+  day: number,
+): RawFinding | null {
+  const weekday = m.groups!.weekday;
+  const years = yearsFor(month, day, contextYear(ctx.text, m.index, ctx.lang));
+  const weekdays = [...new Set(years.map((y) => weekdayOf(y, month, day)))];
+  const typed = FRENCH_WEEKDAYS.indexOf(weekday.toLowerCase());
+  if (!(years.length > 0 && !weekdays.includes(typed))) return null;
+  const dayStart = m.indices!.groups!.day[0];
+  const dayEnd = m.indices!.groups!.day[1];
+  const between = ctx.text.slice(m.index + weekday.length, dayStart);
+  const near = nearestDayOn(years[0], month, day, typed);
+  return finding(
+    "frenchDates",
+    "review_msg_weekday_no_year",
+    m.index,
+    dayEnd,
+    [
+      ...weekdays.map((w) => `${carryCase(weekday, FRENCH_WEEKDAYS[w])}${between}${m.groups!.day}`),
+      ...(near === null ? [] : [`${weekday}${between}${near}`]),
+    ],
+    { requiresChoice: true, context: { start: m.index, end: m.index + m[0].length } },
+  );
+}
+
+// fr.yaml rule fr.dates def possibleFrenchDate
+export function possibleFrenchDate(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  monthNumber: number,
+  dayNumber: number,
+): RawFinding | null {
+  if (!dayNumber) return null;
+  const weekday = m.groups!.weekday;
+  const day = m.groups!.day;
+  const year = m.groups!.year;
+  const yearNumber = year && year.length === 4 ? Number(year) : undefined;
+  const dayStart = m.indices!.groups!.day[0];
+  const last = daysInMonth(monthNumber + 1, yearNumber);
+  const choices = monthNumber === 1 && yearNumber === undefined ? ["28", "29"] : [String(last)];
+  return dayNumber > last
+    ? finding("frenchDates", "review_msg_fr_date", dayStart, dayStart + day.length, choices, {
+        context: { start: m.index, end: m.index + m[0].length },
+        ...(choices.length > 1 ? { requiresChoice: true as const } : {}),
+      })
+    : !weekday || (year && yearNumber === undefined)
+      ? null
+      : yearNumber === undefined
+        ? frenchWeekdayNoYear(ctx, m, monthNumber + 1, dayNumber)
+        : FRENCH_WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)] ===
+            weekday.toLowerCase()
+          ? null
+          : finding(
+              "frenchDates",
+              "review_msg_fr_date",
+              m.index,
+              m.index + weekday.length,
+              [
+                carryCase(
+                  weekday,
+                  FRENCH_WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)],
+                ),
+              ],
+              { context: { start: m.index, end: m.index + m[0].length } },
+            );
+}
+
+// fr.yaml rule fr.dates def checkFrenchDate
+export function checkFrenchDate(ctx: DetectContext, m: RegExpExecArray): RawFinding | null {
+  if (namedExampleBefore(ctx.text, m.index)) return null;
+  const day = m.groups!.day;
+  const month = m.groups!.month;
+  const year = m.groups!.year;
+  const monthNumber = frenchMonthIndex(month);
+  const dayNumber = Number(day);
+  const dated = DATED_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 11), m.index));
+  const numeric = /^\d+$/.test(month);
+  if (day.length > 2 && (!dated || numeric)) return null;
+  const zero = dayNumber === 0 || (numeric && Number(month) === 0);
+  if (zero && year?.length !== 4 && (numeric || !dated)) return null;
+  const swapped =
+    numeric && Number(month) >= 1 && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12;
+  return monthNumber < 0 || monthNumber > 11 || dayNumber > 31 || zero
+    ? (dated || fullFrenchDate(ctx, m)) && !swapped
+      ? impossibleFrenchDate(m)
+      : null
+    : possibleFrenchDate(ctx, m, monthNumber, dayNumber);
+}
+
+// fr.yaml rule fr.gender def GENDER_VOWEL
+export const GENDER_VOWEL = /^[aeiouyâàäéèêëîïôöûùüœæ]/i;
+
+// fr.yaml rule fr.gender def plainVerb
+export function plainVerb(word: string) {
+  return !isVerbHomograph(word) && verbReadings(word).some((r) => typeof r.slot === "number");
+}
+
+// fr.yaml rule fr.gender def genderBeforeNoun
+export function genderBeforeNoun(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  word: string,
+): FrenchGender | null {
+  const slots = adjectiveReadings(word).map((r) => r.slot);
+  const genders = new Set(slots.filter((s) => s.endsWith("s")).map((s) => s[0] as FrenchGender));
+  if (genders.size !== 1 || slots.some((s) => s.endsWith("p"))) return null;
+  if (plainVerb(word)) return null;
+  const start = m.indices!.groups!.noun[0];
+  const next = tokensAfter(ctx.text, start + word.length, 1)[0];
+  if (!next || next.hyphen || ctx.text.slice(next.start, next.end) !== next.w) return null;
+  if (adjectiveReadings(next.w).length || plainVerb(next.w)) return null;
+  const verb = verbReadings(next.w).some((r) => typeof r.slot === "number");
+  if ((verb && isInflectedNoun(word)) || word.startsWith("saint")) return null;
+  const gender = [...genders][0];
+  return nounGender(next.w) === gender ? gender : null;
+}
+
 // fr.yaml rule fr.ordinals def ordinalSuffix
 export function ordinalSuffix(number: string, typed: string) {
   const plural = /s$/i.test(typed) ? "s" : "";
@@ -1278,6 +1919,286 @@ export function extraPronoun(ctx: DetectContext, start: number, end: number) {
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // fr.yaml rule fr.elision frame 1
+  "@fr.elision/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const typed = m[0];
+    const word = typed.toLowerCase();
+    const sil = (word === "sil" || word === "sils") && silIsElided(ctx, m);
+    if (GLUED_LOOKALIKES.has(word) || ctx.dictionary.has(word) || (!sil && isFrenchWord(word)))
+      return null;
+    if (!sil && isFrenchWord(word.replace(/i(?=t$)/, "î").replace(/u(?=t$)/, "û"))) return null;
+    if (adjectiveReadings(word).length || namedExampleBefore(ctx.text, m.index)) return null;
+    if (
+      /^\p{Lu}/u.test(typed) &&
+      !SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    if (/\p{Lu}/u.test(typed.slice(1))) return null;
+    const letter = word.startsWith("qu") ? "qu" : word[0];
+    if ((letter === "d" || letter === "l") && typed !== word) return null;
+    const rest = word.slice(letter.length);
+    if (rest.length < 1 || (!ELISION_VOWEL.test(rest) && !rest.startsWith("h"))) return null;
+    const verb = verbReadings(rest).some((r) => typeof r.slot === "number");
+    const fits =
+      letter === "s"
+        ? S_AFTER.has(rest)
+        : letter === "j"
+          ? PRONOUN_AFTER.has(rest) || hasPerson(finitePersons(rest), JE)
+          : letter === "n" || letter === "m" || letter === "t"
+            ? PRONOUN_AFTER.has(rest) || verb
+            : letter === "d"
+              ? D_AFTER.has(rest) || isInflectedNoun(rest)
+              : letter === "qu"
+                ? QU_AFTER.has(rest)
+                : letter === "c"
+                  ? rest === "en"
+                  : letter === "l"
+                    ? rest.length > 2 && (isNounLemma(rest) || (verb && rest.length > 3))
+                    : false;
+    if (!fits) return null;
+    const next = tokensAfter(ctx.text, m.index + typed.length, 1)[0];
+    if (!(!PRONOUN_AFTER.has(rest) || (!!next && verbReadings(next.w).length > 0))) return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, m.index + typed.length, [
+      typed.slice(0, letter.length) + apostropheNear(ctx, m.index) + typed.slice(letter.length),
+    ]);
+  },
+  // fr.yaml rule fr.elision frame 2
+  "@fr.elision/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const word = m.groups!.word;
+    const space = m.groups!.space;
+    const next = m.groups!.next;
+    if (!(m.index >= ctx.from)) return null;
+    const lower = word.toLowerCase();
+    const nextLower = next.toLowerCase();
+    if ((!ELISION_VOWEL.test(next) && nextLower !== "y") || NO_ELISION.has(nextLower)) return null;
+    if (QUE_COMPOUNDS.has(lower) && !BEFORE_QUE_COMPOUND.has(nextLower)) return null;
+    if (NOT_A_WORD_AFTER.has(nextLower) && !(lower === "que" && nextLower === "à")) return null;
+    if ((next.length < 2 && nextLower !== "y" && nextLower !== "à") || /\p{Lu}/u.test(next))
+      return null;
+    if (!isFrenchWord(nextLower)) return null;
+    if (
+      /^\p{Lu}/u.test(word) &&
+      !SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (previous && ELISION_ARTICLES.has(previous.w)) return null;
+    if (lower === "je" && previous && hasPerson(finitePersons(previous.w), JE)) return null;
+    if (/\d\s*$/.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))) return null;
+    if (lower === "la" && NOT_AFTER_ARTICLE.has(nextLower)) return null;
+    const end = m.index + word.length + space.length + next.length;
+    if (
+      (nextLower === "un" || nextLower === "une") &&
+      /^[ \t ]{1,8}(?:à|a)(?=\s|$)|^[ \t ]{0,8}\d/u.test(ctx.text.slice(end, end + 12))
+    )
+      return null;
+    if ((lower === "la" || lower === "le") && (nextLower === "un" || nextLower === "une"))
+      return null;
+    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, end, [
+      carryCase(word, ELIDED[lower]) + apostropheNear(ctx, m.index) + next,
+    ]);
+  },
+  // fr.yaml rule fr.elision frame 3
+  "@fr.elision/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const letter = m.groups!.letter;
+    const mark = m.groups!.mark;
+    const next = m.groups!.next;
+    if (!(m.index >= ctx.from)) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 3), m.index);
+    if (/\d[\s,]*$/.test(before) || /^\p{Lu}/u.test(next)) return null;
+    if (!(!!mark || !(/^\p{Lu}/u.test(letter) && !/(?:^|[.!?]\s*)$/.test(before)))) return null;
+    if (!(
+      !!mark ||
+      !/^\p{L}[ \t]+\p{L}(?![\p{L}'’])/u.test(ctx.text.slice(m.index + m[0].length - next.length))
+    ))
+      return null;
+    if (!(
+      !!mark || !/\blettres?[ \t]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 10), m.index))
+    ))
+      return null;
+    if (!(!!mark || !(letter.toLowerCase() === "s" && !/^(?:ils?|en|y)$/.test(next)))) return null;
+    const y = next.toLowerCase() === "y" && /^[jmnt]$/i.test(letter);
+    if (!(!!mark || !(!ELISION_VOWEL.test(next) && !/^h/.test(next) && !y))) return null;
+    if (!(!!mark || !/^\s*[,;:]/.test(ctx.text.slice(m.index + m[0].length)))) return null;
+    if (!(!!mark || !["et", "ou", "avec", "par", "entier"].includes(next.toLowerCase())))
+      return null;
+    if (!(
+      !!mark ||
+      !/(?<![\p{L}\p{N}])\p{L}\s*(?:,|\bet|\bou)\s*$/u.test(
+        ctx.text.slice(Math.max(0, m.index - 8), m.index),
+      )
+    ))
+      return null;
+    if (!(!!mark || !(letter === "c" && next.toLowerCase() === "a"))) return null;
+    if (!(!!mark || !(/^t$/i.test(letter) && /^(?:il|elle|on|ils|elles)$/i.test(next))))
+      return null;
+    if (!(
+      !!mark ||
+      !VARIABLE_LETTERS.has(letter) ||
+      (
+        ctx.text
+          .slice(Math.max(0, m.index - 200), m.index + 200)
+          .match(new RegExp(`(?<![\\p{L}\\p{N}'’-])${letter}(?![\\p{L}\\p{N}'’-])`, "gu")) ?? []
+      ).length <= 1
+    ))
+      return null;
+    if (!(!mark || ELISION_VOWEL.test(next) || /^h/i.test(next))) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [
+      letter + (mark?.trim() || apostropheNear(ctx, m.index)) + next,
+    ]);
+  },
+  // fr.yaml rule fr.elision frame 4
+  "@fr.elision/4": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const word = m.groups!.word;
+    const next = m.groups!.next;
+    if (!(m.index >= ctx.from)) return null;
+    if (!(/^[aeiouâàäéèêëîïôöûùüœæh]/.test(next) && !NO_ELISION.has(next))) return null;
+    if (next.startsWith("h") && hAspire(next)) return null;
+    if (!(
+      (nounGender(next) === "m" || adjectiveReadings(next).some((r) => r.slot === "ms")) &&
+      isNounLemma(next)
+    ))
+      return null;
+    if (verbReadings(next).some((r) => typeof r.slot === "number") && !isVerbHomograph(next))
+      return null;
+    const lower = word.toLowerCase();
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (!(lower === "ce" || (!!previous && SINGULAR_MASCULINE.has(previous.w)))) return null;
+    if (ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index)) return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, m.index + word.length, [
+      carryCase(word, LIAISON_FORMS[lower]),
+    ]);
+  },
+  // fr.yaml rule fr.elision frame 5
+  "@fr.elision/5": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const letter = m.groups!.letter;
+    const next = m.groups!.next;
+    if (!(m.index >= ctx.from)) return null;
+    const lower = next.toLowerCase();
+    if (next !== lower || next.length < 2 || ctx.dictionary.has(lower)) return null;
+    const consonant = /^[bcdfgjklmnpqrstvwxzç]/.test(lower) && /^l$/i.test(letter);
+    if (!consonant && !NO_ELISION.has(lower) && !(lower.startsWith("h") && hAspire(lower)))
+      return null;
+    if (!isFrenchWord(lower) || namedExampleBefore(ctx.text, m.index)) return null;
+    const key = letter.toLowerCase();
+    const singular = /[sx]$/.test(lower) && !isNounLemma(lower) ? lower.slice(0, -1) : lower;
+    const gender =
+      key === "l"
+        ? (nounGender(singular) ??
+          adjectiveReadings(lower).find((r) => r.slot.endsWith("s"))?.slot[0])
+        : undefined;
+    const full =
+      key === "l" ? (gender ? (gender === "f" ? "la" : "le") : undefined) : FULL_FORM[key];
+    if (!full) return null;
+    return finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [
+      `${carryCase(letter, full)} ${next}`,
+    ]);
+  },
+  // fr.yaml rule fr.dates frame 1
+  "@fr.dates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    return checkFrenchDate(ctx, m);
+  },
+  // fr.yaml rule fr.dates frame 2
+  "@fr.dates/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    return checkFrenchDate(ctx, m);
+  },
+  // fr.yaml rule fr.dates frame 3
+  "@fr.dates/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    return checkFrenchDate(ctx, m);
+  },
+  // fr.yaml rule fr.dates frame 4
+  "@fr.dates/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    return checkFrenchDate(ctx, m);
+  },
+  // fr.yaml rule fr.isoDates frame 1
+  "@fr.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const range = invalidIsoDate(m, ctx);
+    if (!range) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range,
+      alternatives: [],
+      warningOnly: true,
+    };
+  },
+  // fr.yaml rule fr.gender frame 1
+  "@fr.gender/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const det = m.groups!.det;
+    const noun = m.groups!.noun;
+    if (!(m.index >= ctx.from)) return null;
+    const lowerDet = det.toLowerCase();
+    const word = noun.toLowerCase();
+    if (noun !== word || word.length < 3 || ctx.dictionary.has(word)) return null;
+    if (det.length > 1 && det === det.toUpperCase()) return null;
+    if (GENDER_NOT_HEADS.has(word) || word.endsWith("ième")) return null;
+    if (lowerDet === "la" && LA_ADVERB_FOLLOWERS.has(word)) return null;
+    const headGender = nounGender(word) ?? genderBeforeNoun(ctx, m, word);
+    if (!headGender || (headGender === "f") === GENDER_FEMININE.has(lowerDet)) return null;
+    const start = m.indices!.groups!.noun[0];
+    const after = ctx.text.slice(start + noun.length);
+    if (/^[-'’·.*(]\p{L}/u.test(after)) return null;
+    const second = /^[ \t]+(\p{L}+)/u.exec(after)?.[1].toLowerCase();
+    if (second && isDictionaryCompound(`${word}-${second}`)) return null;
+    if (!GENDER_FEMININE.has(lowerDet) && verbReadings(word).length && accentedNoun(word))
+      return null;
+    const vowel = GENDER_VOWEL.test(word) || (word.startsWith("h") && !hAspire(word));
+    const elided = vowel && (lowerDet === "le" || lowerDet === "la");
+    const fixed = elided ? "l'" : GENDER_SWAP[lowerDet][vowel ? 1 : 0];
+    if (!fixed) return null;
+    if (["mon", "ton", "son"].includes(lowerDet) && vowel) return null;
+    const previous = tokensBefore(ctx.text, m.index, 1)[0];
+    if (
+      lowerDet === "ce" &&
+      previous?.w === "sur" &&
+      tokensBefore(ctx.text, m.index, 2).length === 1
+    )
+      return null;
+    if (lowerDet === "son" && sontForSon(ctx.text, m.index)) return null;
+    if (
+      (lowerDet === "son" || lowerDet === "ton") &&
+      previous &&
+      ["de", "le", "un", "du", "ce", "au"].includes(previous.w)
+    )
+      return null;
+    if (!(
+      NEVER_PRONOUNS.has(lowerDet) ||
+      (!(
+        (lowerDet === "le" || lowerDet === "la") &&
+        verbReadings(word).some((r) => r.slot === "I")
+      ) &&
+        (!verbReadings(word).some((r) => typeof r.slot === "number") ||
+          (!!previous &&
+            (PREPOSITIONS.has(previous.w) ||
+              (!SUBJECT_PRONOUNS.has(previous.w) &&
+                !GENDER_CLITICS.has(previous.w) &&
+                verbReadings(previous.w).length > 0 &&
+                !isInflectedNoun(previous.w))))))
+    ))
+      return null;
+    const next = tokensAfter(ctx.text, start + noun.length, 1)[0];
+    if (next && nounGender(next.w) === (GENDER_FEMININE.has(lowerDet) ? "f" : "m")) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    if (/^\p{Lu}/u.test(det) && /^\p{Lu}/u.test(after.trim())) return null;
+    const joined =
+      lowerDet === "la" && !elided && previous && previous.end + 1 === m.index ? previous : null;
+    const contracted = joined?.w === "de" ? "du" : joined?.w === "à" ? "au" : null;
+    const from = contracted && joined ? joined.start : m.index;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: from, end: elided && !contracted ? start : m.index + det.length },
+      alternatives: [carryCase(ctx.text.slice(from, m.index + det.length), contracted ?? fixed)],
+      context: { start: m.index, end: start + noun.length },
+    };
+  },
   // fr.yaml rule fr.ordinals frame 1
   "@fr.ordinals/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     const number = m.groups!.number;

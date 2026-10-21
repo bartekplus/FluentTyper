@@ -18384,7 +18384,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:gluedElision",
+    fixer: "fr:@fr.elision/1",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18393,7 +18393,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<word>je|me|te|se|le|la|ne|de|que|lorsque|puisque|quoique)(?=(?<space>[ \\t]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_'’-]))",
     literals: [],
-    fixer: "fr:missingElision",
+    fixer: "fr:@fr.elision/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18402,7 +18402,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?<letter>[cdjlmnst]|qu)(?:(?<mark>[ \\t]*['’][ \\t]+|[ \\t]+['’][ \\t]*)|[ \\t]+)(?<next>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:spacedElision",
+    fixer: "fr:@fr.elision/3",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18411,7 +18411,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<word>ce|vieux|beau|nouveau|fou|mou)[ \\t\\u00a0]+(?<next>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_'’])",
     literals: [],
-    fixer: "fr:liaisonForm",
+    fixer: "fr:@fr.elision/4",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18420,7 +18420,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:wrongElision",
+    fixer: "fr:@fr.elision/5",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18445,7 +18445,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "décembre",
       "decembre",
     ],
-    fixer: "fr:checkDate",
+    fixer: "fr:@fr.dates/1",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,
@@ -18454,7 +18454,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}][*_~]{0,3})(?:(?<weekday>dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)[ \\t]{0,8},?[ \\t]{1,8})?(?<day>\\d{1,4})(?<sep>[/.-])(?<month>\\d{1,2}|janvier|février|fevrier|mars|avril|mai|juin|juillet|août|aout|septembre|octobre|novembre|décembre|decembre)\\k<sep>(?<year>[0-9]{4}|\\d{2})(?![*_~]{0,3}[\\p{L}\\p{N}])",
     literals: [],
-    fixer: "fr:checkDate",
+    fixer: "fr:@fr.dates/2",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,
@@ -18463,7 +18463,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}\\p{N}][*_~]{0,3})(?:le|du|au)[ \\t]{1,8}[*_~]{0,3})(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)",
     literals: [],
-    fixer: "fr:checkDate",
+    fixer: "fr:@fr.dates/3",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,
@@ -18472,7 +18472,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}][*_~]{0,3})(?:(?<weekday>dimanche|lundi|mardi|mercredi|jeudi|vendredi|samedi)[ \\t]{0,8},?[ \\t]{1,8})?(?<year>[0-9]{4})\\/(?<month>\\d{1,2})\\/(?<day>\\d{1,2})(?![*_~]{0,3}[\\p{L}\\p{N}])",
     literals: [],
-    fixer: "fr:checkDate",
+    fixer: "fr:@fr.dates/4",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,
@@ -18481,7 +18481,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{L}\\p{N}][-./])(?<year>[0-9٠-٩۰-۹]{4})-(?<month>[0-9٠-٩۰-۹]{2})-(?<day>[0-9٠-٩۰-۹]{2})(?![*_~]{0,3}[\\p{L}\\p{N}])(?![-./][\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:invalidIsoDate",
+    fixer: "fr:@fr.isoDates/1",
     flags: "gdu",
     owner: "none",
   }),
@@ -18516,7 +18516,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<![\\p{L}\\p{M}\\p{N}_'’-])|(?<=(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:[dD]|[qQ]u)['’]))(?<det>un|une|le|la|ce|cet|cette|du|au|mon|ton|son|ma|ta|sa|aucun|aucune)(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))",
     literals: [],
-    fixer: "fr:gender",
+    fixer: "fr:@fr.gender/1",
     flags: "dgiu",
     scan: "owned",
     lookback: 1,

@@ -3,6 +3,12 @@ import type { VerbSlot } from "../review/french/frenchLexicon";
 import type { Token as FrenchToken } from "../review/french/frenchTokens";
 
 export { finding } from "../review/finding";
+export { invalidIsoDate } from "../review/isoDates";
+export { accentedNoun, hAspire } from "./french/words";
+export { firstNameGender } from "../review/french/firstNames";
+// TRANSITIONAL: these move to fr.yaml when their modules are ported.
+export { sontForSon } from "../review/french/homophones";
+export { contextYear, daysInMonth, nearestDayOn, weekdayOf, yearsFor } from "../review/reviewClock";
 export {
   applyWordCase,
   carryCase,

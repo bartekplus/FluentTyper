@@ -250,68 +250,533 @@ rules:
     checks: [frenchElision]
     style: match
     message: review_msg_fr_elision
+    # Elision: "le", "de", "que", "je", "ne", "me", "te", "se", "la" drop their vowel before a word
+    # that starts with a vowel ("l'arbre", "qu'il"), written with an apostrophe and no space.
+    sets:
+      # Vowel-initial words that refuse elision ("le oui", "le onze", "la une").
+      NO_ELISION: [oui, onze, onzième, onzièmes, ouistiti, uhlan, ululement]
+      # Words after which an elided form reads differently.
+      NOT_A_WORD_AFTER: [à, a, ou, où, et, est, en, au, aux]
+      ELISION_ARTICLES: [le, la, les, un, une, du, des, ce]
+      NOT_AFTER_ARTICLE:
+        [il, ils, elle, elles, "on", aussi, encore, avec, ici, ensuite, alors, après, aujourd'hui]
+      # Letters a text may use as variables ("si c divise a, alors c est premier").
+      VARIABLE_LETTERS: [c, d, l, m, n, s, t]
+      # Conjunctions ending in "que" elide only before these.
+      QUE_COMPOUNDS: [lorsque, puisque, quoique]
+      BEFORE_QUE_COMPOUND: [il, ils, elle, elles, on, un, une]
+      # What may follow each elided word: s' only "il(s)", "en", "y", "est"; n', m', t', j' a verb
+      # form or "en"/"y"; l', d' and qu' a noun, a verb or a pronoun.
+      PRONOUN_AFTER: [en, y]
+      # Function words the verb and noun lists leave out that begin like an elision: "ma" is no
+      # "m'a", "quelle" no "qu'elle", "davantage" no "d'avantage".
+      GLUED_LOOKALIKES:
+        [
+          ma,
+          ta,
+          sa,
+          mon,
+          ton,
+          son,
+          mes,
+          tes,
+          ses,
+          les,
+          des,
+          dès,
+          lui,
+          leur,
+          leurs,
+          là,
+          quel,
+          quelle,
+          quels,
+          quelles,
+          quoi,
+          qui,
+          quand,
+          quant,
+          quelque,
+          quelques,
+          quiconque,
+          davantage,
+          dont,
+          dans,
+          donc,
+          devant,
+          depuis,
+          derrière,
+          déjà,
+          demain,
+          dedans,
+          dehors,
+          jamais,
+          jusque,
+          jusqu,
+          lorsque,
+          loin,
+          longtemps,
+          maintenant,
+          moins,
+          même,
+          mêmes,
+          malgré,
+          mais,
+          ni,
+          non,
+          nous,
+          toujours,
+          tout,
+          toute,
+          tous,
+          toutes,
+          trop,
+          très,
+          tard,
+          tôt,
+          tant,
+          selon,
+          sans,
+          sous,
+          sur,
+          si,
+          soit,
+          sauf,
+          seulement,
+          souvent,
+          lequel,
+          laquelle,
+          lesquels,
+          lesquelles,
+          duquel,
+          desquels,
+          auquel,
+          le,
+          la,
+          de,
+          du,
+          ne,
+          me,
+          te,
+          se,
+          ce,
+          je,
+          tu,
+          il,
+          elle,
+          "on",
+          ils,
+          elles,
+          notre,
+          votre,
+          nos,
+          vos,
+          mien,
+          tien,
+          sien,
+          tandis,
+          tantôt,
+          dorénavant,
+          désormais,
+          jadis,
+          lors,
+        ]
+      S_AFTER: [il, ils, en, y, est, était]
+      D_AFTER: [un, une, en, où, autres, abord, accord, ailleurs]
+      QU_AFTER:
+        [
+          il,
+          ils,
+          elle,
+          elles,
+          "on",
+          un,
+          une,
+          en,
+          aucun,
+          aucune,
+          avec,
+          à,
+          au,
+          aux,
+          ont,
+          ici,
+          alors,
+          ainsi,
+          après,
+          avant,
+          entre,
+        ]
+      SIL_DETERMINERS: [le, les, un, des, du, au, aux, ce, ces, son, ses, mon, ton, leur]
+      SIL_CLITICS: [ne, n', te, t', vous, nous, me, m', le, la, les, l', lui, leur, "y", en, se, s']
+      SINGULAR_MASCULINE: [un, le, ce, cet, mon, ton, son, notre, votre, leur, du, au]
+    maps:
+      # The letter a word elides to: "je" -> "j", "que" -> "qu", "la" -> "l".
+      ELIDED:
+        {
+          je: j,
+          me: m,
+          te: t,
+          se: s,
+          le: l,
+          la: l,
+          ne: n,
+          de: d,
+          que: qu,
+          lorsque: lorsqu,
+          puisque: puisqu,
+          quoique: quoiqu,
+        }
+      # The full words an elided letter stands for: "j'" -> "je"; "l'" is "le" or "la".
+      FULL_FORM: { j: je, d: de, m: me, t: te, s: se, n: ne, qu: que }
+      # Masculine singular forms with a second form before a vowel: "cet arbre", "un vieil homme",
+      # "un bel été", "un nouvel ami".
+      LIAISON_FORMS: { ce: cet, vieux: vieil, beau: bel, nouveau: nouvel, fou: fol, mou: mol }
+    defs:
+      ELISION_VOWEL: /^[aeiouâàäéèêëîïôöûùüœæ]/i
+      apostropheNear:
+        args: "ctx: DetectContext, index: number"
+        let:
+          nearby: ctx.text.slice(Math.max(0, index - 300), index + 300)
+        return: 'nearby.includes("’") && !nearby.includes("''") ? "’" : "''"'
+      # "sil vient", "sil vous plaît": the noun "sil" (a clay) only after a determiner and never
+      # before a verb or a pronoun the way "s'il" is.
+      silIsElided:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        let:
+          before: tokensBefore(ctx.text, m.index, 1)[0]
+          next: tokensAfter(ctx.text, m.index + m[0].length, 1)[0]
+        when:
+          - "!(before && SIL_DETERMINERS.has(before.w))"
+          - "!!next"
+        return: >-
+          SIL_CLITICS.has(next.w) || ["est", "a", "fait", "faut"].includes(next.w) ||
+          (hasPerson(finitePersons(next.w), IL + ILS) && !isVerbHomograph(next.w))
+        else: "false"
     frames:
       # "jarrive", "sil", "nen", "dun": an elided word glued to the next without its apostrophe.
       - regex: "{{WORD_START}}(?:[cCjJsSnNmMtTdDlL]|[qQ]u)\\p{Ll}+{{WORD_END}}"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: gluedElision
+        let:
+          typed: m[0]
+          word: typed.toLowerCase()
+          sil: '(word === "sil" || word === "sils") && silIsElided(ctx, m)'
+          letter: 'word.startsWith("qu") ? "qu" : word[0]'
+          rest: word.slice(letter.length)
+          verb: 'verbReadings(rest).some((r) => typeof r.slot === "number")'
+          fits: >-
+            letter === "s"
+              ? S_AFTER.has(rest)
+              : letter === "j"
+                ? PRONOUN_AFTER.has(rest) || hasPerson(finitePersons(rest), JE)
+                : letter === "n" || letter === "m" || letter === "t"
+                  ? PRONOUN_AFTER.has(rest) || verb
+                  : letter === "d"
+                    ? D_AFTER.has(rest) || isInflectedNoun(rest)
+                    : letter === "qu"
+                      ? QU_AFTER.has(rest)
+                      : letter === "c"
+                        ? rest === "en"
+                        : letter === "l"
+                          ? rest.length > 2 && (isNounLemma(rest) || (verb && rest.length > 3))
+                          : false
+          next: tokensAfter(ctx.text, m.index + typed.length, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - "!(GLUED_LOOKALIKES.has(word) || ctx.dictionary.has(word) || (!sil && isFrenchWord(word)))"
+          # "nait", "connait": the 1990 spelling of a word with a circumflex.
+          - '!(!sil && isFrenchWord(word.replace(/i(?=t$)/, "î").replace(/u(?=t$)/, "û")))'
+          - "!(adjectiveReadings(word).length || namedExampleBefore(ctx.text, m.index))"
+          # "Sil vient": a capital only at a sentence start; other capitals are names.
+          - '!(/^\p{Lu}/u.test(typed) && !SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))'
+          - '!/\p{Lu}/u.test(typed.slice(1))'
+          # "Denis", "Léon": a capitalized d or l word is a name sooner than "D'enis".
+          - '!((letter === "d" || letter === "l") && typed !== word)'
+          - '!(rest.length < 1 || (!ELISION_VOWEL.test(rest) && !rest.startsWith("h")))'
+          - fits
+          # "nen fait", "den parler": "en" and "y" glued to an elided word come before a verb
+          # ("the den is dark" is English).
+          - "!PRONOUN_AFTER.has(rest) || (!!next && verbReadings(next.w).length > 0)"
+        return: >-
+          finding(frame.ruleId, frame.messageKey, m.index, m.index + typed.length, [
+            typed.slice(0, letter.length) + apostropheNear(ctx, m.index) + typed.slice(letter.length),
+          ])
       # "je aime", "que il", "le arbre": the full word before a vowel.
       - regex: "{{WORD_START}}(?<word>je|me|te|se|le|la|ne|de|que|lorsque|puisque|quoique)(?=(?<space>[ \\t]+)(?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}})"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: missingElision
+        let:
+          lower: word.toLowerCase()
+          nextLower: next.toLowerCase()
+          # "le ne explétif", "5.000 me": the word named, or a unit.
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          end: m.index + word.length + space.length + next.length
+        when:
+          - m.index >= ctx.from
+          # "je y vais" -> "j'y": the pronoun "y" elides like a vowel.
+          - '!((!ELISION_VOWEL.test(next) && nextLower !== "y") || NO_ELISION.has(nextLower))'
+          - "!(QUE_COMPOUNDS.has(lower) && !BEFORE_QUE_COMPOUND.has(nextLower))"
+          - '!(NOT_A_WORD_AFTER.has(nextLower) && !(lower === "que" && nextLower === "à"))'
+          # Names, titles and foreign words ("de Autant en emporte le vent") keep their spelling,
+          # and so does a capitalized "Me"/"Se" inside a sentence ("Kiss Me Once", "Macintosh SE").
+          - '!((next.length < 2 && nextLower !== "y" && nextLower !== "à") || /\p{Lu}/u.test(next))'
+          # "de also known as", "que ab est": a foreign word or a variable keeps the full form.
+          - isFrenchWord(nextLower)
+          - '!(/^\p{Lu}/u.test(word) && !SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))'
+          - "!(previous && ELISION_ARTICLES.has(previous.w))"
+          # "Dois je y aller ?": an inverted "je" (its hyphen missing) never elides.
+          - '!(lower === "je" && previous && hasPerson(finitePersons(previous.w), JE))'
+          - '!/\d\s*$/.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))'
+          # "Et la il est", "la aussi": "là" missing its accent, not the article.
+          - '!(lower === "la" && NOT_AFTER_ARTICLE.has(nextLower))'
+          # "de un à dix": a number in a range.
+          - '!((nextLower === "un" || nextLower === "une") && /^[ \t ]{1,8}(?:à|a)(?=\s|$)|^[ \t ]{0,8}\d/u.test(ctx.text.slice(end, end + 12)))'
+          # "la une", "le un": the noun "une" or the numeral after an article.
+          - '!((lower === "la" || lower === "le") && (nextLower === "un" || nextLower === "une"))'
+          - "!(ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index))"
+        return: "finding(frame.ruleId, frame.messageKey, m.index, end, [carryCase(word, ELIDED[lower]) + apostropheNear(ctx, m.index) + next])"
       # "l arbre", "qu il", "d’ enfants": the apostrophe missing, or followed by a space.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’.-])(?<letter>[cdjlmnst]|qu)(?:(?<mark>[ \\t]*['’][ \\t]+|[ \\t]+['’][ \\t]*)|[ \\t]+)(?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}}"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: spacedElision
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 3), m.index)
+          # "n y arrive", "j y vais": the pronoun "y" elides like a vowel.
+          y: 'next.toLowerCase() === "y" && /^[jmnt]$/i.test(letter)'
+        when:
+          - m.index >= ctx.from
+          # "a, b, c", "M. J Dupont", "2 l eau": letters, initials and units. A comma after a word
+          # ("Alors, c est") still opens a clause; the list check is below.
+          - '!(/\d[\s,]*$/.test(before) || /^\p{Lu}/u.test(next))'
+          - '!!mark || !(/^\p{Lu}/u.test(letter) && !/(?:^|[.!?]\s*)$/.test(before))'
+          # "l a u r e": a word spelled out; "la lettre l est": the letter named.
+          - '!!mark || !/^\p{L}[ \t]+\p{L}(?![\p{L}''’])/u.test(ctx.text.slice(m.index + m[0].length - next.length))'
+          - '!!mark || !/\blettres?[ \t]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 10), m.index))'
+          # "s" only elides "si" before "il(s)".
+          - '!!mark || !(letter.toLowerCase() === "s" && !/^(?:ils?|en|y)$/.test(next))'
+          - "!!mark || !(!ELISION_VOWEL.test(next) && !/^h/.test(next) && !y)"
+          # A single letter before a word may be a variable or a list item ("l ensemble L").
+          - '!!mark || !/^\s*[,;:]/.test(ctx.text.slice(m.index + m[0].length))'
+          - '!!mark || !["et", "ou", "avec", "par", "entier"].includes(next.toLowerCase())'
+          # "les valeurs a, b et c en", "la fonction c a été": letters in a list or as names.
+          - '!!mark || !/(?<![\p{L}\p{N}])\p{L}\s*(?:,|\bet|\bou)\s*$/u.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))'
+          - '!!mark || !(letter === "c" && next.toLowerCase() === "a")'
+          # "a t il", "aurai t elle": the euphonic t of an inversion wants hyphens, not "t'il".
+          - "!!mark || !(/^t$/i.test(letter) && /^(?:il|elle|on|ils|elles)$/i.test(next))"
+          - >-
+            !!mark || !VARIABLE_LETTERS.has(letter) ||
+            (ctx.text.slice(Math.max(0, m.index - 200), m.index + 200)
+              .match(new RegExp(`(?<![\\p{L}\\p{N}'’-])${letter}(?![\\p{L}\\p{N}'’-])`, "gu")) ?? []).length <= 1
+          # "n' pas": an apostrophe before a consonant has lost a word, not a space.
+          - "!mark || ELISION_VOWEL.test(next) || /^h/i.test(next)"
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: "finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [letter + (mark?.trim() || apostropheNear(ctx, m.index)) + next])"
       # "ce arbre" -> "cet", "un vieux ami" -> "vieil": a masculine singular noun or adjective that
       # starts with a vowel or a mute h.
       - regex: "{{WORD_START}}(?<word>ce|vieux|beau|nouveau|fou|mou)[ \\t\\u00a0]+(?<next>\\p{L}[\\p{L}\\p{M}]*)(?![\\p{L}\\p{M}\\p{N}_'’])"
         flags: giu
         scan: owned
         lookback: 1
-        fixer: liaisonForm
+        let:
+          lower: word.toLowerCase()
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+        when:
+          - m.index >= ctx.from
+          - "/^[aeiouâàäéèêëîïôöûùüœæh]/.test(next) && !NO_ELISION.has(next)"
+          - '!(next.startsWith("h") && hAspire(next))'
+          # "homme", "état", or a masculine form that inflects ("ami", "ancien").
+          - '(nounGender(next) === "m" || adjectiveReadings(next).some((r) => r.slot === "ms")) && isNounLemma(next)'
+          # "ce est", "ce a été": a verb after the pronoun "ce".
+          - '!(verbReadings(next).some((r) => typeof r.slot === "number") && !isVerbHomograph(next))'
+          - 'lower === "ce" || (!!previous && SINGULAR_MASCULINE.has(previous.w))'
+          - "!(ctx.dictionary.has(lower) || namedExampleBefore(ctx.text, m.index))"
+        return: "finding(frame.ruleId, frame.messageKey, m.index, m.index + word.length, [carryCase(word, LIAISON_FORMS[lower])])"
       # "l'hibou", "j'hurle", "l'oui": an elision before a word that refuses it; "l'femme": the
       # article elided before a consonant.
       - regex: "{{WORD_START}}(?<letter>[jJdDlLmMtTsSnN]|[qQ]u)['’](?<next>\\p{L}[\\p{L}\\p{M}]*){{WORD_END}}"
         flags: gu
         scan: owned
         lookback: 1
-        fixer: wrongElision
+        let:
+          lower: next.toLowerCase()
+          # "j'vais", "d'la": elided before a consonant, other words write speech on purpose.
+          consonant: /^[bcdfgjklmnpqrstvwxzç]/.test(lower) && /^l$/i.test(letter)
+          key: letter.toLowerCase()
+          singular: "/[sx]$/.test(lower) && !isNounLemma(lower) ? lower.slice(0, -1) : lower"
+          gender: 'key === "l" ? (nounGender(singular) ?? adjectiveReadings(lower).find((r) => r.slot.endsWith("s"))?.slot[0]) : undefined'
+          full: 'key === "l" ? (gender ? (gender === "f" ? "la" : "le") : undefined) : FULL_FORM[key]'
+        when:
+          - m.index >= ctx.from
+          - "!(next !== lower || next.length < 2 || ctx.dictionary.has(lower))"
+          - '!(!consonant && !NO_ELISION.has(lower) && !(lower.startsWith("h") && hAspire(lower)))'
+          - "!(!isFrenchWord(lower) || namedExampleBefore(ctx.text, m.index))"
+          - "!!full"
+        return: "finding(frame.ruleId, frame.messageKey, m.index, m.index + m[0].length, [`${carryCase(letter, full)} ${next}`])"
   - id: fr.dates
     checks: [frenchDates]
     style: match
     message: review_msg_fr_date
+    # Dates the calendar rules out: a day past the month's end ("31 septembre", "29 février 2023")
+    # and a weekday that contradicts a full date ("vendredi 28 août 2014" was a Thursday). A
+    # weekday before a date with no year is checked with the Review clock.
+    defs:
+      FRENCH_MONTHS: >-
+        [["janvier"], ["février", "fevrier"], ["mars"], ["avril"], ["mai"], ["juin"], ["juillet"],
+        ["août", "aout"], ["septembre"], ["octobre"], ["novembre"], ["décembre", "decembre"]]
+      FRENCH_WEEKDAYS: '["dimanche", "lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi"]'
+      # A label that makes the next number a code: "dossier n° 12/34/2020", "réf. 31/13/2020".
+      # "n° 41 avril 2023", "tome 52 mars": an issue or volume number before a month name.
+      DATE_CODE_LABEL: '/(?:^|[\s(])(?:n[°o]\.?|num\.?|numéro|#|réf\.?|code|dossier|tome|vol\.?|volume)\s*:?\s{0,8}$/iu'
+      # "le", "du", "au", "né" or "née" before a date, also before emphasis: "le **32.04.2020**".
+      DATED_BEFORE: '/(?:^|[^\p{L}])(?:le|du|au|né|née)[ \t]+[*_~]{0,3}$/iu'
+      DATE_PLURAL_BEFORE: '/(?:^|[^\p{L}])(?:les|des|ces|mes|tes|ses|nos|vos|leurs)[ \t]+$/iu'
+      frenchMonthIndex:
+        args: "month: string"
+        return: '/^\d+$/.test(month) ? Number(month) - 1 : FRENCH_MONTHS.findIndex((names) => names.includes(month.toLowerCase()))'
+      # A day or month no calendar has ("32 janvier", "11/50/2014"): flagged, nothing to offer.
+      impossibleFrenchDate:
+        args: "m: RegExpExecArray"
+        type: RawFinding
+        return: >-
+          ({
+            ruleId: "frenchDates",
+            messageKey: "review_msg_fr_date",
+            range: {
+              start: Math.min(m.indices!.groups!.day[0], m.index + (m.groups!.weekday?.length ?? 0)),
+              end: m.index + m[0].length,
+            },
+            alternatives: [],
+            warningOnly: true,
+          })
+      # True when the match is a full date that needs no cue word: "aura lieu 32 janvier 2020",
+      # "aura lieu 32/04/2020". A month name makes it a date; an all-number date needs a slash
+      # and a four-digit year, with both parts near a day or a month. "1.45.2020" (a version),
+      # "3-45-2020" (a score or a code) and "les 45 janvier" still need "le", "du" or "au".
+      fullFrenchDate:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        let:
+          day: m.groups!.day
+          month: m.groups!.month
+          year: m.groups!.year
+          before: ctx.text.slice(Math.max(0, m.index - 16), m.index)
+        return: >-
+          !/^\d+$/.test(month)
+            ? day.length <= 2 && !DATE_PLURAL_BEFORE.test(before) && !DATE_CODE_LABEL.test(before)
+            : (m.groups!.sep ?? "/") === "/" &&
+              year?.length === 4 &&
+              Number(day) <= 39 &&
+              Number(month) <= 39 &&
+              !DATE_CODE_LABEL.test(before)
+      # "lundi 7 octobre" with no year: the weekday of each year it can mean, or the nearest day.
+      frenchWeekdayNoYear:
+        args: "ctx: DetectContext, m: RegExpExecArray, month: number, day: number"
+        type: RawFinding | null
+        let:
+          weekday: m.groups!.weekday
+          years: yearsFor(month, day, contextYear(ctx.text, m.index, ctx.lang))
+          weekdays: "[...new Set(years.map((y) => weekdayOf(y, month, day)))]"
+          typed: FRENCH_WEEKDAYS.indexOf(weekday.toLowerCase())
+          dayStart: m.indices!.groups!.day[0]
+          dayEnd: m.indices!.groups!.day[1]
+          between: ctx.text.slice(m.index + weekday.length, dayStart)
+          near: nearestDayOn(years[0], month, day, typed)
+        when: years.length > 0 && !weekdays.includes(typed)
+        return: >-
+          finding("frenchDates", "review_msg_weekday_no_year", m.index, dayEnd,
+            [
+              ...weekdays.map((w) => `${carryCase(weekday, FRENCH_WEEKDAYS[w])}${between}${m.groups!.day}`),
+              ...(near === null ? [] : [`${weekday}${between}${near}`]),
+            ],
+            { requiresChoice: true, context: { start: m.index, end: m.index + m[0].length } })
+      # A date whose day and month exist: a day past the month's end, or a wrong weekday.
+      possibleFrenchDate:
+        args: "ctx: DetectContext, m: RegExpExecArray, monthNumber: number, dayNumber: number"
+        type: RawFinding | null
+        let:
+          weekday: m.groups!.weekday
+          day: m.groups!.day
+          year: m.groups!.year
+          # A two-digit year leaves leap years open.
+          yearNumber: "year && year.length === 4 ? Number(year) : undefined"
+          dayStart: m.indices!.groups!.day[0]
+          last: daysInMonth(monthNumber + 1, yearNumber)
+          choices: 'monthNumber === 1 && yearNumber === undefined ? ["28", "29"] : [String(last)]'
+        when: "!!dayNumber"
+        return: >-
+          dayNumber > last
+            ? finding("frenchDates", "review_msg_fr_date", dayStart, dayStart + day.length, choices, {
+                context: { start: m.index, end: m.index + m[0].length },
+                ...(choices.length > 1 ? { requiresChoice: true as const } : {}),
+              })
+            : !weekday || (year && yearNumber === undefined)
+              ? null
+              : yearNumber === undefined
+                ? frenchWeekdayNoYear(ctx, m, monthNumber + 1, dayNumber)
+                : FRENCH_WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)] === weekday.toLowerCase()
+                  ? null
+                  : finding("frenchDates", "review_msg_fr_date", m.index, m.index + weekday.length,
+                      [carryCase(weekday, FRENCH_WEEKDAYS[weekdayOf(yearNumber, monthNumber + 1, dayNumber)])],
+                      { context: { start: m.index, end: m.index + m[0].length } })
+      checkFrenchDate:
+        args: "ctx: DetectContext, m: RegExpExecArray"
+        type: RawFinding | null
+        let:
+          day: m.groups!.day
+          month: m.groups!.month
+          year: m.groups!.year
+          monthNumber: frenchMonthIndex(month)
+          dayNumber: Number(day)
+          # "le 300 janvier" is a slip for a day; "les 300 janvier" or "1500 mai" are other numbers.
+          dated: DATED_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 11), m.index))
+          numeric: /^\d+$/.test(month)
+          # A zero day or month is a wrong date only with a four-digit year: "le 1/0" is a score.
+          # A month name after "le", "du" or "au" makes it a date with no year: "le 0 avril".
+          zero: dayNumber === 0 || (numeric && Number(month) === 0)
+          # "01/31/2014" reads as a month-first date: only a pair impossible both ways is flagged.
+          swapped: numeric && Number(month) >= 1 && Number(month) <= 31 && dayNumber >= 1 && dayNumber <= 12
+        when:
+          - "!namedExampleBefore(ctx.text, m.index)"
+          - "!(day.length > 2 && (!dated || numeric))"
+          - "!(zero && year?.length !== 4 && (numeric || !dated))"
+        return: >-
+          monthNumber < 0 || monthNumber > 11 || dayNumber > 31 || zero
+            ? (dated || fullFrenchDate(ctx, m)) && !swapped
+              ? impossibleFrenchDate(m)
+              : null
+            : possibleFrenchDate(ctx, m, monthNumber, dayNumber)
     frames:
       # "vendredi 28 août 2014", "le 31 septembre", "1er mars", "le 32 janvier"
       - regex: "{{DATE_START}}{{WEEKDAY}}(?<day>\\d{1,4})(?:er)?[ \\t]{0,8}[ \\t/-][ \\t]{0,8}(?<month>{{MONTH_NAMES}})(?:[ \\t/-]{1,8}(?<year>[0-9]{4}))?{{DATE_END}}"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: checkDate
+        when: m.index >= ctx.from
+        return: checkFrenchDate(ctx, m)
       # "28/08/2014", "31-09-1969", "31.11.89", "28/août/2014"
       - regex: "{{DATE_START}}{{WEEKDAY}}(?<day>\\d{1,4})(?<sep>[/.-])(?<month>\\d{1,2}|{{MONTH_NAMES}})\\k<sep>(?<year>[0-9]{4}|\\d{2}){{DATE_END}}"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: checkDate
+        when: m.index >= ctx.from
+        return: checkFrenchDate(ctx, m)
       # "le 31/04", "née le 30.02": a day and a month after "le" or "du".
       - regex: "(?<={{DATE_START}}(?:le|du|au)[ \\t]{1,8}[*_~]{0,3})(?<day>\\d{1,4})(?<sep>[/.])(?<month>\\d{1,2})(?![\\p{L}\\p{N}_/]|[.,/]\\d)"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: checkDate
+        when: m.index >= ctx.from
+        return: checkFrenchDate(ctx, m)
       # "vendredi 2014/08/28"
       - regex: "{{DATE_START}}{{WEEKDAY}}(?<year>[0-9]{4})\\/(?<month>\\d{1,2})\\/(?<day>\\d{1,2}){{DATE_END}}"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: checkDate
+        when: m.index >= ctx.from
+        return: checkFrenchDate(ctx, m)
   - id: fr.isoDates
     checks: [frenchDates]
     style: match
@@ -325,7 +790,10 @@ rules:
       - regex: "{{ISO_DATE}}"
         flags: gdu
         owner: none
-        fixer: common:invalidIsoDate
+        let:
+          range: invalidIsoDate(m, ctx)
+        when: range
+        return: "({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })"
   - id: fr.nounNumber
     checks: [frenchNounNumber]
     style: match
@@ -355,13 +823,186 @@ rules:
     checks: [frenchNounGender]
     style: match
     message: review_msg_fr_noun_gender
+    # A singular determiner takes its noun's gender: "une maison", "un arbre", "cette idée".
+    # Genders come from the bundled n-gram counts and the endings that fix one ("-tion", "-ment").
+    maps:
+      # The determiner of the other gender, before a consonant and before a vowel (null: none).
+      GENDER_SWAP:
+        {
+          un: [une, une],
+          une: [un, un],
+          le: [la, null],
+          la: [le, null],
+          ce: [cette, cette],
+          cet: [cette, cette],
+          cette: [ce, cet],
+          du: [de la, null],
+          au: [à la, null],
+          mon: [ma, null],
+          ton: [ta, null],
+          son: [sa, null],
+          ma: [mon, mon],
+          ta: [ton, ton],
+          sa: [son, son],
+          aucun: [aucune, aucune],
+          aucune: [aucun, aucun],
+        }
+    sets:
+      # Adverbs and prefixes written apart that sit between a determiner and its noun ("une tout
+      # autre", "la post saison", "la vice présidente").
+      GENDER_NOT_HEADS:
+        [
+          tout,
+          bien,
+          mieux,
+          plus,
+          moins,
+          très,
+          trop,
+          peu,
+          mini,
+          maxi,
+          post,
+          pré,
+          anti,
+          ex,
+          super,
+          hyper,
+          ultra,
+          vice,
+        ]
+      # Object pronouns and negation that stand between a subject and its verb.
+      GENDER_CLITICS: [me, m', te, t', se, s', lui, leur, "y", en, ne, n']
+      GENDER_FEMININE: [une, la, cette, ma, ta, sa, aucune]
+      NEVER_PRONOUNS: [cette, cet, mon, ton, du, au, aucun, aucune]
+      # "il est la demain": "là" before an adverb, which the homophone check offers.
+      LA_ADVERB_FOLLOWERS:
+        [
+          depuis,
+          pour,
+          avec,
+          dans,
+          chez,
+          parmi,
+          devant,
+          derrière,
+          maintenant,
+          aujourd'hui,
+          hier,
+          demain,
+          déjà,
+          encore,
+          toujours,
+          aussi,
+          quand,
+          mais,
+          car,
+          parce,
+          et,
+          ou,
+        ]
+    defs:
+      GENDER_VOWEL: /^[aeiouyâàäéèêëîïôöûùüœæ]/i
+      # A verb form that no other entry spells.
+      plainVerb:
+        args: "word: string"
+        return: '!isVerbHomograph(word) && verbReadings(word).some((r) => typeof r.slot === "number")'
+      # "un longue ombre", "une excellent choix": an adjective before its noun whose singular
+      # forms show the noun's gender; that gender, or null. "ils excellent", "il ombre": a verb
+      # form counts only when another entry spells it too. "la mort fait", "la saint Loup": a
+      # noun subject and its verb, a feast day.
+      genderBeforeNoun:
+        args: "ctx: DetectContext, m: RegExpExecArray, word: string"
+        type: FrenchGender | null
+        let:
+          slots: adjectiveReadings(word).map((r) => r.slot)
+          genders: 'new Set(slots.filter((s) => s.endsWith("s")).map((s) => s[0] as FrenchGender))'
+          start: m.indices!.groups!.noun[0]
+          next: tokensAfter(ctx.text, start + word.length, 1)[0]
+          verb: 'verbReadings(next.w).some((r) => typeof r.slot === "number")'
+          gender: "[...genders][0]"
+        when:
+          - '!(genders.size !== 1 || slots.some((s) => s.endsWith("p")))'
+          - "!plainVerb(word)"
+          - "!(!next || next.hyphen || ctx.text.slice(next.start, next.end) !== next.w)"
+          - "!(adjectiveReadings(next.w).length || plainVerb(next.w))"
+          - '!((verb && isInflectedNoun(word)) || word.startsWith("saint"))'
+        return: "nounGender(next.w) === gender ? gender : null"
     frames:
       # A singular determiner takes the gender of its noun: "une maison", "un arbre", "cette idée".
       - regex: "(?:{{WORD_START}}|(?<={{WORD_START}}(?:[dD]|[qQ]u)['’]))(?<det>un|une|le|la|ce|cet|cette|du|au|mon|ton|son|ma|ta|sa|aucun|aucune)(?=[ \\t]+(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_]))"
         flags: dgiu
         scan: owned
         lookback: 1
-        fixer: gender
+        let:
+          lowerDet: det.toLowerCase()
+          word: noun.toLowerCase()
+          headGender: nounGender(word) ?? genderBeforeNoun(ctx, m, word)
+          start: m.indices!.groups!.noun[0]
+          after: ctx.text.slice(start + noun.length)
+          second: /^[ \t]+(\p{L}+)/u.exec(after)?.[1].toLowerCase()
+          # "le hibou", "la hausse": an h aspiré is a consonant; "la homme" -> "l'homme" elides.
+          vowel: GENDER_VOWEL.test(word) || (word.startsWith("h") && !hAspire(word))
+          elided: 'vowel && (lowerDet === "le" || lowerDet === "la")'
+          fixed: 'elided ? "l''" : GENDER_SWAP[lowerDet][vowel ? 1 : 0]'
+          previous: tokensBefore(ctx.text, m.index, 1)[0]
+          next: tokensAfter(ctx.text, start + noun.length, 1)[0]
+          # "de la gouvernement" -> "du", "à la projet" -> "au": the preposition contracts.
+          joined: 'lowerDet === "la" && !elided && previous && previous.end + 1 === m.index ? previous : null'
+          contracted: 'joined?.w === "de" ? "du" : joined?.w === "à" ? "au" : null'
+          from: "contracted && joined ? joined.start : m.index"
+        when:
+          - m.index >= ctx.from
+          - "!(noun !== word || word.length < 3 || ctx.dictionary.has(word))"
+          # "EDF SA": an acronym, not a possessive.
+          - "!(det.length > 1 && det === det.toUpperCase())"
+          - '!(GENDER_NOT_HEADS.has(word) || word.endsWith("ième"))'
+          - '!(lowerDet === "la" && LA_ADVERB_FOLLOWERS.has(word))'
+          - '!(!headGender || (headGender === "f") === GENDER_FEMININE.has(lowerDet))'
+          # "un après-midi", "la mi-temps", "une·un": a compound or an inclusive form.
+          - "!/^[-'’·.*(]\\p{L}/u.test(after)"
+          # "un marque page": a compound written apart takes its own gender.
+          - "!(second && isDictionaryCompound(`${word}-${second}`))"
+          # "le cure": determiners.ts offers "le curé" and "la cure" together.
+          - "!(!GENDER_FEMININE.has(lowerDet) && verbReadings(word).length && accentedNoun(word))"
+          - "!!fixed"
+          # "mon amie": a feminine noun keeps "mon" before a vowel.
+          - '!(["mon", "ton", "son"].includes(lowerDet) && vowel)'
+          # "Sur ce, maman, je m'en vais": the phrase "sur ce" with its comma left out.
+          - '!(lowerDet === "ce" && previous?.w === "sur" && tokensBefore(ctx.text, m.index, 2).length === 1)'
+          # "les filles son arrivé": "sont" misspelt, no determiner.
+          - '!(lowerDet === "son" && sontForSon(ctx.text, m.index))'
+          # "de ton", "le son": the nouns "ton" and "son".
+          - '!((lowerDet === "son" || lowerDet === "ton") && previous && ["de", "le", "un", "du", "ce", "au"].includes(previous.w))'
+          # "je la porte", "ce base" (se), "dont une fait": a pronoun before a verb. "cette",
+          # "mon", "du" are never pronouns: "cette chasse", "du porte" name the noun. "pour la
+          # goûter": le and la before an infinitive are pronouns. "c'est le facture", "tirer le
+          # chasse": after a verb, the determiner opens its object.
+          - >-
+            NEVER_PRONOUNS.has(lowerDet) ||
+            (!((lowerDet === "le" || lowerDet === "la") && verbReadings(word).some((r) => r.slot === "I")) &&
+              (!verbReadings(word).some((r) => typeof r.slot === "number") ||
+                (!!previous &&
+                  (PREPOSITIONS.has(previous.w) ||
+                    (!SUBJECT_PRONOUNS.has(previous.w) &&
+                      !GENDER_CLITICS.has(previous.w) &&
+                      verbReadings(previous.w).length > 0 &&
+                      !isInflectedNoun(previous.w))))))
+          # "un unique sommet", "une mini salle": a modifier before the noun the determiner
+          # agrees with.
+          - '!(next && nounGender(next.w) === (GENDER_FEMININE.has(lowerDet) ? "f" : "m"))'
+          - "!namedExampleBefore(ctx.text, m.index)"
+          # "Le Monde", "La Défense": the title of a name keeps its article.
+          - '!(/^\p{Lu}/u.test(det) && /^\p{Lu}/u.test(after.trim()))'
+        # "l'" joins its noun: the space goes too.
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: from, end: elided && !contracted ? start : m.index + det.length },
+            alternatives: [carryCase(ctx.text.slice(from, m.index + det.length), contracted ?? fixed)],
+            context: { start: m.index, end: start + noun.length },
+          })
   - id: fr.adjectives
     checks: [frenchAdjectiveAgreement]
     style: match
