@@ -174,7 +174,7 @@ rules:
       # "dei a ela prática": a pronoun after a preposition is no subject.
       PARONYM_PREPOSITION_BEFORE: '/(?:^|[^\p{L}])(?:a|à|ante|até|com|contra|de|desde|em|entre|para|perante|por|sem|sob|sobre|após|como|que nem)[ \t\u00a0]+$/iu'
       # A word after it, not "de": "Ele médico, ela enfermeira" and "eu, cópia de" stay out.
-      OBJECT_AFTER: '/^[ \t\u00a0]+(?!(?:de|da|do|das|dos)(?![\p{L}]))[\p{L}\d"“«]/u'
+      PT_OBJECT_AFTER: '/^[ \t\u00a0]+(?!(?:de|da|do|das|dos)(?![\p{L}]))[\p{L}\d"“«]/u'
       # A gerund, an infinitive or "a" + infinitive after it: the verb reading ("o resto continuo
       # amanhã a fazer", "o livro continuo lendo").
       PARONYM_VERB_AFTER: '/^[ \t\u00a0]+(?:(?:a[ \t\u00a0]+)?\p{Ll}+(?:ndo|[aei]r)|amanhã|depois|hoje|agora|logo|mais[ \t\u00a0]+tarde|sempre|ainda)(?![\p{L}])/u'
@@ -217,7 +217,7 @@ rules:
         when:
           - "PERSON_ENDING[lead.toLowerCase()].test(ptPlainVowels(target))"
           - "!PARONYM_PREPOSITION_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))"
-          - "OBJECT_AFTER.test(ctx.text.slice(span[1], span[1] + 12))"
+          - "PT_OBJECT_AFTER.test(ctx.text.slice(span[1], span[1] + 12))"
         return: "verbFinding(ctx, span[0], span[1], target, { start: m.index, end: span[1] })"
       # "Prática-se muito": the same before a hyphenated object pronoun.
       - regex: "(?<target>\\p{L}*[áâéêíóôúÁÂÉÊÍÓÔÚ]\\p{L}*)(?=-(?:me|te|se|lhe|lhes|nos|vos){{E}})"
@@ -1174,7 +1174,7 @@ rules:
       INFINITIVE_FORM: '/^(?:\p{L}+(?:ar|er|ir|ares|eres|ires|armos|ermos|irmos|arem|erem|irem)|\p{L}*p[oô]r|\p{L}*por(?:es|mos|em)|\p{L}+(?:ar|er|ir)-(?:me|te|se|lhes?|nos|vos)|\p{L}+[áêíô]-[ln][oa]s?)$/u'
       CLAUSE_AHEAD: '/^[^.;:!?()\n]{0,80}/'
       # "por" after a modal is "pôr" (portugueseConfusions says so).
-      MODAL_BEFORE: '/(?<![\p{L}])(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|que|de|há|hei)[ \t\u00a0]+$/iu'
+      PT_MODAL_BEFORE: '/(?<![\p{L}])(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|que|de|há|hei)[ \t\u00a0]+$/iu'
       CONTRACTION_START: '/(?:^|[.!?:;]["”»)]?[ \t\u00a0]*|\n[ \t\u00a0]*)$/'
       # An infinitive ahead in the clause; "deixar de o ser.": a lone "ser" closing it is the verb.
       infinitiveAhead:
@@ -1198,7 +1198,7 @@ rules:
           - "!(first !== first.toLowerCase() && !CONTRACTION_START.test(before))"
           - "fused"
           - "!infinitiveAhead(ctx.text.slice(end, end + 96))"
-          - '!(first.toLowerCase() === "por" && MODAL_BEFORE.test(before))'
+          - '!(first.toLowerCase() === "por" && PT_MODAL_BEFORE.test(before))'
           - "!ctx.dictionary.has(target.toLowerCase())"
         return: '({ ruleId: "portugueseContractions", messageKey: "review_msg_pt_contraction", range: { start: m.index, end }, alternatives: [applyWordCase(fused, detectWordCase(first))], context: { start: m.index, end: Math.min(ctx.text.length, end + 24) } })'
       # "em China" -> "na China": countries whose name always takes the article.

@@ -378,8 +378,7 @@ function ruleModule(
     records.set(fn.kind, [...(records.get(fn.kind) ?? []), text]);
   }
   // The library and shared names the code reads, and the library types its text names.
-  const refs = new Set<string>();
-  for (const source of sources) for (const ref of checkExpression(source).refs) refs.add(ref);
+  const refs = new Set([...code.defs, ...code.functions].flatMap((fn) => fn.free));
   const words = new Set(`${sources.join(" ")} ${typeText.join(" ")}`.match(/[A-Za-z_$][\w$]*/g));
   const values = [...refs].filter((ref) => library.values.has(ref)).sort();
   const types = [...library.types].filter((type) => words.has(type)).sort();

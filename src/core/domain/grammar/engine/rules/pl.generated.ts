@@ -2561,7 +2561,7 @@ export function degreeStyle(
   const longer = ctx.text.slice(Math.max(0, m.index - 24), m.index);
   if (/(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t ]+(?:i|lub|albo|czy))[ \t ]+$/iu.test(longer))
     return null;
-  const fixed = degreeFix(word, lower === "najbardziej" ? "naj" : "");
+  const fixed = plDegreeFix(word, lower === "najbardziej" ? "naj" : "");
   if (!(fixed !== null)) return null;
   return plFindingAt(
     ctx,
@@ -2573,8 +2573,8 @@ export function degreeStyle(
   );
 }
 
-// pl.yaml rule pl.degrees def degreeFix
-export function degreeFix(word: string, naj: string) {
+// pl.yaml rule pl.degrees def plDegreeFix
+export function plDegreeFix(word: string, naj: string) {
   const adverbFix = DEGREE_ADVERBS[word]
     ? naj + DEGREE_ADVERBS[word]
     : word.endsWith("nie")

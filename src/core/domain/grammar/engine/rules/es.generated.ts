@@ -77,7 +77,7 @@ import {
   remember,
 } from "../../library";
 
-export const ES_HABER: ReadonlySet<string> = new Set([
+export const ES_HABER_FORMS: ReadonlySet<string> = new Set([
   "he",
   "has",
   "ha",
@@ -113,7 +113,7 @@ export const ES_HABER: ReadonlySet<string> = new Set([
   "habiendo",
 ]);
 
-export const ES_IR: ReadonlySet<string> = new Set([
+export const ES_IR_FORMS: ReadonlySet<string> = new Set([
   "voy",
   "vas",
   "va",
@@ -2166,7 +2166,7 @@ export const ES_SHORT_IMPERATIVES: ReadonlySet<string> = new Set([
   "sé",
 ]);
 
-export const ES_MONTHS: ReadonlySet<string> = new Set([
+export const ES_MONTH_NAMES: ReadonlySet<string> = new Set([
   "enero",
   "febrero",
   "marzo",
@@ -6005,7 +6005,9 @@ export function esHaberAVer(at: SpanishAround) {
   const before = at.tokens[at.i - 1];
   const prev = at.prev();
   const motion =
-    ES_IR.has(prev) || prev === "fue" || /^(?:llev|acompañ|mand|envi|vin|vien)\p{L}+$/u.test(prev);
+    ES_IR_FORMS.has(prev) ||
+    prev === "fue" ||
+    /^(?:llev|acompañ|mand|envi|vin|vien)\p{L}+$/u.test(prev);
   return (!before || at.tokens[at.i].broken || /^[.!?¡…«“"]$/u.test(before.text)) &&
     (/^(?:si|qué|quién|quiénes|cuántos|cuántas|cuánto|cuándo|cómo|dónde|por)$/u.test(next) ||
       nextToken?.text === ",")
@@ -6017,7 +6019,7 @@ export function esHaberAVer(at: SpanishAround) {
       : ES_DETERMINERS.has(next) || /^(?:buen|buenos|buenas|mucho|mucha|muchos|muchas)$/u.test(next)
         ? prev === "fue"
           ? null
-          : ES_IR.has(prev) || !motion
+          : ES_IR_FORMS.has(prev) || !motion
             ? ["a ver", "a haber"]
             : ["a ver"]
         : ES_CLITICS.has(next) || !motion
@@ -6105,7 +6107,7 @@ export function esCalledName(at: SpanishAround, fix: string) {
 
 // es.yaml rule es.confusions def esDeshecho
 export function esDeshecho(at: SpanishAround, word: string) {
-  return (word === "desecho" && ES_HABER.has(at.prev())) ||
+  return (word === "desecho" && ES_HABER_FORMS.has(at.prev())) ||
     /^(?:está|están|estaba|estaban|estoy|estás|parece|parecía|quedó|quedé)$/u.test(at.prev())
     ? [word.replace("desech", "deshech")]
     : null;
@@ -6164,7 +6166,7 @@ export const ES_CONFUSION_CHECKS = new Map([
         ? null
         : esIsPerfectParticiple(at.next())
           ? ["ha"]
-          : ES_IR.has(at.prev()) && esInfinitiveAfter(at)
+          : ES_IR_FORMS.has(at.prev()) && esInfinitiveAfter(at)
             ? ["a"]
             : null,
   ],
@@ -6191,7 +6193,9 @@ export const ES_CONFUSION_CHECKS = new Map([
   [
     "echo",
     (at: SpanishAround) =>
-      ES_HABER.has(at.prev()) || /^(?:está|parece|bien|mal)$/u.test(at.prev()) ? ["hecho"] : null,
+      ES_HABER_FORMS.has(at.prev()) || /^(?:está|parece|bien|mal)$/u.test(at.prev())
+        ? ["hecho"]
+        : null,
   ],
   ["hecho", (at: SpanishAround) => esEchar(at, "echo")],
   ["hecha", (at: SpanishAround) => esEchar(at, "echa")],
@@ -6393,7 +6397,7 @@ export function esAuxiliaryA(at: SpanishAround) {
 
 // es.yaml rule es.verbForms def esAfterHaber
 export function esAfterHaber(at: SpanishAround, word: string, prev: string, next: string) {
-  if (!(ES_HABER.has(prev) && !/^\p{N}/u.test(at.tokens[at.i - 2]?.text ?? ""))) return null;
+  if (!(ES_HABER_FORMS.has(prev) && !/^\p{N}/u.test(at.tokens[at.i - 2]?.text ?? ""))) return null;
   const existential =
     ES_EXISTENTIAL.has(prev) &&
     !ES_REFLEXIVE.has(at.prev(2)) &&
@@ -6450,7 +6454,7 @@ export function esAuxiliaryForms(at: SpanishAround, word: string, prev: string, 
           : word === "ha" && next
             ? esIsInfinitive(next) && next !== "haber"
               ? ["a"]
-              : (ES_IR.has(prev) || /^(?:volver|regresar|llegar|venir|ir)$/u.test(prev)) &&
+              : (ES_IR_FORMS.has(prev) || /^(?:volver|regresar|llegar|venir|ir)$/u.test(prev)) &&
                   after.word &&
                   !esIsPerfectParticiple(next) &&
                   !/^(?:de|que|sido|estado)$/u.test(next)
@@ -6478,7 +6482,7 @@ export function esVerbFormCheck(at: SpanishAround) {
 // es.yaml rule es.verbForms def esReflexive
 export function esReflexive(at: SpanishAround) {
   const verb = at.prev();
-  const k = /(?:ado|ido)$/u.test(verb) && ES_HABER.has(at.prev(2)) ? 3 : 2;
+  const k = /(?:ado|ido)$/u.test(verb) && ES_HABER_FORMS.has(at.prev(2)) ? 3 : 2;
   const pronoun = at.prev(k);
   return /(?:ar|er|ir|ndo)(?:se|me|te|nos|os)$/u.test(verb)
     ? true
@@ -6600,7 +6604,7 @@ export function esPrepositionVerb(at: SpanishAround) {
   const iese1 = iese ? [`${iese[1]}er`, `${iese[1]}ir`].find((v) => esIsVerb(v)) : undefined;
   const bare = /^(\p{L}{3,}?)([ae])$/u.exec(word);
   const bare1 =
-    prev === "a" && bare && ES_IR.has(at.prev(2)) && !esGenderedForm(word)
+    prev === "a" && bare && ES_IR_FORMS.has(at.prev(2)) && !esGenderedForm(word)
       ? (bare[2] === "a" ? [`${bare[1]}ar`] : [`${bare[1]}er`, `${bare[1]}ir`]).find((v) =>
           esIsVerb(v),
         )
@@ -6633,7 +6637,7 @@ export function esGovernedVerb(at: SpanishAround) {
       (!/^gust/u.test(prev) || (ES_CLITICS.has(at.prev(2)) && !ES_ALONE_AFTER.has(at.prev(3))))) ||
     (prev === "que" && ES_VF_TENER.test(at.prev(2))) ||
     (prev === "de" && ES_HABER_DE.has(at.prev(2))) ||
-    (word === "se" && prev === "a" && ES_IR.has(at.prev(2)));
+    (word === "se" && prev === "a" && ES_IR_FORMS.has(at.prev(2)));
   if (!governs) return null;
   if (prev === "que" && /^(?:qué|cuál|cuáles)$/u.test(at.prev(3)) && esFiniteVerb(word))
     return null;
@@ -7389,7 +7393,7 @@ export function esCapitalName(at: SpanishAround, token: SpanishToken) {
   const word = token.lower;
   const prev = at.prev();
   const before = at.tokens[at.i - 2];
-  return ES_MONTHS.has(word)
+  return ES_MONTH_NAMES.has(word)
     ? (prev === "de" && !!before && /^\p{N}/u.test(before.text)) ||
       (/^(?:de|del)$/u.test(at.next()) && /^\p{N}|^año$/u.test(at.tokens[at.i + 2]?.text ?? "")) ||
       (/^(?:en|de|desde|hasta|y)$/u.test(prev) && at.endsAfter())
@@ -10547,7 +10551,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const yearText = m[4] ?? "";
     const month = /^\d/u.test(monthText)
       ? Number(monthText)
-      : ES_MONTHS.has(monthText.toLowerCase())
+      : ES_MONTH_NAMES.has(monthText.toLowerCase())
         ? esMonthNumber(monthText)
         : esShortMonth(monthText);
     const day = Number(m[1]);

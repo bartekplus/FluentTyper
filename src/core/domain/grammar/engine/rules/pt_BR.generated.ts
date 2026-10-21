@@ -1398,8 +1398,8 @@ export const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
 export const PARONYM_PREPOSITION_BEFORE =
   /(?:^|[^\p{L}])(?:a|à|ante|até|com|contra|de|desde|em|entre|para|perante|por|sem|sob|sobre|após|como|que nem)[ \t\u00a0]+$/iu;
 
-// pt_BR.yaml rule pt_BR.accentParonyms def OBJECT_AFTER
-export const OBJECT_AFTER = /^[ \t\u00a0]+(?!(?:de|da|do|das|dos)(?![\p{L}]))[\p{L}\d"“«]/u;
+// pt_BR.yaml rule pt_BR.accentParonyms def PT_OBJECT_AFTER
+export const PT_OBJECT_AFTER = /^[ \t\u00a0]+(?!(?:de|da|do|das|dos)(?![\p{L}]))[\p{L}\d"“«]/u;
 
 // pt_BR.yaml rule pt_BR.accentParonyms def PARONYM_VERB_AFTER
 export const PARONYM_VERB_AFTER =
@@ -1478,8 +1478,8 @@ export const INFINITIVE_FORM =
 // pt_BR.yaml rule pt_BR.contractions def CLAUSE_AHEAD
 export const CLAUSE_AHEAD = /^[^.;:!?()\n]{0,80}/;
 
-// pt_BR.yaml rule pt_BR.contractions def MODAL_BEFORE
-export const MODAL_BEFORE =
+// pt_BR.yaml rule pt_BR.contractions def PT_MODAL_BEFORE
+export const PT_MODAL_BEFORE =
   /(?<![\p{L}])(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|que|de|há|hei)[ \t\u00a0]+$/iu;
 
 // pt_BR.yaml rule pt_BR.contractions def CONTRACTION_START
@@ -2608,7 +2608,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (PARONYM_PREPOSITION_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))
       return null;
     const span = m.indices!.groups!.target;
-    if (!OBJECT_AFTER.test(ctx.text.slice(span[1], span[1] + 12))) return null;
+    if (!PT_OBJECT_AFTER.test(ctx.text.slice(span[1], span[1] + 12))) return null;
     return verbFinding(ctx, span[0], span[1], target, { start: m.index, end: span[1] });
   },
   // pt_BR.yaml rule pt_BR.accentParonyms frame 2
@@ -2903,7 +2903,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (!fused) return null;
     const end = m.index + target.length;
     if (infinitiveAhead(ctx.text.slice(end, end + 96))) return null;
-    if (first.toLowerCase() === "por" && MODAL_BEFORE.test(before)) return null;
+    if (first.toLowerCase() === "por" && PT_MODAL_BEFORE.test(before)) return null;
     if (ctx.dictionary.has(target.toLowerCase())) return null;
     return {
       ruleId: "portugueseContractions",

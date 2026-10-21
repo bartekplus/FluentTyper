@@ -59,6 +59,7 @@ import {
   namedExampleBefore,
   remember,
 } from "../../library";
+import { DE_MONTHS } from "./common.generated";
 
 export const ARTICLES: ReadonlySet<string> = new Set([
   "des",
@@ -3016,35 +3017,6 @@ export const PHRASAL_JOINED_WRONG: ReadonlySet<string> = new Set([
 export const EMAIL_FORMS: Readonly<Record<string, string>> = {
   Emails: "E-Mails",
   "E-Mailadresse": "E-Mail-Adresse",
-};
-
-export const DE_MONTHS: Readonly<Record<string, number>> = {
-  januar: 1,
-  jänner: 1,
-  jan: 1,
-  jän: 1,
-  februar: 2,
-  feb: 2,
-  märz: 3,
-  mär: 3,
-  april: 4,
-  apr: 4,
-  mai: 5,
-  juni: 6,
-  jun: 6,
-  juli: 7,
-  jul: 7,
-  august: 8,
-  aug: 8,
-  september: 9,
-  sep: 9,
-  sept: 9,
-  oktober: 10,
-  okt: 10,
-  november: 11,
-  nov: 11,
-  dezember: 12,
-  dez: 12,
 };
 
 export const NOMINAL_IRREGULAR: Readonly<Record<string, string>> = {

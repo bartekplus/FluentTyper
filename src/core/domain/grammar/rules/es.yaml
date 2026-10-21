@@ -7,7 +7,7 @@ fragments:
   BOUND: "anti|ciber|pre|re|vice|hiper|inter|neuro|geo|nano|agro|sub|semi|multi|pos|infra|intra|seudo|pseudo|archi|hemi|co|fito|meso|hidro|termo|electro|cardio|psico|sero"
   # Prefixes that are also words; ES_FREE_PREFIXES of es.prefixes holds the same list.
   FREE: "ex|pro|des|post|poli|tele|video|foto|euro|afro|micro|macro|mini|ultra|super|súper|auto|radio|bio|eco|socio|mega|giga|kilo|zoo|extra|astro|hispano|anglo|franco|luso|físico|químico|cuasi"
-  # Month names; ES_MONTHS of es.typography holds the same list.
+  # Month names; ES_MONTH_NAMES of es.typography holds the same list.
   MONTH_NAMES: "enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre"
   # Short month names in numeric dates: "29-feb-2005".
   MONTH_SHORT: "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic"
@@ -28,7 +28,7 @@ fragments:
 # several checks use. The names start with "es" or "ES_": a rule file shares its names with
 # common.yaml and the rule library.
 sets:
-  ES_HABER:
+  ES_HABER_FORMS:
     [
       he,
       has,
@@ -64,7 +64,7 @@ sets:
       haber,
       habiendo,
     ]
-  ES_IR:
+  ES_IR_FORMS:
     [
       voy,
       vas,
@@ -3440,7 +3440,7 @@ rules:
           nextToken: at.tokens[at.i + 1]
           before: at.tokens[at.i - 1]
           prev: at.prev()
-          motion: ES_IR.has(prev) || prev === "fue" || /^(?:llev|acompañ|mand|envi|vin|vien)\p{L}+$/u.test(prev)
+          motion: ES_IR_FORMS.has(prev) || prev === "fue" || /^(?:llev|acompañ|mand|envi|vin|vien)\p{L}+$/u.test(prev)
         return: >-
           (!before || at.tokens[at.i].broken || /^[.!?¡…«“"]$/u.test(before.text)) &&
           (/^(?:si|qué|quién|quiénes|cuántos|cuántas|cuánto|cuándo|cómo|dónde|por)$/u.test(next) || nextToken?.text === ",")
@@ -3448,7 +3448,7 @@ rules:
             : !(motion || /^(?:empez|comenz|empiez|comienz)\p{L}+$/u.test(prev)) || !next || esIsPerfectParticiple(next)
               ? null
               : ES_DETERMINERS.has(next) || /^(?:buen|buenos|buenas|mucho|mucha|muchos|muchas)$/u.test(next)
-                ? prev === "fue" ? null : ES_IR.has(prev) || !motion ? ["a ver", "a haber"] : ["a ver"]
+                ? prev === "fue" ? null : ES_IR_FORMS.has(prev) || !motion ? ["a ver", "a haber"] : ["a ver"]
                 : ES_CLITICS.has(next) || !motion ? null : ["a ver"]
       # "hecha de menos" (misses); "un hecho de menos importancia" is a noun phrase. "las hechan",
       # "lo hechas": no participle agrees there; "las hechas a mano" (the ones made).
@@ -3525,7 +3525,7 @@ rules:
       esDeshecho:
         args: "at: SpanishAround, word: string"
         return: >-
-          (word === "desecho" && ES_HABER.has(at.prev())) ||
+          (word === "desecho" && ES_HABER_FORMS.has(at.prev())) ||
           /^(?:está|están|estaba|estaban|estoy|estás|parece|parecía|quedó|quedé)$/u.test(at.prev())
             ? [word.replace("desech", "deshech")]
             : null
@@ -3561,7 +3561,7 @@ rules:
           ["podes", (at: SpanishAround) => (esInfinitiveAfter(at) ? ["puedes", "podés"] : null)],
           ["poden", (at: SpanishAround) => (esInfinitiveAfter(at) ? ["pueden"] : null)],
           ["ora", (at: SpanishAround) => (/^(?:la|una|media|cada|qué|esta|esa|buena|mala|primera|última)$/u.test(at.prev()) && !esIsInfinitive(at.next()) ? ["hora"] : null)],
-          ["ah", (at: SpanishAround) => (at.starts ? null : esIsPerfectParticiple(at.next()) ? ["ha"] : ES_IR.has(at.prev()) && esInfinitiveAfter(at) ? ["a"] : null)],
+          ["ah", (at: SpanishAround) => (at.starts ? null : esIsPerfectParticiple(at.next()) ? ["ha"] : ES_IR_FORMS.has(at.prev()) && esInfinitiveAfter(at) ? ["a"] : null)],
           ["ay", (at: SpanishAround) => (at.prev() === "no" || (at.next() === "que" && esIsInfinitive(at.next(2))) ? ["hay"] : null)],
           ["mama", (at: SpanishAround) => (esParent(at) ? ["mamá"] : null)],
           ["papa", (at: SpanishAround) => (esParent(at) ? ["papá"] : null)],
@@ -3569,7 +3569,7 @@ rules:
           ["voy", esGoingA], ["vas", esGoingA], ["va", esGoingA], ["vamos", esGoingA], ["vais", esGoingA], ["van", esGoingA],
           ["iba", esGoingA], ["ibas", esGoingA], ["íbamos", esGoingA], ["ibais", esGoingA], ["iban", esGoingA],
           ["anos", (at: SpanishAround) => (esYearReading(at) ? ["años"] : null)],
-          ["echo", (at: SpanishAround) => (ES_HABER.has(at.prev()) || /^(?:está|parece|bien|mal)$/u.test(at.prev()) ? ["hecho"] : null)],
+          ["echo", (at: SpanishAround) => (ES_HABER_FORMS.has(at.prev()) || /^(?:está|parece|bien|mal)$/u.test(at.prev()) ? ["hecho"] : null)],
           ["hecho", (at: SpanishAround) => esEchar(at, "echo")],
           ["hecha", (at: SpanishAround) => esEchar(at, "echa")],
           ["hechas", (at: SpanishAround) => esEchar(at, "echas")],
@@ -4013,7 +4013,7 @@ rules:
                 (/^\p{L}+n$/u.test(at.prev(2)) && esSubjectAt(at, 3)) || at.prev(3) === "se"))
           nominal: existential || (esIsNoun(next) && !ES_QUANTIFIER_AFTER.has(next) && !/^\p{N}/u.test(next))
           fix: "esPerfectOf(word, nominal) ?? (existential ? null : esFinitePerfect(word))"
-        when: ES_HABER.has(prev) && !/^\p{N}/u.test(at.tokens[at.i - 2]?.text ?? "")
+        when: ES_HABER_FORMS.has(prev) && !/^\p{N}/u.test(at.tokens[at.i - 2]?.text ?? "")
         return: "fix && fix !== word ? [fix] : null"
       # "nos hemos ido cansado": after a plural "haber" + "ido", a singular participle agrees with
       # nothing, so it is the gerund (or the plural adjective). "ha ido aumentado", "ha estado
@@ -4059,7 +4059,7 @@ rules:
                   : word === "ha" && next
                     ? esIsInfinitive(next) && next !== "haber"
                       ? ["a"]
-                      : (ES_IR.has(prev) || /^(?:volver|regresar|llegar|venir|ir)$/u.test(prev)) && after.word &&
+                      : (ES_IR_FORMS.has(prev) || /^(?:volver|regresar|llegar|venir|ir)$/u.test(prev)) && after.word &&
                           !esIsPerfectParticiple(next) && !/^(?:de|que|sido|estado)$/u.test(next)
                         ? ["a"]
                         : /^(?:este|esta|estos|estas|ese|esa|esos|esas|los|las|el|la)$/u.test(next) && !/^\p{Lu}/u.test(after.text) &&
@@ -4083,7 +4083,7 @@ rules:
         args: "at: SpanishAround"
         let:
           verb: at.prev()
-          k: "/(?:ado|ido)$/u.test(verb) && ES_HABER.has(at.prev(2)) ? 3 : 2"
+          k: "/(?:ado|ido)$/u.test(verb) && ES_HABER_FORMS.has(at.prev(2)) ? 3 : 2"
           pronoun: at.prev(k)
         return: >-
           /(?:ar|er|ir|ndo)(?:se|me|te|nos|os)$/u.test(verb)
@@ -4185,7 +4185,7 @@ rules:
           iese1: "iese ? [`${iese[1]}er`, `${iese[1]}ir`].find((v) => esIsVerb(v)) : undefined"
           bare: /^(\p{L}{3,}?)([ae])$/u.exec(word)
           bare1: >-
-            prev === "a" && bare && ES_IR.has(at.prev(2)) && !esGenderedForm(word)
+            prev === "a" && bare && ES_IR_FORMS.has(at.prev(2)) && !esGenderedForm(word)
               ? (bare[2] === "a" ? [`${bare[1]}ar`] : [`${bare[1]}er`, `${bare[1]}ir`]).find((v) => esIsVerb(v))
               : undefined
         when: /^(?:a|al|de|del|para|sin|por|tras|hasta)$/u.test(prev) && !esIsNoun(word)
@@ -4217,7 +4217,7 @@ rules:
             (ES_VF_MODALS.test(prev) && !ES_ALONE_AFTER.has(at.prev(2)) &&
               (!/^gust/u.test(prev) || (ES_CLITICS.has(at.prev(2)) && !ES_ALONE_AFTER.has(at.prev(3))))) ||
             (prev === "que" && ES_VF_TENER.test(at.prev(2))) || (prev === "de" && ES_HABER_DE.has(at.prev(2))) ||
-            (word === "se" && prev === "a" && ES_IR.has(at.prev(2)))
+            (word === "se" && prev === "a" && ES_IR_FORMS.has(at.prev(2)))
           past: /^(\p{L}{2,}?)(ara|ase|iera|iese)$/u.exec(word)
           ending: 'past ? (past[2].startsWith("a") ? "ar" : ["er", "ir"].find((e) => esIsVerb(`${past[1]}${e}`))) : undefined'
         when:
@@ -5160,7 +5160,7 @@ rules:
     # Spanish writing conventions: "y" -> "e" before an /i/ sound and "o" -> "u" before /o/, years
     # without a thousands point, lowercase months and weekdays, invariable acronyms.
     sets:
-      ES_MONTHS:
+      ES_MONTH_NAMES:
         [
           enero,
           febrero,
@@ -5253,7 +5253,7 @@ rules:
           before: at.tokens[at.i - 2]
         when: /^\p{Lu}\p{Ll}+$/u.test(token.text) && !at.starts
         return: >-
-          ES_MONTHS.has(word)
+          ES_MONTH_NAMES.has(word)
             ? (prev === "de" && !!before && /^\p{N}/u.test(before.text)) ||
               (/^(?:de|del)$/u.test(at.next()) && /^\p{N}|^año$/u.test(at.tokens[at.i + 2]?.text ?? "")) ||
               (/^(?:en|de|desde|hasta|y)$/u.test(prev) && at.endsAfter())
@@ -5448,7 +5448,7 @@ rules:
           month: >-
             /^\d/u.test(monthText)
               ? Number(monthText)
-              : ES_MONTHS.has(monthText.toLowerCase()) ? esMonthNumber(monthText) : esShortMonth(monthText)
+              : ES_MONTH_NAMES.has(monthText.toLowerCase()) ? esMonthNumber(monthText) : esShortMonth(monthText)
           day: Number(m[1])
           dated: ES_DATED.test(ctx.text.slice(Math.max(0, m.index - 15), m.index))
           impossible: >-

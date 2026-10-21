@@ -34,6 +34,8 @@ export interface FunctionCode {
   readonly otherwise: string;
   /** Live rules: the events the rule runs on. */
   readonly triggers?: readonly string[];
+  /** The names the function reads from outside it: the file, common.yaml and the library. */
+  readonly free: readonly string[];
 }
 
 /** A def: a constant (no `args`) or a function. */
@@ -45,6 +47,8 @@ export interface DefCode {
   readonly steps: readonly CodeStep[];
   readonly result: string;
   readonly otherwise: string;
+  /** The names the def reads from outside it. */
+  readonly free: readonly string[];
 }
 
 /** The code of one rule file. */
@@ -134,7 +138,7 @@ export interface CodeScope {
 
 type Expand = (source: string, where: string) => string;
 
-/** The names of a file: `known` may be read; `taken` are defined (a binding may not reuse one). */
+/** The names of a file: `known` may be read; `taken` are defined by the file, common.yaml or the library. */
 export interface Names {
   readonly known: (name: string) => boolean;
   readonly taken: (name: string) => boolean;
@@ -150,10 +154,10 @@ function body(
   spec: BodySpec,
   result: string,
   bound: ReadonlySet<string>,
-  { known, taken }: Names,
+  { known }: Names,
   expand: Expand,
   errors: string[],
-): { steps: CodeStep[]; result: string; reads: Set<string> } {
+): { steps: CodeStep[]; result: string; reads: Set<string>; free: string[] } {
   const reads = new Set<string>();
   const scope = new Set(bound);
   const check = (source: string, at: string) => {
@@ -170,7 +174,8 @@ function body(
   for (const [name, source] of Object.entries(spec.let ?? {})) {
     const at = `${where} let ${name}`;
     if (!NAME.test(name)) errors.push(`${at}: not a name`);
-    else if (scope.has(name) || taken(name)) errors.push(`${at}: "${name}" is taken`);
+    // A binding may shadow a name of the file, common.yaml or the library (it is a local const).
+    else if (scope.has(name)) errors.push(`${at}: "${name}" is taken`);
     if (typeof source !== "string") {
       errors.push(`${at}: give an expression`);
       continue;
@@ -202,7 +207,8 @@ function body(
     for (const when of whens)
       if (when.after === j) steps.push({ kind: "when", source: when.source });
   });
-  return { steps, result: check(result, `${where} return`).text, reads };
+  const text = check(result, `${where} return`).text;
+  return { steps, result: text, reads, free: [...reads].filter((name) => !scope.has(name)) };
 }
 
 /** The named groups of a regex. */
@@ -264,8 +270,8 @@ export function fileCode(
   for (const [at, key, spec] of specs) {
     const where = `${at} def ${key}`;
     if (typeof spec === "string") {
-      const { steps, result } = body(where, {}, spec, new Set(), fileNames, expand, errors);
-      defs.push({ name: key, where, steps, result, otherwise: "null" });
+      const { steps, result, free } = body(where, {}, spec, new Set(), fileNames, expand, errors);
+      defs.push({ name: key, where, steps, result, otherwise: "null", free });
       continue;
     }
     if (typeof spec !== "object" || spec === null || typeof spec.return !== "string") {
@@ -280,11 +286,20 @@ export function fileCode(
       continue;
     }
     const params = new Set(signature.params);
-    const { steps, result } = body(where, spec, spec.return, params, fileNames, expand, errors);
-    const otherwise =
+    const { steps, result, free } = body(
+      where,
+      spec,
+      spec.return,
+      params,
+      fileNames,
+      expand,
+      errors,
+    );
+    const other =
       spec.else === undefined
-        ? "null"
-        : body(`${where} else`, {}, spec.else, params, fileNames, expand, errors).result;
+        ? undefined
+        : body(`${where} else`, {}, spec.else, params, fileNames, expand, errors);
+    const otherwise = other?.result ?? "null";
     defs.push({
       name: key,
       where,
@@ -293,6 +308,7 @@ export function fileCode(
       steps,
       result,
       otherwise,
+      free: [...new Set([...free, ...(other?.free ?? [])])],
     });
   }
   return { code: { sets, maps, defs, functions: [], names }, names: fileNames };
@@ -327,11 +343,8 @@ export function functionCode(
   const portuguese = style === "portuguese";
   const params = (portuguese ? PORTUGUESE_PARAMS : PARAMS[kind]).map(([param]) => param);
   const groups = frame && !portuguese ? groupsOf(frame.pattern) : new Set<string>();
-  for (const group of groups)
-    if (names.taken(group))
-      errors.push(`${where}: group "${group}" has the name of a def or a library function`);
   const otherwise = kind === "fixer" ? (NO_FIX[style ?? "frame"] ?? "null") : OTHERWISE[kind];
-  const { steps, result, reads } = body(
+  const { steps, result, reads, free } = body(
     where,
     spec,
     spec.return,
@@ -342,6 +355,7 @@ export function functionCode(
   );
   if (steps.some((step) => step.kind === "when"))
     for (const ref of checkExpression(otherwise).refs) reads.add(ref);
+  const bound = new Set([...params, ...groups]);
   const usedGroups = [...groups].filter((g) => reads.has(g));
   // Only the parameters up to the last one the body reads (a group reads `m`).
   const last = params.reduce(
@@ -359,5 +373,6 @@ export function functionCode(
     result,
     otherwise,
     ...(triggers === undefined ? {} : { triggers: [...triggers] }),
+    free: free.filter((name) => !bound.has(name)),
   };
 }

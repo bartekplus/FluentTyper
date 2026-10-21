@@ -220,8 +220,8 @@ export function adjacentToken(token: ArabicToken) {
   return /^\u064B?[ \t\u00a0]+$/u.test(token.gap);
 }
 
-// ar_SA.yaml def opensSentence
-export function opensSentence(ctx: DetectContext, token: ArabicToken) {
+// ar_SA.yaml def arOpensSentence
+export function arOpensSentence(ctx: DetectContext, token: ArabicToken) {
   const lead = ctx.text.slice(Math.max(0, token.start - 8), token.start);
   return (
     /[.!؟?\n][\s\u200e\u200f]*$/u.test(lead) ||
@@ -352,7 +352,7 @@ export const DEFINITE = /^(?<pre>[وف]?(?:[بك]?ال|لل))(?<stem>\p{L}{2,})$
 // ar_SA.yaml def opensPhrase
 export function opensPhrase(ctx: DetectContext, list: readonly ArabicToken[], i: number): boolean {
   return (
-    opensSentence(ctx, list[i]) ||
+    arOpensSentence(ctx, list[i]) ||
     (i !== 0 &&
       (/[،,؛:]/u.test(list[i].gap) ||
         PHRASE_START.has(list[i - 1].word.replace(/^[وف](?=\p{L}{2})/u, "")) ||
@@ -1304,7 +1304,7 @@ export function indefiniteAdjective(
     return null;
   if (NAME_HEAD.test(word)) return null;
   if (!(
-    (opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word))) &&
+    (arOpensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word))) &&
     !(i + 2 < list.length && adjacentToken(list[i + 2]))
   ))
     return null;
@@ -1335,7 +1335,7 @@ export function demonstrativePredicate(
   if (!(!noun.word.startsWith("ال") && !NAME_HEAD.test(noun.word) && !possessedFeminine(noun.word)))
     return null;
   if (QUANTIFIERS.test(noun.word)) return null;
-  if (!opensSentence(ctx, list[i])) return null;
+  if (!arOpensSentence(ctx, list[i])) return null;
   const gender = plainNounGender(noun.word);
   const near = parts.dem.startsWith("ه");
   const fixed =
@@ -1399,7 +1399,7 @@ export function indefiniteSubject(
 ): ArabicFinding[] | null {
   if (!(i + 1 < list.length)) return null;
   const subject = list[i];
-  if (!(opensSentence(ctx, subject) && ownsAt(ctx, subject.start))) return null;
+  if (!(arOpensSentence(ctx, subject) && ownsAt(ctx, subject.start))) return null;
   if (FRONTED_OK.has(subject.word)) return null;
   const dualStem = /^(?<stem>\p{L}{2,})ان$/u.exec(subject.word)?.groups!.stem;
   if (!(nounLike(subject.word) || (dualStem && !arabicTags(subject.word) && nounLike(dualStem))))
@@ -1861,8 +1861,8 @@ export const ADVERBS = new Map([
   ["كامل", "كاملا"],
 ]);
 
-// ar_SA.yaml rule ar_SA.style def ADJECTIVE_SHAPE
-export const ADJECTIVE_SHAPE = /^(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[يو]\p{L})$/u;
+// ar_SA.yaml rule ar_SA.style def AR_ADJECTIVE_SHAPE
+export const AR_ADJECTIVE_SHAPE = /^(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[يو]\p{L})$/u;
 
 // ar_SA.yaml rule ar_SA.style def inAWay
 export function inAWay(
@@ -1882,7 +1882,7 @@ export function inAWay(
     ADVERBS.get(adj) ??
     (/^\p{L}{2,}ي$/u.test(adj)
       ? adj + "ا"
-      : ADJECTIVE_SHAPE.test(adj)
+      : AR_ADJECTIVE_SHAPE.test(adj)
         ? `على نحو ${adj}`
         : undefined);
   if (!fixed) return null;

@@ -3209,12 +3209,12 @@ rules:
         args: "ctx: DetectContext, m: RegExpExecArray, marker: string, word: string, lower: string, end: number"
         let:
           longer: ctx.text.slice(Math.max(0, m.index - 24), m.index)
-          fixed: 'degreeFix(word, lower === "najbardziej" ? "naj" : "")'
+          fixed: 'plDegreeFix(word, lower === "najbardziej" ? "naj" : "")'
         when:
           - '!/(?:^|[^\p{L}])(?:coraz|(?:naj)?mniej[ \t ]+(?:i|lub|albo|czy))[ \t ]+$/iu.test(longer)'
           - fixed !== null
         return: plFindingAt(ctx, m.index, end, [plCaseLike(marker, fixed)], "stylePhrasing", "review_msg_style_phrasing")
-      degreeFix:
+      plDegreeFix:
         args: "word: string, naj: string"
         let:
           adverbFix: >-

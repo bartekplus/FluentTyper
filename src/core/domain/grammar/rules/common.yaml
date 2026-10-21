@@ -13092,7 +13092,7 @@ rules:
       FR_BOUNDARY:
         [que, qu, si, quand, lorsque, lorsqu, et, mais, ou, car, donc, puis, dont, où, qui, comme]
       FR_CONDITIONAL: [si]
-      ES_BOUNDARY:
+      ES_DATE_BOUNDARY:
         [que, si, cuando, porque, aunque, "y", e, pero, o, u, ni, mientras, donde, quien, como]
       ES_CONDITIONAL: [si]
       PT_BOUNDARY: [que, se, quando, porque, embora, e, mas, ou, enquanto, onde, quem, como]
@@ -13964,14 +13964,14 @@ rules:
           g: m.groups!
           side: >-
             dateSideOf(Number(g.year), g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_BOUNDARY, "es")
+        return: dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
       - regex: "el{{DATE_SPACE}}(?:día{{DATE_SPACE}})?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?{{DATE_SPACE}})?(?<date>{{DATE_NUMERIC}}){{DATE_NOT_AFTER}}"
         owner: date
         let:
           g: m.groups!
           side: >-
             dateSideOf(Number(g.year), g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month), Number(g.day), !g.name && g.sep === "/")
-        return: dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_BOUNDARY, "es")
+        return: dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_DATE_BOUNDARY, "es")
   - id: dateTense.pt
     checks: [dateTenseConsistency]
     lang: pt

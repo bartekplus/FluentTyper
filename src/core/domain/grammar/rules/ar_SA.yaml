@@ -98,7 +98,7 @@ defs:
     args: "token: ArabicToken"
     return: '/^\u064B?[ \t\u00a0]+$/u.test(token.gap)'
   # The word opens the text or a sentence.
-  opensSentence:
+  arOpensSentence:
     args: "ctx: DetectContext, token: ArabicToken"
     let:
       lead: ctx.text.slice(Math.max(0, token.start - 8), token.start)
@@ -208,7 +208,7 @@ defs:
     args: "ctx: DetectContext, list: readonly ArabicToken[], i: number"
     type: boolean
     return: >-
-      opensSentence(ctx, list[i]) ||
+      arOpensSentence(ctx, list[i]) ||
       (i !== 0 &&
         (/[،,؛:]/u.test(list[i].gap) ||
           PHRASE_START.has(list[i - 1].word.replace(/^[وف](?=\p{L}{2})/u, "")) ||
@@ -1183,7 +1183,7 @@ rules:
           - after && !word.startsWith("ال") && adjacentToken(after) && ownsAt(ctx, after.start)
           - "!NAME_HEAD.test(word)"
           - >-
-            (opensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word))) &&
+            (arOpensSentence(ctx, list[i]) || (i > 0 && DEMONSTRATIVE.test(list[i - 1].word))) &&
             !(i + 2 < list.length && adjacentToken(list[i + 2]))
           - '!after.word.startsWith("ال") && ctx.text[after.end] !== "\u064B"'
           - adj && adj.gender !== gender
@@ -1222,7 +1222,7 @@ rules:
           - parts && noun && adjacentToken(noun) && ownsAt(ctx, list[i].start)
           - '!noun.word.startsWith("ال") && !NAME_HEAD.test(noun.word) && !possessedFeminine(noun.word)'
           - "!QUANTIFIERS.test(noun.word)"
-          - opensSentence(ctx, list[i])
+          - arOpensSentence(ctx, list[i])
           - fixed
         return: >-
           {
@@ -1282,7 +1282,7 @@ rules:
           end: list[last].end
         when:
           - i + 1 < list.length
-          - opensSentence(ctx, subject) && ownsAt(ctx, subject.start)
+          - arOpensSentence(ctx, subject) && ownsAt(ctx, subject.start)
           - "!FRONTED_OK.has(subject.word)"
           - nounLike(subject.word) || (dualStem && !arabicTags(subject.word) && nounLike(dualStem))
           - adjacentToken(head)
@@ -1639,7 +1639,7 @@ rules:
       # "بشكل كبير" -> "كثيرا": adverbs for the commonest adjectives.
       ADVERBS: 'new Map([["عام", "عموما"], ["خاص", "خصوصا"], ["كبير", "كثيرا"], ["جيد", "جيدا"], ["قوي", "بقوة"], ["سريع", "بسرعة"], ["دائم", "دائما"], ["مستمر", "باستمرار"], ["مباشر", "مباشرة"], ["واضح", "بوضوح"], ["كامل", "كاملا"]])'
       # Adjective shapes: participles (م-), فاعل, فعيل, فعول.
-      ADJECTIVE_SHAPE: '/^(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[يو]\p{L})$/u'
+      AR_ADJECTIVE_SHAPE: '/^(?:م\p{L}{3,}|\p{L}ا\p{L}{2}|\p{L}{2}[يو]\p{L})$/u'
       # "بشكل مناسب" -> "على نحو مناسب", "بصورة يومية" -> "يوميا", "بأسلوب عام" -> "عموما": a calque
       # of "in a ... way"; a relational adjective makes an adverb, others take على نحو.
       inAWay:
@@ -1652,7 +1652,7 @@ rules:
           adj: "feminineWay ? next.word.slice(0, -1) : next.word"
           fixed: >-
             ADVERBS.get(adj) ??
-            (/^\p{L}{2,}ي$/u.test(adj) ? adj + "ا" : ADJECTIVE_SHAPE.test(adj) ? `على نحو ${adj}` : undefined)
+            (/^\p{L}{2,}ي$/u.test(adj) ? adj + "ا" : AR_ADJECTIVE_SHAPE.test(adj) ? `على نحو ${adj}` : undefined)
         when:
           - i + 1 < list.length
           - parts && adjacentToken(next) && ownsAt(ctx, list[i].start)

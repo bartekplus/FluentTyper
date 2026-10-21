@@ -1778,7 +1778,7 @@ export const FR_BOUNDARY: ReadonlySet<string> = new Set([
 
 export const FR_CONDITIONAL: ReadonlySet<string> = new Set(["si"]);
 
-export const ES_BOUNDARY: ReadonlySet<string> = new Set([
+export const ES_DATE_BOUNDARY: ReadonlySet<string> = new Set([
   "que",
   "si",
   "cuando",
@@ -9231,7 +9231,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       Number(g.day),
       !g.name && g.sep === "/",
     );
-    return dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_BOUNDARY, "es");
+    return dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_DATE_BOUNDARY, "es");
   },
   // common.yaml rule dateTense.es frame 2
   "@dateTense.es/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -9242,7 +9242,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       Number(g.day),
       !g.name && g.sep === "/",
     );
-    return dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_BOUNDARY, "es");
+    return dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_DATE_BOUNDARY, "es");
   },
   // common.yaml rule dateTense.pt frame 1
   "@dateTense.pt/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

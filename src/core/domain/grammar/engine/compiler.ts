@@ -470,8 +470,11 @@ export function compileRuleFiles(
   const common = files.find(([name]) => name === "common")?.[1];
   const scope: CodeScope = {
     ...(options.library ? { library: options.library } : {}),
+    // common.yaml's names, of the file and of its rules, are shared with every other file.
     shared: new Set(
-      [common?.sets, common?.maps, common?.defs].flatMap((section) => Object.keys(section ?? {})),
+      [common, ...(common?.rules ?? [])].flatMap((section) =>
+        [section?.sets, section?.maps, section?.defs].flatMap((names) => Object.keys(names ?? {})),
+      ),
     ),
   };
   const fileCodes: Record<string, FileCode> = {};

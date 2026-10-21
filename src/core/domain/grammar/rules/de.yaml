@@ -1118,37 +1118,6 @@ rules:
     checks: [germanDates]
     style: match
     message: review_msg_german_invalid_date
-    maps:
-      # Month names and their short forms: the month's number.
-      DE_MONTHS:
-        {
-          januar: 1,
-          jänner: 1,
-          jan: 1,
-          jän: 1,
-          februar: 2,
-          feb: 2,
-          märz: 3,
-          mär: 3,
-          april: 4,
-          apr: 4,
-          mai: 5,
-          juni: 6,
-          jun: 6,
-          juli: 7,
-          jul: 7,
-          august: 8,
-          aug: 8,
-          september: 9,
-          sep: 9,
-          sept: 9,
-          oktober: 10,
-          okt: 10,
-          november: 11,
-          nov: 11,
-          dezember: 12,
-          dez: 12,
-        }
     sets:
       DE_SHORT_MONTHS: [jan, jän, feb, mär, apr, jun, jul, aug, sep, sept, okt, nov, dez]
     defs:
