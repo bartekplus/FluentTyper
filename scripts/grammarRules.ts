@@ -1,5 +1,6 @@
 // AOT compile of the declarative grammar rules (src/core/domain/grammar/rules/*.yaml) into
 // the generated modules of src/core/domain/grammar/engine/. The runtime never parses YAML.
+import { readdirSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { format, resolveConfig } from "prettier";
@@ -100,18 +101,29 @@ export async function readLibrary(): Promise<Library> {
   return { values, types };
 }
 
-/** Reads and compiles every rule file. */
-export async function compileGrammarRules(): Promise<CompiledRuleSet> {
+/** Reads and compiles every rule file of `dir`. */
+export async function compileGrammarRules(
+  dir = RULES_DIR,
+  library?: Library,
+): Promise<CompiledRuleSet> {
+  const unlisted = readdirSync(dir).filter(
+    (file) =>
+      file.endsWith(".yaml") && !(RULE_FILES as readonly string[]).includes(file.slice(0, -5)),
+  );
+  if (unlisted.length)
+    throw new Error(`Rule files not in RULE_FILES (engine/compiler.ts): ${unlisted.join(", ")}`);
   const files = await Promise.all(
     RULE_FILES.map(async (name) => {
-      const text = await readFile(path.join(RULES_DIR, `${name}.yaml`), "utf8");
-      const parsed = (Bun.YAML.parse(text) ?? {}) as RuleFile;
-      return [name, parsed] as const;
+      const text = await readFile(path.join(dir, `${name}.yaml`), "utf8");
+      try {
+        return [name, (Bun.YAML.parse(text) ?? {}) as RuleFile] as const;
+      } catch (error) {
+        throw new Error(`${name}.yaml: ${String(error)}`, { cause: error });
+      }
     }),
   );
-  const { values } = await readLibrary();
-  const set = compileRuleFiles(files, { library: new Set(values.keys()) });
-  return set;
+  const { values } = library ?? (await readLibrary());
+  return compileRuleFiles(files, { library: new Set(values.keys()) });
 }
 
 const json = (value: unknown) => JSON.stringify(value);

@@ -1,6 +1,10 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
+import { compileGrammarRules } from "../../scripts/grammarRules";
+import { compileRuleFiles, RULE_FILES } from "../../src/core/domain/grammar/engine/compiler";
+import type { RuleFile } from "../../src/core/domain/grammar/engine/types";
 
 const ROOT = path.resolve(import.meta.dir, "../..");
 // The modules that scripts/compile-grammar-rules.ts writes.
@@ -31,4 +35,36 @@ test("build.ts loads no generated grammar module before it compiles the rule fil
     OUTPUT.test(file),
   );
   expect(generated).toEqual([]);
+});
+
+// A rule file with errors on purpose: one cast at the boundary.
+const compile = (file: Record<string, unknown>) => () =>
+  compileRuleFiles([["common", { lang: "*", ...file } as unknown as RuleFile]]);
+
+test("an unknown top-level key of a rule file is an error", () => {
+  expect(compile({ phrase: {} })).toThrow('common.yaml: unknown field "phrase"');
+});
+
+test("a check without modes is an error, not a TypeError", () => {
+  const check = { id: "demo", priority: 1, category: "grammar", kind: "usage" };
+  expect(compile({ checks: [check] })).toThrow('common.yaml check demo: "modes" lists no mode');
+});
+
+test("a rule without checks is an error, not a TypeError", () => {
+  const rule = { id: "x", message: "m", frames: [{ regex: "(?<target>a)", fix: "b" }] };
+  expect(compile({ rules: [rule] })).toThrow('common.yaml rule x: "checks" names no check');
+});
+
+test("a YAML error names its file, and a rule file outside RULE_FILES is an error", async () => {
+  const dir = mkdtempSync(path.join(tmpdir(), "fluenttyper-rules-"));
+  try {
+    for (const name of RULE_FILES) writeFileSync(path.join(dir, `${name}.yaml`), "lang: en\n");
+    writeFileSync(path.join(dir, "fr.yaml"), "rules: [\n");
+    await expect(compileGrammarRules(dir)).rejects.toThrow("fr.yaml");
+    writeFileSync(path.join(dir, "fr.yaml"), "lang: fr\n");
+    writeFileSync(path.join(dir, "xx.yaml"), "lang: xx\n");
+    await expect(compileGrammarRules(dir)).rejects.toThrow("xx.yaml");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
