@@ -72,3 +72,17 @@ export {
   isBlockWord as enIsBlockWord,
 } from "./english/blockTokens";
 export type { BlockHit as EnBlockHit, BlockToken as EnBlockToken } from "./english/blockTokens";
+// Group 5: the words around a position in its clause and the clause bounds
+// (library/english/clauseWords.ts), and a word glued to the text after it.
+export {
+  clauseClosesAt as enClauseClosesAt,
+  clauseOpensAt as enClauseOpensAt,
+  clauseWordsAfter as enClauseWordsAfter,
+  clauseWordsBefore as enClauseWordsBefore,
+  wordsAround as enWordsAround,
+} from "./english/clauseWords";
+export type {
+  ClauseWord as EnClauseWord,
+  WordsAround as EnWordsAround,
+} from "./english/clauseWords";
+export { gluedAfter as enGluedAfter } from "../review/phraseTemplates";

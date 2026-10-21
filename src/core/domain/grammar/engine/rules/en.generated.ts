@@ -6,6 +6,8 @@ import type {
   DetectContext,
   EnBlockHit,
   EnBlockToken,
+  EnClauseWord,
+  EnWordsAround,
   FrameRef,
   MatchResult,
   RawFinding,
@@ -19,11 +21,16 @@ import {
   enBefore,
   enBlockTokensAfter,
   enBlockTokensBefore,
+  enClauseClosesAt,
+  enClauseOpensAt,
+  enClauseWordsBefore,
+  enGluedAfter,
   enIsBlockWord,
   enListedNoun,
   enListedWithoutPlural,
   enNextWord,
   enWordKey,
+  enWordsAround,
   englishInflect,
   englishInitialSound,
   englishNounForms,
@@ -34,6 +41,7 @@ import {
   hasVerbForm,
   lastNonBlankBefore,
   memoize,
+  namedExampleBefore,
   remember,
   skipBackWhile,
 } from "../../library";
@@ -758,6 +766,1053 @@ export const CONF_DEVICE: ReadonlySet<string> = new Set([
   "heating",
   "stove",
 ]);
+
+export const CONF2_DET: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "each",
+  "every",
+  "no",
+  "another",
+]);
+
+export const CONF2_SUBJECTS: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "we",
+  "they",
+  "he",
+  "she",
+  "it",
+]);
+
+export const CONF2_OBJECTS: ReadonlySet<string> = new Set([
+  "me",
+  "him",
+  "her",
+  "us",
+  "them",
+  "you",
+  "it",
+]);
+
+export const CONF2_WH: ReadonlySet<string> = new Set([
+  "what",
+  "where",
+  "which",
+  "who",
+  "whom",
+  "whose",
+  "how",
+  "why",
+  "when",
+]);
+
+export const CONF2_MODALS: ReadonlySet<string> = new Set([
+  "will",
+  "would",
+  "could",
+  "should",
+  "can",
+  "can't",
+  "cannot",
+  "might",
+  "must",
+  "mustn't",
+  "shouldn't",
+  "won't",
+  "wouldn't",
+  "couldn't",
+  "may",
+  "shall",
+]);
+
+export const CONF2_BE: ReadonlySet<string> = new Set([
+  "am",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "isn't",
+  "aren't",
+  "wasn't",
+  "weren't",
+  "ain't",
+]);
+
+export const CONF2_HAVE: ReadonlySet<string> = new Set([
+  "have",
+  "has",
+  "had",
+  "haven't",
+  "hasn't",
+  "hadn't",
+]);
+
+export const CONF2_ADVERBS: ReadonlySet<string> = new Set([
+  "not",
+  "never",
+  "just",
+  "really",
+  "also",
+  "still",
+  "always",
+  "only",
+  "even",
+  "actually",
+  "sometimes",
+  "often",
+  "usually",
+  "rarely",
+  "seldom",
+  "certainly",
+  "definitely",
+  "probably",
+  "already",
+]);
+
+export const CONF2_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "of",
+  "for",
+  "about",
+  "with",
+  "from",
+  "into",
+  "onto",
+  "at",
+  "by",
+  "against",
+  "between",
+  "among",
+  "without",
+  "toward",
+  "towards",
+  "under",
+  "through",
+  "during",
+  "despite",
+  "to",
+  "on",
+  "in",
+  "upon",
+  "via",
+  "over",
+  "across",
+  "along",
+  "around",
+  "behind",
+  "beside",
+  "near",
+  "after",
+  "before",
+  "since",
+  "until",
+  "till",
+  "inside",
+  "outside",
+  "beyond",
+  "below",
+  "above",
+  "within",
+  "throughout",
+  "unlike",
+]);
+
+export const CONF2_TIME: ReadonlySet<string> = new Set([
+  "today",
+  "tonight",
+  "tomorrow",
+  "yesterday",
+  "morning",
+  "afternoon",
+  "evening",
+  "night",
+  "nights",
+  "time",
+  "times",
+  "years",
+  "year",
+  "months",
+  "month",
+  "weeks",
+  "week",
+  "days",
+  "day",
+  "hours",
+  "hour",
+  "minutes",
+  "decades",
+  "ages",
+  "once",
+  "twice",
+  "early",
+  "late",
+  "last",
+  "next",
+  "soon",
+  "forever",
+  "overnight",
+  "recently",
+  "daily",
+  "north",
+  "south",
+  "east",
+  "west",
+  "home",
+  "abroad",
+  "online",
+  "offline",
+  "upstairs",
+  "downstairs",
+  "inland",
+  "overseas",
+  "downtown",
+  "uptown",
+  "onward",
+  "onwards",
+  "straight",
+  "ahead",
+]);
+
+export const CONF2_BARE_CLAUSE: ReadonlySet<string> = new Set([
+  "think",
+  "know",
+  "hope",
+  "believe",
+  "say",
+  "guess",
+  "suppose",
+  "feel",
+  "wish",
+  "mean",
+  "see",
+  "hear",
+  "suggest",
+  "insist",
+  "find",
+  "ensure",
+  "notice",
+  "assume",
+  "bet",
+  "admit",
+  "doubt",
+  "swear",
+  "fear",
+  "reckon",
+  "figure",
+  "understand",
+  "learn",
+  "remember",
+  "forget",
+  "realize",
+  "realise",
+  "prove",
+  "imagine",
+  "pretend",
+  "seem",
+  "appear",
+  "look",
+  "sound",
+  "agree",
+  "argue",
+  "claim",
+  "decide",
+  "expect",
+  "explain",
+  "hold",
+  "note",
+  "predict",
+  "read",
+  "report",
+  "reveal",
+  "state",
+  "worry",
+  "confirm",
+  "verify",
+  "make",
+  "trust",
+  "wonder",
+  "deny",
+  "recall",
+  "watch",
+  "be",
+  "have",
+  "do",
+  "get",
+  "go",
+  "come",
+  "need",
+  "dare",
+]);
+
+export const CONF2_OBJECT_FIRST: ReadonlySet<string> = new Set([
+  "tell",
+  "show",
+  "remind",
+  "promise",
+  "assure",
+  "convince",
+  "teach",
+  "inform",
+  "warn",
+  "let",
+  "help",
+]);
+
+export const CONF2_PLACE_LEMMAS: ReadonlySet<string> = new Set([
+  "go",
+  "come",
+  "get",
+  "arrive",
+  "stay",
+  "live",
+  "work",
+  "sit",
+  "stand",
+  "wait",
+  "sleep",
+  "eat",
+  "die",
+  "lie",
+  "meet",
+  "stop",
+  "remain",
+  "park",
+  "settle",
+  "belong",
+  "exist",
+  "happen",
+  "drive",
+  "fly",
+  "walk",
+  "run",
+  "ride",
+  "travel",
+  "head",
+  "return",
+  "sail",
+  "swim",
+  "hike",
+  "rush",
+  "hurry",
+  "move",
+  "relocate",
+  "commute",
+  "visit",
+]);
+
+export const CONF2_COMPOUND_PARTICIPLES: ReadonlySet<string> = new Set([
+  "owned",
+  "operated",
+  "run",
+  "based",
+  "driven",
+  "focused",
+  "oriented",
+  "led",
+  "funded",
+  "backed",
+  "made",
+  "built",
+  "minded",
+]);
+
+export const CONF2_THERE_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "about",
+  "to",
+  "of",
+  "from",
+  "with",
+  "for",
+  "into",
+  "on",
+  "by",
+]);
+
+export const CONF2_LOCATIVE_LEAD: ReadonlySet<string> = new Set([
+  "out",
+  "up",
+  "down",
+  "over",
+  "in",
+  "back",
+  "away",
+  "here",
+  "near",
+  "far",
+  "right",
+  "straight",
+  "just",
+]);
+
+export const CONF2_CONJUNCTIONS: ReadonlySet<string> = new Set([
+  "and",
+  "but",
+  "so",
+  "yet",
+  "while",
+  "whereas",
+  "because",
+  "although",
+]);
+
+export const CONF2_COLD_COMPOUNDS: ReadonlySet<string> = new Set([
+  "build",
+  "call",
+  "email",
+  "brew",
+  "press",
+  "start",
+  "boot",
+  "read",
+  "pitch",
+  "shoulder",
+  "plunge",
+  "smoke",
+  "roll",
+  "cut",
+  "message",
+  "text",
+  "contact",
+  "approach",
+]);
+
+export const CONF2_PLEAS_INTRANSITIVE: ReadonlySet<string> = new Set([
+  "go",
+  "are",
+  "were",
+  "have",
+  "had",
+  "do",
+  "remain",
+  "seem",
+  "become",
+  "fall",
+  "come",
+  "continue",
+  "grow",
+  "mount",
+]);
+
+export const CONF2_BOARDING_PLACES: ReadonlySet<string> = new Set([
+  "school",
+  "schools",
+  "house",
+  "college",
+  "academy",
+  "hostel",
+  "hall",
+  "inn",
+  "ship",
+  "home",
+  "family",
+  "dorm",
+  "dormitory",
+  "farm",
+]);
+
+export const CONF2_DIRECTIONS: ReadonlySet<string> = new Set([
+  "left",
+  "right",
+  "top",
+  "bottom",
+  "side",
+  "sides",
+  "edge",
+  "edges",
+  "inside",
+  "outside",
+]);
+
+export const CONF2_THREAT_COMPOUNDS: ReadonlySet<string> = new Set([
+  "model",
+  "models",
+  "modeling",
+  "modelling",
+  "hunt",
+  "hunting",
+  "assess",
+  "assessment",
+  "intelligence",
+  "actor",
+  "actors",
+  "level",
+  "levels",
+  "vector",
+  "vectors",
+  "landscape",
+  "surface",
+]);
+
+export const CONF2_THOUGHT_NEXT: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "we",
+  "they",
+  "he",
+  "she",
+  "it",
+  "that",
+  "this",
+  "there",
+  "so",
+  "about",
+  "of",
+  "the",
+  "a",
+  "maybe",
+  "it's",
+  "i'd",
+  "i'll",
+  "you'd",
+  "he'd",
+  "she'd",
+  "they'd",
+  "we'd",
+  "i'm",
+  "you're",
+  "they're",
+  "we're",
+  "he's",
+  "she's",
+  "there's",
+  "that's",
+  "he'll",
+  "she'll",
+  "they'll",
+  "we'll",
+  "you'll",
+]);
+
+export const CONF2_MUCH_NEXT: ReadonlySet<string> = new Set([
+  "more",
+  "less",
+  "longer",
+  "further",
+  "better",
+  "worse",
+  "bigger",
+]);
+
+export const CONF2_MUCH_CLAUSE: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "we",
+  "they",
+  "he",
+  "she",
+  "it",
+  "to",
+  "do",
+  "does",
+  "did",
+  "have",
+  "has",
+  "had",
+  "will",
+  "would",
+  "should",
+  "can",
+  "could",
+]);
+
+export const CONF2_INTENSIFIERS: ReadonlySet<string> = new Set([
+  "really",
+  "very",
+  "so",
+  "super",
+  "quite",
+  "too",
+  "extremely",
+  "incredibly",
+  "totally",
+  "pretty",
+  "truly",
+  "especially",
+]);
+
+export const CONF2_EXCITED_LINK: ReadonlySet<string> = new Set([
+  "feel",
+  "feels",
+  "felt",
+  "get",
+  "gets",
+  "got",
+  "getting",
+  "seem",
+  "seems",
+  "seemed",
+]);
+
+export const CONF2_READY_NOT: ReadonlySet<string> = new Set(["willing", "early"]);
+
+export const CONF2_WAIST_NOT: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "about",
+  "around",
+  "approximately",
+  "roughly",
+  "nearly",
+  "almost",
+  "over",
+  "under",
+  "just",
+  "only",
+  "less",
+  "more",
+  "some",
+  "up",
+]);
+
+export const CONF2_WASTE_ADJECTIVES: ReadonlySet<string> = new Set([
+  "total",
+  "complete",
+  "huge",
+  "big",
+  "massive",
+  "utter",
+  "absolute",
+  "pure",
+  "real",
+  "colossal",
+  "enormous",
+  "terrible",
+  "horrible",
+  "awful",
+  "needless",
+  "unnecessary",
+  "great",
+  "such",
+  "entire",
+  "giant",
+]);
+
+export const CONF2_THINK_KNOW: ReadonlySet<string> = new Set([
+  "think",
+  "thinks",
+  "thought",
+  "thinking",
+  "know",
+  "knows",
+  "knew",
+  "known",
+  "knowing",
+]);
+
+export const CONF2_OFF_IDIOMS: ReadonlySet<string> = new Set([
+  "top",
+  "cuff",
+  "record",
+  "wall",
+  "bat",
+  "beaten",
+  "coast",
+  "shore",
+]);
+
+export const CONF2_PRIZE_LEAD: ReadonlySet<string> = new Set([
+  "a",
+  "the",
+  "several",
+  "many",
+  "two",
+  "three",
+  "four",
+  "five",
+  "some",
+  "first",
+  "second",
+  "third",
+  "top",
+  "big",
+  "major",
+  "cash",
+  "grand",
+  "another",
+  "any",
+  "no",
+]);
+
+export const CONF2_WIN: ReadonlySet<string> = new Set(["win", "wins", "won", "winning"]);
+
+export const CONF2_LOSE_OBJECT: ReadonlySet<string> = new Set([
+  "it",
+  "them",
+  "him",
+  "her",
+  "me",
+  "us",
+  "you",
+  "everything",
+  "anything",
+  "something",
+  "weight",
+  "money",
+  "time",
+  "data",
+  "track",
+  "sight",
+  "interest",
+  "hope",
+  "control",
+  "focus",
+  "my",
+  "your",
+  "his",
+  "our",
+  "their",
+  "all",
+]);
+
+export const CONF2_SETTING_VERBS: ReadonlySet<string> = new Set([
+  "set",
+  "sets",
+  "switch",
+  "switched",
+  "change",
+  "changed",
+  "turn",
+  "turned",
+  "adjust",
+  "adjusted",
+  "go",
+  "went",
+  "move",
+  "moved",
+  "shift",
+]);
+
+export const CONF2_THEM_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "to",
+  "with",
+  "against",
+  "between",
+  "among",
+  "amongst",
+  "from",
+  "into",
+  "onto",
+  "toward",
+  "towards",
+  "about",
+  "via",
+  "upon",
+  "beside",
+  "behind",
+  "at",
+]);
+
+export const CONF2_THEM_NEXT: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "this",
+  "that",
+  "these",
+  "those",
+  "for",
+  "about",
+  "in",
+  "on",
+  "at",
+  "via",
+  "with",
+  "during",
+  "when",
+  "how",
+  "what",
+  "why",
+  "where",
+  "as",
+  "today",
+  "tomorrow",
+  "tonight",
+  "later",
+  "again",
+  "back",
+  "up",
+  "down",
+  "out",
+  "off",
+  "to",
+]);
+
+export const CONF2_CUES: ReadonlySet<string> = new Set([
+  "said",
+  "says",
+  "say",
+  "heard",
+  "hear",
+  "think",
+  "thought",
+  "guess",
+  "hope",
+  "know",
+  "knew",
+  "suspect",
+  "sure",
+  "maybe",
+  "perhaps",
+  "because",
+  "since",
+  "if",
+  "when",
+  "that",
+]);
+
+export const CONF2_PLACE_VERBS: ReadonlySet<string> = new Set([
+  "put",
+  "place",
+  "leave",
+  "set",
+  "move",
+  "keep",
+  "store",
+  "drop",
+  "hang",
+  "stick",
+  "lay",
+  "park",
+  "position",
+]);
+
+export const CONF2_PLACE_NEXT: ReadonlySet<string> = new Set([
+  "to",
+  "beside",
+  "next",
+  "near",
+  "by",
+  "for",
+  "until",
+  "and",
+  "so",
+]);
+
+export const CONF2_LINKING_LEMMAS: ReadonlySet<string> = new Set([
+  "look",
+  "feel",
+  "seem",
+  "act",
+  "sound",
+  "get",
+  "stay",
+  "become",
+]);
+
+export const CONF2_SPEECH_LEMMAS: ReadonlySet<string> = new Set([
+  "speak",
+  "talk",
+  "sing",
+  "shout",
+  "yell",
+  "play",
+  "laugh",
+  "whisper",
+]);
+
+export const CONF2_WERE_PREDICATES: ReadonlySet<string> = new Set([
+  "able",
+  "aware",
+  "allowed",
+  "sure",
+  "ready",
+  "happy",
+  "right",
+  "wrong",
+  "lucky",
+  "done",
+  "finished",
+  "serious",
+  "awake",
+  "busy",
+  "okay",
+  "ok",
+  "alright",
+  "there",
+]);
+
+export const CONF2_HEART_ADVERBS: ReadonlySet<string> = new Set([
+  "ever",
+  "never",
+  "not",
+  "already",
+  "just",
+  "all",
+  "also",
+]);
+
+export const CONF2_NOT: ReadonlySet<string> = new Set(["not"]);
+
+export const CONF2_AUX_MORE: ReadonlySet<string> = new Set([
+  "do",
+  "does",
+  "did",
+  "don't",
+  "doesn't",
+  "didn't",
+  "to",
+]);
+
+export const CONF2_CLOSED_MORE: ReadonlySet<string> = new Set([
+  "and",
+  "or",
+  "but",
+  "so",
+  "if",
+  "as",
+  "than",
+  "then",
+  "there",
+  "here",
+  "now",
+  "that",
+  "some",
+  "any",
+  "all",
+  "both",
+  "more",
+  "most",
+  "less",
+  "much",
+  "many",
+  "such",
+  "own",
+  "same",
+  "other",
+  "else",
+  "itself",
+  "themselves",
+  "yet",
+  "too",
+  "very",
+]);
+
+export const CONF2_THERE_BLOCK_MORE: ReadonlySet<string> = new Set([
+  "be",
+  "have",
+  "do",
+  "see",
+  "watch",
+  "hear",
+  "notice",
+  "find",
+  "think",
+  "know",
+  "believe",
+  "say",
+  "guess",
+  "suppose",
+  "feel",
+  "hope",
+  "mean",
+  "seem",
+  "appear",
+  "look",
+  "sound",
+  "tell",
+  "show",
+  "prove",
+  "imagine",
+  "wish",
+  "bet",
+  "swear",
+  "claim",
+]);
+
+export const CONF2_SHUT_AUX_MORE: ReadonlySet<string> = new Set([
+  "to",
+  "did",
+  "didn't",
+  "don't",
+  "doesn't",
+  "please",
+  "i'll",
+  "we'll",
+  "you'll",
+  "they'll",
+  "he'll",
+  "she'll",
+]);
+
+export const CONF2_SHUT_OBJECT_MORE: ReadonlySet<string> = new Set([
+  "it",
+  "them",
+  "everything",
+  "all",
+  "any",
+  "some",
+]);
+
+export const CONF2_RELAY_LEAD_MORE: ReadonlySet<string> = new Set([
+  "please",
+  "often",
+  "always",
+  "still",
+  "usually",
+  "generally",
+  "mostly",
+  "heavily",
+  "really",
+  "also",
+  "just",
+  "to",
+  "don't",
+  "doesn't",
+  "didn't",
+  "not",
+  "never",
+  "i",
+  "you",
+  "we",
+  "they",
+]);
+
+export const CONF2_THEM_LEAD_MORE: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "we",
+  "they",
+  "he",
+  "she",
+  "to",
+  "please",
+  "don't",
+  "didn't",
+  "not",
+  "also",
+  "just",
+  "let's",
+  "and",
+]);
+
+export const CONF2_FINITE_MORE: ReadonlySet<string> = new Set(["do", "does", "did", "'re"]);
 
 export const KIND_IF_CONDITIONS: ReadonlySet<string> = new Set([
   "possible",
@@ -2999,6 +4054,1123 @@ export function confMake(
   );
 }
 
+// en.yaml rule en.contextualConfusions def CONF2_AUX
+export const CONF2_AUX = new Set([...CONF2_MODALS, ...CONF2_BE, ...CONF2_HAVE, ...CONF2_AUX_MORE]);
+
+// en.yaml rule en.contextualConfusions def CONF2_CLOSED
+export const CONF2_CLOSED = new Set([
+  ...CONF2_DET,
+  ...CONF2_SUBJECTS,
+  ...CONF2_OBJECTS,
+  ...CONF2_WH,
+  ...CONF2_AUX,
+  ...CONF2_ADVERBS,
+  ...CONF2_PREPOSITIONS,
+  ...CONF2_CLOSED_MORE,
+]);
+
+// en.yaml rule en.contextualConfusions def CONF2_CLAUSE_LEMMAS
+export const CONF2_CLAUSE_LEMMAS = new Set([...CONF2_BARE_CLAUSE, ...CONF2_OBJECT_FIRST]);
+
+// en.yaml rule en.contextualConfusions def CONF2_THERE_BLOCK
+export const CONF2_THERE_BLOCK = new Set([...CONF2_PLACE_LEMMAS, ...CONF2_THERE_BLOCK_MORE]);
+
+// en.yaml rule en.contextualConfusions def CONF2_SHUT_AUX
+export const CONF2_SHUT_AUX = new Set([...CONF2_MODALS, ...CONF2_HAVE, ...CONF2_SHUT_AUX_MORE]);
+
+// en.yaml rule en.contextualConfusions def CONF2_SHUT_OBJECT
+export const CONF2_SHUT_OBJECT = new Set([...CONF2_DET, ...CONF2_SHUT_OBJECT_MORE]);
+
+// en.yaml rule en.contextualConfusions def CONF2_RELAY_LEAD
+export const CONF2_RELAY_LEAD = new Set([...CONF2_MODALS, ...CONF2_RELAY_LEAD_MORE]);
+
+// en.yaml rule en.contextualConfusions def CONF2_THEM_LEAD
+export const CONF2_THEM_LEAD = new Set([...CONF2_MODALS, ...CONF2_THEM_LEAD_MORE]);
+
+// en.yaml rule en.contextualConfusions def CONF2_FINITE
+export const CONF2_FINITE = new Set([
+  ...CONF2_MODALS,
+  ...CONF2_BE,
+  ...CONF2_HAVE,
+  ...CONF2_FINITE_MORE,
+]);
+
+// en.yaml rule en.contextualConfusions def conf2LemmaIn
+export function conf2LemmaIn(word: string, lemmas: ReadonlySet<string>) {
+  return (
+    lemmas.has(word) ||
+    (englishWordInfo(word)?.verbs.some((verb) => lemmas.has(verb.lemma)) ?? false)
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2Adjective
+export function conf2Adjective(word: string) {
+  return englishWordInfo(word)?.adjective ?? false;
+}
+
+// en.yaml rule en.contextualConfusions def conf2Nounish
+export function conf2Nounish(word: string) {
+  if (!(!CONF2_CLOSED.has(word) && !CONF2_TIME.has(word))) return false;
+  const entry = englishWordInfo(word);
+  return entry
+    ? (!entry.verbs.length && !entry.noun && !entry.adjective && !entry.adverb) ||
+        ((entry.noun || entry.plural) && !entry.adverb && !entry.adjective)
+    : /^[a-z]{4,}$/.test(word);
+}
+
+// en.yaml rule en.contextualConfusions def conf2PureFinite
+export function conf2PureFinite(word: string) {
+  const entry = englishWordInfo(word);
+  return (
+    !!entry &&
+    entry.verbs.some((verb) => verb.form === "past" || verb.form === "third") &&
+    !entry.noun &&
+    !entry.plural &&
+    !entry.adjective
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2NounPhrase
+export function conf2NounPhrase(
+  next: readonly EnClauseWord[],
+  from: number,
+  compound: boolean,
+): number {
+  const entry = next[from] && englishWordInfo(next[from].w);
+  const k1 =
+    entry && entry.adverb && !entry.adjective && !entry.noun && !CONF2_CLOSED.has(next[from].w)
+      ? from + 1
+      : from;
+  const modifier = next[k1]?.w;
+  const k2 =
+    modifier &&
+    next[k1 + 1] &&
+    !CONF2_CLOSED.has(modifier) &&
+    (conf2Adjective(modifier) || hasVerbForm(modifier, "past", "participle")) &&
+    conf2Nounish(next[k1 + 1].w)
+      ? k1 + 1
+      : k1;
+  if (!(next[k2] && conf2Nounish(next[k2].w))) return -1;
+  const k3 =
+    compound && next[k2 + 1] && conf2Nounish(next[k2 + 1].w) && !englishWordInfo(next[k2].w)?.plural
+      ? k2 + 1
+      : k2;
+  const after = next[k3 + 1]?.w ?? "";
+  if (
+    hasVerbForm(next[k3].w, "ing") &&
+    (CONF2_DET.has(after) || CONF2_OBJECTS.has(after) || after === "to")
+  )
+    return -1;
+  return k3;
+}
+
+// en.yaml rule en.contextualConfusions def conf2SubjectPhrase
+export function conf2SubjectPhrase(next: readonly EnClauseWord[], compound: boolean): boolean {
+  return (
+    (compound && conf2SubjectPhrase(next, false)) ||
+    conf2SubjectAt(next, conf2NounPhrase(next, 0, compound))
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2SubjectAt
+export function conf2SubjectAt(next: readonly EnClauseWord[], head: number) {
+  if (!(head >= 0)) return false;
+  const verb = next[head + 1]?.w;
+  if (!(verb && !CONF2_COMPOUND_PARTICIPLES.has(verb))) return false;
+  const like = hasVerbForm(verb, "third") && next[head + 2]?.w === "like";
+  return (
+    /^(?:is|was|are|were|has|have|had)$/.test(verb) ||
+    (englishWordInfo(next[head].w)?.plural
+      ? (hasVerbForm(verb, "third") && conf2PureFinite(verb)) || like
+      : conf2PureFinite(verb) || like)
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2ObjectVerb
+export function conf2ObjectVerb(
+  text: string,
+  verb: EnClauseWord | undefined,
+  before: EnClauseWord | undefined,
+  blocked: ReadonlySet<string>,
+) {
+  if (!(
+    verb &&
+    !CONF2_CLOSED.has(verb.w) &&
+    !CONF2_LOCATIVE_LEAD.has(verb.w) &&
+    englishWordInfo(verb.w)?.verbs.length
+  ))
+    return false;
+  if (!(!conf2LemmaIn(verb.w, blocked) && !conf2LemmaIn(verb.w, CONF2_PLACE_LEMMAS))) return false;
+  if (
+    before &&
+    (CONF2_DET.has(before.w) ||
+      (conf2Adjective(before.w) &&
+        !CONF2_CLOSED.has(before.w) &&
+        !englishWordInfo(before.w)?.verbs.length &&
+        !englishWordInfo(before.w)?.adverb))
+  )
+    return false;
+  return !(hasVerbForm(verb.w, "ing") && enClauseOpensAt(text, verb.start));
+}
+
+// en.yaml rule en.contextualConfusions def conf2GerundHeadOk
+export function conf2GerundHeadOk(
+  ctx: DetectContext,
+  h: EnWordsAround,
+  verb: EnClauseWord | undefined,
+) {
+  const k = conf2NounPhrase(h.N, 0, true);
+  const head = h.N[k];
+  const after = h.N[k + 1]?.w ?? "";
+  return (
+    !head ||
+    !hasVerbForm(head.w, "ing") ||
+    after === "of" ||
+    (!!verb &&
+      hasVerbForm(verb.w, "past", "participle") &&
+      (enClauseClosesAt(ctx.text, head.end) ||
+        CONF2_FINITE.has(after) ||
+        CONF2_PREPOSITIONS.has(after)))
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2PrepositionObject
+export function conf2PrepositionObject(ctx: DetectContext, h: EnWordsAround) {
+  const p0 = h.P[0];
+  const p1 = h.P[1];
+  if (!(p0 && p1 && CONF2_THERE_PREPOSITIONS.has(p0.w) && !enClauseOpensAt(ctx.text, p0.start)))
+    return false;
+  if (!(
+    !CONF2_LOCATIVE_LEAD.has(p1.w) &&
+    !CONF2_CLOSED.has(p1.w) &&
+    !conf2LemmaIn(p1.w, CONF2_THERE_BLOCK)
+  ))
+    return false;
+  const from = /^(?:most|more|less|least)$/.test(h.N[0]?.w ?? "") ? 1 : 0;
+  const phrase = conf2NounPhrase(h.N, from, true);
+  const entry = h.N[from] && englishWordInfo(h.N[from].w);
+  const head =
+    phrase < 0 && entry?.noun && !entry.adverb && !CONF2_TIME.has(h.N[from].w) ? from : phrase;
+  if (!(head >= 0)) return false;
+  const next = h.N[head + 1]?.w ?? "";
+  return (
+    (!/^(?:from|to)$/.test(p0.w) && enClauseClosesAt(ctx.text, h.N[head].end)) ||
+    CONF2_PREPOSITIONS.has(next) ||
+    next === "and" ||
+    next === "or"
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2ClauseStart
+export function conf2ClauseStart(ctx: DetectContext, start: number, h: EnWordsAround) {
+  return enClauseOpensAt(ctx.text, start) || CONF2_CONJUNCTIONS.has(h.P[0]?.w ?? "");
+}
+
+// en.yaml rule en.contextualConfusions def conf2Emit
+export function conf2Emit(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  replacements: readonly string[],
+  evidence: readonly [number, number],
+): RawFinding | null {
+  if (!(start >= ctx.from && start < ctx.to)) return null;
+  const from = Math.min(start, evidence[0]);
+  const to = Math.max(end, evidence[1]);
+  if (hasUserOrCasedWord(ctx, ctx.text.slice(from, to))) return null;
+  if (!(!enGluedAfter(ctx.text, end) && !namedExampleBefore(ctx.text, from))) return null;
+  const typed = ctx.text.slice(start, end);
+  const casing = detectWordCase(typed);
+  const previous = enClauseWordsBefore(ctx.text, start, 1)[0];
+  if (
+    casing === "title" &&
+    previous &&
+    /^[a-z]/.test(previous.raw) &&
+    !enClauseOpensAt(ctx.text, start)
+  )
+    return null;
+  const curly = typed.includes("’");
+  const alternatives = replacements.map((replacement) =>
+    curly
+      ? applyWordCase(replacement, casing).replace(/'/g, "’")
+      : applyWordCase(replacement, casing),
+  );
+  return finding(ruleId, messageKey, start, end, alternatives, {
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    context: { start: Math.max(0, from - 48), end: Math.min(ctx.text.length, to + 16) },
+  });
+}
+
+// en.yaml rule en.contextualConfusions def conf2Typo
+export function conf2Typo(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  replacement: string,
+  first: EnClauseWord | undefined,
+  last: EnClauseWord | undefined,
+) {
+  return conf2Emit(
+    ctx,
+    start,
+    end,
+    "englishUsagePhrases",
+    "review_msg_typo",
+    [replacement],
+    [first?.start ?? start, last?.end ?? end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2TheirFamily
+export function conf2TheirFamily(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+  key: RawFinding["messageKey"],
+  replacement: string,
+  first: EnClauseWord | undefined,
+) {
+  return conf2Emit(
+    ctx,
+    start,
+    end,
+    "englishTheirThereTheyAre",
+    key,
+    [replacement],
+    [first?.start ?? start, h.N[0]?.end ?? end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2Skip
+export function conf2Skip(
+  list: readonly EnClauseWord[],
+  set: ReadonlySet<string>,
+  i: number,
+): number {
+  return list[i] && set.has(list[i].w) ? conf2Skip(list, set, i + 1) : i;
+}
+
+// en.yaml rule en.contextualConfusions def CONF2_PERSONAL_BE
+export const CONF2_PERSONAL_BE = /^(?:i'm|you're|we're|they're|he's|she's)$/;
+
+// en.yaml rule en.contextualConfusions def conf2Cold
+export function conf2Cold(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  const p1 = h.P[1];
+  const n0 = h.N[0];
+  if (!(p0 && n0 && !CONF2_COLD_COMPOUNDS.has(n0.w))) return null;
+  const subject =
+    /^(?:i|we|they|he|she)$/.test(p0.w) ||
+    (/^(?:it|you)$/.test(p0.w) &&
+      (enClauseOpensAt(ctx.text, p0.start) ||
+        /^(?:and|but|so|if|when|because|that)$/.test(p1?.w ?? "")));
+  if (!(subject && (CONF2_ADVERBS.has(n0.w) || hasVerbForm(n0.w, "base")))) return null;
+  return conf2Typo(ctx, start, end, "could", p0, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Dos
+export function conf2Dos(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const subject = h.P[conf2Skip(h.P, CONF2_ADVERBS, 0)];
+  if (!(subject && /^(?:he|she|it)$/.test(subject.w))) return null;
+  const typed = ctx.text.slice(start, end);
+  if (typed === "DOS" && subject.raw !== subject.raw.toUpperCase()) return null;
+  return conf2Typo(ctx, start, end, "does", subject, undefined);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Wok
+export function conf2Wok(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const lead = h.P[conf2Skip(h.P, CONF2_ADVERBS, 0)];
+  if (!lead) return null;
+  const n0 = h.N[0]?.w ?? "";
+  const ok =
+    (CONF2_SUBJECTS.has(lead.w) &&
+      (!/^(?:it|you)$/.test(lead.w) || enClauseOpensAt(ctx.text, lead.start))) ||
+    (lead.w !== "to" &&
+      CONF2_AUX.has(lead.w) &&
+      !(/^(?:do|does|did)$/.test(lead.w) && enClauseOpensAt(ctx.text, lead.start))) ||
+    (lead.w === "to" &&
+      (enClauseOpensAt(ctx.text, lead.start) ||
+        /^(?:here|there|on|from|at|with|around|for|late|hard|together|remotely|fast|well|better|overtime)$/.test(
+          n0,
+        )));
+  if (!ok) return null;
+  return conf2Typo(ctx, start, end, "work", lead, undefined);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Rally
+export function conf2Rally(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  const entry = n0 && englishWordInfo(n0.w);
+  if (!(
+    entry &&
+    (hasVerbForm(n0.w, "ing") || (entry.adjective && !entry.noun && !entry.verbs.length))
+  ))
+    return null;
+  const i = h.P[0]?.w === "not" ? 1 : 0;
+  const p = h.P[i];
+  if (!p) return null;
+  const be =
+    CONF2_BE.has(p.w) ||
+    /^(?:i'm|you're|we're|they're|he's|she's|it's|that's)$/.test(p.w) ||
+    (CONF2_SUBJECTS.has(p.w) && CONF2_BE.has(h.P[i + 1]?.w ?? ""));
+  if (!be) return null;
+  return conf2Typo(ctx, start, end, "really", p, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Pleas
+export function conf2Pleas(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  if (!(n0 && hasVerbForm(n0.w, "base") && !CONF2_PLEAS_INTRANSITIVE.has(n0.w))) return null;
+  const n1 = h.N[1];
+  if (n1 && CONF2_PREPOSITIONS.has(n1.w)) return null;
+  const p0 = h.P[0]?.w ?? "";
+  if (!(enClauseOpensAt(ctx.text, start) || /^(?:you|and|but|so|then|now|just|kindly)$/.test(p0)))
+    return null;
+  return conf2Typo(ctx, start, end, "please", undefined, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Boarder
+export function conf2Boarder(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  const n1 = h.N[1];
+  const n2 = h.N[2];
+  const p = h.P[0] && CONF2_DET.has(h.P[0].w) ? h.P[1] : h.P[0];
+  const ok =
+    (!!p && /^cross(?:es|ed|ing)?$/.test(p.w)) ||
+    (!!n0 &&
+      !!n1 &&
+      (/^(?:between|around|along|across)$/.test(n0.w) ||
+        (n0.w === "of"
+          ? !CONF2_BOARDING_PLACES.has(n2?.w ?? n1.w)
+          : n0.w === "with"
+            ? true
+            : n0.w === "on"
+              ? CONF2_DIRECTIONS.has(n1.w) || CONF2_DIRECTIONS.has(n2?.w ?? "")
+              : false)));
+  if (!ok) return null;
+  return conf2Typo(ctx, start, end, word.replace("boarder", "border"), p, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Thieve
+export function conf2Thieve(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  if (!p0) return null;
+  const p1 = h.P[1];
+  if (!(
+    CONF2_DET.has(p0.w) ||
+    (conf2Adjective(p0.w) && !englishWordInfo(p0.w)?.verbs.length && CONF2_DET.has(p1?.w ?? ""))
+  ))
+    return null;
+  return conf2Typo(ctx, start, end, "thief", p0, undefined);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Threat
+export function conf2Threat(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  if (!(n0 && !CONF2_THREAT_COMPOUNDS.has(n0.w))) return null;
+  const i = h.P[0]?.w === "not" ? 1 : 0;
+  const modal = h.P[i];
+  const s = h.P[i + 1];
+  if (!(modal && s)) return null;
+  if (!(
+    (CONF2_MODALS.has(modal.w) && !CONF2_WH.has(s.w) && !enClauseOpensAt(ctx.text, modal.start)) ||
+    (CONF2_SUBJECTS.has(modal.w) && CONF2_MODALS.has(s.w))
+  ))
+    return null;
+  return conf2Emit(
+    ctx,
+    start,
+    end,
+    "englishUsagePhrases",
+    "review_msg_contextual_grammar",
+    ["threaten", "treat"],
+    [s.start, n0.end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2Principle
+export function conf2Principle(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  const n0 = h.N[0];
+  if (!(p0 && n0 && CONF2_DET.has(p0.w) && n0.w !== "worth")) return null;
+  if (!(conf2Nounish(n0.w) || englishWordInfo(n0.w)?.noun)) return null;
+  if (CONF2_CLOSED.has(n0.w) || hasVerbForm(n0.w, "third", "past", "ing") || n0.w.endsWith("ing"))
+    return null;
+  return conf2Typo(ctx, start, end, "principal", p0, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Shutdown
+export function conf2Shutdown(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  if (!(n0 && CONF2_SHUT_OBJECT.has(n0.w))) return null;
+  const lead = h.P[conf2ShutLead(h.P, 0)];
+  if (!(lead && CONF2_SHUT_AUX.has(lead.w))) return null;
+  return conf2Emit(
+    ctx,
+    start,
+    end,
+    "englishContextualCompounds",
+    "review_msg_compounds",
+    ["shut down"],
+    [lead.start, n0.end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2ShutLead
+export function conf2ShutLead(p: readonly EnClauseWord[], i: number): number {
+  return i < 2 &&
+    p[i] &&
+    (/^(?:not|never|just|already|also|still)$/.test(p[i].w) ||
+      CONF2_SUBJECTS.has(p[i].w) ||
+      (i === 0 && /^[A-Z][a-z]+$/.test(p[i].raw)))
+    ? conf2ShutLead(p, i + 1)
+    : i;
+}
+
+// en.yaml rule en.contextualConfusions def conf2Though
+export function conf2Though(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  const p1 = h.P[1];
+  const n0 = h.N[0];
+  if (!(p0 && n0 && CONF2_THOUGHT_NEXT.has(n0.w) && /^(?:i|we|they|you|he|she)$/.test(p0.w)))
+    return null;
+  if (
+    p0.w === "you" &&
+    !enClauseOpensAt(ctx.text, p0.start) &&
+    !/^(?:and|but|so|then|if|when|because|that)$/.test(p1?.w ?? "")
+  )
+    return null;
+  return conf2Typo(ctx, start, end, "thought", p0, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Heart
+export function conf2Heart(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  if (!(h.N[0]?.w === "of")) return null;
+  const i = conf2Skip(h.P, CONF2_HEART_ADVERBS, 0);
+  const p = h.P[i];
+  if (!p) return null;
+  const ok =
+    /^(?:(?:i|you|we|they)'ve|(?:i|you|we|they|he|she)'d)$/.test(p.w) ||
+    (CONF2_HAVE.has(p.w) && i > 0 && CONF2_SUBJECTS.has(h.P[i + 1]?.w ?? "")) ||
+    (CONF2_SUBJECTS.has(p.w) && CONF2_HAVE.has(h.P[i + 1]?.w ?? "")) ||
+    (h.P[i + 1]?.w === "the" && CONF2_HAVE.has(h.P[i + 2]?.w ?? ""));
+  if (!ok) return null;
+  return conf2Typo(ctx, start, end, "heard", h.P[Math.min(h.P.length - 1, i + 2)], h.N[0]);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Mach
+export function conf2Mach(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  if (!(p0?.w === "how" && !/^[ \t ]*\d/.test(ctx.text.slice(end, end + 4)))) return null;
+  if (/^[A-Z][a-z]/.test(ctx.text.slice(start, end)) && /^[a-z]/.test(p0.raw)) return null;
+  if (!(word !== "match" || conf2MuchNoun(h))) return null;
+  return conf2Typo(ctx, start, end, "much", p0, undefined);
+}
+
+// en.yaml rule en.contextualConfusions def conf2MuchNoun
+export function conf2MuchNoun(h: EnWordsAround) {
+  const n0 = h.N[0];
+  if (!n0) return false;
+  const n1 = h.N[1];
+  const entry = englishWordInfo(n0.w);
+  const singular = entry
+    ? entry.noun && !entry.plural && !hasVerbForm(n0.w, "third", "past", "ing")
+    : /^[a-z]{4,}$/.test(n0.w);
+  if (!(
+    n0.w === "of" ||
+    CONF2_MUCH_NEXT.has(n0.w) ||
+    (singular && CONF2_MUCH_CLAUSE.has(n1?.w ?? ""))
+  ))
+    return false;
+  return true;
+}
+
+// en.yaml rule en.contextualConfusions def conf2Exited
+export function conf2Exited(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const i0 = conf2Skip(h.P, CONF2_NOT, 0);
+  const intense = CONF2_INTENSIFIERS.has(h.P[i0]?.w ?? "");
+  const i = conf2Skip(h.P, CONF2_INTENSIFIERS, i0);
+  const be = h.P[i];
+  if (!(be && (CONF2_BE.has(be.w) || CONF2_PERSONAL_BE.test(be.w) || CONF2_EXCITED_LINK.has(be.w))))
+    return null;
+  const n = h.N[0]?.w;
+  const personal =
+    CONF2_PERSONAL_BE.test(be.w) || /^(?:i|you|we|they|he|she)$/.test(h.P[i + 1]?.w ?? "");
+  if (!(intense || n === "about" || n === "that" || ((n === "for" || n === "to") && personal)))
+    return null;
+  return conf2Typo(ctx, start, end, "excited", be, h.N[0]);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Ready
+export function conf2Ready(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  const n0 = h.N[0];
+  if (!(
+    p0?.w === "all" &&
+    n0 &&
+    !CONF2_CLOSED.has(n0.w) &&
+    !CONF2_READY_NOT.has(n0.w) &&
+    conf2Adjective(n0.w)
+  ))
+    return null;
+  return conf2Emit(
+    ctx,
+    p0.start,
+    end,
+    "englishUsagePhrases",
+    "review_msg_typo",
+    ["already"],
+    [p0.start, n0.end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2Way
+export function conf2Way(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  if (!(p0?.w === "now")) return null;
+  const p1 = h.P[1];
+  const p2 = h.P[2];
+  const n0 = h.N[0];
+  const n1 = h.N[1];
+  const ok =
+    ((p1?.w === "in" || p1?.w === "of") && p2?.w !== "as") ||
+    (!!n0 &&
+      (/^(?:of|for|around)$/.test(n0.w)
+        ? true
+        : n0.w === "to"
+          ? !n1 || !(conf2Adjective(n1.w) && !englishWordInfo(n1.w)?.verbs.length)
+          : /s$/.test(n0.w)
+            ? !!englishWordInfo(n0.w)?.plural || (!englishWordInfo(n0.w) && conf2Nounish(n0.w))
+            : false));
+  if (!ok) return null;
+  return conf2Emit(
+    ctx,
+    p0.start,
+    p0.end,
+    "englishUsagePhrases",
+    "review_msg_typo",
+    ["no"],
+    [p0.start, end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2Do
+export function conf2Do(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  const n1 = h.N[1];
+  const p0 = h.P[0];
+  if (!(n0?.w === "to" && n1 && p0 && !CONF2_OBJECTS.has(n1.w))) return null;
+  const p1 = h.P[1];
+  const next = englishWordInfo(n1.w);
+  if (next?.verbs.some((v) => v.form === "base") && !next.noun && !next.adjective) return null;
+  if (/^(?:had|made|let|helped|did|done|been|used|got)$/.test(p0.w)) return null;
+  const ok =
+    hasVerbForm(p0.w, "past") ||
+    (hasVerbForm(p0.w, "base") && CONF2_MODALS.has(p1?.w ?? "")) ||
+    (!!englishWordInfo(p0.w)?.adverb &&
+      !CONF2_CLOSED.has(p0.w) &&
+      hasVerbForm(p1?.w ?? "", "past"));
+  if (!ok) return null;
+  return conf2Typo(ctx, start, end, "due", p0, n1);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Waist
+export function conf2Waist(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  const n1 = h.N[1];
+  if (!(n0?.w === "of" && n1 && !CONF2_WAIST_NOT.has(n1.w))) return null;
+  const p0 = h.P[0]?.w ?? "";
+  if (/^(?:the|her|his|my|your|its|their|our)$/.test(p0)) return null;
+  const evaluative = p0 === "a" || p0 === "an" || CONF2_WASTE_ADJECTIVES.has(p0);
+  if (/^(?:her|his|my|your|its|their|our)$/.test(n1.w) && !evaluative) return null;
+  if (p0 && conf2Adjective(p0) && !CONF2_WASTE_ADJECTIVES.has(p0)) return null;
+  return conf2Typo(ctx, start, end, "waste", undefined, n1);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Relay
+export function conf2Relay(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  const n1 = h.N[1];
+  if (!(n0?.w === "on" && n1 && n1.w !== "behalf")) return null;
+  const p = h.P[0];
+  const ok = p
+    ? CONF2_RELAY_LEAD.has(p.w) ||
+      (/ly$/.test(p.w) && !!englishWordInfo(p.w)?.adverb) ||
+      (!!englishWordInfo(p.w)?.plural && !CONF2_DET.has(h.P[1]?.w ?? ""))
+    : enClauseOpensAt(ctx.text, start) && CONF2_OBJECTS.has(n1.w);
+  if (!ok) return null;
+  return conf2Typo(ctx, start, end, "rely", p, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Off
+export function conf2Off(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  const n0 = h.N[0];
+  if (!(p0 && CONF2_THINK_KNOW.has(p0.w) && n0 && !/^(?:and|of|hand|handedly)$/.test(n0.w)))
+    return null;
+  const n1 = h.N[1];
+  if (n0.w === "the" && CONF2_OFF_IDIOMS.has(n1?.w ?? "")) return null;
+  return conf2Typo(ctx, start, end, "of", p0, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Tuff
+export function conf2Tuff(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  if (!(h.N[0]?.w === "like")) return null;
+  const p = h.P[0]?.w;
+  if (
+    p &&
+    !CONF2_DET.has(p) &&
+    !CONF2_BE.has(p) &&
+    !CONF2_INTENSIFIERS.has(p) &&
+    !conf2LemmaIn(p, CONF2_LINKING_LEMMAS)
+  )
+    return null;
+  return conf2Typo(ctx, start, end, "tough", undefined, h.N[0]);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Yea
+export function conf2Yea(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  _h: EnWordsAround,
+): RawFinding | null {
+  const after = /^(?:[ \t ]*,|[ \t ]+[-–—]+|[-–—]+(?=[ \t ]))[ \t ]*([A-Za-z]*)/.exec(
+    ctx.text.slice(end, end + 24),
+  );
+  if (!(after && !/^(?:though|verily|nay)$/i.test(after[1]))) return null;
+  if (/\b(?:nay|yeas|nays)\b/i.test(ctx.text.slice(Math.max(0, start - 64), end + 64))) return null;
+  return conf2Typo(ctx, start, end, "yeah", undefined, undefined);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Price
+export function conf2Price(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const i = CONF2_PRIZE_LEAD.has(h.P[0]?.w ?? "") ? 1 : 0;
+  if (!CONF2_WIN.has(h.P[i]?.w ?? "")) return null;
+  const n0 = h.N[0];
+  if (
+    n0 &&
+    !CONF2_CLOSED.has(n0.w) &&
+    !CONF2_TIME.has(n0.w) &&
+    !n0.w.includes("'") &&
+    conf2PriceNoun(n0.w)
+  )
+    return null;
+  return conf2Typo(ctx, start, end, /s$/.test(word) ? "prizes" : "prize", h.P[i], undefined);
+}
+
+// en.yaml rule en.contextualConfusions def conf2PriceNoun
+export function conf2PriceNoun(w: string) {
+  const entry = englishWordInfo(w);
+  return entry ? (entry.noun || entry.plural) && !hasVerbForm(w, "past") : conf2Nounish(w);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Loose
+export function conf2Loose(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  const p1 = h.P[1];
+  if (!(
+    p0?.w === "to" &&
+    !h.P.some((p) => p.w === "from") &&
+    !CONF2_SETTING_VERBS.has(p1?.w ?? "")
+  ))
+    return null;
+  const n0 = h.N[0];
+  if (!(n0 ? CONF2_LOSE_OBJECT.has(n0.w) : enClauseClosesAt(ctx.text, end))) return null;
+  return conf2Typo(ctx, start, end, "lose", p0, n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Lose
+export function conf2Lose(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  if (!(h.P[0]?.w === "too")) return null;
+  const n0 = h.N[0];
+  if (!(
+    /^[ \t ]+(?:and|or|but|for|with|in|on|at)(?![A-Za-z])/i.test(ctx.text.slice(end, end + 12)) ||
+    (!n0 && enClauseClosesAt(ctx.text, end))
+  ))
+    return null;
+  return conf2Typo(ctx, start, end, "loose", h.P[0], n0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2They
+export function conf2They(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  if (!p0) return null;
+  const p1 = h.P[1];
+  const n0 = h.N[0];
+  if (n0 && (CONF2_FINITE.has(n0.w) || conf2PureFinite(n0.w))) return null;
+  if (!(
+    (CONF2_THEM_PREPOSITIONS.has(p0.w) && !(p0.w === "about" && CONF2_WH.has(p1?.w ?? ""))) ||
+    (hasVerbForm(p0.w, "base") &&
+      !CONF2_AUX.has(p0.w) &&
+      !conf2LemmaIn(p0.w, CONF2_BARE_CLAUSE) &&
+      !!n0 &&
+      CONF2_THEM_NEXT.has(n0.w) &&
+      (enClauseOpensAt(ctx.text, p0.start) || CONF2_THEM_LEAD.has(p1?.w ?? "")))
+  ))
+    return null;
+  return conf2Emit(
+    ctx,
+    start,
+    end,
+    "englishPronounCase",
+    "review_msg_pronoun_object_case",
+    ["them"],
+    [p0.start, n0?.end ?? end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2There
+export function conf2There(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  const p1 = h.P[1];
+  const n0 = h.N[0];
+  if (!n0) return null;
+  const n1 = h.N[1];
+  return p0 &&
+    CONF2_CUES.has(p0.w) &&
+    n1 &&
+    hasVerbForm(n0.w, "ing") &&
+    !/^(?:being|going)$/.test(n0.w)
+    ? conf2TheirFamily(ctx, start, end, h, "review_msg_they_are", "they're", p0)
+    : conf2TheirThere(ctx, start, h, p0, p1)
+      ? conf2TheirFamily(ctx, start, end, h, "review_msg_their_possessive", "their", p0)
+      : null;
+}
+
+// en.yaml rule en.contextualConfusions def conf2TheirThere
+export function conf2TheirThere(
+  ctx: DetectContext,
+  start: number,
+  h: EnWordsAround,
+  p0: EnClauseWord | undefined,
+  p1: EnClauseWord | undefined,
+) {
+  const head = /^(?:and|or)$/.test(p0?.w ?? "") ? conf2NounPhrase(h.N, 0, true) : -1;
+  return (
+    (!enClauseOpensAt(ctx.text, start) &&
+      conf2ObjectVerb(ctx.text, p0, p1, CONF2_THERE_BLOCK) &&
+      conf2NounPhrase(h.N, 0, true) >= 0 &&
+      conf2GerundHeadOk(ctx, h, p0)) ||
+    (head >= 0 && enClauseClosesAt(ctx.text, h.N[head].end)) ||
+    conf2PrepositionObject(ctx, h) ||
+    (conf2ClauseStart(ctx, start, h) && conf2SubjectPhrase(h.N, true))
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2Their
+export function conf2Their(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  if (!(n0 ? CONF2_PLACE_NEXT.has(n0.w) : enClauseClosesAt(ctx.text, end))) return null;
+  const j = conf2PlaceVerb(h.P, 1);
+  if (!(j > 0)) return null;
+  return conf2TheirFamily(ctx, start, end, h, "review_msg_their_there", "there", h.P[j]);
+}
+
+// en.yaml rule en.contextualConfusions def conf2PlaceVerb
+export function conf2PlaceVerb(p: readonly EnClauseWord[], j: number): number {
+  return j > 3 || !p[j] || !p[j - 1]
+    ? -1
+    : conf2LemmaIn(p[j].w, CONF2_PLACE_VERBS) &&
+        (CONF2_DET.has(p[j - 1].w) || /^(?:it|them)$/.test(p[j - 1].w))
+      ? j
+      : conf2PlaceVerb(p, j + 1);
+}
+
+// en.yaml rule en.contextualConfusions def conf2Theyre
+export function conf2Theyre(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const p0 = h.P[0];
+  const p1 = h.P[1];
+  if (
+    p0?.w === "while" ||
+    (p0?.w === "like" && !!p1 && !CONF2_SUBJECTS.has(p1.w) && !!englishWordInfo(p1.w)?.verbs.length)
+  )
+    return null;
+  const p2 = h.P[2];
+  const phrase = conf2NounPhrase(h.N, 0, true) >= 0;
+  const ok =
+    (phrase && !!p0 && /^(?:are|were|is|was)$/.test(p0.w) && CONF2_WH.has(p1?.w ?? "")) ||
+    (phrase &&
+      conf2ObjectVerb(ctx.text, p0, p1, CONF2_CLAUSE_LEMMAS) &&
+      conf2GerundHeadOk(ctx, h, p0)) ||
+    (phrase &&
+      !!p0 &&
+      CONF2_OBJECTS.has(p0.w) &&
+      conf2ObjectVerb(ctx.text, p1, p2, CONF2_CLAUSE_LEMMAS) &&
+      conf2GerundHeadOk(ctx, h, p1)) ||
+    (conf2ClauseStart(ctx, start, h) && conf2SubjectPhrase(h.N, true));
+  if (!ok) return null;
+  return conf2TheirFamily(ctx, start, end, h, "review_msg_their_possessive", "their", p0);
+}
+
+// en.yaml rule en.contextualConfusions def conf2To
+export function conf2To(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const listed =
+    /,[ \t ]{0,8}$/.test(ctx.text.slice(Math.max(0, start - 9), start)) &&
+    /^[ \t ]{0,8}[.!?](?![\p{L}\p{N}])|^[ \t ]*$/u.test(ctx.text.slice(end, end + 10));
+  if (!(
+    listed ||
+    (/^(?:loud|loudly)$/.test(h.N[0]?.w ?? "") &&
+      h.N.length === 1 &&
+      conf2LemmaIn(h.P[0]?.w ?? "", CONF2_SPEECH_LEMMAS) &&
+      enClauseClosesAt(ctx.text, h.N[0].end))
+  ))
+    return null;
+  return conf2Emit(
+    ctx,
+    start,
+    end,
+    "englishToToo",
+    "review_msg_to_too",
+    ["too"],
+    [h.P[0]?.start ?? start, h.N[0]?.end ?? end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def conf2Where
+export function conf2Where(
+  ctx: DetectContext,
+  word: string,
+  start: number,
+  end: number,
+  h: EnWordsAround,
+): RawFinding | null {
+  const n0 = h.N[0];
+  if (!(enClauseOpensAt(ctx.text, start) && n0 && /^(?:you|we|they)$/.test(n0.w))) return null;
+  const n1 = h.N[1];
+  if (!(n1 && CONF2_WERE_PREDICATES.has(n1.w))) return null;
+  return conf2Emit(
+    ctx,
+    start,
+    end,
+    "englishWereWhere",
+    "review_msg_were_where",
+    ["were"],
+    [start, n1.end],
+  );
+}
+
+// en.yaml rule en.contextualConfusions def CONF2_HANDLERS
+export const CONF2_HANDLERS = {
+  cold: conf2Cold,
+  dos: conf2Dos,
+  wok: conf2Wok,
+  rally: conf2Rally,
+  pleas: conf2Pleas,
+  boarder: conf2Boarder,
+  thieve: conf2Thieve,
+  threat: conf2Threat,
+  principle: conf2Principle,
+  shutdown: conf2Shutdown,
+  though: conf2Though,
+  heart: conf2Heart,
+  mach: conf2Mach,
+  exited: conf2Exited,
+  ready: conf2Ready,
+  way: conf2Way,
+  do: conf2Do,
+  waist: conf2Waist,
+  relay: conf2Relay,
+  off: conf2Off,
+  tuff: conf2Tuff,
+  yea: conf2Yea,
+  price: conf2Price,
+  loose: conf2Loose,
+  lose: conf2Lose,
+  they: conf2They,
+  there: conf2There,
+  their: conf2Their,
+  "they're": conf2Theyre,
+  to: conf2To,
+  where: conf2Where,
+  herd: conf2Heart,
+  match: conf2Mach,
+  boarders: conf2Boarder,
+  prices: conf2Price,
+  prise: conf2Price,
+  prises: conf2Price,
+  yeh: conf2Yea,
+  theyre: conf2Theyre,
+} as Readonly<Record<string, typeof conf2Cold>>;
+
 // en.yaml rule en.sentenceFrames def STYLE2_CLOSED
 export const STYLE2_CLOSED = new Set([
   ...STYLE2_DET,
@@ -3810,6 +5982,18 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const h = handler(ctx, t, enBlockTokensBefore(ctx, t.start), enBlockTokensAfter(ctx, t.end));
     if (!(h && !confMentioned(ctx, h))) return null;
     return confMake(ctx, h.start, h.end, h.alts, h.key);
+  },
+  // en.yaml rule en.contextualConfusions frame 1
+  "@en.contextualConfusions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = enWordKey(m[0]);
+    const end = m.index + m[0].length;
+    return CONF2_HANDLERS[word](
+      ctx,
+      word,
+      m.index,
+      end,
+      enWordsAround(ctx.text, m.index, end, 4, 5),
+    );
   },
   // en.yaml rule en.idiomPhrases1 frame 5
   "@en.idiomPhrases1/5": (m: RegExpExecArray): string | readonly string[] | null => {

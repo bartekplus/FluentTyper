@@ -1852,6 +1852,1568 @@ rules:
       ]
     style: match
     message: review_msg_confused_word
+    # Typo-like confusions resolved by the words around one trigger word. Closed-class word
+    # sets; open-class decisions go through the lexicon.
+    sets:
+      CONF2_DET:
+        [
+          "the",
+          "a",
+          "an",
+          "this",
+          "that",
+          "these",
+          "those",
+          "my",
+          "your",
+          "his",
+          "her",
+          "its",
+          "our",
+          "their",
+          "each",
+          "every",
+          "no",
+          "another",
+        ]
+      CONF2_SUBJECTS: ["i", "you", "we", "they", "he", "she", "it"]
+      CONF2_OBJECTS: ["me", "him", "her", "us", "them", "you", "it"]
+      CONF2_WH: ["what", "where", "which", "who", "whom", "whose", "how", "why", "when"]
+      CONF2_MODALS:
+        [
+          "will",
+          "would",
+          "could",
+          "should",
+          "can",
+          "can't",
+          "cannot",
+          "might",
+          "must",
+          "mustn't",
+          "shouldn't",
+          "won't",
+          "wouldn't",
+          "couldn't",
+          "may",
+          "shall",
+        ]
+      CONF2_BE:
+        [
+          "am",
+          "is",
+          "are",
+          "was",
+          "were",
+          "be",
+          "been",
+          "being",
+          "isn't",
+          "aren't",
+          "wasn't",
+          "weren't",
+          "ain't",
+        ]
+      CONF2_HAVE: ["have", "has", "had", "haven't", "hasn't", "hadn't"]
+      CONF2_ADVERBS:
+        [
+          "not",
+          "never",
+          "just",
+          "really",
+          "also",
+          "still",
+          "always",
+          "only",
+          "even",
+          "actually",
+          "sometimes",
+          "often",
+          "usually",
+          "rarely",
+          "seldom",
+          "certainly",
+          "definitely",
+          "probably",
+          "already",
+        ]
+      CONF2_PREPOSITIONS:
+        [
+          "of",
+          "for",
+          "about",
+          "with",
+          "from",
+          "into",
+          "onto",
+          "at",
+          "by",
+          "against",
+          "between",
+          "among",
+          "without",
+          "toward",
+          "towards",
+          "under",
+          "through",
+          "during",
+          "despite",
+          "to",
+          "on",
+          "in",
+          "upon",
+          "via",
+          "over",
+          "across",
+          "along",
+          "around",
+          "behind",
+          "beside",
+          "near",
+          "after",
+          "before",
+          "since",
+          "until",
+          "till",
+          "inside",
+          "outside",
+          "beyond",
+          "below",
+          "above",
+          "within",
+          "throughout",
+          "unlike",
+        ]
+      CONF2_TIME:
+        [
+          "today",
+          "tonight",
+          "tomorrow",
+          "yesterday",
+          "morning",
+          "afternoon",
+          "evening",
+          "night",
+          "nights",
+          "time",
+          "times",
+          "years",
+          "year",
+          "months",
+          "month",
+          "weeks",
+          "week",
+          "days",
+          "day",
+          "hours",
+          "hour",
+          "minutes",
+          "decades",
+          "ages",
+          "once",
+          "twice",
+          "early",
+          "late",
+          "last",
+          "next",
+          "soon",
+          "forever",
+          "overnight",
+          "recently",
+          "daily",
+          "north",
+          "south",
+          "east",
+          "west",
+          "home",
+          "abroad",
+          "online",
+          "offline",
+          "upstairs",
+          "downstairs",
+          "inland",
+          "overseas",
+          "downtown",
+          "uptown",
+          "onward",
+          "onwards",
+          "straight",
+          "ahead",
+        ]
+      CONF2_BARE_CLAUSE:
+        [
+          "think",
+          "know",
+          "hope",
+          "believe",
+          "say",
+          "guess",
+          "suppose",
+          "feel",
+          "wish",
+          "mean",
+          "see",
+          "hear",
+          "suggest",
+          "insist",
+          "find",
+          "ensure",
+          "notice",
+          "assume",
+          "bet",
+          "admit",
+          "doubt",
+          "swear",
+          "fear",
+          "reckon",
+          "figure",
+          "understand",
+          "learn",
+          "remember",
+          "forget",
+          "realize",
+          "realise",
+          "prove",
+          "imagine",
+          "pretend",
+          "seem",
+          "appear",
+          "look",
+          "sound",
+          "agree",
+          "argue",
+          "claim",
+          "decide",
+          "expect",
+          "explain",
+          "hold",
+          "note",
+          "predict",
+          "read",
+          "report",
+          "reveal",
+          "state",
+          "worry",
+          "confirm",
+          "verify",
+          "make",
+          "trust",
+          "wonder",
+          "deny",
+          "recall",
+          "watch",
+          "be",
+          "have",
+          "do",
+          "get",
+          "go",
+          "come",
+          "need",
+          "dare",
+        ]
+      CONF2_OBJECT_FIRST:
+        [
+          "tell",
+          "show",
+          "remind",
+          "promise",
+          "assure",
+          "convince",
+          "teach",
+          "inform",
+          "warn",
+          "let",
+          "help",
+        ]
+      CONF2_PLACE_LEMMAS:
+        [
+          "go",
+          "come",
+          "get",
+          "arrive",
+          "stay",
+          "live",
+          "work",
+          "sit",
+          "stand",
+          "wait",
+          "sleep",
+          "eat",
+          "die",
+          "lie",
+          "meet",
+          "stop",
+          "remain",
+          "park",
+          "settle",
+          "belong",
+          "exist",
+          "happen",
+          "drive",
+          "fly",
+          "walk",
+          "run",
+          "ride",
+          "travel",
+          "head",
+          "return",
+          "sail",
+          "swim",
+          "hike",
+          "rush",
+          "hurry",
+          "move",
+          "relocate",
+          "commute",
+          "visit",
+        ]
+      CONF2_COMPOUND_PARTICIPLES:
+        [
+          "owned",
+          "operated",
+          "run",
+          "based",
+          "driven",
+          "focused",
+          "oriented",
+          "led",
+          "funded",
+          "backed",
+          "made",
+          "built",
+          "minded",
+        ]
+      CONF2_THERE_PREPOSITIONS: ["about", "to", "of", "from", "with", "for", "into", "on", "by"]
+      CONF2_LOCATIVE_LEAD:
+        [
+          "out",
+          "up",
+          "down",
+          "over",
+          "in",
+          "back",
+          "away",
+          "here",
+          "near",
+          "far",
+          "right",
+          "straight",
+          "just",
+        ]
+      CONF2_CONJUNCTIONS: ["and", "but", "so", "yet", "while", "whereas", "because", "although"]
+      CONF2_COLD_COMPOUNDS:
+        [
+          "build",
+          "call",
+          "email",
+          "brew",
+          "press",
+          "start",
+          "boot",
+          "read",
+          "pitch",
+          "shoulder",
+          "plunge",
+          "smoke",
+          "roll",
+          "cut",
+          "message",
+          "text",
+          "contact",
+          "approach",
+        ]
+      CONF2_PLEAS_INTRANSITIVE:
+        [
+          "go",
+          "are",
+          "were",
+          "have",
+          "had",
+          "do",
+          "remain",
+          "seem",
+          "become",
+          "fall",
+          "come",
+          "continue",
+          "grow",
+          "mount",
+        ]
+      CONF2_BOARDING_PLACES:
+        [
+          "school",
+          "schools",
+          "house",
+          "college",
+          "academy",
+          "hostel",
+          "hall",
+          "inn",
+          "ship",
+          "home",
+          "family",
+          "dorm",
+          "dormitory",
+          "farm",
+        ]
+      CONF2_DIRECTIONS:
+        ["left", "right", "top", "bottom", "side", "sides", "edge", "edges", "inside", "outside"]
+      CONF2_THREAT_COMPOUNDS:
+        [
+          "model",
+          "models",
+          "modeling",
+          "modelling",
+          "hunt",
+          "hunting",
+          "assess",
+          "assessment",
+          "intelligence",
+          "actor",
+          "actors",
+          "level",
+          "levels",
+          "vector",
+          "vectors",
+          "landscape",
+          "surface",
+        ]
+      CONF2_THOUGHT_NEXT:
+        [
+          "i",
+          "you",
+          "we",
+          "they",
+          "he",
+          "she",
+          "it",
+          "that",
+          "this",
+          "there",
+          "so",
+          "about",
+          "of",
+          "the",
+          "a",
+          "maybe",
+          "it's",
+          "i'd",
+          "i'll",
+          "you'd",
+          "he'd",
+          "she'd",
+          "they'd",
+          "we'd",
+          "i'm",
+          "you're",
+          "they're",
+          "we're",
+          "he's",
+          "she's",
+          "there's",
+          "that's",
+          "he'll",
+          "she'll",
+          "they'll",
+          "we'll",
+          "you'll",
+        ]
+      CONF2_MUCH_NEXT: ["more", "less", "longer", "further", "better", "worse", "bigger"]
+      CONF2_MUCH_CLAUSE:
+        [
+          "i",
+          "you",
+          "we",
+          "they",
+          "he",
+          "she",
+          "it",
+          "to",
+          "do",
+          "does",
+          "did",
+          "have",
+          "has",
+          "had",
+          "will",
+          "would",
+          "should",
+          "can",
+          "could",
+        ]
+      CONF2_INTENSIFIERS:
+        [
+          "really",
+          "very",
+          "so",
+          "super",
+          "quite",
+          "too",
+          "extremely",
+          "incredibly",
+          "totally",
+          "pretty",
+          "truly",
+          "especially",
+        ]
+      CONF2_EXCITED_LINK:
+        ["feel", "feels", "felt", "get", "gets", "got", "getting", "seem", "seems", "seemed"]
+      CONF2_READY_NOT: ["willing", "early"]
+      CONF2_WAIST_NOT:
+        [
+          "the",
+          "a",
+          "an",
+          "this",
+          "that",
+          "these",
+          "those",
+          "about",
+          "around",
+          "approximately",
+          "roughly",
+          "nearly",
+          "almost",
+          "over",
+          "under",
+          "just",
+          "only",
+          "less",
+          "more",
+          "some",
+          "up",
+        ]
+      CONF2_WASTE_ADJECTIVES:
+        [
+          "total",
+          "complete",
+          "huge",
+          "big",
+          "massive",
+          "utter",
+          "absolute",
+          "pure",
+          "real",
+          "colossal",
+          "enormous",
+          "terrible",
+          "horrible",
+          "awful",
+          "needless",
+          "unnecessary",
+          "great",
+          "such",
+          "entire",
+          "giant",
+        ]
+      CONF2_THINK_KNOW:
+        ["think", "thinks", "thought", "thinking", "know", "knows", "knew", "known", "knowing"]
+      CONF2_OFF_IDIOMS: ["top", "cuff", "record", "wall", "bat", "beaten", "coast", "shore"]
+      CONF2_PRIZE_LEAD:
+        [
+          "a",
+          "the",
+          "several",
+          "many",
+          "two",
+          "three",
+          "four",
+          "five",
+          "some",
+          "first",
+          "second",
+          "third",
+          "top",
+          "big",
+          "major",
+          "cash",
+          "grand",
+          "another",
+          "any",
+          "no",
+        ]
+      CONF2_WIN: ["win", "wins", "won", "winning"]
+      CONF2_LOSE_OBJECT:
+        [
+          "it",
+          "them",
+          "him",
+          "her",
+          "me",
+          "us",
+          "you",
+          "everything",
+          "anything",
+          "something",
+          "weight",
+          "money",
+          "time",
+          "data",
+          "track",
+          "sight",
+          "interest",
+          "hope",
+          "control",
+          "focus",
+          "my",
+          "your",
+          "his",
+          "our",
+          "their",
+          "all",
+        ]
+      CONF2_SETTING_VERBS:
+        [
+          "set",
+          "sets",
+          "switch",
+          "switched",
+          "change",
+          "changed",
+          "turn",
+          "turned",
+          "adjust",
+          "adjusted",
+          "go",
+          "went",
+          "move",
+          "moved",
+          "shift",
+        ]
+      CONF2_THEM_PREPOSITIONS:
+        [
+          "to",
+          "with",
+          "against",
+          "between",
+          "among",
+          "amongst",
+          "from",
+          "into",
+          "onto",
+          "toward",
+          "towards",
+          "about",
+          "via",
+          "upon",
+          "beside",
+          "behind",
+          "at",
+        ]
+      CONF2_THEM_NEXT:
+        [
+          "the",
+          "a",
+          "an",
+          "my",
+          "your",
+          "his",
+          "her",
+          "our",
+          "their",
+          "this",
+          "that",
+          "these",
+          "those",
+          "for",
+          "about",
+          "in",
+          "on",
+          "at",
+          "via",
+          "with",
+          "during",
+          "when",
+          "how",
+          "what",
+          "why",
+          "where",
+          "as",
+          "today",
+          "tomorrow",
+          "tonight",
+          "later",
+          "again",
+          "back",
+          "up",
+          "down",
+          "out",
+          "off",
+          "to",
+        ]
+      CONF2_CUES:
+        [
+          "said",
+          "says",
+          "say",
+          "heard",
+          "hear",
+          "think",
+          "thought",
+          "guess",
+          "hope",
+          "know",
+          "knew",
+          "suspect",
+          "sure",
+          "maybe",
+          "perhaps",
+          "because",
+          "since",
+          "if",
+          "when",
+          "that",
+        ]
+      CONF2_PLACE_VERBS:
+        [
+          "put",
+          "place",
+          "leave",
+          "set",
+          "move",
+          "keep",
+          "store",
+          "drop",
+          "hang",
+          "stick",
+          "lay",
+          "park",
+          "position",
+        ]
+      CONF2_PLACE_NEXT: ["to", "beside", "next", "near", "by", "for", "until", "and", "so"]
+      CONF2_LINKING_LEMMAS: ["look", "feel", "seem", "act", "sound", "get", "stay", "become"]
+      CONF2_SPEECH_LEMMAS: ["speak", "talk", "sing", "shout", "yell", "play", "laugh", "whisper"]
+      CONF2_WERE_PREDICATES:
+        [
+          "able",
+          "aware",
+          "allowed",
+          "sure",
+          "ready",
+          "happy",
+          "right",
+          "wrong",
+          "lucky",
+          "done",
+          "finished",
+          "serious",
+          "awake",
+          "busy",
+          "okay",
+          "ok",
+          "alright",
+          "there",
+        ]
+      CONF2_HEART_ADVERBS: [ever, never, not, already, just, all, also]
+      CONF2_NOT: [not]
+      CONF2_AUX_MORE: ["do", "does", "did", "don't", "doesn't", "didn't", "to"]
+      CONF2_CLOSED_MORE:
+        [
+          "and",
+          "or",
+          "but",
+          "so",
+          "if",
+          "as",
+          "than",
+          "then",
+          "there",
+          "here",
+          "now",
+          "that",
+          "some",
+          "any",
+          "all",
+          "both",
+          "more",
+          "most",
+          "less",
+          "much",
+          "many",
+          "such",
+          "own",
+          "same",
+          "other",
+          "else",
+          "itself",
+          "themselves",
+          "yet",
+          "too",
+          "very",
+        ]
+      CONF2_THERE_BLOCK_MORE:
+        [
+          "be",
+          "have",
+          "do",
+          "see",
+          "watch",
+          "hear",
+          "notice",
+          "find",
+          "think",
+          "know",
+          "believe",
+          "say",
+          "guess",
+          "suppose",
+          "feel",
+          "hope",
+          "mean",
+          "seem",
+          "appear",
+          "look",
+          "sound",
+          "tell",
+          "show",
+          "prove",
+          "imagine",
+          "wish",
+          "bet",
+          "swear",
+          "claim",
+        ]
+      CONF2_SHUT_AUX_MORE:
+        [
+          "to",
+          "did",
+          "didn't",
+          "don't",
+          "doesn't",
+          "please",
+          "i'll",
+          "we'll",
+          "you'll",
+          "they'll",
+          "he'll",
+          "she'll",
+        ]
+      CONF2_SHUT_OBJECT_MORE: ["it", "them", "everything", "all", "any", "some"]
+      CONF2_RELAY_LEAD_MORE:
+        [
+          "please",
+          "often",
+          "always",
+          "still",
+          "usually",
+          "generally",
+          "mostly",
+          "heavily",
+          "really",
+          "also",
+          "just",
+          "to",
+          "don't",
+          "doesn't",
+          "didn't",
+          "not",
+          "never",
+          "i",
+          "you",
+          "we",
+          "they",
+        ]
+      CONF2_THEM_LEAD_MORE:
+        [
+          "i",
+          "you",
+          "we",
+          "they",
+          "he",
+          "she",
+          "to",
+          "please",
+          "don't",
+          "didn't",
+          "not",
+          "also",
+          "just",
+          "let's",
+          "and",
+        ]
+      CONF2_FINITE_MORE: ["do", "does", "did", "'re"]
+    defs:
+      CONF2_AUX: "new Set([...CONF2_MODALS, ...CONF2_BE, ...CONF2_HAVE, ...CONF2_AUX_MORE])"
+      CONF2_CLOSED: "new Set([...CONF2_DET, ...CONF2_SUBJECTS, ...CONF2_OBJECTS, ...CONF2_WH, ...CONF2_AUX, ...CONF2_ADVERBS, ...CONF2_PREPOSITIONS, ...CONF2_CLOSED_MORE])"
+      CONF2_CLAUSE_LEMMAS: "new Set([...CONF2_BARE_CLAUSE, ...CONF2_OBJECT_FIRST])"
+      CONF2_THERE_BLOCK: "new Set([...CONF2_PLACE_LEMMAS, ...CONF2_THERE_BLOCK_MORE])"
+      CONF2_SHUT_AUX: "new Set([...CONF2_MODALS, ...CONF2_HAVE, ...CONF2_SHUT_AUX_MORE])"
+      CONF2_SHUT_OBJECT: "new Set([...CONF2_DET, ...CONF2_SHUT_OBJECT_MORE])"
+      CONF2_RELAY_LEAD: "new Set([...CONF2_MODALS, ...CONF2_RELAY_LEAD_MORE])"
+      CONF2_THEM_LEAD: "new Set([...CONF2_MODALS, ...CONF2_THEM_LEAD_MORE])"
+      CONF2_FINITE: "new Set([...CONF2_MODALS, ...CONF2_BE, ...CONF2_HAVE, ...CONF2_FINITE_MORE])"
+      # A lemma of the set, or a verb form of one.
+      conf2LemmaIn:
+        args: "word: string, lemmas: ReadonlySet<string>"
+        return: "lemmas.has(word) || (englishWordInfo(word)?.verbs.some((verb) => lemmas.has(verb.lemma)) ?? false)"
+      conf2Adjective:
+        args: "word: string"
+        return: englishWordInfo(word)?.adjective ?? false
+      # A noun reading; an unlisted lowercase word is a long pure noun the lexicon omits.
+      conf2Nounish:
+        args: "word: string"
+        let:
+          entry: englishWordInfo(word)
+        when: "!CONF2_CLOSED.has(word) && !CONF2_TIME.has(word)"
+        return: >-
+          entry
+            ? (!entry.verbs.length && !entry.noun && !entry.adjective && !entry.adverb)
+              || ((entry.noun || entry.plural) && !entry.adverb && !entry.adjective)
+            : /^[a-z]{4,}$/.test(word)
+        else: "false"
+      # A finite verb that cannot be a noun or adjective: "sprinted", "facilitates".
+      conf2PureFinite:
+        args: "word: string"
+        let:
+          entry: englishWordInfo(word)
+        return: >-
+          !!entry && entry.verbs.some((verb) => verb.form === "past" || verb.form === "third")
+          && !entry.noun && !entry.plural && !entry.adjective
+      # Index of the head noun of a short noun phrase at `from` ("relatively low density"), or
+      # -1. A noun compound: "backup plan", "return policy". A gerund with an object is a
+      # clause: "I love they're doing this".
+      conf2NounPhrase:
+        args: "next: readonly EnClauseWord[], from: number, compound: boolean"
+        type: number
+        let:
+          entry: next[from] && englishWordInfo(next[from].w)
+          k1: "entry && entry.adverb && !entry.adjective && !entry.noun && !CONF2_CLOSED.has(next[from].w) ? from + 1 : from"
+          modifier: next[k1]?.w
+          k2: >-
+            modifier && next[k1 + 1] && !CONF2_CLOSED.has(modifier)
+            && (conf2Adjective(modifier) || hasVerbForm(modifier, "past", "participle")) && conf2Nounish(next[k1 + 1].w)
+              ? k1 + 1 : k1
+          k3: >-
+            compound && next[k2 + 1] && conf2Nounish(next[k2 + 1].w) && !englishWordInfo(next[k2].w)?.plural ? k2 + 1 : k2
+          after: 'next[k3 + 1]?.w ?? ""'
+        when:
+          - next[k2] && conf2Nounish(next[k2].w)
+          - '!(hasVerbForm(next[k3].w, "ing") && (CONF2_DET.has(after) || CONF2_OBJECTS.has(after) || after === "to"))'
+        return: k3
+        else: "-1"
+      # The noun phrase at 0 is a subject: a verb that is not a noun follows it. "apartment
+      # smells like…": a noun compound reading may eat the verb, so try without first.
+      conf2SubjectPhrase:
+        args: "next: readonly EnClauseWord[], compound: boolean"
+        type: boolean
+        return: "(compound && conf2SubjectPhrase(next, false)) || conf2SubjectAt(next, conf2NounPhrase(next, 0, compound))"
+      # A plural head + "-ed" may be a reduced relative: "They're students funded by…".
+      conf2SubjectAt:
+        args: "next: readonly EnClauseWord[], head: number"
+        let:
+          verb: next[head + 1]?.w
+          like: hasVerbForm(verb, "third") && next[head + 2]?.w === "like"
+        when:
+          - head >= 0
+          - verb && !CONF2_COMPOUND_PARTICIPLES.has(verb)
+        return: >-
+          /^(?:is|was|are|were|has|have|had)$/.test(verb)
+          || (englishWordInfo(next[head].w)?.plural
+            ? (hasVerbForm(verb, "third") && conf2PureFinite(verb)) || like
+            : conf2PureFinite(verb) || like)
+        else: "false"
+      # A transitive verb with "there"/"they're" as its object's determiner. "the reason
+      # they're…", "Reaching there takes…": a noun or a gerund subject.
+      conf2ObjectVerb:
+        args: "text: string, verb: EnClauseWord | undefined, before: EnClauseWord | undefined, blocked: ReadonlySet<string>"
+        when:
+          - verb && !CONF2_CLOSED.has(verb.w) && !CONF2_LOCATIVE_LEAD.has(verb.w) && englishWordInfo(verb.w)?.verbs.length
+          - "!conf2LemmaIn(verb.w, blocked) && !conf2LemmaIn(verb.w, CONF2_PLACE_LEMMAS)"
+          - >-
+            !(before && (CONF2_DET.has(before.w) || (conf2Adjective(before.w) && !CONF2_CLOSED.has(before.w)
+              && !englishWordInfo(before.w)?.verbs.length && !englishWordInfo(before.w)?.adverb)))
+        return: '!(hasVerbForm(verb.w, "ing") && enClauseOpensAt(text, verb.start))'
+        else: "false"
+      # A gerund head ("they're hearing") needs "of" after it, or a past verb before it: "lost
+      # their hearing might…": a past verb, then the gerund ends its phrase.
+      conf2GerundHeadOk:
+        args: "ctx: DetectContext, h: EnWordsAround, verb: EnClauseWord | undefined"
+        let:
+          k: conf2NounPhrase(h.N, 0, true)
+          head: h.N[k]
+          after: 'h.N[k + 1]?.w ?? ""'
+        return: >-
+          !head || !hasVerbForm(head.w, "ing") || after === "of"
+          || (!!verb && hasVerbForm(verb.w, "past", "participle")
+            && (enClauseClosesAt(ctx.text, head.end) || CONF2_FINITE.has(after) || CONF2_PREPOSITIONS.has(after)))
+      # "narratives about there past", "stems from there potential to…": a mid-clause
+      # preposition, then a noun phrase that ends its phrase. "far from there people live…" goes
+      # on with a verb. A noun that is also an adjective ("potential") still heads the phrase.
+      # "from/to there" is mostly a place, so only a continuing phrase counts after them.
+      conf2PrepositionObject:
+        args: "ctx: DetectContext, h: EnWordsAround"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+          from: '/^(?:most|more|less|least)$/.test(h.N[0]?.w ?? "") ? 1 : 0'
+          phrase: conf2NounPhrase(h.N, from, true)
+          entry: h.N[from] && englishWordInfo(h.N[from].w)
+          head: "phrase < 0 && entry?.noun && !entry.adverb && !CONF2_TIME.has(h.N[from].w) ? from : phrase"
+          next: 'h.N[head + 1]?.w ?? ""'
+        when:
+          - p0 && p1 && CONF2_THERE_PREPOSITIONS.has(p0.w) && !enClauseOpensAt(ctx.text, p0.start)
+          - "!CONF2_LOCATIVE_LEAD.has(p1.w) && !CONF2_CLOSED.has(p1.w) && !conf2LemmaIn(p1.w, CONF2_THERE_BLOCK)"
+          - head >= 0
+        return: >-
+          (!/^(?:from|to)$/.test(p0.w) && enClauseClosesAt(ctx.text, h.N[head].end))
+          || CONF2_PREPOSITIONS.has(next) || next === "and" || next === "or"
+        else: "false"
+      # A clause after these conjunctions has its own subject: "…, but their backup plan worked".
+      conf2ClauseStart:
+        args: "ctx: DetectContext, start: number, h: EnWordsAround"
+        return: 'enClauseOpensAt(ctx.text, start) || CONF2_CONJUNCTIONS.has(h.P[0]?.w ?? "")'
+      # A finding for [start, end), cased like the typed text. Names and user words abstain. A
+      # capitalized word after a lowercase one mid-sentence is a name ("the Rally team").
+      conf2Emit:
+        args: >-
+          ctx: DetectContext, start: number, end: number, ruleId: RawFinding["ruleId"],
+          messageKey: RawFinding["messageKey"], replacements: readonly string[], evidence: readonly [number, number]
+        type: "RawFinding | null"
+        let:
+          from: Math.min(start, evidence[0])
+          to: Math.max(end, evidence[1])
+          typed: ctx.text.slice(start, end)
+          casing: detectWordCase(typed)
+          previous: enClauseWordsBefore(ctx.text, start, 1)[0]
+          curly: typed.includes("’")
+          alternatives: >-
+            replacements.map((replacement) =>
+              curly ? applyWordCase(replacement, casing).replace(/'/g, "’") : applyWordCase(replacement, casing))
+        when:
+          - start >= ctx.from && start < ctx.to
+          - "!hasUserOrCasedWord(ctx, ctx.text.slice(from, to))"
+          - "!enGluedAfter(ctx.text, end) && !namedExampleBefore(ctx.text, from)"
+          - '!(casing === "title" && previous && /^[a-z]/.test(previous.raw) && !enClauseOpensAt(ctx.text, start))'
+        return: >-
+          finding(ruleId, messageKey, start, end, alternatives, {
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+            context: { start: Math.max(0, from - 48), end: Math.min(ctx.text.length, to + 16) } })
+      conf2Typo:
+        args: >-
+          ctx: DetectContext, start: number, end: number, replacement: string,
+          first: EnClauseWord | undefined, last: EnClauseWord | undefined
+        return: >-
+          conf2Emit(ctx, start, end, "englishUsagePhrases", "review_msg_typo", [replacement],
+            [first?.start ?? start, last?.end ?? end])
+      conf2TheirFamily:
+        args: >-
+          ctx: DetectContext, start: number, end: number, h: EnWordsAround, key: RawFinding["messageKey"],
+          replacement: string, first: EnClauseWord | undefined
+        return: >-
+          conf2Emit(ctx, start, end, "englishTheirThereTheyAre", key, [replacement],
+            [first?.start ?? start, h.N[0]?.end ?? end])
+      # Skips leading words of `set` in `list` from `i`; gives the next index.
+      conf2Skip:
+        args: "list: readonly EnClauseWord[], set: ReadonlySet<string>, i: number"
+        type: number
+        return: "list[i] && set.has(list[i].w) ? conf2Skip(list, set, i + 1) : i"
+      CONF2_PERSONAL_BE: /^(?:i'm|you're|we're|they're|he's|she's)$/
+      # "I cold go" → could: a subject pronoun and a bare verb around it.
+      conf2Cold:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+          n0: h.N[0]
+          subject: >-
+            /^(?:i|we|they|he|she)$/.test(p0.w) || (/^(?:it|you)$/.test(p0.w)
+              && (enClauseOpensAt(ctx.text, p0.start) || /^(?:and|but|so|if|when|because|that)$/.test(p1?.w ?? "")))
+        when:
+          - p0 && n0 && !CONF2_COLD_COMPOUNDS.has(n0.w)
+          - subject && (CONF2_ADVERBS.has(n0.w) || hasVerbForm(n0.w, "base"))
+        return: conf2Typo(ctx, start, end, "could", p0, n0)
+      # "He dos not" → does. An all-caps DOS beside a lowercase pronoun is the system name.
+      conf2Dos:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          subject: h.P[conf2Skip(h.P, CONF2_ADVERBS, 0)]
+          typed: ctx.text.slice(start, end)
+        when:
+          - subject && /^(?:he|she|it)$/.test(subject.w)
+          - '!(typed === "DOS" && subject.raw !== subject.raw.toUpperCase())'
+        return: conf2Typo(ctx, start, end, "does", subject, undefined)
+      # "I wok from home" → work: a subject, an auxiliary or an infinitive "to" before it.
+      conf2Wok:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          lead: h.P[conf2Skip(h.P, CONF2_ADVERBS, 0)]
+          n0: 'h.N[0]?.w ?? ""'
+          ok: >-
+            (CONF2_SUBJECTS.has(lead.w) && (!/^(?:it|you)$/.test(lead.w) || enClauseOpensAt(ctx.text, lead.start)))
+            || (lead.w !== "to" && CONF2_AUX.has(lead.w) && !(/^(?:do|does|did)$/.test(lead.w) && enClauseOpensAt(ctx.text, lead.start)))
+            || (lead.w === "to" && (enClauseOpensAt(ctx.text, lead.start)
+              || /^(?:here|there|on|from|at|with|around|for|late|hard|together|remotely|fast|well|better|overtime)$/.test(n0)))
+        when:
+          - lead
+          - ok
+        return: conf2Typo(ctx, start, end, "work", lead, undefined)
+      # "It is rally going" → really: be + rally + a participle or an adjective.
+      conf2Rally:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          entry: n0 && englishWordInfo(n0.w)
+          i: 'h.P[0]?.w === "not" ? 1 : 0'
+          p: h.P[i]
+          be: >-
+            CONF2_BE.has(p.w) || /^(?:i'm|you're|we're|they're|he's|she's|it's|that's)$/.test(p.w)
+            || (CONF2_SUBJECTS.has(p.w) && CONF2_BE.has(h.P[i + 1]?.w ?? ""))
+        when:
+          - entry && (hasVerbForm(n0.w, "ing") || (entry.adjective && !entry.noun && !entry.verbs.length))
+          - p
+          - be
+        return: conf2Typo(ctx, start, end, "really", p, n0)
+      # "Pleas review this" → please: a request verb with an object after a clause start or
+      # "you".
+      conf2Pleas:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          n1: h.N[1]
+          p0: 'h.P[0]?.w ?? ""'
+        when:
+          - n0 && hasVerbForm(n0.w, "base") && !CONF2_PLEAS_INTRANSITIVE.has(n0.w)
+          - "!(n1 && CONF2_PREPOSITIONS.has(n1.w))"
+          - enClauseOpensAt(ctx.text, start) || /^(?:you|and|but|so|then|now|just|kindly)$/.test(p0)
+        return: conf2Typo(ctx, start, end, "please", undefined, n0)
+      # "the boarder of the image", "cross the boarder" → border; boarding pupils keep theirs.
+      conf2Boarder:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          n1: h.N[1]
+          n2: h.N[2]
+          p: "h.P[0] && CONF2_DET.has(h.P[0].w) ? h.P[1] : h.P[0]"
+          ok: >-
+            (!!p && /^cross(?:es|ed|ing)?$/.test(p.w))
+            || (!!n0 && !!n1 && (/^(?:between|around|along|across)$/.test(n0.w)
+              || (n0.w === "of" ? !CONF2_BOARDING_PLACES.has(n2?.w ?? n1.w)
+                : n0.w === "with" ? true
+                : n0.w === "on" ? CONF2_DIRECTIONS.has(n1.w) || CONF2_DIRECTIONS.has(n2?.w ?? "")
+                : false)))
+        when: ok
+        return: 'conf2Typo(ctx, start, end, word.replace("boarder", "border"), p, n0)'
+      # "A thieve took my bike" → thief: a determiner (and an adjective) before it.
+      conf2Thieve:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+        when:
+          - p0
+          - CONF2_DET.has(p0.w) || (conf2Adjective(p0.w) && !englishWordInfo(p0.w)?.verbs.length && CONF2_DET.has(p1?.w ?? ""))
+        return: conf2Typo(ctx, start, end, "thief", p0, undefined)
+      # "I will threat the vendor" → threaten (or treat): a modal with its subject before it.
+      conf2Threat:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          i: 'h.P[0]?.w === "not" ? 1 : 0'
+          modal: h.P[i]
+          s: h.P[i + 1]
+        when:
+          - n0 && !CONF2_THREAT_COMPOUNDS.has(n0.w)
+          - modal && s
+          - >-
+            (CONF2_MODALS.has(modal.w) && !CONF2_WH.has(s.w) && !enClauseOpensAt(ctx.text, modal.start))
+            || (CONF2_SUBJECTS.has(modal.w) && CONF2_MODALS.has(s.w))
+        return: >-
+          conf2Emit(ctx, start, end, "englishUsagePhrases", "review_msg_contextual_grammar", ["threaten", "treat"], [s.start, n0.end])
+      # "My principle job" → principal: a determiner, then a noun that is not a finite verb.
+      # "The principle underlying it": a participle after it modifies the noun "principle".
+      conf2Principle:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          n0: h.N[0]
+        when:
+          - p0 && n0 && CONF2_DET.has(p0.w) && n0.w !== "worth"
+          - conf2Nounish(n0.w) || englishWordInfo(n0.w)?.noun
+          - '!(CONF2_CLOSED.has(n0.w) || hasVerbForm(n0.w, "third", "past", "ing") || n0.w.endsWith("ing"))'
+        return: conf2Typo(ctx, start, end, "principal", p0, n0)
+      # "I will shutdown the server" → shut down: an auxiliary (and subject) before, an object
+      # after.
+      conf2Shutdown:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          lead: h.P[conf2ShutLead(h.P, 0)]
+        when:
+          - n0 && CONF2_SHUT_OBJECT.has(n0.w)
+          - lead && CONF2_SHUT_AUX.has(lead.w)
+        return: >-
+          conf2Emit(ctx, start, end, "englishContextualCompounds", "review_msg_compounds", ["shut down"], [lead.start, n0.end])
+      conf2ShutLead:
+        args: "p: readonly EnClauseWord[], i: number"
+        type: number
+        return: >-
+          i < 2 && p[i] && (/^(?:not|never|just|already|also|still)$/.test(p[i].w) || CONF2_SUBJECTS.has(p[i].w)
+            || (i === 0 && /^[A-Z][a-z]+$/.test(p[i].raw)))
+            ? conf2ShutLead(p, i + 1) : i
+      # "I though it was" → thought: a subject pronoun before, a clause after.
+      conf2Though:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+          n0: h.N[0]
+        when:
+          - p0 && n0 && CONF2_THOUGHT_NEXT.has(n0.w) && /^(?:i|we|they|you|he|she)$/.test(p0.w)
+          - >-
+            !(p0.w === "you" && !enClauseOpensAt(ctx.text, p0.start)
+              && !/^(?:and|but|so|then|if|when|because|that)$/.test(p1?.w ?? ""))
+        return: conf2Typo(ctx, start, end, "thought", p0, n0)
+      # "Have you heart of…" → heard: a perfect auxiliary with its subject before.
+      conf2Heart:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          i: conf2Skip(h.P, CONF2_HEART_ADVERBS, 0)
+          p: h.P[i]
+          ok: >-
+            /^(?:(?:i|you|we|they)'ve|(?:i|you|we|they|he|she)'d)$/.test(p.w)
+            || (CONF2_HAVE.has(p.w) && i > 0 && CONF2_SUBJECTS.has(h.P[i + 1]?.w ?? ""))
+            || (CONF2_SUBJECTS.has(p.w) && CONF2_HAVE.has(h.P[i + 1]?.w ?? ""))
+            || (h.P[i + 1]?.w === "the" && CONF2_HAVE.has(h.P[i + 2]?.w ?? ""))
+        when:
+          - h.N[0]?.w === "of"
+          - p
+          - ok
+        return: conf2Typo(ctx, start, end, "heard", h.P[Math.min(h.P.length - 1, i + 2)], h.N[0])
+      # "how mach", "how match time" → much.
+      conf2Mach:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+        when:
+          - p0?.w === "how" && !/^[ \t ]*\d/.test(ctx.text.slice(end, end + 4))
+          - "!(/^[A-Z][a-z]/.test(ctx.text.slice(start, end)) && /^[a-z]/.test(p0.raw))"
+          - word !== "match" || conf2MuchNoun(h)
+        return: conf2Typo(ctx, start, end, "much", p0, undefined)
+      conf2MuchNoun:
+        args: "h: EnWordsAround"
+        let:
+          n0: h.N[0]
+          n1: h.N[1]
+          entry: englishWordInfo(n0.w)
+          singular: 'entry ? entry.noun && !entry.plural && !hasVerbForm(n0.w, "third", "past", "ing") : /^[a-z]{4,}$/.test(n0.w)'
+        when:
+          - n0
+          - n0.w === "of" || CONF2_MUCH_NEXT.has(n0.w) || (singular && CONF2_MUCH_CLAUSE.has(n1?.w ?? ""))
+        return: "true"
+        else: "false"
+      # "She is exited about" → excited: be + exited + an emotion's complement.
+      conf2Exited:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          i0: conf2Skip(h.P, CONF2_NOT, 0)
+          intense: 'CONF2_INTENSIFIERS.has(h.P[i0]?.w ?? "")'
+          i: conf2Skip(h.P, CONF2_INTENSIFIERS, i0)
+          be: h.P[i]
+          n: h.N[0]?.w
+          personal: 'CONF2_PERSONAL_BE.test(be.w) || /^(?:i|you|we|they|he|she)$/.test(h.P[i + 1]?.w ?? "")'
+        when:
+          - be && (CONF2_BE.has(be.w) || CONF2_PERSONAL_BE.test(be.w) || CONF2_EXCITED_LINK.has(be.w))
+          - intense || n === "about" || n === "that" || ((n === "for" || n === "to") && personal)
+        return: conf2Typo(ctx, start, end, "excited", be, h.N[0])
+      # "is all ready available" → already: "all ready" before an adjective.
+      conf2Ready:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          n0: h.N[0]
+        when: p0?.w === "all" && n0 && !CONF2_CLOSED.has(n0.w) && !CONF2_READY_NOT.has(n0.w) && conf2Adjective(n0.w)
+        return: >-
+          conf2Emit(ctx, p0.start, end, "englishUsagePhrases", "review_msg_typo", ["already"], [p0.start, n0.end])
+      # "there is now way to" → no way.
+      conf2Way:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+          p2: h.P[2]
+          n0: h.N[0]
+          n1: h.N[1]
+          ok: >-
+            ((p1?.w === "in" || p1?.w === "of") && p2?.w !== "as")
+            || (!!n0 && (/^(?:of|for|around)$/.test(n0.w) ? true
+              : n0.w === "to" ? !n1 || !(conf2Adjective(n1.w) && !englishWordInfo(n1.w)?.verbs.length)
+              : /s$/.test(n0.w) ? !!englishWordInfo(n0.w)?.plural || (!englishWordInfo(n0.w) && conf2Nounish(n0.w))
+              : false))
+        when:
+          - p0?.w === "now"
+          - ok
+        return: >-
+          conf2Emit(ctx, p0.start, p0.end, "englishUsagePhrases", "review_msg_typo", ["no"], [p0.start, end])
+      # "canceled do to bad weather" → due to: a finished event before, a noun phrase after.
+      conf2Do:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          n1: h.N[1]
+          p0: h.P[0]
+          p1: h.P[1]
+          next: englishWordInfo(n1.w)
+          ok: >-
+            hasVerbForm(p0.w, "past") || (hasVerbForm(p0.w, "base") && CONF2_MODALS.has(p1?.w ?? ""))
+            || (!!englishWordInfo(p0.w)?.adverb && !CONF2_CLOSED.has(p0.w) && hasVerbForm(p1?.w ?? "", "past"))
+        when:
+          - n0?.w === "to" && n1 && p0 && !CONF2_OBJECTS.has(n1.w)
+          - '!(next?.verbs.some((v) => v.form === "base") && !next.noun && !next.adjective)'
+          - "!/^(?:had|made|let|helped|did|done|been|used|got)$/.test(p0.w)"
+          - ok
+        return: conf2Typo(ctx, start, end, "due", p0, n1)
+      # "a waist of time" → waste; a body's "waist of 30 inches" or "the waist of the dress"
+      # stays.
+      conf2Waist:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          n1: h.N[1]
+          p0: 'h.P[0]?.w ?? ""'
+          evaluative: p0 === "a" || p0 === "an" || CONF2_WASTE_ADJECTIVES.has(p0)
+        when:
+          - n0?.w === "of" && n1 && !CONF2_WAIST_NOT.has(n1.w)
+          - "!/^(?:the|her|his|my|your|its|their|our)$/.test(p0)"
+          - "!(/^(?:her|his|my|your|its|their|our)$/.test(n1.w) && !evaluative)"
+          - "!(p0 && conf2Adjective(p0) && !CONF2_WASTE_ADJECTIVES.has(p0))"
+        return: conf2Typo(ctx, start, end, "waste", undefined, n1)
+      # "They relay on" → rely on: a subject, adverb or auxiliary before; "the relay on…" stays.
+      conf2Relay:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          n1: h.N[1]
+          p: h.P[0]
+          ok: >-
+            p
+              ? CONF2_RELAY_LEAD.has(p.w) || (/ly$/.test(p.w) && !!englishWordInfo(p.w)?.adverb)
+                || (!!englishWordInfo(p.w)?.plural && !CONF2_DET.has(h.P[1]?.w ?? ""))
+              : enClauseOpensAt(ctx.text, start) && CONF2_OBJECTS.has(n1.w)
+        when:
+          - n0?.w === "on" && n1 && n1.w !== "behalf"
+          - ok
+        return: conf2Typo(ctx, start, end, "rely", p, n0)
+      # "I know off a shop" → of; "off the top of my head" stays.
+      conf2Off:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          n0: h.N[0]
+          n1: h.N[1]
+        when:
+          - p0 && CONF2_THINK_KNOW.has(p0.w) && n0 && !/^(?:and|of|hand|handedly)$/.test(n0.w)
+          - '!(n0.w === "the" && CONF2_OFF_IDIOMS.has(n1?.w ?? ""))'
+        return: conf2Typo(ctx, start, end, "of", p0, n0)
+      # "tuff like steel" → tough; volcanic "tuff like basalt" stays. Only a determiner, a
+      # linking verb or an intensifier may stand before it.
+      conf2Tuff:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p: h.P[0]?.w
+        when:
+          - h.N[0]?.w === "like"
+          - "!(p && !CONF2_DET.has(p) && !CONF2_BE.has(p) && !CONF2_INTENSIFIERS.has(p) && !conf2LemmaIn(p, CONF2_LINKING_LEMMAS))"
+        return: conf2Typo(ctx, start, end, "tough", undefined, h.N[0])
+      # "But yeh, it seems" → yeah; a vote's "yea" ("yea or nay") stays. A comma or a spaced
+      # dash; "Yea—ea—ea!" is a drawn-out cheer.
+      conf2Yea:
+        args: "ctx: DetectContext, word: string, start: number, end: number, _h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          after: '/^(?:[ \t ]*,|[ \t ]+[-–—]+|[-–—]+(?=[ \t ]))[ \t ]*([A-Za-z]*)/.exec(ctx.text.slice(end, end + 24))'
+        when:
+          - after && !/^(?:though|verily|nay)$/i.test(after[1])
+          - '!/\b(?:nay|yeas|nays)\b/i.test(ctx.text.slice(Math.max(0, start - 64), end + 64))'
+        return: conf2Typo(ctx, start, end, "yeah", undefined, undefined)
+      # "won a price" → prize; "won the price war" stays.
+      conf2Price:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          i: 'CONF2_PRIZE_LEAD.has(h.P[0]?.w ?? "") ? 1 : 0'
+          n0: h.N[0]
+        when:
+          - 'CONF2_WIN.has(h.P[i]?.w ?? "")'
+          - >-
+            !(n0 && !CONF2_CLOSED.has(n0.w) && !CONF2_TIME.has(n0.w) && !n0.w.includes("'") && conf2PriceNoun(n0.w))
+        return: 'conf2Typo(ctx, start, end, /s$/.test(word) ? "prizes" : "prize", h.P[i], undefined)'
+      conf2PriceNoun:
+        args: "w: string"
+        let:
+          entry: englishWordInfo(w)
+        return: 'entry ? (entry.noun || entry.plural) && !hasVerbForm(w, "past") : conf2Nounish(w)'
+      # "a pity to loose" → lose; "from tight to loose" and "set to loose" stay.
+      conf2Loose:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+          n0: h.N[0]
+        when:
+          - 'p0?.w === "to" && !h.P.some((p) => p.w === "from") && !CONF2_SETTING_VERBS.has(p1?.w ?? "")'
+          - "n0 ? CONF2_LOSE_OBJECT.has(n0.w) : enClauseClosesAt(ctx.text, end)"
+        return: conf2Typo(ctx, start, end, "lose", p0, n0)
+      # "too lose and…" → too loose. "and/or" is no plain word, so the conjunction is read off
+      # the text.
+      conf2Lose:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+        when:
+          - h.P[0]?.w === "too"
+          - >-
+            /^[ \t ]+(?:and|or|but|for|with|in|on|at)(?![A-Za-z])/i.test(ctx.text.slice(end, end + 12))
+            || (!n0 && enClauseClosesAt(ctx.text, end))
+        return: conf2Typo(ctx, start, end, "loose", h.P[0], n0)
+      # "Talk to they", "Send they the invitation" → them. A stranded preposition before a new
+      # clause: "the city I moved to they call home".
+      conf2They:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+          n0: h.N[0]
+        when:
+          - p0
+          - "!(n0 && (CONF2_FINITE.has(n0.w) || conf2PureFinite(n0.w)))"
+          - >-
+            (CONF2_THEM_PREPOSITIONS.has(p0.w) && !(p0.w === "about" && CONF2_WH.has(p1?.w ?? "")))
+            || (hasVerbForm(p0.w, "base") && !CONF2_AUX.has(p0.w) && !conf2LemmaIn(p0.w, CONF2_BARE_CLAUSE)
+              && !!n0 && CONF2_THEM_NEXT.has(n0.w)
+              && (enClauseOpensAt(ctx.text, p0.start) || CONF2_THEM_LEAD.has(p1?.w ?? "")))
+        return: >-
+          conf2Emit(ctx, start, end, "englishPronounCase", "review_msg_pronoun_object_case", ["them"],
+            [p0.start, n0?.end ?? end])
+      # "There dog is barking", "forgot there backpacks" → their; "I heard there planning" →
+      # they're.
+      conf2There:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+          n0: h.N[0]
+          n1: h.N[1]
+        when: n0
+        return: >-
+          p0 && CONF2_CUES.has(p0.w) && n1 && hasVerbForm(n0.w, "ing") && !/^(?:being|going)$/.test(n0.w)
+            ? conf2TheirFamily(ctx, start, end, h, "review_msg_they_are", "they're", p0)
+            : conf2TheirThere(ctx, start, h, p0, p1)
+              ? conf2TheirFamily(ctx, start, end, h, "review_msg_their_possessive", "their", p0) : null
+      # "people and there ancestral lands.": a coordinated noun phrase with no verb is owned.
+      conf2TheirThere:
+        args: "ctx: DetectContext, start: number, h: EnWordsAround, p0: EnClauseWord | undefined, p1: EnClauseWord | undefined"
+        let:
+          head: '/^(?:and|or)$/.test(p0?.w ?? "") ? conf2NounPhrase(h.N, 0, true) : -1'
+        return: >-
+          (!enClauseOpensAt(ctx.text, start) && conf2ObjectVerb(ctx.text, p0, p1, CONF2_THERE_BLOCK)
+            && conf2NounPhrase(h.N, 0, true) >= 0 && conf2GerundHeadOk(ctx, h, p0))
+          || (head >= 0 && enClauseClosesAt(ctx.text, h.N[head].end))
+          || conf2PrepositionObject(ctx, h)
+          || (conf2ClauseStart(ctx, start, h) && conf2SubjectPhrase(h.N, true))
+      # "Put the folder their, beside…" → there.
+      conf2Their:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          j: conf2PlaceVerb(h.P, 1)
+        when:
+          - "n0 ? CONF2_PLACE_NEXT.has(n0.w) : enClauseClosesAt(ctx.text, end)"
+          - j > 0
+        return: conf2TheirFamily(ctx, start, end, h, "review_msg_their_there", "there", h.P[j])
+      conf2PlaceVerb:
+        args: "p: readonly EnClauseWord[], j: number"
+        type: number
+        return: >-
+          j > 3 || !p[j] || !p[j - 1] ? -1
+          : conf2LemmaIn(p[j].w, CONF2_PLACE_VERBS) && (CONF2_DET.has(p[j - 1].w) || /^(?:it|them)$/.test(p[j - 1].w)) ? j
+          : conf2PlaceVerb(p, j + 1)
+      # "admired they're patience", "They're dog sprinted" → their. "while they're away", "act
+      # like they're friends": a conjunction opens a clause.
+      conf2Theyre:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          p0: h.P[0]
+          p1: h.P[1]
+          p2: h.P[2]
+          phrase: conf2NounPhrase(h.N, 0, true) >= 0
+          ok: >-
+            (phrase && !!p0 && /^(?:are|were|is|was)$/.test(p0.w) && CONF2_WH.has(p1?.w ?? ""))
+            || (phrase && conf2ObjectVerb(ctx.text, p0, p1, CONF2_CLAUSE_LEMMAS) && conf2GerundHeadOk(ctx, h, p0))
+            || (phrase && !!p0 && CONF2_OBJECTS.has(p0.w) && conf2ObjectVerb(ctx.text, p1, p2, CONF2_CLAUSE_LEMMAS)
+              && conf2GerundHeadOk(ctx, h, p1))
+            || (conf2ClauseStart(ctx, start, h) && conf2SubjectPhrase(h.N, true))
+        when:
+          - >-
+            !(p0?.w === "while"
+              || (p0?.w === "like" && !!p1 && !CONF2_SUBJECTS.has(p1.w) && !!englishWordInfo(p1.w)?.verbs.length))
+          - ok
+        return: conf2TheirFamily(ctx, start, end, h, "review_msg_their_possessive", "their", p0)
+      # "She wants one, to." and "He spoke to loud." → too.
+      conf2To:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          listed: >-
+            /,[ \t ]{0,8}$/.test(ctx.text.slice(Math.max(0, start - 9), start))
+            && /^[ \t ]{0,8}[.!?](?![\p{L}\p{N}])|^[ \t ]*$/u.test(ctx.text.slice(end, end + 10))
+        when: >-
+          listed || (/^(?:loud|loudly)$/.test(h.N[0]?.w ?? "") && h.N.length === 1
+            && conf2LemmaIn(h.P[0]?.w ?? "", CONF2_SPEECH_LEMMAS) && enClauseClosesAt(ctx.text, h.N[0].end))
+        return: >-
+          conf2Emit(ctx, start, end, "englishToToo", "review_msg_to_too", ["too"],
+            [h.P[0]?.start ?? start, h.N[0]?.end ?? end])
+      # "Where you able to…" → Were: a clause-initial where + subject + predicate.
+      conf2Where:
+        args: "ctx: DetectContext, word: string, start: number, end: number, h: EnWordsAround"
+        type: "RawFinding | null"
+        let:
+          n0: h.N[0]
+          n1: h.N[1]
+        when:
+          - enClauseOpensAt(ctx.text, start) && n0 && /^(?:you|we|they)$/.test(n0.w)
+          - n1 && CONF2_WERE_PREDICATES.has(n1.w)
+        return: >-
+          conf2Emit(ctx, start, end, "englishWereWhere", "review_msg_were_where", ["were"], [start, n1.end])
+      # The handler of each trigger word.
+      CONF2_HANDLERS: >-
+        ({
+          cold: conf2Cold, dos: conf2Dos, wok: conf2Wok, rally: conf2Rally, pleas: conf2Pleas,
+          boarder: conf2Boarder, thieve: conf2Thieve, threat: conf2Threat, principle: conf2Principle,
+          shutdown: conf2Shutdown, though: conf2Though, heart: conf2Heart, mach: conf2Mach,
+          exited: conf2Exited, ready: conf2Ready, way: conf2Way, do: conf2Do, waist: conf2Waist,
+          relay: conf2Relay, off: conf2Off, tuff: conf2Tuff, yea: conf2Yea, price: conf2Price,
+          loose: conf2Loose, lose: conf2Lose, they: conf2They, there: conf2There, their: conf2Their,
+          "they're": conf2Theyre, to: conf2To, where: conf2Where,
+          herd: conf2Heart, match: conf2Mach, boarders: conf2Boarder, prices: conf2Price, prise: conf2Price,
+          prises: conf2Price, yeh: conf2Yea, theyre: conf2Theyre,
+        }) as Readonly<Record<string, typeof conf2Cold>>
     frames:
       # Typo-like confusions resolved by the words around one trigger word. "all ready" starts
       # one word before its trigger, so the scan reads 16 characters past the chunk. One match
@@ -1863,7 +3425,11 @@ rules:
         lookahead: 16
         flags: giu
         anyCheck: true
-        fixer: contextualConfusion
+        # Context words are read only when a handler asks: "to", "do" and "there" are frequent.
+        let:
+          word: enWordKey(m[0])
+          end: m.index + m[0].length
+        return: CONF2_HANDLERS[word](ctx, word, m.index, end, enWordsAround(ctx.text, m.index, end, 4, 5))
   - id: en.idiomPhrases1
     checks: [englishPhraseCorrections]
     message: review_msg_phrase_correction

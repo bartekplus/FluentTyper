@@ -6568,7 +6568,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:p(?:rinciple|rices|rises|leas|rice|rise)|shutdown|b(?:oarders|oarder)|t(?:hey['’]re|hieve|hreat|hough|heyre|here|heir|uff|hey|o)|exited|r(?:ally|eady|elay)|h(?:eart|erd)|w(?:aist|here|ok|ay)|l(?:oose|ose)|m(?:atch|ach)|cold|d(?:os|o)|off|y(?:ea|eh))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:contextualConfusion",
+    fixer: "en:@en.contextualConfusions/1",
     flags: "giu",
     scan: "owned",
     lookahead: 16,
