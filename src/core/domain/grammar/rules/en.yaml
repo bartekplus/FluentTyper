@@ -2778,27 +2778,21 @@ rules:
       # ---- prepositions ----
       - regex: "(?:{{BE_FORM}}|very|really|so|not|also|more|most|less|still|always|particularly|especially){{S}}interested{{S}}(?<target>[a-z]+ing){{E}}"
         check: englishFixedPrepositions
-        cue: ["interested"]
         return: 'hasVerbForm(target, "ing") ? `in ${target}` : null'
       - regex: "(?<target>from){{S}}the{{S}}naked{{S}}eyes?{{E}}"
         check: englishFixedPrepositions
-        cue: ["naked"]
         return: 'HIDING.test(enBefore(ctx, m.index, 80)) ? null : ["to", "with"]'
       - regex: "(?:{{BE_FORM}}|im|its|hes|shes|theyre|youre){{S}}no{{S}}match{{S}}(?<target>against|to|of){{E}}"
         check: englishFixedPrepositions
-        cue: ["match"]
         fix: "for"
       - regex: "(?:(?=in|at)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:live|lives|lived|living|located|situated|stay|stays|stayed|staying|reside|resides|resided|residing|am|is|are|was|were|be|been|being|[a-z]+['’](?:m|re|s)){{S}})(?<target>in|at){{S}}the{{S}}(?:{{IDIOMS5_ORDINAL}}){{S}}floor{{E}}"
         check: englishFixedPrepositions
-        cue: ["floor"]
         return: 'lexiconNoun(tokenAfter(ctx, m.index + m[0].length)) ? null : "on"'
       - regex: "{{notAfter:most|more|least|less|very|so}}passionate{{S}}(?<target>of){{E}}(?!{{S}}(?:all|them|us|you|those|these|whom){{E}})"
         check: englishFixedPrepositions
-        cue: ["passionate"]
         fix: "about"
       - regex: "(?<target>of){{S}}which{{S}}(?:{{SUBJECT}}){{S}}(?:am|are|is|was|were){{S}}(?:(?:so|very|deeply|truly|most|really){{S}})?passionate{{E}}(?!{{S}}about{{E}})"
         check: englishFixedPrepositions
-        cue: ["passionate"]
         fix: "about"
       - regex: "(?<![.])(?<![\\p{L}\\p{M}\\p{N}_'’@#\\\\-]){{notAfter:for}}(?<target>(?<noun>reasons?){{S}}of){{S}}(?<ing>[a-z]+ing){{E}}"
         wordStart: false
@@ -2807,27 +2801,22 @@ rules:
         return: 'hasVerbForm(ing, "ing") ? `${noun} for` : null'
       - regex: "(?:what{{S}}is|what{{S}}was|what['’]s|whats|what){{S}}the{{S}}point{{S}}(?<target>for){{E}}"
         check: englishFixedPrepositions
-        cue: ["point"]
         fix: "of"
       - regex: "(?=\\p{L})(?<!(?<![\\p{L}'’])(?:what|whats|what['’]s|what{{S}}is|what{{S}}was){{S}})the{{S}}point{{S}}(?<target>for){{S}}(?<ing>[a-z]+ing){{E}}"
         check: englishFixedPrepositions
-        cue: ["point"]
         return: 'hasVerbForm(ing, "ing") ? "of" : null'
       - regex: "(?:take|takes|took|taken|taking|have|has|had|having){{S}}a{{S}}(?:(?:quick|closer|close|brief|good|deeper|second|first|careful|short){{S}})?look{{S}}(?<target>to){{E}}"
         check: englishFixedPrepositions
-        cue: ["look"]
         let:
           next: tokenAfter(ctx, m.index + m[0].length)
         # "has a look to it" describes an appearance.
         return: 'hasVerbForm(next, "base") || (/^ha/i.test(m[0]) && /^(?:it|them)$/i.test(next)) ? null : "at"'
       - regex: "(?:take|takes|took|taken|taking){{S}}(?:(?:great|much|such|real|a{{S}}lot{{S}}of){{S}})?pride{{S}}(?<target>of){{E}}(?!{{S}}place{{E}})"
         check: englishFixedPrepositions
-        cue: ["pride"]
         fix: "in"
       - regex: "(?<target>since{{S}}(?<quantity>a{{S}}couple(?:{{S}}of)?|few|(?:(?:over|more{{S}}than|almost|nearly|about){{S}})?(?:two|three|four|five|six|seven|eight|nine|ten|twelve|several|many|a{{S}}few|[0-9]{1,3})){{S}}(?<unit>seconds|minutes|hours|days|weeks|months|years|decades)){{E}}(?!{{S}}(?:ago|before|after|earlier|later|prior|old|of|back|since|from|that|when){{E}})"
         check: englishFixedPrepositions
         message: review_msg_since_duration
-        cue: ["since"]
         let:
           # "Since two days were lost, …": the duration is a subject and "since" means "because".
           next: tokenAfter(ctx, m.index + m[0].length)
@@ -2848,21 +2837,17 @@ rules:
       # ---- set phrases ----
       - regex: "(?:most|a{{S}}lot){{S}}of{{S}}the{{S}}(?<target>times){{E}}(?!{{S}}(?:I|we|you|he|she|they|it|that|when|which|where|people|the|this|those|these|my|our|their|his|her|its|in|on|of|listed|shown|given|above|below|between|from|to|for|I['’]ve|we['’]ve|you['’]ve|they['’]ve){{E}})"
         message: review_msg_contextual_grammar
-        cue: ["times"]
         fix: "time"
       - regex: "(?<target>not){{S}}longer{{S}}(?!(?:than|then|or|and|nor|but|by|in|at|on|to|for|with|that|because|if|since|is|are|was|were){{E}})(?=[\\p{L}])"
         message: review_msg_contextual_grammar
-        cue: ["longer"]
         fix: "no"
       - regex: "(?:and|but|so|or){{S}}(?<target>(?<no>no{{S}}longer){{S}}(?<pron>{{SUBJECT}})(?:{{S}}(?<aux>am|is|are|was|were|can|could|will|would|should|must|may|might|do|does|did|have|has|had))?){{S}}(?=[a-z])"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
-        cue: ["longer"]
         return: "({ alternatives: [aux ? `${pron} ${aux} ${no}` : `${pron} ${no}`], raw: true })"
       - regex: "nor{{S}}(?<target>(?<pron>{{SUBJECT}}){{S}}(?<aux>{{AUXILIARY}})){{E}}"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
-        cue: ["nor"]
         return: '/\bneither\b[^,.!?;:]*$/i.test(enBefore(ctx, m.index, 80)) ? null : { alternatives: [`${aux} ${pron}`], raw: true }'
       - regex: "(?<subject>{{SUBJECT}}){{S}}(?<target>wonts?){{S}}to{{E}}"
         message: review_msg_typo
@@ -2870,31 +2855,24 @@ rules:
         return: '/^(?:he|she|it)$/i.test(subject) ? "wants" : "want"'
       - regex: "(?:(?=of)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:yes|yeah|well|and|but|so|oh|ok|okay|sure),?{{S}})(?<target>of{{S}}(?:curse|coarse)|off{{S}}course){{E}}"
         message: review_msg_phrase_correction
-        cue: ["curse", "coarse", "course"]
         fix: "of course"
       - regex: "(?:{{BE_FORM}}|remain|remains|remained|stay|stays|stayed){{S}}(?<target>off{{S}}limit){{E}}"
         message: review_msg_phrase_correction
-        cue: ["limit"]
         fix: "off limits"
       - regex: "oldest(?:{{S}}[a-z]+){1,3}?{{S}}in{{S}}the{{S}}(?<target>books){{E}}"
         message: review_msg_phrase_correction
-        cue: ["oldest"]
         fix: "book"
       - regex: "(?:(?:I|you|he|she|we|they|anyone|someone|everyone|anybody|somebody|everybody|nobody){{S}}(?:am|is|are|was|were)|I['’]m|you['’]re|he['’]s|she['’]s|we['’]re|they['’]re)(?:{{S}}(?:still|also|really|kinda|totally|completely|honestly|currently|kind{{S}}of|sort{{S}}of|a{{S}}bit))?{{S}}on{{S}}(?<target>a){{S}}fence{{E}}"
         message: review_msg_phrase_correction
-        cue: ["fence"]
         fix: "the"
       - regex: "(?:(?=one)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:{{BE_FORM}}){{S}})one{{S}}(?<target>in){{S}}the{{S}}same(?:{{S}}as{{E}}|(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)…]|$)))"
         message: review_msg_phrase_correction
-        cue: ["same"]
         fix: "and"
       - regex: "(?={{SUBJECT}})(?<=(?:^|[.!?;:,(][ \\t\\u00a0]{0,8}|(?<![\\p{L}'’])(?:as|then|so|and|but|or|if|that|which|because|since|when|while|though|although|what|how){{S}}))(?:{{SUBJECT}}){{S}}(?<target>out){{S}}to{{S}}be{{E}}"
         message: review_msg_typo
-        cue: ["out"]
         fix: "ought"
       - regex: "(?:take|takes|took|taken|taking){{S}}(?:(?:these|those|this|that|the|my|your|his|her|our|their|its){{S}})?(?<object>[a-z]+){{S}}(?<target>serious){{E}}"
         message: review_msg_phrase_correction
-        cue: ["serious"]
         when: "/^(?:it|me|him|her|them|us|you|this|that|everything|anything|anyone|everyone|nothing)$/i.test(object) || lexiconNoun(object)"
         return: 'lexiconNoun(tokenAfter(ctx, m.index + m[0].length)) ? null : "seriously"'
       - regex: "(?<target>the{{S}})(?<wh>(?:how|why|when|what|where){{S}}(?:it|we|you|they|he|she|I|the|a|an|this|that|these|those)|who{{S}}(?:is|are|was|were|will|can|it|we|you|they|he|she|I|the|a|an|this|that)){{E}}"
@@ -2927,7 +2905,6 @@ rules:
                 : `${RISE_FOR_RAISE[typed]} through the ranks`
       - regex: "(?<target>through){{S}}away{{E}}"
         message: review_msg_typo
-        cue: ["through"]
         return: >-
           /(?:^|[.!?;:]\s*|\b(?:to|don['’]t|do|not|will|would|can|could|should|must|please|never|let['’]s|didn['’]t|did|cannot|can['’]t|won['’]t)\s+)$/i.test(enBefore(ctx, m.index, 24))
             ? "throw"
@@ -2954,90 +2931,18 @@ rules:
       - regex: "{{notAfter:the|a|an|this|that|these|those|my|your|his|her|its|our|their|some|any|no|every|each}}(?:meant|wanted|needed|agreed|forgot|forgotten|tried|trying|refused|resolved|attempted|decided|hoped|promised|managed|failed|planned|intended|expected){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
-        cue:
-          [
-            "meant",
-            "wanted",
-            "needed",
-            "agreed",
-            "forgot",
-            "forgotten",
-            "tried",
-            "trying",
-            "refused",
-            "resolved",
-            "attempted",
-            "decided",
-            "hoped",
-            "promised",
-            "managed",
-            "failed",
-            "planned",
-            "intended",
-            "expected",
-          ]
         return: missingTo(ctx, m, target)
       - regex: "(?<![\\p{L}'’])(?:{{BASE_LEAD}}){{S}}(?:{{GOVERNOR_BASE}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
-        cue:
-          [
-            "want",
-            "need",
-            "agree",
-            "forget",
-            "try",
-            "refuse",
-            "resolve",
-            "attempt",
-            "decide",
-            "hope",
-            "promise",
-            "manage",
-            "fail",
-            "plan",
-            "intend",
-            "expect",
-          ]
         return: missingTo(ctx, m, target)
       - regex: "(?:he|she|it|who|one|everyone|someone|somebody|everybody|nobody|anyone|anybody){{S}}(?:{{GOVERNOR_THIRD}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
-        cue:
-          [
-            "wants",
-            "needs",
-            "agrees",
-            "forgets",
-            "tries",
-            "refuses",
-            "resolves",
-            "attempts",
-            "decides",
-            "hopes",
-            "promises",
-            "manages",
-            "fails",
-            "plans",
-            "intends",
-            "expects",
-          ]
         return: missingTo(ctx, m, target)
       - regex: "(?:{{BE_FORM}}|feel|feels|felt|seem|seems|seemed|not|so|very|really|always|more|less|quite|too){{S}}(?:{{GOVERNOR_ADJECTIVES}}){{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_missing_to
-        cue:
-          [
-            "ready",
-            "eager",
-            "inclined",
-            "able",
-            "unable",
-            "willing",
-            "unwilling",
-            "keen",
-            "determined",
-          ]
         return: missingTo(ctx, m, target)
       - regex: "(?:(?=you)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})|(?<![\\p{L}'’])(?:and|but|or|so|then|if|when|that|because|where|once|before|after|until|unless|while|now|always|never|also|just|often|usually){{S}})you{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
@@ -3090,26 +2995,6 @@ rules:
       - regex: "(?<![\\p{L}'’])who{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|setup|shutdown|signup|takeover|warmup|workout){{S}}(?:{{VERB_AFTER}}){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue:
-          [
-            "backup",
-            "breakup",
-            "checkout",
-            "cleanup",
-            "comeback",
-            "followup",
-            "lookup",
-            "pickup",
-            "playback",
-            "rollback",
-            "rollout",
-            "setup",
-            "shutdown",
-            "signup",
-            "takeover",
-            "warmup",
-            "workout",
-          ]
         return: PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:will|would|can|could|should|must|might|may|shall)|never|(?<=(?:^|[^\\p{L}'’])(?:i|you|we|they|he|she|it|who){{S}})(?:do|does|did|could|would|should|can|wo|must|might)(?:n['’]t|{{S}}not)|please|let['’]s|cannot){{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
@@ -3166,26 +3051,6 @@ rules:
       - regex: "to{{S}}[a-z]+ly{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|setup|shutdown|signup|takeover|warmup|workout){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue:
-          [
-            "backup",
-            "breakup",
-            "checkout",
-            "cleanup",
-            "comeback",
-            "followup",
-            "lookup",
-            "pickup",
-            "playback",
-            "rollback",
-            "rollout",
-            "setup",
-            "shutdown",
-            "signup",
-            "takeover",
-            "warmup",
-            "workout",
-          ]
         return: PHRASAL_VERB_OF[target.toLowerCase()]
       - regex: "to{{S}}(?<target>backup|breakup|checkout|cleanup|comeback|followup|lookup|pickup|playback|rollback|rollout|shutdown|signup|takeover|warmup|workout){{S}}(?:{{VERB_AFTER}}){{E}}"
         check: englishContextualCompounds
@@ -3214,23 +3079,19 @@ rules:
       - regex: "(?<target>show(?:{{S}}case|-case|-cases|-cased|-casing)){{E}}(?!{{S}}(?:[0-9]|(?:stud(?:y|ies)|sensitive|insensitive|sensitivity|numbers?|files?|laws?|histor(?:y|ies)|notes?|reports?|examples?|results?|details?|statements?|summar(?:y|ies)|managers?|workers?|officers?|status){{E}}))"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["show"]
         return: 'target.replace(/[ \t -]+/, "")'
       - regex: "(?:(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those){{S}}|(?=soon)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8}))(?<target>soon{{S}}to{{S}}be){{S}}(?=[\\p{L}\\p{N}])"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["soon"]
         let:
           next: tokenAfter(ctx, group(m, "target")[1])
         # At a clause start, only a noun makes it attributive: "Soon to be parents filled…".
         return: '/^soon/i.test(m[0]) && (!lexiconNoun(next) || hasVerbForm(next, "past", "participle")) ? null : "soon-to-be"'
       - regex: "(?<target>vi[cs]e(?:-a-|{{S}}a{{S}}|-)versa)(?![\\p{L}\\p{N}_'’])"
         message: review_msg_phrase_correction
-        cue: ["versa"]
         fix: "vice versa"
       - regex: "(?:wish|wishes|wished|wishing){{S}}(?:that{{S}})?(?:{{SUBJECT}}|this|that|someone|somebody|everyone|everybody|anyone|anybody){{S}}(?<target>can){{E}}"
         message: review_msg_contextual_grammar
-        cue: ["wish", "wishes", "wished", "wishing"]
         fix: "could"
       - regex: "{{notAfter:have|has|had|having|ought|got|need|needs|want|wants|going|condition|option|setting|mode}}(?<target>(?<first>to){{S}}(?<adverb>[a-z]+){{S}}to){{S}}(?<verb>[a-z]+){{E}}"
         message: review_msg_contextual_grammar
@@ -3247,7 +3108,6 @@ rules:
           })
       - regex: "(?<target>(?<verb>run|runs|ran|running){{S}}into{{S}}problem){{E}}"
         message: review_msg_phrase_correction
-        cue: ["problem"]
         return: "lexiconNoun(tokenAfter(ctx, m.index + m[0].length)) ? null : [`${verb} into a problem`, `${verb} into problems`]"
       - regex: "{{notAfter:good}}(?<target>(?:till|til)(?:{{S}}|-)date){{E}}"
         message: review_msg_phrase_correction
@@ -3257,31 +3117,14 @@ rules:
       - regex: "(?=that)(?<=(?:^|[.!?,;:(\\n])[ \\t\\u00a0\"“'‘]{0,8})(?<target>that{{S}}that){{S}}(?:is|was|are|were){{E}}"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        cue: ["that"]
         fix: "that which"
       - regex: "(?<target>(?<first>{{FREQUENCY}}){{S}}(?<second>{{FREQUENCY}})){{E}}"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        cue:
-          [
-            "always",
-            "usually",
-            "often",
-            "sometimes",
-            "frequently",
-            "rarely",
-            "seldom",
-            "never",
-            "occasionally",
-            "generally",
-            "normally",
-            "typically",
-          ]
         return: "first.toLowerCase() === second.toLowerCase() ? null : { alternatives: [first, second], raw: true }"
       - regex: "(?<target>over{{S}}(?<number>[0-9][0-9,.]*(?:{{S}}(?:thousand|million|billion))?)(?:{{S}}(?<plus>plus)|\\+))(?![\\p{L}\\p{N}_-])(?!{{S}}(?:size|sizes|sized){{E}})"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        cue: ["over"]
         # "over 5,000 PLUS": capitals for emphasis are the writer's choice.
         when: "!(plus && plus === plus.toUpperCase() && !/^OVER/.test(target))"
         return: '({ alternatives: [`${target.slice(0, 4)} ${number}`, target.replace(/^over[ \t ]+/i, "")], raw: true })'
@@ -3295,12 +3138,10 @@ rules:
       - regex: "(?:in|for|during|over|within|throughout){{S}}the{{S}}(?<target>last{{S}})(?:minutes|hours|days|weeks|months|years|decades){{E}}(?!{{S}}(?:of|before|after|until|till|prior|leading|preceding|following|when){{E}})"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        cue: ["last"]
         fix: "last few "
       - regex: "(?:thrive|thrives|thrived|throve|thriving){{S}}(?<target>off){{E}}(?!{{S}}(?:of|the{{S}}land){{E}})"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        cue: ["thrive", "thrives", "thrived", "throve", "thriving"]
         fix: "on"
       - regex: "(?<target>(?<verb>rise|rises|rose|risen|rising|rised|raise|raises|raised|raising)(?<mid>(?:{{S}}up)?(?:{{S}}(?:in|through))?){{S}}(?<the>the{{S}}(?<rank>ranks?))){{E}}(?!{{S}}and{{S}}file{{E}})"
         check: stylePhrasing
@@ -15064,7 +14905,6 @@ rules:
         return: articlesBareCount(target, adj, noun, false, false)
       # "such good friend": such takes a.
       - regex: "(?<target>such){{S}}(?:(?<adj>[a-z]+){{S}})?(?<noun>(?!{{CLOSED}}{{E}})[a-z]+)(?=[ \\t\\u00a0]*[.,!?;:)]|[ \\t\\u00a0]*$|{{S}}{{CLOSED}}{{E}})"
-        cue: ["such"]
         when: "ARTICLES_COUNT_NOUNS.has(noun) && !(adj && !articlesAdjectiveOnly(adj))"
         return: "`such ${articlesArticle(adj ?? noun)}`"
   - id: en.slotConfusions
@@ -15221,7 +15061,6 @@ rules:
       # "I found anther problem": "another" after a verb or preposition (the flower's anther
       # follows "the", an adjective or a list comma).
       - regex: "(?:found|find|see|saw|seen|add|have|has|had|need|want|got|get|buy|try|take|use|make|give|is|was|there['’]s|here['’]s|meant|mean|emailing|send|sending|write|wrote|and|or|just|also|still|for|with|from|to|at|into){{S}}(?<target>anther)(?=[ \\t]*[.!?,;:]|{{S}}[a-z]+{{E}})"
-        cue: ["anther"]
         # "I found anther problem": "another" after a verb or preposition (the flower's anther follows
         # "the", an adjective or a list comma).
         return: 'target === "anther" ? "another" : null'
@@ -15231,7 +15070,6 @@ rules:
         # "Many tanks for your help", "Tank you": "thanks", "thank".
         return: '"thanks"'
       - regex: "(?<=(?:^|[.!?,][\"”’)]?[ \\t]{1,8}|\\n))(?<target>tank){{S}}you(?=[ \\t]*[.!?,]|{{S}}(?:very|so|for|all){{E}})"
-        cue: ["tank"]
         fix: "thank"
       # "Thank, that helps", "Many thank for", "Thank to the rain": "thanks".
       - regex: "(?:(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>thank)(?=[ \\t]*[,!]|{{S}}to{{E}})|many{{S}}(?<target2>thank){{S}}for){{E}}"
@@ -15240,14 +15078,11 @@ rules:
         return: '"thanks"'
       # "It's not save to eat", "Are we save?", "feel save": the adjective "safe".
       - regex: "(?:(?:is|was|are|were|it['’]s|isn['’]t|wasn['’]t|aren['’]t|feel|feels|felt|stay|stays|stayed|be|been|am)(?:{{S}}not)?(?:{{S}}(?:very|so|too|completely|totally|perfectly|quite|really))?|(?:is|are|am){{S}}(?:it|that|this|we|I|you|they|he|she)){{S}}(?<target>save)(?=[ \\t]*[.!?]|{{S}}(?:to|for|in|here|there|from|enough|now){{E}})"
-        cue: ["save"]
         fix: "safe"
       - regex: "(?<target>safes){{S}}(?:my|your|his|her|our|their|the|lives|time|money){{E}}"
-        cue: ["safes"]
         fix: "saves"
       # "Lets all go home", "Now lets leave": the suggestion "let's".
       - regex: "(?:(?<=(?:^|[.!?,;:][\"”’)]?[ \\t]{1,8}|\\n))|(?:now|so|ok|okay|but|and|then|please){{S}})(?<target>lets){{S}}(?:all|just|go|do|get|try|see|make|take|start|stay|leave|have|be|not|keep|finally|hope|say|talk|meet|move|wait|eat|play|celebrate|focus|begin|find|check|look|put){{E}}"
-        cue: ["lets"]
         # "Lets all go home", "Now lets leave": the suggestion "let's".
         return: >-
           target === "Lets" ? "Let's" : target === "lets" ? "let's" : null
@@ -15284,22 +15119,18 @@ rules:
             : null
       # "Fill in this from", "a letter form my friend": "form" and "from" swapped.
       - regex: "(?:fill{{S}}(?:in|out)|submit|complete|sign|in){{S}}(?:this|that|the|our|your|a){{S}}(?<target>from)(?=[ \\t]*[.!?]|{{S}}(?:on|below|above){{E}})"
-        cue: ["from"]
         fix: "form"
       - regex: "(?:letter|email|message|gift|income|money|news|greetings|hello){{S}}(?<target>form){{S}}(?:my|your|his|her|our|their|the|this|him|them|us){{E}}"
         cue: ["form"]
         fix: "from"
       # "I am so curios", "Are you curios?": "curious" (curios are trinkets).
       - regex: "(?:so|very|am|are|is|was|were|be|been|really|just|too|quite|pretty|extremely|['’]m|['’]re){{S}}(?<target>curios)(?=[ \\t]*[.!?,]|{{S}}(?:if|what|about|to|whether|why|how|person|people|cat|child|kid|mind|one){{E}})"
-        cue: ["curios"]
         fix: "curious"
       # "I red a book", "have red the email": "read".
       - regex: "(?:I|you|we|they|he|she|can|could|will|would|should|have|has|had|didn['’]t|don['’]t|to|never|already|just){{S}}(?<target>red){{S}}(?:a|an|the|this|that|it|my|your|his|their|our|about|some|books?|articles?|emails?|messages?|reviews?){{E}}"
-        cue: ["red"]
         fix: "read"
       # "I will past it into the field": "paste".
       - regex: "(?:will|can|could|would|should|to|then|just|and|I|you|we|they|users|please){{S}}(?<target>past){{S}}(?:(?:it|this|that|them|text|code|the{{S}}[a-z]+|your{{S}}[a-z]+|my{{S}}[a-z]+){{S}})?(?:into|in{{S}}(?:the|a|your|my)|here){{E}}"
-        cue: ["past"]
         fix: "paste"
       # "it's event possible", "Event I make mistakes": "even".
       - regex: "(?:(?:it['’]s|is|was|isn['’]t|wasn['’]t|get|be|not){{S}}(?<target>event){{S}}(?:possible|impossible|more|less|better|worse|usually|harder|easier|bigger|though|if|when|after)|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n|(?:but|and)[ \\t]{1,8}))(?<target2>[Ee]vent){{S}}(?:I|we|you|they|he|she|if|though|so|now)){{E}}"
@@ -15317,7 +15148,6 @@ rules:
         when: '!(target && target !== "may")'
         return: '"many"'
       - regex: "(?:cancel|on|in|to|from|with|for|of|at|into){{S}}(?<target>may){{S}}(?:subscription|account|list|head|mind|life|house|car|phone|computer|wife|husband|mother|father|order|name|email|friend|friends|family|job|own){{E}}"
-        cue: ["may"]
         return: 'target === "may" ? "my" : null'
       # "I ave no idea", "should ave been": "have".
       - regex: "(?:(?:I|you|we|they|should|could|would|will|must|might|to){{S}}(?<target>ave){{S}}(?:been|no|a|an|the|to|many|any|some|it|this|that|done|seen|had|got|known|gone|made|taken|told|said|thought)|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target2>Ave){{S}}(?:you|we|they){{S}}(?:been|got|seen|had|done|ever)){{E}}"
@@ -15341,33 +15171,26 @@ rules:
         fix: "two"
       # "He cam to help", "Can you com and help": "came", "come".
       - regex: "(?:he|she|it|they|we|I|you){{S}}(?<target>cam){{S}}(?:to|here|home|back|in|over|out|up|down|across){{E}}"
-        cue: ["cam"]
         fix: "came"
       - regex: "(?:can|could|will|would|to|please|has|have|had|you){{S}}(?<target>com){{S}}(?:and|to|here|home|back|in|over|with|along|up){{E}}"
-        cue: ["com"]
         fix: "come"
       # "It is really hart", "a hart time": "hard".
       - regex: "(?:really|very|so|too|it|be|is|was|a|pretty|quite){{S}}(?<target>hart)(?=[ \\t]*[.!?,]|{{S}}(?:to|time|times|work|day|days|thing|one|part){{E}})"
-        cue: ["hart"]
         fix: "hard"
       # "the wurst case", "the wurst is yet to come": "worst".
       - regex: "the{{S}}(?<target>wurst){{S}}(?:case|scenario|thing|part|day|time|player|game|movie|idea|ever|of{{S}}(?:all|the|it|them)|I{{S}}(?:have|had|ever)|is{{S}}yet){{E}}"
-        cue: ["wurst"]
         fix: "worst"
       # "Than you for your help": "Thank you".
       - regex: "(?:(?<=(?:^|[.!?,][\"”’)]?[ \\t]{1,8}|\\n))|(?:say|but|and|just|oh|ok|okay){{S}})(?<target>than){{S}}you(?=[ \\t]*[.!?,]|{{S}}(?:so|very|for|all){{E}})"
-        cue: ["than"]
         fix: "thank"
       # "She ads value", "would ad a new one": "adds", "add".
       - regex: "(?:I|you|we|they|would|wouldn['’]t|could|can|will|should|usually|always|please|just|also){{S}}(?<target>ad){{S}}(?:a|an|the|some|more|it|them|this|that|ketchup|salt|sugar|value|to){{E}}"
         cue: ["ad"]
         fix: "add"
       - regex: "(?:he|she|it|this|which|who){{S}}(?:(?:also|really|usually|always){{S}})?(?<target>ads){{S}}(?:a|an|the|some|more|value|to|up){{E}}"
-        cue: ["ads"]
         fix: "adds"
       # "I have work to due", "All I can due is": "do".
       - regex: "(?:can|could|will|would|should|must|to|didn['’]t|don['’]t){{S}}(?<target>due)(?=[ \\t]*[.!?]|{{S}}(?:is|his|her|my|your|their|our|it|this|that|the{{S}}(?:dishes|work|job|homework|same)|what|something|anything|nothing){{E}})"
-        cue: ["due"]
         fix: "do"
       # "Be quite!", "a quite word": "quiet"; "I am quiet sure": "quite".
       - regex: "(?:be{{S}}(?<target>quite)(?=[ \\t]*[.!])|a{{S}}(?<target2>quite){{S}}(?:word|place|night|evening|room|moment|life|spot|street|corner|neighborhood|neighbourhood|town|village|weekend|voice){{E}})"
@@ -15375,24 +15198,19 @@ rules:
         # "Be quite!", "a quite word": "quiet"; "I am quiet sure": "quite".
         return: '"quiet"'
       - regex: "(?:am|is|are|was|were|['’]s|['’]m|['’]re){{S}}(?<target>quiet){{S}}(?:sure|new|different|right|simple|easy|difficult|interesting|good|nice|certain){{E}}"
-        cue: ["quiet"]
         fix: "quite"
       # "I loss a friend", "could loss his life", "always losses his keys", "a lose tooth".
       - regex: "(?<lead>I|you|we|they|he|she|could|would|will|can|might|to|not|never|didn['’]t|don['’]t){{S}}(?<target>loss){{S}}(?:a|an|the|my|your|his|her|their|our|it|them|weight|money|time|control|track|interest|sight|hope|games?|friends?|football){{E}}"
-        cue: ["loss"]
         # "I loss a friend", "could loss his life", "always losses his keys", "a lose tooth".
         let:
           typed: lead.toLowerCase()
         return: '/^(?:he|she)$/.test(typed) ? "lost" : /^(?:i|you|we|they)$/.test(typed) ? ["lost", "lose"] : "lose"'
       - regex: "(?:he|she|it|always|never|usually|often){{S}}(?<target>losses){{S}}(?:his|her|its|their|the|a|my){{E}}"
-        cue: ["losses"]
         fix: "loses"
       - regex: "(?:a|the){{S}}(?<target>lose){{S}}(?:tooth|thread|end|ends|screw|connection|wire|cable|cannon|fit|leaf|grip){{E}}"
-        cue: ["lose"]
         fix: "loose"
       # "I hope to here from you": "hear".
       - regex: "(?:to|don['’]t|do{{S}}not|won['’]t|didn['’]t|will|would|can|could|never){{S}}(?<target>here){{S}}from{{S}}(?:you|me|him|her|them|us){{E}}"
-        cue: ["here"]
         fix: "hear"
       # "received your massage", "sent different massages": "message".
       - regex: "(?:received|got|read|sent|forwarded|deleted|answered|reply{{S}}to|answer{{S}}to){{S}}(?:(?:your|my|his|her|our|their|the|different|several|many|some|two|three){{S}})?(?:(?:last|previous|earlier|recent|text|voice){{S}})?(?<target>massages?){{E}}"
@@ -15440,7 +15258,6 @@ rules:
       - regex: "(?<lead>(?<=(?:^|[.!?,;:][\"”’)]?[ \\t]{1,8}|\\n))|(?:if|when|because|and|but|then|now|otherwise|so|until|unless|since|whether|while|that){{S}})(?<target>you){{S}}(?<w1>[a-z]+){{S}}(?<w2>[a-z]+(?:['’]t)?)(?:{{S}}(?<w3>[a-z]+(?:['’]t)?))?{{E}}"
         check: englishYourYouAre
         message: review_msg_your_possessive
-        cue: ["you"]
         # "If you car was stolen", "You new coat is dirty": "your" before the subject's noun. "if you
         # recall was", "that you need is": inside a sentence only a noun that is no verb, unless a mental
         # verb is ruled out ("if you phone is dead").
@@ -15473,7 +15290,6 @@ rules:
       - regex: "(?<aux>did|does|do|didn['’]t|doesn['’]t|don['’]t|will|would|could|can|should|has|have){{S}}(?<target>you){{S}}(?<w1>[a-z]+){{S}}(?<w2>[a-z]+)(?:{{S}}(?<w3>[a-z]+))?{{E}}"
         check: englishYourYouAre
         message: review_msg_your_possessive
-        cue: ["you"]
         # "Did you team check it?", "Will you driver pick us up?": an inverted question. "does you" and
         # "has you" never pair with the pronoun: a noun that is also a verb fits. "Do you grammar
         # check…": plural do takes no singular noun, save a group ("team").
@@ -15493,7 +15309,6 @@ rules:
       - regex: "(?:for|at|about|on|with|from|not|done|did|finished|lost|found|forgot|hug|hugged|wash|washed|clean|cleaned|update|updated|(?:you|I|we|they){{S}}have){{S}}(?<target>you){{S}}(?<w1>[a-z]+)(?:{{S}}(?!(?:yet|with|already|today|now|first|and|or|of){{E}})(?<w2>[a-z]+))?(?<end>[ \\t\\u00a0]*[.!?,;:]|{{S}}(?:yet|with|already|today|now|first|and|or|of){{E}})"
         check: englishYourYouAre
         message: review_msg_your_possessive
-        cue: ["you"]
         # "Thank you for you time.", "Have you done you homework yet?": an owned noun ends the phrase.
         # "This is for you mom!": a person addressed at the end.
         when: >-
@@ -15508,7 +15323,6 @@ rules:
       # "She wasn't upset too.": a negative clause ends in "either".
       - regex: "(?<=(?:n['’]t|(?:is|was|are|were|am|do|does|did|will|would|can|could|have|has|had|be|['’]m|['’]re|['’]s){{S}}not|{{S}}never){{S}}(?:[\\p{L}'’]+{{S}}){0,4})(?<target>too)(?=[ \\t\\u00a0]*[.!])"
         message: review_msg_contextual_grammar
-        cue: ["too"]
         # "She wasn't upset too.": a negative clause ends in "either". The negation and "too" share one
         # clause: no comma, "but" or "and" between them. "don't have too": the "to" frame owns it.
         let:
@@ -15536,7 +15350,6 @@ rules:
       # "Thanks you for coming": the verb's own "thank you".
       - regex: "(?<=(?:^|[.!?,;][\"”’)]?[ \\t]{0,8}|\\n))(?<target>thanks)(?={{S}}you(?:{{S}}(?:for|so|very|again|all){{E}}|[ \\t]*[.!,]|[ \\t]*$))"
         message: review_msg_phrase_correction
-        cue: ["thanks"]
         fix: "thank"
       # "I cold see it", "Cold you hear him?": the modal.
       - regex: "(?:(?:I|you|we|they|he|she|who|parents|father|mother){{S}}(?<target>cold){{S}}(?:not|n['’]t|never|do|be|have|see|hear|help|go|get|make|say|tell|find|imagine|feel|ask|try|use){{E}}|(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}))(?<target2>Cold){{S}}(?:you|we|they|he|she|I|it|someone|anyone){{S}}(?:please{{S}})?(?:help|tell|see|hear|send|check|give|explain|do|be|have|make){{E}})"
@@ -15550,7 +15363,6 @@ rules:
         return: 'target.toLowerCase() === "envelopes" ? "envelops" : "envelop"'
       # "from 30 too 37", "expanding too ten locations": "to" before a number.
       - regex: "(?:from{{S}}[0-9A-Za-z.,%]+{{S}}|expand(?:s|ed|ing)?{{S}}|increase[sd]?{{S}}|grew{{S}}|grow(?:s|ing)?{{S}}|up{{S}}|rise[sn]?{{S}}|rose{{S}}|fell{{S}}|dropped{{S}})(?<target>too){{S}}(?:[0-9]+|{{SLOTCONFUSIONS_NUMBER_WORD}}){{E}}"
-        cue: ["too"]
         fix: "to"
       # "let em know", "tell em what": the object pronoun.
       - regex: "(?:let|tell|told|send|give|gave|show|ask|asked|help|thank|call|email|to){{S}}(?<target>em){{S}}(?:know|what|that|the|a|an|it|about|how|why|when|where|if|more){{E}}"
@@ -15558,15 +15370,12 @@ rules:
         fix: ["me", "them"]
       # "I would git a new one": the verb "get".
       - regex: "(?:{{SLOTCONFUSIONS_MODAL}}|to|{{NEGATION}}|you|I|we|they|do|did|does){{S}}(?<target>git){{S}}(?:a|an|the|more|some|it|them|me|you|my|your|this|that|better|ready|started|back|out|home|rid|lost|used|over){{E}}"
-        cue: ["git"]
         fix: "get"
       # "I cab confirm": the modal "can".
       - regex: "(?:I|we|you|they){{S}}(?<target>cab|cam){{S}}(?:confirm|help|see|do|advise|try|check|be|not|say|tell|get|make|go|come|send|assure|guarantee){{E}}"
-        cue: ["cab", "cam"]
         fix: "can"
       # "Whet is wrong?": the question word.
       - regex: "(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>whet)(?={{S}}(?:is|are|was|were|do|does|did|happened|happens|about|if|else|time){{E}}|['’]s|[ \\t]*\\?)"
-        cue: ["whet"]
         fix: "what"
       # "Good lick with it": luck.
       - regex: "(?:(?<!(?<![\\p{L}'’])(?:a|the){{S}})good{{S}}(?<target>lick)|wish(?:ing)?{{S}}(?:you|him|her|them|us|everyone){{S}}good{{S}}(?<target2>lock))(?={{S}}(?:with|on|to|in|for|today|tomorrow|everyone|everybody|next){{E}}|[ \\t]*[.,!]|[ \\t]*$)"
@@ -15583,25 +15392,21 @@ rules:
         return: '"not"'
       # "That sounds goo!", "not goo enough": good.
       - regex: "(?:sounds|looks|seems|feels|as|so|too|very|really){{S}}(?<target>goo)(?={{S}}(?:enough|as|to|for|at|idea|job|news){{E}}|[ \\t]*[.,!?])"
-        cue: ["goo"]
         fix: "good"
       # "He is very said", "She sad that": sad and said swapped.
       - regex: "(?:very|too|really|feel|feels|felt|seemed|looked|I['’]m|am){{S}}(?<target>said)(?=[ \\t]*[.,!?]|{{S}}(?:and|but|about|when|because|today){{E}})"
-        cue: ["said"]
         fix: "sad"
       - regex: "(?:(?:I|he|she|they|we|you|who){{S}}(?<target>sad){{S}}(?:that|it|so|this|something|nothing|yes|no|hello|goodbye){{E}}|(?:have|has|had){{S}}(?<target2>sad)(?=[ \\t]*[.,!?]|{{S}}(?:that|it|so|yesterday|before|earlier){{E}}))"
         cue: ["sad"]
         return: '"said"'
       # "He never looks the front door": lock.
       - regex: "(?<=\\p{L}[ \\t]{1,8})(?<target>look|looks|looked|looking){{S}}(?:the|your|my|his|her|our|their|this|that){{S}}(?:(?:front|back|main|car|garage|bedroom|office){{S}})?(?:door|doors|gate|gates){{E}}"
-        cue: ["look", "looks", "looked", "looking"]
         # "He never looks the front door": lock.
         return: LOCK_FOR_LOOK[target.toLowerCase()]
       # "non alcoholic", "non standard": the prefix takes a hyphen.
       - regex: "(?<target>non{{S}}(?<word>[A-Za-z]+)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["non"]
         # "non alcoholic", "non standard": the prefix takes a hyphen. "Non Khun" is a name; "non new
         # relic" names a product.
         let:
@@ -15612,14 +15417,11 @@ rules:
           - "/^[A-Z][a-z]+$/.test(word) || read?.adjective"
         return: "`non-${word}`"
       - regex: "(?:{{SLOTCONFUSIONS_MODAL}}|to|{{NEGATION}}|I|we|you|they|let['’]s|please){{S}}(?:(?:just|also|always|never|really|often|still){{S}})?(?<target>tel|tech|choice|ware|multiple){{S}}(?:{{VERB_OBJECT}}){{E}}"
-        cue: ["tel", "tech", "choice", "ware", "multiple"]
         return: VERB_FOR_SHORT[target.toLowerCase()]
       - regex: "(?:he|she|it|who|which|that){{S}}(?:(?:just|also|always|never|really|often|still){{S}})?(?<target>tels|teches|choices|wares|multiples){{S}}(?:{{VERB_OBJECT}}){{E}}"
-        cue: ["tels", "teches", "choices", "wares", "multiples"]
         return: THIRD_FOR_SHORT[target.toLowerCase()]
       # "This issue mus exist", "you mus see it": the modal "must" before a bare verb.
       - regex: "(?<target>mus){{S}}(?<verb>[a-z]+){{E}}"
-        cue: ["mus"]
         # "This issue mus exist", "you mus see it": the modal "must" before a bare verb.
         return: >-
           /^(?:be|have|not|already|also|still|always|never)$/.test(verb) || (hasVerbForm(verb, "base") && !enReadWord(verb)?.noun)
@@ -15627,7 +15429,6 @@ rules:
             : null
       # "I sill check it", "you would sill lock it": the adverb "still" before a verb.
       - regex: "(?:{{SUBJECT}}|would|could|will|should|can|must|might|may|and|but|are|is|was|were|am){{S}}(?<target>sill){{S}}(?<verb>[a-z]+){{E}}"
-        cue: ["sill"]
         # "I sill check it", "you would sill lock it": the adverb "still" before a verb.
         return: >-
           /^(?:always|never|not|here|there|working|waiting|going|alive|open|valid|the|a|an|in|on|at|my|your)$/.test(verb) ||
@@ -15636,19 +15437,15 @@ rules:
             : null
       # "Pleas have a look", "could you pleas check": the request word.
       - regex: "(?:(?<=(?:^|[.!?\\n][\"”’)]?[ \\t]{0,8}))|(?:you|kindly|and){{S}})(?<target>pleas)(?={{S}}(?:have|check|let|send|help|see|do|be|note|find|look|tell|try|share|add|call|reply|confirm|review|fix|wait|contact|give|make|keep|consider){{E}}|[ \\t]*,)"
-        cue: ["pleas"]
         fix: "please"
       # "I'm nut sure", "it is nut ready": the negation.
       - regex: "(?:I['’]m|am|is|are|was|were|be|do|does|did|could|would|will|should|can){{S}}(?<target>nut){{S}}(?:sure|going|ready|able|allowed|happy|true|a|an|the|that|so|too|very|really|yet|working|done|here|there|know){{E}}"
-        cue: ["nut"]
         fix: "not"
       # "He walked trough the door": the preposition.
       - regex: "(?:go|goes|went|gone|going|walk|walks|walked|walking|run|runs|ran|running|pass|passed|passes|passing|come|comes|came|coming|get|gets|got|getting|look|looks|looked|looking|read|went|drive|drove|driving|it|way|all|halfway|straight|right){{S}}(?<target>trough){{S}}(?:the|a|an|this|that|it|them|my|your|his|her|our|their|without|with){{E}}"
-        cue: ["trough"]
         fix: "through"
       # "They were vary happy": the degree word before an adjective.
       - regex: "(?:am|is|are|was|were|be|been|(?:{{SUBJECT}}|that)['’](?:m|re|s)|feel|feels|felt|look|looks|looked|seem|seems|seemed){{S}}(?<target>vary){{S}}(?<adj>[a-z]+){{E}}"
-        cue: ["vary"]
         # "They were vary happy": the degree word before an adjective.
         let:
           read: enReadWord(adj)
@@ -15707,14 +15504,11 @@ rules:
         cue: ["moths", "moth"]
         fix: "months"
       - regex: "(?:in|for|within|after|over|during){{S}}(?:the{{S}}|a{{S}})?(?:[0-9]+|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|few|several|many|next|last|past|coming|following|couple{{S}}of){{S}}(?<target>moths)(?=[ \\t]*[.,;!?])"
-        cue: ["moths"]
         fix: "months"
       - regex: "(?:a|one|per|each|every|this|next|last){{S}}(?<target>moth)(?={{S}}(?:ago|later|earlier|before|after|old|long|from{{S}}now){{E}})"
-        cue: ["moth"]
         fix: "month"
       # "I barley moved", "they were barley awake": barley as an adverb before a verb or adjective.
       - regex: "(?:{{SUBJECT}}|{{SLOTCONFUSIONS_MODAL}}|am|is|are|was|were|had|has|have|did|could|['’](?:m|re|s|d|ve)){{S}}(?<target>barley){{S}}(?<next>[a-z]+){{E}}"
-        cue: ["barley"]
         # "I barley moved", "they were barley awake": barley as an adverb before a verb or adjective.
         let:
           read: enReadWord(next)
@@ -15725,7 +15519,6 @@ rules:
             : null
       # "I found anther problem": a determiner's slot, before a noun.
       - regex: "(?:found|find|need|needs|needed|had|have|has|is|was|['’]s|try|tried|yet|one|and|or|for|of|with|to|on|in|at|from|by|about|another|any){{S}}(?<target>anther){{E}}"
-        cue: ["anther"]
         # "I found anther problem": a determiner's slot, before a noun. The flower's anther: botany
         # around it.
         let:
@@ -15735,11 +15528,9 @@ rules:
         return: 'next === "" || enReadWord(next)?.noun || /^(?:one|time|way|day)$/.test(next) ? "another" : null'
       # "wold wide web", "wold politics": the world (a wold is also an upland).
       - regex: "(?<target>wold)(?={{S}}(?:wide{{S}}web|war|record|cup|peace|leader|leaders|economy|politics|history|map|population){{E}})"
-        cue: ["wold"]
         fix: "world"
       # "It mans the world to me", "what he mans": the verb "means".
       - regex: "(?:it|this|that|which|what{{S}}(?:he|she|it|this|that)){{S}}(?<target>mans){{E}}"
-        cue: ["mans"]
         # "It mans the world to me", "what he mans": the verb "means".
         return: >-
           /^(?:a|an|the|that|to|nothing|something|everything|anything|so|much|more|less|you|me|him|her|us|them|it|business|well)$/i.test(
@@ -15749,10 +15540,8 @@ rules:
             : null
       # "I can due it", "Due you work today?": the verb "do".
       - regex: "(?:{{SLOTCONFUSIONS_MODAL}}|to|{{NEGATION}}|let['’]s|I|we|you|they){{S}}(?<target>due){{S}}(?:it|this|that|so|anything|something|nothing|everything|my{{S}}best|your{{S}}best|the{{S}}(?:dishes|job|work|same)){{E}}"
-        cue: ["due"]
         fix: "do"
       - regex: "(?=Due)(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>Due){{S}}(?:you|we|they|I){{S}}(?<verb>[a-z]+){{E}}"
-        cue: ["due"]
         return: 'hasVerbForm(verb, "base") ? "Do" : null'
       # "Please us the side door", "will us their method": the verb "use".
       - regex: "(?:{{SLOTCONFUSIONS_MODAL}}|please|let['’]s|lets){{S}}(?<target>us){{S}}(?:the|a|an|his|her|their|my|your|our|its|this|these|those){{S}}(?!(?:most|more|best|least|same|whole|rest){{E}})[a-z]+"
@@ -15761,7 +15550,6 @@ rules:
         return: '/\b(?:give|gave|show|tell|told|send|sent)\s+$/i.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)) ? null : "use"'
       # "It event works", "to event try": the adverb "even".
       - regex: "(?:it|{{SLOTCONFUSIONS_MODAL}}|to|not|n['’]t){{S}}(?<target>event){{S}}(?<next>[a-z]+){{E}}"
-        cue: ["event"]
         # "It event works", "to event try": the adverb "even".
         let:
           read: enReadWord(next)
@@ -15769,7 +15557,6 @@ rules:
         return: 'read && (read.verbs.some((v) => v.form !== "ing") || read.adjective || read.adverb) ? "even" : null'
       # "I can here you", "glad to here that": the verb "hear".
       - regex: "(?:(?:can|could|cannot|can['’]t|couldn['’]t|almost|barely|hardly|to){{S}})(?<target>here){{S}}(?:you|me|him|her|them|us|it|that|this|what|about|from|of|anything|something|nothing|someone|somebody|footsteps|voices|music|noise){{E}}"
-        cue: ["here"]
         # "I can here you", "glad to here that": the verb "hear". "to here from there", "moved to
         # here": only "glad/nice/want to hear".
         let:
@@ -15796,14 +15583,12 @@ rules:
         cue: ["discus", "discuses"]
         fix: "discuss"
       - regex: "(?:he|she|it|who|which|that|this){{S}}(?<target>discuses){{S}}(?:{{OBJECT_START}}|with|about|how|what|whether){{E}}"
-        cue: ["discuses"]
         fix: "discusses"
       # "I always loose my keys", "I'm loosing my job": the verb "lose".
       - regex: "(?:{{SUBJECT}}|{{SLOTCONFUSIONS_MODAL}}|to|{{NEGATION}}|always|often|sometimes|usually|keep|might|if{{S}}(?:I|you|we|they)){{S}}(?<target>loose){{S}}(?:my|your|his|her|our|their|this|the{{S}}(?:password|key|keys|game|match|job|bet|war|battle|race)|track|sight|control|money|interest|faith|hope|touch){{E}}"
         cue: ["loose", "loosing"]
         fix: "lose"
       - regex: "(?<target>loosing){{S}}(?:my|your|his|her|our|their|track|sight|control|money|interest|faith|hope|touch|the{{S}}(?:game|match|war|battle|race|job)){{E}}"
-        cue: ["loosing"]
         fix: "losing"
       # "at a lose", "the lose of": the noun "loss".
       - regex: "(?:at{{S}}a{{S}}(?<target>lose){{S}}(?:for|and|about|as|[.,;!?])|(?:the|a|great|big|huge|heavy|total|sudden){{S}}(?<target2>lose){{S}}of{{E}})"
@@ -15815,7 +15600,6 @@ rules:
         cue: ["complains", "complain"]
         fix: "complaints"
       - regex: "(?:biggest|main|common|only|frequent|formal|written|major|usual|first|last){{S}}(?<target>complain)(?={{S}}(?:from|about|of|regarding|was|is|has|had|among){{E}}|[ \\t]*[.,;!?])"
-        cue: ["complain"]
         fix: "complaint"
       # "never heard of it, yet alone tried": "let alone".
       - regex: "(?<!(?<![\\p{L}'’])(?:not|n['’]t|is|was|are|were|am|be|been|feel|felt|feels|still){{S}})(?<target>yet{{S}}alone){{S}}(?=[a-z])"
@@ -15831,7 +15615,6 @@ rules:
             : null
       # "the former … the later": the second of two named things, a pronoun before its verb.
       - regex: "(?<target>(?<the>the){{S}}later)(?={{S}}(?<next>[a-z]+){{E}}|[ \\t]*[.,;])"
-        cue: ["later"]
         # "the former … the later": the second of two named things, a pronoun before its verb. "the
         # former" may come before or right after ("subordinated the later to the former"). "the later
         # very often causes": a second adverb before the verb.
@@ -15852,7 +15635,6 @@ rules:
             : null
       # "I have all ready bought it", "Peter all ready has": the adverb "already".
       - regex: "(?<lead>[A-Za-z]+(?:['’][a-z]+)?){{S}}(?<target>all{{S}}ready){{S}}(?<next>[a-z]+){{E}}"
-        cue: ["ready"]
         # "I have all ready bought it", "Peter all ready has": the adverb "already". A name owns its
         # verb: "Peter all ready has".
         let:
@@ -15867,30 +15649,23 @@ rules:
             : null
       # "Can you attache a photo?": the verb; "please find attache" is "attached".
       - regex: "(?:{{SUBJECT}}|{{SLOTCONFUSIONS_MODAL}}|to|please|{{NEGATION}}|really|also|just){{S}}(?<target>attache){{S}}(?:a|an|the|my|your|our|their|his|her|it|them|this|that|these|those|some|files?|photos?|images?|pictures?|documents?|screenshots?){{E}}"
-        cue: ["attache"]
         # "Can you attache a photo?": the verb; "please find attache" is "attached".
         return: '/\bfind[ \t]+$/i.test(ctx.text.slice(Math.max(0, m.index - 8), m.index + 1)) ? null : "attach"'
       - regex: "find{{S}}(?<target>attache){{E}}"
-        cue: ["attache"]
         fix: "attached"
       # "I think tat is right": the pronoun "that".
       - regex: "(?:think|thinks|thought|know|knows|knew|say|says|said|believe|believes|hope|guess|because|is|was|that|told{{S}}(?:me|him|her|us|them|you)|teach{{S}}us|teaches{{S}}us){{S}}(?<target>tat){{S}}(?:is|was|must|can|will|would|should|could|it|the|a|I|you|we|they|he|she|this|there|one|[a-z]+s{{S}}are){{E}}"
-        cue: ["tat"]
         fix: "that"
       - regex: "(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>Tat){{S}}(?:is|was|must|can|will|would|should|could|seems|sounds|looks){{E}}"
-        cue: ["tat"]
         fix: "That"
       # "This is were I live", "the place were the police look", "not sure were to go": "where".
       - regex: "(?:(?:this|that|here|it){{S}}is|(?:sure|know|knew|wonder|wondering|asked|ask|idea|tell|told|show|remember|forgot|guess)|(?:the|a|one{{S}}of{{S}}the){{S}}(?:place|places|page|pages|point|area|areas|city|town|room|house|country|site|website|spot|age|land|office|section|folder|location|stage|part|world|street|village|region|one)){{S}}(?<target>were){{S}}(?:I|we|you|they|he|she|to|the{{S}}[a-z]+{{S}}(?:is|are|was|were|can|will|has|have|had|look|looks|live|lives|work|works)|my|our|your|their|his|her){{E}}"
-        cue: ["were"]
         # "This is were I live", "the place were the police look", "not sure were to go": "where".
         return: '/^were$/i.test(target) ? "where" : null'
       - regex: "(?<=(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?<target>Were){{S}}(?:did|does|do|else|is|are|can|could|should|would|will|have|has){{E}}"
-        cue: ["were"]
         fix: "Where"
       # "Which browser where you using?", "The runners where running": the past of "be".
       - regex: "(?:(?:which|what){{S}}[a-z]+|they|we|you|people|users|[a-z]+s){{S}}(?<target>where){{S}}(?:(?:you|they|we){{S}})?(?<ing>[a-z]{2,}ing){{E}}(?!{{S}}(?:is|was|are|were|has|can|will|should|would){{E}})"
-        cue: ["where"]
         # "Which browser where you using?", "The runners where running": the past of "be".
         return: 'hasVerbForm(ing, "ing") ? "were" : null'
       # "there's and example", "here is and update": the article "an" before a vowel.
@@ -15953,7 +15728,6 @@ rules:
         return: '"it"'
       # "I can all ready do it", "I all so think": "already", "also".
       - regex: "(?<target>all{{S}}ready){{S}}(?<next>[a-z]+){{E}}"
-        cue: ["ready"]
         # "I can all ready do it", "I all so think": "already", "also".
         let:
           read: enReadWord(next)
@@ -15964,7 +15738,6 @@ rules:
         fix: "also"
       # "A user recently complaint that", "A user complaints about": the verb.
       - regex: "(?:(?:recently|also|just|always|often|then){{S}}(?<target>complaint)|(?:a|one|another|every|each){{S}}[a-z]+{{S}}(?<target2>complaints)){{S}}(?:that|about){{E}}"
-        cue: ["complaint", "complaints"]
         # "A user recently complaint that", "A user complaints about": the verb.
         return: >-
           target
@@ -15972,13 +15745,11 @@ rules:
             : { alternatives: ["complains"], range: group(m, "target2") }
       # "per moth", "the end of the moth", "for moths,": "month".
       - regex: "(?:(?:per|next|last|calendar|(?:beginning|end|middle|start){{S}}of{{S}}the){{S}}(?<target>moth)(?=[ \\t]*[.!?,;:]|{{S}}(?:ago|later|before|after|and|or){{E}})|(?:for|some|few|several|many|two|three|four|five|six|seven|eight|nine|ten|twelve|[0-9]+){{S}}(?<target2>moths)(?=[ \\t]*[.!?,;:]|{{S}}(?:ago|now|later|before|after){{E}}))"
-        cue: ["moth", "moths"]
         # "per moth", "the end of the moth", "for moths,": "month".
         return: >-
           target ? { alternatives: ["month"], range: group(m, "target") } : { alternatives: ["months"], range: group(m, "target2") }
       # "He's jut unhappy", "Let's jut do it": the adverb "just" (not "jut out").
       - regex: "(?:(?:{{SUBJECT}}|has|have|had|does|do|did|can|could|would|should|will|let['’]s|couldn['’]t|can['’]t|don['’]t|is|was|are|were)|\\p{L}+['’](?:s|re|m|ve|ll|d)){{S}}(?<target>jut){{S}}(?!(?:out|outs|into|over|from|above|beyond|forth|up|across){{E}})[a-z]"
-        cue: ["jut"]
         fix: "just"
       # "It doe not matter", "What doe he think": "does".
       - regex: "(?:(?:it|he|she|this|that|which|who){{S}}(?<target>doe){{S}}not|(?:what|how|why|where|when){{S}}(?<target2>doe){{S}}(?:he|she|it)){{E}}"
@@ -15997,40 +15768,15 @@ rules:
       - regex: "(?:has|have|['’]ve){{S}}(?:(?:just|already|never|not|finally|also){{S}})?(?<target>setup|shutdown|backup|cleanup|signup|pickup|lookup|checkout|rollout){{S}}(?:{{OBJECT_START}}|again|with|for|my|your){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue:
-          [
-            "setup",
-            "shutdown",
-            "backup",
-            "cleanup",
-            "signup",
-            "pickup",
-            "lookup",
-            "checkout",
-            "rollout",
-          ]
         # Compound nouns as verbs: "she has setup the tent", "I just setup a meeting", "who login".
         return: SETUP_PARTICIPLE[target.toLowerCase()]
       - regex: "(?:I|we|they|you){{S}}(?:just|already|never|also|then|finally|first|quickly|always|usually){{S}}(?<target>setup|shutdown|backup|cleanup|signup|pickup|lookup|checkout|rollout){{S}}(?:{{OBJECT_START}}|again|with|for|to|before|after|using|here|now){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue:
-          [
-            "setup",
-            "shutdown",
-            "backup",
-            "cleanup",
-            "signup",
-            "pickup",
-            "lookup",
-            "checkout",
-            "rollout",
-          ]
         return: SETUP_BASE[target.toLowerCase()]
       - regex: "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:{{SLOTCONFUSIONS_MODAL}})|please|{{NEGATION}}|who|let{{S}}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t){{S}}(?:{{SUBJECT}})|(?:{{INFINITIVE_LEAD}}){{S}}to|(?:{{INFINITIVE_LEAD}}){{S}}(?:[\\p{L}'’]+{{S}}){1,2}to){{S}}(?<target>login)(?={{S}}(?:{{OBJECT_START}}|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data){{E}}|[ \\t]*[.!?,;:])"
         check: englishContextualCompounds
         message: review_msg_log_in
-        cue: ["login"]
         let:
           stop: group(m, "target")[1]
         when: target === target.toLowerCase()
@@ -16038,7 +15784,6 @@ rules:
       - regex: "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:{{SLOTCONFUSIONS_MODAL}})|please|{{NEGATION}}|who|let{{S}}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t){{S}}(?:{{SUBJECT}})|(?:{{INFINITIVE_LEAD}}){{S}}to|(?:{{INFINITIVE_LEAD}}){{S}}(?:[\\p{L}'’]+{{S}}){1,2}to){{S}}(?<target>setup)(?={{S}}(?:{{OBJECT_START}}|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data){{E}}|[ \\t]*[.!?,;:])"
         check: englishContextualCompounds
         message: review_msg_set_up
-        cue: ["setup"]
         let:
           stop: group(m, "target")[1]
         when: target === target.toLowerCase()
@@ -16046,18 +15791,6 @@ rules:
       - regex: "(?:(?<!(?:^|[.!?][\"”’)]?[ \\t]{1,8}|\\n))(?:{{SLOTCONFUSIONS_MODAL}})|please|{{NEGATION}}|who|let{{S}}(?:me|us|them|him|her)|(?:I|we|they|you)|(?:can|could|will|would|should|do|does|did|can['’]t|won['’]t|don['’]t|doesn['’]t|didn['’]t|wouldn['’]t|couldn['’]t){{S}}(?:{{SUBJECT}})|(?:{{INFINITIVE_LEAD}}){{S}}to|(?:{{INFINITIVE_LEAD}}){{S}}(?:[\\p{L}'’]+{{S}}){1,2}to){{S}}(?<target>shutdown|backup|cleanup|signup|pickup|lookup|checkout|rollout|logout)(?={{S}}(?:{{OBJECT_START}}|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data){{E}}|[ \\t]*[.!?,;:])"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue:
-          [
-            "shutdown",
-            "backup",
-            "cleanup",
-            "signup",
-            "pickup",
-            "lookup",
-            "checkout",
-            "rollout",
-            "logout",
-          ]
         let:
           stop: group(m, "target")[1]
         when: target === target.toLowerCase()
@@ -16065,20 +15798,6 @@ rules:
       - regex: "(?:he|she|it|who){{S}}(?:(?:also|just|always|usually|never|often|rarely){{S}})?(?<target>setups|shutdowns|backups|cleanups|signups|pickups|lookups|checkouts|rollouts|logins|logouts)(?={{S}}(?:{{OBJECT_START}}|again|with|to|before|after|using|here|there|now|first|via|through|every|daily|into|from|by|on|at|in|without|automatically|successfully|early|late|today|tomorrow|once|twice|files?|data){{E}}|[ \\t]*[.!?,;:])"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue:
-          [
-            "setups",
-            "shutdowns",
-            "backups",
-            "cleanups",
-            "signups",
-            "pickups",
-            "lookups",
-            "checkouts",
-            "rollouts",
-            "logins",
-            "logouts",
-          ]
         let:
           stop: group(m, "target")[1]
         when: target === target.toLowerCase()
@@ -16807,7 +16526,6 @@ rules:
     frames:
       # "take the reigns" is the reins; "the reigns of these kings" are reigns.
       - regex: "(?:take|takes|took|taking|taken|grab|grabbed|hand{{S}}over|handed{{S}}over|hold|holding|held){{S}}the{{S}}(?<target>reigns){{E}}(?!{{S}}of{{S}}(?:these|those|the{{S}}(?:kings?|queens?|emperors?|monarchs?|pharaohs?)|kings?|queens?|emperors?|monarchs?))"
-        cue: ["reigns"]
         fix: "reins"
       # "I want to know id you'll be there": if.
       - regex: "(?:know|ask|asked|wonder|wondering|see|check|determine|tell|sure|whether){{S}}(?<target>id){{S}}(?:you|you['’]ll|you['’]re|I|we|they|he|she|it|the|there|this|that|anyone){{E}}"
@@ -16826,12 +16544,10 @@ rules:
       - regex: "(?<target>whose){{S}}(?:the|a|an|at|in|on|going|coming|there|here|this|that|ready|next|calling|responsible|available|your|my|our|his|her|in{{S}}charge){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["whose"]
         return: >-
           enAfterBreak(ctx, m.index) ? "who's" : null
       # "Hell be there": he'll.
       - regex: "(?<target>hell){{S}}be{{S}}(?:there|here|back|fine|ok|okay|home|late|able|happy|glad|right|ready|soon|in{{S}}touch){{E}}"
-        cue: ["hell"]
         return: >-
           enAfterBreak(ctx, m.index) || /^(?:and|but|so|then)$/.test(enWordBefore(ctx, m.index)) ? "he'll" : null
       # "Th water is hot": the.
@@ -16854,11 +16570,9 @@ rules:
         return: 'EN_FUNCTION_WORDS.has(lead.toLowerCase()) ? null : "has"'
       # "A lot of vary happy people": very.
       - regex: "(?:a|an|the|of|is|are|was|were|be|so|not){{S}}(?<target>vary){{S}}(?<adj>[a-z]+){{E}}"
-        cue: ["vary"]
         return: 'englishWordInfo(adj.toLowerCase())?.adjective ? "very" : null'
       # "The heart sill pumped", "I'm sill looking": still.
       - regex: "(?:I['’]m|am|is|are|was|were|I|we|you|they|he|she|it|heart){{S}}(?<target>sill){{S}}(?<next>[a-z]+){{E}}"
-        cue: ["sill"]
         let:
           info: englishWordInfo(next)
         return: >-
@@ -16870,7 +16584,6 @@ rules:
       - regex: "(?<target>too){{S}}(?:[0-9]+(?:['’]s)?|(?:two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred)(?:-[a-z]+)?{{S}}[a-z]+s){{E}}"
         check: englishToToo
         message: review_msg_to_too
-        cue: ["too"]
         # "It's too 1990's for me": a decade as a predicate.
         return: >-
           /^(?:me|you|us|them|him|her|it|is|was|it['’]s|that['’]s|so|be)$/.test(enWordBefore(ctx, m.index)) ? null : "to"
@@ -16897,7 +16610,6 @@ rules:
       # "How is your teacher like?": what … like.
       - regex: "(?<target>how){{S}}(?:is|was|are|were|['’]s){{S}}[^.!?\\n]{1,40}?{{S}}like(?=[ \\t\\u00a0]*\\?)"
         message: review_msg_contextual_grammar
-        cue: ["like"]
         return: 'enAfterBreak(ctx, m.index) ? "what" : null'
       # "Cold her father hear him?", "This cold be true": could.
       - regex: "(?:(?<![\\p{L}'’])(?:this|that|it|he|she|I|you|we|they){{S}}(?<target>cold){{S}}(?:be|have|not|never|you|I|we|they|he|she|it)|(?<target2>cold){{S}}(?:I|you|we|they|he|she|it|her|his|my|your|the){{S}}(?:[a-z]+{{S}}){0,2}?(?:be|have|hear|see|help|do|get|go|come|make|take|give|tell|find|ask|try){{S}}[^.!?\\n]{0,40}\\?)"
@@ -16917,11 +16629,9 @@ rules:
       # "She is one the most talented": one of the.
       - regex: "(?<target>one{{S}}the){{S}}(?:most|least|best|worst|[a-z]+est){{E}}"
         message: review_msg_contextual_grammar
-        cue: ["one"]
         fix: "one of the"
       # "Them it became clear", "Than it became clear": then.
       - regex: "(?<target>them|than){{S}}(?:it|I|we|they|he|she|you){{S}}(?<verb>[a-z]+){{E}}"
-        cue: ["them", "than"]
         let:
           info: englishWordInfo(verb)
         when: "enAfterBreak(ctx, m.index) && target[0] === target[0].toUpperCase()"
@@ -16932,25 +16642,20 @@ rules:
         fix: "it"
       # "the opening seen of the play": scene.
       - regex: "(?:opening|final|closing|last|first|crime|love|fight|death|deleted|famous|sex|chase){{S}}(?<target>seen)(?={{S}}(?:of|in|was|is|where|from){{E}}|[ \\t\\u00a0]*[.!?,])"
-        cue: ["seen"]
         fix: "scene"
       # "fully complaint with the rules": compliant.
       - regex: "(?:is|are|be|being|been|fully|not|was|were|remain|remains|stay|stays|fully){{S}}(?<target>complaint){{S}}with{{E}}"
-        cue: ["complaint"]
         fix: "compliant"
       # "a link withe the info": with.
       - regex: "(?<target>withe){{S}}(?:the|my|a|an|your|our|their|his|her|this|that|these|those|me|him|us|them|it){{E}}"
-        cue: ["withe"]
         fix: "with"
       # "We can hangout": the verb is two words.
       - regex: "(?:can|will|to|we|they|you|I|let['’]s|could|should|would|wanna|gonna|often|usually|always){{S}}(?<target>hangout){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["hangout"]
         fix: "hang out"
       # "Please contract me": contact.
       - regex: "(?:please|to|can|will|could|should|don['’]t|do{{S}}not|feel{{S}}free{{S}}to){{S}}(?<target>contract){{S}}(?:me|us|him|her|them|you){{E}}"
-        cue: ["contract"]
         fix: "contact"
       # "I go in to the garden": into.
       - regex: "(?:go|goes|went|going|walk|walked|walks|walking|run|ran|runs|running|jump|jumped|jumps|fall|fell|falls|move|moved|moves|break|broke|get|got|gets|crash|crashed|bump|bumped){{S}}(?<target>in{{S}}to){{S}}(?:the|a|an|my|your|his|her|our|their){{S}}[a-z]+{{E}}(?!{{S}}(?:to|and){{E}})"
@@ -16974,11 +16679,9 @@ rules:
     frames:
       # "Of cause, I will be there": of course (not "the law of cause and effect").
       - regex: "(?<target>of{{S}}cause)(?=[ \\t\\u00a0]*[,!.]|{{S}}(?:I|we|you|it|not|they|he|she){{E}})"
-        cue: ["cause"]
         fix: "of course"
       # "a rally good idea", "It rally hurts": really.
       - regex: "(?<target>rally){{S}}(?<next>[a-z]+){{E}}"
-        cue: ["rally"]
         let:
           info: enReadWord(next)
           # "The rally drew a crowd": after a determiner the noun is meant.
@@ -16995,11 +16698,9 @@ rules:
         return: 'target.toLowerCase() === "tents" ? "tends" : "tend"'
       # "That sounds god", "as god as me": good.
       - regex: "(?:sounds|sound|looks|look|feels|feel|seems|seem|very|so|as|pretty|really|quite|too){{S}}(?<target>god)(?=[ \\t\\u00a0]*[,.!]|{{S}}(?:thanks|as|to|idea|job|luck|enough){{E}})"
-        cue: ["god"]
         fix: "good"
       # "I'm tankful for your help": thankful.
       - regex: "(?:I['’]m|am|are|is|was|were|be|so|very|really|truly|we['’]re|feel){{S}}(?<target>tankful){{E}}"
-        cue: ["tankful"]
         fix: "thankful"
       # "Can you check this, pleas?", "could pleas check": please.
       - regex: "(?:(?<=,{{S}})(?<target>pleas)(?=[ \\t\\u00a0]*[?.!])|(?:could|would|can|will){{S}}(?:you{{S}})?(?<target2>pleas){{S}}(?:check|help|send|let|tell|confirm|look|review|advise|call){{E}})"
@@ -17007,7 +16708,6 @@ rules:
         fix: "please"
       # "It sees that he is unhappy": seems.
       - regex: "(?:it|this|that){{S}}(?<target>sees){{S}}(?:that|to{{S}}me|like|as{{S}}if|as{{S}}though){{E}}"
-        cue: ["sees"]
         fix: "seems"
       # "Any help would me appreciated": be.
       - regex: "(?:would|will|could|might|may|should|must|to){{S}}(?<target>me){{S}}(?:interested|appreciated|able|happy|glad|available|helpful|useful|great|nice|fine|possible|grateful|ready|done){{E}}"
@@ -17015,23 +16715,18 @@ rules:
         fix: "be"
       # "Her you go!", "Her you can see it": here.
       - regex: "(?<target>her){{S}}(?:you|we|is|are|it){{S}}(?:go|can|is|are|will|have|see){{E}}"
-        cue: ["her"]
         return: 'enAfterBreak(ctx, m.index) ? "here" : null'
       # "a really cheep car": cheap.
       - regex: "(?:really|very|so|too|pretty|quite|super|a|is|was){{S}}(?<target>cheep)(?={{S}}[a-z]+{{E}}|[ \\t\\u00a0]*[.!,])"
-        cue: ["cheep"]
         fix: "cheap"
       # "a whit horse": white.
       - regex: "(?:a|the|of|lot{{S}}of){{S}}(?<target>whit){{S}}(?<noun>[a-z]+){{E}}"
-        cue: ["whit"]
         return: 'noun !== "of" && enNounOnly(noun) ? "white" : null'
       # "I asses the work": assess.
       - regex: "(?:I|we|you|they|to|didn['’]t|don['’]t|will|can|should|must|please){{S}}(?<target>asses){{S}}{{NEIGHBOURSLOTS_OBJECT}}{{E}}"
-        cue: ["asses"]
         fix: "assess"
       # "I well help you": will.
       - regex: "(?<![\\p{L}'’])(?:I|we|you|they|he|she|it){{S}}(?<target>well){{S}}(?:help|be|do|go|come|see|call|send|try|make|get|take|let|check|look|need|have){{E}}"
-        cue: ["well"]
         return: '/^as$/.test(enWordBefore(ctx, m.index)) ? null : "will"'
       # "I'm looking tor the exit": for.
       - regex: "(?:looking|look|wait|waiting|search|searching|thanks|thank{{S}}you|ask|asking|apply|applied){{S}}(?<target>tor){{S}}{{DET}}{{E}}"
@@ -17048,7 +16743,6 @@ rules:
         return: '!/^ha/i.test(lead) || adj || (word && typoVerbForm(word, "ing")) ? "two" : null'
       # "Apple shout not require it": should.
       - regex: "(?:I|we|you|they|he|she|it|[a-z]{2,}){{S}}(?<target>shout){{S}}(?:not|be|have|require|do|consider|try|make|use|know){{E}}"
-        cue: ["shout"]
         fix: "should"
       # "Yes, we cab.", "Cab you confirm?": can.
       - regex: "(?:(?<![\\p{L}'’])(?:I|we|you|they){{S}}(?<target>cab)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:not|do|be|see|help|go){{E}})|(?<target2>cab){{S}}(?:you|I|we|they){{S}}[a-z]+)"
@@ -17056,15 +16750,12 @@ rules:
         return: 'target || enAfterBreak(ctx, m.index) ? "can" : null'
       # "I have sen you a message", "I can't sen it": sent/send.
       - regex: "(?<lead>have|has|had|can|can['’]t|will|to|please|could|would){{S}}(?<target>sen){{S}}(?:you|him|her|them|us|me|it|{{DET}}){{E}}"
-        cue: ["sen"]
         return: '/^ha/i.test(lead) ? "sent" : "send"'
       # "She posses a car", "will posses": possess.
       - regex: "(?<lead>will|to|must|should|does|do|I|we|they|he|she|it){{S}}(?<target>posses){{S}}(?:a|an|the|one|some|many|great|good|strong|excellent|{{DET}}){{E}}"
-        cue: ["posses"]
         return: '/^(?:he|she|it)$/i.test(lead) ? "possesses" : "possess"'
       # "Call me wen you are ready": when.
       - regex: "(?<target>wen){{S}}(?:you|I|we|they|he|she|it|the){{S}}[a-z]+{{E}}"
-        cue: ["wen"]
         fix: "when"
       # "Would yo do it?", "What do yo think?": you.
       - regex: "(?:would|could|do|did|can|will|are|have|thank|should|if|when){{S}}(?<target>yo){{S}}(?<verb>[a-z]+){{E}}"
@@ -17088,7 +16779,6 @@ rules:
       # "I am all ready doing it": already.
       - regex: "(?<target>all{{S}}ready){{S}}(?<next>[a-z]+){{E}}"
         message: review_msg_contextual_grammar
-        cue: ["ready"]
         return: 'typoVerbForm(next, "ing") && !enReadWord(next)?.noun ? "already" : null'
       # "Shell we dance?", "We shell overcome": shall.
       - regex: "(?:(?<target>shell){{S}}(?:we|I){{S}}[a-z]+|(?<![\\p{L}'’])(?:we|I){{S}}(?<target2>shell){{S}}(?<verb>[a-z]+)){{E}}"
@@ -17098,13 +16788,11 @@ rules:
       - regex: "(?:can|could|will|would|might|may|to|don['’]t|didn['’]t|not|never){{S}}(?<target>loose){{S}}(?:a|so|all|the|my|your|our|their|his|her|money|time|weight|it|them|everything|interest|track|sight|hope|control){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["loose"]
         fix: "lose"
       # "My tooth got knocked lose": loose.
       - regex: "(?:knocked|came|come|comes|break|broke|broken|cut|set|let|run|ran|got|get|hang|hanging|is|was|are|were){{S}}(?<target>lose)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:from|and|again|now){{E}})"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["lose"]
         fix: "loose"
       # "Do not chance these settings": change.
       - regex: "(?:do{{S}}not|don['’]t|please|to|can|will|should|must|never|always|he|she|it|we|you|they|I){{S}}(?<target>chances?){{S}}(?:the|these|this|that|those|my|your|its|his|her|our|their|settings|colors|colours){{E}}"
@@ -17112,17 +16800,14 @@ rules:
         return: 'target.toLowerCase() === "chances" ? "changes" : "change"'
       # "She breaths fresh air": breathes.
       - regex: "(?:he|she|it|who|[a-z]{2,}){{S}}(?<target>breaths){{S}}(?:in|out|fresh|deeply|heavily|slowly|the|air){{E}}"
-        cue: ["breaths"]
         fix: "breathes"
       # "Last Sunday I whore a dress": wore.
       - regex: "(?<![\\p{L}'’])(?:I|he|she|we|they|you|[a-z]{2,}){{S}}(?<target>whore){{S}}(?:a|an|the|my|his|her|their|our|your|black|white|red|blue|green|jeans|shoes|glasses){{E}}"
-        cue: ["whore"]
         fix: "wore"
       # "Please except my apologies": accept.
       - regex: "(?:please|kindly|I|we|to|will|would|can|could){{S}}(?<target>except){{S}}(?:my|our|this|the|your|an|his|her){{S}}(?:sincere{{S}}|deepest{{S}}|humble{{S}})?(?:apology|apologies|offer|invitation|condolences|thanks|gratitude|resignation|terms|challenge|proposal){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["except"]
         fix: "accept"
       # "I was asked buy a friend": by after a passive participle.
       - regex: "(?:asked|requested|written|made|built|sent|given|owned|caused|done|created|signed|approved|called|founded|designed|developed|reviewed|painted|published){{S}}(?<target>buy){{S}}(?:one|the|my|a|an|his|her|their|our|your|someone|them|him|me|us|[a-z]{2,}){{E}}"
@@ -17142,14 +16827,11 @@ rules:
         return: 'enAfterBreak(ctx, m.index) ? "all" : null'
       # "Such an exiting experience": exciting.
       - regex: "(?:an|so|very|really|such{{S}}an|most|more|quite|pretty|super){{S}}(?<target>exiting)(?={{S}}(?:experience|news|time|times|day|opportunity|game|trip|event|project|year|week){{E}}|[ \\t\\u00a0]*[!.])"
-        cue: ["exiting"]
         fix: "exciting"
       - regex: "(?:so|is|are|was|were|very|really|you['’]re|it['’]s|that['’]s|truly|absolutely){{S}}(?<target>amassing)(?=[ \\t\\u00a0]*[!.,])"
-        cue: ["amassing"]
         fix: "amazing"
       # "Have you read my replay?": reply.
       - regex: "(?:read|reading|received|got|get|send|sent|await|awaiting|for|thanks{{S}}for){{S}}(?:my|your|his|her|their|our|a|the){{S}}(?:(?:quick|fast|prompt|kind){{S}})?(?<target>replay){{E}}"
-        cue: ["replay"]
         fix: "reply"
       # "It doesn't see to happen": seem.
       - regex: "(?:doesn['’]t|don['’]t|didn['’]t|does{{S}}not|do{{S}}not|can['’]t|cannot){{S}}(?<target>see){{S}}to{{S}}(?:me|be|have|happen|work|get|make|find|matter|help){{E}}"
@@ -17157,21 +16839,17 @@ rules:
         fix: "seem"
       # "has been adder": added.
       - regex: "(?:been|have|has|had|was|were|is|are){{S}}(?<target>adder){{E}}"
-        cue: ["adder"]
         fix: "added"
       # "The president signed the degree": decree.
       - regex: "(?:signed|sign|signs|issued|issue|royal|presidential|executive|imperial){{S}}(?:the{{S}}|a{{S}})?(?<target>degree){{E}}(?!{{S}}(?:in|of|from){{E}})"
-        cue: ["degree"]
         fix: "decree"
       # "The format sometimes various depending on…": varies.
       - regex: "(?:sometimes|often|also|it|this|that|price|format|which|greatly){{S}}(?<target>various){{S}}(?:depending|by|from|between|with|widely|greatly|a{{S}}lot){{E}}"
-        cue: ["various"]
         fix: "varies"
       # "to farther her career": further.
       - regex: "to{{S}}(?<target>farther){{S}}(?:my|your|his|her|their|our|the){{S}}(?:career|education|cause|goals?|interests?|research|studies|development|knowledge|understanding){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["farther"]
         fix: "further"
       # "I want to say you the truth": tell.
       - regex: "(?:to|will|can|let{{S}}me|I['’]ll|must|should){{S}}(?<target>say){{S}}(?:you|him|her|them|me|us){{S}}(?:the{{S}}truth|a{{S}}secret|something|everything|nothing|a{{S}}story|about){{E}}"
@@ -17181,7 +16859,6 @@ rules:
         fix: "tell"
       # "He is wining the championship": winning (not "wining and dining").
       - regex: "(?:is|are|was|were|been|be|keep|kept|up|after|for|the|a|start|started){{S}}(?<target>wining){{E}}(?!{{S}}and{{S}}dining)"
-        cue: ["wining"]
         fix: "winning"
       # "I wondered whet the problem was", "Whet a pity!": what.
       - regex: "(?:(?:wondered|wonder|know|ask|asked|see|tell|understand){{S}}(?<target>whet){{S}}(?:the|a|is|was|you|I|we|they|it|this)|(?<target2>whet){{S}}(?:a|an){{S}}[a-z]+[ \\t\\u00a0]*!)"
@@ -17191,7 +16868,6 @@ rules:
       - regex: "the{{S}}(?<target>worse){{S}}(?:possible|case|thing|part|day|idea|outcome|mistake|of{{S}}(?:all|them|the)){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["worse"]
         fix: "worst"
       # "I'd like to know hwy this fails": why.
       - regex: "(?:(?:know|wonder|ask|see|tell|me|understand|that['’]s|and|but|so){{S}}(?<target>hwy){{S}}(?:this|the|it|you|I|we|they|he|she|is|are|do|does|did|not)|(?<target2>Hwy){{S}}(?:are|is|do|does|did|would|can|not){{S}}[a-z]+){{E}}"
@@ -17199,7 +16875,6 @@ rules:
         return: 'target || enAfterBreak(ctx, m.index) ? "why" : null'
       # "Please don't overdue it": overdo.
       - regex: "(?:don['’]t|do{{S}}not|not|never|might|may|could|will|would|to|easy{{S}}to){{S}}(?<target>overdue){{S}}it{{E}}"
-        cue: ["overdue"]
         fix: "overdo"
       # "Is this what you art looking for?", "What art you…": are (not "art thou").
       - regex: "(?:(?<![\\p{L}'’])(?:you|we|they){{S}}(?<target>art){{S}}(?<verb>[a-z]+ing)|(?:what|where|how|why|who){{S}}(?<target2>art){{S}}(?:you|we|they)){{E}}"
@@ -17228,41 +16903,32 @@ rules:
         fix: "is"
       # "It was really had to do": hard.
       - regex: "(?:is|was|be|been|it['’]s|isn['’]t|wasn['’]t){{S}}(?:(?:really|very|so|too|quite|pretty|not){{S}})?(?<target>had){{S}}to{{S}}(?<verb>[a-z]+){{E}}"
-        cue: ["had"]
         return: 'typoVerbForm(verb, "base") ? "hard" : null'
       # "as they are want to do": wont.
       - regex: "(?:is|are|was|were|am){{S}}(?<target>want){{S}}to{{S}}(?:do|say|be|go){{E}}"
-        cue: ["want"]
         fix: "wont"
       # "He is always by passing the meeting": bypassing.
       - regex: "(?:is|are|was|were|am|not|always){{S}}(?<target>by{{S}}passing){{E}}"
-        cue: ["passing"]
         fix: "bypassing"
       # "almost ell editors": all.
       - regex: "(?:almost|with|of|for|at|in|and|to){{S}}(?<target>ell){{S}}(?<next>[a-z]+){{E}}"
-        cue: ["ell"]
         return: 'enNounOnly(next) === "plural" || typoAdjective(next) ? "all" : null'
       # "Their elicit behavior": illicit.
       - regex: "(?:the|their|his|her|an|of|in|its|our|for){{S}}(?<target>elicit){{S}}(?<noun>[a-z]+){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["elicit"]
         return: 'enNounOnly(noun) || enReadWord(noun)?.noun ? "illicit" : null'
       # "It's also wort checking": worth.
       - regex: "(?<target>wort){{S}}(?:to|it|reading|checking|the|a|noting|mentioning|considering|trying|watching|every){{E}}"
-        cue: ["wort"]
         fix: "worth"
       # "The princes was beautiful": princess.
       - regex: "(?:the|a){{S}}(?<target>princes){{S}}(?:is|was|has){{E}}"
-        cue: ["princes"]
         fix: "princess"
       # "Is it lager than…": larger.
       - regex: "(?<target>lager){{S}}than{{E}}"
-        cue: ["lager"]
         fix: "larger"
       # "Can you look at thus?": this.
       - regex: "(?:at|about|with|on|for){{S}}(?<target>thus)(?=[ \\t\\u00a0]*[?.!])"
-        cue: ["thus"]
         fix: "this"
   - id: en.prepositionSlots
     checks: [englishFixedPrepositions, englishContextualCompounds]
@@ -17278,55 +16944,44 @@ rules:
         cue: ["suffering", "suffer", "suffers", "suffered"]
         fix: "from"
       - regex: "(?:am|is|are|was|were|be|been|feel|felt|very|so|too|getting){{S}}anxious{{S}}(?<target>of){{E}}"
-        cue: ["anxious"]
         fix: ["about", "for"]
       - regex: "(?:accuse|accused|accuses|accusing){{S}}(?:{{PRONOUN}}|the{{S}}[a-z]+|[a-z]{2,}){{S}}(?<target>for){{S}}(?<verb>[a-z]+){{E}}"
         cue: ["accused", "accuse", "accuses", "accusing"]
         when: prepositionIng(verb)
         return: '"of"'
       - regex: "addiction{{S}}(?<target>of){{S}}(?<noun>drugs|alcohol|gambling|nicotine|cocaine|heroin|opioids|sugar|caffeine|social{{S}}media|video{{S}}games|smoking|food){{E}}"
-        cue: ["addiction"]
         fix: "to"
       - regex: "(?:participate|participates|participated|participating){{S}}(?<target>to){{S}}(?!(?:be|see|make|help|do|get|win){{E}})"
-        cue: ["participate", "participates", "participated", "participating"]
         fix: "in"
       - regex: "(?:cause|causes|caused|causing|do|does|did|doing|serious|severe|lasting|permanent){{S}}damage{{S}}(?<target>of){{E}}"
-        cue: ["damage"]
         fix: "to"
       - regex: "(?:different|new|fresh|unique|personal|his|her|their|my|our|your){{S}}perspectives?{{S}}(?<target>about){{E}}"
         cue: ["perspective", "perspectives"]
         fix: "on"
       - regex: "(?:near|closer){{S}}(?<target>from){{E}}"
-        cue: ["near", "closer"]
         fix: "to"
       - regex: "(?:complain|complained|complains|complaining){{S}}(?<target>for){{S}}(?:the|my|your|his|her|our|their|this|that){{E}}(?!{{S}}(?:whole|entire|next|past|last|first|rest){{E}})"
-        cue: ["complain", "complained", "complains", "complaining"]
         fix: "about"
       - regex: "(?:cure|cured|cures|curing){{S}}(?:{{PRONOUN}}|the{{S}}patient|patients|people){{S}}(?<target>from){{E}}"
         cue: ["cure", "cured", "cures"]
         fix: "of"
       - regex: "(?:divide|divided|divides|dividing){{S}}(?:{{PRONOUN}}|the{{S}}[a-z]+){{S}}(?<target>in){{S}}(?:two|three|four|five|six|eight|ten|parts|pieces|groups|sections|halves|equal){{E}}"
-        cue: ["divide", "divided", "divides", "dividing"]
         fix: "into"
       - regex: "(?:boast|boasted|boasts|boasting){{S}}(?<target>for){{S}}(?:his|her|their|my|our|your|the|its){{E}}"
         cue: ["boasted", "boast", "boasts", "boasting"]
         fix: ["about", "of"]
       # "Please ask to the user to…": ask takes its object directly.
       - regex: "(?<target>ask{{S}}to){{S}}(?:the|all|our|your|my|his|her|their|every|each){{S}}(?!(?:dance|prom|party|ball|wedding|movies|cinema){{E}})[a-z]+{{E}}"
-        cue: ["ask"]
         fix: "ask"
       # "By example, …", "On fact, …" at a clause start.
       - regex: "(?<target>by{{S}}example|on{{S}}fact)(?=[ \\t\\u00a0]*,)"
-        cue: ["example", "fact"]
         when: enAfterBreak(ctx, m.index)
         return: '/example/i.test(target) ? "for example" : "in fact"'
       # "their departure of New York": from a place.
       - regex: "departure{{S}}(?<target>of){{S}}(?<place>[a-z]{2,})"
-        cue: ["departure"]
         return: 'PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place) ? null : "from"'
       # "entering in the room": enter takes the room directly.
       - regex: "(?:enter|enters|entered|entering){{S}}(?<target>in{{S}})(?=(?:the|a|my|his|her|our|their){{S}}(?:room|house|building|office|class|classroom|kitchen|car|shop|store|church|hall|hospital|bank|restaurant){{E}})"
-        cue: ["enter", "enters", "entered", "entering"]
         fix: ""
       # "Judy came in the house": into.
       - regex: "(?:came|come|comes|walked|walks|ran|runs|went|goes){{S}}(?<target>in){{S}}the{{S}}(?:house|room|office|kitchen|building|shop|store|church|classroom|bedroom|bathroom|hall){{E}}"
@@ -17334,25 +16989,19 @@ rules:
         fix: "into"
       # "arrived on the beach": at a point.
       - regex: "(?:arrive|arrived|arrives|arriving){{S}}(?<target>on){{S}}the{{S}}(?:beach|station|airport|hotel|office|party|museum|school|island){{E}}"
-        cue: ["arrive", "arrived", "arrives", "arriving"]
         fix: "at"
       # "arrive at the city": in a city or country.
       - regex: "(?:arrive|arrived|arrives|arriving|arrival){{S}}(?<target>at|to){{S}}the{{S}}(?:city|country|town){{E}}"
-        cue: ["arrive", "arrived", "arrives", "arriving", "arrival"]
         fix: "in"
       - regex: "arrival{{S}}(?<target>to){{S}}the{{S}}(?:house|airport|station|hotel|office|party|scene|school){{E}}"
-        cue: ["arrival"]
         fix: "at"
       # "Who is in charge for this shop?": of (not "in charge for only three days").
       - regex: "in{{S}}charge{{S}}(?<target>for){{S}}(?:this|the|that|these|those|our|my|your|his|her|their){{E}}(?!{{S}}(?:next|first|last|past|whole|rest){{E}})"
-        cue: ["charge"]
         fix: "of"
       # "Studying grammar is difficult to me": for.
       - regex: "(?:is|was|are|were|be|it['’]s|very|so|too|quite){{S}}(?:difficult|hard|easy|impossible){{S}}(?<target>to){{S}}(?:me|him|her|us|them)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:to|because|since|now){{E}})"
-        cue: ["difficult", "hard", "easy", "impossible"]
         fix: "for"
       - regex: "(?:is|are|was|were|be|very|so){{S}}important{{S}}(?<target>with){{S}}(?:you|me|him|her|us|them){{E}}"
-        cue: ["important"]
         fix: "to"
       # "I am waiting after her": for.
       - regex: "(?:waiting|wait|waited|waits){{S}}(?<target>after){{S}}(?:him|her|them|me|us|you){{E}}"
@@ -17360,22 +17009,18 @@ rules:
         fix: "for"
       # "Anne is waiting her patient": waiting for.
       - regex: "(?:am|is|are|was|were|be|been){{S}}(?<target>waiting){{S}}(?:her|his|my|your|their|our){{S}}(?<noun>[a-z]+){{E}}"
-        cue: ["waiting"]
         return: 'enNounOnly(noun) || englishWordInfo(noun)?.noun ? "waiting for" : null'
       - regex: "contributions?{{S}}(?<target>on){{S}}(?!behalf{{E}})"
         cue: ["contribution", "contributions"]
         fix: "to"
       - regex: "analysis{{S}}(?<target>about){{E}}"
-        cue: ["analysis"]
         fix: "of"
       # "Prior leaving, he…": prior to.
       - regex: "(?<target>prior){{S}}(?<verb>[a-z]+ing){{E}}"
-        cue: ["prior"]
         when: prepositionIng(verb)
         return: '"prior to"'
       # "knocked the door": on.
       - regex: "(?<target>knock|knocks|knocked|knocking){{S}}(?:the|his|her|their|my|our|your){{S}}(?:door|window|wall|gate){{E}}(?!{{S}}(?:down|open|off|over|in|out){{E}})"
-        cue: ["knock", "knocks", "knocked", "knocking"]
         return: "`${target} on`"
       # "Land reclamation is in the internet": on.
       - regex: "(?<target>in){{S}}(?:the{{S}})?(?:internet|Wikipedia|web){{E}}(?!{{S}}(?:age|era|world|of|industry|access|connection|cafe){{E}})"
@@ -17383,7 +17028,6 @@ rules:
         fix: "on"
       # "located on 11056 Main Street": at an address.
       - regex: "located{{S}}(?<target>on|in){{S}}[0-9]+{{S}}(?<street>[A-Za-z]+)"
-        cue: ["located"]
         return: '/^[A-Z]/.test(street) ? "at" : null'
       # "She comes in car", "I came to plane": by.
       - regex: "(?:come|comes|came|go|goes|went|travel|travels|traveled|travelled|arrive|arrives|arrived|work|get|got)(?:{{S}}to{{S}}work)?{{S}}(?<target>in|to|with){{S}}(?:car|plane|train|bus|taxi|bike|boat|ship|subway)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:to|every|each|today|tomorrow|yesterday|and){{E}})"
@@ -17391,11 +17035,9 @@ rules:
         fix: "by"
       # "I was on a meeting": in.
       - regex: "(?:am|is|are|was|were|be|been|['’]m|['’]re){{S}}(?<target>on){{S}}a{{S}}meeting{{E}}"
-        cue: ["meeting"]
         fix: "in"
       # "I met her in a party": at.
       - regex: "(?:met|meet|saw|see|danced|was|were|be|been|drunk){{S}}(?:(?:her|him|them|you|us){{S}})?(?<target>in){{S}}a{{S}}party{{E}}(?!{{S}}of{{E}})"
-        cue: ["party"]
         fix: "at"
       # "I like to do soccer", "to do a meeting": after "to" or as -ing (fixedFrames owns
       # "I do soccer", "we did a meeting" after a subject).
@@ -17413,7 +17055,6 @@ rules:
           ]
         return: 'target ? "play" : "playing"'
       - regex: "(?:to{{S}}(?<target>do|make)|(?:like|love|enjoy|hate|about|for|by){{S}}(?<target2>doing|making)){{S}}a{{S}}(?<what>meeting|party){{E}}(?!{{S}}(?:list|lists|planner|hat|hats|favou?rs?|room|game|games|bus|line|leader|members?|notes|minutes|agenda|invite|invites|invitation){{E}})"
-        cue: ["meeting", "party"]
         let:
           party: what.toLowerCase() === "party"
         return: 'target ? (party ? "throw" : "have") : party ? "throwing" : "having"'
@@ -17431,18 +17072,15 @@ rules:
         fix: "in"
       # "You can apply to welfare": for a benefit; "apply for another university": to a school.
       - regex: "(?:apply|applied|applies|applying){{S}}(?<target>to){{S}}(?:welfare|benefits|a{{S}}grant|a{{S}}loan|a{{S}}visa|a{{S}}scholarship|a{{S}}mortgage){{E}}"
-        cue: ["apply", "applied", "applies", "applying"]
         fix: "for"
       - regex: "(?:apply|applied|applies|applying){{S}}(?<target>for){{S}}(?:another|a|the|this|that|my|your){{S}}(?:university|college|school){{E}}"
         cue: ["apply", "applied", "applies", "applying"]
         fix: "to"
       # "I eat in my desk": at.
       - regex: "(?:eat|eats|ate|eating|sit|sits|sat|sitting|work|works|worked|working){{S}}(?<target>in){{S}}(?:my|his|her|your|our|their|the){{S}}desk{{E}}"
-        cue: ["desk"]
         fix: "at"
       # "living in a small island": on.
       - regex: "(?:live|lives|lived|living|located|stranded|born|is|are){{S}}(?<target>in){{S}}(?:a|an|the){{S}}(?:(?:small|tiny|remote|deserted|big|large|beautiful|tropical){{S}})?island{{E}}"
-        cue: ["island"]
         fix: "on"
       # "live in the planet Earth": on.
       - regex: "(?:live|lives|lived|living|life|exist|exists){{S}}(?<target>in){{S}}(?:the{{S}}planet|planet{{S}}earth|earth){{E}}"
@@ -17450,11 +17088,9 @@ rules:
         fix: "on"
       # "There is no big difference about the week and the weekend": between.
       - regex: "difference{{S}}(?<target>about){{S}}[^.!?,;\\n]{1,40}{{S}}and{{S}}"
-        cue: ["difference"]
         fix: "between"
       # "Listen to that in the album": on.
       - regex: "(?:song|songs|track|tracks|that|it|this){{S}}(?<target>in){{S}}(?:the|this|that|his|her|their|my){{S}}album{{E}}(?!['’])"
-        cue: ["album"]
         fix: "on"
       # "the bus that brought them in the airport": to.
       - regex: "(?:brought|took|drove|carried){{S}}(?:them|him|her|us|me|you){{S}}(?<target>in){{S}}the{{S}}(?:airport|station|hospital|hotel|office|city){{E}}"
@@ -17470,11 +17106,9 @@ rules:
         return: 'place && (PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place)) ? null : "to"'
       # "a trip in New York": to.
       - regex: "(?:a|the|our|my|his|her|their|on{{S}}a){{S}}trip{{S}}(?<target>in){{S}}(?<place>[a-z]{2,})"
-        cue: ["trip"]
         return: 'PREPOSITION_MONTHS.test(place) || !/^[A-Z]/.test(place) ? null : "to"'
       # "an exception of the rule": to.
       - regex: "(?:is|was|are|be|been|an){{S}}exception{{S}}(?<target>of){{S}}(?:the|this|that|our|these){{S}}(?:rule|rules|guideline|guidelines|policy|law){{E}}"
-        cue: ["exception"]
         fix: "to"
       # "I have 25 years old": be.
       - regex: "(?<subject>I|he|she|we|they|you){{S}}(?<target>have|has){{S}}[0-9]{1,3}{{S}}years?{{S}}old{{E}}"
@@ -17484,7 +17118,6 @@ rules:
       - regex: "(?<!qua{{S}})(?<target>(?<prefix>non|anti){{S}}(?!(?:new|old|compos|sequitur|grata|stop|existent){{E}})(?<word>[a-z]+)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["non", "anti"]
         let:
           read: englishWordInfo(word)
           nonNoun: prefix.toLowerCase() === "non" && (read?.noun || !!enNounOnly(word))
@@ -17613,7 +17246,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:nobody|no{{S}}one){{S}}(?<verb>[a-z]+)(?:{{S}}(?:me|him|her|us|them|you))?{{S}}(?<target>nothing|nobody|nowhere){{E}}"
         check: englishUsagePhrases
         message: review_msg_double_negative
-        cue: ["nothing", "nobody", "nowhere"]
         let:
           r: enReadWord(verb)
         when: 'r?.verbs.some((v) => v.form === "past" || v.form === "third")'
@@ -17627,7 +17259,6 @@ rules:
       - regex: "(?:(?<lead>met|meet|arrive|arrived|arrives|left|happened|happens|scheduled|planned|due|held|born|died|closed|started|starts|began|begins|ended|ends|opened|opens|work|works|worked|person){{S}})?(?<target>in|at){{S}}(?:(?<near>this|next|last){{S}})?(?<day>Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday){{E}}(?!['’]|{{S}}\\p{L}+['’]s|,)"
         check: englishFixedPrepositions
         message: review_msg_fixed_prepositions
-        cue: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
         return: '/^[A-Z][a-z]/.test(day) && (lead || near || enAfterBreak(ctx, m.index)) ? "on" : null'
       # "since I rebooted it it's fine": a comma between two clauses.
       - regex: "(?:[a-z]+ed){{S}}(?<target>it){{S}}it(?:['’]s|{{S}}(?:is|was|has|will|works|worked|stopped|started|kept)){{E}}"
@@ -17638,13 +17269,11 @@ rules:
       # "I have a bit money": a bit of.
       - regex: "a(?:{{S}}(?:good|little|tiny|small))?{{S}}(?<target>bit){{S}}(?:money|time|help|luck|water|food|sugar|salt|milk|information|advice|work|sleep|rest|space|patience|practice|pressure|experience|knowledge|research|effort|energy|fun|trouble|attention){{E}}"
         check: englishPhraseCorrections
-        cue: ["bit"]
         fix: "bit of"
       # "We left in a harry": hurry (not "a Harry Potter book").
       - regex: "in{{S}}a{{S}}(?<target>harry){{E}}(?!{{S}}potter)"
         check: englishPhraseCorrections
         message: review_msg_typo
-        cue: ["harry"]
         return: 'target === "harry" ? "hurry" : null'
       # "He graduated the university": graduated from.
       - regex: "(?<target>graduated|graduating){{S}}the{{S}}(?:university|college|academy){{E}}"
@@ -17656,7 +17285,6 @@ rules:
       - regex: "(?<target>this){{S}}(?<noun>[a-z]+s){{S}}(?<verb>[a-z]+)(?={{S}}(?:the|a|an|my|his|her|its|our|their|this|that|some|all|[0-9$])|{{S}}(?:made|been|had|done|got|seen){{E}})"
         check: englishNounNumber
         message: review_msg_demonstrative_number
-        cue: ["this"]
         let:
           r: enReadWord(verb)
           pastOnly: '!!r?.verbs.some((v) => v.form === "past") && !r.noun && !r.verbs.some((v) => v.form === "base" || v.form === "third")'
@@ -17668,7 +17296,6 @@ rules:
       - regex: "some{{S}}(?<target>[a-z]+){{S}}(?:are|were|have){{E}}"
         check: englishNounNumber
         message: review_msg_noun_count
-        cue: ["some"]
         let:
           r: enReadWord(target)
           n: enNounNumber(target)
@@ -17684,23 +17311,19 @@ rules:
       - regex: "(?:had|has|have|ve|d){{S}}(?<target>been{{S}}knowing){{E}}"
         check: englishPerfectParticiples
         message: review_msg_perfect_participle
-        cue: ["knowing"]
         fix: "known"
       # "Am I ride?", "I am ride.": right.
       - regex: "(?:am{{S}}I|I{{S}}am|I['’]m|you{{S}}are|you['’]re|are{{S}}you|is{{S}}that|that['’]s){{S}}(?<target>ride)(?=[ \\t\\u00a0]*[?.!,])"
         check: englishPhraseCorrections
         message: review_msg_typo
-        cue: ["ride"]
         fix: "right"
       # "It is a much fast route": a comparative after "much".
       - regex: "(?:a|is|was|are|were|be|it['’]s|that['’]s|feels|looks|seems){{S}}much{{S}}(?<target>fast|slow|big|small|cheap|easy|hard|short|quick|safe|large|nice|strong|young){{E}}"
         check: englishPhraseCorrections
-        cue: ["much"]
         return: CLAUSE_COMPARATIVE[target.toLowerCase()]
       # "He like me", "It like a higher power", "She like pizza": likes / is like.
       - regex: "(?<![\\p{L}'’])(?<who>he|she|it){{S}}(?<target>like){{S}}(?:me|you|him|her|us|them|it|a|an|the|(?<noun>[a-z]+)){{E}}(?!{{S}}(?:has|is|was|does|had|can|will|would|did){{E}})"
         message: review_msg_subject_verb
-        cue: ["like"]
         return: >-
           (enAfterBreak(ctx, m.index) || /^(?:but|so|because)$/.test(enWordBefore(ctx, m.index))) && !clauseEllipsis(ctx, m) &&
           (!noun || clauseLikedNoun(ctx, m)) ? ["likes", "is like"] : null
@@ -17708,20 +17331,17 @@ rules:
       - regex: "(?<target>the{{S}}(?<pron>he|she|they|it)){{S}}(?<noun>[a-z]+){{E}}"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
-        cue: ["the"]
         when: pron === pron.toLowerCase()
         return: '(enReadWord(noun)?.noun || enNounOnly(noun)) && !EN_FUNCTION_WORDS.has(noun) ? "the" : null'
       # "at the at the turn": a doubled preposition phrase.
       - regex: "(?<target>(?<prep>at|on|in|of|to|for|with|from|by|into){{S}}the{{S}}\\k<prep>{{S}}the){{E}}"
         check: englishRepeatedWords
         message: review_msg_repeated_words
-        cue: ["the"]
         return: "`${prep} the`"
       # "Many other have tried": others before a verb.
       - regex: "(?:several|many|some|few|both){{S}}(?<target>other){{S}}(?:have|are|were|will|can|did|do|had|would|could|should|may|might|must){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["other"]
         fix: "others"
       # "The fox' tail": an -x noun takes 's.
       # The lookahead shows the scan its fixed "x'": it runs only on the word before one.
@@ -17733,29 +17353,24 @@ rules:
       - regex: "(?:they|we|I|you|he|she|have|has|had|can|will|to|be|been){{S}}(?<target>custom{{S}}(?<verb>build|built|make|made|design|designed|tailor|tailored)){{S}}(?:a|an|the|their|our|your|it|them|every){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["custom"]
         return: "`custom-${verb}`"
       # "has been signed-in": the verb phrase is open.
       - regex: "(?:been|be|is|are|was|were|get|got|getting|stay|stayed){{S}}(?<target>(?:signed|logged)-(?:in|out))(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:from|of|to|on|at|automatically|again){{E}})"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["signed", "logged"]
         return: 'target.replace("-", " ")'
       # "put it a side for later": aside.
       - regex: "(?:put|puts|putting|set|sets|setting|leave|left|step|stepped|stand|stood|move|moved|lay|laid)(?:{{S}}(?:it|them|this|that|some))?{{S}}(?<target>a{{S}}side)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:for|from|until|and|some|time|money|[0-9]+){{E}})"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["side"]
         fix: "aside"
       # "Neither children are happy": neither of the.
       - regex: "(?<target>neither){{S}}(?<noun>[a-z]+){{S}}(?:are|were|have|do|seem|look|want|like|need){{E}}"
         check: englishPhraseCorrections
-        cue: ["neither"]
         return: 'enNounOnly(noun) === "plural" || /^(?:children|people|men|women)$/.test(noun) ? "neither of the" : null'
       # "There are number of animals": a number of.
       - regex: "(?:are|were|is|was|have|has){{S}}(?<target>number){{S}}of{{S}}(?<noun>[a-z]+s){{E}}"
         check: englishPhraseCorrections
-        cue: ["number"]
         return: 'enNounNumber(noun)?.number === "plural" ? "a number" : null'
       # "the us", "a us resident": the US.
       - regex: "(?:the|a){{S}}(?<target>us)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:resident|residents|citizen|citizens|government|market|army|dollar|dollars|economy|president|embassy|military|state|states|border|navy|congress|senate|team|version){{E}})"
@@ -17790,6 +17405,7 @@ rules:
       # "David and I's cat": David's and my.
       # The lookahead shows the scan its fixed word "and": it runs only before an "and".
       - regex: "(?=(?:[a-z]{2,}|my{{S}}[a-z]+){{S}}and{{S}})(?<target>(?<who>[a-z]{2,}|my{{S}}[a-z]+){{S}}and{{S}}I['’]s){{E}}"
+        cue: false
         check: englishPhraseCorrections
         return: 'enWordBefore(ctx, m.index) === "the" ? null : `${who}''s and my`'
   - id: en.slipFrames
@@ -17935,7 +17551,6 @@ rules:
         cue: ["not"]
         return: 'slipAdjectiveOnly(adj) && (enReadWord(noun)?.noun || enNounOnly(noun)) ? "no" : null'
       - regex: "(?:has|have|['’]ve){{S}}(?<target>not){{S}}(?<noun>[a-z]+){{S}}(?:of|to|for|listed|left|available){{E}}"
-        cue: ["not"]
         let:
           r: enReadWord(noun)
         when: "!EN_FUNCTION_WORDS.has(noun)"
@@ -17979,7 +17594,6 @@ rules:
       - regex: "(?<target>its){{S}}(?:(?<adj>[a-z]+)(?=[ \\t\\u00a0]*[,.!?]|{{S}}then{{E}})|(?<ing>[a-z]+ing){{S}}(?:that|it|it['’]s|in|on|to|so|now|fine|well|again|right){{E}}|[0-9]{1,2}(?:[ \\t\\u00a0]*(?:a\\.?m|p\\.?m|o['’]clock)|:[0-9]{2}))"
         check: englishItsContext
         message: review_msg_its_contraction
-        cue: ["its"]
         # "However, its copying in later texts": a possessive before a gerund. "since its founding in
         # 1859": since is a preposition there.
         let:
@@ -17993,7 +17607,6 @@ rules:
         return: '"it''s"'
       # "As usual, the will provide details", "The really would like…": they.
       - regex: "(?<target>the){{S}}(?:(?:really|probably|always|usually|never|also|just|quietly|still|already|often|sometimes){{S}}(?:would|will|should|could|can|won['’]t|wouldn['’]t|don['’]t|didn['’]t|do|did|have|are|were|finish|need|want|like|might)|(?:would|should|could|won['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|can['’]t|don['’]t|didn['’]t)|will{{S}}(?<verb>[a-z]+)){{E}}"
-        cue: ["the"]
         # "The Don't Quit Podcast": a title.
         when: "!(verb && !slipBaseVerb(verb))"
         return: '/[A-Z]/.test(m[0].slice(4)) ? null : "they"'
@@ -18056,7 +17669,6 @@ rules:
       - regex: "(?<target>this){{S}}(?:two|three|four|five|both){{S}}(?:are|were|have){{E}}"
         check: englishNounNumber
         message: review_msg_demonstrative_number
-        cue: ["this"]
         fix: "these"
       # "These kind of errors": this kind / these kinds.
       - regex: "(?<target>(?<dem>these|those){{S}}(?<kind>kind|type|sort)){{S}}of{{E}}"
@@ -18094,11 +17706,9 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:can|could|will|would|should|must|might|may|have|has|had|is|was|I|we|you|they|he|she){{S}}(?<target>than){{S}}(?<verb>[a-z]+){{E}}"
         check: englishThenThan
         message: review_msg_then_than_temporal
-        cue: ["than"]
         return: 'enReadWord(verb)?.verbs.length && !EN_FUNCTION_WORDS.has(verb.toLowerCase()) ? "then" : null'
       # "Send it to out team", "the link to out dashboard": our before a noun.
       - regex: "(?<![\\p{L}'’])(?:to|at|from|for|into|about){{S}}(?<target>out){{S}}(?<noun>[a-z]+){{E}}"
-        cue: ["out"]
         # "to out someone" is the verb before a name or pronoun; a noun or unknown word is owned.
         let:
           lowerNoun: noun.toLowerCase()
@@ -18189,7 +17799,6 @@ rules:
           englishInflect(verb, "past")!] : verb
       # "I guess they did it cause they need money": because.
       - regex: "(?<![\\p{L}'’])(?<target>cause){{S}}(?<next>I|I['’]m|I['’]ve|I['’]ll|we|we['’]re|they|they['’]re|he|he['’]s|she|she['’]s|it['’]s|you['’]re|there['’]s|(?:it|you|our|my|your|his|her|their|the){{S}}(?:[a-z]+{{S}})?(?:is|was|are|were|can|can['’]t|will|won['’]t|did|didn['’]t|does|doesn['’]t|has|had|need|needs)){{E}}"
-        cue: ["cause"]
         let:
           before: enWordBefore(ctx, m.index)
           lead: ctx.text.slice(Math.max(0, m.index - 30), m.index)
@@ -18204,7 +17813,6 @@ rules:
         return: '"because"'
       # "I though he left", "a problem they though was fixed", "higher than I though.": thought.
       - regex: "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she){{S}}(?<target>though)(?:{{S}}(?<next>of|about|that|so|it|he|she|I|you|we|they|this|was|is|the|a|my|his|her|their|our){{E}}|(?<end>[ \\t\\u00a0]*[.!?]))"
-        cue: ["though"]
         let:
           before: enWordBefore(ctx, m.index)
         # "He, though, is…" without commas: a clause start keeps "though" before be. "though of
@@ -18218,7 +17826,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>bit){{S}}(?<next>[a-z]+){{E}}"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
-        cue: ["bit"]
         let:
           word: next.toLowerCase()
           before: enWordBefore(ctx, m.index)
@@ -18255,7 +17862,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:help|helped|helps|helping){{S}}(?:not{{S}})?(?<target>[a-z]+ing){{E}}"
         check: englishVerbComplements
         message: review_msg_verb_complements
-        cue: ["help", "helped", "helps", "helping"]
         let:
           word: target.toLowerCase()
           before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
@@ -18277,7 +17883,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:(?:I['’]m|I{{S}}am|I{{S}}was|(?:we|you)(?:['’]re|{{S}}are|{{S}}were))(?:{{S}}(?:so|very|really|not|quite|just))?{{S}}used|accustomed){{S}}to{{S}}(?<target>[a-z]+){{E}}"
         check: englishVerbComplements
         message: review_msg_gerund_complement
-        cue: ["used", "accustomed"]
         let:
           word: target.toLowerCase()
           next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
@@ -18382,7 +17987,6 @@ rules:
       # "either the client nor the server": either pairs with or.
       - regex: "(?<![\\p{L}'’])either{{S}}(?:[^.!?;:\\n,]{1,60}?){{S}}(?<target>nor){{E}}"
         check: englishConfusedWords
-        cue: ["either"]
         let:
           before: enWordBefore(ctx, m.index)
           r: "EN_FUNCTION_WORDS.has(before) ? null : enReadWord(before)"
@@ -18429,7 +18033,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<cmp>[a-z]+er|more{{S}}[a-z]+|less{{S}}[a-z]+|more|less|fewer){{S}}(?<target>that){{S}}(?=\\d|(?:ever|usual|expected|before|anticipated|planned|needed|necessary|required){{E}})"
         check: englishThenThan
         message: review_msg_then_than
-        cue: ["that"]
         let:
           cmpWord: cmp.toLowerCase()
         return: '/^(?:more|less|fewer)/.test(cmpWord) || clauseGapsAdjective(cmpWord) ? "than" : null'
@@ -18472,17 +18075,14 @@ rules:
       # "I walked passed the school", "get passed the issue": past after a verb of motion.
       - regex: "(?:walk|walks|walked|walking|drive|drives|drove|driving|run|runs|ran|running|go|goes|went|going|get|gets|got|getting|move|moved|moving|rush|rushed|fly|flew|flying|sped|race|raced){{S}}(?<target>passed){{S}}(?:the|a|an|my|your|his|her|our|their|this|that|it|them|him|me){{E}}"
         message: review_msg_confused_word
-        cue: ["passed"]
         fix: "past"
       # "I pic the second one", "He wanted to wright a letter": pick, write.
       - regex: "(?<![\\p{L}'’])(?:I|we|you|they|to|will|would|can|could|should|please|just){{S}}(?<target>pic|wright|rite|rote){{S}}{{OBJECT}}{{E}}"
         check: englishPhraseCorrections
-        cue: ["pic", "wright", "rite", "rote"]
         return: MISHEARD_VERB[target.toLowerCase()]
       # "Google dose not care", "Dose not seem right": does (not "a dose not exceeding").
       - regex: "(?<![\\p{L}'’])(?<target>dose){{S}}not{{S}}(?<verb>[a-z]+){{E}}"
         check: englishPhraseCorrections
-        cue: ["dose"]
         let:
           before: enWordBefore(ctx, m.index)
         when: '!(EN_DETERMINERS.has(before) || /^\d/.test(before) || enReadWord(before)?.adjective)'
@@ -18490,7 +18090,6 @@ rules:
       # "I scrolled trough the file", "available trough Google": through.
       - regex: "(?<![\\p{L}'’])(?<target>trough){{S}}(?<next>the|a|an|my|your|this|it|them|all|\\p{L}+){{E}}"
         check: englishPhraseCorrections
-        cue: ["trough"]
         let:
           before: enWordBefore(ctx, m.index)
         # A name after it ("trough Google"); a lowercase noun makes a compound ("trough planters").
@@ -18499,53 +18098,43 @@ rules:
       # "He is of Asian decent": descent.
       - regex: "(?<![\\p{L}'’])of{{S}}(?<origin>\\p{L}+){{S}}(?<target>decent)(?=[ \\t\\u00a0]*[.,;!?)]|$)"
         message: review_msg_confused_word
-        cue: ["decent"]
         return: '/^\p{Lu}\p{Ll}/u.test(origin) ? "descent" : null'
       # "It is my strong believe that…", "Are there different believes?": belief.
       - regex: "(?<![\\p{L}'’])(?<lead>my|our|his|her|their|your|strong|firm|religious|core|personal|deep|different|common|popular|false){{S}}(?<target>believe|believes)(?={{S}}(?:that|is|are|was|were|in|about|of){{E}}|[ \\t\\u00a0]*[.,;!?])"
         message: review_msg_confused_word
-        cue: ["believe", "believes"]
         return: '/s$/i.test(target) ? "beliefs" : "belief"'
       # "It happens on the Monday nigh", "I woke at nigh": night.
       - regex: "(?<![\\p{L}'’])(?:{{WEEKDAY}}|last|tomorrow|good|at|every|one){{S}}(?<target>nigh){{E}}"
         check: englishPhraseCorrections
-        cue: ["nigh"]
         return: '/^[ \t ]+(?:on|unto|impossible|invincible)\b/i.test(ctx.text.slice(m.index + m[0].length, m.index + m[0].length + 14)) ? null : "night"'
       # "We have not seen him sine Monday": since.
       - regex: "(?<![\\p{L}'’])(?<target>sine){{S}}(?:\\d|{{WEEKDAY}}|last|then|yesterday|january|february|march|april|may|june|july|august|september|october|november|december|the{{S}}beginning)"
         check: englishPhraseCorrections
-        cue: ["sine"]
         return: '/^(?:a|the|of)$/.test(enWordBefore(ctx, m.index)) ? null : "since"'
       # "It was too son", "I would son be ready": soon.
       - regex: "(?<![\\p{L}'’])(?:too|so|very|as|would|will|how){{S}}(?<target>son)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:be|as|enough|after){{E}})"
         check: englishPhraseCorrections
-        cue: ["son"]
         fix: "soon"
       # "We can ether go out or stay in": either.
       - regex: "(?<![\\p{L}'’])(?:can|could|will|would|should|must|may|might|to|I|we|you|they|he|she){{S}}(?<target>ether){{S}}[^.!?;:\\n]{1,40}?{{S}}or{{E}}"
         check: englishPhraseCorrections
-        cue: ["ether"]
         fix: "either"
       # "Hoe does it work?", "Learn hoe to cook": how.
       - regex: "(?<![\\p{L}'’])(?<target>hoe){{S}}(?:do|does|did|is|are|was|can|could|to|much|many|long|about|would|should){{E}}"
         check: englishPhraseCorrections
-        cue: ["hoe"]
         let:
           before: enWordBefore(ctx, m.index)
         return: '(!before && enAfterBreak(ctx, m.index)) || /^(?:know|learn|see|ask|tell|show|wonder|explain|understand)$/.test(before) ? "how" : null'
       # "He stood besides me": beside; "Beside that, I have no idea": besides.
       - regex: "(?:stood|stand|stands|standing|sat|sit|sits|sitting|lay|lies|lying|walked|walks|knelt){{S}}(?<target>besides){{S}}(?:me|him|her|us|them|you|it|the|a|my|his|our|their){{E}}"
         message: review_msg_confused_word
-        cue: ["besides"]
         fix: "beside"
       - regex: "(?<![\\p{L}'’])(?<target>beside){{S}}(?:that|this)[ \\t\\u00a0]*,"
         message: review_msg_confused_word
-        cue: ["beside"]
         return: 'enAfterBreak(ctx, m.index) ? "besides" : null'
       # "Grate work!", "It's really grate.": great.
       - regex: "(?<![\\p{L}'’])(?:(?<lead>really|so|very|such{{S}}a|a){{S}})?(?<target>grate)(?={{S}}(?:work|job|idea|day|time|news|stuff|post|question){{E}}|[ \\t\\u00a0]*[.!])"
         check: englishPhraseCorrections
-        cue: ["grate"]
         let:
           typed: lead?.toLowerCase()
         return: >-
@@ -18559,12 +18148,10 @@ rules:
       # "He is batter than me": better.
       - regex: "(?:is|are|was|were|be|much|far|even|way|lot|getting|got|feel|feels|felt){{S}}(?<target>batter){{S}}than{{E}}"
         check: englishPhraseCorrections
-        cue: ["batter"]
         fix: "better"
       # "I have bin there", "haven't bin told": been.
       - regex: "(?<![\\p{L}'’])(?:have|has|had|haven['’]t|hasn['’]t|hadn['’]t|['’]ve|not|never|always|already|just){{S}}(?<target>bin){{S}}(?<next>[a-z]+){{E}}"
         check: englishPhraseCorrections
-        cue: ["bin"]
         let:
           word: next.toLowerCase()
         return: >-
@@ -18575,17 +18162,14 @@ rules:
       # "I most do it tomorrow", "I most be unlucky": must.
       - regex: "(?<![\\p{L}'’])(?:I|we|you|they|he|she|it){{S}}(?<target>most){{S}}(?:be|have|do){{E}}"
         message: review_msg_confused_word
-        cue: ["most"]
         fix: "must"
       # "I what have done it differently": would.
       - regex: "(?<![\\p{L}'’])(?:I|we|they|he|she){{S}}(?<target>what){{S}}(?<verb>have|be|do|go|like|love|prefer|rather|never){{S}}(?<next>[a-z]+){{E}}"
         message: review_msg_confused_word
-        cue: ["what"]
         return: 'enAfterBreak(ctx, m.index) && next.toLowerCase() !== "you" ? "would" : null'
       # "Everyone is being testes", "Tom has testes negative": tested.
       - regex: "(?:be|being|been|is|was|were|are|has|have|had|get|got){{S}}(?<target>testes){{E}}"
         check: englishPhraseCorrections
-        cue: ["testes"]
         fix: "tested"
       # "ten minuets walking distance": minutes.
       - regex: "(?<![\\p{L}'’])(?:\\d+|one|two|three|four|five|ten|fifteen|twenty|thirty|few|several|many|couple{{S}}of){{S}}(?<target>minuets?){{E}}"
@@ -18596,28 +18180,23 @@ rules:
       - regex: "(?:is|am|are|was|were|be|been|['’]m|['’]re|['’]s)(?:{{S}}(?:probably|currently|still|now|already))?{{S}}(?<target>in|at){{S}}vacation(?=[ \\t\\u00a0]*[.,!?]|{{S}}(?:right|now|until|till|for|in|at|with|this|next|today){{E}})"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
-        cue: ["vacation"]
         fix: "on"
       # "Their has to be a way", "their might be a better one": there.
       - regex: "(?<![\\p{L}'’])(?<target>their){{S}}(?:has|have|had|might|may|must|could|should|would|will|seems?|appears?){{S}}(?:to{{S}}be|be|been|a|an|no|always|never){{E}}"
         message: review_msg_confused_word
-        cue: ["their"]
         fix: "there"
       # "Deer Anne,": Dear.
       - regex: "(?<target>Deer){{S}}(?:(?:Mr|Mrs|Ms|Dr|Prof)\\.?{{S}})?(?<name>\\p{L}+)[ \\t\\u00a0]*[,:]"
         check: englishPhraseCorrections
-        cue: ["deer"]
         return: 'enAfterBreak(ctx, m.index) && /^\p{Lu}/u.test(name) && target === "Deer" ? "Dear" : null'
       # "In principal, I agree": in principle.
       - regex: "(?<![\\p{L}'’])in{{S}}(?<target>principal)(?=[ \\t\\u00a0]*,|{{S}}(?:I|we|it|this|that|they|you|he|she|there){{E}})"
         message: review_msg_confused_word
-        cue: ["principal"]
         fix: "principle"
       # "stayed over night", "worked over time": the one-word adverb.
       - regex: "(?:stay|stays|stayed|staying|slept|sleep|sleeps|happened|happen|happens|changed|change|down|up|delivered|shipped|parked){{S}}(?<target>over{{S}}night){{E}}"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
-        cue: ["night"]
         fix: "overnight"
       # "He diffused several bombs": defused.
       - regex: "(?<target>diffuse|diffuses|diffused|diffusing){{S}}(?:the{{S}}|a{{S}}|several{{S}}|two{{S}}|three{{S}}|many{{S}})?(?:bomb|bombs|mine|mines|device|explosive){{E}}"
@@ -18628,7 +18207,6 @@ rules:
       - regex: "(?<![\\p{L}'’])about{{S}}(?<target>to{{S}}(?<verb>[a-z]+ed))(?=[ \\t\\u00a0]*[.,;!?]|{{S}}(?:by|in|on|at|for|soon|next|today|tomorrow){{E}})"
         check: englishAuxiliaryBaseVerb
         message: review_msg_to_base
-        cue: ["about"]
         let:
           typed: verb.toLowerCase()
           info: enReadWord(typed)
@@ -18639,7 +18217,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>too){{S}}(?<verb>[a-z]+){{S}}(?:{{OBJECT}}|now|it){{E}}"
         check: englishToToo
         message: review_msg_to_infinitive
-        cue: ["too"]
         # "like her too do it", "decided himself too start"; "The students too realize" is also.
         when: /^(?:her|him|them|me|us|you|myself|himself|herself|themselves|ourselves|yourself)$/.test(enWordBefore(ctx, m.index))
         return: 'plainBaseVerb(verb) || /^(?:do|start|go|be|have)$/.test(verb) ? "to" : null'
@@ -18723,7 +18300,6 @@ rules:
       # "Can anyone lists the factors", "how can I monitoring it", "Can Tom sent it": a modal's
       # inverted subject takes the base.
       - regex: "(?<![\\p{L}'’])(?:can|could|will|would){{S}}(?<subject>I|you|we|they|he|she|it|this|anyone|anybody|someone|somebody|everyone|[A-Za-z]+)(?:{{S}}please)?{{S}}(?<target>[a-z]+){{E}}"
-        cue: ["can", "could", "will", "would"]
         let:
           lead: ctx.text.slice(Math.max(0, m.index - 24), m.index)
           owner: enWordBefore(ctx, m.index)
@@ -18800,7 +18376,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<first>[a-z]+s)(?<middle>(?:{{S}}[a-z]+){1,5}?){{S}}and(?:{{S}}(?:never|also|annually|then|often|always|usually))?{{S}}(?<target>[a-z]+){{E}}"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
-        cue: ["and"]
         let:
           low: first.toLowerCase()
           r: enReadWord(low)
@@ -18893,7 +18468,6 @@ rules:
       - regex: "(?<![\\p{L}'’])afford(?:s|ed)?{{S}}(?:not{{S}})?(?<target>[a-z]+ing){{E}}"
         check: englishVerbComplements
         message: review_msg_verb_complements
-        cue: ["afford"]
         let:
           lemma: englishLemma(target, "ing")
         return: 'lemma && lemma !== "be" ? `to ${lemma}` : null'
@@ -18927,7 +18501,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it|this|that){{S}}(?<target>did|does|do){{S}}been{{E}}"
         check: englishPerfectParticiples
         message: review_msg_perfect_participle
-        cue: ["been"]
         return: VS_PERFECT_HAVE[target.toLowerCase()]
       # "There is has been an outrage": one auxiliary.
       - regex: "(?<![\\p{L}'’])there{{S}}(?<target>(?:is|are|['’]s|['’]re){{S}}(?<have>has|have)){{S}}been{{E}}"
@@ -18939,25 +18512,11 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<!there{{S}})(?:am|is|are|was|were|be|been|['’]m|['’]re|so|very|really|quite){{S}}(?<target>surprise|disappoint|amaze|confuse|scare|excite|bore|tire|embarrass|satisfy)(?={{S}}(?:that|by|with|at|about|to|in){{E}}|[ \\t\\u00a0]*[.!,])"
         check: englishPerfectParticiples
         message: review_msg_be_participle
-        cue:
-          [
-            "surprise",
-            "disappoint",
-            "amaze",
-            "confuse",
-            "scare",
-            "excite",
-            "bore",
-            "tire",
-            "embarrass",
-            "satisfy",
-          ]
         return: englishInflect(target.toLowerCase(), "past")
       # "I use to own a car", "apps that use to be free": used to.
       - regex: "(?<![\\p{L}'’])(?<subject>I|you|we|they|he|she|it|that|which|who){{S}}(?<target>use){{S}}to{{S}}(?<verb>[a-z]+){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["use"]
         let:
           low: subject.toLowerCase()
           lemma: verb.toLowerCase()
@@ -18974,13 +18533,11 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:is|are|was|were|am|isn['’]t|aren['’]t|wasn['’]t|weren['’]t)(?:{{S}}[A-Za-z]+){1,2}{{S}}(?<target>suppose){{S}}to{{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["suppose"]
         fix: "supposed"
       # "As you maybe aware": may be.
       - regex: "(?<![\\p{L}'’])(?:I|you|we|they|he|she|it){{S}}(?<target>maybe){{S}}(?:aware|able|right|wrong|interested|familiar|surprised|late|busy){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
-        cue: ["maybe"]
         fix: "may be"
   - id: en.nounSlots
     checks:
@@ -19083,7 +18640,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>a{{S}}lot){{S}}(?<noun>[a-z]+){{E}}"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
-        cue: ["lot"]
         let:
           mass: ENGLISH_MASS_NOUNS.has(noun) && !enReadWord(noun)?.verbs.length && !enReadWord(noun)?.adjective
         return: 'nounPlural(noun) || mass ? "a lot of" : null'
@@ -19117,18 +18673,15 @@ rules:
       # "Google's headquarter", "the corporate headquarter": headquarters.
       - regex: "(?:the|its|their|our|his|her|my|your|corporate|new|global|company|['’]s){{S}}(?<target>headquarter){{E}}"
         message: review_msg_noun_count
-        cue: ["headquarter"]
         fix: "headquarters"
       # "Is there any chances that…", "there was updates daily": a plural takes are/were.
       - regex: "(?<![\\p{L}'’])(?<target>is|was){{S}}there{{S}}(?:any|some|many|several){{S}}(?<noun>[a-z]+){{E}}"
         check: englishExistentialAgreement
         message: review_msg_existential_agreement
-        cue: ["there"]
         return: 'nounPluralWord(noun) ? (nounLower(target) === "is" ? "are" : "were") : null'
       - regex: "(?<![\\p{L}'’])(?<!(?:over|out|in|up|down|back|from){{S}})there{{S}}(?<target>was|is){{S}}(?:no{{S}})?(?<noun>[a-z]+){{S}}(?<next>[a-z]+|\\d)"
         check: englishExistentialAgreement
         message: review_msg_existential_agreement
-        cue: ["there"]
         let:
           r: enReadWord(noun)
         when:
@@ -19140,7 +18693,6 @@ rules:
       - regex: "(?<target>Here){{S}}(?:the|a|an|some|my|our|your|two|three|several|few){{S}}(?<words>[a-z]+(?:{{S}}[a-z]+){0,2}?)(?=[ \\t\\u00a0]*(?:[.:!]|$)|{{S}}(?:of|from|for|that|which|I|we|you){{E}})"
         check: englishSentenceStructure
         message: review_msg_sentence_structure
-        cue: ["here"]
         let:
           end: m.index + m[0].length
           clause: '/^[^.!?;:\n]*/.exec(ctx.text.slice(end, end + 200))![0]'
@@ -19162,12 +18714,10 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<lead>a|an|the|absolute|real|our|my|your|their|\\d+){{S}}(?<target>must{{S}}(?<verb>read|have|see|watch|try|buy|visit|do|love|reads|haves|sees)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["must"]
         return: "`must-${nounLower(verb)}`"
       - regex: "(?<target>Must{{S}}(?:haves|reads|sees)){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["must"]
         when: enAfterBreak(ctx, m.index)
         return: 'target.replace(/[ \t ]+/, "-")'
       # "He emphasized the important of this task": the -ance/-ence noun.
@@ -19183,13 +18733,11 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:the|in|of|early|late|mid){{S}}(?<target>\\d{1,2}){{S}}(?:century|centuries){{E}}"
         check: englishOrdinalSuffix
         message: review_msg_ordinal
-        cue: ["century", "centuries"]
         return: "`${target}${ordinalSuffix(target)}`"
       # "tension between he and his roommate": the object case after a preposition.
       - regex: "(?<![\\p{L}'’])between{{S}}(?<target>he|she|I|we|they){{S}}and{{E}}"
         check: englishPronounCase
         message: review_msg_pronoun_object_case
-        cue: ["between"]
         return: NOUN_OBJECT_CASE[nounLower(target)]
       # "not even for we relics", "not we lawyers": us before a plural noun after a preposition.
       - regex: "(?<![\\p{L}'’])(?:for|to|with|from|by|of|about|against|among){{S}}(?<target>we){{S}}(?<noun>[a-z]+){{E}}"
@@ -19207,7 +18755,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:if|when|because|since|unless|that){{S}}(?<target>there){{S}}(?<noun>[a-z]+){{S}}(?:are|were|have|had|will|would|can|could){{E}}"
         check: englishTheirThereTheyAre
         message: review_msg_their_there
-        cue: ["there"]
         return: 'nounPlural(noun) ? "their" : null'
       # "Customer reports of strange behavior is valuable": the plural head agrees.
       - regex: "(?<![\\p{L}'’])(?<lead>the|these|those|my|our|their|his|her|your|many|some|\\d+){{S}}(?<head>[a-z]+){{S}}of{{S}}(?<rest>(?:[a-z]+{{S}}){1,3}?)(?<target>is|was|has|needs|seems){{E}}"
@@ -19235,7 +18782,6 @@ rules:
       - regex: "(?<![\\p{L}'’])how{{S}}(?<target>is|are|was|were){{S}}(?:your|the|my|his|her|our|their)(?<adjectives>(?:{{S}}[a-z]+){0,2}?){{S}}(?<noun>[a-z]+)[ \\t\\u00a0]*\\?"
         check: englishSubjectVerbAgreement
         message: review_msg_subject_verb
-        cue: ["how"]
         let:
           be: nounLower(target)
           adjectiveList: 'adjectives.trim().split(/[ \t ]+/).filter(Boolean)'
@@ -19247,13 +18793,11 @@ rules:
       # "Some time I like to read": sometimes.
       - regex: "(?<target>Some{{S}}time){{S}}(?:I|we|you|they|he|she|it){{S}}(?<verb>[a-z]+){{E}}"
         check: englishConfusedWords
-        cue: ["some"]
         when: enAfterBreak(ctx, m.index) && /^Some/.test(m[0])
         return: 'enReadWord(verb)?.verbs.some((v) => v.form === "base" || v.form === "third") ? "Sometimes" : null'
       # "there isn't anyway to do that", "heard of anyway to": any way.
       - regex: "(?<![\\p{L}'’])(?:there{{S}}(?:is|isn['’]t|was|wasn['’]t)|is{{S}}there|of|no|find|found){{S}}(?<target>anyway){{S}}to{{S}}[a-z]+{{E}}"
         check: englishConfusedWords
-        cue: ["anyway"]
         fix: "any way"
       # "I have no been able to", "It is no signed by": not.
       - regex: "(?<![\\p{L}'’])(?:have|has|had|is|am|are|was|were|['’]m){{S}}(?<target>no){{S}}(?<word>[a-z]+){{E}}"
@@ -19265,12 +18809,10 @@ rules:
       # "Do you one to win?": want.
       - regex: "(?<![\\p{L}'’])(?:do|did|don['’]t|didn['’]t|does|doesn['’]t){{S}}(?:you|I|we|they|he|she)(?:{{S}}(?:ever|really|not))?{{S}}(?<target>one){{S}}to{{S}}[a-z]+{{E}}"
         check: englishConfusedWords
-        cue: ["one"]
         fix: "want"
       # "Please harry up!": hurry.
       - regex: "(?<![\\p{L}'’])(?<target>harry){{S}}up(?=[ \\t\\u00a0]*[.!,]|{{S}}(?:and|please){{E}})"
         check: englishConfusedWords
-        cue: ["harry"]
         let:
           before: enWordBefore(ctx, m.index)
         return: >-
@@ -19279,19 +18821,16 @@ rules:
       # "Please open the attach file": attached.
       - regex: "(?<![\\p{L}'’])(?:the|an|this|these|my|your){{S}}(?<target>attach){{S}}(?:file|files|document|documents|form|invoice|report|image|photo|picture|spreadsheet|pdf|list|letter){{E}}"
         check: englishConfusedWords
-        cue: ["attach"]
         fix: "attached"
       # "Please high light the words": highlight.
       - regex: "(?<![\\p{L}'’])(?:to|please|can|could|would|will|should|must|I|we|you|couldn['’]t|can['’]t){{S}}(?<target>high{{S}}light){{S}}(?:the|his|her|my|your|our|their|this|these|those|it|them|some|all){{E}}"
         check: englishContextualCompounds
         message: review_msg_compounds
-        cue: ["light"]
         fix: "highlight"
       # "Looking forward the new release": to after look forward.
       - regex: "(?<![\\p{L}'’])(?:look|looks|looked|looking){{S}}(?<target>forward)(?:{{S}}(?<prep>of|for))?{{S}}(?<next>the|this|a|an){{E}}"
         check: englishVerbComplements
         message: review_msg_forward_gerund
-        cue: ["forward"]
         return: >-
           prep ? { alternatives: ["forward to"], range: [m.indices!.groups!.target[0], m.indices!.groups!.prep[1]] }
           : "forward to"
@@ -19307,7 +18846,6 @@ rules:
       # "And the are beautiful!": they are or there are.
       - regex: "(?<![\\p{L}'’])(?<target>the{{S}}are){{S}}(?<next>[a-z]+){{E}}"
         check: englishConfusedWords
-        cue: ["the"]
         let:
           # "the ARE" names something; "the are has fallen out of use" is the unit of area.
           nextWord: nounLower(next)
@@ -19320,18 +18858,15 @@ rules:
       - regex: "(?<![\\p{L}'’])(?:one|two|three|four|five){{S}}of{{S}}(?<target>the){{S}}kind(?=[ \\t\\u00a0]*[.!?,]|$)"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
-        cue: ["kind"]
         fix: "a"
       # "This is the most frequent errors.": one superlative thing.
       - regex: "(?<![\\p{L}'’])(?:this|that|it){{S}}(?:is|was)(?:{{S}}just)?{{S}}the{{S}}(?:most|least){{S}}(?<adjective>[a-z]+){{S}}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?]|{{S}}(?:on|in|of|for|with|I|we|you){{E}})"
         message: review_msg_noun_count
-        cue: ["most", "least"]
         return: "enReadWord(adjective)?.adjective ? nounPlural(target) : null"
       # "This is most popular game", "Be best writer you can be": the superlative takes the.
       - regex: "(?<![\\p{L}'’])(?:is|was|are|were|be)(?:{{S}}(?:by{{S}}far|clearly|probably))?{{S}}(?<target>most){{S}}(?<adjective>[a-z]+){{S}}(?<noun>[a-z]+){{E}}"
         check: englishSentenceStructure
         message: review_msg_superlative_the
-        cue: ["most"]
         let:
           r: enReadWord(adjective)
           next: nounNextToken(ctx, m.index + m[0].length)
@@ -19403,7 +18938,6 @@ rules:
       # "This make no sense", "That sound very cool", "I hope that look nice": this/that + -s.
       - regex: "(?<![\\p{L}'’])(?:this|that)(?:{{S}}(?:probably|hardly|really|just|also|still|always|never|definitely|certainly))?{{S}}(?<target>[a-z]+){{S}}(?<next>[a-z]+){{E}}"
         message: review_msg_subject_verb
-        cue: ["this", "that"]
         let:
           before: enWordBefore(ctx, m.index)
           low: next.toLowerCase()
@@ -19432,7 +18966,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<subject>[A-Za-z]+){{S}}did(?:{{S}}(?:really|just|actually))?{{S}}(?<target>[a-z]+){{E}}"
         check: englishAuxiliaryBaseVerb
         message: review_msg_auxiliary_base
-        cue: ["did"]
         let:
           # Only an irregular past that is no participle ("went", "came", "took").
           forms: englishVerbForms(target)
@@ -19454,7 +18987,6 @@ rules:
       # "of all kind of rarity", "the rates of all timekeeper.": all before a count noun.
       - regex: "(?<![\\p{L}'’])of{{S}}all{{S}}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?,;]|{{S}}(?:of|around|in|at){{E}})"
         check: englishNounNumber
-        cue: ["all"]
         return: afCountNoun(target)
       # "a collection of book", "A multitude of bird exist": a group of count nouns.
       - regex: "(?<![\\p{L}'’])(?:collection|multitude|glossary|range|variety|series|list|set|number|couple|bunch|selection|pair|dozens|hundreds|thousands|millions){{S}}of{{S}}(?<target>[a-z]+){{E}}"
@@ -19467,12 +18999,10 @@ rules:
       # "We are all animal.": all before one count noun at the clause end.
       - regex: "(?<![\\p{L}'’])(?:are|were|be){{S}}all{{S}}(?<target>[a-z]+)(?=[ \\t\\u00a0]*[.!?])"
         check: englishNounNumber
-        cue: ["all"]
         return: "englishCountNoun(target) ? afCountNoun(target) : null"
       # "There are a few computer to test", "There're many problem": a plural after the count.
       - regex: "(?<![\\p{L}'’])there(?:{{S}}(?:are|were)|['’]re){{S}}(?:many|several|a{{S}}few|few|a{{S}}lot|lots{{S}}of|\\d+|two|three|four|five|ten){{S}}(?<target>[a-z]+){{E}}"
         check: englishNounNumber
-        cue: ["there"]
         let:
           plural: afCountNoun(target)
         return: "plural && afPhraseEnds(ctx, m.index + m[0].length, false) ? plural : null"
@@ -19511,7 +19041,6 @@ rules:
       # "This guys works for us": the -s verb shows that "this" heads a singular noun.
       - regex: "(?<![\\p{L}'’])this{{S}}(?<target>[a-z]+s){{S}}(?<verb>[a-z]+s){{E}}"
         check: englishNounNumber
-        cue: ["this"]
         let:
           noun: target.toLowerCase()
           forms: enNounNumber(noun)
@@ -19560,7 +19089,6 @@ rules:
         fix: "know"
       - regex: "(?<![\\p{L}'’])(?:can|could|will|would|should|must|might){{S}}(?<target>know){{E}}(?={{S}}(?:say|tell|go|see|begin|start|confirm){{E}})"
         check: englishConfusedWords
-        cue: ["know"]
         fix: "now"
       - regex: "(?<![\\p{L}'’])(?:i|you|we|they|didn['’]t|don['’]t|not){{S}}(?<target>no){{E}}(?={{S}}(?:the{{S}}(?:answer|way|movie|book|truth|reason)|how|what|why|whether|anything|about){{E}})"
         message: review_msg_typo
@@ -19569,22 +19097,18 @@ rules:
       # pronoun and verb slips
       - regex: "(?<![\\p{L}'’])(?<verb>[a-z]+){{S}}(?<target>they)(?=[ \\t\\u00a0]*[.!?])"
         check: englishConfusedWords
-        cue: ["they"]
         let:
           info: enReadWord(verb)
         return: 'info?.verbs.some((v) => v.form === "base" || v.form === "past") && !info.noun && !info.adjective ? "them" : null'
       - regex: "(?<![\\p{L}'’])(?<lead>[a-z]+){{S}}(?<target>the){{S}}(?:be(?!{{S}}all)|have{{S}}(?:you|it|them|been|told|imported|done|seen|made)){{E}}"
         check: englishConfusedWords
-        cue: ["the"]
         when: "!EN_DETERMINERS.has(lead.toLowerCase())"
         return: '/^(?:far|so|then|now)$/i.test(lead) ? ["they", "to"] : ["to", "they"]'
       - regex: "(?<![\\p{L}'’])(?:with|by|to|for|from|help|helps|helped|told|tell|ask|asked|and){{S}}(?<target>other){{E}}(?={{S}}(?:about|in|via|also|run|have|do|think|say){{E}})"
         check: englishConfusedWords
-        cue: ["other"]
         fix: "others"
       - regex: "(?<![\\p{L}'’])(?:with|by|to|for|from|help|helps|helped|told|tell|ask|asked){{S}}(?<target>other)(?=[ \\t\\u00a0]*[.!?,])"
         check: englishConfusedWords
-        cue: ["other"]
         return: 'target === "other" ? "others" : null'
       # "This an all of the above", "in Dutch an already deleted": and. After a preposition or
       # a pronoun, "an already full room" and "to an also inactive unit" keep the article.
@@ -19609,28 +19133,22 @@ rules:
         return: 'enAfterBreak(ctx, m.index) ? "In" : null'
       - regex: "(?<![\\p{L}'’])(?:in|for|of|at|on|with|from){{S}}(?<target>thus){{E}}(?={{S}}(?:group|case|way|point|reason|purpose|time|team|project){{E}})"
         message: review_msg_typo
-        cue: ["thus"]
         fix: "this"
       - regex: "(?<![\\p{L}'’])(?<target>His){{E}}(?={{S}}(?:a|an|so|very|not|always|never|really|going|been|my|the{{S}}best){{E}})"
         check: englishConfusedWords
-        cue: ["his"]
         return: >-
           enAfterBreak(ctx, m.index) ? "He's" : null
       - regex: "(?<![\\p{L}'’])(?:\\d+){{S}}(?<target>hears){{E}}(?={{S}}(?:old|ago){{E}})"
         message: review_msg_typo
-        cue: ["hears"]
         fix: "years"
       - regex: "(?<![\\p{L}'’])(?:for|in|about|over|past|last|the|first|next|only|after){{S}}(?<target>tree){{E}}(?={{S}}(?:years|days|weeks|months|times|hours|minutes|people|children|kids){{E}})"
         message: review_msg_typo
-        cue: ["tree"]
         fix: "three"
       - regex: "(?<![\\p{L}'’])(?:it|this|that|he|she|which){{S}}(?<target>sees){{E}}(?={{S}}(?:to{{S}}(?:be|happen|have|work|go|get|me)){{E}})"
         check: englishConfusedWords
-        cue: ["sees"]
         fix: "seems"
       - regex: "(?<![\\p{L}'’])(?:is|are|was|were|not|isn['’]t|aren['’]t|wasn['’]t|weren['’]t){{S}}(?<target>mean){{E}}(?={{S}}(?:to{{S}}(?:be|have)){{E}})"
         check: englishConfusedWords
-        cue: ["mean"]
         fix: "meant"
       - regex: "(?<![\\p{L}'’])(?:otherwise|better|commonly|formerly|widely){{S}}(?<target>know){{E}}(?={{S}}(?:as){{E}})"
         check: englishConfusedWords
@@ -19638,30 +19156,25 @@ rules:
         fix: "known"
       - regex: "(?<![\\p{L}'’])(?:have|has|had|not|never|['’]ve|haven['’]t|hasn['’]t){{S}}(?<target>bean){{E}}(?={{S}}(?:there|here|to|in|happy|able|so|very|really|busy|sick|working|waiting|trying|told|done){{E}})"
         message: review_msg_typo
-        cue: ["bean"]
         fix: "been"
       - regex: "(?<![\\p{L}'’])(?:really|very|so|pretty|quite){{S}}(?<target>god){{E}}(?={{S}}(?:tv|show|movie|book|idea|job|game|one|place){{E}})"
         message: review_msg_typo
-        cue: ["god"]
         fix: "good"
       - regex: "(?<![\\p{L}'’])(?:oh|please|so){{S}}(?<target>pleas){{E}}(?={{S}}(?:help|let|send|call|tell|do|check|find|give|make|note|contact){{E}})"
         message: review_msg_typo
-        cue: ["pleas"]
         # Not after a determiner ("the pleas").
         return: 'EN_DETERMINERS.has(enWordBefore(ctx, m.index)) ? null : "please"'
       - regex: "(?<![\\p{L}'’])(?:i|we|you|they|he|she|have|has|had|never){{S}}(?<target>herd){{E}}(?={{S}}(?:of|about|that|from|nothing|something|anything|so){{E}})"
         check: englishConfusedWords
-        cue: ["herd"]
         fix: "heard"
       - regex: "(?<![\\p{L}'’])(?:is|was|be|been|are|were|(?:that|it|what|he|she)['’]s){{S}}(?<target>quiet){{E}}(?={{S}}(?:a(?!{{S}}lot)|an|good|nice|different|easy|hard|right|simple|interesting|sure|big|large|small|long|few|well|often|similar){{E}})"
         check: englishConfusedWords
-        cue: ["quiet"]
         fix: "quite"
       - regex: "(?<![\\p{L}'’])(?:football|soccer|basketball|hockey|baseball|my|our|your|the|a|whole|support|sales|dev){{S}}(?<target>teem){{E}}"
         message: review_msg_typo
-        cue: ["teem"]
         fix: "team"
       - regex: "(?<![\\p{L}'’])(?:looking|tried|died|searched|search|searching|hoped|waited|labored|laboured|struggled){{S}}(?<target>in{{S}}vein){{E}}(?={{S}}(?:for|to|since|as|but|\\d){{E}})"
+        cue: false
         message: review_msg_typo
         fix: "in vain"
       - regex: "(?:looking|tried|died|searched|searching|hoped|waited|struggled){{S}}(?<target>in{{S}}vein)(?=[ \\t\\u00a0]*[.!?,])"
@@ -19670,7 +19183,6 @@ rules:
         fix: "in vain"
       - regex: "(?<![\\p{L}'’])(?:homes|houses|cars|items|land|house|car|home|property|properties|apartments?|condos?|lots?|is|are|up){{S}}for{{S}}(?<target>sell)(?![ \\t\\u00a0]*(?:side|off|out|order|price|signal|-)){{E}}"
         check: englishConfusedWords
-        cue: ["sell"]
         fix: "sale"
       - regex: "(?<![\\p{L}'’])all{{S}}for{{S}}(?<target>not)(?=[ \\t\\u00a0]*[.!?,…]|$)"
         check: englishConfusedWords
@@ -19678,51 +19190,39 @@ rules:
         fix: "naught"
       - regex: "(?<![\\p{L}'’])(?:to|can|could|will|must|cannot|can['’]t|couldn['’]t|me|us|him|her|them|i|we|you|they){{S}}(?<target>breath){{E}}(?={{S}}(?:in|out|fresh|deeply|easy|easier|again|normally|air|through){{E}})"
         check: englishConfusedWords
-        cue: ["breath"]
         fix: "breathe"
       - regex: "(?<![\\p{L}'’])(?:to){{S}}(?<target>aide){{E}}(?={{S}}(?:you|him|her|them|us|me|in){{E}})"
         check: englishConfusedWords
-        cue: ["aide"]
         fix: "aid"
       - regex: "(?<![\\p{L}'’])(?:deadly|rare|chronic|infectious|contagious|genetic|heart|lung|skin|kidney|liver|autoimmune|terminal|incurable|serious|fatal|a){{S}}(?<target>decease){{E}}"
         check: englishConfusedWords
-        cue: ["decease"]
         fix: "disease"
       - regex: "(?<![\\p{L}'’])(?:to|will|would|can|could|might|may|significantly|not){{S}}(?<target>altar){{E}}(?={{S}}(?:{{NEIGHBOURTYPOS_OBJECT}}){{E}})"
         check: englishConfusedWords
-        cue: ["altar"]
         fix: "alter"
       - regex: "(?<![\\p{L}'’])(?:am|is|are|was|were|be|not|i|you|we|they|he|she|['’]m|['’]re){{S}}(?<target>adverse){{E}}(?={{S}}(?:to{{S}}[a-z]+ing){{E}})"
         check: englishConfusedWords
-        cue: ["adverse"]
         fix: "averse"
       - regex: "(?<![\\p{L}'’])(?:a|the|more|very|really){{S}}(?<target>through){{E}}(?={{S}}(?:review|analysis|investigation|examination|inspection|discussion|explanation|understanding|check|search|evaluation|assessment|cleaning|overview|description|job|test|testing){{E}})"
         check: englishConfusedWords
-        cue: ["through"]
         fix: "thorough"
       - regex: "(?<![\\p{L}'’])(?:am|is|are|was|were|be|been|['’]m|['’]re|['’]s){{S}}(?<target>wandering){{E}}(?={{S}}(?:if|whether|why|how|what){{E}})"
         check: englishConfusedWords
-        cue: ["wandering"]
         fix: "wondering"
       - regex: "(?<![\\p{L}'’])(?:i|we|they|you){{S}}(?<target>wander){{E}}(?={{S}}(?:if|whether|why|how|what){{E}})"
         check: englishConfusedWords
-        cue: ["wander"]
         fix: "wonder"
       - regex: "(?<![\\p{L}'’])(?:is|was|are|were|very|so|brand|completely|totally|relatively|fairly|quite|something|anything){{S}}(?<target>knew){{E}}(?={{S}}(?:to|for|and){{E}})"
         check: englishConfusedWords
-        cue: ["knew"]
         fix: "new"
       - regex: "(?<![\\p{L}'’])(?:is|was|very|so|brand|completely|totally|relatively|fairly|quite){{S}}(?<target>knew)(?=[ \\t\\u00a0]*[.!?,])"
         check: englishConfusedWords
-        cue: ["knew"]
         fix: "new"
       - regex: "(?<![\\p{L}'’])(?:this|it|that|he|she|which|what){{S}}(?<target>seams){{E}}(?={{S}}(?:to|like|wrong|fine|good|ok|okay|strange|odd|weird|right|great|easy|hard|correct|broken){{E}})"
         check: englishConfusedWords
-        cue: ["seams"]
         fix: "seems"
       - regex: "(?<![\\p{L}'’])(?:looks|seems|is|was|pretty|very|so|too|quite|fairly){{S}}(?<target>ease){{E}}(?={{S}}(?:to|for|enough){{E}})"
         check: englishConfusedWords
-        cue: ["ease"]
         fix: "easy"
       - regex: "(?<![\\p{L}'’])(?:not){{S}}(?<target>jet){{E}}(?={{S}}(?:decided|done|ready|finished|available|known|sure|clear|implemented|released|been|seen|started|fixed){{E}})"
         message: review_msg_typo
@@ -19730,36 +19230,30 @@ rules:
         fix: "yet"
       - regex: "(?<![\\p{L}'’])(?:a|very|so|really|have{{S}}a|wish{{S}}you{{S}}a){{S}}(?<target>niece){{E}}(?={{S}}(?:holiday|day|weekend|time|evening|trip|job|one|place|vacation){{E}})"
         message: review_msg_typo
-        cue: ["niece"]
         fix: "nice"
       - regex: "(?<![\\p{L}'’])(?:would|['’]d){{S}}(?<target>rater){{E}}(?={{S}}(?:go|be|not|have|stay|do|see|wait|die|keep|leave|use){{E}})"
         message: review_msg_typo
-        cue: ["rater"]
         fix: "rather"
       - regex: "(?<![\\p{L}'’])(?:that|it|this){{S}}(?<target>whit){{E}}(?={{S}}(?:{{NEIGHBOURTYPOS_OBJECT}}){{E}})"
         message: review_msg_typo
-        cue: ["whit"]
         # Not after a determiner ("a whit").
         return: 'EN_DETERMINERS.has(enWordBefore(ctx, m.index)) ? null : "with"'
       - regex: "(?<![\\p{L}'’])(?:let['’]s|to|will|can|should|must|we|i|please|could){{S}}(?<target>asses){{E}}(?={{S}}(?:the|a|your|our|their|his|her|my|it|this|these|whether|how|what){{E}})"
         check: englishConfusedWords
-        cue: ["asses"]
         fix: "assess"
       - regex: "(?<![\\p{L}'’])(?:he|she|i|we|they|you){{S}}(?<target>road){{E}}(?={{S}}(?:on|a|the|his|her|my|their|our|to|home|in|into|off|away|through|across){{E}})"
         check: englishConfusedWords
-        cue: ["road"]
         fix: "rode"
       - regex: "(?<![\\p{L}'’])(?:he|she|it|who){{S}}(?<target>caries){{E}}"
         message: review_msg_typo
-        cue: ["caries"]
         fix: "carries"
       - regex: "(?<![\\p{L}'’])(?:he|she|it|who){{S}}(?<target>writs){{E}}(?={{S}}(?:a|an|the|his|her|my|letters|books|code|songs|poems){{E}})"
         message: review_msg_typo
-        cue: ["writs"]
         fix: "writes"
       # "It will he turned on", "The door will he locked": a subject before the modal, then a
       # participle that cannot follow an inverted "he".
       - regex: "(?<![\\p{L}'’])(?:(?<lead>[a-z]+)){{S}}(?<target>(?:will|can|could|should|would|must){{S}}he){{E}}(?={{S}}(?:(?<after>[a-z]+)){{E}})"
+        cue: false
         check: englishConfusedWords
         # "It will he turned on", "The door will he locked": a subject before the modal, then a
         # participle that cannot follow an inverted "he".
@@ -19782,7 +19276,6 @@ rules:
         return: 'sure && participle ? target.replace(/he$/i, "be") : null'
       - regex: "(?<![\\p{L}'’])(?:i|we|you|they){{S}}(?<target>dun){{E}}(?={{S}}(?:know|care|think|want|like|have|get|understand|see|need|mind){{E}})"
         message: review_msg_typo
-        cue: ["dun"]
         fix: "don't"
       - regex: "(?<![\\p{L}'’])(?:unable|able|want|wanted|need|needed|going|trying|try|tried|have|has|had){{S}}(?<target>tor){{E}}(?={{S}}(?:[a-z]+){{E}})"
         message: review_msg_typo
@@ -19798,19 +19291,15 @@ rules:
         fix: "to"
       - regex: "(?<![\\p{L}'’])(?:to|not|n['’]t|can|could|will|please|unable{{S}}to){{S}}(?<target>active){{E}}(?={{S}}(?:your|the|my|it|this|his|her|their|our|them){{E}})"
         check: englishConfusedWords
-        cue: ["active"]
         fix: "activate"
       - regex: "(?<![\\p{L}'’])(?:can['’]t|cannot|can{{S}}not|could{{S}}not|couldn['’]t|to|can|could){{S}}(?<target>effort){{E}}(?={{S}}(?:a|an|the|it|to|this|that|any|one|another){{E}})"
         check: englishConfusedWords
-        cue: ["effort"]
         fix: "afford"
       - regex: "(?<![\\p{L}'’])(?:['’]ll|will|can|to|i|we|could|should){{S}}(?<target>mange){{E}}(?={{S}}(?:it|the|to|this|that|them|a|my|your){{E}})"
         message: review_msg_typo
-        cue: ["mange"]
         fix: "manage"
       - regex: "(?<![\\p{L}'’])(?:spelling|it|that|this|which|you|we|i|they){{S}}(?<target>cab){{E}}(?={{S}}(?:be){{E}})"
         message: review_msg_typo
-        cue: ["cab"]
         fix: "can"
       - regex: "(?<![\\p{L}'’])(?:it|this|that|he|she|there|what){{S}}(?<target>si){{E}}"
         message: review_msg_typo
@@ -19818,57 +19307,44 @@ rules:
         fix: "is"
       - regex: "(?<![\\p{L}'’])(?:not|very|so|is|['’]s|isn['’]t|wasn['’]t){{S}}(?<target>fare){{E}}(?={{S}}(?:to|how|that|enough){{E}})"
         check: englishConfusedWords
-        cue: ["fare"]
         fix: "fair"
       - regex: "(?<![\\p{L}'’])(?:not|so|very){{S}}(?<target>fare)(?=[ \\t\\u00a0]*[.!?])"
         check: englishConfusedWords
-        cue: ["fare"]
         fix: "fair"
       - regex: "(?<![\\p{L}'’])(?:to|n['’]t|not|will|can|please|i|we){{S}}(?<target>sen){{E}}(?={{S}}(?:{{NEIGHBOURTYPOS_OBJECT}}){{E}})"
         message: review_msg_typo
-        cue: ["sen"]
         fix: "send"
       - regex: "(?<![\\p{L}'’])(?:to|n['’]t|not|will|can|i|we|they){{S}}(?<target>posses){{E}}(?={{S}}(?:a|an|the|any|no|some|it|this|that){{E}})"
         message: review_msg_typo
-        cue: ["posses"]
         fix: "possess"
       - regex: "(?<![\\p{L}'’])(?:not|n['’]t|doesn['’]t|don['’]t|didn['’]t|won['’]t|no){{S}}(?<target>mater){{E}}"
         check: englishConfusedWords
-        cue: ["mater"]
         fix: "matter"
       - regex: "(?<![\\p{L}'’])(?:can|could|will|would|should|to|might){{S}}(?<target>writ){{E}}(?={{S}}(?:{{NEIGHBOURTYPOS_OBJECT}}){{E}})"
         message: review_msg_typo
-        cue: ["writ"]
         fix: "write"
       - regex: "(?<![\\p{L}'’])(?:i|we|you|they|don['’]t|didn['’]t|really|just){{S}}(?<target>wan){{E}}(?={{S}}(?:to|this|that|it|a|an|the|some|more){{E}})"
         message: review_msg_typo
-        cue: ["wan"]
         fix: "want"
       # Lowercase only: "Ned" is a name ("Will Ned help?").
       - regex: "(?<![\\p{L}'’])(?:i|we|you|they|don['’]t|doesn['’]t|didn['’]t|won['’]t|not|will|would|really|just|also|might|may){{S}}(?<target>ned){{E}}(?={{S}}(?:to|too|a|an|the|some|more|help|it|this|that|your|my|our|their|them|you|me|us){{E}})"
         message: review_msg_typo
-        cue: ["ned"]
         # Lowercase only: "Ned" is a name ("Will Ned help?").
         return: 'target === "ned" ? "need" : null'
       - regex: "(?<![\\p{L}'’])(?:wouldn['’]t|won['’]t|to|will|can|could|should|must|might|['’]ll|don['’]t){{S}}(?<target>git){{E}}(?={{S}}(?:a|an|the|some|my|your|this|that|them|me|him|her|us|rid|back|out|up|it){{E}})"
         check: englishConfusedWords
-        cue: ["git"]
         fix: "get"
       - regex: "(?<![\\p{L}'’])(?:let['’]s|to|will|can|could|should|we|i|you){{S}}(?<target>meed){{E}}(?={{S}}(?:tomorrow|today|you|me|him|her|them|us|at|in|the|up|again|soon|on){{E}})"
         message: review_msg_typo
-        cue: ["meed"]
         fix: "meet"
       - regex: "(?<![\\p{L}'’])(?:you|i|we|they){{S}}(?<target>seen){{E}}(?={{S}}(?:to{{S}}(?:be|have|ask|know|get|like|want|think|need|make)){{E}})"
         check: englishConfusedWords
-        cue: ["seen"]
         fix: "seem"
       - regex: "(?<![\\p{L}'’])(?:had|has|have|had{{S}}already|has{{S}}already|have{{S}}already){{S}}(?<target>begone){{E}}"
         check: englishConfusedWords
-        cue: ["begone"]
         fix: "begun"
       - regex: "(?<![\\p{L}'’])(?<target>Than){{E}}(?={{S}}(?:you){{E}})"
         check: englishConfusedWords
-        cue: ["than"]
         return: 'enAfterBreak(ctx, m.index) ? "Thank" : null'
       - regex: "(?<![\\p{L}'’])(?:i|he|she|it){{S}}(?<target>as){{E}}(?={{S}}(?:looking|going|trying|thinking|wondering|working|waiting){{E}})"
         check: englishConfusedWords
@@ -19876,33 +19352,31 @@ rules:
         fix: "was"
       - regex: "(?<![\\p{L}'’])(?:would|do|does|did|not|n['’]t|really|just){{S}}(?<target>wont){{E}}(?={{S}}(?:to){{E}})"
         check: englishConfusedWords
-        cue: ["wont"]
         fix: "want"
       - regex: "(?<![\\p{L}'’])(?:set|sets|setting|establish|established|establishes|create|created|creates){{S}}(?<target>a(?:{{S}}(?:new|dangerous|bad|good|legal))?{{S}}precedence){{E}}"
+        cue: false
         check: englishConfusedWords
         return: 'target.replace(/precedence$/i, "precedent")'
       - regex: "(?<![\\p{L}'’])(?:been|was|is|fell|slipped|put|remain|remained|remains|in|into){{S}}(?<target>a{{S}}comma){{E}}"
+        cue: false
         check: englishConfusedWords
         return: '/^[ \t ]*-/.test(ctx.text.slice(m.index + m[0].length)) ? null : target.replace(/comma$/i, "coma")'
       - regex: "(?<![\\p{L}'’])(?:have|has|had|got|get|gets|with|caught|catch|getting|having){{S}}(?<target>the{{S}}flew){{E}}"
+        cue: false
         check: englishConfusedWords
         return: 'target.replace(/flew$/i, "flu")'
       - regex: "(?<![\\p{L}'’])(?:take|takes|took|taken|taking)(?:{{S}}[a-z]+){0,2}{{S}}for{{S}}(?<target>granite){{E}}"
         check: englishConfusedWords
-        cue: ["granite"]
         fix: "granted"
       - regex: "(?<![\\p{L}'’])if{{S}}[^.!?;:\\n,]{1,60},{{S}}(?<target>than){{S}}(?:we|I|you|they|he|she|it|the){{E}}"
         check: englishThenThan
         message: review_msg_then_than_temporal
-        cue: ["than"]
         fix: "then"
       - regex: "(?<![\\p{L}'’])(?:can|could|cannot|can['’]t|couldn['’]t|hardly){{S}}(?<target>await){{E}}(?={{S}}(?:until|till|for|to){{E}})"
         check: englishConfusedWords
-        cue: ["await"]
         fix: "wait"
       - regex: "(?<![\\p{L}'’])(?:should|would|could|must|might|will|can|did|does|do){{S}}(?<target>knot){{E}}(?={{S}}(?:have|be|do|go|get|work|need|happen|mind|matter){{E}})"
         message: review_msg_typo
-        cue: ["knot"]
         fix: "not"
       - regex: "(?<target>That{{S}}being{{S}}sad)(?=[ \\t\\u00a0]*[,.…])"
         check: englishConfusedWords
@@ -19910,21 +19384,17 @@ rules:
         return: 'enAfterBreak(ctx, m.index) ? "That being said" : null'
       - regex: "(?<![\\p{L}'’])in{{S}}the{{S}}(?<target>passed)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:few|two|three|years?|weeks?|months?|days?){{E}})"
         check: englishConfusedWords
-        cue: ["passed"]
         fix: "past"
       - regex: "(?<![\\p{L}'’])on{{S}}the{{S}}(?<target>lose)(?=[ \\t\\u00a0]*[.!?,]|$)"
         check: englishConfusedWords
-        cue: ["lose"]
         fix: "loose"
       - regex: "(?<![\\p{L}'’])(?<target>here{{S}}here)(?=[ \\t\\u00a0]*[,!])"
         check: englishConfusedWords
-        cue: ["here"]
         fix: "hear hear"
       # "He did it in a hastily manner": the adjective before manner.
       - regex: "(?<![\\p{L}'’])in{{S}}(?:a|an){{S}}(?<target>[a-z]+ly){{S}}(?:manner|way|fashion){{E}}"
         check: englishConfusedWords
         message: review_msg_adverb_form
-        cue: ["manner", "way", "fashion"]
         # "He did it in a hastily manner": the adjective before manner.
         let:
           word: target.toLowerCase()
@@ -19936,7 +19406,6 @@ rules:
           ) ?? null
       - regex: "(?<target>Sometime){{S}}(?:I|we|you|they|he|she|it){{S}}(?<verb>[a-z]+){{E}}"
         message: review_msg_typo
-        cue: ["sometime"]
         return: >-
           enAfterBreak(ctx, m.index) && enReadWord(verb)?.verbs.some((v) => v.form === "base" || v.form === "third")
             ? "Sometimes"
@@ -19944,12 +19413,10 @@ rules:
       # "the largest cake in the wold": world.
       - regex: "(?<![\\p{L}'’])(?:in{{S}}the|around{{S}}the|the{{S}}whole|the{{S}}entire|our|this|troubled|modern|real|whole|entire){{S}}(?<target>wold){{E}}"
         message: review_msg_typo
-        cue: ["wold"]
         fix: "world"
       # "red nut white", "hexagonal nut square": not between two adjectives.
       - regex: "(?<![\\p{L}'’])(?:is|are|was|were|be|['’]s){{S}}(?<one>[a-z]+){{S}}(?<target>nut){{S}}(?<two>[a-z]+){{E}}"
         message: review_msg_typo
-        cue: ["nut"]
         # "red nut white", "hexagonal nut square": not between two adjectives.
         return: '!!enReadWord(one)?.adjective && !!enReadWord(two)?.adjective ? "not" : null'
       # "drop by an see what's up": and before a plain verb.
@@ -19986,16 +19453,13 @@ rules:
       # "The duvet envelopes her", "will envelope your feet": the verb envelop.
       - regex: "(?<![\\p{L}'’])(?:will|to|can|would|that|which|it|they|blankets|duvet){{S}}(?<target>envelope){{E}}(?={{S}}(?:you|your|him|her|them|me|us|the|it){{E}})"
         check: englishConfusedWords
-        cue: ["envelope"]
         fix: "envelop"
       - regex: "(?<![\\p{L}'’])(?:duvet|blanket|it|fog|darkness|silence){{S}}(?<target>envelopes){{E}}(?={{S}}(?:you|your|him|her|them|me|us|the|it){{E}})"
         check: englishConfusedWords
-        cue: ["envelopes"]
         fix: "envelops"
       # "We evaluated out method", "Out time has come": our before a noun.
       - regex: "(?<![\\p{L}'’])(?:(?<lead>at|in|from|with|for|about|into|evaluated|reviewed|updated|improved){{S}})?(?<target>out){{S}}(?<noun>[a-z]+){{S}}(?<next>[a-z]+){{E}}"
         check: englishConfusedWords
-        cue: ["out"]
         # "We evaluated out method", "Out time has come": our before a noun. At a sentence start the
         # noun must have its verb next: "Out time has come".
         let:
@@ -20012,7 +19476,6 @@ rules:
       - regex: "(?<![\\p{L}'’])(?<target>you)(?<mods>(?:{{S}}[a-z]+){0,2}){{S}}(?<noun>[a-z]+){{S}}(?:is|was|has|had|will|would|can|could|should|must|does|did|may|might){{E}}"
         check: englishYourYouAre
         message: review_msg_your_possessive
-        cue: ["you"]
         # "if you father can help", "Now you current site is live": "your" before a noun subject. Only
         # where a clause opens: "I told you lunch was ready" and "Without you life is cruel" keep "you"
         # as an object.
@@ -20026,7 +19489,6 @@ rules:
       - regex: "you{{S}}and{{S}}(?<target>you){{S}}(?<noun>[a-z]+)(?=[ \\t\\u00a0]*(?:[.!?,;]|$))"
         check: englishYourYouAre
         message: review_msg_your_possessive
-        cue: ["you"]
         # "for you and you family": a second "you" before a noun.
         return: '!YOUR_ADDRESS.test(noun) && !EN_FUNCTION_WORDS.has(noun) && enNounOnly(noun) === "singular" ? "your" : null'
   - id: en.clashFrames
@@ -20128,7 +19590,6 @@ rules:
       # "It's the site that's we are using", "what's I'm doing": "'s" before a whole clause.
       # "you're" and "they're" count only before -ing or "not" ("what's you're name" is "your").
       - regex: "{{START}}(?<target>(?<word>that|what)['’]s){{S}}(?:(?:I|you|we|they|he|she|it){{S}}(?:am|are|is|was|were)|I['’]m|(?:he|she|it)['’]s|we['’]re|(?:you|they)['’]re(?={{S}}(?:[a-z]+ing|not){{E}})){{E}}"
-        cue: ["that", "what"]
         return: word
       # "I isn't", "I really aren't", "we isn't", "she weren't": a negative be that does not
       # agree with its pronoun. "it" and "you" can be objects ("the ones that made it aren't").
@@ -20181,7 +19642,6 @@ rules:
       - regex: "(?:(?<lead>{{START}}[a-z]+|['’](?:m|re|s)){{S}})?(?<target>(?<little>little{{S}})?bit)(?={{S}}(?:of{{S}}an?|too|more|less|late|early|better|worse|different|differently|longer|slow|slower|faster|tired|lazy|busy|confused|stupid|strange|weird|odd|nervous|worried|bored|cold|hot|warm){{E}})"
         check: englishPhraseCorrections
         message: review_msg_contextual_grammar
-        cue: ["bit"]
         let:
           word: lead?.toLowerCase()
           before: 'word === "little" ? enWordBefore(ctx, m.index) : ""'
@@ -20225,7 +19685,6 @@ rules:
       - regex: "{{START}}(?<target>more{{S}}(?<adjective>[a-z]{3,8}))(?={{S}}(?:to|for|if|when|with){{E}}|{{S}}than{{S}}(?<other>[a-z]+)|[ \\t\\u00a0]*(?:[.,;:!?)]|$))"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        cue: ["more"]
         let:
           otherRead: other && englishWordInfo(other.toLowerCase())
         when:
@@ -20244,7 +19703,6 @@ rules:
       - regex: "{{START}}please{{E}}[^.!?\\n]{1,100}?(?<target>,?{{S}}please)(?=[ \\t\\u00a0]*[.!?])"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        cue: ["please"]
         when: enAfterBreak(ctx, m.index)
         return: '""'
       # Opt-in: "very very cool" -> "very, very cool" or one "very". A word must follow ("so so"

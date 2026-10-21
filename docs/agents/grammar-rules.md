@@ -146,7 +146,7 @@ A rule can also give:
 - `style: template`: the frames run in every language of the check, each frame has one `fix` string (an empty string deletes the target), and a finding keeps 96 characters of context before the match and 9 after it.
 - `filter:` code over `findings` (all findings of the rule) that returns the ones to keep.
 - `style: <name>`: the other styles (`slot`, `carry`, `german`, `portuguese`, `cased`, `polish`, `comma`, `swap`) set the language, the casing of the fix and the guards of a language. The comment on `style` in `engine/types.ts` gives each one.
-- `cue: [words]` on a frame of a `slot` rule: lowercase words. The frame runs only when one of them occurs from 256 characters before the chunk to 256 characters after it.
+- `cue: [words]` on a frame of a `slot` rule: lowercase words. The frame runs only when one of them occurs from 256 characters before the chunk to 256 characters after it. A slot frame without `cue` gets its prefilter literals as cue words, when each literal is a lowercase word. A literal can be part of a longer word (`[a-z]+ness` gives `ness`): then give `cue` words, or `cue: false` (no cue words).
 
 All frame styles run in one loop: `detectFrames` in `engine/frameStyles.ts`. A style is a row of the `STYLES` table there, not a loop of its own. To change how a style reads a match, change its row.
 

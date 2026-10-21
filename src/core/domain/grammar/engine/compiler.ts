@@ -603,7 +603,7 @@ export function compileRuleFiles(
           errors.push(`${at}: "targetOnly" needs style "carry"`);
         if (entry.check !== undefined && !spec.checks.includes(entry.check))
           errors.push(`${at}: check "${entry.check}" is not a check of the rule`);
-        for (const word of entry.cue ?? [])
+        for (const word of entry.cue || [])
           if (!/^\p{Ll}+$/u.test(word)) errors.push(`${at}: cue "${word}" is not a lowercase word`);
         if (entry.gateFlags !== undefined && entry.gate === undefined)
           errors.push(`${at}: "gateFlags" needs "gate"`);
@@ -654,9 +654,17 @@ export function compileRuleFiles(
                 pattern,
               });
         addCode(fixCode);
+        const literals = requiredLiterals(pattern);
+        // A slot frame without "cue" runs only near one of its literals, when each is a word.
+        const cue =
+          entry.cue ??
+          (spec.style === "slot" &&
+            literals.length > 0 &&
+            literals.every((word) => /^\p{Ll}+$/u.test(word)) &&
+            literals);
         frames.push({
           pattern,
-          literals: requiredLiterals(pattern),
+          literals,
           // The start positions of a frame scan (comma and swap frames run a Polish scan).
           ...(scan === "frame" && spec.style !== "comma" && spec.style !== "swap"
             ? scanStarts(spec.style === "cased" ? `${WORD_START}${pattern}` : pattern)
@@ -667,7 +675,7 @@ export function compileRuleFiles(
           ...(entry.message === undefined ? {} : { message: entry.message }),
           ...(entry.clauseStart ? { clauseStart: true as const } : {}),
           ...(entry.check === undefined ? {} : { check: entry.check }),
-          ...(entry.cue === undefined ? {} : { cue: [...entry.cue] }),
+          ...(cue ? { cue: [...cue] } : {}),
           ...(entry.wordStart === false ? { wordStart: false as const } : {}),
           ...(entry.verbatim ? { verbatim: true as const } : {}),
           ...(entry.lowercase ? { lowercase: true as const } : {}),

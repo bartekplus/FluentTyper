@@ -307,6 +307,25 @@ test("frames: fragments, guards, literals and fixes", () => {
     expect(message).toContain(fragment);
 });
 
+test("slot frames: the cue words default to the literals when each is a word", () => {
+  const frames = [
+    { regex: "(?:take|took){{S}}(?<target>pride){{S}}of{{E}}", fix: "x" },
+    { regex: "(?:take|took){{S}}(?<target>pride){{S}}of{{E}}", fix: "x", cue: ["pride"] },
+    { regex: "(?:take|took){{S}}(?<target>pride){{S}}of{{E}}", fix: "x", cue: false as const },
+    { regex: "(?<target>[a-z]+){{S}}x2{{E}}", fix: "x" },
+  ];
+  const set = compile(
+    { lang: "*", checks: [check()] },
+    {
+      lang: "en",
+      rules: [{ ...rule({ id: "en.slot", frames }), style: "slot" }],
+    },
+  );
+  const literals = set.frames[0].literals;
+  expect(literals.every((word) => /^\p{Ll}+$/u.test(word))).toBe(true);
+  expect(set.frames.map((frame) => frame.cue)).toEqual([literals, ["pride"], undefined, undefined]);
+});
+
 test("match frames: language files read common fragments; their own fragments win", () => {
   const set = compile(
     { lang: "*", checks: [check()], fragments: { YEAR: "[0-9]{4}", WORD: "\\p{L}+" } },
