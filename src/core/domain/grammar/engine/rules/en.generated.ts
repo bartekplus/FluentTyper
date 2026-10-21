@@ -1690,7 +1690,7 @@ export function style1FullForms(w: string, e: string): string[] | null {
 
 // en.yaml rule en.contractionStyle def style1NotForms
 export function style1NotForms(stem: string) {
-  return STYLE1_NOT_SPECIAL[stem]
+  return Object.hasOwn(STYLE1_NOT_SPECIAL, stem)
     ? [STYLE1_NOT_SPECIAL[stem]]
     : STYLE1_NOT_STEMS.test(stem)
       ? [`${stem} not`]
@@ -2701,7 +2701,9 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       return null;
     const plural =
       authored?.plural ??
-      STYLE1_IRREGULAR_PLURALS[noun] ??
+      (Object.hasOwn(STYLE1_IRREGULAR_PLURALS, noun)
+        ? STYLE1_IRREGULAR_PLURALS[noun]
+        : undefined) ??
       [`${noun}s`, `${noun}es`, noun.replace(/([^aeiou])y$/, "$1ies")].find(
         (form) => form !== noun && englishWordInfo(form)?.plural,
       );
@@ -3404,7 +3406,9 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const w = m.groups!.w;
     const gap = m.groups!.gap;
     const s = m.groups!.s;
-    const allowed = APOS_ENDINGS[w.toLowerCase()];
+    const allowed = Object.hasOwn(APOS_ENDINGS, w.toLowerCase())
+      ? APOS_ENDINGS[w.toLowerCase()]
+      : undefined;
     if (allowed ? !allowed.split(" ").includes(s) : s !== "s" || !/^[A-Z][a-z]+$/.test(w))
       return null;
     if (!allowed && !/^[ \t ]+[a-z]/.test(ctx.text.slice(m.index + m[0].length))) return null;

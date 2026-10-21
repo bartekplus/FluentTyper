@@ -1817,6 +1817,7 @@ rules:
       # Irregular plurals that englishNounForms does not have. Regularized forms ("childs",
       # "eated") are left to Review's dictionary spelling check, which already offers the
       # irregular form first.
+      # A lookup by a typed word checks Object.hasOwn: "constructor" is a key of every object.
       STYLE1_IRREGULAR_PLURALS:
         { foot: feet, elf: elves, hero: heroes, echo: echoes, veto: vetoes, torpedo: torpedoes }
     defs:
@@ -1870,7 +1871,7 @@ rules:
           info: englishWordInfo(noun)
           plural: >-
             authored?.plural ??
-            STYLE1_IRREGULAR_PLURALS[noun] ??
+            (Object.hasOwn(STYLE1_IRREGULAR_PLURALS, noun) ? STYLE1_IRREGULAR_PLURALS[noun] : undefined) ??
             [`${noun}s`, `${noun}es`, noun.replace(/([^aeiou])y$/, "$1ies")].find(
               (form) => form !== noun && englishWordInfo(form)?.plural)
           start: m.indices!.groups!.words[0] + list[head].index
@@ -2129,6 +2130,7 @@ rules:
     filter:
       return: outsideExamples(ctx, findings)
     maps:
+      # A lookup by a typed word checks Object.hasOwn: "constructor" is a key of every object.
       STYLE1_NOT_SPECIAL: { ca: cannot, wo: will not, sha: shall not }
     defs:
       STYLE1_NOT_STEMS: /^(?:is|are|was|were|do|does|did|has|have|had|could|would|should|might|must|need|may|ought|dare)$/
@@ -2175,7 +2177,7 @@ rules:
       style1NotForms:
         args: "stem: string"
         return: >-
-          STYLE1_NOT_SPECIAL[stem]
+          Object.hasOwn(STYLE1_NOT_SPECIAL, stem)
             ? [STYLE1_NOT_SPECIAL[stem]]
             : STYLE1_NOT_STEMS.test(stem)
               ? [`${stem} not`]
@@ -4761,6 +4763,7 @@ rules:
           nobody,
         ]
     maps:
+      # A lookup by a typed word checks Object.hasOwn: "constructor" is a key of every object.
       APOS_ENDINGS:
         {
           i: m ve ll d,
@@ -4985,7 +4988,7 @@ rules:
         owner: gap
         gate: "['’][ \\t\\u00a0]|[ \\t\\u00a0]['’]"
         let:
-          allowed: APOS_ENDINGS[w.toLowerCase()]
+          allowed: "Object.hasOwn(APOS_ENDINGS, w.toLowerCase()) ? APOS_ENDINGS[w.toLowerCase()] : undefined"
           span: m.indices!.groups!.gap
         when:
           - '!(allowed ? !allowed.split(" ").includes(s) : s !== "s" || !/^[A-Z][a-z]+$/.test(w))'
