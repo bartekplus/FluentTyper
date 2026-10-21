@@ -469,6 +469,19 @@ function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): Raw
     const typed = m.groups!.target;
     const first = typed.toLowerCase();
     if (/ing$/.test(first) || FUNCTION_WORDS.has(first)) return null;
+    // The head loop below stops with no head at this first word unless it is a noun with a
+    // number, an adjective or a participle.
+    const read = englishWordInfo(first);
+    if (
+      TO_PLURAL[normal(first)] ||
+      TO_SINGULAR[normal(first)] ||
+      SINGULAR_DO_HAVE[normal(first)] ||
+      NUMBERS.test(first) ||
+      (!headNumber(first, true) &&
+        !read?.adjective &&
+        !read?.verbs.some((v) => v.form === "participle"))
+    )
+      return null;
     // "bell hooks doesn't…": a sentence opening in lowercase starts with a name or a fragment.
     if (
       typed === first &&
