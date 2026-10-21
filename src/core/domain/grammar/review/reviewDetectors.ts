@@ -86,6 +86,7 @@ import {
   isLowercaseLetter,
   isTechnicalToken,
   lastNonSpaceBefore,
+  memoize,
 } from "../implementations/helpers/GenericRuleShared";
 import { graphemeEnd, overlapsSortedRanges } from "./textRanges";
 import { MASK_CHAR, type ReviewMessageKey, type TextRange } from "./types";
@@ -1084,12 +1085,21 @@ const ordinal: MatchFixer = (match, ctx) => {
   return findings;
 };
 
+// couldEndProperName reads the text before a word only for a day or a year, which starts
+// with a digit. For other words the answer depends on the word only: it is cached.
+const couldEndNameWord = memoize((word) => couldEndProperName(word, ""), 4096);
+
 /** A proper name that ends at the word of the scan ("christmas", "new york", "in may,"). */
 const properNoun: MatchFixer = (match, ctx) => {
   if (ctx.lang !== "en_US") return null;
   const wordEnd = match.index + match[0].length;
-  const before = ctx.text.slice(Math.max(0, match.index - 12), match.index);
-  if (!couldEndProperName(match[0], before)) return null;
+  const code = match[0].charCodeAt(0);
+  if (
+    code >= 48 && code <= 57
+      ? !couldEndProperName(match[0], ctx.text.slice(Math.max(0, match.index - 12), match.index))
+      : !couldEndNameWord(match[0])
+  )
+    return null;
   const windowStart = Math.max(0, wordEnd - 160);
   const core = ctx.text.slice(windowStart, wordEnd);
   // Unlike typing, the words after it are here too: "in may," is the month.
