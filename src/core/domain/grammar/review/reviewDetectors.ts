@@ -1,7 +1,6 @@
 import type { CatalogRuleId } from "../ruleCatalog";
 import {
   articleAnLastWord,
-  isoDateWarning,
   modalOfLastWord,
   pronounVerbLastWord,
   theirThereLastWord,
@@ -9,28 +8,10 @@ import {
 } from "../engine/rules/common.generated";
 import { phraseCorrections } from "./englishPhraseCorrections";
 import { usePhraseRows } from "../library/common/engine";
+import { useEnFrameRules } from "../library/english/rules";
+import { useRuleDetectors } from "../library/english/views";
 import type { ReviewMessageKey, TextRange } from "./types";
-import {
-  FILTERS as ENGLISH_FILTERS,
-  FIXERS as ENGLISH_FIXERS,
-  PREDICATES as ENGLISH,
-} from "./english/ruleDetectors";
-import {
-  FILTERS as PORTUGUESE_FILTERS,
-  FIXERS as PORTUGUESE_FIXERS,
-  PREDICATES as PORTUGUESE,
-} from "./portuguese/ruleDetectors";
-import {
-  FILTERS as FRENCH_FILTERS,
-  FIXERS as FRENCH_FIXERS,
-  PREDICATES as FRENCH,
-} from "./french/ruleDetectors";
-import {
-  buildReviewDetectors,
-  mergePredicates,
-  type Detector,
-  type Fixer,
-} from "../engine/reviewRules";
+import { buildReviewDetectors, frameRuleDetector } from "../engine/reviewRules";
 
 /**
  * Review detectors read ONE immutable snapshot and never mutate it.
@@ -109,44 +90,19 @@ export const PHRASE_LAST_WORD = {
   articleAn: articleAnLastWord,
 } satisfies Record<string, (text: string, start: number, end: number) => boolean>;
 
-/**
- * The named shared detectors: common.yaml names them in its Review rules, which set their
- * checks, languages and order.
- */
-export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {};
-
-/** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
-const CORE_FIXERS = mergePredicates<Fixer>(
-  // The other rule files still name the ISO date frame fixer "common:invalidIsoDate".
-  { invalidIsoDate: isoDateWarning },
-);
-
+// Library helpers that run engine parts: the library cannot load the engine (an import cycle).
 // The phrase rows that the phraseTables rule of common.yaml reads (library phraseRows).
 usePhraseRows(phraseCorrections);
+// The findings of another frame rule, in the chunk or in a view (library enFrameRuleFindings,
+// enRuleFindings).
+useEnFrameRules((id) => frameRuleDetector(id));
+useRuleDetectors((id) => frameRuleDetector(id));
 
 /**
- * Review detectors in evaluation order, built from the Review rules of grammar/rules/*.yaml.
- * Rules absent here are excluded from review (see reviewCatalog).
+ * Review detectors in evaluation order, built from the Review rules of grammar/rules/*.yaml:
+ * their patterns, frames and code. Rules absent here are excluded from review (see reviewCatalog).
  */
-export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
-  {
-    common: CORE_PREDICATES,
-    en: ENGLISH,
-    pt_BR: PORTUGUESE,
-    fr: FRENCH,
-  },
-  {
-    common: CORE_FIXERS,
-    en: ENGLISH_FIXERS,
-    pt_BR: PORTUGUESE_FIXERS,
-    fr: FRENCH_FIXERS,
-  },
-  {
-    en: ENGLISH_FILTERS,
-    pt_BR: PORTUGUESE_FILTERS,
-    fr: FRENCH_FILTERS,
-  },
-);
+export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors();
 
 /** Per-language entries: they may add context detectors to shared rules or serve their own. */
 export const LANGUAGE_DETECTORS: readonly ReviewDetectorEntry[] = REVIEW_DETECTORS.filter(

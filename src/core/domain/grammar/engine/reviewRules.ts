@@ -12,11 +12,8 @@ import { chunkTokens } from "./reviewTokens";
 import { tokenKey } from "./tokenizer";
 import type { CompiledFrame } from "./types";
 
-/** A named Review detector: a predicate a rule file names with `predicate:`. */
+/** A Review detector: the code of a rule (`let`, `when`, `return`) and of its frames. */
 export type Detector = ReviewDetectorEntry["detect"];
-
-/** Named Review detectors by rule file ("common", "en", "de", ...), then by name. */
-export type ReviewPredicates = Readonly<Record<string, Readonly<Record<string, Detector>>>>;
 
 /** The check and message a frame reports. */
 export interface FrameRef {
@@ -48,27 +45,8 @@ export type MatchFixer = (m: RegExpExecArray, ctx: DetectContext, frame: FrameRe
 /** Any named fix: each frame style passes its own arguments (portuguese: the typed target). */
 export type AnyFixer = (...args: never[]) => unknown;
 
-/** Named frame fixes by rule file, then by name. */
-export type ReviewFixers = Readonly<Record<string, Readonly<Record<string, AnyFixer>>>>;
-
 /** A named filter of a frame rule's findings: it sees them all, in order. */
 export type FindingsFilter = (ctx: DetectContext, findings: RawFinding[]) => RawFinding[];
-
-/** Named findings filters by rule file, then by name. */
-export type ReviewFilters = Readonly<Record<string, Readonly<Record<string, FindingsFilter>>>>;
-
-/** The detectors (or fixers) of several modules as one record; a name defined twice is an error. */
-export function mergePredicates<T = Detector>(
-  ...records: readonly Readonly<Record<string, T>>[]
-): Readonly<Record<string, T>> {
-  const merged: Record<string, T> = {};
-  for (const record of records)
-    for (const [name, value] of Object.entries(record)) {
-      if (Object.hasOwn(merged, name)) throw new Error(`"${name}" is defined twice`);
-      merged[name] = value;
-    }
-  return merged;
-}
 
 // One match walk per chunk serves every pattern rule.
 const SCANS = new WeakMap<DetectContext, Map<number, RawFinding[]>>();
@@ -139,6 +117,7 @@ export function patternDetector(index: number, set: PatternSet = REVIEW_PATTERNS
   };
 }
 
+/** The code a compiled rule names ("<file>:<name>"), in the generated module of its file. */
 const named = <T>(table: Readonly<Record<string, Readonly<Record<string, T>>>>, ref: string) => {
   const [namespace, name] = ref.split(":");
   return table[namespace]?.[name];
@@ -146,28 +125,21 @@ const named = <T>(table: Readonly<Record<string, Readonly<Record<string, T>>>>, 
 
 /**
  * The detector of the frame rule `id` of the rule files: its frames, tried in order, with the
- * literals the compiler found and the named fixers of `fixers`.
+ * literals the compiler found and the code of its rule file.
  */
-export function frameRuleDetector(
-  id: string,
-  fixers: ReviewFixers,
-  filters: ReviewFilters = {},
-): Detector {
+export function frameRuleDetector(id: string): Detector {
   const rule = REVIEW_RULES.find((entry) => entry.id === id);
   if (!rule?.frames) throw new Error(`Grammar rule ${id} is not a frame rule`);
   const ruleId = rule.checks[0] as CatalogRuleId;
   const messageKey = rule.message as ReviewMessageKey;
   const compiled = rule.frames.map((index) => REVIEW_FRAMES[index]);
   for (const { pattern, literals } of compiled) primeFrameLiterals(pattern, [...literals]);
-  const filter =
-    rule.filter === undefined
-      ? undefined
-      : (named(RULE_FILTERS, rule.filter) ?? named(filters, rule.filter));
+  const filter = rule.filter === undefined ? undefined : named(RULE_FILTERS, rule.filter);
   if (rule.filter !== undefined && !filter)
     throw new Error(`Grammar rule ${id}: no filter "${rule.filter}"`);
   const fixOf = (fix: CompiledFrame["fix"], fixer: string | undefined) => {
     if (fixer === undefined) return fix!;
-    const found = named(RULE_FIXERS, fixer) ?? named(fixers, fixer);
+    const found = named(RULE_FIXERS, fixer);
     if (!found) throw new Error(`Grammar rule ${id}: no fixer "${fixer}"`);
     return found;
   };
@@ -184,15 +156,11 @@ export function frameRuleDetector(
 }
 
 /**
- * The Review detector entries of the rule files, in evaluation order. A rule names a
- * detector of `predicates` ("<file>:<name>") or is a compiled pattern. A name that no
- * module defines is an error at load, not a silent gap.
+ * The Review detector entries of the rule files, in evaluation order: a compiled pattern, the
+ * frames and the code of a rule, or the findings of an earlier pass. Code that the generated
+ * modules do not hold is an error at load, not a silent gap.
  */
-export function buildReviewDetectors(
-  predicates: ReviewPredicates,
-  fixers: ReviewFixers = {},
-  filters: ReviewFilters = {},
-): ReviewDetectorEntry[] {
+export function buildReviewDetectors(): ReviewDetectorEntry[] {
   const entries = REVIEW_RULES.map((rule) => {
     let detect: Detector;
     if (rule.findings !== undefined) {
@@ -202,17 +170,17 @@ export function buildReviewDetectors(
         (ctx[field] ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to);
     } else if (rule.pattern !== undefined) detect = patternDetector(rule.pattern);
     else if (rule.frames !== undefined) {
-      detect = frameRuleDetector(rule.id, fixers, filters);
+      detect = frameRuleDetector(rule.id);
       if (rule.predicate !== undefined) {
-        // The frames, then the named predicate: one composite whose parts keep their findings
+        // The frames, then the rule's own code: one composite whose parts keep their findings
         // when the other throws.
-        const after = named(RULE_DETECTORS, rule.predicate) ?? named(predicates, rule.predicate);
+        const after = named(RULE_DETECTORS, rule.predicate);
         if (!after) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
         const frames = detect;
         detect = (ctx) => detectAll(ctx, [frames, after]);
       }
     } else {
-      const found = named(RULE_DETECTORS, rule.predicate!) ?? named(predicates, rule.predicate!);
+      const found = named(RULE_DETECTORS, rule.predicate!);
       if (!found) throw new Error(`Grammar rule ${rule.id}: no detector "${rule.predicate}"`);
       detect = found;
     }
