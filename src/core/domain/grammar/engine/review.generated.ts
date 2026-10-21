@@ -18525,7 +18525,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<noun>\\p{L}+)[ \\t]+et[ \\t]+(?<half>demi(?:e|s|es)?)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["demi"],
-    fixer: "fr:andAHalf",
+    fixer: "fr:@fr.adjectives/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18534,7 +18534,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<half>demie)(?:[ \\t]+|-)(?<noun>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["demie"],
-    fixer: "fr:halfBefore",
+    fixer: "fr:@fr.adjectives/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18554,7 +18554,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "desquels",
       "desquelles",
     ],
-    fixer: "fr:relativeAgreement",
+    fixer: "fr:@fr.adjectives/3",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18562,7 +18562,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])gens(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["gens"],
-    fixer: "fr:gensAgreement",
+    fixer: "fr:@fr.adjectives/4",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18570,7 +18570,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])tel(?:le)?s?(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["tel"],
-    fixer: "fr:telAgreement",
+    fixer: "fr:@fr.adjectives/5",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18617,7 +18617,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "mauve",
       "mauves",
     ],
-    fixer: "fr:colorShade",
+    fixer: "fr:@fr.adjectives/6",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18625,7 +18625,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])\\p{Ll}+(?=[ \\t]{1,8}(?:et|ou)[ \\t]{1,8}\\p{Ll})",
     literals: [],
-    fixer: "fr:adjectivePair",
+    fixer: "fr:@fr.adjectives/7",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18634,7 +18634,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:[lj]['’](?=\\p{L})|(?:celui|celle|ceux|celles)(?=-)|(?:le|la|un|une|ce|cet|cette|mon|ton|son|ma|ta|sa|notre|votre|leur|les|ces|mes|tes|ses|nos|vos|leurs|des|je|tu|il|elle|nous|ils|elles|celui|celle|ceux|celles|certains|certaines|beaucoup|plusieurs)(?![\\p{L}\\p{M}\\p{N}_'’-]))|(?<=\\p{L}-)(?:je|tu|il|elle|nous|ils|elles)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:adjectiveCandidate",
+    fixer: "fr:@fr.adjectives/8",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18643,7 +18643,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])et[ \\t]+(?=(?:est|sont|était|étaient|sera|seront|serait|seraient|fut|furent|soit|soient|semble|semblent|paraît|paraissent|devient|deviennent|reste|restent|demeure|demeurent)(?![\\p{L}\\p{M}\\p{N}_'’-]))",
     literals: [],
-    fixer: "fr:ellipticSubject",
+    fixer: "fr:@fr.adjectives/9",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18652,7 +18652,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])\\p{Lu}\\p{Ll}+(?:-\\p{Lu}\\p{Ll}+)?(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:firstNameSubject",
+    fixer: "fr:@fr.adjectives/10",
     flags: "gu",
     scan: "owned",
     lookback: 1,
@@ -18661,7 +18661,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:afterAvoir",
+    fixer: "fr:@fr.adjectives/11",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18670,7 +18670,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:(?:je|j['’]|tu|nous)[ \\t]{1,4}(?:(?:ne|n['’])[ \\t]{0,4})?(?:(?:me|m['’]|te|t['’]|nous)[ \\t]{0,4})?|(?<=(?<![\\p{L}\\p{M}\\p{N}_'’-])et[ \\t]{1,4}))(?:suis|es|sommes|étais|étions)[ \\t]{1,4}(?:pas[ \\t]{1,4})?(?<part>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:keptGender",
+    fixer: "fr:@fr.keptGenders/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18689,7 +18689,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "pareils",
       "pareilles",
     ],
-    fixer: "fr:adjectiveDeterminer",
+    fixer: "fr:@fr.adjectivesRest/1",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18697,7 +18697,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:de(?![\\p{L}\\p{M}\\p{N}_'’-])|d['’](?=\\p{L}))",
     literals: [],
-    fixer: "fr:deBeforeNoun",
+    fixer: "fr:@fr.adjectivesRest/2",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18706,7 +18706,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])qui[ \\t]{1,4}(?<verb>est|sont|était|étaient|sera|seront|fut|furent|semble|semblent|paraît|paraissent|reste|restent)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["qui"],
-    fixer: "fr:quiParticiple",
+    fixer: "fr:@fr.adjectivesRest/3",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18715,7 +18715,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?:est|sont|était|étaient|sera|seront|fut|furent)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: ["est", "sont", "était", "étaient", "sera", "seront", "fut", "furent"],
-    fixer: "fr:invertedParticiple",
+    fixer: "fr:@fr.adjectivesRest/4",
     flags: "giu",
     scan: "owned",
     lookback: 1,
@@ -18724,7 +18724,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_-])(?:ai|as|a|avons|avez|ont|avais|avait|avions|aviez|avaient|aurai|auras|aura|aurons|aurez|auront|aurais|aurait|aurions|auriez|auraient)(?:-t)?-(?:je|tu|il|elle|on|nous|vous|ils|elles)(?![\\p{L}\\p{M}\\p{N}_'’-])",
     literals: [],
-    fixer: "fr:invertedAvoir",
+    fixer: "fr:@fr.adjectivesRest/5",
     flags: "giu",
     scan: "owned",
     lookback: 1,
