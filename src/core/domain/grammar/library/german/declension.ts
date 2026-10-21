@@ -1,6 +1,5 @@
 // The rule library (library.ts): German declension. The forms of the determiners by gender and
 // case, and the adjective endings after them.
-import { wordTable } from "../../review/wordTable";
 import { germanGender, type GermanGenderReading } from "../../review/german/germanLexicon";
 import { likeTyped } from "../../review/german/shared";
 
@@ -56,7 +55,7 @@ const ADJECTIVE_ENDINGS: Readonly<
   },
 };
 // Contractions of a preposition and "dem", "der" or "das": [preposition, article].
-const CONTRACTIONS: Readonly<Record<string, [string, string]>> = wordTable({
+const CONTRACTIONS: Readonly<Record<string, [string, string]>> = {
   zum: ["zu", "dem"],
   zur: ["zu", "der"],
   im: ["in", "dem"],
@@ -64,7 +63,7 @@ const CONTRACTIONS: Readonly<Record<string, [string, string]>> = wordTable({
   vom: ["von", "dem"],
   beim: ["bei", "dem"],
   ins: ["in", "das"],
-});
+};
 const EIN_STEMS = new Set("ein kein mein dein sein ihr unser euer eur".split(" "));
 const DIES_STEMS = new Set("dies jed jen".split(" "));
 
