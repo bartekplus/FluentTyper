@@ -483,6 +483,7 @@ const SCANNED = new WeakMap<
     starts: Map<string, number[]>;
     lists: Map<string, ArrayLike<number>>;
     windows: Map<string, Int32Array[]>;
+    pairs?: { head: Int32Array; next: Int32Array };
   }
 >();
 // A three-letter run as a hash: no substring is made. Two runs can share a hash, so a hit
@@ -519,6 +520,31 @@ function scannedText(ctx: DetectContext) {
   return scanned;
 }
 
+// A two-letter run as a hash, for the chains of pairIndex.
+const PAIR_BUCKETS = 0x1000;
+const pair = (text: string, at: number) =>
+  (text.charCodeAt(at) * 31 + text.charCodeAt(at + 1)) & (PAIR_BUCKETS - 1);
+
+/**
+ * The positions of the lowercased scan by the hash of the two letters there: `head` gives the
+ * first position of each hash and `next` the one after each position, ascending (-1: none). A
+ * frame's prefixes are searched along one chain, not through the whole text for each prefix.
+ */
+function pairIndex(scanned: ReturnType<typeof scannedText>) {
+  if (scanned.pairs === undefined) {
+    const lower = scanned.lower!;
+    const head = new Int32Array(PAIR_BUCKETS).fill(-1);
+    const next = new Int32Array(lower.length);
+    for (let i = lower.length - 2; i >= 0; i--) {
+      const hash = pair(lower, i);
+      next[i] = head[hash];
+      head[hash] = i;
+    }
+    scanned.pairs = { head, next };
+  }
+  return scanned.pairs;
+}
+
 /**
  * The positions in [from - 256, to) where `prefix` stands (lowercased); with `framed`, only
  * those where WORD_START may hold.
@@ -529,11 +555,21 @@ function prefixStarts(ctx: DetectContext, prefix: string, framed: boolean): numb
   let starts = scanned.starts.get(key);
   if (starts === undefined) {
     starts = [];
+    const lower = scanned.lower!;
     const base = Math.max(0, ctx.from - 256);
     const limit = ctx.to - base;
-    for (let i = scanned.lower!.indexOf(prefix); i !== -1 && i < limit;) {
-      if (!framed || mayStartWord(ctx.scanText, base + i)) starts.push(base + i);
-      i = scanned.lower!.indexOf(prefix, i + 1);
+    if (prefix.length >= 2) {
+      // The chain of the prefix's first two letters holds each of its positions, ascending.
+      const { head, next } = pairIndex(scanned);
+      for (let i = head[pair(prefix, 0)]; i !== -1 && i < limit; i = next[i]) {
+        if (!lower.startsWith(prefix, i)) continue;
+        if (!framed || mayStartWord(ctx.scanText, base + i)) starts.push(base + i);
+      }
+    } else {
+      for (let i = lower.indexOf(prefix); i !== -1 && i < limit;) {
+        if (!framed || mayStartWord(ctx.scanText, base + i)) starts.push(base + i);
+        i = lower.indexOf(prefix, i + 1);
+      }
     }
     scanned.starts.set(key, starts);
   }
