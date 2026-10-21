@@ -8,6 +8,7 @@ import {
   deContextYear,
   deDaysInMonth,
   deEnglishLine,
+  deEnglishWords,
   deLikeTyped,
   deTokensAfter,
   deTokensBefore,
@@ -21,6 +22,7 @@ import {
   germanGender,
   germanInfinitive,
   germanInfinitiveOf,
+  germanListedNoun,
   germanNounReading,
   germanPastInfinitives,
   germanVerbLike,
@@ -210,6 +212,165 @@ export const DA_ADVERBS: ReadonlySet<string> = new Set([
   "eben",
   "erst",
   "bald",
+]);
+
+export const SUSPENDED_PARTICLES: ReadonlySet<string> = new Set([
+  "vor",
+  "nach",
+  "ober",
+  "unter",
+  "ein",
+  "aus",
+  "an",
+  "ab",
+  "in",
+  "im",
+  "ex",
+  "auf",
+  "zu",
+  "hin",
+  "her",
+  "rück",
+  "vorder",
+  "hinter",
+  "über",
+  "inner",
+  "außer",
+  "innen",
+  "außen",
+  "nah",
+  "fern",
+  "hoch",
+  "tief",
+]);
+
+export const Q_W_WORDS: ReadonlySet<string> = new Set([
+  "wer",
+  "wen",
+  "wem",
+  "wessen",
+  "was",
+  "wann",
+  "wo",
+  "wohin",
+  "woher",
+  "warum",
+  "wieso",
+  "weshalb",
+  "weswegen",
+  "wie",
+  "welche",
+  "welcher",
+  "welchen",
+  "welchem",
+  "welches",
+  "womit",
+  "wofür",
+  "woran",
+  "worauf",
+  "worüber",
+  "wovon",
+  "wozu",
+  "inwiefern",
+]);
+
+export const Q_W_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "ab",
+  "bis",
+  "seit",
+  "mit",
+  "von",
+  "an",
+  "auf",
+  "für",
+  "in",
+  "aus",
+  "bei",
+  "nach",
+  "zu",
+  "um",
+  "über",
+]);
+
+export const Q_DEGREES: ReadonlySet<string> = new Set([
+  "viel",
+  "viele",
+  "lange",
+  "oft",
+  "spät",
+  "alt",
+  "groß",
+  "weit",
+  "hoch",
+  "teuer",
+  "schnell",
+  "sehr",
+]);
+
+export const Q_PARTICLES: ReadonlySet<string> = new Set([
+  "denn",
+  "eigentlich",
+  "nicht",
+  "überhaupt",
+  "endlich",
+  "bloß",
+  "nur",
+  "schon",
+  "noch",
+  "genau",
+  "dann",
+  "jetzt",
+  "nun",
+  "so",
+]);
+
+export const Q_SUBJECTS: ReadonlySet<string> = new Set([
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "ihr",
+  "man",
+  "Sie",
+]);
+
+export const Q_OPENERS: ReadonlySet<string> = new Set(["Und", "Aber", "Oder", "Na", "Also"]);
+
+export const Q_STATEMENT: ReadonlySet<string> = new Set([
+  "doch",
+  "ja",
+  "jedenfalls",
+  "halt",
+  "eben",
+  "wohl",
+]);
+
+export const Q_PLURAL_2: ReadonlySet<string> = new Set([
+  "seid",
+  "habt",
+  "werdet",
+  "könnt",
+  "müsst",
+  "sollt",
+  "wollt",
+  "dürft",
+  "mögt",
+  "wisst",
+]);
+
+export const Q_INSERTED: ReadonlySet<string> = new Set(["aber", "denn", "eigentlich", "nun"]);
+
+export const Q_ASKING: ReadonlySet<string> = new Set([
+  "wann",
+  "wo",
+  "wohin",
+  "woher",
+  "warum",
+  "wieso",
+  "weshalb",
+  "weswegen",
 ]);
 
 export const CHEMICAL_ELEMENTS: ReadonlySet<string> = new Set([
@@ -436,6 +597,15 @@ export const IDIOM_DECONTRACTED: Readonly<Record<string, string>> = {
 
 export const DATIVE_OF: Readonly<Record<string, string>> = { ihn: "ihm", mich: "mir", dich: "dir" };
 
+export const QUOTE_PARTNERS: Readonly<Record<string, readonly string[]>> = {
+  "„": ["“", "„"],
+  "»": ["«", "»"],
+  "(": [")", "("],
+  "“": ["„", "“"],
+  "«": ["»", "«"],
+  ")": ["(", ")"],
+};
+
 export const ONE_OF: Readonly<Record<string, string>> = {
   millionen: "million",
   milliarden: "milliarde",
@@ -639,6 +809,9 @@ export function politeOpens(token: string | undefined) {
   return token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token);
 }
 
+// de.yaml def BOUNDARY
+export const BOUNDARY = /^(?:[.!?:;,()"“”„«»–—\n-]|$)/;
+
 // de.yaml rule de.dates def WEEKDAYS
 export const WEEKDAYS = [
   "Sonntag",
@@ -815,6 +988,338 @@ export function sentenceAround(m: RegExpExecArray) {
   return head.slice(start) + tail.slice(0, end + 2);
 }
 
+// de.yaml rule de.suspendedHyphen def SUSPENDED_SINGULAR_VERBS
+export const SUSPENDED_SINGULAR_VERBS =
+  /^(?:ist|war|wird|wurde|hat|hatte|kann|muss|soll|darf|bleibt|gilt|steht|liegt|geht|kommt)$/;
+
+// de.yaml rule de.suspendedHyphen def suspendedNounTail
+export function suspendedNounTail(word: string) {
+  return [...word].some(
+    (_, i) => word.length - i >= 4 && germanNounReading(word.slice(i)) !== null,
+  );
+}
+
+// de.yaml rule de.suspendedHyphen def suspendedKnownLower
+export function suspendedKnownLower(word: string) {
+  return germanInfinitive(word) || germanAdjective(word) || germanNounReading(word) !== null;
+}
+
+// de.yaml rule de.suspendedHyphen def suspendedModifier
+export function suspendedModifier(word: string) {
+  return (
+    SUSPENDED_PARTICLES.has(word) || (germanAdjective(word) && germanNounReading(word) === null)
+  );
+}
+
+// de.yaml rule de.suspendedHyphen def suspendedJoins
+export function suspendedJoins(first: string, second: string, noun: boolean) {
+  const low = second.toLowerCase();
+  return Array.from({ length: Math.max(0, low.length - 4) }, (_, k) => k + 2).some((i) =>
+    noun ? suspendedNounJoin(first, low, i) : suspendedWordJoin(first, low, i),
+  );
+}
+
+// de.yaml rule de.suspendedHyphen def suspendedNounJoin
+export function suspendedNounJoin(first: string, low: string, i: number) {
+  const tail = low.slice(i);
+  const piece = low.slice(0, i);
+  return (
+    germanNounReading(tail) !== null &&
+    ((tail.length >= 4 && germanNounReading(first.toLowerCase() + tail) !== null) ||
+      (suspendedModifier(first.toLowerCase()) &&
+        (SUSPENDED_PARTICLES.has(piece) || (piece.length >= 4 && suspendedModifier(piece)))))
+  );
+}
+
+// de.yaml rule de.suspendedHyphen def suspendedWordJoin
+export function suspendedWordJoin(first: string, low: string, i: number) {
+  const tail0 = low.slice(i);
+  const tail = tail0.startsWith("zu") && low.slice(0, i).length >= 2 ? tail0.slice(2) : tail0;
+  return (
+    (tail.length >= 3 && suspendedKnownLower(tail) && suspendedKnownLower(first + tail)) ||
+    (SUSPENDED_PARTICLES.has(first) &&
+      SUSPENDED_PARTICLES.has(low.slice(0, i)) &&
+      germanAdjective(first + tail.replace(/e[mnrs]?$/, "")))
+  );
+}
+
+// de.yaml rule de.suspendedHyphen def suspendedArticleAt
+export function suspendedArticleAt(before: string[], at: number): number {
+  return at > 0 &&
+    /^\p{Ll}+(?:e|en|er|es|em)$/u.test(before[at]) &&
+    germanAdjective(before[at].replace(/(?:e|en|er|es|em)$/, "")) &&
+    !/^(?:k?ein|[dms]ein|ihr|unser|eur|dies|jed|jen|welch)(?:e|en|er|es|em)$/.test(before[at])
+    ? suspendedArticleAt(before, at - 1)
+    : at;
+}
+
+// de.yaml rule de.suspendedHyphen def suspendedSure
+export function suspendedSure(
+  ctx: DetectContext,
+  index: number,
+  end: number,
+  first: string,
+  second: string,
+) {
+  const low = first.toLowerCase();
+  const before = deTokensBefore(ctx.text, index, 3);
+  const prior = before.at(-1) ?? "";
+  const at = suspendedArticleAt(before, before.length - 1);
+  const article = before[at] ?? "";
+  const secondFits = germanDeterminerFits(article, second);
+  const verb = deTokensAfter(ctx.text, end, 1)[0] ?? "";
+  const secondLow = second.toLowerCase();
+  return (
+    (germanDeterminerFits(article, first) === false &&
+      (secondFits === true || (secondFits === null && suspendedNounTail(secondLow)))) ||
+    (/^(?:der|die|das|ein|eine)$/i.test(article) &&
+      BOUNDARY.test(before[at - 1] ?? "") &&
+      SUSPENDED_SINGULAR_VERBS.test(verb) &&
+      suspendedNounTail(secondLow) &&
+      germanListedNoun(secondLow) === null) ||
+    (prior !== "" &&
+      !BOUNDARY.test(prior) &&
+      germanAdjective(low) &&
+      germanNounReading(low) === null &&
+      ![`${low}s`, `${low}es`, `${low}en`].some((form) => germanNounReading(form) === "noun") &&
+      !germanAdjective(secondLow) &&
+      germanListedNoun(secondLow) === null &&
+      suspendedNounTail(secondLow)) ||
+    (/s$/.test(low) &&
+      suspendedNounTail(low.slice(0, -1)) &&
+      !/^(?:des|eines|keines|meines|deines|seines|ihres|unseres|eures|dieses|jenes|jedes)$/i.test(
+        prior,
+      ) &&
+      germanListedNoun(secondLow) === null &&
+      suspendedNounTail(secondLow))
+  );
+}
+
+// de.yaml rule de.abbreviations def ABBREVIATIONS
+export const ABBREVIATIONS = [
+  "z B",
+  "d h",
+  "u a",
+  "o Ä",
+  "u Ä",
+  "o ä",
+  "u ä",
+  "i d R",
+  "m E",
+  "s o",
+  "s u",
+  "u v a",
+  "u v m",
+  "n Chr",
+  "v Chr",
+  "i A",
+  "e V",
+  "n V",
+  "z T",
+  "z Hd",
+  "z Hdn",
+  "a a O",
+  "b a W",
+  "p a",
+  "c t",
+  "s t",
+  "Dr med",
+  "Dr phil",
+  "Dr jur",
+  "Dr rer nat",
+  "Dr rer pol",
+  "Dr med dent",
+  "Dr med vet",
+  "Prof Dr",
+].map((parts) => parts.split(" "));
+
+// de.yaml rule de.abbreviations def RUN_TOGETHER
+export const RUN_TOGETHER = new Set(ABBREVIATIONS.map((parts) => parts.join(".").toLowerCase()));
+
+// de.yaml rule de.abbreviations def isGermanAbbreviationToken
+export function isGermanAbbreviationToken(token: string) {
+  return RUN_TOGETHER.has(token.toLowerCase().replace(/\.$/, ""));
+}
+
+// de.yaml rule de.abbreviations def abbreviationPattern
+export function abbreviationPattern(parts: string[]) {
+  return new RegExp(
+    "^" +
+      parts
+        .map((p, i) => (i === 0 ? "[" + p[0] + p[0].toUpperCase() + "]" + p.slice(1) : p) + "\\.?")
+        .join("[ \\t\\u00a0]?") +
+      "$",
+    "u",
+  );
+}
+
+// de.yaml rule de.abbreviations def ABBREVIATION_FRAMES
+export const ABBREVIATION_FRAMES = [...ABBREVIATIONS]
+  .sort((a, b) => b.length - a.length || b.join("").length - a.join("").length)
+  .map((parts) => ({ parts, whole: abbreviationPattern(parts) }));
+
+// de.yaml rule de.abbreviations def abbreviationFinding
+export function abbreviationFinding(
+  start: number,
+  end: number,
+  replacement: string,
+  ruleId: "germanAbbreviations" | "germanAbbreviationSpacing",
+): RawFinding {
+  return {
+    ruleId,
+    messageKey: "review_msg_german_abbreviation",
+    range: { start, end },
+    alternatives: [replacement],
+    context: { start, end },
+  };
+}
+
+// de.yaml rule de.quotes def quoteOpening
+export function quoteOpening(text: string, at: number, length: number) {
+  return (
+    /^$|[\s([{–—/]$/u.test(text.slice(Math.max(0, at - 1), at)) &&
+    /^[\p{L}\p{N}]/u.test(text.slice(at + length, at + length + 1))
+  );
+}
+
+// de.yaml rule de.quotes def quoteFinding
+export function quoteFinding(start: number, end: number, replacement: string): RawFinding {
+  return {
+    ruleId: "germanQuotes",
+    messageKey: "review_msg_german_quotes",
+    range: { start, end },
+    alternatives: [replacement],
+    context: { start: Math.max(0, start - 40), end: end + 40 },
+  };
+}
+
+// de.yaml rule de.quotes def QUOTE_MARK
+export const QUOTE_MARK = /“|”|,,|''|"/;
+
+// de.yaml rule de.quotes def quoteTrack
+export function quoteTrack(open: number, chars: string) {
+  return [...chars].reduce(
+    (n, c) => (c === "„" ? n + 1 : c === "“" && n > 0 ? n - 1 : c === "\n" ? 0 : n),
+    open,
+  );
+}
+
+// de.yaml rule de.quotes def quoteAction
+export function quoteAction(
+  text: string,
+  mark: string,
+  opening: boolean,
+  open: number,
+  at: number,
+): { add: RawFinding[]; open: number } {
+  return mark === '"'
+    ? open > 0 && !opening
+      ? { add: [quoteFinding(at, at + 1, "“")], open: open - 1 }
+      : { add: [], open }
+    : mark === "“"
+      ? open > 0 || !opening
+        ? { add: [], open: open > 0 ? open - 1 : open }
+        : { add: [quoteFinding(at, at + 1, "„")], open: open + 1 }
+      : mark === "”"
+        ? opening && open === 0
+          ? { add: [quoteFinding(at, at + 1, "„")], open: open + 1 }
+          : { add: [quoteFinding(at, at + 1, "“")], open: open > 0 ? open - 1 : open }
+        : opening && open === 0
+          ? { add: [quoteFinding(at, at + 2, "„")], open: open + 1 }
+          : mark === "''" && open > 0 && /[\p{L}\p{N}.!?)]$/u.test(text.slice(at - 1, at))
+            ? { add: [quoteFinding(at, at + 2, "“")], open: open - 1 }
+            : { add: [], open };
+}
+
+// de.yaml rule de.quotes def quoteMarksFrom
+export function quoteMarksFrom(
+  ctx: DetectContext,
+  base: number,
+  stop: number,
+  scan: string,
+  from: number,
+  open: number,
+  scanned: number,
+  found: RawFinding[],
+): RawFinding[] {
+  const hit = QUOTE_MARK.exec(scan.slice(from));
+  const at = hit ? base + from + hit.index : 0;
+  if (!(!!hit && at < stop)) return found;
+  const mark = hit[0];
+  const current = quoteTrack(open, ctx.text.slice(scanned, at));
+  const next = at + mark.length;
+  const opening = quoteOpening(ctx.text, at, mark.length);
+  const close =
+    opening && current === 0 && mark !== '"'
+      ? /[“”"]|''|\n/.exec(ctx.text.slice(next, next + 200))
+      : null;
+  const skipTo =
+    close && close[0] !== "\n" && deEnglishWords(ctx.text.slice(next, next + close.index)) > 0
+      ? next + close.index + close[0].length
+      : -1;
+  const step = quoteAction(ctx.text, mark, opening, current, at);
+  return skipTo >= 0
+    ? quoteMarksFrom(ctx, base, stop, scan, skipTo - base, current, skipTo, found)
+    : quoteMarksFrom(ctx, base, stop, scan, next - base, step.open, next, found.concat(step.add));
+}
+
+// de.yaml rule de.quotes def QUOTE_NESTING
+export const QUOTE_NESTING = [
+  ["„", "“", "‚", "‘"],
+  ["»", "«", "›", "‹"],
+];
+
+// de.yaml rule de.quotes def nestedQuoteFindings
+export function nestedQuoteFindings(
+  ctx: DetectContext,
+  start: number,
+  line: string,
+  row: string[],
+): RawFinding[] {
+  return [...line.matchAll(new RegExp(`[${row[0]}${row[1]}]`, "g"))].reduce(
+    (s, mark) =>
+      mark[0] === row[0]
+        ? { stack: [...s.stack, start + mark.index], inner: s.inner, out: s.out }
+        : s.stack.length === 0
+          ? s
+          : s.stack.length > 1
+            ? {
+                stack: s.stack.slice(0, -1),
+                inner: [
+                  ...s.inner,
+                  [s.stack[s.stack.length - 1], start + mark.index] as [number, number],
+                ],
+                out: s.out,
+              }
+            : {
+                stack: [],
+                inner: [],
+                out: [
+                  ...s.out,
+                  ...s.inner.flatMap(([a, b]) => [
+                    ...(a >= ctx.from && a < ctx.to ? [quoteFinding(a, a + 1, row[2])] : []),
+                    ...(b >= ctx.from && b < ctx.to ? [quoteFinding(b, b + 1, row[3])] : []),
+                  ]),
+                ],
+              },
+    { stack: [] as number[], inner: [] as [number, number][], out: [] as RawFinding[] },
+  ).out;
+}
+
+// de.yaml rule de.straightQuotes def straightPair
+export function straightPair(ctx: DetectContext, a: number, b: number): RawFinding[] {
+  if (!(quoteOpening(ctx.text, a, 1) && !/\s/.test(ctx.text[b - 1]))) return [];
+  if (deEnglishWords(ctx.text.slice(a + 1, b))) return [];
+  return [
+    ...(a >= ctx.from && a < ctx.to
+      ? [{ ...quoteFinding(a, a + 1, "„"), ruleId: "germanStraightQuotes" as const }]
+      : []),
+    ...(b >= ctx.from && b < ctx.to
+      ? [{ ...quoteFinding(b, b + 1, "“"), ruleId: "germanStraightQuotes" as const }]
+      : []),
+  ];
+}
+
 // de.yaml rule de.commaFrames def COMMA_COPULAS
 export const COMMA_COPULAS =
   /^(?:ist|sind|war|waren|wäre|wären|sei|scheint|klingt|wird|wurde|bin|bist|seid)$/;
@@ -836,6 +1341,105 @@ export function commaAfter(
     alternatives: [alternative],
     context: { start: Math.max(0, start - 40), end: Math.min(ctx.text.length, end + 40) },
   };
+}
+
+// de.yaml rule de.questionMarks def Q_DETERMINERS
+export const Q_DETERMINERS =
+  /^(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|euer|eure\p{Ll}*|dies\p{Ll}*|jemand|man)$/u;
+
+// de.yaml rule de.questionMarks def Q_PARTICIPLE_PREFIX
+export const Q_PARTICIPLE_PREFIX = /^(?:ge|be|er|ver|ent|zer|miss)\p{Ll}+(?:t|en)$/u;
+
+// de.yaml rule de.questionMarks def QUESTION_ASKS
+export const QUESTION_ASKS =
+  /^(?:Kann|Kannst|Könnte|Könntest|Könnten|Weiß|Weißt|Wisst|Wissen|Gibt)[ \t]+(?:mir|uns|jemand|du|ihr|Sie|es)(?!\p{L})[^,]*,[ \t]*(?:ob|wie|was|wann|wo|warum|wer|welche\p{Ll}*)(?!\p{L})/u;
+
+// de.yaml rule de.questionMarks def QUESTION_TAG
+export const QUESTION_TAG =
+  /,[ \t]*(?:oder(?:[ \t]+nicht)?|nicht[ \t]+wahr|gell|gelle|richtig|stimmt['’]s)[ \t]*$/u;
+
+// de.yaml rule de.questionMarks def questionFinite
+export function questionFinite(token: string) {
+  const stem = /^(.+?)(?:st|t|et|est)$/u.exec(token)?.[1];
+  const past = /^(.+?)(?:te|ten|test|tet)$/u.exec(token)?.[1];
+  return (
+    germanAuxiliary(token) ||
+    !!germanInfinitiveOf(token) ||
+    (/^\p{Ll}+$/u.test(token) &&
+      !Q_PARTICIPLE_PREFIX.test(token) &&
+      [stem, past].some((s) => !!s && (germanInfinitive(`${s}en`) || germanInfinitive(`${s}n`))))
+  );
+}
+
+// de.yaml rule de.questionMarks def isQuestion
+export function isQuestion(words: string[]) {
+  const i0 = Q_OPENERS.has(words[0]) ? 1 : 0;
+  const first = words[i0];
+  if (!first) return false;
+  return germanAuxiliary(first.toLowerCase()) && /^\p{Lu}/u.test(first) && i0 === 0
+    ? auxQuestion(words, first.toLowerCase())
+    : wQuestion(words, i0, first.toLowerCase());
+}
+
+// de.yaml rule de.questionMarks def auxQuestion
+export function auxQuestion(words: string[], low: string) {
+  const next = words[1] ?? "";
+  if (Q_PLURAL_2.has(low) && next !== "ihr") return false;
+  if (/st$/.test(low) && low !== "ist" && next !== "du") return false;
+  const rest = words.slice(2);
+  const name =
+    /^\p{Lu}\p{Ll}+$/u.test(next) &&
+    !Q_DETERMINERS.test(next.toLowerCase()) &&
+    !germanInfinitive(words.at(-1)!) &&
+    germanGender(next) === null;
+  return (
+    (Q_SUBJECTS.has(next) || Q_DETERMINERS.test(next) || name) &&
+    !rest.some(
+      (w, k) =>
+        Q_STATEMENT.has(w) ||
+        (germanAuxiliary(w) && !(k === rest.length - 1 && /^(?:werden|haben|sein)$/.test(w))),
+    )
+  );
+}
+
+// de.yaml rule de.questionMarks def wQuestion
+export function wQuestion(words: string[], i0: number, low: string) {
+  const i1 =
+    Q_W_PREPOSITIONS.has(low) && Q_W_WORDS.has(words[i0 + 1]?.toLowerCase() ?? "") ? i0 + 1 : i0;
+  if (!(i1 !== i0 || Q_W_WORDS.has(low))) return false;
+  const i2 = i1 + 1;
+  const i3 =
+    /^(?:welch|wessen)/.test(words[i2 - 1].toLowerCase()) && /^\p{Lu}/u.test(words[i2] ?? "")
+      ? i2 + 1
+      : i2;
+  const i4 = Q_DEGREES.has(words[i3] ?? "") ? i3 + 1 : i3;
+  const i5 = Q_INSERTED.has(words[i4] ?? "") ? i4 + 1 : i4;
+  const rest = words.slice(i5);
+  if (rest.length === 0 || rest.some((w) => Q_STATEMENT.has(w) || w === "für")) return false;
+  const subjectAfter =
+    rest.length <= 3 &&
+    /^\p{Ll}+$/u.test(rest[0]) &&
+    (Q_SUBJECTS.has(rest[1] ?? "") || /^\p{Lu}/u.test(rest[1] ?? ""));
+  return (
+    rest.every((w) => Q_PARTICLES.has(w)) ||
+    ((questionFinite(rest[0]) || subjectAfter) &&
+      !rest.slice(1).some((w) => germanAuxiliary(w) && !/en$/.test(w)))
+  );
+}
+
+// de.yaml rule de.questionMarks def exclaimedQuestion
+export function exclaimedQuestion(sentence: string, words: string[]) {
+  const w = Q_W_PREPOSITIONS.has(words[0]?.toLowerCase() ?? "") ? 1 : 0;
+  return !(
+    /[,;:"„“”«»()]/.test(sentence) ||
+    !Q_ASKING.has(words[w]?.toLowerCase() ?? "") ||
+    words.some(
+      (x) =>
+        /^(?:hätte|hätten|wäre|wären|würde|würden|könnte|könnten)$/.test(x) ||
+        /^(?:nur|bloß|immer)$/.test(x),
+    ) ||
+    !isQuestion(words)
+  );
 }
 
 // de.yaml rule de.numbers def NUMBER_BELOW_100
@@ -2408,6 +3012,206 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       context: { start: m.index, end: m.index + adj.length + title.length + 1 },
     };
   },
+  // de.yaml rule de.suspendedHyphen frame 1
+  "@de.suspendedHyphen/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const join = m.groups!.join;
+    const second = m.groups!.second;
+    const opening = BOUNDARY.test(deTokensBefore(ctx.text, m.index, 1).at(-1) ?? "");
+    const capital = /^\p{Lu}/u.test(target) && !(opening && /^\p{Ll}/u.test(second));
+    if (!(capital === /^\p{Lu}/u.test(second) && target.length <= 14)) return null;
+    const low = target.toLowerCase();
+    if (!capital && /^\p{Lu}/u.test(target) && !SUSPENDED_PARTICLES.has(low)) return null;
+    if (capital && /bis/.test(join)) return null;
+    if (ctx.dictionary.has(low)) return null;
+    const sure = capital && suspendedSure(ctx, m.index, m.index + m[0].length, target, second);
+    const linking = /s$/.test(low) && germanNounReading(low.slice(0, -1)) !== null;
+    if (capital && !sure && !linking && germanNounReading(low) === "noun") return null;
+    if (!(sure || suspendedJoins(capital ? target : low, second, capital))) return null;
+    return {
+      ruleId: "germanSuspendedHyphen",
+      messageKey: "review_msg_german_suspended_hyphen",
+      range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+      alternatives: [`${target}-`],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // de.yaml rule de.suspendedHyphen frame 2
+  "@de.suspendedHyphen/2": (m: RegExpExecArray): MatchResult => {
+    const hin = m.groups!.hin;
+    return {
+      ruleId: "germanSuspendedHyphen",
+      messageKey: "review_msg_german_suspended_hyphen",
+      range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+      alternatives: [`${hin}- und hergerissen`],
+      context: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+    };
+  },
+  // de.yaml rule de.abbreviations frame 1
+  "@de.abbreviations/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const parts = ABBREVIATION_FRAMES.find(({ whole }) => whole.test(target))!.parts;
+    const dots = (target.match(/\./g) ?? []).length;
+    const joined = target.replace(/[.\s]/g, "");
+    const firstDot = target.startsWith(`${target.slice(0, parts[0].length)}.`);
+    const letterFirst =
+      parts[0].length === 1 &&
+      /^\p{L}[ \t]/u.test(target) &&
+      (dots > 0 || parts.slice(1).some((p) => p.length > 1 || /\p{Lu}/u.test(p)));
+    if (!(firstDot || letterFirst || /^(?:zB|idR|eV|zT|uU)$/.test(joined))) return null;
+    if (dots === parts.length && target.split(/[ \t ]/).length === parts.length) return null;
+    if (ctx.dictionary.has(target.toLowerCase())) return null;
+    const canonical = parts.map((p, i) => (i === 0 ? target[0] + p.slice(1) : p) + ".").join(" ");
+    const span = m.indices!.groups!.target;
+    return abbreviationFinding(
+      span[0],
+      span[1],
+      canonical,
+      dots === parts.length ? "germanAbbreviationSpacing" : "germanAbbreviations",
+    );
+  },
+  // de.yaml rule de.abbreviations frame 2
+  "@de.abbreviations/2": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return abbreviationFinding(
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      `${target}.`,
+      "germanAbbreviations",
+    );
+  },
+  // de.yaml rule de.abbreviations frame 3
+  "@de.abbreviations/3": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return abbreviationFinding(
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      `${target}.`,
+      "germanAbbreviations",
+    );
+  },
+  // de.yaml rule de.abbreviations frame 4
+  "@de.abbreviations/4": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    const subject = m.groups!.subject;
+    return target !== `Dipl.-${subject}.`
+      ? abbreviationFinding(
+          m.indices!.groups!.target[0],
+          m.indices!.groups!.target[1],
+          `Dipl.-${subject}.`,
+          "germanAbbreviations",
+        )
+      : null;
+  },
+  // de.yaml rule de.abbreviations frame 5
+  "@de.abbreviations/5": (m: RegExpExecArray): MatchResult => {
+    const title = m.groups!.title;
+    const address = m.groups!.address;
+    return {
+      ...abbreviationFinding(
+        m.indices!.groups!.target[0],
+        m.indices!.groups!.target[1],
+        `${address} ${title}`,
+        "germanAbbreviations",
+      ),
+      messageKey: "review_msg_german_title_order",
+    };
+  },
+  // de.yaml rule de.abbreviations frame 6
+  "@de.abbreviations/6": (m: RegExpExecArray): MatchResult => {
+    const n = m.groups!.n;
+    return {
+      ...abbreviationFinding(
+        m.indices!.groups!.target[0],
+        m.indices!.groups!.target[1],
+        `${n} %`,
+        "germanAbbreviationSpacing",
+      ),
+      messageKey: "review_msg_measurement_spacing",
+    };
+  },
+  // de.yaml rule de.abbreviations frame 7
+  "@de.abbreviations/7": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return abbreviationFinding(
+      m.indices!.groups!.target[0],
+      m.indices!.groups!.target[1],
+      `${target[0].toUpperCase()}${target.slice(1)}.`,
+      "germanAbbreviations",
+    );
+  },
+  // de.yaml rule de.quotes frame 1
+  "@de.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const paragraphStart = ctx.text.lastIndexOf("\n", m.index - 1) + 1;
+    const paragraphEnd = m.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0);
+    return quoteMarksFrom(
+      ctx,
+      m.index,
+      Math.min(ctx.to, paragraphEnd),
+      ctx.scanText.slice(m.index, Math.min(ctx.to + 1, paragraphEnd)),
+      0,
+      quoteTrack(0, ctx.text.slice(paragraphStart, m.index)),
+      m.index,
+      [],
+    );
+  },
+  // de.yaml rule de.quotes frame 2
+  "@de.quotes/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = ctx.text.lastIndexOf("\n", m.index - 1) + 1;
+    const end = m.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0);
+    const line = ctx.text.slice(start, end);
+    return QUOTE_NESTING.flatMap((row) => nestedQuoteFindings(ctx, start, line, row));
+  },
+  // de.yaml rule de.quoteFrames frame 1
+  "@de.quoteFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const period = m.groups!.period;
+    const after = m.groups!.after;
+    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
+    if (!line.includes("„")) return null;
+    if (
+      period &&
+      /(?:(?<!\p{L})\p{L}{1,3}|\d)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))
+    )
+      return null;
+    return quoteFinding(m.index, m.index + m[0].length, period || after ? "" : "“,");
+  },
+  // de.yaml rule de.quoteFrames frame 2
+  "@de.quoteFrames/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = m.index;
+    const end = start + m[0].length;
+    const opening = /[„»(]/.test(ctx.text[start - 1]);
+    const mark = opening ? ctx.text[start - 1] : ctx.text[end];
+    const partner = QUOTE_PARTNERS[mark][0];
+    const same = QUOTE_PARTNERS[mark][1];
+    const lineStart = ctx.text.lastIndexOf("\n", start) + 1;
+    const lineEnd = ctx.text.indexOf("\n", end);
+    const line = opening
+      ? ctx.text.slice(end, lineEnd < 0 ? ctx.text.length : lineEnd)
+      : ctx.text.slice(lineStart, start);
+    const at = opening ? line.indexOf(partner) : line.lastIndexOf(partner);
+    if (!(at >= 0)) return null;
+    const between = opening ? line.slice(0, at) : line.slice(at + 1);
+    if (between.includes(same)) return null;
+    const open = opening ? start - 1 : lineStart + at;
+    if (ctx.text[open] === "(" && /[:;=-]/.test(ctx.text[open - 1] ?? "")) return null;
+    return {
+      ruleId: "germanQuotes",
+      messageKey: "review_msg_german_inner_spacing",
+      range: { start, end },
+      alternatives: [""],
+      context: { start: Math.max(0, start - 20), end: end + 20 },
+    };
+  },
+  // de.yaml rule de.straightQuotes frame 1
+  "@de.straightQuotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const start = ctx.text.lastIndexOf("\n", m.index - 1) + 1;
+    const end = m.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0);
+    const marks = [...ctx.text.slice(start, end).matchAll(/"/g)]
+      .map((q) => start + q.index)
+      .filter((at) => !/\p{N}/u.test(ctx.text[at - 1] ?? ""));
+    if (!(marks.length % 2 === 0)) return null;
+    return marks.flatMap((a, k) => (k % 2 === 1 ? [] : straightPair(ctx, a, marks[k + 1])));
+  },
   // de.yaml rule de.commaFrames frame 1
   "@de.commaFrames/1": (m: RegExpExecArray): MatchResult => {
     const end = m.index + m[0].length;
@@ -2476,6 +3280,55 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       m.indices!.groups!.target[1],
       `, ${target.replace(/[ \t ]+/g, " ")},`,
     );
+  },
+  // de.yaml rule de.questionMarks frame 1
+  "@de.questionMarks/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const at = m.index;
+    const win = Math.max(0, at - 300);
+    const start0 = win + ctx.text.slice(win, at).search(/[^.!?\n]*$/);
+    const quote = /^[ \t]*["„»]/.exec(ctx.text.slice(start0, at));
+    const start =
+      quote && !/["“”«]/.test(ctx.text.slice(start0 + quote[0].length, at))
+        ? start0 + quote[0].length
+        : start0;
+    if (!(!deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, start))) return null;
+    const sentence = ctx.text.slice(start, at);
+    if (/(?:^|\s)\p{Lu}\p{Ll}?$/u.test(sentence)) return null;
+    const exclaimed = ctx.text[at] === "!";
+    const tagged = QUESTION_TAG.test(sentence) && !/(?<!\p{L})ob(?!\p{L})/u.test(sentence);
+    const words = sentence.match(/\p{L}+/gu) ?? [];
+    if (
+      !(exclaimed
+        ? exclaimedQuestion(sentence, words)
+        : QUESTION_ASKS.test(sentence.trimStart()) ||
+          tagged ||
+          (!/[,;:"„“”«»()]/.test(sentence) &&
+            words.length >= 2 &&
+            !/(?:^|\s)\p{L}$/u.test(sentence) &&
+            isQuestion(words)))
+    )
+      return null;
+    return {
+      ruleId: "germanQuestionMarks",
+      messageKey: "review_msg_question_mark",
+      range: { start: at, end: at + 1 },
+      alternatives: ["?"],
+      context: { start, end: at + 1 },
+    };
+  },
+  // de.yaml rule de.questionMarks frame 2
+  "@de.questionMarks/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const quote = m.groups!.quote;
+    const line = ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index);
+    if (!(/["„»«“]/.test(line) && !deEnglishLine(ctx.text, m.index))) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: "germanQuestionMarks",
+      messageKey: "review_msg_question_mark",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`?${quote}`],
+      context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 },
+    };
   },
   // de.yaml rule de.numbers frame 1
   "@de.numbers/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

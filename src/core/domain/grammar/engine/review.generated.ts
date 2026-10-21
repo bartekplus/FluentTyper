@@ -25966,75 +25966,75 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>\\p{L}+)(?<join>[ \\t\\u00a0]{1,8}(?:und|oder|bzw\\.|bis)[ \\t\\u00a0]{1,8}|\\/)(?<second>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:suspendedPart",
+    fixer: "de:@de.suspendedHyphen/1",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>(?<hin>[Hh]in)[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}her[ \\t\\u00a0]{1,8}gerissen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["gerissen"],
-    fixer: "de:torn",
+    fixer: "de:@de.suspendedHyphen/2",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>[DD]r\\.?[ \\t\\u00a0]?med\\.?[ \\t\\u00a0]?dent\\.?|[DD]r\\.?[ \\t\\u00a0]?rer\\.?[ \\t\\u00a0]?nat\\.?|[DD]r\\.?[ \\t\\u00a0]?rer\\.?[ \\t\\u00a0]?pol\\.?|[DD]r\\.?[ \\t\\u00a0]?med\\.?[ \\t\\u00a0]?vet\\.?|[iI]\\.?[ \\t\\u00a0]?d\\.?[ \\t\\u00a0]?R\\.?|[uU]\\.?[ \\t\\u00a0]?v\\.?[ \\t\\u00a0]?a\\.?|[uU]\\.?[ \\t\\u00a0]?v\\.?[ \\t\\u00a0]?m\\.?|[aA]\\.?[ \\t\\u00a0]?a\\.?[ \\t\\u00a0]?O\\.?|[bB]\\.?[ \\t\\u00a0]?a\\.?[ \\t\\u00a0]?W\\.?|[DD]r\\.?[ \\t\\u00a0]?phil\\.?|[PP]rof\\.?[ \\t\\u00a0]?Dr\\.?|[DD]r\\.?[ \\t\\u00a0]?med\\.?|[DD]r\\.?[ \\t\\u00a0]?jur\\.?|[nN]\\.?[ \\t\\u00a0]?Chr\\.?|[vV]\\.?[ \\t\\u00a0]?Chr\\.?|[zZ]\\.?[ \\t\\u00a0]?Hdn\\.?|[zZ]\\.?[ \\t\\u00a0]?Hd\\.?|[zZ]\\.?[ \\t\\u00a0]?B\\.?|[dD]\\.?[ \\t\\u00a0]?h\\.?|[uU]\\.?[ \\t\\u00a0]?a\\.?|[oO]\\.?[ \\t\\u00a0]?Ä\\.?|[uU]\\.?[ \\t\\u00a0]?Ä\\.?|[oO]\\.?[ \\t\\u00a0]?ä\\.?|[uU]\\.?[ \\t\\u00a0]?ä\\.?|[mM]\\.?[ \\t\\u00a0]?E\\.?|[sS]\\.?[ \\t\\u00a0]?o\\.?|[sS]\\.?[ \\t\\u00a0]?u\\.?|[iI]\\.?[ \\t\\u00a0]?A\\.?|[eE]\\.?[ \\t\\u00a0]?V\\.?|[nN]\\.?[ \\t\\u00a0]?V\\.?|[zZ]\\.?[ \\t\\u00a0]?T\\.?|[pP]\\.?[ \\t\\u00a0]?a\\.?|[cC]\\.?[ \\t\\u00a0]?t\\.?|[sS]\\.?[ \\t\\u00a0]?t\\.?)(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "de:abbreviation",
+    fixer: "de:@de.abbreviations/1",
     flags: "dgu",
     anyCheck: true,
   }),
   frame({
     pattern: "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>max|min)(?=[ \\t]\\p{N})",
     literals: ["max", "min"],
-    fixer: "de:abbreviationDot",
+    fixer: "de:@de.abbreviations/2",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>et[ \\t]al|ad[ \\t]lib)(?![\\p{L}\\p{N}.])",
     literals: [],
-    fixer: "de:abbreviationDot",
+    fixer: "de:@de.abbreviations/3",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>Dipl(?:\\.?-|\\.[ \\t]|[ \\t]?-[ \\t]?)(?<subject>\\p{Lu}\\p{Ll}{1,10})\\.?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["dipl"],
-    fixer: "de:diploma",
+    fixer: "de:@de.abbreviations/4",
     flags: "dgu",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>(?<title>Dr\\.|Prof\\.|Doktor|Doktorin|Professor|Professorin)[ \\t]+(?<address>Frau|Herr|Herrn|Fr\\.|Hr\\.))(?=[ \\t]+\\p{Lu})",
     literals: [],
-    fixer: "de:titleOrder",
+    fixer: "de:@de.abbreviations/5",
     flags: "dgu",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{N}.,_])(?<target>(?<n>\\d+(?:[.,]\\d+)*)%)(?![\\p{L}\\p{N}_-])",
     literals: [],
-    fixer: "de:percentSpacing",
+    fixer: "de:@de.abbreviations/6",
     check: "germanAbbreviationSpacing",
     flags: "dgu",
   }),
   frame({
     pattern: "(?<=\\p{N}[ \\t\\u00a0])(?<target>[mM](?:io|rd)|Mill|Bill)(?![\\p{L}\\p{N}.])",
     literals: [],
-    fixer: "de:largeNumber",
+    fixer: "de:@de.abbreviations/7",
     flags: "dgu",
   }),
   frame({
     pattern: "[^\\n]+\\n?|\\n",
     literals: [],
-    fixer: "de:quoteMarks",
+    fixer: "de:@de.quotes/1",
     flags: "g",
     scan: "text",
   }),
   frame({
     pattern: "[^\\n]+\\n?|\\n",
     literals: [],
-    fixer: "de:nestedQuotes",
+    fixer: "de:@de.quotes/2",
     flags: "g",
     scan: "text",
   }),
@@ -26042,7 +26042,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<period>\\.)(?=“[ \\t]*[,!?])|(?<=\\.“)(?<after>\\.)|(?<=\\p{L})(?<comma>,“)(?=[ \\t]+\\p{Ll})|(?<=[!?])(?<close>“)(?=[ \\t]+(?:sagte|sagt|sagten|rief|ruft|riefen|fragte|fragt|fragten|dachte|denkt|meinte|meint|antwortete|antwortet|erwiderte|erwidert|flüsterte|flüstert|schrie|schreit|murmelte|murmelt|erklärte|erklärt|behauptete|behauptet|seufzte|lachte|rief|bat|befahl)(?![\\p{L}]))",
     literals: [],
-    fixer: "de:speech",
+    fixer: "de:@de.quoteFrames/1",
     flags: "dgu",
     scan: "owned",
   }),
@@ -26050,14 +26050,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=[\\u201E\\u00BB(])[ \\t]+(?=\\p{L})|(?<=[\\p{L}.!?\\u2026])[ \\t]+(?=[\\u201C\\u00AB)])",
     literals: [],
-    fixer: "de:innerSpacing",
+    fixer: "de:@de.quoteFrames/2",
     flags: "gu",
     scan: "owned",
   }),
   frame({
     pattern: "[^\\n]+\\n?|\\n",
     literals: [],
-    fixer: "de:straightQuotes",
+    fixer: "de:@de.straightQuotes/1",
     flags: "g",
     scan: "text",
   }),
@@ -26220,7 +26220,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{L})[.!](?=[ \\t]*(?:\\n|$)|[ \\t]+\\p{Lu})",
     literals: [],
-    fixer: "de:statementQuestion",
+    fixer: "de:@de.questionMarks/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -26228,7 +26228,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       '(?<=\\p{L})\\.?(?<quote>["\\u201C\\u201D\\u00AB\\u00BB])(?=,?[ \\t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \\t]+\\p{Ll}+)?[ \\t]+wissen)(?!\\p{L}))',
     literals: [],
-    fixer: "de:quotedQuestion",
+    fixer: "de:@de.questionMarks/2",
     flags: "gu",
     scan: "owned",
   }),

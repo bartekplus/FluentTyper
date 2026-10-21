@@ -155,6 +155,8 @@ defs:
   politeOpens:
     args: "token: string | undefined"
     return: 'token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token)'
+  # A token that ends a clause, or no token at all.
+  BOUNDARY: '/^(?:[.!?:;,()"“”„«»–—\n-]|$)/'
 
 rules:
   - id: de.compounds
@@ -2129,20 +2131,145 @@ rules:
     checks: [germanSuspendedHyphen]
     style: match
     message: review_msg_german_suspended_hyphen
+    sets:
+      # Words that open a compound as a modifier: particles and adjective stems.
+      SUSPENDED_PARTICLES: [
+          vor, nach, ober, unter, ein, aus, an, ab, in, im, ex, auf, zu, hin, her, rück, vorder, hinter, über,
+          inner, außer, innen, außen, nah, fern, hoch, tief,
+        ]
+    defs:
+      # Singular finite verbs after a subject: "wurde", "ist", "hat".
+      SUSPENDED_SINGULAR_VERBS: /^(?:ist|war|wird|wurde|hat|hatte|kann|muss|soll|darf|bleibt|gilt|steht|liegt|geht|kommt)$/
+      # A noun, or a compound ending in one ("bestandskunden").
+      suspendedNounTail:
+        args: "word: string"
+        return: "[...word].some((_, i) => word.length - i >= 4 && germanNounReading(word.slice(i)) !== null)"
+      suspendedKnownLower:
+        args: "word: string"
+        return: germanInfinitive(word) || germanAdjective(word) || germanNounReading(word) !== null
+      suspendedModifier:
+        args: "word: string"
+        return: SUSPENDED_PARTICLES.has(word) || (germanAdjective(word) && germanNounReading(word) === null)
+      # Whether some tail of `second` joined to `first` spells a word of the same kind.
+      suspendedJoins:
+        args: "first: string, second: string, noun: boolean"
+        let:
+          low: second.toLowerCase()
+        return: >-
+          Array.from({ length: Math.max(0, low.length - 4) }, (_, k) => k + 2).some((i) =>
+          noun ? suspendedNounJoin(first, low, i) : suspendedWordJoin(first, low, i))
+      # "Vor und Nachteile", "Neu und Gebrauchtwagen": a noun tail, or two modifiers on one noun,
+      # as the dictionary lists few compounds whole. A short adjective-like piece ("ger|undium")
+      # is no modifier.
+      suspendedNounJoin:
+        args: "first: string, low: string, i: number"
+        let:
+          tail: low.slice(i)
+          piece: low.slice(0, i)
+        return: >-
+          germanNounReading(tail) !== null && ((tail.length >= 4 && germanNounReading(first.toLowerCase() + tail) !== null) ||
+          (suspendedModifier(first.toLowerCase()) && (SUSPENDED_PARTICLES.has(piece) || (piece.length >= 4 && suspendedModifier(piece)))))
+      # "auszuloggen" → "loggen": a zu-infinitive's tail. "ober und untergärige": two particles
+      # before one inflected adjective ("obergärig").
+      suspendedWordJoin:
+        args: "first: string, low: string, i: number"
+        let:
+          tail0: low.slice(i)
+          tail: 'tail0.startsWith("zu") && low.slice(0, i).length >= 2 ? tail0.slice(2) : tail0'
+        return: >-
+          (tail.length >= 3 && suspendedKnownLower(tail) && suspendedKnownLower(first + tail)) ||
+          (SUSPENDED_PARTICLES.has(first) && SUSPENDED_PARTICLES.has(low.slice(0, i)) && germanAdjective(first + tail.replace(/e[mnrs]?$/, "")))
+      # The determiner before the word, past its adjectives.
+      suspendedArticleAt:
+        args: "before: string[], at: number"
+        type: number
+        return: >-
+          at > 0 && /^\p{Ll}+(?:e|en|er|es|em)$/u.test(before[at]) && germanAdjective(before[at].replace(/(?:e|en|er|es|em)$/, "")) &&
+          !/^(?:k?ein|[dms]ein|ihr|unser|eur|dies|jed|jen|welch)(?:e|en|er|es|em)$/.test(before[at]) ? suspendedArticleAt(before, at - 1) : at
+      # Whether a capitalized first part is sure to be a shortened compound part.
+      suspendedSure:
+        args: "ctx: DetectContext, index: number, end: number, first: string, second: string"
+        let:
+          low: first.toLowerCase()
+          before: deTokensBefore(ctx.text, index, 3)
+          prior: before.at(-1) ?? ""
+          at: suspendedArticleAt(before, before.length - 1)
+          article: before[at] ?? ""
+          secondFits: germanDeterminerFits(article, second)
+          verb: deTokensAfter(ctx.text, end, 1)[0] ?? ""
+          secondLow: second.toLowerCase()
+        return: >-
+          (germanDeterminerFits(article, first) === false && (secondFits === true || (secondFits === null && suspendedNounTail(secondLow)))) ||
+          (/^(?:der|die|das|ein|eine)$/i.test(article) && BOUNDARY.test(before[at - 1] ?? "") && SUSPENDED_SINGULAR_VERBS.test(verb) &&
+          suspendedNounTail(secondLow) && germanListedNoun(secondLow) === null) ||
+          (prior !== "" && !BOUNDARY.test(prior) && germanAdjective(low) && germanNounReading(low) === null &&
+          ![`${low}s`, `${low}es`, `${low}en`].some((form) => germanNounReading(form) === "noun") && !germanAdjective(secondLow) &&
+          germanListedNoun(secondLow) === null && suspendedNounTail(secondLow)) ||
+          (/s$/.test(low) && suspendedNounTail(low.slice(0, -1)) &&
+          !/^(?:des|eines|keines|meines|deines|seines|ihres|unseres|eures|dieses|jenes|jedes)$/i.test(prior) &&
+          germanListedNoun(secondLow) === null && suspendedNounTail(secondLow))
     frames:
       # Two words joined by "und", "oder", "bzw." or "bis", or by a slash: "Vor und Nachteile".
       - regex: "{{WG}}(?<target>\\p{L}+)(?<join>{{S}}(?:und|oder|bzw\\.|bis){{S}}|\\/)(?<second>\\p{L}+){{E}}"
         flags: dgu
-        fixer: suspendedPart
+        let:
+          opening: BOUNDARY.test(deTokensBefore(ctx.text, m.index, 1).at(-1) ?? "")
+          capital: '/^\p{Lu}/u.test(target) && !(opening && /^\p{Ll}/u.test(second))'
+          low: target.toLowerCase()
+          sure: capital && suspendedSure(ctx, m.index, m.index + m[0].length, target, second)
+          linking: /s$/.test(low) && germanNounReading(low.slice(0, -1)) !== null
+        when:
+          # Both parts nouns ("Vor und Nachteile") or both lowercase ("ein und auszuloggen").
+          - capital === /^\p{Lu}/u.test(second) && target.length <= 14
+          - '!(!capital && /^\p{Lu}/u.test(target) && !SUSPENDED_PARTICLES.has(low))'
+          # "die Unterlagen bis Freitag": "bis" between nouns is a range, not a shortened part.
+          - "!(capital && /bis/.test(join))"
+          - "!ctx.dictionary.has(low)"
+          - '!(capital && !sure && !linking && germanNounReading(low) === "noun")'
+          - "sure || suspendedJoins(capital ? target : low, second, capital)"
+        return: >-
+          ({ ruleId: "germanSuspendedHyphen", messageKey: "review_msg_german_suspended_hyphen",
+          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${target}-`],
+          context: { start: m.index, end: m.index + m[0].length } })
       # "hin und her gerissen": torn between two choices, the participle of "hin- und
       # herreißen".
       - regex: "{{WG}}(?<target>(?<hin>[Hh]in){{S}}und{{S}}her{{S}}gerissen){{E}}"
         flags: dgu
-        fixer: torn
+        return: >-
+          ({ ruleId: "germanSuspendedHyphen", messageKey: "review_msg_german_suspended_hyphen",
+          range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] }, alternatives: [`${hin}- und hergerissen`],
+          context: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] } })
   - id: de.abbreviations
     checks: [germanAbbreviations, germanAbbreviationSpacing]
     style: match
     message: review_msg_german_abbreviation
+    defs:
+      # The parts of each multi-part abbreviation, as written.
+      ABBREVIATIONS: >-
+        ["z B", "d h", "u a", "o Ä", "u Ä", "o ä", "u ä", "i d R", "m E", "s o", "s u", "u v a", "u v m", "n Chr",
+        "v Chr", "i A", "e V", "n V", "z T", "z Hd", "z Hdn", "a a O", "b a W", "p a", "c t", "s t", "Dr med",
+        "Dr phil", "Dr jur", "Dr rer nat", "Dr rer pol", "Dr med dent", "Dr med vet", "Prof Dr"].map((parts) => parts.split(" "))
+      # The run-together forms ("z.B", "i.d.R", "Dr.med"): abbreviations, not dotted names.
+      RUN_TOGETHER: 'new Set(ABBREVIATIONS.map((parts) => parts.join(".").toLowerCase()))'
+      # "z.B", "u.a", "Dr.med" (without the last dot): a German abbreviation typed without spaces.
+      isGermanAbbreviationToken:
+        args: "token: string"
+        return: RUN_TOGETHER.has(token.toLowerCase().replace(/\.$/, ""))
+      # The whole typed form of an abbreviation: each part with its dot, a space between.
+      abbreviationPattern:
+        args: "parts: string[]"
+        return: >-
+          new RegExp("^" + parts.map((p, i) => (i === 0 ? "[" + p[0] + p[0].toUpperCase() + "]" + p.slice(1) : p) + "\\.?").join("[ \\t\\u00a0]?") + "$", "u")
+      # The longer forms first ("Dr. med. dent." before "Dr. med."), as in the frame.
+      ABBREVIATION_FRAMES: >-
+        [...ABBREVIATIONS].sort((a, b) => b.length - a.length || b.join("").length - a.join("").length)
+        .map((parts) => ({ parts, whole: abbreviationPattern(parts) }))
+      abbreviationFinding:
+        args: 'start: number, end: number, replacement: string, ruleId: "germanAbbreviations" | "germanAbbreviationSpacing"'
+        type: RawFinding
+        return: >-
+          ({ ruleId, messageKey: "review_msg_german_abbreviation", range: { start, end }, alternatives: [replacement],
+          context: { start, end } })
     frames:
       # Multi-part abbreviations typed with a part's dot or the space missing ("z.B.", "zB",
       # "u.a", "Dr.med."): one scan for all of them, the longer forms first ("Dr. med. dent."
@@ -2152,37 +2279,127 @@ rules:
       - regex: "{{WG}}(?<target>[DD]r\\.?{{SEP}}med\\.?{{SEP}}dent\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}nat\\.?|[DD]r\\.?{{SEP}}rer\\.?{{SEP}}pol\\.?|[DD]r\\.?{{SEP}}med\\.?{{SEP}}vet\\.?|[iI]\\.?{{SEP}}d\\.?{{SEP}}R\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}a\\.?|[uU]\\.?{{SEP}}v\\.?{{SEP}}m\\.?|[aA]\\.?{{SEP}}a\\.?{{SEP}}O\\.?|[bB]\\.?{{SEP}}a\\.?{{SEP}}W\\.?|[DD]r\\.?{{SEP}}phil\\.?|[PP]rof\\.?{{SEP}}Dr\\.?|[DD]r\\.?{{SEP}}med\\.?|[DD]r\\.?{{SEP}}jur\\.?|[nN]\\.?{{SEP}}Chr\\.?|[vV]\\.?{{SEP}}Chr\\.?|[zZ]\\.?{{SEP}}Hdn\\.?|[zZ]\\.?{{SEP}}Hd\\.?|[zZ]\\.?{{SEP}}B\\.?|[dD]\\.?{{SEP}}h\\.?|[uU]\\.?{{SEP}}a\\.?|[oO]\\.?{{SEP}}Ä\\.?|[uU]\\.?{{SEP}}Ä\\.?|[oO]\\.?{{SEP}}ä\\.?|[uU]\\.?{{SEP}}ä\\.?|[mM]\\.?{{SEP}}E\\.?|[sS]\\.?{{SEP}}o\\.?|[sS]\\.?{{SEP}}u\\.?|[iI]\\.?{{SEP}}A\\.?|[eE]\\.?{{SEP}}V\\.?|[nN]\\.?{{SEP}}V\\.?|[zZ]\\.?{{SEP}}T\\.?|[pP]\\.?{{SEP}}a\\.?|[cC]\\.?{{SEP}}t\\.?|[sS]\\.?{{SEP}}t\\.?)(?![\\p{L}\\p{N}])"
         flags: dgu
         anyCheck: true
-        fixer: abbreviation
+        let:
+          parts: ABBREVIATION_FRAMES.find(({ whole }) => whole.test(target))!.parts
+          dots: (target.match(/\./g) ?? []).length
+          joined: target.replace(/[.\s]/g, "")
+          firstDot: target.startsWith(`${target.slice(0, parts[0].length)}.`)
+          letterFirst: >-
+            parts[0].length === 1 && /^\p{L}[ \t]/u.test(target) && (dots > 0 || parts.slice(1).some((p) => p.length > 1 || /\p{Lu}/u.test(p)))
+          canonical: 'parts.map((p, i) => (i === 0 ? target[0] + p.slice(1) : p) + ".").join(" ")'
+          span: m.indices!.groups!.target
+        when:
+          - firstDot || letterFirst || /^(?:zB|idR|eV|zT|uU)$/.test(joined)
+          - '!(dots === parts.length && target.split(/[ \t ]/).length === parts.length)'
+          - "!ctx.dictionary.has(target.toLowerCase())"
+        return: >-
+          abbreviationFinding(span[0], span[1], canonical, dots === parts.length ? "germanAbbreviationSpacing" : "germanAbbreviations")
       # "max 5 Leute", "min 3 Tage": the abbreviation before a number takes its dot.
       - regex: "{{WG}}(?<target>max|min)(?=[ \\t]\\p{N})"
         flags: dgu
-        fixer: abbreviationDot
+        return: 'abbreviationFinding(m.indices!.groups!.target[0], m.indices!.groups!.target[1], `${target}.`, "germanAbbreviations")'
       # "Müller et al (2021)", "ad lib": the Latin abbreviation takes its dot.
       - regex: "{{WG}}(?<target>et[ \\t]al|ad[ \\t]lib)(?![\\p{L}\\p{N}.])"
         flags: dgu
-        fixer: abbreviationDot
+        return: 'abbreviationFinding(m.indices!.groups!.target[0], m.indices!.groups!.target[1], `${target}.`, "germanAbbreviations")'
       # "Dipl.-Ing.", "Dipl.-Kfm.": a dot, a hyphen and a dot.
       - regex: "{{WG}}(?<target>Dipl(?:\\.?-|\\.[ \\t]|[ \\t]?-[ \\t]?)(?<subject>\\p{Lu}\\p{Ll}{1,10})\\.?){{E}}"
         flags: dgu
-        fixer: diploma
+        return: >-
+          target !== `Dipl.-${subject}.` ? abbreviationFinding(m.indices!.groups!.target[0], m.indices!.groups!.target[1], `Dipl.-${subject}.`, "germanAbbreviations") : null
       # "Dr. Frau Hayali", "Professor Herr Meier": the form of address comes first ("Frau Dr.").
       - regex: "{{WG}}(?<target>(?<title>Dr\\.|Prof\\.|Doktor|Doktorin|Professor|Professorin)[ \\t]+(?<address>Frau|Herr|Herrn|Fr\\.|Hr\\.))(?=[ \\t]+\\p{Lu})"
         flags: dgu
-        fixer: titleOrder
+        return: >-
+          ({ ...abbreviationFinding(m.indices!.groups!.target[0], m.indices!.groups!.target[1], `${address} ${title}`, "germanAbbreviations"),
+          messageKey: "review_msg_german_title_order" })
       # "3%" → "3 %": German sets the percent sign off with a no-break space (optional advice);
       # "20%-Gutschein" and "5%ige" are compounds.
       - regex: "(?<![\\p{L}\\p{N}.,_])(?<target>(?<n>\\d+(?:[.,]\\d+)*)%)(?![\\p{L}\\p{N}_-])"
         flags: dgu
         check: germanAbbreviationSpacing
-        fixer: percentSpacing
+        return: >-
+          ({ ...abbreviationFinding(m.indices!.groups!.target[0], m.indices!.groups!.target[1], `${n} %`, "germanAbbreviationSpacing"),
+          messageKey: "review_msg_measurement_spacing" })
       # "2 mio", "3 Mrd": the abbreviated numbers take a capital and a dot.
       - regex: "(?<=\\p{N}[ \\t\\u00a0])(?<target>[mM](?:io|rd)|Mill|Bill)(?![\\p{L}\\p{N}.])"
         flags: dgu
-        fixer: largeNumber
+        return: >-
+          abbreviationFinding(m.indices!.groups!.target[0], m.indices!.groups!.target[1], `${target[0].toUpperCase()}${target.slice(1)}.`, "germanAbbreviations")
   - id: de.quotes
     checks: [germanQuotes]
     style: match
     message: review_msg_german_quotes
+    defs:
+      # A mark that opens: after the start, a space or a bracket, before a letter or digit.
+      quoteOpening:
+        args: "text: string, at: number, length: number"
+        return: >-
+          /^$|[\s([{–—/]$/u.test(text.slice(Math.max(0, at - 1), at)) && /^[\p{L}\p{N}]/u.test(text.slice(at + length, at + length + 1))
+      quoteFinding:
+        args: "start: number, end: number, replacement: string"
+        type: RawFinding
+        return: >-
+          ({ ruleId: "germanQuotes", messageKey: "review_msg_german_quotes", range: { start, end }, alternatives: [replacement],
+          context: { start: Math.max(0, start - 40), end: end + 40 } })
+      # The marks that change the count of open „ for the next marks of a paragraph.
+      QUOTE_MARK: /“|”|,,|''|"/
+      # The count of open „ after `chars`; a line break closes them all.
+      quoteTrack:
+        args: "open: number, chars: string"
+        return: '[...chars].reduce((n, c) => c === "„" ? n + 1 : c === "“" && n > 0 ? n - 1 : c === "\n" ? 0 : n, open)'
+      # What a mark does: the findings it gives and the count of open „ after it. A straight mark
+      # only closes a German opening one („so" → „so“); ",,so" and "''so''" are doubled commas or
+      # apostrophes as quotes.
+      quoteAction:
+        args: "text: string, mark: string, opening: boolean, open: number, at: number"
+        type: "{ add: RawFinding[]; open: number }"
+        return: >-
+          mark === '"' ? (open > 0 && !opening ? { add: [quoteFinding(at, at + 1, "“")], open: open - 1 } : { add: [], open })
+          : mark === "“" ? (open > 0 || !opening ? { add: [], open: open > 0 ? open - 1 : open } : { add: [quoteFinding(at, at + 1, "„")], open: open + 1 })
+          : mark === "”" ? (opening && open === 0 ? { add: [quoteFinding(at, at + 1, "„")], open: open + 1 }
+          : { add: [quoteFinding(at, at + 1, "“")], open: open > 0 ? open - 1 : open })
+          : opening && open === 0 ? { add: [quoteFinding(at, at + 2, "„")], open: open + 1 }
+          : mark === "''" && open > 0 && /[\p{L}\p{N}.!?)]$/u.test(text.slice(at - 1, at)) ? { add: [quoteFinding(at, at + 2, "“")], open: open - 1 }
+          : { add: [], open }
+      # The marks of a paragraph from `from` in `scan` (which starts at `base`): English marks
+      # become German ones. A quoted English phrase may keep its English marks: “I love you”.
+      quoteMarksFrom:
+        args: "ctx: DetectContext, base: number, stop: number, scan: string, from: number, open: number, scanned: number, found: RawFinding[]"
+        type: RawFinding[]
+        let:
+          hit: QUOTE_MARK.exec(scan.slice(from))
+          at: "hit ? base + from + hit.index : 0"
+          mark: hit[0]
+          current: quoteTrack(open, ctx.text.slice(scanned, at))
+          next: at + mark.length
+          opening: quoteOpening(ctx.text, at, mark.length)
+          close: >-
+            opening && current === 0 && mark !== '"' ? /[“”"]|''|\n/.exec(ctx.text.slice(next, next + 200)) : null
+          skipTo: >-
+            close && close[0] !== "\n" && deEnglishWords(ctx.text.slice(next, next + close.index)) > 0 ? next + close.index + close[0].length : -1
+          step: quoteAction(ctx.text, mark, opening, current, at)
+        when: "!!hit && at < stop"
+        return: >-
+          skipTo >= 0 ? quoteMarksFrom(ctx, base, stop, scan, skipTo - base, current, skipTo, found)
+          : quoteMarksFrom(ctx, base, stop, scan, next - base, step.open, next, found.concat(step.add))
+        else: found
+      # A quotation inside a quotation takes the single marks: „Er sagte ‚Hallo‘.“, »… ›…‹ …«.
+      QUOTE_NESTING: '[["„", "“", "‚", "‘"], ["»", "«", "›", "‹"]]'
+      # The quotations inside quotations of one line for one row of marks, reported only once the
+      # outer quotation closes too: an unclosed one may be the slip.
+      nestedQuoteFindings:
+        args: "ctx: DetectContext, start: number, line: string, row: string[]"
+        type: RawFinding[]
+        return: >-
+          [...line.matchAll(new RegExp(`[${row[0]}${row[1]}]`, "g"))].reduce((s, mark) =>
+          mark[0] === row[0] ? { stack: [...s.stack, start + mark.index], inner: s.inner, out: s.out }
+          : s.stack.length === 0 ? s
+          : s.stack.length > 1 ? { stack: s.stack.slice(0, -1), inner: [...s.inner, [s.stack[s.stack.length - 1], start + mark.index] as [number, number]], out: s.out }
+          : { stack: [], inner: [], out: [...s.out, ...s.inner.flatMap(([a, b]) => [
+          ...(a >= ctx.from && a < ctx.to ? [quoteFinding(a, a + 1, row[2])] : []),
+          ...(b >= ctx.from && b < ctx.to ? [quoteFinding(b, b + 1, row[3])] : [])])] },
+          { stack: [] as number[], inner: [] as [number, number][], out: [] as RawFinding[] }).out
     frames:
       # Each paragraph (line) that touches the chunk, from the chunk start (a regex cannot start
       # before it). Each mark changes the count of open „ for the next marks, from the paragraph
@@ -2190,16 +2407,28 @@ rules:
       - regex: "[^\\n]+\\n?|\\n"
         flags: g
         scan: text
-        fixer: quoteMarks
+        let:
+          paragraphStart: ctx.text.lastIndexOf("\n", m.index - 1) + 1
+          paragraphEnd: 'm.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0)'
+        return: >-
+          quoteMarksFrom(ctx, m.index, Math.min(ctx.to, paragraphEnd), ctx.scanText.slice(m.index, Math.min(ctx.to + 1, paragraphEnd)), 0,
+          quoteTrack(0, ctx.text.slice(paragraphStart, m.index)), m.index, [])
       # Each line that touches the chunk: nested quotes use a stack of the marks of the line.
       - regex: "[^\\n]+\\n?|\\n"
         flags: g
         scan: text
-        fixer: nestedQuotes
+        let:
+          start: ctx.text.lastIndexOf("\n", m.index - 1) + 1
+          end: 'm.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0)'
+          line: ctx.text.slice(start, end)
+        return: QUOTE_NESTING.flatMap((row) => nestedQuoteFindings(ctx, start, line, row))
   - id: de.quoteFrames
     checks: [germanQuotes]
     style: match
     message: review_msg_german_quotes
+    maps:
+      # The partner of each mark, and the mark of the same kind that may not stand between them.
+      QUOTE_PARTNERS: { "„": ["“", "„"], "»": ["«", "»"], "(": [")", "("], "“": ["„", "“"], "«": ["»", "«"], ")": ["(", ")"] }
     frames:
       # Inside a „…“ quotation: a period before the closing mark and a comma or another mark
       # after it („Ich gehe.“, sagte er → „Ich gehe“, sagte er; „Ich gehe.“. → „Ich gehe.“), a
@@ -2209,25 +2438,69 @@ rules:
       - regex: "(?<period>\\.)(?=“[ \\t]*[,!?])|(?<=\\.“)(?<after>\\.)|(?<=\\p{L})(?<comma>,“)(?=[ \\t]+\\p{Ll})|(?<=[!?])(?<close>“)(?=[ \\t]+(?:{{SAYING}})(?![\\p{L}]))"
         scan: owned
         flags: dgu
-        fixer: speech
+        let:
+          line: ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index)
+        when:
+          - line.includes("„")
+          - >-
+            !(period && /(?:(?<!\p{L})\p{L}{1,3}|\d)$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)))
+        return: 'quoteFinding(m.index, m.index + m[0].length, period || after ? "" : "“,")'
       # No space goes right inside quotation marks or brackets: „ Der Hund …“ → „Der Hund …“,
       # (nur kleine ) → (nur kleine). The mark must have its partner on the same line, so a
       # lone mark, a smiley ":( " and Swiss «…» quotes stay alone.
       - regex: "(?<=[\\u201E\\u00BB(])[ \\t]+(?=\\p{L})|(?<=[\\p{L}.!?\\u2026])[ \\t]+(?=[\\u201C\\u00AB)])"
         scan: owned
         flags: gu
-        fixer: innerSpacing
+        let:
+          start: m.index
+          end: start + m[0].length
+          opening: /[„»(]/.test(ctx.text[start - 1])
+          mark: "opening ? ctx.text[start - 1] : ctx.text[end]"
+          partner: QUOTE_PARTNERS[mark][0]
+          same: QUOTE_PARTNERS[mark][1]
+          lineStart: ctx.text.lastIndexOf("\n", start) + 1
+          lineEnd: ctx.text.indexOf("\n", end)
+          line: "opening ? ctx.text.slice(end, lineEnd < 0 ? ctx.text.length : lineEnd) : ctx.text.slice(lineStart, start)"
+          at: "opening ? line.indexOf(partner) : line.lastIndexOf(partner)"
+          between: "opening ? line.slice(0, at) : line.slice(at + 1)"
+          open: "opening ? start - 1 : lineStart + at"
+        when:
+          - at >= 0
+          - "!between.includes(same)"
+          - '!(ctx.text[open] === "(" && /[:;=-]/.test(ctx.text[open - 1] ?? ""))'
+        return: >-
+          ({ ruleId: "germanQuotes", messageKey: "review_msg_german_inner_spacing", range: { start, end }, alternatives: [""],
+          context: { start: Math.max(0, start - 20), end: end + 20 } })
   - id: de.straightQuotes
     checks: [germanStraightQuotes]
     style: match
     message: review_msg_german_quotes
+    defs:
+      # A pair of straight marks: „ and “, unless the first mark opens nothing or the quotation is
+      # English.
+      straightPair:
+        args: "ctx: DetectContext, a: number, b: number"
+        type: RawFinding[]
+        when:
+          - quoteOpening(ctx.text, a, 1) && !/\s/.test(ctx.text[b - 1])
+          - "!deEnglishWords(ctx.text.slice(a + 1, b))"
+        return: >-
+          [...(a >= ctx.from && a < ctx.to ? [{ ...quoteFinding(a, a + 1, "„"), ruleId: "germanStraightQuotes" as const }] : []),
+          ...(b >= ctx.from && b < ctx.to ? [{ ...quoteFinding(b, b + 1, "“"), ruleId: "germanStraightQuotes" as const }] : [])]
+        else: "[]"
     frames:
       # Each line that touches the chunk, from the chunk start: the fixer pairs the straight
       # marks of the whole line. An odd count of straight marks leaves the line alone.
       - regex: "[^\\n]+\\n?|\\n"
         flags: g
         scan: text
-        fixer: straightQuotes
+        let:
+          start: ctx.text.lastIndexOf("\n", m.index - 1) + 1
+          end: 'm.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0)'
+          marks: >-
+            [...ctx.text.slice(start, end).matchAll(/"/g)].map((q) => start + q.index).filter((at) => !/\p{N}/u.test(ctx.text[at - 1] ?? ""))
+        when: marks.length % 2 === 0
+        return: "marks.flatMap((a, k) => k % 2 === 1 ? [] : straightPair(ctx, a, marks[k + 1]))"
   - id: de.commas
     checks: [germanCommas]
     style: match
@@ -2383,19 +2656,144 @@ rules:
     checks: [germanQuestionMarks]
     style: match
     message: review_msg_question_mark
+    sets:
+      Q_W_WORDS: [
+          wer, wen, wem, wessen, was, wann, wo, wohin, woher, warum, wieso, weshalb, weswegen, wie, welche,
+          welcher, welchen, welchem, welches, womit, wofür, woran, worauf, worüber, wovon, wozu, inwiefern,
+        ]
+      # A preposition before the w-word: "Ab wann", "Mit wem", "An welchem Tag".
+      Q_W_PREPOSITIONS: [ab, bis, seit, mit, von, an, auf, für, in, aus, bei, nach, zu, um, über]
+      # Words that may stand between the w-word and its verb: "Wie viel kostet das".
+      Q_DEGREES: [viel, viele, lange, oft, spät, alt, groß, weit, hoch, teuer, schnell, sehr]
+      # A sentence that is only a w-word and particles: "Warum eigentlich nicht."
+      Q_PARTICLES: [denn, eigentlich, nicht, überhaupt, endlich, bloß, nur, schon, noch, genau, dann, jetzt, nun, so]
+      Q_SUBJECTS: [ich, du, er, sie, es, wir, ihr, man, Sie]
+      Q_OPENERS: [Und, Aber, Oder, Na, Also]
+      # Particles of statements and exclamations: "Kann ich jedenfalls behaupten.", "Hat er doch".
+      Q_STATEMENT: [doch, ja, jedenfalls, halt, eben, wohl]
+      Q_PLURAL_2: [seid, habt, werdet, könnt, müsst, sollt, wollt, dürft, mögt, wisst]
+      # Particles between the w-word and its verb: "Wann aber kommst du".
+      Q_INSERTED: [aber, denn, eigentlich, nun]
+      # W-words that ask, not exclaim, before "!": "Ab wann gilt das!" ("Wie schön ist das!" exclaims).
+      Q_ASKING: [wann, wo, wohin, woher, warum, wieso, weshalb, weswegen]
+    defs:
+      Q_DETERMINERS: >-
+        /^(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|euer|eure\p{Ll}*|dies\p{Ll}*|jemand|man)$/u
+      Q_PARTICIPLE_PREFIX: '/^(?:ge|be|er|ver|ent|zer|miss)\p{Ll}+(?:t|en)$/u'
+      # "Kann mir jemand sagen, ob …", "Weißt du, wie …": a question that holds an indirect one.
+      QUESTION_ASKS: >-
+        /^(?:Kann|Kannst|Könnte|Könntest|Könnten|Weiß|Weißt|Wisst|Wissen|Gibt)[ \t]+(?:mir|uns|jemand|du|ihr|Sie|es)(?!\p{L})[^,]*,[ \t]*(?:ob|wie|was|wann|wo|warum|wer|welche\p{Ll}*)(?!\p{L})/u
+      QUESTION_TAG: >-
+        /,[ \t]*(?:oder(?:[ \t]+nicht)?|nicht[ \t]+wahr|gell|gelle|richtig|stimmt['’]s)[ \t]*$/u
+      # A finite verb form: listed, a "du" form, or a regular present form of a known verb.
+      # "dauert": an infinitive in -n ("dauern"); "passierte": a regular past form.
+      questionFinite:
+        args: "token: string"
+        let:
+          stem: '/^(.+?)(?:st|t|et|est)$/u.exec(token)?.[1]'
+          past: '/^(.+?)(?:te|ten|test|tet)$/u.exec(token)?.[1]'
+        return: >-
+          germanAuxiliary(token) || !!germanInfinitiveOf(token) || (/^\p{Ll}+$/u.test(token) && !Q_PARTICIPLE_PREFIX.test(token) &&
+          [stem, past].some((s) => !!s && (germanInfinitive(`${s}en`) || germanInfinitive(`${s}n`))))
+      # Whether the words of a sentence read as a question: a verb first, or a w-word first.
+      isQuestion:
+        args: "words: string[]"
+        let:
+          i0: "Q_OPENERS.has(words[0]) ? 1 : 0"
+          first: words[i0]
+        when: "!!first"
+        return: >-
+          germanAuxiliary(first.toLowerCase()) && /^\p{Lu}/u.test(first) && i0 === 0 ? auxQuestion(words, first.toLowerCase())
+          : wQuestion(words, i0, first.toLowerCase())
+        else: "false"
+      # "Hast du Zeit.", "Kann das Problem gelöst werden.": an auxiliary or modal first. "Seid
+      # leise." is an order, "Seid ihr da." a question; "Kannst es dir schönreden." drops its
+      # "du". "Ist Peter krank.": a name as the subject. "Kann das gelöst werden.": an
+      # infinitive auxiliary closes the question.
+      auxQuestion:
+        args: "words: string[], low: string"
+        let:
+          next: words[1] ?? ""
+          rest: words.slice(2)
+          name: >-
+            /^\p{Lu}\p{Ll}+$/u.test(next) && !Q_DETERMINERS.test(next.toLowerCase()) && !germanInfinitive(words.at(-1)!) && germanGender(next) === null
+        when:
+          - "!(Q_PLURAL_2.has(low) && next !== \"ihr\")"
+          - '!(/st$/.test(low) && low !== "ist" && next !== "du")'
+        return: >-
+          (Q_SUBJECTS.has(next) || Q_DETERMINERS.test(next) || name) && !rest.some((w, k) => Q_STATEMENT.has(w) ||
+          (germanAuxiliary(w) && !(k === rest.length - 1 && /^(?:werden|haben|sein)$/.test(w))))
+        else: "false"
+      # A w-word (after its preposition) first: "An welchem Tag starb er", "Wessen Auto ist das".
+      # "Was bin ich doch für ein Glückspilz": an exclamation. "fuhr sie", "starb Cäsar": a verb
+      # form the lexicon lacks, then its subject. "Was zählt ist Erfolg": a second finite verb.
+      wQuestion:
+        args: "words: string[], i0: number, low: string"
+        let:
+          i1: 'Q_W_PREPOSITIONS.has(low) && Q_W_WORDS.has(words[i0 + 1]?.toLowerCase() ?? "") ? i0 + 1 : i0'
+          i2: i1 + 1
+          i3: '/^(?:welch|wessen)/.test(words[i2 - 1].toLowerCase()) && /^\p{Lu}/u.test(words[i2] ?? "") ? i2 + 1 : i2'
+          i4: 'Q_DEGREES.has(words[i3] ?? "") ? i3 + 1 : i3'
+          i5: 'Q_INSERTED.has(words[i4] ?? "") ? i4 + 1 : i4'
+          rest: words.slice(i5)
+          subjectAfter: >-
+            rest.length <= 3 && /^\p{Ll}+$/u.test(rest[0]) && (Q_SUBJECTS.has(rest[1] ?? "") || /^\p{Lu}/u.test(rest[1] ?? ""))
+        when:
+          - i1 !== i0 || Q_W_WORDS.has(low)
+          - '!(rest.length === 0 || rest.some((w) => Q_STATEMENT.has(w) || w === "für"))'
+        return: >-
+          rest.every((w) => Q_PARTICLES.has(w)) ||
+          ((questionFinite(rest[0]) || subjectAfter) && !rest.slice(1).some((w) => germanAuxiliary(w) && !/en$/.test(w)))
+        else: "false"
+      # "Ab wann gilt das!": only a w-word that asks, before a verb that is no subjunctive. "Wo
+      # kommen die nur immer hin!": a sigh, not a question.
+      exclaimedQuestion:
+        args: "sentence: string, words: string[]"
+        let:
+          w: 'Q_W_PREPOSITIONS.has(words[0]?.toLowerCase() ?? "") ? 1 : 0'
+        return: >-
+          !(/[,;:"„“”«»()]/.test(sentence) || !Q_ASKING.has(words[w]?.toLowerCase() ?? "") ||
+          words.some((x) => /^(?:hätte|hätten|wäre|wären|würde|würden|könnte|könnten)$/.test(x) || /^(?:nur|bloß|immer)$/.test(x)) ||
+          !isQuestion(words))
     frames:
       # A full stop or a "!" after a letter that closes a line or comes before a capital: the
       # end of a sentence that may be a question ("Wann kommst du.").
       - regex: "(?<=\\p{L})[.!](?=[ \\t]*(?:\\n|$)|[ \\t]+\\p{Lu})"
         scan: owned
         flags: gu
-        fixer: statementQuestion
+        let:
+          at: m.index
+          win: Math.max(0, at - 300)
+          start0: win + ctx.text.slice(win, at).search(/[^.!?\n]*$/)
+          quote: '/^[ \t]*["„»]/.exec(ctx.text.slice(start0, at))'
+          start: 'quote && !/["“”«]/.test(ctx.text.slice(start0 + quote[0].length, at)) ? start0 + quote[0].length : start0'
+          sentence: ctx.text.slice(start, at)
+          exclaimed: ctx.text[at] === "!"
+          tagged: 'QUESTION_TAG.test(sentence) && !/(?<!\p{L})ob(?!\p{L})/u.test(sentence)'
+          words: 'sentence.match(/\p{L}+/gu) ?? []'
+        when:
+          - "!deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, start)"
+          # "Hast du Mt. Fuji gesehen?": an abbreviation, the sentence goes on.
+          - '!/(?:^|\s)\p{Lu}\p{Ll}?$/u.test(sentence)'
+          - >-
+            exclaimed ? exclaimedQuestion(sentence, words) : QUESTION_ASKS.test(sentence.trimStart()) || tagged ||
+            (!/[,;:"„“”«»()]/.test(sentence) && words.length >= 2 && !/(?:^|\s)\p{L}$/u.test(sentence) && isQuestion(words))
+        return: >-
+          ({ ruleId: "germanQuestionMarks", messageKey: "review_msg_question_mark", range: { start: at, end: at + 1 },
+          alternatives: ["?"], context: { start, end: at + 1 } })
       # Quoted speech that a verb of asking reports, closed without a question mark: '"Wohin
       # gehst du", fragte sie.' → '"Wohin gehst du?"'.
       - regex: "(?<=\\p{L})\\.?(?<quote>[\"\\u201C\\u201D\\u00AB\\u00BB])(?=,?[ \\t]+(?:fragte|fragten|fragt|erkundigte|erkundigten|erkundigt|wollten?(?:[ \\t]+\\p{Ll}+)?[ \\t]+wissen)(?!\\p{L}))"
         scan: owned
         flags: gu
-        fixer: quotedQuestion
+        let:
+          line: ctx.text.slice(ctx.text.lastIndexOf("\n", m.index) + 1, m.index)
+        when:
+          - '/["„»«“]/.test(line) && !deEnglishLine(ctx.text, m.index)'
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanQuestionMarks", messageKey: "review_msg_question_mark", range: { start: m.index, end: m.index + m[0].length },
+          alternatives: [`?${quote}`], context: { start: Math.max(0, m.index - 60), end: m.index + m[0].length + 12 } })
   - id: de.numbers
     checks: [germanNumbers]
     style: match

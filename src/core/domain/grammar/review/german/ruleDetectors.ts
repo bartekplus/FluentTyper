@@ -6,7 +6,6 @@ import {
   type Fixer,
   type FindingsFilter,
 } from "../../engine/reviewRules";
-import * as abbreviations from "./abbreviations";
 import * as adjectiveForms from "./adjectiveForms";
 import * as articleGender from "./articleGender";
 import * as colloquial from "./colloquial";
@@ -19,19 +18,12 @@ import * as capitalized from "./capitalized";
 import * as names from "./names";
 import * as numbers from "./numbers";
 import * as prepositionCase from "./prepositionCase";
-import * as questions from "./questions";
-import * as quotes from "./quotes";
-import * as suspendedHyphen from "./suspendedHyphen";
 import * as verbAgreement from "./verbAgreement";
 
 export const PREDICATES = mergePredicates<Detector>();
 
 /** The named frame fixes of grammar/rules/de.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
-  abbreviations.FIXERS,
-  suspendedHyphen.FIXERS,
-  questions.FIXERS,
-  quotes.FIXERS,
   numbers.FIXERS,
   colloquial.FIXERS,
   compounds.FIXERS,
