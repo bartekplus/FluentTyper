@@ -117,33 +117,133 @@ fragments:
   DETERMINER_LEAD: "o|a|os|as|um|uma|uns|umas|do|da|dos|das|no|na|nos|nas|pelo|pela|pelos|pelas|ao|aos|num|numa|nuns|numas|dum|duma|duns|dumas|este|esta|estes|estas|esse|essa|esses|essas|aquele|aquela|aqueles|aquelas|deste|desta|destes|destas|desse|dessa|desses|dessas|daquele|daquela|daqueles|daquelas|neste|nesta|nestes|nestas|nesse|nessa|nesses|nessas|naquele|naquela|naqueles|naquelas|meu|minha|meus|minhas|teu|tua|teus|tuas|seu|sua|seus|suas|nosso|nossa|nossos|nossas|vosso|vossa|vossos|vossas|algum|alguma|alguns|algumas|nenhum|nenhuma|nenhuns|nenhumas|outro|outra|outros|outras|todo|toda|todos|todas|muita|muitos|muitas|pouca|poucos|poucas|vários|várias|diversos|diversas|tantos|tantas|certos|certas|cujo|cuja|cujos|cujas"
   PRENOMINAL: "grandes?|enormes?|fortes?|breves?|leves?|tristes?|simples|principa(?:l|is)|excelentes?|importantes?|recentes?|\\p{L}{3,}(?:vel|veis)"
 
+# The code of the rules' expressions (`let`, `when`, `return`): the helpers rules of several
+# modules read.
+defs:
+  # Text before a sentence or clause start: punctuation, closing marks, an opening quote.
+  SENTENCE_START: '/(?:^|[.!?;:\n]["''”’»)]*)[ \t\u00a0]*["''“‘«(]?[ \t\u00a0]*$/u'
+
 rules:
   - id: pt_BR.accentParonyms
     checks: [portugueseAccentParonyms]
     style: match
     message: review_msg_pt_accent_paronym
-    filter: firstAtStart
+    sets:
+      # Time words open a sentence as an adverb: "Sábado continuo", "Este ano pratico mais".
+      TIME_NOUNS:
+        [
+          ano,
+          anos,
+          mês,
+          meses,
+          dia,
+          dias,
+          semana,
+          semanas,
+          sábado,
+          domingo,
+          verão,
+          inverno,
+          outono,
+          semestre,
+          trimestre,
+          momento,
+          tempo,
+          período,
+          fim,
+          resto,
+          turno,
+          amanhã,
+          hoje,
+          ontem,
+          agora,
+          depois,
+          cedo,
+          tarde,
+          logo,
+        ]
+    defs:
+      # The verb ending of each subject pronoun.
+      PERSON_ENDING: "({ eu: /o$/, tu: /[ae]s$/, ele: /[ae]$/, ela: /[ae]$/, você: /[ae]$/ }) as Readonly<Record<string, RegExp>>"
+      # "Um critica, o outro elogia": indefinite "um/uma" as a pronoun with "outro" later on.
+      RECIPROCAL: '/^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu'
+      # "dei a ela prática": a pronoun after a preposition is no subject.
+      PARONYM_PREPOSITION_BEFORE: '/(?:^|[^\p{L}])(?:a|à|ante|até|com|contra|de|desde|em|entre|para|perante|por|sem|sob|sobre|após|como|que nem)[ \t\u00a0]+$/iu'
+      # A word after it, not "de": "Ele médico, ela enfermeira" and "eu, cópia de" stay out.
+      OBJECT_AFTER: '/^[ \t\u00a0]+(?!(?:de|da|do|das|dos)(?![\p{L}]))[\p{L}\d"“«]/u'
+      # A gerund, an infinitive or "a" + infinitive after it: the verb reading ("o resto continuo
+      # amanhã a fazer", "o livro continuo lendo").
+      PARONYM_VERB_AFTER: '/^[ \t\u00a0]+(?:(?:a[ \t\u00a0]+)?\p{Ll}+(?:ndo|[aei]r)|amanhã|depois|hoje|agora|logo|mais[ \t\u00a0]+tarde|sempre|ainda)(?![\p{L}])/u'
+      # "da diferencia" -> "diferença": a Spanish-looking "-ncia" that Portuguese has only as a form
+      # of the "-nciar" verb; the noun ends in "-nça".
+      NCA_NOUN: "/(?:diferen|licen|senten|presen|finan|esperan|cren|aven|perten|parecen|queren)cias?$/"
+      # The verb twin of an accented noun, unless the typed word is a user word.
+      verbFinding:
+        args: 'ctx: DetectContext, start: number, end: number, typed: string, context: RawFinding["context"]'
+        type: RawFinding | null
+        let:
+          verb: ptVerbTwin(typed.toLowerCase())
+        when: verb !== undefined && !ctx.dictionary.has(typed.toLowerCase())
+        return: '({ ruleId: "portugueseAccentParonyms", messageKey: "review_msg_pt_accent_verb", range: { start, end }, alternatives: [applyWordCase(verb, detectWordCase(typed))], context })'
+      # The accented twin of the word after a lead that announces a noun or an adjective.
+      afterLead:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          typed: m.groups!.target
+          alternatives: 'ptAccentedTwins(typed) ?? (NCA_NOUN.test(typed) ? [typed.replace(/cia(s?)$/, "ça$1")] : undefined)'
+          span: m.indices!.groups!.target
+        when:
+          - alternatives !== undefined && !ctx.dictionary.has(typed)
+          - "!gluedAfter(ctx.text, span[1])"
+          - "!(/^um/i.test(m.groups!.lead) && RECIPROCAL.test(ctx.text.slice(span[1], span[1] + 96)))"
+        return: '({ ruleId: "portugueseAccentParonyms", messageKey: "review_msg_pt_accent_paronym", range: { start: span[0], end: span[1] }, alternatives, context: { start: m.index, end: span[1] }, ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}) })'
+    filter:
+      let:
+        starts: "new Set<number>()"
+      return: "findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start))"
     frames:
       # "Ele influência quem", "Você cópia os dados": after a singular subject pronoun, with a
       # verb ending of that person and more words after it, the accented noun twin stands for
       # its verb form.
       - regex: "(?<lead>eu|tu|ele|ela|você)(?:{{S}}(?:não|já|também|sempre|nunca|ainda|só|me|te|se|lhe|lhes|nos|vos))?{{S}}(?<target>\\p{L}*[áâéêíóôú]\\p{L}*){{E}}"
         message: review_msg_pt_accent_verb
-        fixer: paronymSubjectVerb
+        let:
+          span: "m.indices!.groups!.target"
+        when:
+          - "PERSON_ENDING[lead.toLowerCase()].test(ptPlainVowels(target))"
+          - "!PARONYM_PREPOSITION_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))"
+          - "OBJECT_AFTER.test(ctx.text.slice(span[1], span[1] + 12))"
+        return: "verbFinding(ctx, span[0], span[1], target, { start: m.index, end: span[1] })"
       # "Prática-se muito": the same before a hyphenated object pronoun.
       - regex: "(?<target>\\p{L}*[áâéêíóôúÁÂÉÊÍÓÔÚ]\\p{L}*)(?=-(?:me|te|se|lhe|lhes|nos|vos){{E}})"
         message: review_msg_pt_accent_verb
-        fixer: paronymHyphenVerb
+        let:
+          span: "m.indices!.groups!.target"
+        return: "verbFinding(ctx, span[0], span[1], target, { start: span[0], end: span[1] + 4 })"
       # "O serviço continuo" -> "contínuo", "Aulas praticas" -> "práticas": after a noun or
       # adjective opening a sentence, a first-person or second-person form is the accented twin.
       - regex: "(?<det>(?:[oa]s?|um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|meus?|minhas?|seus?|suas?|nossos?|nossas?){{S}})?(?<noun>\\p{L}{3,}){{S}}(?<target>[a-zçãõáéíóúâêô]{3,}(?:o|as|es)){{E}}(?!-)"
-        fixer: paronymAfterNoun
+        let:
+          before: "ctx.text.slice(Math.max(0, m.index - 12), m.index)"
+          lower: "noun.toLowerCase()"
+          info: "TIME_NOUNS.has(lower) ? null : ptNoun(lower)"
+          twins: "ptAccentedTwins(target)"
+          span: "m.indices!.groups!.target"
+          fits: "twins.filter((twin) => /o$/.test(twin) ? info.feminine === false && !info.plural : /as$/.test(twin) ? info.feminine !== false && info.plural : info.plural)"
+        when:
+          - "SENTENCE_START.test(before) && !ctx.dictionary.has(target)"
+          - "target === target.toLowerCase() && noun.slice(1) === lower.slice(1)"
+          - "info !== null && twins !== undefined"
+          - "!(gluedAfter(ctx.text, span[1]) || PARONYM_VERB_AFTER.test(ctx.text.slice(span[1], span[1] + 32)))"
+          - "fits.length === 1"
+        return: 'finding("portugueseAccentParonyms", "review_msg_pt_accent_paronym", span[0], span[1], fits, { context: { start: m.index, end: span[1] } })'
       # {{DETERMINERS}}: contracted articles, indefinites, quantifiers and possessives, never
       # before a finite verb. {{PREPOSITIONS}}: prepositions, optionally with an article: "com a
       # pratica", "para o publico". "nos" is also the pronoun "us" before a verb ("ele nos
       # critica"); "no" only follows hyphenated.
       - regex: "(?<lead>(?!nos{{E}})(?:{{DETERMINERS}})|{{PREPOSITIONS}})(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
-        fixer: paronymAfterLead
+        return: "afterLead(m, ctx)"
       # {{ADJECTIVES}}: adjectives that come before a noun and seldom stand for a person on
       # their own, so after an article they still announce a noun: "um forte estimulo", "a
       # principal evidencia", "da terceira vitima". "novo", "velho", "pequeno" or "melhor" stay
@@ -151,22 +251,22 @@ rules:
       # adjectives; "tão" before an adjective. "por último" is an adverb ("por último publica os
       # dados").
       - regex: "(?<lead>(?!por{{S}}últim)(?:(?!nos{{E}})(?:{{DETERMINERS}})|{{PREPOSITIONS}}|[ao]s?){{S}}(?:{{ADJECTIVES}})|t[ãa]o)(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
-        fixer: paronymAfterLead
+        return: "afterLead(m, ctx)"
       # A transitive verb before its object: "tenho duvidas", "há duvida", "pediu credito". Two
       # finite verbs never stand side by side.
       - regex: "(?<lead>{{VERBS}})(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
-        fixer: paronymAfterLead
+        return: "afterLead(m, ctx)"
       # After "ser" or "tornar" comes a noun or adjective: "foi publica" -> "pública", "tornou
       # especifica" -> "específica", "ser interprete" -> "intérprete".
       - regex: "(?<lead>é|era|eram|foi|foram|fui|ser|será|seria|sou|torna|tornou|tornam|tornaram|tornar|dava|davam)(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
-        fixer: paronymAfterLead
+        return: "afterLead(m, ctx)"
       # One of those adjectives opening a sentence: "Grande distancia" -> "distância".
       - regex: "(?<lead>{{ADJECTIVES}})(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
-        fixer: paronymOpening
+        return: "SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ? afterLead(m, ctx) : null"
       # A bare article opening a sentence: a clitic "o/a" never starts written prose ("A arvore
       # caiu" -> "árvore"), so there it is the article.
       - regex: "(?<lead>[aoAO]s?)(?={{S}}(?<target>[a-zçãõáéíóúâêô]+){{E}})"
-        fixer: paronymOpening
+        return: "SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ? afterLead(m, ctx) : null"
   - id: pt_BR.confusionFrames
     checks: [portugueseConfusions]
     style: portuguese
@@ -1297,50 +1397,137 @@ rules:
     checks: [portugueseCliticPlacement]
     style: match
     message: review_msg_pt_proclisis
-    filter: cliticFutureAfterOthers
+    maps:
+      UNACCENT: { á: a, é: e, ê: e, í: i }
+      ACCENTED_STEM: { á: a, ê: e, í: i, ô: o }
+      STEM_ACCENT: { a: á, e: ê, i: i, o: ô }
+      ACCENT: { a: á, e: ê, o: ô, i: í }
+      STRESSED: { a: á, e: ê, o: ô }
+    defs:
+      # Imperfects and presents of -rer/-rir verbs end like a conditional or future ("queria",
+      # "preferia", "queremos"), but their stem is no infinitive.
+      NOT_INFINITIVE_STEM: '/^(?:\p{Ll}*(?:quer|quir|fer)|ger|diger|suger|inser|asser|ader|coer|iner|enxer|preter|par|color|flor|exaur)$/u'
+      # Infinitives (personal ones too) and gerunds allow enclisis after an attractor.
+      NON_FINITE: "/(?:[aeioô]r|[aeio]rem|[aeio]rmos|[aeio]res|ndo)$/"
+      # "lo" -> "o", "nas" -> "as"; "nos" (us) stays.
+      plainObject:
+        args: "pronoun: string"
+        return: 'pronoun === "nos" ? pronoun : pronoun.replace(/^[ln](?=[oa]s?$)/, "")'
+      # The verb a hyphenated object pronoun was attached to, or null when it cannot be told.
+      # "querem", "esperes" end like a personal infinitive, but their stem is no infinitive.
+      # "encontramo-nos": the first person plural drops its -s. "fi-lo", "comprá-lo": an -r, -s or
+      # -z fell off. "dão-no": "o/a" after a nasal. "beba-o": after a vowel.
+      finiteVerb:
+        args: "verb: string, pronoun: string"
+        type: string | null
+        return: >-
+          NON_FINITE.test(verb) && !(/[aeio]r(?:em|es)$/.test(verb) && ptRStem(verb.slice(0, -2)))
+            ? null
+            : verb.endsWith("mo") && (pronoun === "nos" || /^l[oa]s?$/.test(pronoun))
+              ? `${verb}s`
+              : /^l[oa]s?$/.test(pronoun)
+                ? null
+                : /^n[oa]s?$/.test(pronoun) && pronoun !== "nos"
+                  ? /(?:ão|õe|[aeê]m)$/.test(verb)
+                    ? verb
+                    : null
+                  : /^[oa]s?$/.test(pronoun)
+                    ? /[aeiouáéíóúâêô]$/.test(verb)
+                      ? verb
+                      : null
+                    : verb
+      # "comer" -> "comê", "fez" -> "fê", "fizemos" -> "fizemo", "partir" -> "parti": a stressed
+      # final a, e or o is written with its accent (dá-lo, fê-lo, pô-lo).
+      withoutConsonant:
+        args: "verb: string"
+        return: '/s$/.test(verb) ? verb.slice(0, -1) : verb.slice(0, -1).replace(/[aeo]$/, (vowel) => STRESSED[vowel]).replace(/^p[oô]$/, "pô")'
+      # The finding for the `target` group, in the typed casing; a user word stays.
+      cliticFinding:
+        args: 'ctx: DetectContext, m: RegExpExecArray, replacement: string, messageKey: RawFinding["messageKey"]'
+        type: RawFinding | null
+        let:
+          typed: m.groups!.target
+          span: m.indices!.groups!.target
+        when: "!ctx.dictionary.has(typed.toLowerCase())"
+        return: '({ ruleId: "portugueseCliticPlacement", messageKey, range: { start: span[0], end: span[1] }, alternatives: [applyWordCase(replacement, detectWordCase(typed))], context: { start: m.index, end: span[1] } })'
+    filter:
+      let:
+        others: 'new Set(findings.filter((f) => f.messageKey !== "review_msg_pt_mesoclisis").map((f) => f.range.start))'
+      return: 'findings.filter((f) => f.messageKey !== "review_msg_pt_mesoclisis" || !others.has(f.range.start))'
     frames:
       # "tira-mos as conclusões" -> "tiramos": "-mos" is the verb ending, not a pronoun. Before
       # an object "mos" (me + os) would repeat it.
       - regex: "(?<target>(?<verb>\\p{L}+[aeiê])-mos){{S}}(?=(?:o|a|os|as|um|uma|uns|umas){{E}})"
         message: review_msg_typo
-        fixer: cliticSplitMos
+        let:
+          plain: 'verb.replace(/^(v|l|cr)ê$/, "$1e")'
+        return: 'cliticFinding(ctx, m, `${plain}mos`, "review_msg_typo")'
       # {{ATTRACTORS}}: negations, indefinite pronouns, adverbs and subordinating words ("que
       # deve-lhe" -> "que lhe deve", "quando perguntei-lhe" -> "quando lhe perguntei"); Portugal
       # is, if anything, stricter about these than Brazil. A comma after the attractor breaks
       # the pull, and the frame needs the verb right after it. {{OBJECT}}: "bebemo-lo",
       # "dão-no", "conhecia-a": the forms "o/a" take after -r/-s/-z, a nasal or a vowel.
       - regex: "(?<attractor>{{ATTRACTORS}}){{S}}(?:(?:eu|tu|ele|ela|eles|elas|nós|vós|você|vocês){{S}})?(?<target>(?<verb>\\p{L}+)-(?<pronoun>{{SIMPLE}}|{{OBJECT}})){{E}}"
-        fixer: cliticProclisis
+        let:
+          finite: "finiteVerb(verb, pronoun)"
+        when:
+          - "verb.length >= 2 && pronoun === pronoun.toLowerCase()"
+          - "finite !== null"
+        return: 'cliticFinding(ctx, m, `${plainObject(pronoun)} ${finite}`, "review_msg_pt_proclisis")'
       # "Se comprá-las" -> "Se as comprar", "Quando fizé-lo" -> "Quando o fizer": after a
       # conditional "se" or "quando" the verb is the future subjunctive, not an infinitive, and
       # the pronoun goes before it. "se" counts only at the start of a clause, where it is no
       # pronoun.
       - regex: "(?:(?<=^|[.!?;:,\\n][ \\t\\u00a0]{0,8}|(?<![\\p{L}])(?:e|mas|ou){{S}})se|quando){{S}}(?<target>(?<stem>\\p{L}{2,}[áéêí])-(?<pronoun>l[oa]s?)){{E}}"
-        fixer: cliticSubjunctive
+        when:
+          - "stem === stem.toLowerCase()"
+        return: 'cliticFinding(ctx, m, `${plainObject(pronoun)} ${stem.slice(0, -1)}${UNACCENT[stem.slice(-1)]}r`, "review_msg_pt_proclisis")'
       # "dir-lhe-ei", "amá-la-ei", "far-nos-iam".
       - regex: "(?:{{ATTRACTORS}}){{S}}(?<target>(?<stem>\\p{L}+)-(?<pronoun>{{SIMPLE}}|l[oa]s?)-(?<ending>{{FUTURE_ENDINGS}})){{E}}"
-        fixer: cliticMesoclitic
+        let:
+          base: "/^l[oa]s?$/.test(pronoun) ? (/[áêíô]$/.test(stem) ? `${stem.slice(0, -1)}${ACCENTED_STEM[stem.slice(-1)]}r` : null) : /r$/.test(stem) ? stem : null"
+        when:
+          - "base !== null"
+        return: 'cliticFinding(ctx, m, `${plainObject(pronoun)} ${base}${ending}`, "review_msg_pt_proclisis")'
       # An infinitive before "-lo/-la" drops its r and accents the vowel left: "escrevê-lo",
       # "puxá-las", "pô-lo", "distraí-los" (only after a vowel: "parti-lo"). The verb is an
       # infinitive after a modal, a preposition or "a" ("tu vende-lo" is the second person, so
       # they must lead).
       - regex: "(?:{{INFINITIVE_LEAD}}){{S}}(?:(?:não|já|também|sempre){{S}})?(?<target>(?<stem>\\p{L}*(?:[aeo]|[aeiou]i))-(?<pronoun>l[oa]s?)){{E}}"
         message: review_msg_pt_enclitic_accent
-        fixer: cliticInfinitive
+        when:
+          - "!(stem.length < 2 || stem !== stem.toLowerCase())"
+        return: 'cliticFinding(ctx, m, `${stem.slice(0, -1)}${ACCENT[stem.slice(-1)]}-${pronoun}`, "review_msg_pt_enclitic_accent")'
       # "o/a" after a verb ending in r, s or z becomes "lo/la" and the consonant falls
       # ("comer-o" -> "comê-lo", "fez-o" -> "fê-lo", "fizemos-o" -> "fizemo-lo"); after a nasal
       # it becomes "no/na" ("tinham-o" -> "tinham-no", "põe-as" -> "põe-nas"). "lo/la" after a
       # kept r, s or z also drops it: "fazer-lo" -> "fazê-lo", "fiz-lo" -> "fi-lo".
       - regex: "(?<target>(?<verb>\\p{L}{2,}(?:[rsz]|m)|\\p{L}+(?:ão|õe))-(?<l>l)?(?<pronoun>[oa]s?)){{E}}(?!-)"
         message: review_msg_pt_object_form
-        fixer: cliticPlainObject
+        let:
+          lower: "verb.toLowerCase()"
+          nasal: "/(?:m|ão|õe)$/.test(lower)"
+        when:
+          - "verb.slice(1) === lower.slice(1)"
+          - "!(l && nasal)"
+          - "!(/s$/.test(lower) && !/(?:mos|is|es|as|us)$/.test(lower))"
+        return: 'cliticFinding(ctx, m, nasal ? `${lower}-n${pronoun}` : `${withoutConsonant(lower)}-l${pronoun}`, "review_msg_pt_object_form")'
       # "poderia-se", "encontraremos-nos", "traria-o", "teriam-na". The first person singular
       # "-rei" only counts for the irregular "farei", "direi" and "trarei": "tirei-lhe" and
       # "preparei-te" are past tenses. "-á-lo" is an infinitive ("ignorá-lo"). The filter drops
       # a finding here when an earlier frame flagged the same verb.
       - regex: "(?<target>(?<stem>\\p{L}{0,24}[aeiouáéíóúâêô]r)(?<ending>ia|ias|íamos|íamo|íeis|iam|ás|á|emos|emo|eis|ão|ei)-(?<pronoun>{{SIMPLE}}|n[oa]s?|[oa]s?)){{E}}"
         message: review_msg_pt_mesoclisis
-        fixer: cliticFuture
+        let:
+          full: 'ending.replace(/mo$/, "mos")'
+          object: '/^[oa]s?$/.test(pronoun) || (/^n[oa]s?$/.test(pronoun) && pronoun !== "nos")'
+          vowel: "stem.slice(-2, -1)"
+        when:
+          - "!NOT_INFINITIVE_STEM.test(stem.toLowerCase())"
+          - '!(ending === "ei" && !/^(?:des|re|satis|contra|pre)?(?:far|dir|trar)$/.test(stem.toLowerCase()))'
+          - '!(full !== ending && pronoun !== "nos")'
+          - "!(object && !STEM_ACCENT[vowel])"
+        return: 'object ? cliticFinding(ctx, m, `${stem.slice(0, -2)}${STEM_ACCENT[vowel]}-l${plainObject(pronoun)}-${full}`, "review_msg_pt_mesoclisis") : cliticFinding(ctx, m, `${stem}-${pronoun}-${full}`, "review_msg_pt_mesoclisis")'
   - id: pt_BR.ao90
     checks: [portugueseAO90]
     style: match

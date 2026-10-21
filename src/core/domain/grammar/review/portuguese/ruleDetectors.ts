@@ -7,9 +7,7 @@ import {
   type FindingsFilter,
 } from "../../engine/reviewRules";
 import { FIXERS as AGREEMENT_FIXERS } from "./agreement";
-import { FILTERS as CLITIC_FILTERS, FIXERS as CLITIC_FIXERS } from "./clitics";
 import { FIXERS as NOUN_AGREEMENT_FIXERS } from "./nounAgreement";
-import { FILTERS as PARONYM_FILTERS, FIXERS as PARONYM_FIXERS } from "./paronyms";
 import { FIXERS as PERSON_FIXERS } from "./personAgreement";
 import { FIXERS as PREDICATE_FIXERS } from "./predicates";
 import { FIXERS as SUBJUNCTIVE_FIXERS } from "./subjunctive";
@@ -19,8 +17,6 @@ export const PREDICATES = {} satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<AnyFixer>(
-  CLITIC_FIXERS,
-  PARONYM_FIXERS,
   PERSON_FIXERS,
   PREDICATE_FIXERS,
   SUBJUNCTIVE_FIXERS,
@@ -30,4 +26,4 @@ export const FIXERS = mergePredicates<AnyFixer>(
 );
 
 /** The named findings filters of grammar/rules/pt_BR.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(CLITIC_FILTERS, PARONYM_FILTERS);
+export const FILTERS = {} satisfies Record<string, FindingsFilter>;

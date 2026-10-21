@@ -9,17 +9,54 @@ import {
   daysInMonth,
   detectWordCase,
   finding,
+  gluedAfter,
   namedExampleBefore,
   nearestDayOn,
+  ptAccentedTwins,
   ptConjugate,
   ptInfinitive,
   ptNoun,
+  ptPlainVowels,
+  ptRStem,
   ptVerbSlots,
+  ptVerbTwin,
   resolveMeasurementLocale,
   userWord,
   weekdayOf,
   yearsFor,
 } from "../../library";
+
+export const TIME_NOUNS: ReadonlySet<string> = new Set([
+  "ano",
+  "anos",
+  "mês",
+  "meses",
+  "dia",
+  "dias",
+  "semana",
+  "semanas",
+  "sábado",
+  "domingo",
+  "verão",
+  "inverno",
+  "outono",
+  "semestre",
+  "trimestre",
+  "momento",
+  "tempo",
+  "período",
+  "fim",
+  "resto",
+  "turno",
+  "amanhã",
+  "hoje",
+  "ontem",
+  "agora",
+  "depois",
+  "cedo",
+  "tarde",
+  "logo",
+]);
 
 export const FEMININE_R: ReadonlySet<string> = new Set([
   "mulher",
@@ -458,6 +495,16 @@ export const ORDINAL: Readonly<Record<string, string>> = { o: "º", a: "ª", os:
 
 export const SUPERSCRIPT: Readonly<Record<string, string>> = { "2": "²", "3": "³" };
 
+export const UNACCENT: Readonly<Record<string, string>> = { á: "a", é: "e", ê: "e", í: "i" };
+
+export const ACCENTED_STEM: Readonly<Record<string, string>> = { á: "a", ê: "e", í: "i", ô: "o" };
+
+export const STEM_ACCENT: Readonly<Record<string, string>> = { a: "á", e: "ê", i: "i", o: "ô" };
+
+export const ACCENT: Readonly<Record<string, string>> = { a: "á", e: "ê", o: "ô", i: "í" };
+
+export const STRESSED: Readonly<Record<string, string>> = { a: "á", e: "ê", o: "ô" };
+
 export const PREFIXES: Readonly<Record<string, string>> = {
   anti: "i",
   auto: "o",
@@ -591,6 +638,76 @@ export const ARTICLE_AFTER: Readonly<Record<string, string>> = {
 
 export const GOOD: Readonly<Record<string, string>> = { bom: "", boa: "", bons: "s", boas: "s" };
 
+// pt_BR.yaml def SENTENCE_START
+export const SENTENCE_START = /(?:^|[.!?;:\n]["'”’»)]*)[ \t\u00a0]*["'“‘«(]?[ \t\u00a0]*$/u;
+
+// pt_BR.yaml rule pt_BR.accentParonyms def PERSON_ENDING
+export const PERSON_ENDING = {
+  eu: /o$/,
+  tu: /[ae]s$/,
+  ele: /[ae]$/,
+  ela: /[ae]$/,
+  você: /[ae]$/,
+} as Readonly<Record<string, RegExp>>;
+
+// pt_BR.yaml rule pt_BR.accentParonyms def RECIPROCAL
+export const RECIPROCAL = /^[^.!?;\n]{0,80}(?<![\p{L}])outr[oa]s?(?![\p{L}])/iu;
+
+// pt_BR.yaml rule pt_BR.accentParonyms def PARONYM_PREPOSITION_BEFORE
+export const PARONYM_PREPOSITION_BEFORE =
+  /(?:^|[^\p{L}])(?:a|à|ante|até|com|contra|de|desde|em|entre|para|perante|por|sem|sob|sobre|após|como|que nem)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.accentParonyms def OBJECT_AFTER
+export const OBJECT_AFTER = /^[ \t\u00a0]+(?!(?:de|da|do|das|dos)(?![\p{L}]))[\p{L}\d"“«]/u;
+
+// pt_BR.yaml rule pt_BR.accentParonyms def PARONYM_VERB_AFTER
+export const PARONYM_VERB_AFTER =
+  /^[ \t\u00a0]+(?:(?:a[ \t\u00a0]+)?\p{Ll}+(?:ndo|[aei]r)|amanhã|depois|hoje|agora|logo|mais[ \t\u00a0]+tarde|sempre|ainda)(?![\p{L}])/u;
+
+// pt_BR.yaml rule pt_BR.accentParonyms def NCA_NOUN
+export const NCA_NOUN =
+  /(?:diferen|licen|senten|presen|finan|esperan|cren|aven|perten|parecen|queren)cias?$/;
+
+// pt_BR.yaml rule pt_BR.accentParonyms def verbFinding
+export function verbFinding(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  typed: string,
+  context: RawFinding["context"],
+): RawFinding | null {
+  const verb = ptVerbTwin(typed.toLowerCase());
+  if (!(verb !== undefined && !ctx.dictionary.has(typed.toLowerCase()))) return null;
+  return {
+    ruleId: "portugueseAccentParonyms",
+    messageKey: "review_msg_pt_accent_verb",
+    range: { start, end },
+    alternatives: [applyWordCase(verb, detectWordCase(typed))],
+    context,
+  };
+}
+
+// pt_BR.yaml rule pt_BR.accentParonyms def afterLead
+export function afterLead(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const typed = m.groups!.target;
+  const alternatives =
+    ptAccentedTwins(typed) ??
+    (NCA_NOUN.test(typed) ? [typed.replace(/cia(s?)$/, "ça$1")] : undefined);
+  if (!(alternatives !== undefined && !ctx.dictionary.has(typed))) return null;
+  const span = m.indices!.groups!.target;
+  if (gluedAfter(ctx.text, span[1])) return null;
+  if (/^um/i.test(m.groups!.lead) && RECIPROCAL.test(ctx.text.slice(span[1], span[1] + 96)))
+    return null;
+  return {
+    ruleId: "portugueseAccentParonyms",
+    messageKey: "review_msg_pt_accent_paronym",
+    range: { start: span[0], end: span[1] },
+    alternatives,
+    context: { start: m.index, end: span[1] },
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
 // pt_BR.yaml rule pt_BR.confusions def CLAUSE_START
 export const CLAUSE_START = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
 
@@ -666,6 +783,66 @@ export const RANGE_CODE =
 // pt_BR.yaml rule pt_BR.rangeDash def RANGE_SCORE
 export const RANGE_SCORE =
   /(?:^|[^\p{L}])(?:venc|ganh|perd|derrot|empat|golead|goleou|placar|resultado|partida|jogo|set|vitória|derrota)\p{L}*(?:[ \t\u00a0]+\p{L}+){0,3}[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.cliticPlacement def NOT_INFINITIVE_STEM
+export const NOT_INFINITIVE_STEM =
+  /^(?:\p{Ll}*(?:quer|quir|fer)|ger|diger|suger|inser|asser|ader|coer|iner|enxer|preter|par|color|flor|exaur)$/u;
+
+// pt_BR.yaml rule pt_BR.cliticPlacement def NON_FINITE
+export const NON_FINITE = /(?:[aeioô]r|[aeio]rem|[aeio]rmos|[aeio]res|ndo)$/;
+
+// pt_BR.yaml rule pt_BR.cliticPlacement def plainObject
+export function plainObject(pronoun: string) {
+  return pronoun === "nos" ? pronoun : pronoun.replace(/^[ln](?=[oa]s?$)/, "");
+}
+
+// pt_BR.yaml rule pt_BR.cliticPlacement def finiteVerb
+export function finiteVerb(verb: string, pronoun: string): string | null {
+  return NON_FINITE.test(verb) && !(/[aeio]r(?:em|es)$/.test(verb) && ptRStem(verb.slice(0, -2)))
+    ? null
+    : verb.endsWith("mo") && (pronoun === "nos" || /^l[oa]s?$/.test(pronoun))
+      ? `${verb}s`
+      : /^l[oa]s?$/.test(pronoun)
+        ? null
+        : /^n[oa]s?$/.test(pronoun) && pronoun !== "nos"
+          ? /(?:ão|õe|[aeê]m)$/.test(verb)
+            ? verb
+            : null
+          : /^[oa]s?$/.test(pronoun)
+            ? /[aeiouáéíóúâêô]$/.test(verb)
+              ? verb
+              : null
+            : verb;
+}
+
+// pt_BR.yaml rule pt_BR.cliticPlacement def withoutConsonant
+export function withoutConsonant(verb: string) {
+  return /s$/.test(verb)
+    ? verb.slice(0, -1)
+    : verb
+        .slice(0, -1)
+        .replace(/[aeo]$/, (vowel) => STRESSED[vowel])
+        .replace(/^p[oô]$/, "pô");
+}
+
+// pt_BR.yaml rule pt_BR.cliticPlacement def cliticFinding
+export function cliticFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  replacement: string,
+  messageKey: RawFinding["messageKey"],
+): RawFinding | null {
+  const typed = m.groups!.target;
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
+  const span = m.indices!.groups!.target;
+  return {
+    ruleId: "portugueseCliticPlacement",
+    messageKey,
+    range: { start: span[0], end: span[1] },
+    alternatives: [applyWordCase(replacement, detectWordCase(typed))],
+    context: { start: m.index, end: span[1] },
+  };
+}
 
 // pt_BR.yaml rule pt_BR.ao90 def SMALL_WORDS
 export const SMALL_WORDS = /^(?:que|em|de|do|da|dos|das|e|o|a|os|as|no|na|com|para|por|se|um|uma)$/;
@@ -942,6 +1119,85 @@ export function numberWords(n: number) {
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 1
+  "@pt_BR.accentParonyms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const target = m.groups!.target;
+    if (!PERSON_ENDING[lead.toLowerCase()].test(ptPlainVowels(target))) return null;
+    if (PARONYM_PREPOSITION_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))
+      return null;
+    const span = m.indices!.groups!.target;
+    if (!OBJECT_AFTER.test(ctx.text.slice(span[1], span[1] + 12))) return null;
+    return verbFinding(ctx, span[0], span[1], target, { start: m.index, end: span[1] });
+  },
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 2
+  "@pt_BR.accentParonyms/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    return verbFinding(ctx, span[0], span[1], target, { start: span[0], end: span[1] + 4 });
+  },
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 3
+  "@pt_BR.accentParonyms/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const target = m.groups!.target;
+    const before = ctx.text.slice(Math.max(0, m.index - 12), m.index);
+    if (!(SENTENCE_START.test(before) && !ctx.dictionary.has(target))) return null;
+    const lower = noun.toLowerCase();
+    if (!(target === target.toLowerCase() && noun.slice(1) === lower.slice(1))) return null;
+    const info = TIME_NOUNS.has(lower) ? null : ptNoun(lower);
+    const twins = ptAccentedTwins(target);
+    if (!(info !== null && twins !== undefined)) return null;
+    const span = m.indices!.groups!.target;
+    if (
+      gluedAfter(ctx.text, span[1]) ||
+      PARONYM_VERB_AFTER.test(ctx.text.slice(span[1], span[1] + 32))
+    )
+      return null;
+    const fits = twins.filter((twin) =>
+      /o$/.test(twin)
+        ? info.feminine === false && !info.plural
+        : /as$/.test(twin)
+          ? info.feminine !== false && info.plural
+          : info.plural,
+    );
+    if (!(fits.length === 1)) return null;
+    return finding(
+      "portugueseAccentParonyms",
+      "review_msg_pt_accent_paronym",
+      span[0],
+      span[1],
+      fits,
+      { context: { start: m.index, end: span[1] } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 4
+  "@pt_BR.accentParonyms/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return afterLead(m, ctx);
+  },
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 5
+  "@pt_BR.accentParonyms/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return afterLead(m, ctx);
+  },
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 6
+  "@pt_BR.accentParonyms/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return afterLead(m, ctx);
+  },
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 7
+  "@pt_BR.accentParonyms/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return afterLead(m, ctx);
+  },
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 8
+  "@pt_BR.accentParonyms/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+      ? afterLead(m, ctx)
+      : null;
+  },
+  // pt_BR.yaml rule pt_BR.accentParonyms frame 9
+  "@pt_BR.accentParonyms/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return SENTENCE_START.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+      ? afterLead(m, ctx)
+      : null;
+  },
   // pt_BR.yaml rule pt_BR.confusionFrames frame 1
   "@pt_BR.confusionFrames/1": (target: string): readonly string[] => {
     return [NOUN_TWIN[target.toLowerCase()]];
@@ -1299,6 +1555,107 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     return finding("emdashShortcut", "review_msg_range_dash", at, at + dash.length, ["–"], {
       context: { start: m.index, end: m.index + whole.length },
     });
+  },
+  // pt_BR.yaml rule pt_BR.cliticPlacement frame 1
+  "@pt_BR.cliticPlacement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const plain = verb.replace(/^(v|l|cr)ê$/, "$1e");
+    return cliticFinding(ctx, m, `${plain}mos`, "review_msg_typo");
+  },
+  // pt_BR.yaml rule pt_BR.cliticPlacement frame 2
+  "@pt_BR.cliticPlacement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const pronoun = m.groups!.pronoun;
+    if (!(verb.length >= 2 && pronoun === pronoun.toLowerCase())) return null;
+    const finite = finiteVerb(verb, pronoun);
+    if (!(finite !== null)) return null;
+    return cliticFinding(ctx, m, `${plainObject(pronoun)} ${finite}`, "review_msg_pt_proclisis");
+  },
+  // pt_BR.yaml rule pt_BR.cliticPlacement frame 3
+  "@pt_BR.cliticPlacement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const stem = m.groups!.stem;
+    const pronoun = m.groups!.pronoun;
+    if (!(stem === stem.toLowerCase())) return null;
+    return cliticFinding(
+      ctx,
+      m,
+      `${plainObject(pronoun)} ${stem.slice(0, -1)}${UNACCENT[stem.slice(-1)]}r`,
+      "review_msg_pt_proclisis",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.cliticPlacement frame 4
+  "@pt_BR.cliticPlacement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const stem = m.groups!.stem;
+    const pronoun = m.groups!.pronoun;
+    const ending = m.groups!.ending;
+    const base = /^l[oa]s?$/.test(pronoun)
+      ? /[áêíô]$/.test(stem)
+        ? `${stem.slice(0, -1)}${ACCENTED_STEM[stem.slice(-1)]}r`
+        : null
+      : /r$/.test(stem)
+        ? stem
+        : null;
+    if (!(base !== null)) return null;
+    return cliticFinding(
+      ctx,
+      m,
+      `${plainObject(pronoun)} ${base}${ending}`,
+      "review_msg_pt_proclisis",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.cliticPlacement frame 5
+  "@pt_BR.cliticPlacement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const stem = m.groups!.stem;
+    const pronoun = m.groups!.pronoun;
+    if (stem.length < 2 || stem !== stem.toLowerCase()) return null;
+    return cliticFinding(
+      ctx,
+      m,
+      `${stem.slice(0, -1)}${ACCENT[stem.slice(-1)]}-${pronoun}`,
+      "review_msg_pt_enclitic_accent",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.cliticPlacement frame 6
+  "@pt_BR.cliticPlacement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    const l = m.groups!.l;
+    const pronoun = m.groups!.pronoun;
+    const lower = verb.toLowerCase();
+    if (!(verb.slice(1) === lower.slice(1))) return null;
+    const nasal = /(?:m|ão|õe)$/.test(lower);
+    if (l && nasal) return null;
+    if (/s$/.test(lower) && !/(?:mos|is|es|as|us)$/.test(lower)) return null;
+    return cliticFinding(
+      ctx,
+      m,
+      nasal ? `${lower}-n${pronoun}` : `${withoutConsonant(lower)}-l${pronoun}`,
+      "review_msg_pt_object_form",
+    );
+  },
+  // pt_BR.yaml rule pt_BR.cliticPlacement frame 7
+  "@pt_BR.cliticPlacement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const stem = m.groups!.stem;
+    const ending = m.groups!.ending;
+    const pronoun = m.groups!.pronoun;
+    if (NOT_INFINITIVE_STEM.test(stem.toLowerCase())) return null;
+    if (
+      ending === "ei" &&
+      !/^(?:des|re|satis|contra|pre)?(?:far|dir|trar)$/.test(stem.toLowerCase())
+    )
+      return null;
+    const full = ending.replace(/mo$/, "mos");
+    if (full !== ending && pronoun !== "nos") return null;
+    const object = /^[oa]s?$/.test(pronoun) || (/^n[oa]s?$/.test(pronoun) && pronoun !== "nos");
+    const vowel = stem.slice(-2, -1);
+    if (object && !STEM_ACCENT[vowel]) return null;
+    return object
+      ? cliticFinding(
+          ctx,
+          m,
+          `${stem.slice(0, -2)}${STEM_ACCENT[vowel]}-l${plainObject(pronoun)}-${full}`,
+          "review_msg_pt_mesoclisis",
+        )
+      : cliticFinding(ctx, m, `${stem}-${pronoun}-${full}`, "review_msg_pt_mesoclisis");
   },
   // pt_BR.yaml rule pt_BR.ao90 frame 1
   "@pt_BR.ao90/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -1793,7 +2150,22 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
 };
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
-export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
+export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // pt_BR.yaml rule pt_BR.accentParonyms filter
+  "@pt_BR.accentParonyms/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const starts = new Set<number>();
+    return findings.filter((f) => !starts.has(f.range.start) && !!starts.add(f.range.start));
+  },
+  // pt_BR.yaml rule pt_BR.cliticPlacement filter
+  "@pt_BR.cliticPlacement/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const others = new Set(
+      findings.filter((f) => f.messageKey !== "review_msg_pt_mesoclisis").map((f) => f.range.start),
+    );
+    return findings.filter(
+      (f) => f.messageKey !== "review_msg_pt_mesoclisis" || !others.has(f.range.start),
+    );
+  },
+};
 
 /** The Review detectors of rules with code, by rule ("@<rule id>"). */
 export const DETECTORS: Readonly<Record<string, Detector>> = {};
