@@ -15,7 +15,6 @@ import type {
 } from "../../library";
 import {
   capitalize,
-  deCanonicalCasing,
   deContextYear,
   deDaysInMonth,
   deEnglishLine,
@@ -59,7 +58,7 @@ import {
   namedExampleBefore,
   remember,
 } from "../../library";
-import { DE_MONTHS } from "./common.generated";
+import { DE_MONTHS, hasCanonicalCasing } from "./common.generated";
 
 export const ARTICLES: ReadonlySet<string> = new Set([
   "des",
@@ -8460,7 +8459,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
             : ncVerbOnlyForm(typed)
               ? "framed"
               : null);
-    if (!(!!reading && !ctx.dictionary.has(typed) && !deCanonicalCasing(typed))) return null;
+    if (!(!!reading && !ctx.dictionary.has(typed) && !hasCanonicalCasing(typed))) return null;
     const end = m.index + typed.length;
     if (/^[-'’/]/.test(ctx.text[end] ?? "") || (typed === "sog" && ctx.text[end] === "."))
       return null;

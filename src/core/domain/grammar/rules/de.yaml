@@ -2342,7 +2342,7 @@ rules:
         when:
           - '/^\p{Ll}/u.test(typed) && typed.length >= 3 && !NC_NUMBERS.has(typed)'
           # "beim laufen", "zum verzweifeln": an infinitive after these is always a noun.
-          - "!!reading && !ctx.dictionary.has(typed) && !deCanonicalCasing(typed)"
+          - "!!reading && !ctx.dictionary.has(typed) && !hasCanonicalCasing(typed)"
           # Glued to a hyphen, apostrophe or slash; an abbreviation ("den sog. Strudel").
           - >-
             !(/^[-'’/]/.test(ctx.text[end] ?? "") || (typed === "sog" && ctx.text[end] === "."))

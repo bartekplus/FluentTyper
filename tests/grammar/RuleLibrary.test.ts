@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { CATALOG } from "../../src/core/domain/grammar/engine/catalog.generated";
 
@@ -33,6 +33,39 @@ test("the rule library names no check and no message: a rule's identity stays in
     const messages = text.match(/review_msg_\w+/g) ?? [];
     if (named.length || messages.length)
       offenders.push(`${path.relative(GRAMMAR, file)}: ${[...named, ...messages].join(", ")}`);
+  }
+  expect(offenders).toEqual([]);
+});
+
+/** The file a relative import names, or null. */
+function resolveImport(from: string, spec: string): string | null {
+  if (!spec.startsWith(".")) return null;
+  const base = path.resolve(path.dirname(from), spec);
+  return [`${base}.ts`, path.join(base, "index.ts")].find((file) => existsSync(file)) ?? null;
+}
+
+test("the rule library never loads the engine or the generated rule modules (no import cycle)", () => {
+  // The generated rule modules read library values when they load: a library module that
+  // loads them (through any chain of value imports) makes an import cycle.
+  const engine =
+    /engine\/(?:reviewRules|liveRules|rules\/[^/]+\.generated)\.ts$|review\/reviewDetectors\.ts$/;
+  const transpiler = new Bun.Transpiler({ loader: "ts" });
+  const offenders: string[] = [];
+  const chainTo = (file: string, seen: Set<string>): string[] | null => {
+    if (engine.test(file)) return [file];
+    if (seen.has(file)) return null;
+    seen.add(file);
+    for (const entry of transpiler.scanImports(readFileSync(file, "utf8"))) {
+      if (entry.kind !== "import-statement") continue;
+      const next = resolveImport(file, entry.path);
+      const chain = next && chainTo(next, seen);
+      if (chain) return [file, ...chain];
+    }
+    return null;
+  };
+  for (const file of libraryFiles()) {
+    const chain = chainTo(file, new Set());
+    if (chain) offenders.push(chain.map((step) => path.relative(GRAMMAR, step)).join(" -> "));
   }
   expect(offenders).toEqual([]);
 });

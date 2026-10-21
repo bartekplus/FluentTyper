@@ -56,4 +56,4 @@ export {
   germanDeterminerReadings,
 } from "./german/declension";
 export type { GermanCase, GermanCaseGender, GermanDeterminer } from "./german/declension";
-export { deCanonicalCasing, deWordBefore } from "./german/words";
+export { deWordBefore } from "./german/words";

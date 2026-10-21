@@ -1,11 +1,8 @@
 import {
   englishCountNoun,
   englishListedNoun,
-  englishListedWithoutPlural,
-  englishNounPair,
   englishWordInfo,
 } from "../../implementations/helpers/EnglishLexicon";
-import { ENGLISH_MASS_NOUNS } from "../../implementations/helpers/EnglishCountability";
 import { englishNounForms, hasCountPrefix } from "../../implementations/helpers/EnglishNounNumber";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { MatchFixer } from "../../engine/reviewRules";
@@ -22,36 +19,19 @@ import {
   wordBefore,
 } from "./slotWords";
 import { finding } from "../finding";
+import {
+  IRREGULAR,
+  IRREGULAR_PLURALS,
+  MASS,
+  nounNumber,
+  wordsAfter,
+} from "../../library/english/nouns";
+
+export { MASS, nounNumber, wordsAfter };
 
 // Noun number against its determiner or count, with singular/plural forms read from the
 // generated lexicon: "a new issues", "five book", "this errors are", "each children".
 
-// Irregular plurals the dictionary does not link to their singular.
-const IRREGULAR = new Map(
-  (
-    "man men woman women child children person people foot feet tooth teeth mouse mice goose " +
-    "geese criterion criteria phenomenon phenomena stimulus stimuli analysis analyses crisis " +
-    "crises thesis theses hypothesis hypotheses diagnosis diagnoses parenthesis parentheses " +
-    "cactus cacti fungus fungi nucleus nuclei radius radii appendix appendices matrix matrices " +
-    "vertex vertices alumnus alumni curriculum curricula bacterium bacteria ox oxen knife knives " +
-    "wife wives life lives half halves wolf wolves shelf shelves thief thieves loaf loaves leaf " +
-    "leaves freshman freshmen gentleman gentlemen chairman chairmen policeman policemen fireman " +
-    "firemen fisherman fishermen salesman salesmen spokesman spokesmen businessman businessmen " +
-    "workman workmen postman postmen snowman snowmen grandchild grandchildren"
-  )
-    .split(" ")
-    .flatMap((w, i, all) => (i % 2 ? [] : [[w, all[i + 1]] as const])),
-);
-const IRREGULAR_PLURALS = new Map([...IRREGULAR].map(([s, p]) => [p, s]));
-// Plural-looking nouns that are singular or invariant: "a means", "a series", "a big thanks".
-const INVARIANT = new Set(
-  (
-    "means series species news odds headquarters crossroads barracks gallows whereabouts thanks " +
-    "kudos savings sales works premises remains lens bus gas yes congrats outskirts arms goods " +
-    "lots data media percent pence head stone fold clogs guys folks sigma innings tens hundreds " +
-    "thousands millions billions dozens youth today tonight tomorrow yesterday overnight sometimes"
-  ).split(" "),
-);
 // Words that count or group and never take the number themselves: "a hundred years".
 const NUMERAL_NOUNS = new Set(
   "hundred thousand million billion trillion dozen couple few lot lots number pair score handful bunch total majority".split(
@@ -63,90 +43,8 @@ const NUMBER_WORDS = new Set(
     " ",
   ),
 );
-// Nouns used uncountably that a/an and many never take: "an advice", "many money".
-export const MASS = ENGLISH_MASS_NOUNS;
 const COUNT_LABELS =
   /\b(?:page|step|item|version|level|chapter|section|figure|table|number|no|line|row|column|volume|issue|part|phase|stage|round|game|episode|season|class|grade|room|floor|gate|platform|exit|route|channel|size|model|type|option|question|rule|article|act|scene|week|day|year|top|windows|iphone|ios|android|python|java|v|vol|ch|fig|pp|p)[ \t .#]*$/i;
-
-type Number_ = { singular: string; plural: string; number: "singular" | "plural" };
-
-// The word token of tokensAfter, with no other token kind.
-const WORD =
-  /[ \t\u00a0]*([A-Za-z]+(?:['’][A-Za-z]+)?)(?![\p{L}\p{M}\p{N}_@/#\\-]|\.[\p{L}\p{N}])/uy;
-
-/**
- * The tokens of tokensAfter(ctx, index, count) before the first token that is not a word. It
- * reads no token after that one.
- */
-export function wordsAfter(ctx: DetectContext, index: number, count: number): Token[] {
-  const words: Token[] = [];
-  WORD.lastIndex = index;
-  for (let m = WORD.exec(ctx.text); m && words.length < count; m = WORD.exec(ctx.text)) {
-    const text = m[1];
-    const end = m.index + m[0].length;
-    words.push({ text, lower: text.toLowerCase(), start: end - text.length, end, kind: "word" });
-  }
-  return words;
-}
-
-// The lexicon is static: many frames ask about the same words, so each word is read once.
-const NOUN_NUMBERS = new Map<string, Number_ | null>();
-
-/** Singular/plural forms of a lowercase noun and which one it is, or null. */
-export function nounNumber(word: string): Number_ | null {
-  let found = NOUN_NUMBERS.get(word);
-  if (found === undefined) {
-    if (NOUN_NUMBERS.size >= 50_000) NOUN_NUMBERS.clear();
-    NOUN_NUMBERS.set(word, (found = readNounNumber(word)));
-  }
-  return found;
-}
-
-function readNounNumber(word: string): Number_ | null {
-  if (
-    INVARIANT.has(word) ||
-    /(?:ics|wards|doors|stairs|works)$/.test(word) ||
-    FUNCTION_WORDS.has(word)
-  )
-    return null;
-  const irregular = IRREGULAR.get(word);
-  if (irregular) return { singular: word, plural: irregular, number: "singular" };
-  const singular = IRREGULAR_PLURALS.get(word);
-  if (singular) return { singular, plural: word, number: "plural" };
-  const pair = englishNounPair(word);
-  if (pair) return { ...pair, number: word === pair.plural ? "plural" : "singular" };
-  // Long plain nouns without a dictionary plural: regular plurals.
-  const listed = englishListedNoun(word);
-  // "dolphins" may hit the filter too: a listed stem before -s makes it the plural.
-  if (
-    listed === "singular" &&
-    /s$/.test(word) &&
-    englishListedNoun(word.slice(0, -1)) === "singular"
-  )
-    return null;
-  if (listed === "singular" && !englishListedWithoutPlural(word) && !englishWordInfo(word))
-    return { singular: word, plural: regularPlural(word), number: "singular" };
-  if (listed === "plural" && !englishWordInfo(word)) {
-    const stem = [word.replace(/ies$/, "y"), word.replace(/es$/, ""), word.slice(0, -1)].find(
-      (s) => s !== word && englishListedNoun(s) === "singular" && regularPlural(s) === word,
-    );
-    if (stem) return { singular: stem, plural: word, number: "plural" };
-  }
-  // Derived nouns ("hikers" from hike + -er + -s) read as plain plurals only.
-  const read = englishWordInfo(word);
-  if (read?.plural && !read.verbs.length && !read.adjective && /ers$/.test(word)) {
-    const stem = englishWordInfo(word.slice(0, -1));
-    if (stem?.noun && !stem.plural && !stem.verbs.length)
-      return { singular: word.slice(0, -1), plural: word, number: "plural" };
-  }
-  return null;
-}
-
-function regularPlural(word: string): string {
-  if (/(?:s|x|z|ch|sh)$/.test(word)) return `${word}es`;
-  if (/[^aeiou]y$/.test(word)) return `${word.slice(0, -1)}ies`;
-  return `${word}s`;
-}
 
 /** A word that could head or continue a noun phrase (so the phrase has not ended). */
 function nounLike(t: Token | undefined): boolean {

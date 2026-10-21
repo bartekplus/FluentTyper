@@ -3,6 +3,9 @@ import { before, group } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { Fixer } from "../../engine/reviewRules";
 import { clauseAfter, objectGapBefore, PERMISSION_AFTER } from "./slotWords";
+import { recase } from "../../library/english/words";
+
+export { recase };
 
 // ---- Context detectors: forms that are also ordinary English elsewhere. ----
 
@@ -51,19 +54,6 @@ const nextWord = (ctx: DetectContext, end: number) =>
 const matchEnd = (m: RegExpExecArray) => m.index + m[0].length;
 
 /** The typed casing carried onto a replacement: all capitals, or an initial capital. */
-export function recase(typed: string, alternative: string, whole: string): string {
-  const letters = typed.replace(/\P{L}/gu, "");
-  const all = whole.replace(/\P{L}/gu, "");
-  if (
-    letters &&
-    letters === letters.toUpperCase() &&
-    (letters.length > 1 || all === all.toUpperCase())
-  )
-    return alternative.toUpperCase();
-  return /^\P{L}*\p{Lu}/u.test(typed)
-    ? alternative.replace(/\p{L}/u, (c) => c.toUpperCase())
-    : alternative;
-}
 
 const OBJECT_START = /^(?:the|a|an|my|your|his|her|its|our|their|it|them|him|me|us|you)$/i;
 // "need help the most": a degree phrase, not an object.

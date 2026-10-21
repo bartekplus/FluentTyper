@@ -24,6 +24,9 @@ import {
   wordBefore,
 } from "./slotWords";
 import { finding } from "../finding";
+import { COLLECTIVE, opensClause } from "../../library/english/words";
+
+export { COLLECTIVE, opensClause };
 
 // Subject-verb number agreement with noun-phrase subjects the lexicon can number: "The dogs
 // barks", "Some people thinks", "Do your father live…?", "These includes", "This are".
@@ -51,11 +54,6 @@ const SINGULAR_DO_HAVE: Record<string, string> = {
   "don't": "doesn't",
 };
 // Nouns that take a plural verb in British use or name a group: "The team are…".
-export const COLLECTIVE = new Set(
-  "team staff family police government committee crew band audience public class group majority folk blues rest number couple pair lot jury army navy board council club company firm management media data total variety range series species means news remainder masters woods belt".split(
-    " ",
-  ),
-);
 
 // Adjectives that name a group as a noun: "the public", "the rich", "the elderly".
 const GROUP_ADJECTIVES =
@@ -417,10 +415,6 @@ function verbAfterObjectRelative(text: string, tokens: ClauseToken[], i: number)
  * afterBreak(ctx, index) || cue.test(wordBefore(ctx, index)), for a `cue` that never matches "".
  * A word right before `index` means no break stands there, so afterBreak runs only without one.
  */
-export function opensClause(ctx: DetectContext, index: number, cue: RegExp): boolean {
-  const before = wordBefore(ctx, index);
-  return before ? cue.test(before) : afterBreak(ctx, index);
-}
 
 /** The fix for the main verb at `at` after a head of `number`, or null. */
 function distantFix(

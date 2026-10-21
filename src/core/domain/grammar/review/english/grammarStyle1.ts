@@ -19,8 +19,10 @@ import {
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import { finding } from "../finding";
-import { namedExampleBefore } from "../exampleCues";
 import { objectGapBefore } from "./slotWords";
+import { PROSE_DOTTED_TOKEN, quotedMention } from "../../library/english/words";
+
+export { PROSE_DOTTED_TOKEN, quotedMention };
 
 // ---------------------------------------------------------------------------- helpers
 
@@ -362,19 +364,6 @@ const warning = (ctx: DetectContext, m: RegExpExecArray, name = "target"): RawFi
 
 // ---------------------------------------------------------------------------- typography
 
-// Words that open a sentence and never a dotted name's next part ("table.The room").
-const STARTERS =
-  "The|A|An|It|Its|I|So|But|And|This|That|These|Those|He|She|We|They|You|There|Then|What|When|Where|Why|How|If|My|Our|Your|His|Her|Their|Some|Many|One|No|Yes|Now|Also|However|After|Before|As|Each|Every|All";
-/**
- * Dotted tokens that are prose, not names: "a.m.", a decimal range ("1.5-2.5"), two
- * sentences glued at a period ("table.The") and the brand "WordPress.com" (grammarStyle2.ts
- * fixes its casing). Review's technical-token guard lets them through.
- */
-export const PROSE_DOTTED_TOKEN = new RegExp(
-  `^(?:\\p{Nd}{1,9}(?:\\.\\p{Nd}{1,9})?[-–—]\\p{Nd}{1,9}(?:\\.\\p{Nd}{1,9})?|[ap]\\.m|[AP]\\.M|\\p{L}*\\p{Ll}{2}\\.(?:${STARTERS})|[Ww]ord[Pp]ress\\.com)$`,
-  "u",
-);
-
 // ---------------------------------------------------------------------------- optional style
 
 const STYLE_WORDS: Record<string, string[]> = {
@@ -497,9 +486,6 @@ function listTail(m: RegExpExecArray, ctx: DetectContext): boolean {
  * quotations and parentheses are the writer's prose and are checked; their
  * fixes stay out of Fix all (toDiagnostic).
  */
-export function quotedMention(ctx: DetectContext, finding: RawFinding): boolean {
-  return namedExampleBefore(ctx.text, finding.range.start);
-}
 /** The named findings filters of grammar/rules/en.yaml (`filter:`). */
 export const FILTERS = {
   /** Findings inside a named example are dropped: the example is mentioned, not used. */

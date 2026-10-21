@@ -5,7 +5,7 @@ import {
 } from "../../implementations/helpers/EnglishLexicon";
 import { caseLike, detectAll } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import { quotedMention } from "./grammarStyle1";
+import { quotedMention } from "../../library/english/words";
 
 export { caseLike };
 
