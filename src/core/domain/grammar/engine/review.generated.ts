@@ -4669,7 +4669,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|[1-9])[ \\t\\u00a0]{1,8}(?:(?:important|essential|useful|unusual|observable|natural)[ \\t\\u00a0]{1,8})?(?<noun>criterion|criteria|phenomenon|phenomena)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
+      "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|1|2|3|4|5|6|7|8|9)[ \\t\\u00a0]{1,8}(?:(?:important|essential|useful|unusual|observable|natural)[ \\t\\u00a0]{1,8})?(?<noun>criterion|criteria|phenomenon|phenomena)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$))",
     literals: ["criterion", "criteria", "phenomenon", "phenomena"],
     fixer: "common:massNoun",
     owner: "noun",

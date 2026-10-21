@@ -5037,7 +5037,7 @@ rules:
       - regex: "(?:we|they|you){{S}}(?:need|use|bought|ordered|checked|tested){{S}}(?:the|our|your){{S}}(?:new|old|necessary|available|basic|standard){{S}}(?<noun>equipments){{COMPLETE}}"
         owner: noun
         fixer: massNoun
-      - regex: "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|[1-9]){{S}}(?:(?:important|essential|useful|unusual|observable|natural){{S}})?(?<noun>criterion|criteria|phenomenon|phenomena){{COMPLETE}}"
+      - regex: "(?<count>one|two|three|four|five|six|seven|eight|nine|ten|1|2|3|4|5|6|7|8|9){{S}}(?:(?:important|essential|useful|unusual|observable|natural){{S}})?(?<noun>criterion|criteria|phenomenon|phenomena){{COMPLETE}}"
         owner: noun
         fixer: massNoun
   - id: contextualCompounds
