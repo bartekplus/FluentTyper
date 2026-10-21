@@ -5,37 +5,8 @@ import type {
   GrammarRule,
   GrammarRuleId,
 } from "../types";
-import { CapitalizeSentenceStartRule } from "../implementations/CapitalizeSentenceStartRule";
-import { CapitalizeAfterLineBreakRule } from "../implementations/CapitalizeAfterLineBreakRule";
-import { CommaPeriodSpacingRule } from "../implementations/CommaPeriodSpacingRule";
-import { OpeningBracketSpacingRule } from "../implementations/OpeningBracketSpacingRule";
-import { ClosingBracketSpacingRule } from "../implementations/ClosingBracketSpacingRule";
-import { SlashContextSpacingRule } from "../implementations/SlashContextSpacingRule";
-import { MathOperatorSpacingRule } from "../implementations/MathOperatorSpacingRule";
-import { TechnicalTokenCompactionRule } from "../implementations/TechnicalTokenCompactionRule";
-import { CollapseRepeatedSpacesRule } from "../implementations/CollapseRepeatedSpacesRule";
-import { TrimSpaceBeforeLineBreakRule } from "../implementations/TrimSpaceBeforeLineBreakRule";
-import { EnglishPronounICapitalizationRule } from "../implementations/EnglishPronounICapitalizationRule";
-import { EnglishContractionNormalizationRule } from "../implementations/EnglishContractionNormalizationRule";
-import { EnglishTypoWhitelistCorrectionRule } from "../implementations/EnglishTypoWhitelistCorrectionRule";
-import { DoubleSpaceToPeriodRule } from "../implementations/DoubleSpaceToPeriodRule";
-import { EllipsisShortcutRule } from "../implementations/EllipsisShortcutRule";
-import { EmdashShortcutRule } from "../implementations/EmdashShortcutRule";
-import { SmartQuoteNormalizationRule } from "../implementations/SmartQuoteNormalizationRule";
-import { FrenchPunctuationSpacingRule } from "../implementations/FrenchPunctuationSpacingRule";
-import { DuplicatePunctuationCollapseRule } from "../implementations/DuplicatePunctuationCollapseRule";
-import { EnglishModalOfCorrectionRule } from "../implementations/EnglishModalOfCorrectionRule";
-import { EnglishYourWelcomeCorrectionRule } from "../implementations/EnglishYourWelcomeCorrectionRule";
-import { EnglishTheirThereBeVerbRule } from "../implementations/EnglishTheirThereBeVerbRule";
-import { EnglishAlotCorrectionRule } from "../implementations/EnglishAlotCorrectionRule";
-import { EnglishPronounVerbWhitelistAgreementRule } from "../implementations/EnglishPronounVerbWhitelistAgreementRule";
-import { EnglishArticleAnCorrectionRule } from "../implementations/EnglishArticleAnCorrectionRule";
-import { EnglishOrdinalSuffixRule } from "../implementations/EnglishOrdinalSuffixRule";
-import { EnglishProperNounCapitalizationRule } from "../implementations/EnglishProperNounCapitalizationRule";
-import { AutoBracketCloseRule } from "../implementations/AutoBracketCloseRule";
-import { MeasurementUnitFormattingRule } from "../implementations/MeasurementUnitFormattingRule";
-import { CurrencySpacingRule } from "../implementations/CurrencySpacingRule";
 import { LIVE_PATTERNS, LIVE_RULES } from "./live.generated";
+import { RULE_LIVE } from "../review/rules/live-index.generated";
 import { findMatches, type PatternSet } from "./matcher";
 import { tokenize } from "./tokenizer";
 
@@ -43,44 +14,17 @@ export interface LiveRuleOptions {
   insertSpaceAfterAutocomplete: boolean;
 }
 
+/** A typing rule as code (a rule file's `let`, `when` and `return` with `triggers`). */
+export interface LiveCode {
+  readonly triggers: readonly GrammarEventType[];
+  apply(context: GrammarContext, options: LiveRuleOptions): GrammarEdit | null;
+}
+
 /**
- * Named live implementations: the typing rules whose logic a token pattern cannot state
- * (cursor state, typed-character timing, bracket pairing). A rule file names one with
- * `predicate:` on a rule with `modes: [live]`.
+ * Named live implementations: none. Each typing rule has its code in its rule file. The empty
+ * record stays because tests/grammar/GrammarEngineRules.test.ts imports it.
  */
-export const LIVE_PREDICATES: Readonly<Record<string, (options: LiveRuleOptions) => GrammarRule>> =
-  {
-    CapitalizeSentenceStartRule: () => new CapitalizeSentenceStartRule(),
-    CapitalizeAfterLineBreakRule: () => new CapitalizeAfterLineBreakRule(),
-    EnglishPronounICapitalizationRule: () => new EnglishPronounICapitalizationRule(),
-    EnglishContractionNormalizationRule: () => new EnglishContractionNormalizationRule(),
-    EnglishTypoWhitelistCorrectionRule: () => new EnglishTypoWhitelistCorrectionRule(),
-    DoubleSpaceToPeriodRule: () => new DoubleSpaceToPeriodRule(),
-    EnglishModalOfCorrectionRule: () => new EnglishModalOfCorrectionRule(),
-    EnglishYourWelcomeCorrectionRule: () => new EnglishYourWelcomeCorrectionRule(),
-    EnglishTheirThereBeVerbRule: () => new EnglishTheirThereBeVerbRule(),
-    EnglishAlotCorrectionRule: () => new EnglishAlotCorrectionRule(),
-    EnglishPronounVerbWhitelistAgreementRule: () => new EnglishPronounVerbWhitelistAgreementRule(),
-    EnglishArticleAnCorrectionRule: () => new EnglishArticleAnCorrectionRule(),
-    EnglishOrdinalSuffixRule: () => new EnglishOrdinalSuffixRule(),
-    EnglishProperNounCapitalizationRule: () => new EnglishProperNounCapitalizationRule(),
-    CommaPeriodSpacingRule: (o) => new CommaPeriodSpacingRule(o.insertSpaceAfterAutocomplete),
-    OpeningBracketSpacingRule: () => new OpeningBracketSpacingRule(),
-    ClosingBracketSpacingRule: (o) => new ClosingBracketSpacingRule(o.insertSpaceAfterAutocomplete),
-    SlashContextSpacingRule: (o) => new SlashContextSpacingRule(o.insertSpaceAfterAutocomplete),
-    MathOperatorSpacingRule: () => new MathOperatorSpacingRule(),
-    MeasurementUnitFormattingRule: () => new MeasurementUnitFormattingRule(),
-    CurrencySpacingRule: () => new CurrencySpacingRule(),
-    TechnicalTokenCompactionRule: () => new TechnicalTokenCompactionRule(),
-    CollapseRepeatedSpacesRule: () => new CollapseRepeatedSpacesRule(),
-    TrimSpaceBeforeLineBreakRule: () => new TrimSpaceBeforeLineBreakRule(),
-    EllipsisShortcutRule: () => new EllipsisShortcutRule(),
-    EmdashShortcutRule: () => new EmdashShortcutRule(),
-    SmartQuoteNormalizationRule: () => new SmartQuoteNormalizationRule(),
-    FrenchPunctuationSpacingRule: () => new FrenchPunctuationSpacingRule(),
-    DuplicatePunctuationCollapseRule: () => new DuplicatePunctuationCollapseRule(),
-    AutoBracketCloseRule: () => new AutoBracketCloseRule(),
-  };
+export const LIVE_PREDICATES: Readonly<Record<string, never>> = {};
 
 // Enough text before the cursor for any live pattern; the window starts after a space.
 const LIVE_WINDOW = 200;
@@ -131,11 +75,32 @@ export class PatternLiveRule implements GrammarRule {
   }
 }
 
+/** One typing check of the rule files: its code or its live patterns. */
+function build(rule: (typeof LIVE_RULES)[number], options: LiveRuleOptions): GrammarRule {
+  if (!rule.predicate)
+    return new PatternLiveRule(rule.check as GrammarRuleId, new Set(rule.patterns));
+  // "<file>:@<rule id>": the rule's code in its rule file.
+  const [file, key] = rule.predicate.split(":");
+  const code = key === undefined ? undefined : RULE_LIVE[file]?.[key];
+  if (!code) throw new Error(`No code for typing rule ${rule.predicate}`);
+  return {
+    id: rule.check as GrammarRuleId,
+    triggers: [...code.triggers],
+    apply: (context: GrammarContext) => code.apply(context, options),
+  };
+}
+
 /** The typing rules of the rule files, in priority order. */
 export function createLiveRules(options: LiveRuleOptions): GrammarRule[] {
-  return LIVE_RULES.map((rule) =>
-    rule.predicate
-      ? LIVE_PREDICATES[rule.predicate](options)
-      : new PatternLiveRule(rule.check as GrammarRuleId, new Set(rule.patterns)),
-  );
+  return LIVE_RULES.map((rule) => build(rule, options));
+}
+
+/** The typing rule of one check: the facade classes of implementations/ delegate to it. */
+export function liveRule(
+  check: GrammarRuleId,
+  options: LiveRuleOptions = { insertSpaceAfterAutocomplete: false },
+): GrammarRule {
+  const rule = LIVE_RULES.find((entry) => entry.check === check);
+  if (!rule) throw new Error(`No typing rule for check ${check}`);
+  return build(rule, options);
 }

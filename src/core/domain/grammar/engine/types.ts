@@ -1,3 +1,4 @@
+import type { BodySpec, CodeSections, DefSpec } from "./ruleCode";
 /**
  * The declarative grammar rule format (src/core/domain/grammar/rules/*.yaml) and its
  * compiled form. scripts/compile-grammar-rules.ts validates the files and writes the
@@ -91,12 +92,14 @@ export interface CheckSpec {
  * inserts a fragment (the file's `fragments`, or S, E, COMPLETE, COMPLETE_OR_PAREN, CLAUSE,
  * TOKEN_END), and `{{notAfter:a|b}}` a "not right after these words" guard.
  */
-export interface FrameSpec {
+interface FrameSpec extends BodySpec {
   regex: string;
   /** The fix, or the fixes to choose from. */
   fix?: string | readonly string[];
   /** A named fix function (a `FIXERS` record of the language); it may veto with null. */
   fixer?: string;
+  /** The name of the frame's code (`return`), when something must find the frame by it. */
+  name?: string;
   /** The fix already carries the typed casing. */
   raw?: boolean;
   /** The message of this frame, when it differs from the rule's. */
@@ -155,9 +158,14 @@ export interface FrameSpec {
   lang?: string;
 }
 
-/** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
-export interface RuleSpec {
+/**
+ * An executable rule: a token pattern, a list of frames, its own code (`let`, `when`, `return`)
+ * or a named detector (`predicate`).
+ */
+export interface RuleSpec extends BodySpec, CodeSections {
   id: string;
+  /** Typing rules with code: the events the rule runs on ("insertChar", "wordBoundary"). */
+  triggers?: readonly string[];
   /** The checks whose findings this rule reports; the first one by default. */
   checks: readonly string[];
   /** "*", a two-letter code or a locale ("pt_BR"). Default: the file's language. */
@@ -206,7 +214,7 @@ export interface RuleSpec {
    */
   style?: FrameStyle;
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
-  filter?: string;
+  filter?: string | BodySpec;
   /**
    * A rule that reports findings Review made before the rule scan, in the chunk: "style" (the
    * style advice), "terminology" (the user's preferred terms) or "quotation" (unclosed quotes).
@@ -220,7 +228,7 @@ export interface RuleSpec {
 }
 
 /** A phrase table: "typed = fix" rows; "a | b = fix" for typed variants, "fix1; fix2" for choices. */
-export type PhraseTables = Partial<Record<"words" | "phrases" | "compounds" | "style", string>>;
+type PhraseTables = Partial<Record<"words" | "phrases" | "compounds" | "style", string>>;
 
 export interface RuleFile {
   /** The file's language: "*", or the locale ("en", "pt_BR", "ar_SA"). */
@@ -231,8 +239,14 @@ export interface RuleFile {
   phrases?: PhraseTables;
   /** Named phrase tables (English modules and option tables): name -> rows. */
   tables?: Readonly<Record<string, string>>;
-  /** Regex fragments for the frames of the file: `{{NAME}}`. */
+  /** Regex fragments for the frames and expressions of the file: `{{NAME}}`. */
   fragments?: Readonly<Record<string, string>>;
+  /** Word sets that expressions read: name -> words (a ReadonlySet<string>). */
+  sets?: Readonly<Record<string, readonly string[]>>;
+  /** Mappings that expressions read: name -> key -> value. */
+  maps?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /** Named expressions and functions of the file's expressions; common.yaml's are shared. */
+  defs?: Readonly<Record<string, DefSpec>>;
 }
 
 // ------------------------------------------------------------------ compiled form

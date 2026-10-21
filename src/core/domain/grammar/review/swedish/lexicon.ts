@@ -86,7 +86,7 @@ export function nounGender(word: string): "en" | "ett" | undefined {
   return predictGender(genders!, word);
 }
 
-export type AdjectiveForm = { form: "common" | "neuter"; other: string } | { form: "both" };
+type AdjectiveForm = { form: "common" | "neuter"; other: string } | { form: "both" };
 
 /** The -t form `word` would take as the base of adjective class `code`. */
 function forward(word: string, code: number): AdjectiveForm {

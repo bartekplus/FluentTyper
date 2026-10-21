@@ -1,5 +1,5 @@
 /** Authored common forms, not suffix inference. Shared by finished-text verb checks. */
-export interface EnglishVerbForms {
+interface EnglishVerbForms {
   lemma: string;
   third: string;
   past: string;

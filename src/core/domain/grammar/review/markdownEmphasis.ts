@@ -27,7 +27,7 @@ export function unwrapEmphasis(bare: string): { inner: string; offset: number } 
 }
 
 /** Regex source: zero to three emphasis delimiters between a cue word and a date ("le **"). */
-export const EMPHASIS_MARKS = "[*_~]{0,3}";
+const EMPHASIS_MARKS = "[*_~]{0,3}";
 const MARKS_BEFORE = new RegExp(`${EMPHASIS_MARKS}$`);
 
 /**
@@ -39,10 +39,3 @@ export function emphasisOpenLength(source: string, start: number, end: number): 
   const open = MARKS_BEFORE.exec(source.slice(Math.max(0, start - 3), start))![0];
   return open && source.startsWith([...open].reverse().join(""), end) ? open.length : 0;
 }
-/**
- * Regex source: the date does not continue a word or a number. An underscore glued to a word
- * continues it ("v_31/04/2020"). An underscore after a space is emphasis ("_31/04/2020_").
- */
-export const NO_WORD_BEFORE = `(?<![\\p{L}\\p{N}]${EMPHASIS_MARKS})`;
-/** Regex source: no word or number continues the date, also after emphasis delimiters. */
-export const NO_WORD_AFTER = `(?!${EMPHASIS_MARKS}[\\p{L}\\p{N}])`;

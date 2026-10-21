@@ -11,3 +11,12 @@ scripts/.cache
 .claude
 .impeccable/hook.cache.json
 __pycache__/
+
+# Generated from the rule files (src/core/domain/grammar/rules/*.yaml) by bun run compile:grammar,
+# which bun install, check, lint, typecheck, test and build run first.
+src/core/domain/grammar/engine/catalog.generated.ts
+src/core/domain/grammar/engine/copy.generated.ts
+src/core/domain/grammar/engine/live.generated.ts
+src/core/domain/grammar/engine/review.generated.ts
+src/core/domain/grammar/review/rules/
+src/core/domain/grammar/review/*/phrases.generated.ts

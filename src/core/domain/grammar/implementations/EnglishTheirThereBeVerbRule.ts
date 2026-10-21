@@ -1,30 +1,15 @@
-import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { matchTrailingEnglishPhrase, replaceFrom } from "./helpers/EnglishRuleShared";
-import { applyWordCase, detectWordCase } from "./helpers/GenericRuleShared";
+// Facade: the rule's code is in grammar/rules/common.yaml (englishTheirThereBeVerb.live).
+import { liveRule } from "../engine/liveRules";
+import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
-export const THEIR_THERE_BE_REGEX = /\btheir\s+(is|are|was|were)$/i;
+export { THEIR_THERE_BE_REGEX } from "../review/rules/common.generated";
 
 export class EnglishTheirThereBeVerbRule implements GrammarRule {
   readonly id = "englishTheirThereBeVerb" as const;
-  readonly triggers: GrammarEventType[] = ["wordBoundary"];
+  private readonly rule = liveRule(this.id);
+  readonly triggers = this.rule.triggers;
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const matched = matchTrailingEnglishPhrase(context, THEIR_THERE_BE_REGEX);
-    if (!matched) {
-      return null;
-    }
-    const { boundary: boundaryContext, match, phraseStart } = matched;
-    const phrase = match[0];
-
-    const firstToken = phrase.split(/\s+/)[0];
-    const verb = match[1];
-
-    const [there, normalizedVerb] = correctTheirBeVerb(firstToken, verb);
-    return replaceFrom(boundaryContext, phraseStart, `${there} ${normalizedVerb}`);
+    return this.rule.apply(context);
   }
-}
-
-/** ["there", verb], each in the case it was typed in. */
-export function correctTheirBeVerb(their: string, verb: string): [string, string] {
-  return [applyWordCase("there", detectWordCase(their)), applyWordCase(verb, detectWordCase(verb))];
 }

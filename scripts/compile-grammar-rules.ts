@@ -1,8 +1,64 @@
-// Compiles grammar/rules/*.yaml into grammar/engine/*.generated.ts.
+// Compiles grammar/rules/*.yaml into the generated modules of grammar/engine/ and
+// grammar/review/ (they are not in git: bun install, check, lint, typecheck, test and build run
+// this script first).
 // --check: fail when a generated module is not current, and write nothing.
+// --force: write the modules again even when their inputs did not change.
+import { createHash } from "node:crypto";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import { generateGrammarRuleModules, writeGrammarRuleModules } from "./grammarRules";
+import { generateGrammarRuleModules, RULES_DIR, writeGrammarRuleModules } from "./grammarRules";
+
+const ROOT = path.resolve(import.meta.dir, "..");
+const GRAMMAR = path.join(ROOT, "src/core/domain/grammar");
+// The hash of the inputs of the last write: the next run skips the work when they are the same.
+const STAMP = path.join(GRAMMAR, "review/rules/.inputs");
+const OUTPUT = /grammar\/review\/rules\/|grammar\/engine\/\w+\.generated\.ts$/;
+
+const transpiler = new Bun.Transpiler({ loader: "ts" });
+
+/** `file` and the files it imports, transitively (only the relative imports). */
+function withImports(file: string, seen: Set<string>): void {
+  if (seen.has(file) || !existsSync(file)) return;
+  seen.add(file);
+  if (!file.endsWith(".ts")) return;
+  for (const { path: spec } of transpiler.scanImports(readFileSync(file, "utf8"))) {
+    if (!spec.startsWith(".")) continue;
+    const base = path.resolve(path.dirname(file), spec);
+    const found = [`${base}.ts`, path.join(base, "index.ts"), base].find(
+      (candidate) => candidate.endsWith(".ts") && existsSync(candidate),
+    );
+    if (found) withImports(found, seen);
+  }
+}
+
+/**
+ * The hash of the files the generated modules come from: the rule files, the library, the engine,
+ * the scripts and all the files they import.
+ */
+function inputsHash(): string {
+  const files = new Set<string>();
+  for (const file of [
+    ...readdirSync(RULES_DIR).map((file) => path.join(RULES_DIR, file)),
+    path.join(GRAMMAR, "library.ts"),
+    ...["library", "engine"].flatMap((dir) =>
+      readdirSync(path.join(GRAMMAR, dir), { recursive: true, encoding: "utf8" }).map((file) =>
+        path.join(GRAMMAR, dir, file),
+      ),
+    ),
+    path.join(GRAMMAR, "review/phraseTemplates.ts"),
+    path.join(ROOT, "scripts/grammarRules.ts"),
+    path.join(ROOT, "scripts/compile-grammar-rules.ts"),
+    path.join(ROOT, ".prettierrc"),
+  ])
+    // The modules this script writes are its outputs, not its inputs.
+    if (/\.(?:ts|yaml|json)$|\.prettierrc$/.test(file) && !OUTPUT.test(file))
+      withImports(file, files);
+  const hash = createHash("sha256");
+  for (const file of [...files].filter((file) => !OUTPUT.test(file)).sort())
+    hash.update(file).update(readFileSync(file));
+  return hash.digest("hex");
+}
 
 if (process.argv.includes("--check")) {
   const stale: string[] = [];
@@ -14,6 +70,15 @@ if (process.argv.includes("--check")) {
     process.exit(1);
   }
 } else {
-  for (const file of await writeGrammarRuleModules())
-    console.log(`Wrote ${path.relative(process.cwd(), file)}`);
+  const hash = inputsHash();
+  const current =
+    !process.argv.includes("--force") &&
+    existsSync(path.join(GRAMMAR, "engine/review.generated.ts")) &&
+    existsSync(path.join(GRAMMAR, "review/rules/index.generated.ts")) &&
+    (await readFile(STAMP, "utf8").catch(() => "")) === hash;
+  if (!current) {
+    for (const file of await writeGrammarRuleModules())
+      console.log(`Wrote ${path.relative(process.cwd(), file)}`);
+    await Bun.write(STAMP, hash);
+  }
 }

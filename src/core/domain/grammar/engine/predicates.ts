@@ -9,7 +9,7 @@ import type { Token } from "./types";
  * and fast: it reads the token, its neighbours and the language, and nothing else. It is
  * loaded by content scripts too (live pattern rules), so it must not import Review data.
  */
-export type TokenPredicate = (tokens: readonly Token[], index: number, lang: string) => boolean;
+type TokenPredicate = (tokens: readonly Token[], index: number, lang: string) => boolean;
 
 // Abbreviations whose period does not end a sentence, by language; lowercase keys. The
 // period is a token of its own, so a key is the word before it.

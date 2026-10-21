@@ -1,6 +1,7 @@
 // The English phrase tables: the `tables:` section of grammar/rules/en.yaml.
 import { TABLES } from "../../engine/review.generated";
 import type { PhraseRow } from "../englishPhraseTables";
+import { useEnglishTables } from "../../library/english/tables";
 
 /** The rows of en.yaml table `name`; a missing table is an error at load. */
 export function table(name: string): readonly PhraseRow[] {
@@ -8,6 +9,9 @@ export function table(name: string): readonly PhraseRow[] {
   if (!rows) throw new Error(`grammar/rules/en.yaml has no table "${name}"`);
   return rows;
 }
+
+// The rule code reads the tables through the library (enTable).
+useEnglishTables(table);
 
 // The "<module>.<kind>" tables of one kind, in rule-file order.
 const moduleTables = (kind: string): PhraseRow[] =>

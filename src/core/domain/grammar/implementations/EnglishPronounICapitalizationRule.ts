@@ -1,93 +1,13 @@
-import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import {
-  type EnglishBoundaryContext,
-  findTrailingLetterToken,
-  isPartOfTechnicalToken,
-  replaceFrom,
-  resolveEnglishBoundaryContext,
-} from "./helpers/EnglishRuleShared";
-
-const ENGLISH_APOSTROPHE_PRONOUN_REGEX = /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|d))$/;
-// A lone "i" before a space is the pronoun or a loop variable. The next word
-// decides: the pronoun takes a verb, so "i is"/"i in"/"i of" is `i` the
-// identifier ("for i in range", "if i is None"), never the English pronoun.
-const DEFERRED_PRONOUN_I_REGEX = /(?:^|[^\p{L}\p{N}_'’])i([ \t]+)(\S+)$/u;
-export const NON_PRONOUN_FOLLOWERS = new Set(["is", "in", "are", "of", "not"]);
+// Facade: the rule's code is in grammar/rules/common.yaml (englishPronounICapitalization.live).
+import { liveRule } from "../engine/liveRules";
+import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
 export class EnglishPronounICapitalizationRule implements GrammarRule {
   readonly id = "englishPronounICapitalization" as const;
-  readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
+  private readonly rule = liveRule(this.id);
+  readonly triggers = this.rule.triggers;
 
   apply(context: GrammarContext): GrammarEdit | null {
-    const boundaryContext = resolveEnglishBoundaryContext(context);
-    if (!boundaryContext) {
-      return null;
-    }
-
-    const apostropheCorrection = this.applyApostrophePronoun(boundaryContext);
-    if (apostropheCorrection) {
-      return apostropheCorrection;
-    }
-
-    const deferred = this.applyDeferredPronoun(boundaryContext);
-    if (deferred) {
-      return deferred;
-    }
-
-    const tokenInfo = findTrailingLetterToken(boundaryContext.input);
-    if (!tokenInfo || tokenInfo.token !== "i") {
-      return null;
-    }
-    // A bare "i." is the pronoun or the start of "i.e."; the next character
-    // tells us which, and by then the token is no longer "i".
-    if (tokenInfo.trailing === ".") {
-      return null;
-    }
-    // Whitespace alone does not disambiguate; wait for the following word.
-    if (/^[ \t]+$/.test(tokenInfo.trailing)) {
-      return null;
-    }
-    if (isPartOfTechnicalToken(tokenInfo.core, tokenInfo.tokenStart, tokenInfo.tokenEnd)) {
-      return null;
-    }
-
-    return replaceFrom(boundaryContext, tokenInfo.tokenStart, "I");
-  }
-
-  /** Capitalizes a deferred "i" once the following word identifies it. */
-  private applyDeferredPronoun(boundaryContext: EnglishBoundaryContext): GrammarEdit | null {
-    const { core } = boundaryContext;
-    const match = DEFERRED_PRONOUN_I_REGEX.exec(core);
-    if (!match) {
-      return null;
-    }
-
-    const [gap, following] = [match[1], match[2]];
-    if (!/^\p{L}+$/u.test(following) || NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())) {
-      return null;
-    }
-
-    const pronounIndex = core.length - (1 + gap.length + following.length);
-    if (isPartOfTechnicalToken(core, pronounIndex, pronounIndex + 1)) {
-      return null;
-    }
-
-    return replaceFrom(boundaryContext, pronounIndex, `I${gap}${following}`);
-  }
-
-  private applyApostrophePronoun(boundaryContext: EnglishBoundaryContext): GrammarEdit | null {
-    const { core } = boundaryContext;
-    const match = core.match(ENGLISH_APOSTROPHE_PRONOUN_REGEX);
-    if (!match) {
-      return null;
-    }
-
-    const suffix = match[3];
-    const replaceStart = core.length - (1 + suffix.length);
-    if (isPartOfTechnicalToken(core, replaceStart, replaceStart + 1)) {
-      return null;
-    }
-
-    return replaceFrom(boundaryContext, replaceStart, `I${core.slice(replaceStart + 1)}`);
+    return this.rule.apply(context);
   }
 }

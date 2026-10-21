@@ -7,6 +7,191 @@ fragments:
   BEFORE: "(?<![\\p{L}\\p{M}\\p{N}_'’@#/\\\\-])"
   NEXT: "(?<gap>{{GAP}})(?<next>\\p{L}[\\p{L}\\p{M}]*)"
 
+# The code of the rules' expressions (`let`, `when`, `return`): sets and defs.
+sets:
+  EL_ARTICLES: [ο, η, οι, το, τα, τον, την, τη, του, της, των, τους, τις]
+  # Negating "δε" cannot stand right before a conjunction: there it is cited or adversative.
+  EL_CONJUNCTIONS:
+    [οταν, οτι, αν, εαν, η, ενω, επειδη, αφου, οπως, ωστε, οποτε, αλλα, ομως, ουτε, ειτε, οσο, ως]
+  # Masculine accusatives, unaccented: their article is always "τον". Nouns of common gender
+  # (ο/η πρόεδρος) and forms that are also neuter words or adjectives ("ήλιο" helium, "φίλο
+  # κράτος") are not in the list.
+  EL_MASCULINE:
+    [
+      λογο,
+      χρονο,
+      δρομο,
+      κοσμο,
+      νομο,
+      ρολο,
+      στοχο,
+      τροπο,
+      τοπο,
+      φοβο,
+      πονο,
+      ουρανο,
+      καιρο,
+      σκοπο,
+      κινδυνο,
+      ανθρωπο,
+      ανεμο,
+      υπνο,
+      θανατο,
+      πολεμο,
+      λαο,
+      θεο,
+      γαμο,
+      κηπο,
+      τοιχο,
+      δημο,
+      οροφο,
+      μισθο,
+      χωρο,
+      ποταμο,
+      φορο,
+      ογκο,
+      κυκλο,
+      τυπο,
+      ορο,
+      κλαδο,
+      θορυβο,
+      στρατο,
+      δασκαλο,
+      καταλογο,
+      διαλογο,
+      ελεγχο,
+      συλλογο,
+      γιο,
+      ανιψιο,
+      εχθρο,
+      στιχο,
+      ηχο,
+      λοφο,
+      βραχο,
+      καμπο,
+      λυκο,
+      ταυρο,
+      σκυλο,
+      χορο,
+      γυρο,
+      ναο,
+      ταφο,
+      θρονο,
+      στολο,
+      φακελο,
+      νου,
+      βασιλια,
+      παππου,
+      αιωνα,
+      αγωνα,
+      αντρα,
+      πατερα,
+      μηνα,
+      αερα,
+      κανονα,
+      χαρακτηρα,
+      τομεα,
+      χειμωνα,
+      γειτονα,
+      ηρωα,
+      πινακα,
+      αξονα,
+      πυρηνα,
+      μαθητη,
+      καθηγητη,
+      πελατη,
+      επιβατη,
+      εργατη,
+      χαρτη,
+      πολιτη,
+      αθλητη,
+      ιδιοκτητη,
+      δεικτη,
+      υπολογιστη,
+      διακοπτη,
+      ανταγωνιστη,
+    ]
+  # Words that can also be an adjective or a noun ("Αντίθετα αποτελέσματα", "Τέλος εποχής")
+  # need a clause right after them: an article, a pronoun or a particle.
+  EL_AMBIGUOUS: [αντιθετα, τελος, ναι, οχι, επιπλεον]
+  EL_CLAUSE_OPENERS:
+    [
+      ο,
+      η,
+      οι,
+      το,
+      τα,
+      τον,
+      την,
+      τη,
+      του,
+      της,
+      των,
+      τους,
+      τις,
+      θα,
+      να,
+      δεν,
+      δε,
+      μην,
+      μη,
+      ας,
+      εγω,
+      εσυ,
+      αυτος,
+      αυτη,
+      αυτο,
+      εμεις,
+      εσεις,
+      αυτοι,
+      αυτες,
+      αυτα,
+      καθε,
+      ολοι,
+      ολα,
+      ολες,
+    ]
+  # Words in -ω that are not verbs: adverbs, numerals, pronouns.
+  EL_NOT_VERBS: [εδω, πισω, πανω, κατω, εξω, μεσω, ανω, οκτω, οχτω, εγω, λογω, ηχω]
+defs:
+  EL_CONSONANT: /^[βγδζθκλμνξπρστφχψ]/
+  # Abstract nouns in -σμός, -γμός, -χμός, -θμός are masculine ("ανταγωνισμό", "αριθμό").
+  EL_MASCULINE_SUFFIX: /(?:σμ|γμ|χμ|θμ)ο$/
+  EL_PREPOSITION: '/(?<!\p{L})(?:(?:γι|σ|μ|απ|κατ|μετ|παρ)[''’][ \t\u00a0]*|(?:για|σε|με|από|προς|χωρίς|κατά|μετά|παρά|ως|μέχρι|έως)[ \t\u00a0]+)$/iu'
+  EL_LEAD: '/(?:(?:από|απ[''’]|για|ως|μέχρι|και|κι)[ \t\u00a0]+)?$/iu'
+  EL_SENTENCE_START: '/[.!;;?…\n][ \t\u00a0"«“‘''(]*$/u'
+  EL_AT_START: '/^[ \t\u00a0"«“‘''(]*$/u'
+  # A match outside named examples whose `target` word is not in the user dictionary.
+  elTyped:
+    args: "m: RegExpExecArray, ctx: DetectContext"
+    return: "!namedExampleBefore(ctx.text, m.index) && !ctx.dictionary.has(m.groups!.target.toLowerCase())"
+  # The word before `at` in lowercase, "" at a clause boundary.
+  elWordBefore:
+    args: "text: string, at: number"
+    return: '/(\p{L}+[''’]?)[ \t\u00a0]+$/u.exec(text.slice(Math.max(0, at - 24), at))?.[1] ?? ""'
+  # A ν or Ν in the typed word's case.
+  elWithNu:
+    args: "word: string"
+    return: 'word + (word.length > 1 && word === word.toUpperCase() ? "Ν" : "ν")'
+  # "κι" spelled out as "και" in the typed word's case.
+  elKai:
+    args: "word: string"
+    return: 'word === word.toUpperCase() ? "ΚΑΙ" : word[0] + "αι"'
+  # The finding of a frame with the groups `target`, `gap` and `next`: it replaces the text from
+  # `start` to the end of `target`.
+  elNextFinding:
+    args: "m: RegExpExecArray, frame: FrameRef, start: number, alternative: string"
+    let:
+      end: m.index + m.groups!.target.length
+    return: >-
+      ({
+        ruleId: frame.ruleId,
+        messageKey: frame.messageKey,
+        range: { start, end },
+        alternatives: [alternative],
+        context: { start, end: end + m.groups!.gap.length + m.groups!.next.length },
+      })
+
 rules:
   - id: el.finalNu
     checks: [greekFinalNu]
@@ -18,12 +203,29 @@ rules:
       - regex: "{{BEFORE}}(?<target>τη|στη|δε|μη){{NEXT}}"
         scan: owned
         flags: giu
-        fixer: missingNu
+        let:
+          lower: bareGreek(target)
+          before: bareGreek(elWordBefore(ctx.text, m.index))
+        when:
+          - elTyped(m, ctx)
+          - keepsFinalNu(next)
+          - lower !== "μη" || before === "να" || before === "ας"
+          - '!(lower.endsWith("τη") && before === "εν")'
+          - >-
+            lower !== "δε" || !(EL_ARTICLES.has(before) || EL_CONJUNCTIONS.has(bareGreek(next)) ||
+            /(?<!\p{L})μεν(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 120), m.index).split(/[.;!\n]/).at(-1)!))
+        return: >-
+          lower === "δε"
+            ? { ...elNextFinding(m, frame, m.index, elWithNu(target)), bulkBlock: "context-dependent" as const }
+            : elNextFinding(m, frame, m.index, elWithNu(target))
       # "κι" stands only before a vowel.
       - regex: "{{BEFORE}}(?<target>κι){{NEXT}}"
         scan: owned
         flags: giu
-        fixer: kiConsonant
+        when:
+          - elTyped(m, ctx)
+          - isGreek(next) && EL_CONSONANT.test(bareGreek(next))
+        return: elNextFinding(m, frame, m.index, elKai(target))
   - id: el.strictFinalNu
     checks: [greekStrictFinalNu]
     style: match
@@ -36,19 +238,39 @@ rules:
       - regex: "{{BEFORE}}(?<target>την|στην|αυτήν|δεν|μην){{NEXT}}"
         scan: owned
         flags: giu
-        fixer: extraNu
+        when:
+          - elTyped(m, ctx)
+          - keepsFinalNu(next) === false
+          # "Το δεν γράφεται…": a word cited after an article is not negating anything.
+          - "!(/^(?:δεν|μην)$/iu.test(target) && EL_ARTICLES.has(bareGreek(elWordBefore(ctx.text, m.index))))"
+        return: elNextFinding(m, frame, m.index, target.slice(0, -1))
       # The masculine "τον" keeps its ν everywhere ("το ανταγωνισμό" -> "τον", common in
       # speech-like writing). Other masculine determiners keep their ν too: "έναν λόγο",
       # "για ποιον λόγο".
       - regex: "{{BEFORE}}(?<target>το|στο|ένα|κάποιο|κανένα|ποιο|τέτοιο|ολόκληρο){{NEXT}}"
         scan: owned
         flags: giu
-        fixer: masculineTon
+        let:
+          noun: bareGreek(next)
+          # "ένα" before a masculine noun is the article "έναν", never the neuter numeral.
+          # "αυτό το λόγο" -> "αυτόν τον λόγο": the demonstrative agrees too.
+          lead: '/(?<!\p{L})(αυτό|εκείνο)([ \t\u00a0]+)$/iu.exec(ctx.text.slice(Math.max(0, m.index - 12), m.index))'
+        when:
+          - elTyped(m, ctx)
+          - isGreek(next) && (EL_MASCULINE.has(noun) || EL_MASCULINE_SUFFIX.test(noun))
+        return: >-
+          lead
+            ? elNextFinding(m, frame, m.index - lead[0].length, elWithNu(lead[1]) + lead[2] + elWithNu(target))
+            : elNextFinding(m, frame, m.index, elWithNu(target))
       # "αυτή" after a preposition follows the article ("γι' αυτήν ξενιτεύτηκα").
       - regex: "{{BEFORE}}(?<target>αυτή){{NEXT}}"
         scan: owned
         flags: giu
-        fixer: aytinAfterPreposition
+        when:
+          - elTyped(m, ctx)
+          - keepsFinalNu(next) && !EL_ARTICLES.has(bareGreek(next))
+          - EL_PREPOSITION.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+        return: elNextFinding(m, frame, m.index, elWithNu(target))
   - id: el.perfectForm
     checks: [englishPhraseCorrections]
     style: match
@@ -59,7 +281,19 @@ rules:
         scan: owned
         lookback: 16
         flags: giu
-        fixer: perfectForm
+        let:
+          start: m.index + m[0].length - target.length
+        when:
+          - start >= ctx.from && start < ctx.to && !EL_NOT_VERBS.has(bareGreek(target))
+          - "!ctx.dictionary.has(target.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: start + target.length - 1, end: start + target.length },
+            alternatives: [target.endsWith("ώ") ? "εί" : "ει"],
+            context: { start: m.index, end: start + target.length },
+          })
   - id: el.questionAccent
     checks: [greekQuestionAccent]
     style: match
@@ -69,7 +303,25 @@ rules:
       - regex: "(?<![\\p{L}\\p{M}])(?<target>\\u03C0\\u03BF\\u03C5|\\u03C0\\u03C9\\u03C2)(?![\\p{L}\\p{M}'\\u2019])"
         scan: owned
         flags: giu
-        fixer: questionAccent
+        let:
+          word: m[0]
+          from: Math.max(0, m.index - 40)
+          before: ctx.text.slice(from, m.index).replace(EL_LEAD, "")
+          end: m.index + word.length
+          rest: '/[.!;;?…\n]/u.exec(ctx.text.slice(end, end + 300))'
+        when:
+          - "!(word.length > 1 && word === word.toUpperCase())"
+          - "!ctx.dictionary.has(word.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)"
+          - EL_SENTENCE_START.test(before) || (from === 0 && EL_AT_START.test(before))
+          - rest && ";;?".includes(rest[0])
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end },
+            alternatives: [word.replace(/υ$/u, "ύ").replace(/ω(?=ς$)/u, "ώ")],
+            context: { start: m.index, end: end + rest.index + 1 },
+          })
   - id: el.formalKai
     checks: [stylePhrasing]
     style: match
@@ -79,7 +331,11 @@ rules:
       - regex: "{{BEFORE}}(?<target>κι){{NEXT}}"
         scan: owned
         flags: giu
-        fixer: formalKai
+        when:
+          - elTyped(m, ctx)
+          # "Κι όμως", "κι αν", "από πού κι ως πού" are fixed in this form.
+          - isGreek(next) && !EL_CONSONANT.test(bareGreek(next)) && !/^(?:ομως|ως|αν)$/u.test(bareGreek(next))
+        return: elNextFinding(m, frame, m.index, elKai(target))
   - id: el.punctuation
     checks: [greekPunctuation]
     style: match
@@ -89,18 +345,45 @@ rules:
       - regex: "{{BEFORE}}(?<target>συνεπώς|επομένως|αντιθέτως|αντίθετα|ωστόσο|εντούτοις|παρόλα αυτά|παρ['’] όλα αυτά|για παράδειγμα|επιπλέον|επιπροσθέτως|εξάλλου|κατά συνέπεια|εν κατακλείδι|συμπερασματικά|αφενός|αφετέρου|κι όμως|και όμως|πρώτον|δεύτερον|τρίτον|τέλος|ναι|όχι){{NEXT}}"
         scan: owned
         flags: giu
-        fixer: introComma
+        let:
+          from: Math.max(0, m.index - 8)
+          before: ctx.text.slice(from, m.index)
+          bare: bareGreek(target)
+        when:
+          - elTyped(m, ctx)
+          - EL_SENTENCE_START.test(before) || (from === 0 && EL_AT_START.test(before))
+          - "!(EL_AMBIGUOUS.has(bare) && !EL_CLAUSE_OPENERS.has(bareGreek(next)))"
+          - >-
+            bare !== "οχι" || /(?<!\p{L})(?:δεν|δε|μην|ούτε)(?!\p{L})/iu.test(ctx.text.slice(m.index + target.length,
+            m.index + target.length + 200).split(/[.;;!?\n]/)[0])
+        return: elNextFinding(m, frame, m.index, `${target},`)
       # "!!" and "…." in Greek prose: one mark.
       - regex: "(?<target>(?<!!)!{2,}(?![!?]))"
         scan: owned
         flags: gu
         message: review_msg_greek_repeated_marks
-        fixer: oneMark
+        # The first mark of "!!" or "…." is the one mark to keep.
+        when: "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [m[0][0]],
+          })
       - regex: "(?<target>\\u2026\\.(?!\\.))"
         scan: owned
         flags: gu
         message: review_msg_greek_repeated_marks
-        fixer: oneMark
+        # The first mark of "!!" or "…." is the one mark to keep.
+        when: "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [m[0][0]],
+          })
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

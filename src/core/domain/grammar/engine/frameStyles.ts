@@ -1,7 +1,8 @@
 import type { CatalogRuleId } from "../ruleCatalog";
 import { applyWordCase, detectWordCase } from "../implementations/helpers/GenericRuleShared";
 import { quotedSpan } from "../review/exampleCues";
-import { recase, type Fix, type FixResult } from "../review/english/idioms5";
+import type { Fix, FixResult } from "../library/english/frames";
+import { recase } from "../library/english/words";
 import { likeTyped } from "../review/german/shared";
 import { findingAt, isPl, owned, sentenceStartAt, userOrNamed } from "../review/polish/shared";
 import { CLAUSE_BEFORE, pushFinding } from "../review/portuguese/confusions";
@@ -15,7 +16,6 @@ import {
   hasUserOrCasedWord,
   isLang,
   opensSentence,
-  type PhraseTemplate,
   WORD_START,
 } from "../review/phraseTemplates";
 import type { DetectContext, RawFinding } from "../review/reviewDetectors";
@@ -24,7 +24,7 @@ import type { ReviewMessageKey } from "../review/types";
 import type { CompiledFrame, FrameStyle } from "./types";
 
 /** A frame of a rule file, ready to run: its scan, its fix and the check it reports. */
-export interface RunFrame {
+interface RunFrame {
   readonly pattern: string | RegExp;
   /** A fix, the alternatives, or a named fixer; each style passes the fixer its own arguments. */
   readonly fix: unknown;
@@ -94,7 +94,7 @@ const STYLES: Record<FrameStyle, Style> = {
     find(ctx, m, frame, findings) {
       const [start, end] = target(m);
       if (hasUserOrCasedWord(ctx, ctx.text.slice(m.index, Math.max(end, matchEnd(m))))) return;
-      const value = fixOf(frame, m) as string | readonly string[] | null;
+      const value = fixOf(frame, m, ctx, frame) as string | readonly string[] | null;
       if (value === null) return;
       const style = detectWordCase(m.groups!.target.trim());
       const alternatives = [value]
@@ -137,7 +137,7 @@ const STYLES: Record<FrameStyle, Style> = {
       if (hasUserOrCasedWord(ctx, m[0])) return;
       // A quoted example ("need to backup") is mentioned, not used.
       if (quotedSpan(ctx.text, m.index, matchEnd(m))) return;
-      const result = fixOf(frame, m, ctx) as FixResult;
+      const result = fixOf(frame, m, ctx, frame) as FixResult;
       if (result === null) return;
       const {
         alternatives,
@@ -172,7 +172,7 @@ const STYLES: Record<FrameStyle, Style> = {
       const [start, end] = target(m);
       const typed = ctx.text.slice(start, end);
       if (hasUserOrCasedWord(ctx, frame.frame.targetOnly ? typed : m[0])) return;
-      const value = fixOf(frame, m, ctx) as string | readonly string[] | null;
+      const value = fixOf(frame, m, ctx, frame) as string | readonly string[] | null;
       if (value === null) return;
       const alternatives = [value]
         .flat()
@@ -201,7 +201,7 @@ const STYLES: Record<FrameStyle, Style> = {
       const [start, end] = m.indices!.groups![name];
       const typed = m.groups![name];
       if (ctx.dictionary.has(typed.toLowerCase())) return;
-      const fixed = fixOf(frame, m) as string | readonly string[] | null;
+      const fixed = fixOf(frame, m, ctx, frame) as string | readonly string[] | null;
       const replacements = fixed === null ? [] : [fixed].flat().filter((r) => r !== typed);
       if (replacements.length === 0) return;
       findings.push({
@@ -243,7 +243,7 @@ const STYLES: Record<FrameStyle, Style> = {
         ruleId: frame.ruleId,
         messageKey: frame.messageKey,
         range: { start, end },
-        alternatives: [fixOf(frame, m) as string],
+        alternatives: [fixOf(frame, m, ctx, frame) as string],
         context: { start: m.index, end: Math.max(end, matchEnd(m)) },
       });
     },
@@ -257,7 +257,7 @@ const STYLES: Record<FrameStyle, Style> = {
       if (userOrNamed(ctx, typed)) return;
       if (frame.frame.lowercase && /^\p{Lu}/u.test(typed) && !sentenceStartAt(ctx.text, start))
         return;
-      const fixed = fixOf(frame, m) as string | readonly string[] | null;
+      const fixed = fixOf(frame, m, ctx, frame) as string | readonly string[] | null;
       if (fixed === null) return;
       const alternatives = [fixed]
         .flat()
@@ -277,7 +277,7 @@ const STYLES: Record<FrameStyle, Style> = {
       if (start < ctx.from || start >= ctx.to) return;
       const typed = ctx.source.slice(start, end);
       if (/\p{L}/u.test(typed) && userOrNamed(ctx, typed)) return;
-      const fixed = fixOf(frame, m, ctx) as string | null;
+      const fixed = fixOf(frame, m, ctx, frame) as string | null;
       if (fixed === null || fixed === typed) return;
       findings.push(findingAt(ctx, start, end, [fixed], frame.ruleId, frame.messageKey));
     },
@@ -290,7 +290,7 @@ const STYLES: Record<FrameStyle, Style> = {
     find(ctx, m, frame, findings) {
       const typed = m[0];
       if (userOrNamed(ctx, typed)) return;
-      const fixed = fixOf(frame, m, ctx) as string | null;
+      const fixed = fixOf(frame, m, ctx, frame) as string | null;
       if (fixed === null || fixed === typed) return;
       findings.push(
         findingAt(ctx, m.index, m.index + typed.length, [fixed], frame.ruleId, frame.messageKey),
@@ -432,29 +432,4 @@ export function detectFrames(
     for (const m of matchesOf(ctx, frame)) find(ctx, m, frame, findings);
   }
   return findings;
-}
-
-/**
- * Phrase templates of a hand-written detector, run as template frames: the `target` group gets
- * the replacement in its casing (an empty one only warns).
- */
-export function detectPhraseTemplates(
-  ctx: DetectContext,
-  templates: readonly PhraseTemplate[],
-  ruleId: RawFinding["ruleId"],
-): RawFinding[] {
-  const frames = templates.map((template): RunFrame => ({
-    pattern: template.pattern,
-    fix: template.replacement,
-    ruleId,
-    messageKey: template.messageKey,
-    owner: "target",
-    scan: "frame",
-    frame: {
-      pattern: template.pattern,
-      literals: [],
-      ...(template.clauseStart ? { clauseStart: true as const } : {}),
-    } as CompiledFrame,
-  }));
-  return detectFrames(ctx, "template", frames);
 }

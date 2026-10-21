@@ -29,26 +29,6 @@ export const COMPLETE_OR_PAREN = `${WORD_END}(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$
 /** True when the text language is `lang`, a two-letter code ("pt" for pt_BR). */
 export const isLang = (ctx: DetectContext, lang: string) => ctx.lang.slice(0, 2) === lang;
 
-export { wordSet } from "../implementations/helpers/GenericRuleShared";
-
-/** Phrase rows, one per line: "typed = fix", with "; " between fixes the writer picks from. */
-export const rows = (text: string): Array<[string, string | string[]]> =>
-  text
-    .split("\n")
-    .filter(Boolean)
-    .map((line) => {
-      const at = line.indexOf(" = ");
-      const fix = line.slice(at + 3);
-      return [line.slice(0, at), fix.includes("; ") ? fix.split("; ") : fix];
-    });
-
-/** A regex alternation of phrases, longest first, with any run of spaces between words. */
-export const alternation = (phrases: Iterable<string>) =>
-  [...new Set(phrases)]
-    .sort((a, b) => b.length - a.length)
-    .map((phrase) => phrase.replaceAll(" ", SPACE))
-    .join("|");
-
 /** A frame regex, compiled once: WORD_START and the `gidu` flags frameMatches gives strings. */
 export const frame = (pattern: string) => new RegExp(`${WORD_START}${pattern}`, "gidu");
 
@@ -777,13 +757,6 @@ function stickyMatches(
   }
   return matches;
 }
-
-export type PhraseTemplate = {
-  pattern: string;
-  replacement: string;
-  messageKey: RawFinding["messageKey"];
-  clauseStart?: true;
-};
 
 /**
  * The text start, closing punctuation or a blank line before `index`; a soft line wrap is not.

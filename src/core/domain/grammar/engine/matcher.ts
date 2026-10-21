@@ -12,7 +12,7 @@ export interface PatternSet {
   structural: readonly number[];
 }
 
-export interface PatternMatch {
+interface PatternMatch {
   pattern: CompiledPattern;
   /** Token index of the first element. */
   first: number;
@@ -108,7 +108,7 @@ const FILTERS: Readonly<Record<string, (text: string) => string>> = {
 };
 
 /** A replacement template with the matched tokens: "$2", "${1:lower}", or a literal. */
-export function render(
+function render(
   template: string,
   tokens: readonly Token[],
   first: number,
@@ -150,7 +150,7 @@ function toMatch(
 }
 
 /** True when `pattern` runs for text in `lang` (a locale such as "pt_BR"). */
-export function runsInLanguage(pattern: CompiledPattern, lang: string): boolean {
+function runsInLanguage(pattern: CompiledPattern, lang: string): boolean {
   const code = lang.slice(0, 2);
   return (
     (pattern.langs.length === 0 || pattern.langs.includes(code)) &&

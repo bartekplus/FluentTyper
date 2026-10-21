@@ -2,7 +2,7 @@
 
 [FluentTyper](../../README.md) / [Contributing](../../CONTRIBUTING.md) / Grammar rules
 
-Grammar, punctuation, spacing, typography and Review rules are declared in YAML files. A build step compiles the files into TypeScript modules. The runtime never reads YAML.
+Grammar, punctuation, spacing, typography, typing and Review rules are declared in YAML files: their patterns, their logic and their fixes. A build step compiles the files into TypeScript modules. The runtime never reads YAML. A rule names no TypeScript function: logic that a pattern cannot state is code in the rule file (see [Code in Rule Files](#code-in-rule-files)), which calls only the generic rule library.
 
 ## Add a Rule in Five Lines
 
@@ -17,7 +17,7 @@ To add a rule, add an entry to the `rules` list of the rule file for the languag
   message: review_msg_contextual_grammar
 ```
 
-Then run `bun run compile:grammar`. The build runs the same step. No engine or dispatcher code changes.
+Then run `bun run compile:grammar` (`bun install`, `check`, `lint`, `typecheck`, `test` and `build` run it first). No engine or dispatcher code changes.
 
 - `checks` names the settings switch that controls the rule. Use an existing check, or add a check (see [Checks](#checks)).
 - `message` is a key of the Review explanation table (`review/reviewExplanations.ts`).
@@ -25,20 +25,23 @@ Then run `bun run compile:grammar`. The build runs the same step. No engine or d
 
 ## Files
 
-| Path                                                     | Content                                                                |
-| -------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `src/core/domain/grammar/rules/common.yaml`              | The settings catalog (`checks`), shared rules, and the typing rules    |
-| `src/core/domain/grammar/rules/<lang>.yaml`              | The rules and phrase tables of one language (`en`, `de`, `pt_BR`, ...) |
-| `src/core/domain/grammar/engine/compiler.ts`             | Validates the files and compiles them (pure, also used by tests)       |
-| `src/core/domain/grammar/engine/*.generated.ts`          | The compiled output. Do not edit                                       |
-| `src/core/domain/grammar/engine/tokenizer.ts`            | The single-pass tokenizer                                              |
-| `src/core/domain/grammar/engine/matcher.ts`              | Pattern matching with the literal anchor index                         |
-| `src/core/domain/grammar/engine/predicates.ts`           | Named token predicates                                                 |
-| `src/core/domain/grammar/engine/phraseRows.ts`           | The phrase-table kind: row index and row matcher on the engine tokens  |
-| `src/core/domain/grammar/engine/reviewTokens.ts`         | The tokens of a Review chunk: one pass for all rule kinds              |
-| `src/core/domain/grammar/engine/reviewRules.ts`          | Builds the Review detectors from the compiled rules                    |
-| `src/core/domain/grammar/engine/liveRules.ts`            | Builds the typing rules from the compiled rules                        |
-| `src/core/domain/grammar/review/<lang>/ruleDetectors.ts` | The named Review detectors of a language                               |
+| Path                                                  | Content                                                                                          |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `src/core/domain/grammar/rules/common.yaml`           | The settings catalog (`checks`), shared rules, and the typing rules                              |
+| `src/core/domain/grammar/rules/<lang>.yaml`           | The rules and phrase tables of one language (`en`, `de`, `pt_BR`, ...)                           |
+| `src/core/domain/grammar/engine/compiler.ts`          | Validates the files and compiles them (pure, also used by tests)                                 |
+| `src/core/domain/grammar/engine/*.generated.ts`       | The compiled rules. Generated, not in git                                                        |
+| `src/core/domain/grammar/review/rules/*.generated.ts` | The code of each rule file (`<file>.live.generated.ts`: its typing rules). Generated, not in git |
+| `src/core/domain/grammar/engine/expressions.ts`       | Checks the expressions of the rule files                                                         |
+| `src/core/domain/grammar/engine/ruleCode.ts`          | The code of a rule file: names, bindings, conditions, kinds of function                          |
+| `src/core/domain/grammar/library.ts`, `library/*.ts`  | The rule library: the only TypeScript that rule code calls                                       |
+| `src/core/domain/grammar/engine/tokenizer.ts`         | The single-pass tokenizer                                                                        |
+| `src/core/domain/grammar/engine/matcher.ts`           | Pattern matching with the literal anchor index                                                   |
+| `src/core/domain/grammar/engine/predicates.ts`        | Named token predicates                                                                           |
+| `src/core/domain/grammar/engine/phraseRows.ts`        | The phrase-table kind: row index and row matcher on the engine tokens                            |
+| `src/core/domain/grammar/engine/reviewTokens.ts`      | The tokens of a Review chunk: one pass for all rule kinds                                        |
+| `src/core/domain/grammar/engine/reviewRules.ts`       | Builds the Review detectors from the compiled rules                                              |
+| `src/core/domain/grammar/engine/liveRules.ts`         | Builds the typing rules from the compiled rules                                                  |
 
 The file order is `common`, `en`, `es`, `fr`, `hr`, `el`, `sv`, `pl`, `de`, `pt_BR`, `ar_SA`.
 
@@ -47,9 +50,10 @@ The file order is `common`, `en`, `es`, `fr`, `hr`, `el`, `sv`, `pl`, `de`, `pt_
 | Task                                            | Command                           |
 | ----------------------------------------------- | --------------------------------- |
 | Compile the rule files                          | `bun run compile:grammar`         |
+| Compile again even when no input changed        | `bun run compile:grammar --force` |
 | Fail when the generated modules are not current | `bun run compile:grammar --check` |
 
-`bun run build` compiles the files before it bundles. `bun run check` and the unit tests fail when a generated module is not current.
+The modules that the compiler writes from the rule files are not in git (`.gitignore`). `bun install` writes them (postinstall), and `bun run check`, `lint`, `typecheck`, `test` and `build` compile first. The compile writes only when its inputs changed (a hash in `review/rules/.inputs`). oxlint skips files that `.gitignore` names, so `bun run lint` lints the generated modules in a copy of `src/` (`scripts/lint-generated.ts`). The lexicon data modules (`*Lexicon.generated.ts` and the others that `bun run generate:lexicons` writes) stay in git.
 
 ## Checks
 
@@ -95,7 +99,7 @@ Use `exclusive` for checks that undo each other. Only the first enabled check of
 
 ## Rules
 
-A rule reports findings for the checks in `checks`. A rule is a token pattern or a named predicate.
+A rule reports findings for the checks in `checks`. A rule is a token pattern, a list of frames, a findings rule, or code (`let`, `when`, `return`).
 
 | Field          | Meaning                                                                              |
 | -------------- | ------------------------------------------------------------------------------------ |
@@ -111,8 +115,8 @@ A rule reports findings for the checks in `checks`. A rule is a token pattern or
 | `message`      | The Review message key.                                                              |
 | `crossLines`   | The elements can be on different lines. Default `false`.                             |
 | `bulkBlock`    | `context-dependent` or `ambiguous`: Fix all never applies it.                        |
-| `predicate`    | A named detector, in place of `pattern`.                                             |
-| `cacheable`    | The Review cache can keep the results of the detector.                               |
+| `return`       | Code in place of `pattern` (see [Code in Rule Files](#code-in-rule-files)).          |
+| `cacheable`    | The Review cache can keep the results of the rule's code.                            |
 
 The evaluation order is the file order, then the order in the file. The order decides which of two equal findings Review keeps.
 
@@ -165,55 +169,47 @@ rules:
       - regex: "{{notAfter:{{POSSESSOR}}}}(?<target>cause){{S}}it{{S}}is{{E}}"
         fix: [because]
       - regex: "on{{S}}(?<target>[a-z]+){{S}}basis{{E}}"
-        fixer: basisArticle
+        return: 'target === "a" ? null : "a"'
         raw: true
 ```
 
-| Field   | Meaning                                                                                                                                                                  |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `regex` | The frame. `{{NAME}}` inserts a fragment: the file's `fragments`, or `S` (spaces), `E` (word end), `COMPLETE`, `COMPLETE_OR_PAREN`, `CLAUSE`, `TOKEN_END`. `{{notAfter:a | b}}` means "not right after these words". |
-| `fix`   | The fix, or a list of fixes to choose from. The fix takes the casing of the typed words.                                                                                 |
-| `fixer` | A named fix function in the `FIXERS` record of the language (`review/<lang>/ruleDetectors.ts`). It can return null to drop the match.                                    |
-| `raw`   | The fix already has the typed casing.                                                                                                                                    |
+| Field    | Meaning                                                                                                                                                                  |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `regex`  | The frame. `{{NAME}}` inserts a fragment: the file's `fragments`, or `S` (spaces), `E` (word end), `COMPLETE`, `COMPLETE_OR_PAREN`, `CLAUSE`, `TOKEN_END`. `{{notAfter:a | b}}` means "not right after these words". |
+| `fix`    | The fix, or a list of fixes to choose from. The fix takes the casing of the typed words.                                                                                 |
+| `return` | Code that gives the fix (with `let` and `when`, see [Code in Rule Files](#code-in-rule-files)). `null` drops the match.                                                  |
+| `raw`    | The fix already has the typed casing.                                                                                                                                    |
 
 A rule can also give:
 
 - `style: template`: the frames run in every language of the check, each frame has one `fix` string (an empty string deletes the target), and a finding keeps 96 characters of context before the match and 9 after it.
-- `filter: <name>`: a named function of the `FILTERS` record of the rule file that gets all findings of the rule and returns the ones to keep.
+- `filter:` code over `findings` (all findings of the rule) that returns the ones to keep.
 - `style: <name>`: the other styles (`slot`, `carry`, `german`, `portuguese`, `cased`, `polish`, `comma`, `swap`) set the language, the casing of the fix and the guards of a language. The comment on `style` in `engine/types.ts` gives each one.
 
 All frame styles run in one loop: `detectFrames` in `engine/frameStyles.ts`. A style is a row of the `STYLES` table there, not a loop of its own. To change how a style reads a match, change its row.
 
 ### Match Frames
 
-Use `style: match` when a fix needs logic that a frame cannot state: a lexicon lookup, a look at the words around the match, or a finding of another shape. The rule file gives the regex and the scan. A named fixer reads each match and decides.
+Use `style: match` when a fix needs logic that a frame alone cannot state: a lexicon lookup, a look at the words around the match, or a finding of another shape. The rule file gives the regex, the scan and the code that reads each match.
 
 ```yaml
 - id: en.bewareOf
   checks: [englishFixedPrepositions]
   style: match
   message: review_msg_fixed_prepositions
-  filter: outsideExamples
   frames:
     # "Beware on the step": the thing to beware of takes "of".
     - regex: "beware{{S}}(?<target>in|on|at){{S}}(?:the|that|this|these|those){{E}}"
       gate: beware
-      fixer: bewareOf
+      when: "enOpensClause(ctx, m.index, /^(?:to|and|but)$/)"
+      return: caseLike(target, "of")
 ```
 
-```ts
-export const FIXERS = {
-  bewareOf: (m, ctx) => (opensClause(ctx, m.index) ? caseLike(m.groups!.target, "of") : null),
-} satisfies Record<string, MatchFixer>;
-```
-
-The fixer gets the match, the chunk context and the frame (its `ruleId` and `messageKey`). It returns:
+The code of a match frame returns:
 
 - `null`, `undefined` or `[]`: no finding.
 - A string or a list of strings: a finding that replaces the `target` group, 96 characters of context before the match and 9 after it.
 - A `RawFinding` or a list of them: findings of any other shape.
-
-Register the fixer in the `FIXERS` record of `review/<lang>/ruleDetectors.ts` (`CORE_FIXERS` of `review/reviewDetectors.ts` for `common.yaml`). Use `fixer: <file>:<name>` to name a fixer of another rule file.
 
 | Field       | Meaning                                                                                                                                                                                                         |
 | ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -224,35 +220,81 @@ Register the fixer in the `FIXERS` record of `review/<lang>/ruleDetectors.ts` (`
 | `owner`     | Frame scans: the group whose start must be in the chunk (default `target`). `a\|b`: the first group that matched. `none`: every match.                                                                          |
 | `gate`      | A regex that must occur near the chunk before the frame runs (a rare word). `gateFlags` sets its flags (default `gi`).                                                                                          |
 | `check`     | The check of the frame, when it is not the rule's first check.                                                                                                                                                  |
-| `anyCheck`  | The frame runs when any check of the rule is on. Its fixer returns findings of several checks.                                                                                                                  |
+| `anyCheck`  | The frame runs when any check of the rule is on. Its code returns findings of several checks.                                                                                                                   |
 
-A fixer of an `owned`, `text` or `polish` frame can call `frame.resume(index)`: the scan reads its next match from `index`, for matches that overlap.
-
-A rule `filter: <name>` names a function of the `FILTERS` record. It gets all findings of the rule and returns the ones to keep, for example the first finding at each start.
+The code of an `owned`, `text` or `polish` frame can call `frame.resume(index)`: the scan reads its next match from `index`, for matches that overlap.
 
 More rule and frame fields:
 
 - `lang: <code>` on a frame: the frame runs only on text of that language. One rule can hold the frames of several languages.
-- A frame rule may also name a `predicate:`. It runs after the frames, for logic that is no scan (for example the phrase rows of the rule files).
+- A frame rule may also have code of its own (`let`, `when`, `return` on the rule). It runs after the frames, for logic that is no scan (for example the phrase rows of the rule files).
 - `group: <name>`: consecutive rules of one group run as one detector. A rule that throws stops its group and drops the group's findings, as one composite check did before.
 - `findings: style | terminology | quotation` (instead of frames or a pattern): the rule reports the findings that Review made before the rule scan (style advice, the user's preferred terms, unclosed quotations) whose range starts in the chunk.
 
-### Named Predicates
+## Code in Rule Files
 
-No Review rule is a predicate rule now. Before you add one, use a `style: match` frame:
+All logic of a rule is in its rule file. A frame, a rule and a rule's `filter` can hold code:
 
-- Logic that a regex cannot state goes into the fixer of the frame.
-- Quote pairing: the frame matches one line or one paragraph (`regex: "[^\\n]+\\n?|\\n"`, `scan: text`), and the fixer pairs the marks in it.
-- A walk over ranges that Review made (quotation or example ranges): the frame matches the character where a range starts or ends, and the fixer looks the range up (see `quotedPhrase` in `review/english/remaining.ts`).
-- State across matches (for example the gender of the first participle in `keptGender`): keep it in a `WeakMap` on the chunk context. The frame gives the matches in order, so a match at or before the last one starts a new run.
+```yaml
+- regex: "{{WG}}(?:(?<target>{{COLLOCATION_NOUNS}})...)"
+  let: # bindings, in order
+    typed: m.groups!.target ?? m.groups!.t2
+    own: COLLOCATIONS[typed.toLowerCase()]
+  when: # conditions: when one fails, the code gives "nothing"
+    - idiomOpen(m, ctx)
+    - "lowerWords(m.input.slice(m.index - 40, m.index)).some((w) => own.test(w))"
+  return: idiomFinding(m, ctx, frame, capitalize(typed))
+```
 
-Use a predicate only when none of these fit. A predicate rule in a rule file has a `# predicate:` comment that says why it is not a frame rule.
+- `let` binds names in order. `when` lists conditions. `return` is the result.
+- A `when` runs right after the last binding it reads, and never before the condition above it: write the conditions and bindings in the order the code must test them.
+- When a `when` fails, the code gives `null` (a frame), `[]` (a `portuguese` frame or a rule's Review code), the findings unchanged (a filter) or `null` (a typing rule).
 
-- **Token predicates** (`engine/predicates.ts`) test one token in a pattern, for example `enStartsWithVowelSound`, `isMeasurementUnit` or `isNotAbbreviation`. They must stay small: content scripts load them.
-- **Review detectors** are functions `(ctx) => RawFinding[]`. A language registers them in the `PREDICATES` record of `review/<lang>/ruleDetectors.ts`. The shared detectors are in `CORE_PREDICATES` of `review/reviewDetectors.ts`. A rule names one with `predicate: <name>`. Use `<file>:<name>` to name a detector of another file.
-- **Live implementations** are typing rules that read the cursor state (`engine/liveRules.ts`). A rule with `modes: [live]` names one.
+| Where the code is                                       | It reads                                                              | It returns                |
+| ------------------------------------------------------- | --------------------------------------------------------------------- | ------------------------- |
+| A frame (all styles except `template` and `portuguese`) | `m` (the match), `ctx` (the chunk), `frame`, the match groups by name | the fix (see each style)  |
+| A `portuguese` frame                                    | `target`                                                              | a list of fixes           |
+| A Review rule (`return` on the rule)                    | `ctx`                                                                 | `RawFinding[]`            |
+| A rule's `filter`                                       | `ctx`, `findings`                                                     | the findings to keep      |
+| A typing rule (`modes: [live]`, with `triggers: [...]`) | `context` (the text before the cursor), `options`                     | a `GrammarEdit` or `null` |
 
-A name that no module defines stops the extension at load. The unit tests find it first.
+### Helpers
+
+A file, and each of its rules, can define helpers for its code. All the names of a file share one scope. Put a helper beside the rule that uses it. The names of `common.yaml` reach every other file; a file's own name hides a shared name.
+
+```yaml
+sets:
+  STOP: [a, an, the] # a ReadonlySet<string>
+maps:
+  OPPOSITE: { left: right, right: left } # a Readonly<Record<string, string>>
+defs:
+  NEHMEN: /^(?:nehm|nimm|nahm|nähm|genommen)/ # a constant
+  clauseBefore: # a function
+    args: "ctx: DetectContext, m: RegExpExecArray"
+    return: 'ctx.text.slice(Math.max(0, m.index - 120), m.index).split(/[.!?;,:\n]/).at(-1) ?? ""'
+```
+
+A function def can also have `let`, `when`, `else` (what it gives when a `when` fails; default `null`) and `type` (its result type; a recursive def needs it).
+
+### Expressions
+
+An expression is a TypeScript expression: literals, regex and template literals, arrays and objects, member access, `?.`, `!`, `??`, `&&`, `||`, conditionals, comparisons, arithmetic, `in`, `typeof`, calls (also of methods that change a collection, such as `.add` or `.set`), arrow functions with an expression body, `as`, `satisfies`, and `new` for `Set`, `Map`, `WeakSet`, `WeakMap` and `RegExp`. Assignment, statements, `this`, classes and the properties `constructor`, `prototype`, `__proto__`, `call`, `apply` and `bind` are errors. A loop is a method such as `some`, `find` or `reduce`, or a recursive def. State kept between calls is a `Map`, `WeakMap` or `WeakSet` def.
+
+The compiler checks each expression and each name it reads. The generator writes the code of each rule file into a typed module (`review/rules/<file>.generated.ts`), so `bun run typecheck` and `bun run lint` read every expression against the types of the library. An error in a generated module is an error in its rule file: the comment above each function names its rule and frame.
+
+In YAML, quote a value that starts with `!`, `[`, `{`, `*`, `&`, `|`, `>`, `'`, `"`, `%` or `@`, or that holds `: ` or ` #`. Single quotes keep backslashes as typed (`'/\p{L}+/u.test(word)'`).
+
+### The Rule Library
+
+`library.ts` and the `library/` files it re-exports are the only TypeScript that rule code calls. A library function answers a question about the text or the language (lexicon, inflection, words around a position, casing, quotations), or builds a finding or an edit from the parts it gets. It names no check and no message, and it holds no rule's trigger words, exceptions or fix text: those stay in the rule files. Library names have an area prefix (`en`, `EN_`, `de`, `es`, ...). `tests/grammar/RuleLibrary.test.ts` checks these limits, and that no library file loads the engine (an import cycle) and that the typing rules load no Review code (the content scripts stay small).
+
+A TypeScript module that tests import keeps its path as a facade: it re-exports names of a generated module or the library, and a typing rule class delegates to `liveRule(id)` of `engine/liveRules.ts`.
+
+### Token Predicates
+
+A token matcher of a pattern can name a token predicate of `engine/predicates.ts` (`enStartsWithVowelSound`, `isMeasurementUnit`, `isNotAbbreviation`). They are generic tests of one token and must stay small: content scripts load them.
+
+A name that no module defines is an error of the compiler or of the type checker.
 
 ## Phrase Tables
 

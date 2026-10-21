@@ -1,7 +1,8 @@
+// The Spanish token window, the closed word classes and the token finding of the Spanish rules
+// of grammar/rules/es.yaml. The rule library (library/spanish.ts) exports them.
 import { applyWordCase, detectWordCase } from "../../implementations/helpers/GenericRuleShared";
 import { namedExampleBefore } from "../exampleCues";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { FrameRef, MatchFixer, MatchResult } from "../../engine/reviewRules";
 import { attribute, isNoun, isVerb, nounForm } from "./lexicon";
 import { finding } from "../finding";
 
@@ -71,34 +72,6 @@ function readTokens(ctx: DetectContext): Token[] {
   }
   return tokens;
 }
-
-/** The index of the token that starts at `start`, or -1 (a binary search). */
-export function tokenAt(tokens: Tokens, start: number): number {
-  let lo = 0;
-  let hi = tokens.length - 1;
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1;
-    const at = tokens[mid].start;
-    if (at === start) return mid;
-    if (at < start) lo = mid + 1;
-    else hi = mid - 1;
-  }
-  return -1;
-}
-
-/**
- * A match fixer that runs `body` on the token at the match start. The frame of the rule file
- * selects the tokens; a match that starts inside a token finds no token.
- */
-export const atToken =
-  (
-    body: (ctx: DetectContext, tokens: Tokens, i: number, frame: FrameRef) => MatchResult,
-  ): MatchFixer =>
-  (m, ctx, frame) => {
-    const tokens = tokenize(ctx);
-    const i = tokenAt(tokens, m.index);
-    return i < 0 ? null : body(ctx, tokens, i, frame);
-  };
 
 /** The typed word's casing on a replacement: "Esta" -> "Está", "ESTA" -> "ESTÁ". */
 export function carryCase(typed: string, replacement: string): string {
@@ -235,6 +208,9 @@ export class Around {
   }
 }
 
+/** The words around tokens[i]: `new Around(tokens, i)` for rule expressions. */
+export const around = (tokens: Tokens, i: number) => new Around(tokens, i);
+
 /** What may follow "está" as its attribute: a participle, an adjective, an invariant adjective. */
 export function attributeOf(word: string) {
   if (!word) return null;
@@ -266,24 +242,3 @@ export const isInfinitive = (word: string) => {
   const m = /^(\p{L}+?[aeií]r)(?:me|te|se|nos|os|le|les|lo|los|la|las){0,2}$/u.exec(word);
   return !!m && isVerb(m[1].replace("í", "i"));
 };
-
-/** "como" in a greeting with no "¿": "hola" or a name addressed shortly before it. */
-export function greetingSlot(at: Around): boolean {
-  for (let j = at.i - 1; j >= Math.max(0, at.i - 6); j--) {
-    const token = at.tokens[j];
-    if (/^[.!?¿;]$/u.test(token.text) || at.tokens[j + 1].broken) return false;
-    if (/^(?:hola|buenas|oye)$/u.test(token.lower)) return true;
-  }
-  return false;
-}
-
-/** A "?" right after tokens[i], or after "hoy", "ahora" or a name: "como estas hoy?". */
-export function endsQuestion(at: Around): boolean {
-  const after = at.tokens[at.i + 1];
-  if (after?.text === "?") return true;
-  return (
-    !!after?.word &&
-    (/^(?:hoy|ahora|usted|ustedes)$/u.test(after.lower) || /^\p{Lu}\p{Ll}/u.test(after.text)) &&
-    at.tokens[at.i + 2]?.text === "?"
-  );
-}
