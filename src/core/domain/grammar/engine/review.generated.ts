@@ -6079,7 +6079,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?:principle|shutdown|boarders|boarder|they['’]re|thieve|threat|though|exited|prices|prises|theyre|rally|pleas|heart|ready|waist|relay|price|loose|there|their|where|match|prise|cold|mach|tuff|lose|they|herd|dos|wok|way|off|yea|yeh|do|to)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:p(?:rinciple|rices|rises|leas|rice|rise)|shutdown|b(?:oarders|oarder)|t(?:hey['’]re|hieve|hreat|hough|heyre|here|heir|uff|hey|o)|exited|r(?:ally|eady|elay)|h(?:eart|erd)|w(?:aist|here|ok|ay)|l(?:oose|ose)|m(?:atch|ach)|cold|d(?:os|o)|off|y(?:ea|eh))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "en:contextualConfusion",
     flags: "giu",

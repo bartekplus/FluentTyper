@@ -283,8 +283,10 @@ rules:
     frames:
       # Typo-like confusions resolved by the words around one trigger word. "all ready" starts
       # one word before its trigger, so the scan reads 16 characters past the chunk. One match
-      # gives findings of the six checks.
-      - regex: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t){{E}}))(?:principle|shutdown|boarders|boarder|they['’]re|thieve|threat|though|exited|prices|prises|theyre|rally|pleas|heart|ready|waist|relay|price|loose|there|their|where|match|prise|cold|mach|tuff|lose|they|herd|dos|wok|way|off|yea|yeh|do|to){{E}}"
+      # gives findings of the six checks. The words are grouped by their first letter, so the
+      # scan tries fewer of them. (No trigger word starts with ' or n, so a word start after a
+      # letter, before a contraction, cannot open a match.)
+      - regex: "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:p(?:rinciple|rices|rises|leas|rice|rise)|shutdown|b(?:oarders|oarder)|t(?:hey['’]re|hieve|hreat|hough|heyre|here|heir|uff|hey|o)|exited|r(?:ally|eady|elay)|h(?:eart|erd)|w(?:aist|here|ok|ay)|l(?:oose|ose)|m(?:atch|ach)|cold|d(?:os|o)|off|y(?:ea|eh)){{E}}"
         scan: owned
         lookahead: 16
         flags: giu
