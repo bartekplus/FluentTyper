@@ -2,8 +2,21 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FrameRef, MatchResult } from "../../library";
-import { englishWordInfo, hasVerbForm } from "../../library";
+import type { DetectContext, FrameRef, MatchResult, RawFinding } from "../../library";
+import {
+  EN_VERB_FORMS,
+  caseLike,
+  enListedNoun,
+  enListedWithoutPlural,
+  englishNounForms,
+  englishWordInfo,
+  finding,
+  hasUserOrCasedWord,
+  hasVerbForm,
+  lastNonBlankBefore,
+  memoize,
+  skipBackWhile,
+} from "../../library";
 import { isoDateWarning } from "./common.generated";
 
 export const KIND_IF_CONDITIONS: ReadonlySet<string> = new Set([
@@ -14,6 +27,745 @@ export const KIND_IF_CONDITIONS: ReadonlySet<string> = new Set([
   "appropriate",
   "available",
 ]);
+
+export const LEXICAL_FUNCTION_WORDS: ReadonlySet<string> = new Set([
+  "as",
+  "his",
+  "her",
+  "hers",
+  "into",
+  "only",
+  "its",
+  "us",
+  "is",
+  "unto",
+  "per",
+  "amongst",
+  "ok",
+  "vs",
+]);
+
+export const LEXICAL_VALID_VARIANTS: ReadonlySet<string> = new Set(["kneeled", "betted"]);
+
+export const LEXICAL_IRREGULAR_NOUNS: ReadonlySet<string> = new Set([
+  "child",
+  "woman",
+  "man",
+  "ox",
+  "foot",
+  "tooth",
+  "goose",
+  "mouse",
+  "louse",
+  "leaf",
+  "loaf",
+  "shelf",
+  "wolf",
+  "knife",
+  "wife",
+  "half",
+  "thief",
+  "calf",
+  "life",
+  "grandchild",
+  "gentleman",
+  "person",
+]);
+
+export const LEXICAL_SHORT_WORDS: ReadonlySet<string> = new Set([
+  "a",
+  "i",
+  "am",
+  "an",
+  "as",
+  "at",
+  "be",
+  "by",
+  "do",
+  "go",
+  "he",
+  "if",
+  "in",
+  "is",
+  "it",
+  "me",
+  "my",
+  "no",
+  "of",
+  "oh",
+  "ok",
+  "on",
+  "or",
+  "so",
+  "to",
+  "up",
+  "us",
+  "we",
+]);
+
+export const LEXICAL_GLUED: ReadonlySet<string> = new Set([
+  "this",
+  "that",
+  "the",
+  "these",
+  "those",
+  "and",
+  "but",
+  "with",
+  "from",
+  "is",
+  "was",
+  "are",
+  "were",
+  "have",
+  "has",
+  "had",
+  "will",
+  "would",
+  "could",
+  "should",
+  "not",
+  "than",
+]);
+
+export const LEXICAL_CAPITAL_GLUED: ReadonlySet<string> = new Set([
+  "this",
+  "that",
+  "the",
+  "these",
+  "those",
+]);
+
+export const LEXICAL_LATIN_PAIRS: ReadonlySet<string> = new Set([
+  "pro forma",
+  "pro rata",
+  "pro bono",
+  "ad hoc",
+  "per se",
+  "de facto",
+  "bona fide",
+  "status quo",
+  "et al",
+  "ad infinitum",
+]);
+
+export const POSSESSIVE_ATTRIBUTIVE: ReadonlySet<string> = new Set([
+  "sales",
+  "sports",
+  "arts",
+  "savings",
+  "goods",
+  "arms",
+  "customs",
+  "clothes",
+  "glasses",
+  "jobs",
+  "systems",
+  "operations",
+  "parts",
+  "news",
+  "needs",
+  "claims",
+  "works",
+  "means",
+  "series",
+  "species",
+  "rights",
+  "services",
+  "products",
+  "events",
+  "admissions",
+  "materials",
+  "weapons",
+  "drugs",
+  "awards",
+  "games",
+  "records",
+  "accounts",
+  "payments",
+  "skills",
+  "drinks",
+  "numbers",
+  "contents",
+  "crafts",
+  "letters",
+  "ways",
+  "sciences",
+  "studies",
+  "affairs",
+  "relations",
+  "resources",
+  "utilities",
+  "securities",
+  "futures",
+  "options",
+  "assets",
+  "results",
+  "comments",
+  "users",
+  "tools",
+  "files",
+  "tests",
+  "items",
+  "orders",
+  "notes",
+  "tickets",
+  "members",
+  "images",
+  "docs",
+  "logs",
+  "tasks",
+  "fireworks",
+  "antiques",
+  "antiquities",
+  "communications",
+  "munitions",
+  "insights",
+  "stats",
+  "standards",
+  "arrivals",
+  "departures",
+  "earnings",
+  "valuables",
+  "humanities",
+]);
+
+export const POSSESSIVE_IRREGULAR_OWNERS: ReadonlySet<string> = new Set([
+  "children",
+  "women",
+  "men",
+]);
+
+export const POSSESSIVE_SINGLE_DETERMINERS: ReadonlySet<string> = new Set([
+  "a",
+  "an",
+  "every",
+  "each",
+  "another",
+]);
+
+export const POSSESSIVE_CLASS_OWNERS: ReadonlySet<string> = new Set([
+  "metals",
+  "minerals",
+  "elements",
+  "gases",
+  "colors",
+  "colours",
+  "letters",
+  "words",
+  "numbers",
+  "names",
+  "cities",
+  "countries",
+  "languages",
+  "species",
+  "planets",
+  "months",
+  "genres",
+  "terms",
+  "values",
+  "variables",
+  "commands",
+]);
+
+export const POSSESSIVE_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "in",
+  "on",
+  "at",
+  "of",
+  "with",
+  "from",
+  "to",
+  "into",
+  "onto",
+  "for",
+  "by",
+  "about",
+  "under",
+  "over",
+  "through",
+  "near",
+  "behind",
+  "inside",
+  "outside",
+  "without",
+  "within",
+  "across",
+  "around",
+  "among",
+  "between",
+  "beside",
+  "toward",
+  "towards",
+  "against",
+]);
+
+export const POSSESSIVE_PERCEPTION: ReadonlySet<string> = new Set([
+  "see",
+  "saw",
+  "seen",
+  "seeing",
+  "hear",
+  "heard",
+  "hearing",
+  "watch",
+  "watched",
+  "watching",
+  "notice",
+  "noticed",
+]);
+
+export const POSSESSIVE_NOT_HEADS: ReadonlySet<string> = new Set([
+  "i",
+  "you",
+  "he",
+  "she",
+  "it",
+  "we",
+  "they",
+  "me",
+  "him",
+  "her",
+  "us",
+  "them",
+  "who",
+  "whom",
+  "whose",
+  "which",
+  "that",
+  "what",
+  "this",
+  "these",
+  "those",
+  "all",
+  "both",
+  "each",
+  "either",
+  "neither",
+  "none",
+  "some",
+  "any",
+  "many",
+  "much",
+  "more",
+  "most",
+  "few",
+  "several",
+  "such",
+  "own",
+  "same",
+  "other",
+  "others",
+  "and",
+  "but",
+  "or",
+  "nor",
+  "yet",
+  "so",
+  "if",
+  "then",
+  "than",
+  "as",
+  "is",
+  "are",
+  "was",
+  "were",
+  "am",
+  "be",
+  "been",
+  "being",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "will",
+  "would",
+  "can",
+  "could",
+  "shall",
+  "should",
+  "may",
+  "might",
+  "must",
+  "not",
+  "no",
+  "yesterday",
+  "today",
+  "tonight",
+  "tomorrow",
+  "overnight",
+  "first",
+  "once",
+  "home",
+  "outside",
+  "inside",
+  "upstairs",
+  "downstairs",
+  "aside",
+  "back",
+  "forward",
+  "last",
+  "next",
+  "daily",
+  "weekly",
+  "monthly",
+  "yearly",
+  "nightly",
+  "online",
+  "offline",
+  "sometimes",
+  "always",
+  "often",
+  "never",
+  "usually",
+  "also",
+  "still",
+  "already",
+  "just",
+  "even",
+  "only",
+  "ever",
+  "seldom",
+  "rarely",
+  "present",
+  "involved",
+  "concerned",
+  "available",
+  "responsible",
+  "mentioned",
+  "listed",
+  "affected",
+  "attending",
+]);
+
+export const POSSESSIVE_SINGULAR_FINITE: ReadonlySet<string> = new Set([
+  "is",
+  "was",
+  "has",
+  "does",
+]);
+
+export const POSSESSIVE_PLURAL_FINITE: ReadonlySet<string> = new Set(["are", "were", "have", "do"]);
+
+export const POSSESSIVE_MODALS: ReadonlySet<string> = new Set([
+  "will",
+  "would",
+  "can",
+  "could",
+  "should",
+  "must",
+  "may",
+  "might",
+]);
+
+// en.yaml rule en.irregularWordForms def lexInfoOf
+export const lexInfoOf = memoize(englishWordInfo, 20000);
+
+// en.yaml rule en.irregularWordForms def lexKnownOf
+export const lexKnownOf = memoize(
+  (w: string) => LEXICAL_FUNCTION_WORDS.has(w) || !!lexInfoOf(w) || enListedNoun(w) !== null,
+  20000,
+);
+
+// en.yaml rule en.irregularWordForms def lexInfo
+export function lexInfo(word: string) {
+  return lexInfoOf(word.toLowerCase());
+}
+
+// en.yaml rule en.irregularWordForms def lexKnown
+export function lexKnown(word: string) {
+  return lexKnownOf(word.toLowerCase());
+}
+
+// en.yaml rule en.irregularWordForms def lexPlainAt
+export function lexPlainAt(ctx: DetectContext, word: string, index: number) {
+  return /^[a-z]+$/.test(word) || (/^[A-Z][a-z]*$/.test(word) && lexWordBefore(ctx, index) === "");
+}
+
+// en.yaml rule en.irregularWordForms def lexWordBefore
+export function lexWordBefore(ctx: DetectContext, index: number) {
+  const last = lastNonBlankBefore(ctx.text, index);
+  if (!(last >= 0 && !/[.!?;:"“\n]/.test(ctx.text[last]))) return "";
+  return (
+    /([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "?"
+  ).toLowerCase();
+}
+
+// en.yaml rule en.irregularWordForms def lexContext
+export function lexContext(ctx: DetectContext, start: number, end: number) {
+  return { start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 40) };
+}
+
+// en.yaml rule en.irregularWordForms def LEXICAL_REGULAR_PASTS
+export const LEXICAL_REGULAR_PASTS = new Map(
+  EN_VERB_FORMS.flatMap((verb) =>
+    [
+      `${verb.lemma}ed`,
+      verb.lemma.endsWith("e") ? `${verb.lemma}d` : "",
+      /[^aeiou][aeiou][b-df-hj-np-tv-z]$/.test(verb.lemma)
+        ? `${verb.lemma}${verb.lemma.at(-1)}ed`
+        : "",
+    ]
+      .filter(
+        (form) =>
+          form &&
+          !LEXICAL_VALID_VARIANTS.has(form) &&
+          form !== verb.past &&
+          form !== verb.participle,
+      )
+      .map((form) => [form, verb] as const),
+  ),
+);
+
+// en.yaml rule en.irregularWordForms def LEXICAL_REGULAR_PLURALS
+export const LEXICAL_REGULAR_PLURALS = new Map(
+  [...LEXICAL_IRREGULAR_NOUNS]
+    .map((singular) => [singular, englishNounForms(singular)] as const)
+    .flatMap(([singular, forms]) =>
+      forms ? [[singular + "s", forms] as const, [singular + "es", forms] as const] : [],
+    ),
+);
+
+// en.yaml rule en.irregularWordForms def LEXICAL_PARTICIPLE_BEFORE
+export const LEXICAL_PARTICIPLE_BEFORE =
+  /(?:^|[^\p{L}])(?:have|has|had|having|['’]ve|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t ]+(?:(?:not|never|already|just|also|all|now)[ \t ]+)?$/iu;
+
+// en.yaml rule en.irregularWordForms def LEXICAL_VERB_BEFORE
+export const LEXICAL_VERB_BEFORE =
+  /(?:^|[^\p{L}'’])(?:i|you|he|she|it|we|they|who|and|or|then|also|just|never|already|finally|once|have|has|had|having|['’]ve|['’]d|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t ]+$/iu;
+
+// en.yaml rule en.irregularWordForms def lexIrregularFor
+export function lexIrregularFor(word: string, before: string): string[] | null {
+  const w = word.toLowerCase();
+  const verb = LEXICAL_REGULAR_PASTS.get(w);
+  return verb ? lexIrregularPast(w, verb, before) : lexIrregularPlural(word, w, before);
+}
+
+// en.yaml rule en.irregularWordForms def lexIrregularPast
+export function lexIrregularPast(w: string, verb: (typeof EN_VERB_FORMS)[number], before: string) {
+  if (!(LEXICAL_VERB_BEFORE.test(before) && !lexKnownOf(w))) return null;
+  return [LEXICAL_PARTICIPLE_BEFORE.test(before) ? verb.participle : verb.past];
+}
+
+// en.yaml rule en.irregularWordForms def lexIrregularPlural
+export function lexIrregularPlural(word: string, w: string, before: string) {
+  if (!(w.endsWith("s") && w.length >= 4 && !lexInfoOf(w))) return null;
+  if (w === "lifes" && /\bstill[ \t ]+$/i.test(before)) return null;
+  const cut = lexPluralCut(w, 0, /^[a-z]/.test(word) ? w.length - 3 : 0);
+  return cut >= 0 ? lexTablePlural(w, cut) : lexSpelledPlural(w);
+}
+
+// en.yaml rule en.irregularWordForms def lexPluralCut
+export function lexPluralCut(w: string, cut: number, last: number): number {
+  return cut > last
+    ? -1
+    : LEXICAL_REGULAR_PLURALS.has(w.slice(cut))
+      ? cut
+      : lexPluralCut(w, cut + 1, last);
+}
+
+// en.yaml rule en.irregularWordForms def lexListed
+export function lexListed(w: string, singular: string) {
+  return (
+    enListedNoun(w) === "singular" ||
+    (enListedNoun(w) === "plural" && !enListedWithoutPlural(singular))
+  );
+}
+
+// en.yaml rule en.irregularWordForms def lexTablePlural
+export function lexTablePlural(w: string, cut: number) {
+  const forms = LEXICAL_REGULAR_PLURALS.get(w.slice(cut))!;
+  const head = w.slice(0, cut);
+  const singular = head + forms.singular;
+  return lexListed(w, singular) ? null : [head + forms.plural, `${singular}'s`];
+}
+
+// en.yaml rule en.irregularWordForms def lexSpelledPlural
+export function lexSpelledPlural(w: string) {
+  const singular = w.slice(0, -1);
+  const plural = w.endsWith("os")
+    ? `${w.slice(0, -1)}es`
+    : /[^aeiou]ys$/.test(w)
+      ? `${w.slice(0, -2)}ies`
+      : w.endsWith("fs")
+        ? `${w.slice(0, -2)}ves`
+        : null;
+  const spelled = plural && lexInfoOf(plural);
+  if (!(spelled && !(spelled.verbs.length > 0 && !spelled.noun))) return null;
+  if (!(lexKnownOf(singular) && !lexListed(w, singular))) return null;
+  return [plural, `${singular}'s`];
+}
+
+// en.yaml rule en.irregularWordForms def lexShortOk
+export function lexShortOk(word: string) {
+  return word.length > 2 || LEXICAL_SHORT_WORDS.has(word.toLowerCase());
+}
+
+// en.yaml rule en.irregularWordForms def lexSplitGlued
+export function lexSplitGlued(word: string) {
+  const w = word.toLowerCase();
+  if (!(w.length >= 6)) return null;
+  const cut = lexGluedCut(w, word === w ? LEXICAL_GLUED : LEXICAL_CAPITAL_GLUED, 2);
+  if (!(cut >= 0)) return null;
+  return `${word.slice(0, cut)} ${w.slice(cut)}`;
+}
+
+// en.yaml rule en.irregularWordForms def lexGluedCut
+export function lexGluedCut(w: string, heads: ReadonlySet<string>, cut: number): number {
+  return cut > 6 || cut > w.length - 3
+    ? -1
+    : heads.has(w.slice(0, cut)) && lexInfo(w.slice(cut))
+      ? cut
+      : lexGluedCut(w, heads, cut + 1);
+}
+
+// en.yaml rule en.irregularWordForms def lexBoundaryFix
+export function lexBoundaryFix(first: string, second: string) {
+  const both = !lexKnown(first) && !lexKnown(second);
+  const fixes = [
+    [first.slice(0, -1), first.slice(-1) + second],
+    [first + second[0], second.slice(1)],
+  ]
+    .filter(
+      ([a, b]) =>
+        a.length &&
+        b.length &&
+        lexShortOk(a) &&
+        lexShortOk(b) &&
+        lexKnown(a) &&
+        lexKnown(b) &&
+        (both ||
+          (Math.min(first.length, second.length) < 3 &&
+            (LEXICAL_GLUED.has(a.toLowerCase()) || LEXICAL_GLUED.has(b)))),
+    )
+    .map(([a, b]) => `${a} ${b}`);
+  return !fixes.length &&
+    second.length > 2 &&
+    lexKnown(first) &&
+    !lexKnown(second) &&
+    lexInfo(first + second)
+    ? [first + second]
+    : fixes;
+}
+
+// en.yaml rule en.irregularWordForms def LEXICAL_LAST
+export const LEXICAL_LAST = new Map([
+  [0, { text: "", end: -1, index: 0, word: "", unknown: false }],
+]);
+
+// en.yaml rule en.irregularWordForms def lexRemember
+export function lexRemember(
+  text: string,
+  end: number,
+  index: number,
+  word: string,
+  unknown: boolean,
+) {
+  return LEXICAL_LAST.set(1, LEXICAL_LAST.get(0)!)
+    .set(0, { text, end, index, word, unknown })
+    .get(1)!;
+}
+
+// en.yaml rule en.irregularWordForms def lexWordBeforeSpace
+export function lexWordBeforeSpace(
+  text: string,
+  index: number,
+  prior: { text: string; end: number; index: number; word: string; unknown: boolean },
+) {
+  if (!(text.charCodeAt(index - 1) === 32)) return null;
+  return prior.text === text && prior.end === index - 1
+    ? { index: prior.index, word: prior.word, unknown: prior.unknown }
+    : lexWordAt(text, skipBackWhile(text, index - 1, /[A-Za-z]/), index - 1);
+}
+
+// en.yaml rule en.irregularWordForms def lexWordAt
+export function lexWordAt(text: string, start: number, end: number) {
+  if (!(start !== end && !/[\p{L}\p{M}\p{N}_'’@/#\\.-]/u.test(text[start - 1] ?? ""))) return null;
+  const word = text.slice(start, end);
+  return { index: start, word, unknown: !lexKnown(word) };
+}
+
+// en.yaml rule en.irregularWordForms def lexSpaceFinding
+export function lexSpaceFinding(
+  ctx: DetectContext,
+  index: number,
+  word: string,
+  w: string,
+  unknown: boolean,
+  owned: boolean,
+  neighbour: ReturnType<typeof lexWordBeforeSpace> | undefined,
+  prior: { text: string; end: number; index: number; word: string; unknown: boolean },
+): RawFinding | null {
+  const end = index + word.length;
+  const split =
+    unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && lexSplitGlued(word);
+  return split
+    ? finding("englishAlotCorrection", "review_msg_split_words", index, end, [split], {
+        bulkBlock: "context-dependent",
+        context: lexContext(ctx, index, end),
+      })
+    : lexBoundaryFinding(
+        ctx,
+        end,
+        word,
+        w,
+        neighbour === undefined ? lexWordBeforeSpace(ctx.scanText, index, prior) : neighbour,
+      );
+}
+
+// en.yaml rule en.irregularWordForms def lexBoundaryFinding
+export function lexBoundaryFinding(
+  ctx: DetectContext,
+  end: number,
+  word: string,
+  w: string,
+  prev: ReturnType<typeof lexWordBeforeSpace>,
+): RawFinding | null {
+  if (!(prev && prev.index >= ctx.from && prev.index < ctx.to)) return null;
+  if (!(prev.word.length >= 2 && word.length >= 2)) return null;
+  if (!(lexPlainAt(ctx, prev.word, prev.index) && !/^[A-Z]/.test(word))) return null;
+  if (ctx.dictionary.has(prev.word.toLowerCase())) return null;
+  if (LEXICAL_LATIN_PAIRS.has(`${prev.word.toLowerCase()} ${w}`)) return null;
+  const fixes = lexBoundaryFix(prev.word, word);
+  if (!(fixes.length > 0)) return null;
+  return finding("englishAlotCorrection", "review_msg_word_boundary", prev.index, end, fixes, {
+    ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+    bulkBlock: "context-dependent",
+    context: lexContext(ctx, prev.index, end),
+  });
+}
+
+// en.yaml rule en.possessiveNouns def lexOwnerSingular
+export function lexOwnerSingular(owner: string) {
+  if (
+    POSSESSIVE_ATTRIBUTIVE.has(owner) ||
+    (/(?:ics|ings|ss|us|is)$/.test(owner) && owner !== "musics")
+  )
+    return null;
+  const read = lexInfo(owner);
+  if (!((read?.plural && read.noun) || enListedNoun(owner) === "plural")) return null;
+  const stems = owner.endsWith("ies")
+    ? [`${owner.slice(0, -3)}y`, owner.slice(0, -1)]
+    : owner.endsWith("es")
+      ? [owner.slice(0, -1), owner.slice(0, -2)]
+      : [owner.slice(0, -1)];
+  return stems.find((stem) => lexInfo(stem)?.noun || enListedNoun(stem) === "singular") ?? null;
+}
+
+// en.yaml rule en.possessiveNouns def lexNounInfo
+export function lexNounInfo(word: string) {
+  const read = lexInfo(word);
+  const listed = read ? null : enListedNoun(word);
+  return read
+    ? read.noun && !read.adverb
+      ? { info: read, plural: read.plural }
+      : null
+    : listed
+      ? { info: null, plural: listed === "plural" }
+      : null;
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
@@ -55,6 +807,104 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   "@en.idiomStyle1/2": (m: RegExpExecArray): string | readonly string[] | null => {
     const verb = m.groups!.verb;
     return `${verb} on `;
+  },
+  // en.yaml rule en.irregularWordForms frame 1
+  "@en.irregularWordForms/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const irregular = !ctx.rules || ctx.rules.has("englishIrregularForms");
+    const spaces = !ctx.rules || ctx.rules.has("englishAlotCorrection");
+    const index = m.index;
+    const word = m[0];
+    const w = word.toLowerCase();
+    const unknown = !lexKnownOf(w);
+    const prior = lexRemember(ctx.scanText, index + word.length, index, word, unknown);
+    const owned = index >= ctx.from && index < ctx.to;
+    const regular =
+      irregular &&
+      owned &&
+      (w.endsWith("ed")
+        ? LEXICAL_REGULAR_PASTS.has(w)
+        : w.length > 3 && w.endsWith("s") && !lexInfoOf(w));
+    const neighbour =
+      unknown || regular ? undefined : lexWordBeforeSpace(ctx.scanText, index, prior);
+    if (!(unknown || regular || neighbour?.unknown)) return null;
+    if (!(lexPlainAt(ctx, word, index) && !ctx.dictionary.has(w))) return null;
+    const end = index + word.length;
+    const forms = regular && lexIrregularFor(word, ctx.text.slice(Math.max(0, index - 40), index));
+    return forms
+      ? finding(
+          "englishIrregularForms",
+          "review_msg_irregular_form",
+          index,
+          end,
+          forms.map((form) => caseLike(word, form)),
+          {
+            ...(forms.length > 1 ? { requiresChoice: true as const } : {}),
+            context: lexContext(ctx, index, end),
+          },
+        )
+      : spaces
+        ? lexSpaceFinding(ctx, index, word, w, unknown, owned, neighbour, prior)
+        : null;
+  },
+  // en.yaml rule en.possessiveNouns frame 1
+  "@en.possessiveNouns/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const owner = m.groups!.owner;
+    const head = m.groups!.head;
+    const next = m.groups!.next;
+    if (!(/^[a-z]+$/.test(owner + head) && !hasUserOrCasedWord(ctx, m[0]))) return null;
+    const singular = POSSESSIVE_IRREGULAR_OWNERS.has(owner) ? null : lexOwnerSingular(owner);
+    if (!((singular || POSSESSIVE_IRREGULAR_OWNERS.has(owner)) && !POSSESSIVE_NOT_HEADS.has(head)))
+      return null;
+    if (POSSESSIVE_CLASS_OWNERS.has(owner)) return null;
+    const headNoun = lexNounInfo(head);
+    if (!headNoun) return null;
+    const verbal = !!headNoun?.info?.verbs.length;
+    const before = lexWordBefore(ctx, m.index);
+    const n = next ? next.toLowerCase() : "";
+    const nextInfo = n ? lexInfo(n) : null;
+    const finite =
+      POSSESSIVE_MODALS.has(n) ||
+      (headNoun.plural ? POSSESSIVE_PLURAL_FINITE.has(n) : POSSESSIVE_SINGULAR_FINITE.has(n)) ||
+      (!!nextInfo?.verbs.some((v) => v.form === "past") && !nextInfo.noun);
+    const ends = !next;
+    const ok =
+      POSSESSIVE_SINGLE_DETERMINERS.has(det.toLowerCase()) ||
+      (finite && (!verbal || before === "" || POSSESSIVE_PREPOSITIONS.has(before))) ||
+      (ends && POSSESSIVE_PREPOSITIONS.has(before)) ||
+      (ends && !verbal && POSSESSIVE_PERCEPTION.has(before));
+    if (!ok) return null;
+    const alternatives = singular ? [`${singular}'s`, `${owner}'`] : [`${owner}'s`];
+    return finding(
+      "englishPossessiveNouns",
+      "review_msg_noun_possessive",
+      m.indices!.groups!.owner[0],
+      m.indices!.groups!.owner[1],
+      alternatives,
+      {
+        ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+        context: lexContext(ctx, m.index, m.index + m[0].length),
+      },
+    );
+  },
+  // en.yaml rule en.youNounOf frame 1
+  "@en.youNounOf/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    if (!(lexWordBefore(ctx, m.index) === "" && !hasUserOrCasedWord(ctx, noun))) return null;
+    const read = lexInfo(noun);
+    const lone = read
+      ? read.noun && !read.plural && !read.verbs.length && !read.adjective
+      : enListedNoun(noun) === "singular";
+    if (!lone) return null;
+    return {
+      ruleId: "englishYourYouAre",
+      messageKey: "review_msg_your_possessive",
+      range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+      alternatives: [caseLike(target, "your"), caseLike(target, "you're a")],
+      requiresChoice: true,
+      context: lexContext(ctx, m.index, m.index + m[0].length),
+    };
   },
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {

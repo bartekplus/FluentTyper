@@ -1708,6 +1708,307 @@ rules:
     style: match
     message: review_msg_irregular_form
     filter: outsideExamples
+    # Checks that lean on the dictionary-derived lexicon rather than phrase rows: regularized
+    # irregular forms, missing possessive apostrophes and misplaced spaces.
+    sets:
+      # Function words the lexicon has no part of speech for.
+      LEXICAL_FUNCTION_WORDS:
+        [as, his, her, hers, into, only, its, us, is, unto, per, amongst, ok, vs]
+      # The regular -ed spelled on an irregular verb ("eated", "writed", "runned"). Valid
+      # variants stay out: "kneeled" and "betted" are dictionary-accepted pasts the lexicon lacks.
+      LEXICAL_VALID_VARIANTS: [kneeled, betted]
+      # The regular plural on an irregular noun ("childs", "womans").
+      LEXICAL_IRREGULAR_NOUNS:
+        [
+          child,
+          woman,
+          man,
+          ox,
+          foot,
+          tooth,
+          goose,
+          mouse,
+          louse,
+          leaf,
+          loaf,
+          shelf,
+          wolf,
+          knife,
+          wife,
+          half,
+          thief,
+          calf,
+          life,
+          grandchild,
+          gentleman,
+          person,
+        ]
+      # Two-letter words a moved space may produce; the dictionary's rarer ones (em, en) stay out.
+      LEXICAL_SHORT_WORDS:
+        [
+          a,
+          i,
+          am,
+          an,
+          as,
+          at,
+          be,
+          by,
+          do,
+          go,
+          he,
+          if,
+          in,
+          is,
+          it,
+          me,
+          my,
+          no,
+          of,
+          oh,
+          ok,
+          on,
+          or,
+          so,
+          to,
+          up,
+          us,
+          we,
+        ]
+      # Function words glued to the next word ("thisinstead"). Words that also start ordinary
+      # compounds (in, on, up, out, over) stay out ("inline", "onboarding", "uptime"), and so do
+      # "of" and "as", which start British spellings and deliberate tokens ("offences", "aswell").
+      LEXICAL_GLUED:
+        [
+          this,
+          that,
+          the,
+          these,
+          those,
+          and,
+          but,
+          with,
+          from,
+          is,
+          was,
+          are,
+          were,
+          have,
+          has,
+          had,
+          will,
+          would,
+          could,
+          should,
+          not,
+          than,
+        ]
+      # A capitalized unknown word is more often a name ("Haslam", "Andover", "Isham"): only a
+      # determiner head splits it ("Thisway").
+      LEXICAL_CAPITAL_GLUED: [this, that, the, these, those]
+      # Latin set phrases keep their space.
+      LEXICAL_LATIN_PAIRS:
+        [
+          "pro forma",
+          "pro rata",
+          "pro bono",
+          "ad hoc",
+          "per se",
+          "de facto",
+          "bona fide",
+          "status quo",
+          "et al",
+          "ad infinitum",
+        ]
+    defs:
+      # Memoized: the same words recur, and a lexicon lookup tries every affix rule.
+      lexInfoOf: memoize(englishWordInfo, 20000)
+      # A word the lexicon knows (lowercase): the word check asks this for each word.
+      lexKnownOf: >-
+        memoize((w: string) => LEXICAL_FUNCTION_WORDS.has(w) || !!lexInfoOf(w) || enListedNoun(w) !== null, 20000)
+      lexInfo:
+        args: "word: string"
+        return: lexInfoOf(word.toLowerCase())
+      lexKnown:
+        args: "word: string"
+        return: lexKnownOf(word.toLowerCase())
+      # Lowercase, or capitalized at the start of a clause: no name, acronym or code.
+      lexPlainAt:
+        args: "ctx: DetectContext, word: string, index: number"
+        return: '/^[a-z]+$/.test(word) || (/^[A-Z][a-z]*$/.test(word) && lexWordBefore(ctx, index) === "")'
+      # The word before `index` (lowercased), "" at the start of a clause.
+      lexWordBefore:
+        args: "ctx: DetectContext, index: number"
+        let:
+          last: lastNonBlankBefore(ctx.text, index)
+        when: 'last >= 0 && !/[.!?;:"“\n]/.test(ctx.text[last])'
+        return: '(/([A-Za-z]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? "?").toLowerCase()'
+        else: '""'
+      lexContext:
+        args: "ctx: DetectContext, start: number, end: number"
+        return: "({ start: Math.max(0, start - 96), end: Math.min(ctx.text.length, end + 40) })"
+      # The regular pasts of the irregular verbs, with their verb.
+      LEXICAL_REGULAR_PASTS: >-
+        new Map(EN_VERB_FORMS.flatMap((verb) =>
+          [`${verb.lemma}ed`, verb.lemma.endsWith("e") ? `${verb.lemma}d` : "",
+            /[^aeiou][aeiou][b-df-hj-np-tv-z]$/.test(verb.lemma) ? `${verb.lemma}${verb.lemma.at(-1)}ed` : ""]
+            .filter((form) => form && !LEXICAL_VALID_VARIANTS.has(form) && form !== verb.past && form !== verb.participle)
+            .map((form) => [form, verb] as const)))
+      # The regular plurals of the irregular nouns, with their forms.
+      LEXICAL_REGULAR_PLURALS: >-
+        new Map([...LEXICAL_IRREGULAR_NOUNS]
+          .map((singular) => [singular, englishNounForms(singular)] as const)
+          .flatMap(([singular, forms]) => forms ? [[singular + "s", forms] as const, [singular + "es", forms] as const] : []))
+      LEXICAL_PARTICIPLE_BEFORE: '/(?:^|[^\p{L}])(?:have|has|had|having|[''’]ve|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t ]+(?:(?:not|never|already|just|also|all|now)[ \t ]+)?$/iu'
+      # A past needs its subject or auxiliary right before it: "I eated", "had runned", "and
+      # drinked". "malformed finded constructions" only names the word.
+      LEXICAL_VERB_BEFORE: '/(?:^|[^\p{L}''’])(?:i|you|he|she|it|we|they|who|and|or|then|also|just|never|already|finally|once|have|has|had|having|[''’]ve|[''’]d|been|be|being|is|are|was|were|am|get|gets|got|gotten)[ \t ]+$/iu'
+      # The irregular form for a word the dictionary does not know, or null.
+      lexIrregularFor:
+        args: "word: string, before: string"
+        type: "string[] | null"
+        let:
+          w: word.toLowerCase()
+          verb: LEXICAL_REGULAR_PASTS.get(w)
+        return: "verb ? lexIrregularPast(w, verb, before) : lexIrregularPlural(word, w, before)"
+      lexIrregularPast:
+        args: "w: string, verb: (typeof EN_VERB_FORMS)[number], before: string"
+        when: LEXICAL_VERB_BEFORE.test(before) && !lexKnownOf(w)
+        return: "[LEXICAL_PARTICIPLE_BEFORE.test(before) ? verb.participle : verb.past]"
+      lexIrregularPlural:
+        args: "word: string, w: string, before: string"
+        when:
+          - w.endsWith("s") && w.length >= 4 && !lexInfoOf(w)
+          # Paintings are "still lifes", not "still lives".
+          - '!(w === "lifes" && /\bstill[ \t ]+$/i.test(before))'
+        let:
+          # A table noun at the end of a lowercase compound counts too: "meatloafs",
+          # "grandchilds" (not the names "Germans", "Normans").
+          cut: "lexPluralCut(w, 0, /^[a-z]/.test(word) ? w.length - 3 : 0)"
+        return: "cut >= 0 ? lexTablePlural(w, cut) : lexSpelledPlural(w)"
+      lexPluralCut:
+        args: "w: string, cut: number, last: number"
+        type: number
+        return: "cut > last ? -1 : LEXICAL_REGULAR_PLURALS.has(w.slice(cut)) ? cut : lexPluralCut(w, cut + 1, last)"
+      # The dictionary's own -s plural ("shamans") is no error; "meatloafs" is, as "meatloaf" is
+      # listed without one.
+      lexListed:
+        args: "w: string, singular: string"
+        return: 'enListedNoun(w) === "singular" || (enListedNoun(w) === "plural" && !enListedWithoutPlural(singular))'
+      lexTablePlural:
+        args: "w: string, cut: number"
+        let:
+          forms: LEXICAL_REGULAR_PLURALS.get(w.slice(cut))!
+          head: w.slice(0, cut)
+          singular: head + forms.singular
+        return: "lexListed(w, singular) ? null : [head + forms.plural, `${singular}'s`]"
+      # Spelling rules for a plural the dictionary lists: hero -> heroes, kitty -> kitties.
+      lexSpelledPlural:
+        args: "w: string"
+        let:
+          singular: w.slice(0, -1)
+          plural: >-
+            w.endsWith("os") ? `${w.slice(0, -1)}es` : /[^aeiou]ys$/.test(w) ? `${w.slice(0, -2)}ies`
+            : w.endsWith("fs") ? `${w.slice(0, -2)}ves` : null
+          spelled: plural && lexInfoOf(plural)
+        when:
+          # "believes" is only a verb: "beliefs" stays (its singular is a listed noun anyway).
+          - spelled && !(spelled.verbs.length > 0 && !spelled.noun)
+          - lexKnownOf(singular) && !lexListed(w, singular)
+        return: "[plural, `${singular}'s`]"
+      lexShortOk:
+        args: "word: string"
+        return: word.length > 2 || LEXICAL_SHORT_WORDS.has(word.toLowerCase())
+      # "thisinstead" -> "this instead": a function word glued to a word the lexicon knows.
+      lexSplitGlued:
+        args: "word: string"
+        let:
+          w: word.toLowerCase()
+          cut: "lexGluedCut(w, word === w ? LEXICAL_GLUED : LEXICAL_CAPITAL_GLUED, 2)"
+        when: [w.length >= 6, cut >= 0]
+        return: "`${word.slice(0, cut)} ${w.slice(cut)}`"
+      lexGluedCut:
+        args: "w: string, heads: ReadonlySet<string>, cut: number"
+        type: number
+        return: >-
+          cut > 6 || cut > w.length - 3 ? -1
+          : heads.has(w.slice(0, cut)) && lexInfo(w.slice(cut)) ? cut : lexGluedCut(w, heads, cut + 1)
+      # Two neighbours, one of them no dictionary word: a space one letter off ("Th ecat",
+      # "spac eis") or one too many ("her etofore"). Both words unknown ("spac eis"), or a known
+      # two-letter word that is a fragment of a function word ("Thec at"). A longer known
+      # neighbour is a word of its own: "Womans and" is not "Woman sand", "learnt it" not "learn
+      # tit".
+      lexBoundaryFix:
+        args: "first: string, second: string"
+        let:
+          both: "!lexKnown(first) && !lexKnown(second)"
+          fixes: >-
+            [[first.slice(0, -1), first.slice(-1) + second], [first + second[0], second.slice(1)]]
+              .filter(([a, b]) => a.length && b.length && lexShortOk(a) && lexShortOk(b) && lexKnown(a) && lexKnown(b)
+                && (both || (Math.min(first.length, second.length) < 3 && (LEXICAL_GLUED.has(a.toLowerCase()) || LEXICAL_GLUED.has(b)))))
+              .map(([a, b]) => `${a} ${b}`)
+        return: >-
+          !fixes.length && second.length > 2 && lexKnown(first) && !lexKnown(second) && lexInfo(first + second)
+          ? [first + second] : fixes
+      # The last two words that the word check read (0: the last one, 1: the one before it): a
+      # word reads the word before it again as its neighbour.
+      LEXICAL_LAST: 'new Map([[0, { text: "", end: -1, index: 0, word: "", unknown: false }]])'
+      # Keeps a word that the word check reads; gives the word that it read before.
+      lexRemember:
+        args: "text: string, end: number, index: number, word: string, unknown: boolean"
+        return: "LEXICAL_LAST.set(1, LEXICAL_LAST.get(0)!).set(0, { text, end, index, word, unknown }).get(1)!"
+      # The word that ends one space before `index`, as a word match: the only neighbour a word
+      # check reads. Null when a space and a word do not come right before `index`.
+      lexWordBeforeSpace:
+        args: "text: string, index: number, prior: { text: string; end: number; index: number; word: string; unknown: boolean }"
+        when: text.charCodeAt(index - 1) === 32
+        return: >-
+          prior.text === text && prior.end === index - 1
+            ? { index: prior.index, word: prior.word, unknown: prior.unknown }
+            : lexWordAt(text, skipBackWhile(text, index - 1, /[A-Za-z]/), index - 1)
+      # Characters that make a letter run part of a token: no word match starts after them.
+      lexWordAt:
+        args: "text: string, start: number, end: number"
+        when: 'start !== end && !/[\p{L}\p{M}\p{N}_''’@/#\\.-]/u.test(text[start - 1] ?? "")'
+        let:
+          word: text.slice(start, end)
+        return: "{ index: start, word, unknown: !lexKnown(word) }"
+      # Only a glued function word: an unknown content compound ("rainforest", "zebrafish") is
+      # usually a real word the lexicon lacks, and stays with dictionary spelling. "~isability"
+      # in a pattern or a regex is no prose word.
+      lexSpaceFinding:
+        args: >-
+          ctx: DetectContext, index: number, word: string, w: string, unknown: boolean, owned: boolean,
+          neighbour: ReturnType<typeof lexWordBeforeSpace> | undefined,
+          prior: { text: string; end: number; index: number; word: string; unknown: boolean }
+        type: "RawFinding | null"
+        let:
+          end: index + word.length
+          split: 'unknown && owned && !/[~*^$=\\/]/.test(ctx.text[index - 1] ?? "") && lexSplitGlued(word)'
+        return: >-
+          split
+            ? finding("englishAlotCorrection", "review_msg_split_words", index, end, [split], {
+                bulkBlock: "context-dependent", context: lexContext(ctx, index, end) })
+            : lexBoundaryFinding(ctx, end, word, w,
+                neighbour === undefined ? lexWordBeforeSpace(ctx.scanText, index, prior) : neighbour)
+      # A single space between two words of two letters or more, one of them unknown.
+      lexBoundaryFinding:
+        args: "ctx: DetectContext, end: number, word: string, w: string, prev: ReturnType<typeof lexWordBeforeSpace>"
+        type: "RawFinding | null"
+        when:
+          - prev && prev.index >= ctx.from && prev.index < ctx.to
+          - prev.word.length >= 2 && word.length >= 2
+          - lexPlainAt(ctx, prev.word, prev.index) && !/^[A-Z]/.test(word)
+          - "!ctx.dictionary.has(prev.word.toLowerCase())"
+          - "!LEXICAL_LATIN_PAIRS.has(`${prev.word.toLowerCase()} ${w}`)"
+          - fixes.length > 0
+        let:
+          fixes: lexBoundaryFix(prev.word, word)
+        return: >-
+          finding("englishAlotCorrection", "review_msg_word_boundary", prev.index, end, fixes, {
+            ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+            bulkBlock: "context-dependent",
+            context: lexContext(ctx, prev.index, end) })
     frames:
       # One word: letters only, not part of a technical token, a number or an abbreviation
       # ("e.g"). One check pass over each word for the irregular-form and space checks. A
@@ -1718,18 +2019,376 @@ rules:
         lookahead: 128
         flags: gu
         anyCheck: true
-        fixer: wordCheck
+        # The irregular-form and space checks of one word. Most words are known, and so is
+        # their neighbour: nothing to check. The neighbour is read only when needed.
+        let:
+          irregular: '!ctx.rules || ctx.rules.has("englishIrregularForms")'
+          spaces: '!ctx.rules || ctx.rules.has("englishAlotCorrection")'
+          index: m.index
+          word: m[0]
+          w: word.toLowerCase()
+          unknown: "!lexKnownOf(w)"
+          prior: lexRemember(ctx.scanText, index + word.length, index, word, unknown)
+          owned: index >= ctx.from && index < ctx.to
+          regular: >-
+            irregular && owned
+            && (w.endsWith("ed") ? LEXICAL_REGULAR_PASTS.has(w) : w.length > 3 && w.endsWith("s") && !lexInfoOf(w))
+          neighbour: "unknown || regular ? undefined : lexWordBeforeSpace(ctx.scanText, index, prior)"
+          end: index + word.length
+          forms: regular && lexIrregularFor(word, ctx.text.slice(Math.max(0, index - 40), index))
+        when:
+          - unknown || regular || neighbour?.unknown
+          - lexPlainAt(ctx, word, index) && !ctx.dictionary.has(w)
+        return: >-
+          forms
+            ? finding("englishIrregularForms", "review_msg_irregular_form", index, end,
+                forms.map((form) => caseLike(word, form)), {
+                ...(forms.length > 1 ? { requiresChoice: true as const } : {}),
+                context: lexContext(ctx, index, end) })
+            : spaces ? lexSpaceFinding(ctx, index, word, w, unknown, owned, neighbour, prior) : null
   - id: en.possessiveNouns
     checks: [englishPossessiveNouns]
     style: match
     message: review_msg_noun_possessive
     filter: outsideExamples
+    sets:
+      # Plurals that commonly modify another noun without owning it: "the sales team", "a sports
+      # car", "the settings page". Words in -ics and -ings behave the same way and are caught
+      # by the owner check.
+      POSSESSIVE_ATTRIBUTIVE:
+        [
+          sales,
+          sports,
+          arts,
+          savings,
+          goods,
+          arms,
+          customs,
+          clothes,
+          glasses,
+          jobs,
+          systems,
+          operations,
+          parts,
+          news,
+          needs,
+          claims,
+          works,
+          means,
+          series,
+          species,
+          rights,
+          services,
+          products,
+          events,
+          admissions,
+          materials,
+          weapons,
+          drugs,
+          awards,
+          games,
+          records,
+          accounts,
+          payments,
+          skills,
+          drinks,
+          numbers,
+          contents,
+          crafts,
+          letters,
+          ways,
+          sciences,
+          studies,
+          affairs,
+          relations,
+          resources,
+          utilities,
+          securities,
+          futures,
+          options,
+          assets,
+          results,
+          comments,
+          users,
+          tools,
+          files,
+          tests,
+          items,
+          orders,
+          notes,
+          tickets,
+          members,
+          images,
+          docs,
+          logs,
+          tasks,
+          fireworks,
+          antiques,
+          antiquities,
+          communications,
+          munitions,
+          insights,
+          stats,
+          standards,
+          arrivals,
+          departures,
+          earnings,
+          valuables,
+          humanities,
+        ]
+      POSSESSIVE_IRREGULAR_OWNERS: [children, women, men]
+      POSSESSIVE_SINGLE_DETERMINERS: [a, an, every, each, another]
+      # Plural nouns that name a class before its members: "the metals tin and zinc".
+      POSSESSIVE_CLASS_OWNERS:
+        [
+          metals,
+          minerals,
+          elements,
+          gases,
+          colors,
+          colours,
+          letters,
+          words,
+          numbers,
+          names,
+          cities,
+          countries,
+          languages,
+          species,
+          planets,
+          months,
+          genres,
+          terms,
+          values,
+          variables,
+          commands,
+        ]
+      POSSESSIVE_PREPOSITIONS:
+        [
+          in,
+          on,
+          at,
+          of,
+          with,
+          from,
+          to,
+          into,
+          onto,
+          for,
+          by,
+          about,
+          under,
+          over,
+          through,
+          near,
+          behind,
+          inside,
+          outside,
+          without,
+          within,
+          across,
+          around,
+          among,
+          between,
+          beside,
+          toward,
+          towards,
+          against,
+        ]
+      POSSESSIVE_PERCEPTION:
+        [see, saw, seen, seeing, hear, heard, hearing, watch, watched, watching, notice, noticed]
+      # Closed-class words the dictionary also lists as nouns ("the haves", "an are", "a she"):
+      # never the owned noun. "the children she knew", "the pickers are paid", "the players all
+      # played". Then adverbs the dictionary lists as nouns ("I talked to the students
+      # yesterday") and adjectives that follow their noun ("the commissioners present signed").
+      POSSESSIVE_NOT_HEADS:
+        [
+          i,
+          you,
+          he,
+          she,
+          it,
+          we,
+          they,
+          me,
+          him,
+          her,
+          us,
+          them,
+          who,
+          whom,
+          whose,
+          which,
+          that,
+          what,
+          this,
+          these,
+          those,
+          all,
+          both,
+          each,
+          either,
+          neither,
+          none,
+          some,
+          any,
+          many,
+          much,
+          more,
+          most,
+          few,
+          several,
+          such,
+          own,
+          same,
+          other,
+          others,
+          and,
+          but,
+          or,
+          nor,
+          yet,
+          so,
+          if,
+          then,
+          than,
+          as,
+          is,
+          are,
+          was,
+          were,
+          am,
+          be,
+          been,
+          being,
+          have,
+          has,
+          had,
+          do,
+          does,
+          did,
+          will,
+          would,
+          can,
+          could,
+          shall,
+          should,
+          may,
+          might,
+          must,
+          not,
+          no,
+          yesterday,
+          today,
+          tonight,
+          tomorrow,
+          overnight,
+          first,
+          once,
+          home,
+          outside,
+          inside,
+          upstairs,
+          downstairs,
+          aside,
+          back,
+          forward,
+          last,
+          next,
+          daily,
+          weekly,
+          monthly,
+          yearly,
+          nightly,
+          online,
+          offline,
+          sometimes,
+          always,
+          often,
+          never,
+          usually,
+          also,
+          still,
+          already,
+          just,
+          even,
+          only,
+          ever,
+          seldom,
+          rarely,
+          present,
+          involved,
+          concerned,
+          available,
+          responsible,
+          mentioned,
+          listed,
+          affected,
+          attending,
+        ]
+      POSSESSIVE_SINGULAR_FINITE: [is, was, has, does]
+      POSSESSIVE_PLURAL_FINITE: [are, were, have, do]
+      POSSESSIVE_MODALS: [will, would, can, could, should, must, may, might]
+    defs:
+      # The singular a plural owner names, when the lexicon reads it as a plural noun. "-ics"
+      # words are mostly singular fields ("physics", "the graphics card"); "music" is
+      # uncountable, so "the musics performance" is its possessive.
+      lexOwnerSingular:
+        args: "owner: string"
+        let:
+          read: lexInfo(owner)
+          stems: >-
+            owner.endsWith("ies") ? [`${owner.slice(0, -3)}y`, owner.slice(0, -1)]
+            : owner.endsWith("es") ? [owner.slice(0, -1), owner.slice(0, -2)] : [owner.slice(0, -1)]
+        when:
+          - '!(POSSESSIVE_ATTRIBUTIVE.has(owner) || (/(?:ics|ings|ss|us|is)$/.test(owner) && owner !== "musics"))'
+          - (read?.plural && read.noun) || enListedNoun(owner) === "plural"
+        return: 'stems.find((stem) => lexInfo(stem)?.noun || enListedNoun(stem) === "singular") ?? null'
+      lexNounInfo:
+        args: "word: string"
+        let:
+          read: lexInfo(word)
+          listed: "read ? null : enListedNoun(word)"
+        return: >-
+          read ? (read.noun && !read.adverb ? { info: read, plural: read.plural } : null)
+          : listed ? { info: null, plural: listed === "plural" } : null
     frames:
       # "the cats tail is long", "a teachers lounge": a plural owner right before the noun it
       # owns.
       - regex: "(?<det>the|a|an|my|your|his|her|our|their|every|each|another){{S}}(?<owner>[a-z]{3,}s|children|women|men){{S}}(?<head>[a-z]{3,})(?:[ \\t\\u00a0]*(?:[.!?,;:]|$)|{{S}}(?<next>[A-Za-z]+)(?![\\p{L}\\p{N}_'’@/#\\\\-]))"
         owner: owner
-        fixer: possessiveNoun
+        # The owner's head noun is followed by its verb, or the phrase ends after a
+        # preposition or a perception verb, or a singular determiner rules the plural out. The
+        # frame is case-insensitive: capitals name something ("the Beatles song").
+        let:
+          singular: "POSSESSIVE_IRREGULAR_OWNERS.has(owner) ? null : lexOwnerSingular(owner)"
+          headNoun: lexNounInfo(head)
+          verbal: "!!headNoun?.info?.verbs.length"
+          before: lexWordBefore(ctx, m.index)
+          n: 'next ? next.toLowerCase() : ""'
+          nextInfo: "n ? lexInfo(n) : null"
+          finite: >-
+            POSSESSIVE_MODALS.has(n)
+            || (headNoun.plural ? POSSESSIVE_PLURAL_FINITE.has(n) : POSSESSIVE_SINGULAR_FINITE.has(n))
+            || (!!nextInfo?.verbs.some((v) => v.form === "past") && !nextInfo.noun)
+          ends: "!next"
+          ok: >-
+            POSSESSIVE_SINGLE_DETERMINERS.has(det.toLowerCase())
+            || (finite && (!verbal || before === "" || POSSESSIVE_PREPOSITIONS.has(before)))
+            || (ends && POSSESSIVE_PREPOSITIONS.has(before))
+            || (ends && !verbal && POSSESSIVE_PERCEPTION.has(before))
+          alternatives: "singular ? [`${singular}'s`, `${owner}'`] : [`${owner}'s`]"
+        when:
+          - /^[a-z]+$/.test(owner + head) && !hasUserOrCasedWord(ctx, m[0])
+          - (singular || POSSESSIVE_IRREGULAR_OWNERS.has(owner)) && !POSSESSIVE_NOT_HEADS.has(head)
+          - "!POSSESSIVE_CLASS_OWNERS.has(owner)"
+          - headNoun
+          - ok
+        return: >-
+          finding("englishPossessiveNouns", "review_msg_noun_possessive",
+            m.indices!.groups!.owner[0], m.indices!.groups!.owner[1], alternatives, {
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+            context: lexContext(ctx, m.index, m.index + m[0].length) })
   - id: en.youNounOf
     checks: [englishYourYouAre]
     style: match
@@ -1738,7 +2397,18 @@ rules:
     frames:
       # "You combination of artist and teacher.": "Your" or "You're a" before a lone noun.
       - regex: "(?<target>You){{S}}(?<noun>[a-z]{4,}){{S}}of(?![\\p{L}\\p{N}_'’@/#\\\\-])"
-        fixer: youNounOf
+        let:
+          read: lexInfo(noun)
+          lone: 'read ? read.noun && !read.plural && !read.verbs.length && !read.adjective : enListedNoun(noun) === "singular"'
+        when:
+          - lexWordBefore(ctx, m.index) === "" && !hasUserOrCasedWord(ctx, noun)
+          - lone
+        return: >-
+          ({ ruleId: "englishYourYouAre", messageKey: "review_msg_your_possessive",
+            range: { start: m.indices!.groups!.target[0], end: m.indices!.groups!.target[1] },
+            alternatives: [caseLike(target, "your"), caseLike(target, "you're a")],
+            requiresChoice: true,
+            context: lexContext(ctx, m.index, m.index + m[0].length) })
   - id: en.modalOfAtEnd
     checks: [englishModalOfCorrection]
     style: match

@@ -8991,7 +8991,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])",
     literals: [],
-    fixer: "en:wordCheck",
+    fixer: "en:@en.irregularWordForms/1",
     flags: "gu",
     scan: "owned",
     lookahead: 128,
@@ -9001,14 +9001,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<det>the|a|an|my|your|his|her|our|their|every|each|another)[ \\t\\u00a0]{1,8}(?<owner>[a-z]{3,}s|children|women|men)[ \\t\\u00a0]{1,8}(?<head>[a-z]{3,})(?:[ \\t\\u00a0]*(?:[.!?,;:]|$)|[ \\t\\u00a0]{1,8}(?<next>[A-Za-z]+)(?![\\p{L}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:possessiveNoun",
+    fixer: "en:@en.possessiveNouns/1",
     owner: "owner",
   }),
   frame({
     pattern:
       "(?<target>You)[ \\t\\u00a0]{1,8}(?<noun>[a-z]{4,})[ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{N}_'’@/#\\\\-])",
     literals: ["you"],
-    fixer: "en:youNounOf",
+    fixer: "en:@en.youNounOf/1",
   }),
   frame({
     pattern:

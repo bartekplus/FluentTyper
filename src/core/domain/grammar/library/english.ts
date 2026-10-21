@@ -53,3 +53,11 @@ export {
 
 // The casing of a fix like the typed words (library/english/words.ts).
 export { recase as enRecase } from "./english/words";
+
+// Group 5 (remaining, fixedPhrases, grammarStyle2, idioms1, confusions1, confusions2,
+// compoundForms, lexical): the listed nouns of the lexicon and the irregular verb table.
+export {
+  englishListedNoun as enListedNoun,
+  englishListedWithoutPlural as enListedWithoutPlural,
+} from "../implementations/helpers/EnglishLexicon";
+export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/EnglishVerbForms";
