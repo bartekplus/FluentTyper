@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { startPrefixes } from "../../src/core/domain/grammar/engine/prefixes";
+import { literalAnchor, startPrefixes } from "../../src/core/domain/grammar/engine/prefixes";
 import { SPACE } from "../../src/core/domain/grammar/review/phraseTemplates";
 
 test("start prefixes follow alternations, groups and optional parts", () => {
@@ -48,4 +48,25 @@ test("every prefix is a real start of the regex's matches", () => {
     expect(new RegExp(`^(?:${source})$`, "iu").test(text)).toBe(true);
     expect(prefixes.some((prefix) => text.toLowerCase().startsWith(prefix))).toBe(true);
   }
+});
+
+test("a literal anchor counts the runs of spaces before a fixed word", () => {
+  const S = SPACE;
+  expect(literalAnchor(`(?<target>[a-z]{2,})${S}(?:who|that)`)).toEqual({
+    prefixes: ["who", "tha"],
+    spaces: 1,
+  });
+  // A lookahead holds the anchor: up to two more words, then "and".
+  expect(literalAnchor(`(?=[A-Za-z]+(?:${S}[A-Za-z]+){0,2}${S}and)(?<x>[a-z]+)`)).toEqual({
+    prefixes: ["and"],
+    spaces: 3,
+  });
+  expect(literalAnchor(`(?:x)?[a-z]+${S}and`)).toEqual({ prefixes: ["and"], spaces: 1 });
+});
+
+test("no literal anchor when the text before it may hold any number of spaces", () => {
+  expect(literalAnchor("[a-z]+.and")).toBeNull();
+  expect(literalAnchor("(?<a>[a-z]+)[^.]{1,9}and")).toBeNull();
+  expect(literalAnchor(`(?:[a-z]+${SPACE})+and`)).toBeNull();
+  expect(literalAnchor("[a-z]+\\k<a>and")).toBeNull();
 });

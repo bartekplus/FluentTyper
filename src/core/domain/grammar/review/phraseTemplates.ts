@@ -3,7 +3,7 @@ import {
   carryCase,
   detectWordCase,
 } from "../implementations/helpers/GenericRuleShared";
-import { startPrefixes } from "../engine/prefixes";
+import { literalAnchor, startPrefixes, type LiteralAnchor } from "../engine/prefixes";
 import { namedExampleBefore } from "./exampleCues";
 import type { DetectContext, RawFinding } from "./reviewDetectors";
 
@@ -187,19 +187,82 @@ const PREFIXES = new Map<string, readonly string[] | null>();
 const PREFIX_CHAR =
   /[ -~\u00c0-\u00d6\u00d8-\u00de\u00e0-\u00f6\u00f8-\u012f\u0132-\u017e\u0180-\u024f]/;
 
+/** The prefixes, each cut before its first character outside PREFIX_CHAR; null if one empties. */
+function safePrefixes(raw: readonly string[] | null): readonly string[] | null {
+  const safe = raw?.map((prefix) => {
+    let end = 0;
+    while (end < prefix.length && PREFIX_CHAR.test(prefix[end])) end++;
+    return prefix.slice(0, end);
+  });
+  return !safe || safe.includes("") ? null : [...new Set(safe)];
+}
+
 function framePrefixes(source: string): readonly string[] | null {
   let found = PREFIXES.get(source);
+  if (found === undefined) PREFIXES.set(source, (found = safePrefixes(startPrefixes(source))));
+  return found;
+}
+
+// The literal anchor of a frame source without start prefixes (null: none).
+const ANCHORS = new Map<string, LiteralAnchor | null>();
+
+function frameAnchor(source: string): LiteralAnchor | null {
+  let found = ANCHORS.get(source);
   if (found === undefined) {
-    const raw = startPrefixes(source);
-    const safe = raw?.map((prefix) => {
-      let end = 0;
-      while (end < prefix.length && PREFIX_CHAR.test(prefix[end])) end++;
-      return prefix.slice(0, end);
-    });
-    found = !safe || safe.includes("") ? null : [...new Set(safe)];
-    PREFIXES.set(source, found);
+    const anchor = literalAnchor(source);
+    const prefixes = anchor && safePrefixes(anchor.prefixes);
+    found = anchor && prefixes ? { prefixes: [...prefixes], spaces: anchor.spaces } : null;
+    ANCHORS.set(source, found);
   }
   return found;
+}
+
+const isSpaceCode = (code: number) =>
+  code === 32 || (code >= 9 && code <= 13) || (code > 127 && /\s/.test(String.fromCharCode(code)));
+
+/**
+ * Where a match may start when it holds an anchor prefix at `q` after at most `spaces` runs of
+ * spaces: from just after the (spaces + 1)-th run before `q` (or `low`) through `q`.
+ */
+function windowStart(text: string, q: number, spaces: number, low: number): number {
+  let i = q;
+  let runs = 0;
+  while (i > low) {
+    if (isSpaceCode(text.charCodeAt(i - 1))) {
+      if (++runs > spaces) return i;
+      while (i > low && isSpaceCode(text.charCodeAt(i - 1))) i--;
+    } else i--;
+  }
+  return low;
+}
+
+/** The start positions of a frame with a literal anchor: the windows before its occurrences. */
+function anchoredStarts(ctx: DetectContext, anchor: LiteralAnchor): Int32Array {
+  const { lower } = scannedText(ctx);
+  const base = Math.max(0, ctx.from - 256);
+  const text = ctx.scanText;
+  const windows: number[] = [];
+  for (const prefix of anchor.prefixes) {
+    // An occurrence after the chunk may still close a match that starts in it.
+    for (let i = lower!.indexOf(prefix); i !== -1; i = lower!.indexOf(prefix, i + 1)) {
+      const q = base + i;
+      const start = windowStart(text, q, anchor.spaces, base);
+      if (start >= ctx.to) break;
+      windows.push(start, Math.min(q, ctx.to - 1));
+    }
+  }
+  // Mark the windows, then list the marked positions in order.
+  const marks = new Uint8Array(ctx.to - base);
+  let count = 0;
+  for (let w = 0; w < windows.length; w += 2)
+    for (let p = windows[w]; p <= windows[w + 1]; p++)
+      if (marks[p - base] === 0) {
+        marks[p - base] = 1;
+        count++;
+      }
+  const starts = new Int32Array(count);
+  for (let p = 0, at = 0; at < count; p++) if (marks[p]) starts[at++] = base + p;
+  return starts;
 }
 
 // An escape after its backslash: \p{L}, \u{…}, \k<name>, \u00a0, \x2d, \cJ or one character.
@@ -355,8 +418,12 @@ function prefixStarts(ctx: DetectContext, prefix: string): number[] {
 /** Where a match of a frame may start in the chunk's scan, ascending; null: anywhere. */
 function frameStarts(ctx: DetectContext, source: string | null): ArrayLike<number> | null {
   if (source === null) return null;
+  if (!scannedText(ctx).aligned) return null;
   const prefixes = framePrefixes(source);
-  if (prefixes === null || !scannedText(ctx).aligned) return null;
+  if (prefixes === null) {
+    const anchor = frameAnchor(source);
+    return anchor === null ? null : anchoredStarts(ctx, anchor);
+  }
   if (prefixes.length === 1) return prefixStarts(ctx, prefixes[0]);
   // No prefix starts another one, so two prefixes never stand at one position.
   const lists = prefixes.map((prefix) => prefixStarts(ctx, prefix));
