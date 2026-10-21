@@ -5096,7 +5096,596 @@ rules:
     message: review_msg_spanish_verb_agreement
     # The subject's gender beats the copula's number alone: an attribute finding drops the
     # finding of the first frame at the same start.
-    filter: attributeFirst
+    filter:
+      let:
+        taken: new Set(findings.filter((f) => ES_ATTRIBUTES.has(f)).map((f) => f.range.start))
+      return: findings.filter((f) => ES_ATTRIBUTES.has(f) || !taken.has(f.range.start))
+    # Number agreement around the verb: a subject opening its clause and the verb right after it
+    # ("Los amigos tiene sed", "Ellos viene"), "gustar" and its kin with the noun phrase after them
+    # ("Me gusta las manzanas"), and a plural "ser"/"estar" before a participle ("Son
+    # documentado").
+    sets:
+      # "La casa es bonito", "Ellos son bella", "Su madre estaba casado": an adjective after a
+      # copula agrees with the subject opening the clause.
+      ES_VG_COPULA:
+        [
+          es, era, fue, será, sería, sea, está, estaba, estuvo, estará, estaría, esté, parece, parecía, resulta,
+          resultó, queda, quedó, son, eran, fueron, serán, serían, sean, están, estaban, estuvieron, estarán,
+          estarían, estén, parecen, parecían, resultan, resultaron, quedan, quedaron,
+        ]
+      ES_PERFECT_AUX: [ha, han, había, habían, habrá, habrán, habría, habrían, haya, hayan]
+      ES_VG_DEGREE: [muy, tan, bastante, demasiado, más, menos, siempre, ya, bien, mal, casi]
+      # Adjectives that lead a noun phrase of their own: "La vida es puro teatro", "es otro mundo".
+      ES_VG_LEADING:
+        [
+          otro, otra, otros, otras, mismo, misma, mismos, mismas, primero, primera, último, última, mucho,
+          mucha, muchos, muchas, poco, poca, pocos, pocas, todo, toda, todos, todas, tanto, tanta, cierto,
+          cierta, alguno, alguna, ninguno, ninguna, uno, una, solo, sola, medio, media, puro, pura, justo,
+        ]
+      ES_SINGULAR_PRONOUNS: [él, ella, usted]
+      ES_PLURAL_PRONOUNS: [ellos, ellas, ustedes]
+      # Words that may stand between a subject and its verb: "Los niños no se lo dan".
+      ES_BETWEEN:
+        ["no", se, me, te, le, les, lo, la, los, las, nos, os, ya, también, tampoco, nunca, jamás, siempre, ahora, todavía, aún, hoy, ayer]
+      # Words after which a clause starts.
+      ES_VG_CLAUSE_OPENERS: [que, pero, cuando, si, porque, aunque, mientras, donde]
+      # Noun phrases that are times, not subjects ("Los domingos abre"), and collectives that take
+      # either number ("La mayoría votaron").
+      ES_NOT_SUBJECTS:
+        [
+          semana, semanas, año, años, mes, meses, día, días, tarde, tardes, noche, noches, mañana, mañanas, vez,
+          veces, momento, momentos, rato, ratos, verano, veranos, invierno, inviernos, lunes, martes,
+          miércoles, jueves, viernes, sábado, sábados, domingo, domingos, mayoría, mitad, resto, parte,
+          cantidad, número, grupo, serie, conjunto, montón, multitud, infinidad, totalidad, minoría,
+          docena, centenar, verdad, par, clase, tipo, especie,
+        ]
+      ES_VG_SER: [es, son, era, eran, fue, fueron, será, serán, sería, serían, sea, sean]
+      ES_VG_CLOSED_WORDS:
+        [
+          yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes, "no", ya, hoy, ayer,
+          mañana, aquí, allí, así, también, tampoco, muy, más, menos, siempre, nunca, entonces, luego, después,
+          antes, ahora, todavía, aún, quien, quienes, cual, cuales, donde, cuando, como, qué, quién, cómo, dónde,
+          cuándo, cuál, todo, todos, todas, nada, nadie, algo, alguien, eso, esto, aquello, ambos, varios,
+        ]
+      ES_FIRST_SINGULAR: [soy, estoy, voy, doy, he, sé]
+      ES_VG_NOT_VERBS:
+        [solo, sola, mismo, misma, mismos, mismas, también, tampoco, todo, todos, todas, ahora, siempre, nunca, antes, después, aquí, allí, bien, mal, más, menos, tanto, apenas, casi]
+      ES_SPANISH_ADVERBS: ["no", ya, también, nunca, siempre, aquí, allí, ahí, hoy, ayer, todavía, aún, muy, bien, mal, pronto, tarde]
+      # "Son documentado", "Estamos cansado", "Han sido cantado": a plural copula before a singular
+      # participle.
+      ES_VG_PLURAL_COPULA:
+        [son, eran, fueron, serán, serían, sean, somos, éramos, fuimos, seremos, están, estaban, estuvieron, estarán, estarían, estén, estamos, estábamos, estuvimos]
+      # "Somos consciente", "Debemos estar atento": a plural subject's "ser"/"estar" before a
+      # singular adjective. Participles are esCopulaParticiple's.
+      ES_FIRST_PLURAL_COPULA: [somos, seamos, éramos, fuimos, seremos, seríamos, estamos, estemos, estábamos, estuvimos, estaremos, estaríamos]
+      # Singular words after a plural copula that are no adjective of the subject: "somos solo dos",
+      # "estamos mejor", "somos tanto".
+      ES_NOT_PLURAL_ATTRIBUTES: [solo, sola, mismo, misma, medio, media, todo, toda, tanto, tanta, poco, poca, mucho, mucha, mejor, peor, uno, una, cada]
+      ES_PROFESSIONS:
+        [
+          médico, abogado, ingeniero, arquitecto, maestro, técnico, ministro, secretario, cocinero, camarero,
+          enfermero, psicólogo, biólogo, químico, físico, político, diputado, juez, notario, veterinario,
+          farmacéutico, informático, fontanero, carpintero, mecánico, funcionario, empleado, ayudante,
+          músico, bombero, policía, soldado, piloto,
+        ]
+    defs:
+      ES_VG_ESTAR: /^(?:est\p{L}+|qued\p{L}+)$/u
+      # The form of a paired adjective for a gender and number: "bonito" -> "bonitas".
+      esAdjectiveFor:
+        args: "word: string, feminine: boolean, plural: boolean"
+        let:
+          m: /^(\p{L}+?)(?:o|a|os|as)$/u.exec(word)
+          base: /^(\p{L}+?)(?:a|as|es)?$/u.exec(word)?.[1]
+        return: >-
+          m && (esIsGenderedEntry(`${m[1]}o`) || esParticiple(word))
+            ? `${m[1]}${feminine ? "a" : "o"}${plural ? "s" : ""}`
+            : !base || !esIsGenderedEntry(base) || /[aeiouáéíóú]$/u.test(base)
+              ? null
+              : feminine ? `${base}a${plural ? "s" : ""}` : plural ? esPluralOf(base) : base
+      # The subject of an attribute: a pronoun, or a determiner and a noun, and the index after it.
+      esAttributeSubject:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          token: tokens[i]
+          det: ES_DETERMINER.get(token.lower)
+          nounToken: tokens[i + 1]
+          noun: >-
+            det && !det.forms[0].includes(" ") && nounToken?.word && !nounToken.broken &&
+            !ES_NOT_SUBJECTS.has(nounToken.lower) && !/^(?:tant|cuant|cuánt)/u.test(token.lower)
+              ? esReadNoun(nounToken.lower)
+              : null
+        return: >-
+          /^(?:él|ella|ellos|ellas)$/u.test(token.lower)
+            ? { feminine: /^ella/u.test(token.lower) as boolean | null, plural: token.lower.endsWith("s"), pronoun: true, k: i + 1 }
+            : noun && noun.plural === det!.slot >= 2
+              ? { feminine: noun.gender ? noun.gender === "f" : null, plural: noun.plural, pronoun: false, k: i + 2 }
+              : null
+      esSkipDegree:
+        args: "tokens: SpanishTokens, k: number"
+        type: number
+        return: 'ES_VG_DEGREE.has(tokens[k]?.lower ?? "") || /mente$/u.test(tokens[k]?.lower ?? "") ? esSkipDegree(tokens, k + 1) : k'
+      # The attribute after a copula: "Ellas están cansado" -> "cansadas". "Su obra ha sido
+      # traducido": the perfect of "ser" and "estar" too. "La vida es puro teatro": the adjective
+      # leads a noun after it. "Mis primas parecen niños traviesos": a noun with its own adjective
+      # after it. "Ella es médico", "Su profesión es abogado": with "ser", a masculine form after a
+      # feminine subject may name a profession. A pronoun names a person, but only a noun names a
+      # profession: "Ella es hermoso" is wrong.
+      esAttributeAgreement:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          subject: esAttributeSubject(tokens, i)
+          feminine: subject.feminine
+          plural: subject.plural
+          k1: 'tokens[subject.k]?.lower === "no" ? subject.k + 1 : subject.k'
+          copula0: tokens[k1]?.lower ?? ""
+          perfect: ES_PERFECT_AUX.has(copula0) && /^(?:sido|estado)$/u.test(tokens[k1 + 1]?.lower ?? "")
+          copula: 'perfect ? (/n$/u.test(copula0) ? "son" : tokens[k1 + 1].lower === "sido" ? "es" : "está") : copula0'
+          k2: 'perfect ? k1 + 1 : k1'
+          k: esSkipDegree(tokens, k2 + 1)
+          adjToken: tokens[k]
+          word: adjToken.lower
+          form: esGenderedForm(word) ?? esParticiple(word)
+          after: esAround(tokens, k).next()
+          afterForm: 'after ? esGenderedForm(after) : null'
+          numberClash: form.plural !== plural
+          profession: >-
+            feminine && !ES_VG_ESTAR.test(copula) &&
+            (ES_PROFESSIONS.has(word) || (subject.pronoun && ES_PROFESSION_ENDING.test(word)))
+          genderClash: feminine !== null && form.feminine !== feminine && !profession
+          fix: 'esAdjectiveFor(word, genderClash ? !form.feminine : form.feminine, plural)'
+        when:
+          - esClauseStart(tokens, i)
+          - subject
+          - '!(perfect && tokens[k1 + 1].broken)'
+          - '!(!ES_VG_COPULA.has(copula) || tokens[k2].broken)'
+          - /n$/u.test(copula) === plural
+          - adjToken?.word && !adjToken.broken && /^\p{Ll}/u.test(adjToken.text)
+          - '!(ES_VG_LEADING.has(word) || ctx.dictionary.has(word))'
+          - form
+          - '!(after && !esParticiple(word) && (ES_DETERMINER.has(after) || (esReadNoun(after) && !esReadNoun(after)?.paired)))'
+          - >-
+            !(afterForm && !esParticiple(word) && afterForm.plural === form.plural && afterForm.feminine === form.feminine &&
+              afterForm.feminine !== feminine)
+          - numberClash || genderClash
+          - fix && fix !== word
+        return: 'esReplaceToken(ctx, adjToken, [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[i])'
+      # The findings of the attribute frame, for the filter of the rule.
+      ES_ATTRIBUTES: new WeakSet<RawFinding>()
+      ES_SINGULAR_VERB: >-
+        new Map([
+          ["es", "son"], ["fue", "fueron"], ["ha", "han"], ["va", "van"], ["da", "dan"], ["ve", "ven"], ["era", "eran"],
+          ["iba", "iban"], ["está", "están"], ["estaba", "estaban"], ["había", "habían"], ["tiene", "tienen"],
+        ])
+      ES_PLURAL_VERB: new Map([...ES_SINGULAR_VERB].map((pair) => [pair[1], pair[0]] as const))
+      # Impersonal verbs: "Ellos hace días que…", "Las cosas parece que…", "Ellos puede que no".
+      ES_IMPERSONAL_VERB: /^(?:hace|hacía|hay|puede|podía|parec\p{L}*|sobre|bajo)$/u
+      # What each subject pronoun's verb may show: "yo tenía" shares the 3rd person's form.
+      ES_PERSONS: >-
+        new Map([
+          ["yo", ["1s", "vowel"]], ["tú", ["2s"]], ["nosotros", ["1p"]], ["nosotras", ["1p"]], ["vosotros", ["2p"]],
+          ["vosotras", ["2p"]],
+        ])
+      # Endings that keep the stem in every person: the imperfect, the conditional and the future
+      # ("querías" -> "queríais", "vendrá" -> "vendrás"). Slots: 1s 2s 3s 1p 2p 3p.
+      ES_SAME_STEM: >-
+        [
+          ["aba", "abas", "aba", "ábamos", "abais", "aban"],
+          ["ía", "ías", "ía", "íamos", "íais", "ían"],
+          ["é", "ás", "á", "emos", "éis", "án"],
+        ]
+      # The present keeps its stem in the first and second plural: "venimos" -> "venís".
+      ES_PRESENT_PLURAL: '[["amos", "áis"], ["emos", "éis"], ["imos", "ís"]]'
+      ES_SLOT: 'new Map([["yo", 0], ["tú", 1], ["nosotros", 3], ["nosotras", 3], ["vosotros", 4], ["vosotras", 4]])'
+      # "Me gusta las manzanas": these verbs agree with the noun phrase after them.
+      ES_LIKING: /^(?:gust|encant|interes|import|molest|fascin|preocup|apetec|falt|sobr)(?:a|an|aba|aban|ó|aron|aría|arían|e|en|ará|arán)$/u
+      ES_LIKING_PARTICIPLE: /^(?:gust|encant|interes|import|molest|fascin|preocup|apetec|falt|sobr)ado$/u
+      ES_PROFESSION_ENDING: /(?:ólogo|ógrafo|ero|ario)$/u
+      # A third-person verb's number ("tiene" -> singular, "siguen" -> plural), or null. "Las cosas
+      # parece que…": only the singular is impersonal; "La cosa parecen que…" agrees. "-mos" and
+      # "-s" are first and second persons; "-n" the third plural.
+      esVerbNumber:
+        args: "word: string"
+        type: '"singular" | "plural" | null'
+        return: >-
+          ES_PREPOSITIONS.has(word) || ES_CONJUNCTIONS.has(word) || (ES_IMPERSONAL_VERB.test(word) && !/n$/u.test(word))
+            ? null
+            : ES_SINGULAR_VERB.has(word)
+              ? "singular"
+              : ES_PLURAL_VERB.has(word)
+                ? "plural"
+                : !esFiniteVerb(word) || word.length < 3
+                  ? null
+                  : /[aeáéó]$/u.test(word) ? "singular" : /[aeá]n$/u.test(word) ? "plural" : null
+      # The same tense in the other number: "tiene" <-> "tienen", "habló" <-> "hablaron".
+      esOtherNumber:
+        args: "word: string, number: string"
+        let:
+          preterite: /^(\p{L}+)ó$/u.exec(word)
+          aron: /^(\p{L}+)aron$/u.exec(word)
+          ieron: /^(\p{L}+?)(i|y)eron$/u.exec(word)
+        return: >-
+          number === "singular"
+            ? ES_SINGULAR_VERB.get(word) ??
+              (preterite
+                ? preterite[1].endsWith("i")
+                  ? `${preterite[1].slice(0, -1)}ieron`
+                  : preterite[1].endsWith("y")
+                    ? `${preterite[1]}eron`
+                    : esIsVerb(`${preterite[1]}ar`) ? `${preterite[1]}aron` : null
+                : `${word}n`)
+            : ES_PLURAL_VERB.get(word) ?? (aron ? `${aron[1]}ó` : ieron ? `${ieron[1]}${ieron[2]}ó` : word.slice(0, -1))
+      esClauseStart:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+        return: at.starts || ES_VG_CLAUSE_OPENERS.has(at.prev())
+      esBetweenEnd:
+        args: "tokens: SpanishTokens, j: number, n: number"
+        type: number
+        return: 'n < 3 && ES_BETWEEN.has(tokens[j]?.lower ?? "") && !tokens[j].broken ? esBetweenEnd(tokens, j + 1, n + 1) : j'
+      # The verb after the subject ending at tokens[i]: its index, past "no", clitics and adverbs.
+      esVerbAfter:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          j: esBetweenEnd(tokens, i + 1, 0)
+          token: tokens[j]
+        return: "token?.word && !token.broken && !tokens[i + 1].broken ? j : -1"
+      # A capitalized given name, or mid-sentence a capitalized word the lexicon does not know. Every
+      # word is capitalized at the start: "Quizás", "Ojalá" and "Oye" name no one.
+      esPersonName:
+        args: "token: SpanishToken, sentenceStart: boolean"
+        let:
+          word: token.lower
+        when: /^\p{Lu}\p{Ll}+$/u.test(token.text)
+        return: >-
+          ES_GIVEN_NAMES.has(word) ||
+          (!sentenceStart && word.length > 2 && !esIsNoun(word) && !esIsGenderedEntry(word) && !esGenderedForm(word) &&
+            !esFiniteVerb(word) && !ES_DETERMINER.has(word) && !ES_PREPOSITIONS.has(word) && !ES_CONJUNCTIONS.has(word) &&
+            !ES_VG_CLOSED_WORDS.has(word) && !/mente$/u.test(word))
+        else: "false"
+      # The person a verb form's ending shows, or null; "vowel" is a 1st or 3rd singular.
+      esPersonOf:
+        args: "word: string"
+        return: >-
+          ES_FIRST_SINGULAR.has(word)
+            ? "1s"
+            : /mos$/u.test(word)
+              ? "1p"
+              : /(?:áis|éis|ís)$/u.test(word)
+                ? "2p"
+                : /n$/u.test(word)
+                  ? "3p"
+                  : /(?:as|es|ás|és|ste)$/u.test(word)
+                    ? "2s"
+                    : /[^aeiouáéíóú]o$/u.test(word) ? "1s" : /[aeéí]$/u.test(word) ? "vowel" : null
+      # The pronoun's form of a verb in one tense that keeps its stem, or null. "acaba" is no
+      # imperfect: the form must read as a verb.
+      esPersonFormIn:
+        args: "verb: string, endings: readonly string[], slot: number"
+        let:
+          ending: endings.filter((e) => verb.endsWith(e)).sort((a, b) => b.length - a.length)[0]
+          form: 'ending ? `${verb.slice(0, -ending.length)}${endings[endings.length === 2 ? slot - 3 : slot]}` : ""'
+        return: 'ending && form !== verb && esFiniteVerb(form) ? form : null'
+      # The pronoun's form of a verb in a tense that keeps its stem, or null.
+      esPersonForm:
+        args: "verb: string, pronoun: string"
+        let:
+          slot: ES_SLOT.get(pronoun)!
+        return: >-
+          [...ES_SAME_STEM, ...(slot >= 3 ? ES_PRESENT_PLURAL : [])]
+            .map((endings) => esPersonFormIn(verb, endings, slot))
+            .find((form) => form !== null) ?? null
+      # "Yo vienes", "Tú vengo", "Vosotros venimos": a subject pronoun and a verb of another person.
+      # "donde nosotros nieva" (where we live), "nadie más que nosotros sabe": no subject. "Nosotros
+      # hace dos años…", "nieva": impersonal verbs take no subject. "tú" before a vowel-final form
+      # may be an imperative's subject: "Tú calla". The pronoun may be the slip instead: the user
+      # picks.
+      esPronounPerson:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          allowed: ES_PERSONS.get(tokens[i].lower)
+          at: esAround(tokens, i)
+          v: esVerbAfter(tokens, i)
+          verb: tokens[v].lower
+          person: esPersonOf(verb)
+          form: esPersonForm(verb, tokens[i].lower)
+          found: 'esReplaceToken(ctx, tokens[v], form ? [form] : [], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[i])'
+        when:
+          - allowed && esClauseStart(tokens, i)
+          - '!(at.prev() === "donde" || /^(?:más|menos|tanto|igual|mejor|peor)$/u.test(at.prev(2)))'
+          - '!(v < 0 || /^\p{Lu}/u.test(tokens[v].text))'
+          - '!(ES_VG_NOT_VERBS.has(verb) || ES_CONJUNCTIONS.has(verb) || ES_PREPOSITIONS.has(verb))'
+          - '!(ES_IMPERSONAL_VERB.test(verb) || /^(?:llueve|nieva|graniza|truena|amanece|anochece)$/u.test(verb))'
+          - '!(!esFiniteVerb(verb) || esIsNoun(verb) || esGenderedForm(verb) || esParticiple(verb))'
+          - person && !allowed.includes(person)
+          - '!(tokens[i].lower === "tú" && person === "vowel")'
+        return: "found && (form ? { ...found, requiresChoice: true as const } : { ...found, warningOnly: true as const })"
+      # The clause reader's Spanish words and lexicon. "la casa": after a determiner, a form that is
+      # also a verb ("casa") is the noun.
+      esClauseNoun:
+        args: "text: string, t: SpanishClauseToken"
+        return: 'text.slice(t.start, t.end) === t.w ? !!esReadNoun(t.w) : /^\p{Lu}\p{Ll}+$/u.test(text.slice(t.start, t.end))'
+      # "los precios altos", "las cartas enviadas": an adjective or a participle that is no verb. "de
+      # tapa dura": a form with an adjective reading is the adjective there.
+      ES_CLAUSE: >-
+        ({
+          determiners: new Set([...ES_DETERMINER.keys()].filter((w) => !ES_PREPOSITIONS.has(w))),
+          prepositions: new Set(["de", "del", "en", "con", "para", "por", "sobre", "entre", "sin", "bajo", "desde", "hacia", "contra", "según", "al"]),
+          quantifiers: new Set(["todos", "todas", "algunos", "algunas", "muchos", "muchas", "varios", "varias", "pocos", "pocas"]),
+          numbers: new Set(["dos", "tres", "cuatro", "cinco", "seis", "siete", "ocho", "nueve", "diez", "cien", "mil"]),
+          notHeads: new Set([...ES_VG_CLOSED_WORDS, ...ES_PREPOSITIONS, ...ES_CONJUNCTIONS]),
+          coordinators: new Set(["y", "e", "o", "u"]),
+          joins: new Set(["y", "e"]),
+          pronouns: new Set(["mí", "ti", "él", "ella", "ellos", "ellas", "nosotros", "nosotras", "vosotros", "vosotras", "usted", "ustedes"]),
+          relatives: new Set(["que"]),
+          clitics: ES_BETWEEN,
+          isAdverb: (t: SpanishClauseToken) => ES_SPANISH_ADVERBS.has(t.w) || (/mente$/u.test(t.w) && t.w.length > 6),
+          isNoun: esClauseNoun,
+          nominal: () => false,
+          postnominal: (t: SpanishClauseToken | undefined) =>
+            !!t && !ES_VG_CLOSED_WORDS.has(t.w) &&
+            (ES_INVARIANT.has(t.w) || !!esParticiple(t.w) || (!!esGenderedForm(t.w) && esReadNoun(t.w)?.paired !== false)),
+          prenominal: (text: string, tokens: readonly SpanishClauseToken[], i: number) =>
+            ES_PRENOMINAL.has(tokens[i]?.w ?? "") && tokens[i + 1] && esClauseNoun(text, tokens[i + 1]) ? i + 1 : i,
+          isFiniteVerb: (t: SpanishClauseToken) => esFiniteVerb(t.w) && !ES_VG_NOT_VERBS.has(t.w),
+        }) as SpanishClauseProfile
+      # The words of the clause from tokens[k], up to a sign or a line break.
+      esClauseTokens:
+        args: "tokens: SpanishTokens, i: number, k: number"
+        type: SpanishClauseToken[]
+        return: >-
+          k < i + 20 && tokens[k]?.word && (k === i || !tokens[k].broken)
+            ? [{ w: tokens[k].lower, start: tokens[k].start, end: tokens[k].end, hyphen: false }, ...esClauseTokens(tokens, i, k + 1)]
+            : []
+      # A subject of a person's name: "Juan tienen", "Marta Ruiz llegan", with up to two more name
+      # parts.
+      esNameEnd:
+        args: "tokens: SpanishTokens, last: number, i: number"
+        type: number
+        return: 'last < i + 2 && /^\p{Lu}\p{Ll}+$/u.test(tokens[last + 1]?.text ?? "") ? esNameEnd(tokens, last + 1, i) : last'
+      esNameSubject:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          last: esNameEnd(tokens, i, i)
+        when: '!tokens[last + 1]?.broken'
+        return: '({ subject: "singular" as const, last })'
+      # A subject of a determiner and a noun. "¿Cuántos coches ha tenido?", "Tantas cosas ha visto":
+      # a fronted object. "Los precios de la casa sube", "La lista que hizo ayer están": the shared
+      # clause reader reads past the adjectives, the complements and a relative clause of the
+      # subject. "El pan y el vino es": two noun phrases make a plural subject. "Los niños de cara
+      # alegre ríen": a word right before another verb is an adjective.
+      esDetSubject:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          det: ES_DETERMINER.get(tokens[i].lower)
+          nounToken: tokens[i + 1]
+          noun: esReadNoun(nounToken.lower)
+          clause: esClauseTokens(tokens, i, i)
+          head: esSkipPostnominal(ES_CLAUSE, clause, 2)
+          joined: esSkipCoordinated(ES_CLAUSE, ctx.text, clause, head)
+          end: esSkipComplements(ES_CLAUSE, ctx.text, clause, joined)
+          relative: esVerbAfterRelative(ES_CLAUSE, ctx.text, clause, end, (t) => !esReadNoun(t.w))
+          read: 'relative >= 0 ? relative : end > joined || joined > head ? end : -1'
+          inside: read >= 0 && read < clause.length
+          next: clause[read + 1]
+        when:
+          - det && nounToken?.word && !nounToken.broken && !det.forms[0].includes(" ")
+          - '!(/^(?:del|al)$/u.test(tokens[i].lower) || ES_NOT_SUBJECTS.has(nounToken.lower))'
+          - '!/^(?:tant|cuant|cuánt)/u.test(tokens[i].lower)'
+          - noun && noun.plural === det.slot >= 2
+          - '!(inside && !ES_BETWEEN.has(clause[read].w) && next && esFiniteVerb(next.w) && !esReadNoun(next.w))'
+        return: >-
+          ({
+            subject: joined > head || noun.plural ? ("plural" as const) : ("singular" as const),
+            last: inside ? i + read - 1 : i + 1,
+          })
+      # The subject at clause start: a pronoun, a person's name, or a determiner and a noun.
+      esSubjectHead:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          lower: tokens[i].lower
+        when: esClauseStart(tokens, i)
+        return: >-
+          ES_SINGULAR_PRONOUNS.has(lower)
+            ? { subject: "singular" as const, last: i }
+            : ES_PLURAL_PRONOUNS.has(lower)
+              ? { subject: "plural" as const, last: i }
+              : esPersonName(tokens[i], esAround(tokens, i).starts)
+                ? esNameSubject(tokens, i)
+                : esDetSubject(ctx, tokens, i)
+      # "Las manzanas las compra Juan": a fronted object, taken up by its clitic.
+      esFrontedObject:
+        args: "tokens: SpanishTokens, j: number, v: number, plural: boolean"
+        type: boolean
+        return: >-
+          j >= v
+            ? false
+            : (/^(?:lo|la|los|las)$/u.test(tokens[j].lower) && /s$/u.test(tokens[j].lower) === plural) ||
+              esFrontedObject(tokens, j + 1, v, plural)
+      # "El problema son los precios": "ser" agrees with a plural complement after it. "Su pasión han
+      # sido las fresas": the perfect of "ser" too. A noun phrase after it may be what the verb
+      # agrees with; an adjective may not. "Los amigos fue así", "Las niñas fue a casa": a manner or
+      # a place is no plural attribute.
+      esSerComplement:
+        args: "tokens: SpanishTokens, v: number, verb: string, sido: boolean, number: string"
+        let:
+          next: 'esAround(tokens, sido ? v + 1 : v).next()'
+          complement: esReadNoun(next)
+          linked: /^(?:muy|tan|bastante|demasiado|así)$/u.test(next) || ES_PREPOSITIONS.has(next)
+        return: >-
+          ES_DETERMINER.has(next) || (complement && !complement.paired)
+            ? true
+            : ES_VG_SER.has(verb) && !linked && !complement ? true : complement?.plural === (number === "plural")
+      # Subject (pronoun, or determiner + noun) at clause start and the verb after it. "Mi amigo Eren
+      # es…": a name, not a verb. "Las cosas había parecido que…": an impersonal perfect.
+      esSubjectVerb:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          head: esSubjectHead(ctx, tokens, i)
+          last: head.last
+          v: esVerbAfter(tokens, last)
+          verb: tokens[v].lower
+          number: esVerbNumber(verb)
+          sido: /^(?:ha|han|había|habían)$/u.test(verb) && tokens[v + 1]?.lower === "sido"
+          fix: esOtherNumber(verb, number)
+        when:
+          - head
+          - v >= 0
+          - '!esFrontedObject(tokens, last + 1, v, head.subject === "plural")'
+          - '!(/^\p{Lu}/u.test(tokens[v].text) || tokens[last + 1]?.lower === "de")'
+          - number && number !== head.subject
+          - '!(number === "singular" && ES_IMPERSONAL_VERB.test(tokens[v + 1]?.lower ?? ""))'
+          - '!((ES_VG_SER.has(verb) || sido) && esSerComplement(tokens, v, verb, sido, number))'
+          - fix && fix !== verb
+        return: 'esReplaceToken(ctx, tokens[v], [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[last])'
+      esLikingSkip:
+        args: "tokens: SpanishTokens, j: number"
+        type: number
+        return: '/^(?:mucho|más|muchísimo|bastante|tanto|poco)$/u.test(tokens[j]?.lower ?? "") ? esLikingSkip(tokens, j + 1) : j'
+      # "Me ha gustado las manzanas": the auxiliary agrees. "No me gustan esa clase de bromas": the
+      # noun after "de" counts. "Me gustan el cine y la música": a coordinated subject is plural.
+      esLiking:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          word: tokens[i].lower
+          perfect: /^(?:ha|han)$/u.test(word) && ES_LIKING_PARTICIPLE.test(at.next())
+          j: 'esLikingSkip(tokens, i + (perfect ? 2 : 1))'
+          detToken: tokens[j]
+          nounToken: tokens[j + 1]
+          det: detToken && ES_DETERMINER.get(detToken.lower)
+          noun: esReadNoun(nounToken.lower)
+          after: esAround(tokens, j + 1).next()
+          number: esVerbNumber(word)
+          fix: esOtherNumber(word, number)
+        when:
+          - /^(?:me|te|le|nos|os|les)$/u.test(at.prev())
+          - perfect || ES_LIKING.test(word)
+          - '!(!det || det.forms[0].includes(" ") || !nounToken?.word || nounToken.broken)'
+          - '!ES_NOT_SUBJECTS.has(nounToken.lower)'
+          - noun && noun.plural === det.slot >= 2
+          - '!(/^(?:y|e|o|u|ni)$/u.test(after) || tokens[j + 2]?.text === ",")'
+          - number && (number === "plural") !== noun.plural
+          - fix
+        return: 'esReplaceToken(ctx, tokens[i], [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", nounToken)'
+      # "han sido", "hemos estado". "Son resultado de…", "No eran pecado": a noun in -ado. "están
+      # hecho de madera": made of it ("están hecho polvo" is an idiom some write so). "Son pasado
+      # mañana".
+      esCopulaParticiple:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          word: tokens[i].lower
+          k: '/mente$/u.test(at.next(1)) || /^(?:siempre|ya|muy|todavía)$/u.test(at.next(1)) ? 2 : 1'
+          next: at.next(k)
+          madeOf: next === "hecho" && at.next(k + 1) === "de"
+        when:
+          - >-
+            ES_VG_PLURAL_COPULA.has(word) ||
+            (/^(?:sido|estado)$/u.test(word) && /^(?:han|hemos|habían|habíamos)$/u.test(at.prev()))
+          - '!(!madeOf && (!/^\p{L}+[aií]do$/u.test(next) || !esParticiple(next) || esIsNoun(next)))'
+          - '!(next === "pasado" || (next === "hecho" && !madeOf))'
+        return: 'esReplaceToken(ctx, tokens[i + k], [`${next}s`], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[i])'
+      # The verb before "ser"/"estar", past "que", "por", "de" or "a".
+      esVerbBeforeCopula:
+        args: "at: SpanishAround"
+        return: '/^(?:que|por|de|a)$/u.test(at.prev()) ? at.prev(2) : at.prev()'
+      # "Debemos ser", "Tenemos que estar", "Acabarán por ser": a plural verb before the infinitive.
+      # "Quieren ser médico": each one's profession. "Somos buena gente": an adjective before its
+      # noun.
+      esPluralAttribute:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          word: tokens[i].lower
+          verb: esVerbBeforeCopula(at)
+          plural: >-
+            ES_FIRST_PLURAL_COPULA.has(word) ||
+            (/^(?:ser|estar)$/u.test(word) && /(?:mos|[aeá]n)$/u.test(verb) && esFiniteVerb(verb) && !esIsNoun(verb))
+          k: '/^(?:muy|tan|bastante|plenamente|totalmente|siempre|todos|todas)$/u.test(at.next(1)) ? 2 : 1'
+          adjective: at.next(k)
+          after: esAround(tokens, i + k).next()
+          form: esGenderedForm(adjective)
+          fix: >-
+            form && !form.plural && !esParticiple(adjective)
+              ? /[oa]$/u.test(adjective) ? `${adjective}s` : esPluralOf(adjective)
+              : ES_INVARIANT.has(adjective) && !/s$/u.test(adjective) ? esPluralOf(adjective) : null
+        when:
+          - plural
+          - '!(!adjective || ES_NOT_PLURAL_ATTRIBUTES.has(adjective) || ctx.dictionary.has(adjective))'
+          - '!(ES_PROFESSIONS.has(adjective) || ES_PROFESSION_ENDING.test(adjective))'
+          - '!(after && esReadNoun(after) && !ES_PREPOSITIONS.has(after))'
+          - fix
+        return: 'esReplaceToken(ctx, tokens[i + k], [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[i])'
+      # "Tienes que ser conscientes", "Sé conscientes": a singular subject's "ser"/"estar" (after a
+      # first or second person singular verb, or the imperative "sé") before a plural adjective.
+      # "Hay que ser conscientes" is impersonal and stays. "Somos buena gente": an adjective before
+      # its noun.
+      esSingularCopulaAttribute:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          word: tokens[i].lower
+          verb: esVerbBeforeCopula(at)
+          singular: >-
+            /^(?:ser|estar)$/u.test(word)
+              ? !!verb && verb !== "hay" && !esIsNoun(verb) &&
+                ((/s$/u.test(verb) && esSecondPersonVerb(verb)) || (/o$/u.test(verb) && esFiniteVerb(verb)))
+              : word === "sé" && at.starts
+          adjective: at.next()
+          invariant: ES_INVARIANT.has(adjective.slice(0, -1))
+          after: at.next(2)
+          form: esGenderedForm(adjective)
+          fix: >-
+            form?.plural && /[oa]s$/u.test(adjective)
+              ? adjective.slice(0, -1)
+              : invariant && /es$/u.test(adjective) ? adjective.slice(0, -1) : null
+        when:
+          - singular
+          - '!(!adjective || ctx.dictionary.has(adjective) || (esIsNoun(adjective) && !invariant))'
+          - '!(after && esReadNoun(after) && !ES_PREPOSITIONS.has(after))'
+          - fix
+        return: 'esReplaceToken(ctx, tokens[i + 1], [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", tokens[i])'
+      # Verbs of coming and going, whose subject follows "¿De dónde…?" ("¿De dónde vienen esos
+      # regalos?").
+      ES_MOTION: /^(?:vien\p{L}*|viene|vino|vinieron|sal\p{L}*|lleg\p{L}*|proced\p{L}*|va|van|iba|iban)$/u
+      # "¿Qué compran el niño?" -> "compra", "¿De dónde viene esos regalos?" -> "vienen": after an
+      # opening "¿Qué" (then the object of a plural verb) or "¿De dónde"/"¿Adónde" and a verb of
+      # motion, the noun phrase right after the third-person verb is its subject. Third person forms
+      # only: "¿Qué ves los domingos?" has its own subject. The noun phrase ends there: "¿Qué hace la
+      # gente aquí?" is fine, "¿Qué dice el libro de…?". "¿Qué compran el niño y su madre?": a
+      # coordinated subject; "al niño" is an object. "¿Qué compran el sábado?": a time, not the
+      # subject. "¿Qué causa las lluvias?": "qué" may be the subject of a singular verb itself.
+      esAskedSubject:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          first: tokens[i].lower
+          v: 'first === "de" && tokens[i + 1]?.lower === "dónde" ? i + 2 : i + 1'
+          verbToken: tokens[v]
+          det: ES_DETERMINER.get(tokens[v + 1]?.lower ?? "")
+          nounToken: tokens[v + 2]
+          verb: verbToken.lower
+          noun: esReadNoun(nounToken.lower)
+          after: tokens[v + 3]
+          verbPlural: /n$/u.test(verb)
+          fix: 'esOtherNumber(verb, verbPlural ? "plural" : "singular")'
+        when:
+          - tokens[i - 1]?.text === "¿"
+          - (first === "de" && tokens[i + 1]?.lower === "dónde") || first === "qué" || first === "adónde"
+          - '!(!verbToken?.word || !det || !nounToken?.word || tokens[v + 1].broken || nounToken.broken)'
+          - '!(first !== "qué" && !ES_MOTION.test(verb))'
+          - /(?:[aeó]|[ae]n|aron|ieron)$/u.test(verb) && esFiniteVerb(verb)
+          - '!(!noun || noun.plural !== det.slot >= 2 || ctx.dictionary.has(nounToken.lower))'
+          - '!(after?.word && !after.broken && (esReadNoun(after.lower) || /^(?:y|e|o|u|ni|con)$/u.test(after.lower)))'
+          - '!/^(?:al|del)$/u.test(tokens[v + 1].lower)'
+          - '!/^(?:lunes|martes|miércoles|jueves|viernes|sábados?|domingos?|día|días|mes|meses|año|años|semana|semanas|noche|noches|mañana|mañanas|tarde|tardes|verano|invierno|otoño|primavera|fin|rato|momento)$/u.test(nounToken.lower)'
+          - verbPlural !== noun.plural
+          - '!(first === "qué" && !verbPlural)'
+          - fix && esFiniteVerb(fix)
+        return: 'esReplaceToken(ctx, verbToken, [fix], "spanishAgreement", "review_msg_spanish_verb_agreement", nounToken)'
+      esInReach:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        return: tokens[i].word && tokens[i].start >= ctx.from - 64 && tokens[i].start < ctx.to
     frames:
       # Every word from 64 characters before the chunk: the checks key on verbs and subjects,
       # which are no closed list. The fixer reads the subject and the number of the verb
@@ -5105,13 +5694,31 @@ rules:
         flags: gu
         scan: owned
         lookback: 64
-        fixer: verbAgreement
+        # The subject and verb checks of the token.
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+        when:
+          - i >= 0
+          - esInReach(ctx, tokens, i)
+        return: >-
+          esSubjectVerb(ctx, tokens, i) ?? esPronounPerson(ctx, tokens, i) ?? esLiking(ctx, tokens, i) ??
+          esCopulaParticiple(ctx, tokens, i) ?? esPluralAttribute(ctx, tokens, i) ?? esSingularCopulaAttribute(ctx, tokens, i) ??
+          esAskedSubject(ctx, tokens, i)
       # The attribute after a copula: "Ellas están cansado" -> "cansadas".
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
         lookback: 64
-        fixer: verbAttribute
+        # The attribute after a copula: "Ellas están cansado" -> "cansadas".
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          adjective: esAttributeAgreement(ctx, tokens, i)
+        when:
+          - i >= 0
+          - esInReach(ctx, tokens, i)
+        return: adjective && remember(ES_ATTRIBUTES, adjective)
   - id: es.clauseAgreement
     checks: [spanishAgreement]
     group: spanishAgreement

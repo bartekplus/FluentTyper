@@ -76,3 +76,14 @@ export {
   yearsFor as esYearsFor,
 } from "../review/reviewClock";
 export { invalidIsoDate as esInvalidIsoDate } from "../review/isoDates";
+// The clause reader that the agreement checks of several languages share.
+export type {
+  ClauseProfile as SpanishClauseProfile,
+  ClauseToken as SpanishClauseToken,
+} from "../review/clauseReader";
+export {
+  skipComplements as esSkipComplements,
+  skipCoordinated as esSkipCoordinated,
+  skipPostnominal as esSkipPostnominal,
+  verbAfterRelative as esVerbAfterRelative,
+} from "../review/clauseReader";

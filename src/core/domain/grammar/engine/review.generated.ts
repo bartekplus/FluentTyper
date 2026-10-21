@@ -2694,7 +2694,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1479, 1480],
     message: "review_msg_spanish_verb_agreement",
     style: "match",
-    filter: "es:attributeFirst",
+    filter: "es:@es.verbAgreement/filter",
     group: "spanishAgreement",
     source: "es",
   },
@@ -18044,7 +18044,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{L}[\\p{L}\\p{M}]*",
     literals: [],
-    fixer: "es:verbAgreement",
+    fixer: "es:@es.verbAgreement/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -18052,7 +18052,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{L}[\\p{L}\\p{M}]*",
     literals: [],
-    fixer: "es:verbAttribute",
+    fixer: "es:@es.verbAgreement/2",
     flags: "gu",
     scan: "owned",
     lookback: 64,
