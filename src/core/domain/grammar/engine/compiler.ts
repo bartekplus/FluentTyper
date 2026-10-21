@@ -2,6 +2,7 @@ import { SUPPORTED_PREDICTION_LANGUAGE_KEYS, TEXT_EXPANDER_LANG } from "../../la
 import { isTokenPredicate } from "./predicates";
 import { parseRows, type PhraseRow } from "./rows";
 import { tokenKey } from "./tokenizer";
+import { fileCode, frameCode, type CodeScope, type FileCode, type Names } from "./ruleCode";
 import {
   CLAUSE,
   COMPLETE,
@@ -100,6 +101,9 @@ const FRAME_KEYS = new Set([
   "regex",
   "fix",
   "fixer",
+  "let",
+  "when",
+  "return",
   "raw",
   "message",
   "clauseStart",
@@ -234,6 +238,8 @@ export interface CompiledRuleSet {
   phrases: Record<string, Partial<Record<(typeof PHRASE_KINDS)[number], PhraseRow[]>>>;
   /** Named tables: "<file>.<name>" -> rows. */
   tables: Record<string, PhraseRow[]>;
+  /** The code of each rule file (sets, maps, defs and frame fixes), by file name. */
+  code: Record<string, FileCode>;
 }
 
 export interface PatternSetOut {
@@ -332,8 +338,14 @@ function checkLanguages(
   );
 }
 
-/** Compiles the rule files, given in RULE_FILES order as [name, parsed YAML]. */
-export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]): CompiledRuleSet {
+/**
+ * Compiles the rule files, given in RULE_FILES order as [name, parsed YAML]. `library`: the names
+ * of the rule library, which expressions may read (unchecked when absent).
+ */
+export function compileRuleFiles(
+  files: readonly (readonly [string, RuleFile])[],
+  options: { library?: ReadonlySet<string> } = {},
+): CompiledRuleSet {
   const errors: string[] = [];
   const checks = new Map<string, CheckSpec>();
   const catalog: CatalogEntryOut[] = [];
@@ -440,6 +452,24 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
   const shared = files.find(([name]) => name === "common")?.[1].fragments ?? {};
   const fragmentsOf = (file: RuleFile) => ({ ...shared, ...file.fragments });
 
+  // The code of each file; common.yaml's names are shared with every other file.
+  const common = files.find(([name]) => name === "common")?.[1];
+  const scope: CodeScope = {
+    ...(options.library ? { library: options.library } : {}),
+    shared: new Set(
+      [common?.sets, common?.maps, common?.defs].flatMap((section) => Object.keys(section ?? {})),
+    ),
+  };
+  const fileCodes: Record<string, FileCode> = {};
+  const namesOf = new Map<string, Names>();
+  for (const [name, file] of files) {
+    const expand = (source: string, at: string) =>
+      expandFrame(source, fragmentsOf(file), at, errors);
+    const read = fileCode(name, file, scope, expand, errors);
+    fileCodes[name] = read.code;
+    namesOf.set(name, read.names);
+  }
+
   const ruleIds = new Set<string>();
   const rules: CompiledRule[] = [];
   const reviewPatterns: PatternSetOut = { patterns: [], anchors: {}, structural: [] };
@@ -506,8 +536,10 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
         const at = `${where} frame ${j + 1}`;
         for (const key of Object.keys(entry))
           if (!FRAME_KEYS.has(key)) errors.push(`${at}: unknown frame field "${key}"`);
-        if ((entry.fix === undefined) === (entry.fixer === undefined))
-          errors.push(`${at}: give exactly one of "fix" and "fixer"`);
+        if ([entry.fix, entry.fixer, entry.return].filter((v) => v !== undefined).length !== 1)
+          errors.push(`${at}: give exactly one of "fix" and "fixer", or a "return" expression`);
+        if (entry.return === undefined && (entry.let !== undefined || entry.when !== undefined))
+          errors.push(`${at}: "let" and "when" need "return"`);
         const match = spec.style === "match";
         const scan = entry.scan ?? "frame";
         if (spec.style === "template" && (typeof entry.fix !== "string" || entry.raw))
@@ -596,13 +628,30 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
           !pattern.includes("(?<target>")
         )
           errors.push(`${at}: a frame needs a "target" group`);
+        // A `return` expression becomes a fixer of the file's generated module.
+        const key = `@${spec.id}/${j + 1}`;
+        const fixCode =
+          entry.return === undefined
+            ? undefined
+            : frameCode(
+                key,
+                spec.style ?? "frame",
+                at,
+                pattern,
+                entry,
+                namesOf.get(name)!,
+                (source, where) => expandFrame(source, fragmentsOf(file), where, errors),
+                errors,
+              );
+        if (fixCode) (fileCodes[name].frames as FileCode["frames"][number][]).push(fixCode);
+        const fixer = fixCode ? key : entry.fixer;
         frames.push({
           pattern,
           literals: requiredLiterals(pattern),
           ...(entry.fix === undefined ? {} : { fix: entry.fix }),
-          ...(entry.fixer === undefined
+          ...(fixer === undefined
             ? {}
-            : { fixer: entry.fixer.includes(":") ? entry.fixer : `${name}:${entry.fixer}` }),
+            : { fixer: fixer.includes(":") ? fixer : `${name}:${fixer}` }),
           ...(entry.raw ? { raw: true as const } : {}),
           ...(entry.message === undefined ? {} : { message: entry.message }),
           ...(entry.clauseStart ? { clauseStart: true as const } : {}),
@@ -742,5 +791,6 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
     frames,
     phrases,
     tables,
+    code: fileCodes,
   };
 }

@@ -94,7 +94,7 @@ const STYLES: Record<FrameStyle, Style> = {
     find(ctx, m, frame, findings) {
       const [start, end] = target(m);
       if (hasUserOrCasedWord(ctx, ctx.text.slice(m.index, Math.max(end, matchEnd(m))))) return;
-      const value = fixOf(frame, m) as string | readonly string[] | null;
+      const value = fixOf(frame, m, ctx, frame) as string | readonly string[] | null;
       if (value === null) return;
       const style = detectWordCase(m.groups!.target.trim());
       const alternatives = [value]
@@ -137,7 +137,7 @@ const STYLES: Record<FrameStyle, Style> = {
       if (hasUserOrCasedWord(ctx, m[0])) return;
       // A quoted example ("need to backup") is mentioned, not used.
       if (quotedSpan(ctx.text, m.index, matchEnd(m))) return;
-      const result = fixOf(frame, m, ctx) as FixResult;
+      const result = fixOf(frame, m, ctx, frame) as FixResult;
       if (result === null) return;
       const {
         alternatives,
@@ -172,7 +172,7 @@ const STYLES: Record<FrameStyle, Style> = {
       const [start, end] = target(m);
       const typed = ctx.text.slice(start, end);
       if (hasUserOrCasedWord(ctx, frame.frame.targetOnly ? typed : m[0])) return;
-      const value = fixOf(frame, m, ctx) as string | readonly string[] | null;
+      const value = fixOf(frame, m, ctx, frame) as string | readonly string[] | null;
       if (value === null) return;
       const alternatives = [value]
         .flat()
@@ -201,7 +201,7 @@ const STYLES: Record<FrameStyle, Style> = {
       const [start, end] = m.indices!.groups![name];
       const typed = m.groups![name];
       if (ctx.dictionary.has(typed.toLowerCase())) return;
-      const fixed = fixOf(frame, m) as string | readonly string[] | null;
+      const fixed = fixOf(frame, m, ctx, frame) as string | readonly string[] | null;
       const replacements = fixed === null ? [] : [fixed].flat().filter((r) => r !== typed);
       if (replacements.length === 0) return;
       findings.push({
@@ -243,7 +243,7 @@ const STYLES: Record<FrameStyle, Style> = {
         ruleId: frame.ruleId,
         messageKey: frame.messageKey,
         range: { start, end },
-        alternatives: [fixOf(frame, m) as string],
+        alternatives: [fixOf(frame, m, ctx, frame) as string],
         context: { start: m.index, end: Math.max(end, matchEnd(m)) },
       });
     },
@@ -257,7 +257,7 @@ const STYLES: Record<FrameStyle, Style> = {
       if (userOrNamed(ctx, typed)) return;
       if (frame.frame.lowercase && /^\p{Lu}/u.test(typed) && !sentenceStartAt(ctx.text, start))
         return;
-      const fixed = fixOf(frame, m) as string | readonly string[] | null;
+      const fixed = fixOf(frame, m, ctx, frame) as string | readonly string[] | null;
       if (fixed === null) return;
       const alternatives = [fixed]
         .flat()
@@ -277,7 +277,7 @@ const STYLES: Record<FrameStyle, Style> = {
       if (start < ctx.from || start >= ctx.to) return;
       const typed = ctx.source.slice(start, end);
       if (/\p{L}/u.test(typed) && userOrNamed(ctx, typed)) return;
-      const fixed = fixOf(frame, m, ctx) as string | null;
+      const fixed = fixOf(frame, m, ctx, frame) as string | null;
       if (fixed === null || fixed === typed) return;
       findings.push(findingAt(ctx, start, end, [fixed], frame.ruleId, frame.messageKey));
     },
@@ -290,7 +290,7 @@ const STYLES: Record<FrameStyle, Style> = {
     find(ctx, m, frame, findings) {
       const typed = m[0];
       if (userOrNamed(ctx, typed)) return;
-      const fixed = fixOf(frame, m, ctx) as string | null;
+      const fixed = fixOf(frame, m, ctx, frame) as string | null;
       if (fixed === null || fixed === typed) return;
       findings.push(
         findingAt(ctx, m.index, m.index + typed.length, [fixed], frame.ruleId, frame.messageKey),

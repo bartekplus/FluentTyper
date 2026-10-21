@@ -1,3 +1,4 @@
+import type { DefSpec, FrameCodeSpec } from "./ruleCode";
 /**
  * The declarative grammar rule format (src/core/domain/grammar/rules/*.yaml) and its
  * compiled form. scripts/compile-grammar-rules.ts validates the files and writes the
@@ -91,7 +92,7 @@ export interface CheckSpec {
  * inserts a fragment (the file's `fragments`, or S, E, COMPLETE, COMPLETE_OR_PAREN, CLAUSE,
  * TOKEN_END), and `{{notAfter:a|b}}` a "not right after these words" guard.
  */
-export interface FrameSpec {
+export interface FrameSpec extends FrameCodeSpec {
   regex: string;
   /** The fix, or the fixes to choose from. */
   fix?: string | readonly string[];
@@ -231,8 +232,14 @@ export interface RuleFile {
   phrases?: PhraseTables;
   /** Named phrase tables (English modules and option tables): name -> rows. */
   tables?: Readonly<Record<string, string>>;
-  /** Regex fragments for the frames of the file: `{{NAME}}`. */
+  /** Regex fragments for the frames and expressions of the file: `{{NAME}}`. */
   fragments?: Readonly<Record<string, string>>;
+  /** Word sets that expressions read: name -> words (a ReadonlySet<string>). */
+  sets?: Readonly<Record<string, readonly string[]>>;
+  /** Mappings that expressions read: name -> key -> value. */
+  maps?: Readonly<Record<string, Readonly<Record<string, unknown>>>>;
+  /** Named expressions and functions of the file's expressions; common.yaml's are shared. */
+  defs?: Readonly<Record<string, DefSpec>>;
 }
 
 // ------------------------------------------------------------------ compiled form

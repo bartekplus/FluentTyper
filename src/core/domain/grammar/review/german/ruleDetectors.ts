@@ -23,7 +23,6 @@ import * as joinedVerbs from "./joinedVerbs";
 import * as nounCasing from "./nounCasing";
 import * as nominalized from "./nominalized";
 import * as capitalized from "./capitalized";
-import * as idioms from "./idioms";
 import * as names from "./names";
 import * as numbers from "./numbers";
 import * as prepositionCase from "./prepositionCase";
@@ -63,7 +62,6 @@ export const FIXERS = mergePredicates<Fixer>(
   nounCasing.FIXERS,
   nominalized.FIXERS,
   capitalized.FIXERS,
-  idioms.FIXERS,
   names.FIXERS,
 );
 

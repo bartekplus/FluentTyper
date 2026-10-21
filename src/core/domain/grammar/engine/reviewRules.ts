@@ -6,6 +6,7 @@ import type { ReviewMessageKey } from "../review/types";
 import { detectFrames, prepareFrames } from "./frameStyles";
 import { findMatches, type PatternSet } from "./matcher";
 import { REVIEW_FRAMES, REVIEW_PATTERNS, REVIEW_RULES } from "./review.generated";
+import { RULE_FIXERS } from "./rules/index.generated";
 import { primeFrameLiterals, WORD_START } from "../review/phraseTemplates";
 import { chunkTokens } from "./reviewTokens";
 import { tokenKey } from "./tokenizer";
@@ -163,7 +164,7 @@ export function frameRuleDetector(
     throw new Error(`Grammar rule ${id}: no filter "${rule.filter}"`);
   const fixOf = (fix: CompiledFrame["fix"], fixer: string | undefined) => {
     if (fixer === undefined) return fix!;
-    const found = named(fixers, fixer);
+    const found = named(RULE_FIXERS, fixer) ?? named(fixers, fixer);
     if (!found) throw new Error(`Grammar rule ${id}: no fixer "${fixer}"`);
     return found;
   };

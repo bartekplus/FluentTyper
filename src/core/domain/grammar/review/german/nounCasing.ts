@@ -12,7 +12,7 @@ import {
   germanVerbLike,
   type GermanNounReading,
 } from "./germanLexicon";
-import { IDIOM_FINDINGS } from "./idioms";
+import { IDIOM_FINDINGS } from "../../engine/rules/de.generated";
 import {
   BOUNDARY,
   englishLine,
