@@ -4395,7 +4395,7 @@ fragments:
   # The ISO date (yyyy-mm-dd) frame of the language files (fixer common:invalidIsoDate).
   DIGIT: "[0-9٠-٩۰-۹]"
   ISO_DATE: "(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{L}\\p{N}][-./])(?<year>{{DIGIT}}{4})-(?<month>{{DIGIT}}{2})-(?<day>{{DIGIT}}{2})(?![*_~]{0,3}[\\p{L}\\p{N}])(?![-./][\\p{L}\\p{N}])"
-  # The number range frame of the language files (their rangeDash fixers).
+  # The number range frame of the language files (their range dash rules).
   RANGE_DASH: "(?<![\\p{L}\\p{N}.,:/#+\\u2013\\u2014-])(\\d{1,4})([-\\u2014])(\\d{1,4})(?![\\p{L}\\p{N}_]|[-\\u2013\\u2014/:.,]\\p{N})"
   SUBJECT: "(?:I|you|we|they|he|she|it)"
   KNEW_ADVERB: "(?:always|never|often|already|just|really|still|also|sometimes|usually|probably|certainly|clearly|somehow|instantly|immediately|suddenly|finally|then)"
@@ -4463,7 +4463,7 @@ fragments:
   # when we were young", "between Ann and I which".
   CASE_PAIR_ENDS: "(?:{{COMPLETE_OR_PAREN}}|{{E}}(?={{S}}(?:and|which|who|whom|when|if|that|about|before|after|into|with|on|at|in|to|from|by|for){{E}}))"
   CONFUSION_NOUN: "(?:passwords?|accounts?|files?|documents?|names?|address(?:es)?|keys?|reports?|versions?|models?|results?|plans?|answers?)"
-  # The comparatives of EnglishDegreeForms.ts (ENGLISH_COMPARATIVES).
+  # Frequent comparatives.
   CONFUSION_COMPARATIVE: "(?:faster|slower|larger|smaller|better|worse|newer|older|cheaper|safer)"
   CONFUSION_MORE_COMPARATIVES: "(?:more|less|fewer|other|bigger|taller|shorter|longer|higher|lower|younger|stronger|weaker|smarter|harder|easier|simpler|busier|happier|greater|closer|quicker|louder|quieter|heavier|lighter|wider|warmer|colder|hotter|nicer)"
   CONFUSION_ARGUMENT: "(?:(?:the|my|your|our|their){{S}}(?:(?:old|new|previous|other){{S}})?{{CONFUSION_NOUN}}|me|him|her|us|them)"
@@ -4499,7 +4499,7 @@ fragments:
   OWNED_WORD_START: "(?:(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=\\p{L})(?=(?:['’](?:m|re|ll|ve)|n['’]t)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))"
   DEGREE_NOUN: "(?:algorithm|approach|result|option|route|method|plan|model|version|device|answer|solution|test)"
   DEGREE_SUBJECT: "(?:this|that|it|(?:this|that|the){{S}}(?:(?:new|old|revised|previous){{S}})?{{DEGREE_NOUN}}){{S}}(?:is|was)(?:{{S}}also)?"
-  # The comparatives of EnglishDegreeForms.ts (ENGLISH_COMPARATIVES), "easier" and "simpler".
+  # Frequent comparatives, with "easier" and "simpler".
   DEGREE_COMPARATIVE: "(?:faster|slower|larger|smaller|better|worse|newer|older|cheaper|safer|easier|simpler)"
   DEGREE_SUPERLATIVE: "(?:fastest|slowest|largest|smallest|best|worst|newest|oldest|cheapest|safest|easiest)"
   # A German currency or byte unit glued to its number: "75.000$", "5kB".
@@ -7345,8 +7345,7 @@ rules:
         # A template frame: the casing of the target, no user or cased word in the match.
         when: "!hasUserOrCasedWord(ctx, m[0])"
         return: applyWordCase("to test", detectWordCase(target))
-      # "We need fix this bug": the verb and its complete argument come from COMPLEMENTS
-      # (englishComplements.ts).
+      # "We need fix this bug": the verb and its complete argument come from COMPLEMENTS.
       - regex: "{{SUBJECT}}{{S}}{{COMPLEMENT_NEGATIVE}}(?:need|needs|needed|want|wants|wanted|plan|plans|planned){{S}}(?<target>fix|deploy|meet|make|take|write|run|come|see|learn|visit|read|send|go){{E}}"
         let:
           span: group(m, "target")
@@ -9944,8 +9943,8 @@ rules:
       # object pair before a closed word or the clause end.
       - regex: "(?=[a-z]+(?:{{S}}[a-z]+){1,3}{{S}}(?:and|or){{S}}I(?![\\p{L}]))(?<lead>[a-z]+){{S}}(?<a>{{CASE_CONJUNCT}}){{S}}(?:and|or){{S}}(?<i>I)(?:{{E}}(?={{S}}(?<next>[a-z]+){{E}})|{{COMPLETE_OR_PAREN}})"
         owner: a
-        # andIBefore needs a clause end or an OBJECT_NEXT word (englishPronounCase.ts) after "I": the
-        # gate repeats that list. shortcut: as for coordinatedSubjects.
+        # andIBefore needs a clause end or an OBJECT_NEXT word after "I": the gate repeats that
+        # list. shortcut: as for coordinatedSubjects.
         gate: "(?:and|or)[ \\t\\u00a0]{1,8}I(?:[ \\t\\u00a0]{1,8}(?:that|about|before|after|into|with|without|tonight|today|tomorrow|yesterday|here|there|but|for|on|at|in|to|from|by|over|again|together|if|when|which|who|whom)|[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
         gateFlags: giu
         let:
@@ -13060,8 +13059,8 @@ rules:
           })
   # Date and tense agreement runs after every language's own rules (stage 1). One rule for each
   # language: one frame per date shape, the preposition, the date (`date`), an optional suffix
-  # ("12 marca 2028 r.", "… 2028 roku") and no letter or digit after it. The month names come
-  # from the date modules of each language (german/dates.ts, french/dates.ts, …).
+  # ("12 marca 2028 r.", "… 2028 roku") and no letter or digit after it. Each frame holds the
+  # month names of its language.
   - id: dateTense.de
     checks: [dateTenseConsistency]
     lang: de

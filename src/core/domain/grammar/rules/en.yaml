@@ -1818,8 +1818,8 @@ rules:
             context: { start: Math.max(0, start - 80), end: Math.min(ctx.text.length, end + 80) } })
     frames:
       # Lookalike words decided by their syntactic slot: "I thing" is a verb slot, "good
-      # advise" a noun slot. One alternative for each handler word of confusions1.ts; the word
-      # owns the match.
+      # advise" a noun slot. One alternative for each word of the frame; the word owns the
+      # match.
       - regex: "(?<![\\p{L}\\p{N}_'’@/#\\\\.-])(?:brandishing|brandishes|brandished|prejudice|you['’]re|emphasis|response|brandish|whatever|whenever|wherever|everyday|let['’]s|believe|breathe|concern|denying|opening|effects|affects|summery|whoever|it['’]s|advice|belief|breath|intent|advise|intend|denies|denied|opened|effect|affect|weight|hoping|roller|theses|thing|worry|shock|opens|bough|quiet|hopes|hoped|rogue|bias|deny|open|safe|fell|find|hops|hope|cant|that|then|lets|were|hop|its|let|dissembl[a-z]*)(?![\\p{L}\\p{N}_'’@#\\\\])"
         flags: dgiu
         owner: none
@@ -5056,7 +5056,7 @@ rules:
       # helped given that…": "given" works as a preposition. "did not found any towns":
       # found/ground/wound are base verbs too; "didn't found it" still gets the fix. "The survey
       # we did showed…": did closes a relative clause after a noun; a time word is no head
-      # ("Yesterday I did showed"). "Did you bored?" asks with be: englishAuxiliaryForms offers
+      # ("Yesterday I did showed"). "Did you bored?" asks with be: rule auxiliaryForms offers
       # "Were you bored". Affirmative "did" is also the main verb ("They did needed repairs"): it
       # needs a pronoun subject, or "Did" opening the clause, and an object. "I did wanted catch
       # it": a bare verb after the participle is no object either.
@@ -10631,8 +10631,8 @@ rules:
       - regex: "(?<dem>these|those){{S}}(?=[a-z])"
         owner: dem
         # The clause goes on in known words ("Those file have unknownword." gives nothing), and the words
-        # of the user stay as typed. "Those file are missing" belongs to the status template in
-        # englishNounNumber.ts. A noun before be or a modal: "These chair would…" ("These cost more" has
+        # of the user stay as typed. "Those file are missing" belongs to the frames of
+        # common.yaml that read NUMBER_STATUS. A noun before be or a modal: "These chair would…" ("These cost more" has
         # no verb next). "Those standing were men", "those affected": a participle names people.
         let:
           tokens: enTokensAfter(ctx, m.index + m[0].length, 6)
@@ -10879,7 +10879,7 @@ rules:
       # "We've also cooking a cake", "will have compiling the data": have + an -ing form.
       - regex: "(?:(?:i|you|we|they|he|she|it|who)(?:{{S}}(?:have|has|had)|['’]ve)|(?:will|would|could|should|must|might|may){{S}}have){{VERBGROUP_ADVERB_RUN}}{{S}}(?<verb>[a-z]+ing){{E}}"
         owner: verb
-        # A pronoun right before have belongs to the progressive check of englishParticiples; "have
+        # A pronoun right before have belongs to the progressive frames of perfectParticiples; "have
         # since adding" is a preposition phrase. "how much of a problem they will have compiling it":
         # have trouble doing something. Its own object follows: "cooking a cake", "contacting many of
         # you".
@@ -13709,7 +13709,7 @@ rules:
         when:
           - 'target === "then"'
           - '!/\b(?:if|when|whenever|once|as long as|unless|after|before|while|until|since)\b/i.test(sentence)'
-          # Right after the comparative, englishWordConfusions decides; here words stand between.
+          # Right after the comparative, rule wordConfusions decides; here words stand between.
           - "!(k < 0 || k === words.length - 1 || words.length - k > 7)"
           - >-
             !gap.some((w) =>
@@ -14519,7 +14519,7 @@ rules:
       COMPARISON_SET_PHRASES: /^(?:friends?|man|men|practices?|case|value|priority|quality|effort|seller|sellers|interests?|regards|wishes)$/
     frames:
       # "Kyoto is an oldest city": a/an before a superlative and its noun is "the". A bare one
-      # after be ("is hottest city") is articles.ts's superlativeThe.
+      # after be ("is hottest city") belongs to rule en.geographicThe.
       - regex: "(?<article>an?){{S}}(?<adjective>best|worst|[a-z]+est){{S}}(?<noun>[a-z]+){{E}}"
         owner: article
         let:

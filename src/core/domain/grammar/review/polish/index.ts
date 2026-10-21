@@ -1,5 +1,4 @@
-// Polish-only Review checks, one module per area. The rule file grammar/rules/pl.yaml
-// names them and sets their order.
+// The Review detectors of the rules of grammar/rules/pl.yaml, in their order.
 import { REVIEW_DETECTORS } from "../reviewDetectors";
 
 export const POLISH_DETECTORS = REVIEW_DETECTORS.filter((entry) => entry.source === "pl");

@@ -18,7 +18,6 @@ import {
   type ShadowFinding,
 } from "./repairPass";
 import { isLang, PartialDetection, takeFrameFailure } from "./phraseTemplates";
-import { PROSE_DOTTED_TOKEN } from "./english/grammarStyle1";
 import { isGermanAbbreviationToken } from "./german/abbreviations";
 import { GERMAN_SLASH_PAIR } from "./german/suspendedHyphen";
 import { SPANISH_PROSE_DOTTED_TOKEN } from "./spanish/typography";
@@ -231,6 +230,18 @@ function dottedDate(source: string, start: number, bare: string): boolean {
  */
 const slashDate = (source: string, start: number, bare: string) =>
   NUMERIC_DATE_TOKEN.test(bare) && !bare.includes(".") && !versionWordBefore(source, start);
+// Words that open a sentence and never a dotted name's next part ("table.The room").
+const STARTERS =
+  "The|A|An|It|Its|I|So|But|And|This|That|These|Those|He|She|We|They|You|There|Then|What|When|Where|Why|How|If|My|Our|Your|His|Her|Their|Some|Many|One|No|Yes|Now|Also|However|After|Before|As|Each|Every|All";
+/**
+ * Dotted tokens that are prose, not names: "a.m.", a decimal range ("1.5-2.5"), two
+ * sentences glued at a period ("table.The") and the brand "WordPress.com" (a style rule of
+ * grammar/rules/en.yaml fixes its casing). The technical-token guard lets them through.
+ */
+const PROSE_DOTTED_TOKEN = new RegExp(
+  `^(?:\\p{Nd}{1,9}(?:\\.\\p{Nd}{1,9})?[-–—]\\p{Nd}{1,9}(?:\\.\\p{Nd}{1,9})?|[ap]\\.m|[AP]\\.M|\\p{L}*\\p{Ll}{2}\\.(?:${STARTERS})|[Ww]ord[Pp]ress\\.com)$`,
+  "u",
+);
 /**
  * Per language, tokens that look technical but are prose there, so that language's checks
  * read them: "p.ej" (es), "m.im" and "d/s" (pl), "12.º" and "kW/h" (pt), "Lehrer/Lehrerin" (de).

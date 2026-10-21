@@ -6,7 +6,7 @@ fragments:
   # No letter, digit, underscore, apostrophe or hyphen before or after a word.
   WORD_START: "(?<![\\p{L}\\p{M}\\p{N}_'’-])"
   WORD_END: "(?![\\p{L}\\p{M}\\p{N}_'’-])"
-  # The country names of review/french/countries.ts, longest first.
+  # Country and region names, longest first.
   COUNTRY_NAMES: "Nouvelle-Zélande|Arabie saoudite|Côte d['’]Ivoire|Biélorussie|Afghanistan|Ouzbékistan|Azerbaïdjan|Royaume-Uni|Philippines|Angleterre|Mauritanie|Californie|Luxembourg|Bangladesh|Kazakhstan|Mozambique|États-Unis|Seychelles|Madagascar|Allemagne|Slovaquie|Macédoine|Thaïlande|Indonésie|Australie|Argentine|Normandie|Bourgogne|Aquitaine|Sardaigne|Catalogne|Venezuela|Guatemala|Nicaragua|Groenland|Singapour|Belgique|Autriche|Roumanie|Bulgarie|Slovénie|Tchéquie|Moldavie|Lituanie|Lettonie|Finlande|Jordanie|Mongolie|Malaisie|Birmanie|Éthiopie|Tanzanie|Colombie|Jamaïque|Bretagne|Provence|Lorraine|Équateur|Portugal|Danemark|Paraguay|Honduras|Salvador|Cambodge|Pakistan|Cameroun|Zimbabwe|Botswana|Pays-Bas|Maldives|Antilles|Espagne|Pologne|Hongrie|Croatie|Albanie|Ukraine|Estonie|Norvège|Irlande|Islande|Turquie|Géorgie|Arménie|Algérie|Tunisie|Somalie|Namibie|Ouganda|Bolivie|Floride|Bavière|Uruguay|Ontario|Mexique|Vietnam|Sénégal|Nigeria|Burundi|Bahamas|Comores|Bahreïn|Maurice|France|Suisse|Italie|Serbie|Bosnie|Russie|Écosse|Égypte|Zambie|Guinée|Guyane|Alsace|Sicile|Canada|Québec|Brésil|Koweït|Rwanda|Soudan|Chypre|Monaco|Taïwan|Grèce|Suède|Syrie|Chine|Corée|Libye|Corse|Pérou|Chili|Japon|Népal|Tibet|Liban|Qatar|Yémen|Maroc|Niger|Tchad|Gabon|Congo|Kenya|Bénin|Ghana|Malte|Haïti|Inde|Iran|Irak|Laos|Mali|Togo|Cuba"
   # Markdown emphasis around a date is not a word: "le **32/04/2020**", "_32 janvier_".
   DATE_START: "(?<![\\p{L}\\p{N}][*_~]{0,3})"
@@ -7089,7 +7089,7 @@ rules:
           - "!/^[-'’·.*(]\\p{L}/u.test(after)"
           # "un marque page": a compound written apart takes its own gender.
           - "!(second && isDictionaryCompound(`${word}-${second}`))"
-          # "le cure": determiners.ts offers "le curé" and "la cure" together.
+          # "le cure": rule fr.determiners offers "le curé" and "la cure" together.
           - "!(!GENDER_FEMININE.has(lowerDet) && verbReadings(word).length && accentedNoun(word))"
           - "!!fixed"
           # "mon amie": a feminine noun keeps "mon" before a vowel.

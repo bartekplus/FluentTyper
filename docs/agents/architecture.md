@@ -52,7 +52,7 @@ Grammar rules are declared in `src/core/domain/grammar/rules/*.yaml`, with their
 - a second noun phrase joined by "et", "and", "y" or "e", which makes the subject plural (`skipCoordinated`);
 - a relative clause whose subject is the relative pronoun, such as "qui émet depuis Lyon" or "who ran the light" (`verbAfterRelative`).
 
-Each language gives a `ClauseProfile`: its determiners, prepositions, quantifiers, number words, relative pronouns, coordinators, clitics, and the lexicon callbacks `isNoun`, `postnominal`, `prenominal`, `isAdverb` and `isFiniteVerb`. The profiles are `FRENCH_CLAUSE` (french/agreement.ts), `ENGLISH_CLAUSE` (english/agreementSlots.ts) and the Spanish and Portuguese profiles in their `verbAgreement.ts`. The language code keeps its own checks for the main verb and its fix.
+Each language gives a `ClauseProfile`: its determiners, prepositions, quantifiers, number words, relative pronouns, coordinators, clitics, and the lexicon callbacks `isNoun`, `postnominal`, `prenominal`, `isAdverb` and `isFiniteVerb`. The profiles are the defs `FRENCH_CLAUSE` (grammar/rules/fr.yaml), `ES_CLAUSE` (es.yaml) and `AS_ENGLISH_CLAUSE` (en.yaml), and `PT_CLAUSE` (library/portuguese/clauses.ts). The rules of each language keep their own checks for the main verb and its fix.
 
 Rules for the reader:
 
@@ -60,7 +60,7 @@ Rules for the reader:
 - Each step reads a fixed maximum number of tokens. Thus a scan stays linear in the chunk length.
 - When a step is not sure, it stops: a skip function gives back its start index, and `verbAfterRelative` gives -1. The caller then reports nothing.
 - Add a word to a profile only when the word has one reading in that position. Test new readings in `tests/grammar/ReviewClauseReader.test.ts`, with correct sentences that must stay silent, and put the worst-case timing case in a `*.timing.test.ts` file.
-- The language code uses the reader for more shapes: French inverted subjects ("où vivent les loups"), asides between commas and the antecedent of "que" before avoir (french/agreement.ts, french/adjectives.ts).
+- The rules of a language use the reader for more shapes: French inverted subjects ("où vivent les loups"), asides between commas and the antecedent of "que" before avoir (the agreement rules of grammar/rules/fr.yaml).
 
 ## Entry Points
 

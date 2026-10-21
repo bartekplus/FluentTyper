@@ -158,7 +158,10 @@ export interface FrameSpec extends BodySpec {
   lang?: string;
 }
 
-/** An executable rule: a token pattern, a list of frames, or a named detector predicate. */
+/**
+ * An executable rule: a token pattern, a list of frames, its own code (`let`, `when`, `return`)
+ * or a named detector (`predicate`).
+ */
 export interface RuleSpec extends BodySpec, CodeSections {
   id: string;
   /** Typing rules with code: the events the rule runs on ("insertChar", "wordBoundary"). */
