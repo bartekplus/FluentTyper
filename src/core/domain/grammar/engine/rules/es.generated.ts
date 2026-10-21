@@ -23,12 +23,17 @@ import {
   esAttribute,
   esAttributeOf,
   esCarryCase,
+  esContextYear,
+  esDaysInMonth,
   esFiniteVerb,
   esGenderedForm,
+  esInvalidIsoDate,
   esIsGenderedEntry,
   esIsInfinitive,
   esIsNoun,
   esKeepsTyped,
+  esMonthNumber,
+  esNearestDayOn,
   esParticiple,
   esPlain,
   esReadNoun,
@@ -36,6 +41,9 @@ import {
   esSubjunctiveLike,
   esTokenAt,
   esTokens,
+  esVerbLike,
+  esWeekdayOf,
+  esYearsFor,
   namedExampleBefore,
 } from "../../library";
 
@@ -213,6 +221,41 @@ export const ES_ASKING_NOUNS: ReadonlySet<string> = new Set([
   "misterio",
   "incógnita",
 ]);
+
+export const ES_MONTHS: ReadonlySet<string> = new Set([
+  "enero",
+  "febrero",
+  "marzo",
+  "abril",
+  "mayo",
+  "junio",
+  "julio",
+  "agosto",
+  "septiembre",
+  "setiembre",
+  "octubre",
+  "noviembre",
+  "diciembre",
+]);
+
+export const ES_WEEKDAYS: ReadonlySet<string> = new Set([
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+  "domingo",
+]);
+
+export const ES_SEASONS: ReadonlySet<string> = new Set([
+  "primavera",
+  "verano",
+  "otoño",
+  "invierno",
+]);
+
+export const ES_ACRONYMS: ReadonlySet<string> = new Set(["ong", "tic", "ere", "ett", "dni"]);
 
 export const ES_NOT_CONNECTOR_AFTER: ReadonlySet<string> = new Set([
   "de",
@@ -443,6 +486,17 @@ export const ES_PLURAL_COPULA: ReadonlySet<string> = new Set([
   "van",
   "tienen",
 ]);
+
+export const ES_ABBREVIATION_FORMS: Readonly<Record<string, string>> = {
+  nº: "n.º",
+  "n.°": "n.º",
+  num: "núm.",
+  pag: "pág.",
+  pags: "págs.",
+  telf: "tel.",
+  tlf: "tel.",
+  tlfn: "tel.",
+};
 
 // es.yaml def esFinding
 export function esFinding(
@@ -715,6 +769,219 @@ export function esSino(tokens: SpanishTokens, i: number) {
   return tokens[i].lower === "sino" ? esSinoWord(tokens, i, at) : esSiNo(tokens, i, at);
 }
 
+// es.yaml rule es.typography def esKnown
+export function esKnown(word: string) {
+  return esIsNoun(word) || !!esAttributeOf(word) || esIsGenderedEntry(word) || esVerbLike(word);
+}
+
+// es.yaml rule es.typography def esISound
+export function esISound(word: string) {
+  return /^h?[ií](?![aeoáéó])/iu.test(word);
+}
+
+// es.yaml rule es.typography def esOSound
+export function esOSound(word: string) {
+  return /^h?[oó]/iu.test(word) || /^8/u.test(word);
+}
+
+// es.yaml rule es.typography def esConjunction
+export function esConjunction(at: SpanishAround, token: SpanishToken) {
+  const next = at.tokens[at.i + 1];
+  if (!(next && !next.broken && (next.word || /^\p{N}/u.test(next.text)))) return null;
+  if (!(at.tokens[at.i - 1]?.text !== "¿")) return null;
+  const after = next.text;
+  if (/^\p{Ll}+\p{Lu}/u.test(after)) return null;
+  const foreignH =
+    /^h/iu.test(after) &&
+    (/^\p{Lu}/u.test(after) && token.lower === "y"
+      ? true
+      : /^\p{Ll}/u.test(after) &&
+        (!esKnown(after.toLowerCase()) || at.tokens[at.i + 2]?.text === "-"));
+  if (foreignH) return null;
+  const prev = at.prev();
+  return token.lower === "y" && esISound(after)
+    ? "e"
+    : token.lower === "e" && !esISound(after) && /^h?[ií]/iu.test(after)
+      ? "y"
+      : token.lower === "o" &&
+          esOSound(after) &&
+          (!/^\p{N}/u.test(after) || /^\p{N}/u.test(at.tokens[at.i - 1]?.text ?? ""))
+        ? "u"
+        : token.text === "u" &&
+            next.word &&
+            prev &&
+            !/^(?:la|una|letra|vocal)$/u.test(prev) &&
+            esKnown(after.toLowerCase()) &&
+            !esOSound(after)
+          ? "o"
+          : null;
+}
+
+// es.yaml rule es.typography def esYearDot
+export function esYearDot(at: SpanishAround, token: SpanishToken) {
+  const m = /^([12])\.(\d{3})$/u.exec(token.text);
+  if (!m) return null;
+  const year = Number(m[1] + m[2]);
+  if (!(year >= 1100 && year <= 2099)) return null;
+  const prev = at.tokens[at.i - 1]?.text.toLowerCase() ?? "";
+  const next = at.next();
+  return /^(?:año|años|del)$/u.test(prev)
+    ? m[1] + m[2]
+    : !/^(?:de|en|para|desde|hasta|y|-)$/u.test(prev)
+      ? null
+      : !next || (!esIsNoun(next) && !esAttributeOf(next))
+        ? m[1] + m[2]
+        : null;
+}
+
+// es.yaml rule es.typography def esCapitalName
+export function esCapitalName(at: SpanishAround, token: SpanishToken) {
+  if (!(/^\p{Lu}\p{Ll}+$/u.test(token.text) && !at.starts)) return null;
+  const word = token.lower;
+  const prev = at.prev();
+  const before = at.tokens[at.i - 2];
+  return ES_MONTHS.has(word)
+    ? (prev === "de" && !!before && /^\p{N}/u.test(before.text)) ||
+      (/^(?:de|del)$/u.test(at.next()) && /^\p{N}|^año$/u.test(at.tokens[at.i + 2]?.text ?? "")) ||
+      (/^(?:en|de|desde|hasta|y)$/u.test(prev) && at.endsAfter())
+      ? word
+      : null
+    : ES_WEEKDAYS.has(word) || ES_SEASONS.has(word)
+      ? /^(?:el|los|cada|este|próximo|pasado|del|al)$/u.test(prev) &&
+        !/^\p{Lu}/u.test(at.tokens[at.i + 1]?.text ?? "") &&
+        !(/^(?:de|del)$/u.test(at.next()) && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? ""))
+        ? word
+        : null
+      : null;
+}
+
+// es.yaml rule es.typography def esAcronymPlural
+export function esAcronymPlural(text: string) {
+  const m = /^(\p{Lu}{2,})(?:['’]?s|S)$/u.exec(text);
+  return m && ES_ACRONYMS.has(m[1].toLowerCase()) ? m[1] : null;
+}
+
+// es.yaml rule es.impossibleDates def ES_WEEKDAY_LIST
+export const ES_WEEKDAY_LIST = [
+  "domingo",
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábado",
+];
+
+// es.yaml rule es.impossibleDates def ES_DATED
+export const ES_DATED = /(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s{1,8}[*_~]{0,3}$/iu;
+
+// es.yaml rule es.impossibleDates def ES_CODE_LABEL
+export const ES_CODE_LABEL =
+  /(?:^|[\s(])(?:n[º°o]\.?|núm\.?|número|#|ref\.?|código|expediente)\s*:?\s{0,8}$/iu;
+
+// es.yaml rule es.impossibleDates def esShortMonth
+export function esShortMonth(month: string) {
+  return (
+    ({ sept: 9, set: 9 } as Readonly<Record<string, number>>)[month.toLowerCase()] ??
+    "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic"
+      .split("|")
+      .indexOf(month.toLowerCase()) + 1
+  );
+}
+
+// es.yaml rule es.impossibleDates def esDayFinding
+export function esDayFinding(
+  ctx: DetectContext,
+  start: number,
+  day: string,
+  month: number,
+  year: number | undefined,
+) {
+  const max = esDaysInMonth(month, year);
+  if (Number(day) <= max || Number(day) > 31 || month < 1) return null;
+  if (namedExampleBefore(ctx.text, start)) return null;
+  const alternatives = month === 2 && year === undefined ? ["28", "29"] : [String(max)];
+  return esFinding(
+    "spanishTypography",
+    "review_msg_spanish_date",
+    start,
+    start + day.length,
+    alternatives,
+    {
+      bulkBlock: "ambiguous",
+      ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    },
+  );
+}
+
+// es.yaml rule es.impossibleDates def esWeekdayNoYear
+export function esWeekdayNoYear(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  dayStart: number,
+  monthIndex: number,
+) {
+  const weekday = m[1];
+  const day = m[3];
+  const years = esYearsFor(monthIndex, Number(day), esContextYear(ctx.text, m.index, ctx.lang));
+  const weekdays = [...new Set(years.map((y) => esWeekdayOf(y, monthIndex, Number(day))))];
+  const typed = ES_WEEKDAY_LIST.indexOf(weekday.toLowerCase());
+  if (!(years.length && !weekdays.includes(typed))) return null;
+  const near = esNearestDayOn(years[0], monthIndex, Number(day), typed);
+  return {
+    ruleId: "spanishTypography" as const,
+    messageKey: "review_msg_weekday_no_year" as const,
+    range: { start: m.index, end: dayStart + day.length },
+    alternatives: [
+      ...weekdays.map((w) => `${esCarryCase(weekday, ES_WEEKDAY_LIST[w])}${m[2]}${day}`),
+      ...(near === null ? [] : [`${weekday}${m[2]}${near}`]),
+    ],
+    requiresChoice: true as const,
+    context: { start: m.index, end: m.index + m[0].length },
+  };
+}
+
+// es.yaml rule es.typographyMarks def ES_NOT_ORDINAL_AFTER
+export const ES_NOT_ORDINAL_AFTER =
+  /^(?:cent|fahr|kel|grad|norte|sur|este|oeste|latitud|longitud|bajo)/u;
+
+// es.yaml rule es.typographyMarks def esMarkFix
+export function esMarkFix(m: RegExpExecArray, frame: FrameRef, fix: string | null) {
+  if (!(fix && fix !== m[0])) return null;
+  return esFinding("spanishTypography", frame.messageKey, m.index, m.index + m[0].length, [fix]);
+}
+
+// es.yaml rule es.typographyMarks def esMarkOpen
+export function esMarkOpen(m: RegExpExecArray, ctx: DetectContext) {
+  return m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index);
+}
+
+// es.yaml rule es.typographyMarks def esClosingEnd
+export function esClosingEnd(text: string, k: number, stop: number): number {
+  const c = text[k];
+  return k >= stop
+    ? -1
+    : c === "?" || c === "!"
+      ? -3
+      : c === "¿" || c === "¡" || c === "\n" || c === "￼" || c === "«" || c === '"'
+        ? c === "\n"
+          ? k
+          : -2
+        : (c === "." || c === "…") &&
+            /^(?:[ \t]+\p{Lu}|[ \t]*(?:\n|$))/u.test(text.slice(k + 1, k + 12))
+          ? /\p{Lu}\p{Ll}{0,3}$/u.test(text.slice(Math.max(0, k - 5), k))
+            ? esClosingEnd(text, k + 1, stop)
+            : k
+          : k === text.length - 1
+            ? text.length
+            : esClosingEnd(text, k + 1, stop);
+}
+
+// es.yaml rule es.typographyMarks def esLastNonSpace
+export function esLastNonSpace(text: string, k: number, floor: number): number {
+  return k > floor && /\s/u.test(text[k]) ? esLastNonSpace(text, k - 1, floor) : k;
+}
+
 // es.yaml rule es.commas def ES_CONNECTORS
 export const ES_CONNECTORS = [
   "sin embargo",
@@ -976,6 +1243,56 @@ export function esCommaAfter(ctx: DetectContext, tokens: SpanishTokens, i: numbe
   );
 }
 
+// es.yaml rule es.quoteSpaces def esQuoteMarks
+export function esQuoteMarks(text: string, k: number, end: number): number[] {
+  return k >= 0 && k < end ? [k, ...esQuoteMarks(text, text.indexOf('"', k + 1), end)] : [];
+}
+
+// es.yaml rule es.quoteSpaces def esQuotePairSpaces
+export function esQuotePairSpaces(ctx: DetectContext, open: number, close: number) {
+  const inner = ctx.text.slice(open + 1, close);
+  if (!(inner.trim() && inner.length <= 200 && !namedExampleBefore(ctx.text, open))) return [];
+  const lead = /^[ \t ]+(?=[\p{L}\p{N}¿¡])/u.exec(inner)?.[0].length ?? 0;
+  const trail = /(?<=[\p{L}\p{N}.!?…])[ \t ]+$/u.exec(inner)?.[0].length ?? 0;
+  return [
+    lead && open >= ctx.from && open < ctx.to
+      ? {
+          ruleId: "commaPeriodSpacing" as const,
+          messageKey: "review_msg_space_after_opening_mark" as const,
+          range: { start: open, end: open + 1 + lead },
+          alternatives: ['"'],
+          context: { start: open, end: close + 1 },
+          bulkBlock: "context-dependent" as const,
+        }
+      : null,
+    trail && close >= ctx.from && close < ctx.to
+      ? {
+          ruleId: "commaPeriodSpacing" as const,
+          messageKey: "review_msg_space_before_mark" as const,
+          range: { start: close - trail, end: close + 1 },
+          alternatives: ['"'],
+          context: { start: open, end: close + 1 },
+          bulkBlock: "context-dependent" as const,
+        }
+      : null,
+  ].filter((finding) => finding !== null);
+}
+
+// es.yaml rule es.dashes def esLongDash
+export function esLongDash(ctx: DetectContext, start: number, end: number) {
+  return start < ctx.from || start >= ctx.to
+    ? null
+    : esFinding("emdashShortcut", "review_msg_spanish_dialogue_dash", start, end, ["—"]);
+}
+
+// es.yaml rule es.rangeDash def ES_RANGE_CODE_BEFORE
+export const ES_RANGE_CODE_BEFORE =
+  /(?:^|[\s(])(?:tel|teléf|tfno|tlf|teléfono|móvil|fax|whatsapp|c\.?p|código|cód|n\.?º|núm|número|ref|referencia|expediente|exp|lote|pedido|factura|matrícula|dni|nie|nif|cif|cuenta|iban|tarjeta|art|artículo|ley|decreto|modelo|versión|vuelo|línea|ruta)\.?:?(?:[ \t]{1,8}(?:es|era|será))?[ \t]{0,8}$/iu;
+
+// es.yaml rule es.rangeDash def ES_RANGE_SCORE_BEFORE
+export const ES_RANGE_SCORE_BEFORE =
+  /(?:^|\s)(?:gan\p{L}*|perd\p{L}*|venc\p{L}*|empat\p{L}*|derrot\p{L}*|golea\p{L}*|marcador|resultado|partido|set|sets|tanteo)[ \t]{1,8}(?:\p{L}+[ \t]{1,8}){0,2}$/iu;
+
 // es.yaml rule es.quotes def esQuoteMark
 export function esQuoteMark(start: number, replacement: string, pairEnd: number) {
   return {
@@ -1132,6 +1449,465 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "review_msg_spanish_confusion",
     );
   },
+  // es.yaml rule es.typography frame 1
+  "@es.typography/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    const token = tokens[i];
+    if (!(token.start >= ctx.from && token.start < ctx.to)) return null;
+    const at = esAround(tokens, i);
+    const pick =
+      token.word && /^[yeou]$/iu.test(token.text)
+        ? ([esConjunction(at, token), "review_msg_spanish_conjunction"] as const)
+        : /^\p{N}/u.test(token.text)
+          ? ([esYearDot(at, token), "review_msg_spanish_year"] as const)
+          : /^tics$/iu.test(token.text) && /^(?:las|estas|sus|nuevas)$/u.test(at.prev())
+            ? (["TIC", "review_msg_spanish_acronym"] as const)
+            : token.lower === "asín" && (token.text === "asín" || at.starts)
+              ? (["así", "review_msg_typo"] as const)
+              : token.word
+                ? ([esCapitalName(at, token), "review_msg_spanish_lowercase_name"] as const)
+                : ([null, "review_msg_spanish_conjunction"] as const);
+    const fix = pick[0];
+    const key = pick[1];
+    const raw =
+      !fix && /^\p{Lu}{2,}(?:s|S)?$/u.test(token.text)
+        ? /^\p{Lu}{2,}(?:['’]s|s|S)(?!\p{L})/u.exec(ctx.text.slice(token.start))
+        : null;
+    const acronym = raw ? esAcronymPlural(raw[0]) : null;
+    if (!(fix || acronym)) return null;
+    return fix
+      ? esReplaceToken(
+          ctx,
+          token,
+          [fix],
+          "spanishTypography",
+          key,
+          tokens[i + 1] ?? token,
+          key === "review_msg_spanish_lowercase_name" || key === "review_msg_spanish_acronym",
+        )
+      : esReplaceToken(
+          ctx,
+          { ...token, end: token.start + raw![0].length, text: raw![0] },
+          [acronym!],
+          "spanishTypography",
+          "review_msg_spanish_acronym",
+          { ...token, end: token.start + raw![0].length, text: raw![0] },
+          true,
+        );
+  },
+  // es.yaml rule es.impossibleDates frame 1
+  "@es.impossibleDates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const weekday = m[1];
+    const day = m[3];
+    const year = m[5];
+    const dayStart = m.index + (weekday ? weekday.length + m[2].length : 0);
+    if (!(dayStart >= ctx.from)) return null;
+    const monthIndex = esMonthNumber(m[4]);
+    const yearNumber = year ? Number(year) : undefined;
+    const dayNumber = Number(day);
+    const fullDate =
+      yearNumber !== undefined &&
+      (dayNumber === 0 || dayNumber > 31) &&
+      !/(?:^|[\s(])(?:el|del|al|El|Del|Al)[ \t]{1,8}$/u.test(
+        ctx.text.slice(Math.max(0, dayStart - 12), dayStart),
+      );
+    return [
+      esDayFinding(ctx, dayStart, day, monthIndex, yearNumber),
+      (fullDate || (weekday && dayNumber === 0)) && !namedExampleBefore(ctx.text, m.index)
+        ? esFinding(
+            "spanishTypography",
+            "review_msg_spanish_date",
+            dayStart,
+            m.index + m[0].length,
+            [],
+            { warningOnly: true },
+          )
+        : null,
+      weekday &&
+      yearNumber &&
+      dayNumber >= 1 &&
+      dayNumber <= esDaysInMonth(monthIndex, yearNumber) &&
+      ES_WEEKDAY_LIST[esWeekdayOf(yearNumber, monthIndex, Number(day))] !== weekday.toLowerCase() &&
+      !namedExampleBefore(ctx.text, m.index)
+        ? {
+            ruleId: "spanishTypography" as const,
+            messageKey: "review_msg_spanish_date" as const,
+            range: { start: m.index, end: m.index + weekday.length },
+            alternatives: [
+              esCarryCase(
+                weekday,
+                ES_WEEKDAY_LIST[esWeekdayOf(yearNumber, monthIndex, Number(day))],
+              ),
+            ],
+            context: { start: m.index, end: m.index + m[0].length },
+            bulkBlock: "ambiguous" as const,
+          }
+        : null,
+      weekday &&
+      !year &&
+      dayNumber >= 1 &&
+      dayNumber <= esDaysInMonth(monthIndex) &&
+      !namedExampleBefore(ctx.text, m.index)
+        ? esWeekdayNoYear(ctx, m, dayStart, monthIndex)
+        : null,
+    ].filter((finding) => finding !== null);
+  },
+  // es.yaml rule es.impossibleDates frame 2
+  "@es.impossibleDates/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index))) return null;
+    return esFinding(
+      "spanishTypography",
+      "review_msg_spanish_date",
+      m.index,
+      m.index + m[0].length,
+      [],
+      { warningOnly: true },
+    );
+  },
+  // es.yaml rule es.impossibleDates frame 3
+  "@es.impossibleDates/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from)) return null;
+    const separator = m[2];
+    const monthText = m[3];
+    const yearText = m[4] ?? "";
+    const month = /^\d/u.test(monthText)
+      ? Number(monthText)
+      : ES_MONTHS.has(monthText.toLowerCase())
+        ? esMonthNumber(monthText)
+        : esShortMonth(monthText);
+    const day = Number(m[1]);
+    const dated = ES_DATED.test(ctx.text.slice(Math.max(0, m.index - 15), m.index));
+    if (!(
+      yearText.length === 4 ||
+      (dated &&
+        !(
+          !yearText &&
+          (separator === "-" ||
+            !/^(?:[.;:!?)]|\s{0,8}$)/u.test(ctx.text.slice(m.index + m[0].length)))
+        ))
+    ))
+      return null;
+    const impossible =
+      ((month > 12 || day > 31) && (day > 12 || month > 31)) ||
+      (yearText.length === 4 && (day === 0 || month === 0));
+    const fullDate =
+      separator === "/" &&
+      yearText.length === 4 &&
+      day <= 39 &&
+      month <= 39 &&
+      !ES_CODE_LABEL.test(ctx.text.slice(Math.max(0, m.index - 16), m.index));
+    if (!(!impossible || ((dated || fullDate) && !namedExampleBefore(ctx.text, m.index))))
+      return null;
+    if (!(impossible || (month >= 1 && month <= 12))) return null;
+    return impossible
+      ? esFinding(
+          "spanishTypography",
+          "review_msg_spanish_date",
+          m.index,
+          m.index + m[0].length,
+          [],
+          { warningOnly: true },
+        )
+      : esDayFinding(
+          ctx,
+          m.index,
+          m[1],
+          month,
+          yearText.length === 4
+            ? Number(yearText)
+            : yearText && yearText !== "00"
+              ? 2000 + Number(yearText)
+              : undefined,
+        );
+  },
+  // es.yaml rule es.isoDates frame 1
+  "@es.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const range = esInvalidIsoDate(m, ctx);
+    if (!range) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range,
+      alternatives: [],
+      warningOnly: true,
+    };
+  },
+  // es.yaml rule es.typographyMarks frame 1
+  "@es.typographyMarks/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    return esFinding("spanishTypography", frame.messageKey, m.index, m.index + m[0].length, [
+      `${m[0].slice(0, 3)}.`,
+    ]);
+  },
+  // es.yaml rule es.typographyMarks frame 2
+  "@es.typographyMarks/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    return esFinding("spanishTypography", frame.messageKey, m.index, m.index + m[0].length, [
+      ", etc.",
+      "…",
+    ]);
+  },
+  // es.yaml rule es.typographyMarks frame 3
+  "@es.typographyMarks/3": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(
+      m,
+      frame,
+      /^e?r$/u.test(m[2]) ? `${m[1]}.er` : `${m[1]}.${m[2].endsWith("a") ? "ª" : "º"}`,
+    );
+  },
+  // es.yaml rule es.typographyMarks frame 4
+  "@es.typographyMarks/4": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(
+      m,
+      frame,
+      /^g/iu.test(m[3])
+        ? `${m[1]} g`
+        : !/(?:^|\s)(?:las|la|sobre|hacia|desde|hasta|durante|en)\s{1,8}$/iu.test(
+              ctx.text.slice(Math.max(0, m.index - 12), m.index),
+            )
+          ? null
+          : m[3] === "h" && !m[4] && m[2]
+            ? null
+            : `${m[1]} h`,
+    );
+  },
+  // es.yaml rule es.typographyMarks frame 5
+  "@es.typographyMarks/5": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    const noun = esReadNoun(m[4].toLowerCase());
+    const fixed = noun?.gender === "f" ? "ª" : "º";
+    return esMarkFix(
+      m,
+      frame,
+      !noun?.gender ||
+        noun.paired ||
+        noun.plural ||
+        !/^\p{Lu}?\p{Ll}+$/u.test(m[4]) ||
+        fixed === m[3]
+        ? null
+        : `${m[1]}${m[2]}${fixed}`,
+    );
+  },
+  // es.yaml rule es.typographyMarks frame 6
+  "@es.typographyMarks/6": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, `${m[1]} °${m[2]}`);
+  },
+  // es.yaml rule es.typographyMarks frame 7
+  "@es.typographyMarks/7": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, `${m[1]}.º `);
+  },
+  // es.yaml rule es.typographyMarks frame 8
+  "@es.typographyMarks/8": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, `${m[0]}.`);
+  },
+  // es.yaml rule es.typographyMarks frame 9
+  "@es.typographyMarks/9": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, esIsNoun(m[2]) && m[2].endsWith("s") ? `${m[1]} ${m[2]}` : null);
+  },
+  // es.yaml rule es.typographyMarks frame 10
+  "@es.typographyMarks/10": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, `${m[0][0]}${m[0].slice(1).toLowerCase()}`);
+  },
+  // es.yaml rule es.typographyMarks frame 11
+  "@es.typographyMarks/11": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, `${m[0]}.`);
+  },
+  // es.yaml rule es.typographyMarks frame 12
+  "@es.typographyMarks/12": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(
+      m,
+      frame,
+      /(?:^|[.!?][ \t]{1,8})$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index))
+        ? `${m[0]}.`
+        : "s.",
+    );
+  },
+  // es.yaml rule es.typographyMarks frame 13
+  "@es.typographyMarks/13": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, `${m[0]}.`);
+  },
+  // es.yaml rule es.typographyMarks frame 14
+  "@es.typographyMarks/14": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, `${m[1]}. ej.`);
+  },
+  // es.yaml rule es.typographyMarks frame 15
+  "@es.typographyMarks/15": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    const fix = `${ES_ABBREVIATION_FORMS[m[1].toLowerCase()]}${m[0].includes(":") ? ":" : ""} `;
+    return esMarkFix(m, frame, /^\p{Lu}/u.test(m[1]) ? fix[0].toUpperCase() + fix.slice(1) : fix);
+  },
+  // es.yaml rule es.typographyMarks frame 16
+  "@es.typographyMarks/16": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(
+      m,
+      frame,
+      ES_PREPOSITIONS.has(m[3]) || ES_NOT_ORDINAL_AFTER.test(m[3])
+        ? null
+        : `${m[2]}.${/^la$/iu.test(m[1]) ? "ª" : "º"}`,
+    );
+  },
+  // es.yaml rule es.typographyMarks frame 17
+  "@es.typographyMarks/17": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, m[1]);
+  },
+  // es.yaml rule es.typographyMarks frame 18
+  "@es.typographyMarks/18": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, m[0][0].toUpperCase() + m[0].slice(1));
+  },
+  // es.yaml rule es.typographyMarks frame 19
+  "@es.typographyMarks/19": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, `${m[1] ?? m[3]}, ${m[2] ?? m[4]}`);
+  },
+  // es.yaml rule es.typographyMarks frame 20
+  "@es.typographyMarks/20": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (!esMarkOpen(m, ctx)) return null;
+    return esMarkFix(m, frame, "—");
+  },
+  // es.yaml rule es.typographyMarks frame 21
+  "@es.typographyMarks/21": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return esFinding("spanishTypography", frame.messageKey, m.index, m.index + 2, [",", "."], {
+      requiresChoice: true,
+    });
+  },
+  // es.yaml rule es.typographyMarks frame 22
+  "@es.typographyMarks/22": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const text = ctx.text;
+    const close = m[0] === "¿" ? "?" : "!";
+    const end = esClosingEnd(text, m.index + 1, Math.min(text.length, m.index + 400));
+    if (!(end >= 0 && !namedExampleBefore(text, m.index))) return null;
+    const last = esLastNonSpace(text, end - 1, m.index);
+    return end === text.length || text[end] === "\n"
+      ? /[\p{L}\p{N}]/u.test(text[last] ?? "")
+        ? esFinding("spanishTypography", "review_msg_spanish_closing_mark", last, last + 1, [
+            `${text[last]}${close}`,
+          ])
+        : null
+      : text[end] === "."
+        ? esFinding("spanishTypography", "review_msg_spanish_closing_mark", end, end + 1, [close])
+        : null;
+  },
+  // es.yaml rule es.typographyMarks frame 23
+  "@es.typographyMarks/23": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index))) return null;
+    const second = m[2] ? m.index + m[0].lastIndexOf(m[2]) : -1;
+    const first = /^\d+['’]?s/u.exec(m[0])![0];
+    return [
+      esFinding("spanishTypography", "review_msg_spanish_decade", m.index, m.index + first.length, [
+        m[1],
+      ]),
+      ...(m[2]
+        ? [
+            esFinding(
+              "spanishTypography",
+              "review_msg_spanish_decade",
+              second,
+              second + m[0].slice(second - m.index).length,
+              [m[2]],
+            ),
+          ]
+        : []),
+    ];
+  },
   // es.yaml rule es.commas frame 1
   "@es.commas/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     const tokens = esTokens(ctx);
@@ -1189,6 +1965,113 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
           ]),
     ].filter((finding) => finding !== null);
   },
+  // es.yaml rule es.missingSpace frame 1
+  "@es.missingSpace/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (/\.\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: "review_msg_space_after_mark",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${m[0].trim()} `],
+      context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // es.yaml rule es.missingSpace frame 2
+  "@es.missingSpace/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const word = /\S*$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))![0];
+    if (namedExampleBefore(ctx.text, m.index) || /[&#=/]/u.test(word)) return null;
+    return {
+      ruleId: "commaPeriodSpacing",
+      messageKey: m[0].startsWith(";")
+        ? "review_msg_space_after_mark"
+        : "review_msg_space_before_mark",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [m[0].startsWith(";") ? "; " : m[0].trim()],
+      context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
+      bulkBlock: "context-dependent",
+    };
+  },
+  // es.yaml rule es.quoteSpaces frame 1
+  "@es.quoteSpaces/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const text = ctx.text;
+    const lineStart = text.lastIndexOf("\n", m.index - 1) + 1;
+    const lineEnd = m.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0);
+    const marks = esQuoteMarks(text, text.indexOf('"', lineStart), lineEnd);
+    const usable =
+      marks.length >= 2 &&
+      marks.length % 2 === 0 &&
+      !marks.some((k) => /\d/.test(text[k - 1] ?? ""));
+    return usable
+      ? marks.flatMap((open, p) => (p % 2 ? [] : esQuotePairSpaces(ctx, open, marks[p + 1])))
+      : [];
+  },
+  // es.yaml rule es.dashes frame 1
+  "@es.dashes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return esLongDash(ctx, m.index, m.index + m[0].length);
+  },
+  // es.yaml rule es.dashes frame 2
+  "@es.dashes/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const close = m.index + m[0].length - 1;
+    return [esLongDash(ctx, m.index, m.index + 1), esLongDash(ctx, close, close + 1)].filter(
+      (dash) => dash !== null,
+    );
+  },
+  // es.yaml rule es.rangeDash frame 1
+  "@es.rangeDash/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index))) return null;
+    const a = m[1];
+    const b = m[3];
+    if (a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4)) return null;
+    const last = a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b);
+    if (!(last > Number(a))) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
+    if (ES_RANGE_CODE_BEFORE.test(before) || ES_RANGE_SCORE_BEFORE.test(before)) return null;
+    return esFinding(
+      "emdashShortcut",
+      "review_msg_range_dash",
+      m.index + a.length,
+      m.index + a.length + m[2].length,
+      ["–"],
+      {
+        context: { start: m.index, end: m.index + m[0].length },
+      },
+    );
+  },
+  // es.yaml rule es.decimalComma frame 1
+  "@es.decimalComma/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index))) return null;
+    return {
+      ruleId: "spanishTypographyStyle",
+      messageKey: "review_msg_spanish_decimal",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
+    };
+  },
+  // es.yaml rule es.decimalComma frame 2
+  "@es.decimalComma/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index))) return null;
+    return {
+      ruleId: "spanishTypographyStyle",
+      messageKey: "review_msg_spanish_decimal",
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
+    };
+  },
+  // es.yaml rule es.decimalComma frame 3
+  "@es.decimalComma/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!(m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index))) return null;
+    const start = m.index + m[0].length - 1;
+    return {
+      ruleId: "spanishTypographyStyle",
+      messageKey: "review_msg_typographic_symbol",
+      range: { start, end: start + 1 },
+      alternatives: [m[0].endsWith("2") ? "²" : "³"],
+    };
+  },
   // es.yaml rule es.quotes frame 1
   "@es.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return esQuotePair(m, ctx, "«", "»");
@@ -1200,7 +2083,13 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
 };
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
-export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};
+export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
+  // es.yaml rule es.dashes filter
+  "@es.dashes/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const seen = new Set<number>();
+    return findings.filter((f) => !seen.has(f.range.start) && !!seen.add(f.range.start));
+  },
+};
 
 /** The Review detectors of rules with code, by rule ("@<rule id>"). */
 export const DETECTORS: Readonly<Record<string, Detector>> = {};

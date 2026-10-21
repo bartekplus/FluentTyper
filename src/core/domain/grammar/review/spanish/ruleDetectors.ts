@@ -7,7 +7,6 @@ import * as clauses from "./clauses";
 import * as confusions from "./confusions";
 import * as diacritics from "./diacritics";
 import * as frames from "./frames";
-import * as typography from "./typography";
 import * as verbAccents from "./verbAccents";
 import * as verbAgreement from "./verbAgreement";
 import * as verbForms from "./verbForms";
@@ -25,8 +24,7 @@ export const FIXERS = mergePredicates<Fixer>(
   verbAgreement.FIXERS,
   clauses.FIXERS,
   frames.FIXERS,
-  typography.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/es.yaml (`filter:`). */
-export const FILTERS = mergePredicates<FindingsFilter>(typography.FILTERS, verbAgreement.FILTERS);
+export const FILTERS = mergePredicates<FindingsFilter>(verbAgreement.FILTERS);

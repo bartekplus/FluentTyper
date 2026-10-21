@@ -2654,7 +2654,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [1472, 1473],
     message: "review_msg_spanish_dialogue_dash",
     style: "match",
-    filter: "es:firstAtStart",
+    filter: "es:@es.dashes/filter",
     group: "emdashShortcut",
     source: "es",
   },
@@ -17669,7 +17669,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{L}[\\p{L}\\p{M}]*|\\p{N}+(?:[.,:]\\p{N}+)*",
     literals: [],
-    fixer: "es:typography",
+    fixer: "es:@es.typography/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -17691,7 +17691,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "noviembre",
       "diciembre",
     ],
-    fixer: "es:namedDate",
+    fixer: "es:@es.impossibleDates/1",
     flags: "giu",
     scan: "owned",
     lookback: 16,
@@ -17714,7 +17714,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "noviembre",
       "diciembre",
     ],
-    fixer: "es:noSuchDay",
+    fixer: "es:@es.impossibleDates/2",
     flags: "gu",
     scan: "owned",
     lookback: 16,
@@ -17723,7 +17723,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic)(?:\\2([0-9]{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})",
     literals: [],
-    fixer: "es:numericDate",
+    fixer: "es:@es.impossibleDates/3",
     flags: "giu",
     scan: "owned",
     lookback: 16,
@@ -17732,14 +17732,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}][*_~]{0,3})(?<![\\p{L}\\p{N}][-./])(?<year>[0-9٠-٩۰-۹]{4})-(?<month>[0-9٠-٩۰-۹]{2})-(?<day>[0-9٠-٩۰-۹]{2})(?![*_~]{0,3}[\\p{L}\\p{N}])(?![-./][\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:invalidIsoDate",
+    fixer: "es:@es.isoDates/1",
     flags: "gdu",
     owner: "none",
   }),
   frame({
     pattern: "(?<!\\p{L})etc(?:\\.{2,}|…|\\.…)",
     literals: ["etc"],
-    fixer: "es:etcDots",
+    fixer: "es:@es.typographyMarks/1",
     message: "review_msg_spanish_abbreviation",
     flags: "giu",
     scan: "owned",
@@ -17747,7 +17747,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?:,[ \\t]*)?(?:\\.{3}|…)[ \\t]*etc(?!\\p{L})\\.?",
     literals: ["etc"],
-    fixer: "es:etcEllipsis",
+    fixer: "es:@es.typographyMarks/2",
     message: "review_msg_spanish_abbreviation",
     flags: "giu",
     scan: "owned",
@@ -17756,7 +17756,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(do|da|ro|ra|to|ta|vo|va|no|na|mo|ma|ero|era|er|r)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "es:ordinal",
+    fixer: "es:@es.typographyMarks/3",
     message: "review_msg_spanish_ordinal",
     flags: "gu",
     scan: "owned",
@@ -17766,7 +17766,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(\\d+(?:[.,:]\\d+)?)([ \\t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "es:unit",
+    fixer: "es:@es.typographyMarks/4",
     message: "review_msg_spanish_unit",
     flags: "gu",
     scan: "owned",
@@ -17776,7 +17776,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(\\d{1,3})(\\.?)([\\u00BA\\u00AA])(?=[ \\t]{1,8}(\\p{L}+)(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "es:genderedOrdinal",
+    fixer: "es:@es.typographyMarks/5",
     message: "review_msg_spanish_ordinal",
     flags: "gu",
     scan: "owned",
@@ -17785,7 +17785,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}+)?)[ \\t]?\\u00BA([CF])(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "es:ordinalDegree",
+    fixer: "es:@es.typographyMarks/6",
     message: "review_msg_spanish_unit",
     flags: "gu",
     scan: "owned",
@@ -17794,7 +17794,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{N}])(n)[ \\t]?\\u00B0[ \\t]?(?=\\p{N})",
     literals: [],
-    fixer: "es:numberSign",
+    fixer: "es:@es.typographyMarks/7",
     message: "review_msg_spanish_ordinal",
     flags: "gu",
     scan: "owned",
@@ -17804,7 +17804,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.])(?:(?:Sr|Sra|Srta|Dr|Dra|Avda|Av|Lic|Ing|Prof|Mr|Mrs)(?=[ \\t]\\p{Lu}\\p{Ll})|(?:n\\u00FAm|p\\u00E1g|p\\u00E1gs)(?=[ \\t]\\p{N}))(?![.\\p{L}])",
     literals: [],
-    fixer: "es:bareAbbreviation",
+    fixer: "es:@es.typographyMarks/8",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -17812,7 +17812,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}{3})*)(\\p{Ll}{4,})(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "es:gluedCount",
+    fixer: "es:@es.typographyMarks/9",
     message: "review_msg_spanish_number_space",
     flags: "gu",
     scan: "owned",
@@ -17822,7 +17822,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[.!?\\u00A1\\u00BF][ \\t]{0,8}|\\n))(?:EL|LA|LOS|LAS|UN|UNA|UNOS|UNAS|NO|ES|SE|LO|YO|HAY|YA|MUY|ESTE|ESTA|ESTO|ESO)(?=[ \\t]{1,8}(?:\\p{N}+[ \\t]{1,8})?\\p{Ll}\\p{Ll})",
     literals: [],
-    fixer: "es:shoutedArticle",
+    fixer: "es:@es.typographyMarks/10",
     message: "review_msg_spanish_capital_article",
     flags: "gu",
     scan: "owned",
@@ -17831,7 +17831,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{N}.])etc(?![\\p{L}\\p{N}.\\u2026])",
     literals: ["etc"],
-    fixer: "es:bareEtc",
+    fixer: "es:@es.typographyMarks/11",
     flags: "giu",
     scan: "owned",
     lookback: 8,
@@ -17840,7 +17840,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[\\s(])(?:el|del|al|los|en|El|Del|Al|Los|En)[ \\t]{1,8}|^|[.!?][ \\t]{1,8})[sS](?=[ \\t]{1,8}(?:X{1,2}(?:IX|IV|V?I{0,3})|IX|IV|V?I{1,3}|V)(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "es:bareCentury",
+    fixer: "es:@es.typographyMarks/12",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -17849,7 +17849,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.])(?:\\p{Lu}\\.){1,5}\\p{Lu}(?![\\p{L}\\p{N}.\\-/@_])|(?<=(?<![\\p{L}\\p{N}.])\\p{Lu}\\.[ \\t])(?:[B-DF-NP-TV-XZ](?=[ \\t]\\p{Lu}\\p{Ll})|\\p{Lu}(?=,))",
     literals: [],
-    fixer: "es:openInitials",
+    fixer: "es:@es.typographyMarks/13",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -17858,7 +17858,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.])([pP])(?:[ \\t]?\\.[ \\t]?e(?:j[ \\t]?)?|[ \\t]ej[ \\t]?)\\.(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "es:forExample",
+    fixer: "es:@es.typographyMarks/14",
     message: "review_msg_spanish_abbreviation_form",
     flags: "gu",
     scan: "owned",
@@ -17868,7 +17868,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.])(n\\u00BA|n\\.\\u00B0|num|pag|pags|telf|tlf|tlfn)\\.?:?[ \\t]?(?=\\p{N})",
     literals: [],
-    fixer: "es:plainAbbreviation",
+    fixer: "es:@es.typographyMarks/15",
     message: "review_msg_spanish_abbreviation_form",
     flags: "giu",
     scan: "owned",
@@ -17878,7 +17878,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[\\s(])(el|la|del|al|El|La|Del|Al)[ \\t]{1,8})(\\d{1,3})[ \\t]?\\u00B0(?=[ \\t]{1,8}(\\p{Ll}+))",
     literals: [],
-    fixer: "es:degreeOrdinal",
+    fixer: "es:@es.typographyMarks/16",
     message: "review_msg_spanish_ordinal",
     flags: "gu",
     scan: "owned",
@@ -17888,7 +17888,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?<=(?:^|[\\s(])(?:del|el|los|a\\u00F1os|d\\u00E9cada|en)[ \\t]{1,8})|(?<=['\\u2019\\u2018]\\d\\d[\\u2014\\u2013-]))['\\u2019\\u2018](\\d\\d)(?![\\p{L}\\p{N}'\\u2019])",
     literals: [],
-    fixer: "es:yearApostrophe",
+    fixer: "es:@es.typographyMarks/17",
     message: "review_msg_spanish_year_apostrophe",
     flags: "giu",
     scan: "owned",
@@ -17897,7 +17897,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{N}.])(?:sr|sra|srta|sres|sras|dr|dra)\\.(?=[ \\t]\\p{Lu}\\p{Ll})",
     literals: [],
-    fixer: "es:lowerTreatment",
+    fixer: "es:@es.typographyMarks/18",
     message: "review_msg_spanish_treatment_capital",
     flags: "gu",
     scan: "owned",
@@ -17907,7 +17907,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[.!?\\u00A1\\u00BF\\n])[ \\t]{0,8})(?:(S\\u00ED|s\\u00ED|S\\u00CD)[ \\t]+(s\\u00ED|S\\u00CD)|(No|no|NO)[ \\t]+(no|NO))(?=[ \\t]*[,.!?])",
     literals: [],
-    fixer: "es:repeatedAnswer",
+    fixer: "es:@es.typographyMarks/19",
     message: "review_msg_spanish_repeated_answer",
     flags: "gu",
     scan: "owned",
@@ -17916,7 +17916,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=[\\p{Script=Latin}.,!?][ \\t]?)[\\u2500\\u2501\\u3161](?=\\p{Script=Latin})",
     literals: [],
-    fixer: "es:strokeDash",
+    fixer: "es:@es.typographyMarks/20",
     message: "review_msg_spanish_dialogue_dash",
     flags: "gu",
     scan: "owned",
@@ -17925,7 +17925,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{L}),\\.(?!\\.)",
     literals: [],
-    fixer: "es:commaPeriod",
+    fixer: "es:@es.typographyMarks/21",
     message: "review_msg_duplicate_punctuation",
     flags: "gu",
     scan: "owned",
@@ -17933,7 +17933,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "[¿¡]",
     literals: [],
-    fixer: "es:closingMark",
+    fixer: "es:@es.typographyMarks/22",
     message: "review_msg_spanish_closing_mark",
     flags: "gu",
     scan: "text",
@@ -17942,7 +17942,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}])(?:a\\u00F1os|los)[ \\t]{1,4})((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s)(?:[ \\t]+y[ \\t]+((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s))?(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "es:decade",
+    fixer: "es:@es.typographyMarks/23",
     message: "review_msg_spanish_decade",
     flags: "giu",
     scan: "owned",
@@ -17962,21 +17962,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{L}\\p{Ll})(?:\\.(?=(?:El|La|Los|Las|Lo|Un|Una|Unos|Unas|Y|Pero|Es|Son|Era|Fue|Está|Hay|No|Sí|Yo|Tú|Él|Ella|Ellos|Ellas|Nosotros|Usted|Este|Esta|Estos|Estas|Eso|Esto|Ese|Esa|Se|Me|Te|Le|Les|Nos|Mi|Su|Sus|Tu|En|Del|Al|Con|Por|Para|Sin|Como|Cuando|Si|Que|Qué|Cómo|Dónde|Cuándo|Pues|Así|Luego|Después|Entonces|Ahora|Hoy|Ayer|También|Además|Ya|Todo|Siempre|Nunca|Aquí|Allí|Hola|Gracias|Bueno|Claro|Aunque|Porque|Mientras|Desde|Hasta|Según)(?![\\p{L}\\p{N}])|[¿¡])|[?!](?=[¿¡]|\\p{Lu}\\p{Ll})|…(?=[¿¡]|\\p{L}))|(?<=\\p{L})[ \\t]+(?:[.?!]|…)(?=[¿¡]|\\p{Lu}\\p{Ll})",
     literals: [],
-    fixer: "es:missingSpace",
+    fixer: "es:@es.missingSpace/1",
     flags: "gu",
     scan: "owned",
   }),
   frame({
     pattern: "(?<=\\p{L})[ \\t]+[:;](?=[ \\t]|$)|(?<=\\p{L}\\p{Ll});(?=\\p{Ll}{2})",
     literals: [],
-    fixer: "es:colonSpacing",
+    fixer: "es:@es.missingSpace/2",
     flags: "gmu",
     scan: "owned",
   }),
   frame({
     pattern: "[^\\n]+\\n?|\\n",
     literals: [],
-    fixer: "es:quoteSpaces",
+    fixer: "es:@es.quoteSpaces/1",
     flags: "g",
     scan: "text",
   }),
@@ -17984,7 +17984,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=[\\p{L}.,!?…][ \\t]?)[-–‒](?=(?:dijo|dije|dice|digo|respondió|contestó|preguntó|añadió|exclamó|gritó|susurró|murmuró|explicó|comentó|replicó|insistió|pensó|repuso|admitió|aclaró)(?![\\p{L}]))|(?<=^|\\n)[-–‒](?=[¿¡]|\\p{Lu}\\p{Ll})|(?<=[ \\t]|^)--(?=[ \\t]|$)",
     literals: [],
-    fixer: "es:dialogueDash",
+    fixer: "es:@es.dashes/1",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -17993,7 +17993,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=[ \\t])[-\\u2013](?=[\\p{L}\\u00BF\\u00A1])[^-\\u2013\\n]{0,150}?[\\p{L}\\p{N}?!.\\u2026][-\\u2013](?=[ \\t,.;:)]|$)",
     literals: [],
-    fixer: "es:remarkDashes",
+    fixer: "es:@es.dashes/2",
     flags: "gu",
     scan: "owned",
     lookback: 160,
@@ -18002,7 +18002,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,:/#+\\u2013\\u2014-])(\\d{1,4})([-\\u2014])(\\d{1,4})(?![\\p{L}\\p{N}_]|[-\\u2013\\u2014/:.,]\\p{N})",
     literals: [],
-    fixer: "es:rangeDash",
+    fixer: "es:@es.rangeDash/1",
     flags: "gu",
     scan: "owned",
     lookback: 8,
@@ -18011,7 +18011,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}.,])\\d{1,3}(?:(?:,\\d{3})+\\.\\d{1,3}|(?:,\\d{3}){2,})(?![\\p{N}]|[.,]\\p{N})",
     literals: [],
-    fixer: "es:decimalPoint",
+    fixer: "es:@es.decimalComma/1",
     flags: "gu",
     scan: "owned",
     lookback: 32,
@@ -18020,7 +18020,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}[ \\t\\u00a0]?(?:%|‰|€|\\$|kg|g|mg|km|m|cm|mm|ml|l|t|°|°C|ºC|m²|m³|km²|ha|kWh|kW|W|V|GB|MB|TB|Hz|kHz|MHz|GHz|kilos?|metros?|litros?|euros?|dólares|grados|millones)(?![\\p{L}\\p{N}])))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})",
     literals: [],
-    fixer: "es:decimalPoint",
+    fixer: "es:@es.decimalComma/2",
     flags: "gu",
     scan: "owned",
     lookback: 32,
@@ -18028,7 +18028,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=(?:\\d[ \\t\\u00a0]?|\\bpor[ \\t]|\\/))(?:km|cm|mm|dm|m)[23](?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "es:exponent",
+    fixer: "es:@es.decimalComma/3",
     message: "review_msg_typographic_symbol",
     flags: "gu",
     scan: "owned",

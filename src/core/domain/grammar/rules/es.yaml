@@ -573,6 +573,106 @@ rules:
     group: spanishTypography
     style: match
     message: review_msg_spanish_conjunction
+    # Spanish writing conventions: "y" -> "e" before an /i/ sound and "o" -> "u" before /o/, years
+    # without a thousands point, lowercase months and weekdays, invariable acronyms.
+    sets:
+      ES_MONTHS: [enero, febrero, marzo, abril, mayo, junio, julio, agosto, septiembre, setiembre, octubre, noviembre, diciembre]
+      ES_WEEKDAYS: [lunes, martes, miércoles, jueves, viernes, sábado, domingo]
+      # "este Verano", "cada Invierno"; "la Primavera de Praga" keeps its capital.
+      ES_SEASONS: [primavera, verano, otoño, invierno]
+      # Spanish acronyms that stay invariable in the plural ("las ONG", "los ERE").
+      ES_ACRONYMS: [ong, tic, ere, ett, dni]
+    defs:
+      esKnown:
+        args: "word: string"
+        return: esIsNoun(word) || !!esAttributeOf(word) || esIsGenderedEntry(word) || esVerbLike(word)
+      # The word starts with the vowel sound /i/ (not the /j/ of "hielo", "iones").
+      esISound:
+        args: "word: string"
+        return: /^h?[ií](?![aeoáéó])/iu.test(word)
+      esOSound:
+        args: "word: string"
+        return: /^h?[oó]/iu.test(word) || /^8/u.test(word)
+      # "y" -> "e", "e" -> "y", "o" -> "u" and "u" -> "o" by the sound of the next word.
+      esConjunction:
+        args: "at: SpanishAround, token: SpanishToken"
+        let:
+          next: at.tokens[at.i + 1]
+          after: next.text
+          # An "h" in a foreign word is sounded: "y Hitler", "y hip-hop", "o hobbies".
+          foreignH: >-
+            /^h/iu.test(after) &&
+            (/^\p{Lu}/u.test(after) && token.lower === "y"
+              ? true
+              : /^\p{Ll}/u.test(after) && (!esKnown(after.toLowerCase()) || at.tokens[at.i + 2]?.text === "-"))
+          prev: at.prev()
+        when:
+          - next && !next.broken && (next.word || /^\p{N}/u.test(next.text))
+          # "¿Y Inés?": a stressed "y" opening a question keeps its form.
+          - at.tokens[at.i - 1]?.text !== "¿"
+          # English names keep the English sound: "Ryanair y easyJet".
+          - '!/^\p{Ll}+\p{Lu}/u.test(after)'
+          - '!foreignH'
+        # "hobbys u hobbies"; "la u" is the letter.
+        return: >-
+          token.lower === "y" && esISound(after)
+            ? "e"
+            : token.lower === "e" && !esISound(after) && /^h?[ií]/iu.test(after)
+              ? "y"
+              : token.lower === "o" && esOSound(after) && (!/^\p{N}/u.test(after) || /^\p{N}/u.test(at.tokens[at.i - 1]?.text ?? ""))
+                ? "u"
+                : token.text === "u" && next.word && prev && !/^(?:la|una|letra|vocal)$/u.test(prev) &&
+                    esKnown(after.toLowerCase()) && !esOSound(after)
+                  ? "o"
+                  : null
+      # "del año 1.989": a year is written without the thousands point. "de 2.000 euros", "en 1.500
+      # metros": an amount with its unit.
+      esYearDot:
+        args: "at: SpanishAround, token: SpanishToken"
+        let:
+          m: /^([12])\.(\d{3})$/u.exec(token.text)
+          year: Number(m[1] + m[2])
+          prev: at.tokens[at.i - 1]?.text.toLowerCase() ?? ""
+          next: at.next()
+        when:
+          - m
+          - year >= 1100 && year <= 2099
+        return: >-
+          /^(?:año|años|del)$/u.test(prev)
+            ? m[1] + m[2]
+            : !/^(?:de|en|para|desde|hasta|y|-)$/u.test(prev)
+              ? null
+              : !next || (!esIsNoun(next) && !esAttributeOf(next)) ? m[1] + m[2] : null
+      # "el 4 de Julio", "todos los Lunes": months and weekdays are common nouns. "4 de Julio de
+      # 2020", "en Agosto.", "de Julio del año pasado". "Viernes de Dolores", "Domingo de Ramos":
+      # holidays keep their capital.
+      esCapitalName:
+        args: "at: SpanishAround, token: SpanishToken"
+        let:
+          word: token.lower
+          prev: at.prev()
+          before: at.tokens[at.i - 2]
+        when: /^\p{Lu}\p{Ll}+$/u.test(token.text) && !at.starts
+        return: >-
+          ES_MONTHS.has(word)
+            ? (prev === "de" && !!before && /^\p{N}/u.test(before.text)) ||
+              (/^(?:de|del)$/u.test(at.next()) && /^\p{N}|^año$/u.test(at.tokens[at.i + 2]?.text ?? "")) ||
+              (/^(?:en|de|desde|hasta|y)$/u.test(prev) && at.endsAfter())
+              ? word
+              : null
+            : ES_WEEKDAYS.has(word) || ES_SEASONS.has(word)
+              ? /^(?:el|los|cada|este|próximo|pasado|del|al)$/u.test(prev) &&
+                !/^\p{Lu}/u.test(at.tokens[at.i + 1]?.text ?? "") &&
+                !(/^(?:de|del)$/u.test(at.next()) && /^\p{Lu}/u.test(at.tokens[at.i + 2]?.text ?? ""))
+                ? word
+                : null
+              : null
+      # "las ONGs", "los ERE's": a Spanish acronym takes no plural ending.
+      esAcronymPlural:
+        args: "text: string"
+        let:
+          m: /^(\p{Lu}{2,})(?:['’]?s|S)$/u.exec(text)
+        return: 'm && ES_ACRONYMS.has(m[1].toLowerCase()) ? m[1] : null'
     frames:
       # Every word and number: the fixer checks the conjunctions, the years, the acronyms
       # and the names, and reads the words before and after the token
@@ -580,12 +680,103 @@ rules:
       - regex: "{{TOKEN_WORD}}|\\p{N}+(?:[.,:]\\p{N}+)*"
         flags: gu
         scan: owned
-        fixer: typography
+        # The conjunction, year, acronym and name checks of the token. "las tics": the feminine article
+        # names the technologies ("los tics" are twitches); the acronym takes no plural ending.
+        # Lowercase "las tic" is accepted. "Hazlo asín": the rustic form of "así"; "Fernando Asín" is a
+        # surname.
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+          at: esAround(tokens, i)
+          pick: >-
+            token.word && /^[yeou]$/iu.test(token.text)
+              ? ([esConjunction(at, token), "review_msg_spanish_conjunction"] as const)
+              : /^\p{N}/u.test(token.text)
+                ? ([esYearDot(at, token), "review_msg_spanish_year"] as const)
+                : /^tics$/iu.test(token.text) && /^(?:las|estas|sus|nuevas)$/u.test(at.prev())
+                  ? (["TIC", "review_msg_spanish_acronym"] as const)
+                  : token.lower === "asín" && (token.text === "asín" || at.starts)
+                    ? (["así", "review_msg_typo"] as const)
+                    : token.word
+                      ? ([esCapitalName(at, token), "review_msg_spanish_lowercase_name"] as const)
+                      : ([null, "review_msg_spanish_conjunction"] as const)
+          fix: pick[0]
+          key: pick[1]
+          # The tokenizer splits "ONG's" at the apostrophe: read the raw text after it.
+          raw: >-
+            !fix && /^\p{Lu}{2,}(?:s|S)?$/u.test(token.text)
+              ? /^\p{Lu}{2,}(?:['’]s|s|S)(?!\p{L})/u.exec(ctx.text.slice(token.start))
+              : null
+          acronym: 'raw ? esAcronymPlural(raw[0]) : null'
+        when:
+          - i >= 0
+          - token.start >= ctx.from && token.start < ctx.to
+          - fix || acronym
+        return: >-
+          fix
+            ? esReplaceToken(ctx, token, [fix], "spanishTypography", key, tokens[i + 1] ?? token,
+                key === "review_msg_spanish_lowercase_name" || key === "review_msg_spanish_acronym")
+            : esReplaceToken(ctx, { ...token, end: token.start + raw![0].length, text: raw![0] }, [acronym!],
+                "spanishTypography", "review_msg_spanish_acronym",
+                { ...token, end: token.start + raw![0].length, text: raw![0] }, true)
   - id: es.impossibleDates
     checks: [spanishTypography]
     group: spanishTypography
     style: match
     message: review_msg_spanish_date
+    defs:
+      ES_WEEKDAY_LIST: '["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]'
+      # Where a date goes: "Cédula: 6-51-2032" and "N° 99/73/2022" are numbers. Markdown emphasis can
+      # come before the date: "el **32.04.2020**".
+      ES_DATED: '/(?:^|\s)(?:el|del|al|día|fecha|desde|hasta)\s{1,8}[*_~]{0,3}$/iu'
+      # A label that makes the next number a code: "Pedido N° 12/34/2022", "Ref. 31/13/2020".
+      ES_CODE_LABEL: '/(?:^|[\s(])(?:n[º°o]\.?|núm\.?|número|#|ref\.?|código|expediente)\s*:?\s{0,8}$/iu'
+      # Short month names in numeric dates: "29-feb-2005". The MONTH_SHORT fragment holds the same
+      # list.
+      esShortMonth:
+        args: "month: string"
+        return: >-
+          ({ sept: 9, set: 9 } as Readonly<Record<string, number>>)[month.toLowerCase()] ??
+          "ene|feb|mar|abr|may|jun|jul|ago|sep|sept|set|oct|nov|dic".split("|").indexOf(month.toLowerCase()) + 1
+      # A day the month does not have: "31 de abril", "29 de febrero de 2023".
+      esDayFinding:
+        args: "ctx: DetectContext, start: number, day: string, month: number, year: number | undefined"
+        let:
+          max: esDaysInMonth(month, year)
+          alternatives: 'month === 2 && year === undefined ? ["28", "29"] : [String(max)]'
+        when:
+          - '!(Number(day) <= max || Number(day) > 31 || month < 1)'
+          - '!namedExampleBefore(ctx.text, start)'
+        return: >-
+          esFinding("spanishTypography", "review_msg_spanish_date", start, start + day.length, alternatives, {
+            bulkBlock: "ambiguous",
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
+      # A weekday before a date with no year: the weekday of each year the date can mean, or the
+      # nearest day.
+      esWeekdayNoYear:
+        args: "ctx: DetectContext, m: RegExpExecArray, dayStart: number, monthIndex: number"
+        let:
+          weekday: m[1]
+          day: m[3]
+          years: esYearsFor(monthIndex, Number(day), esContextYear(ctx.text, m.index, ctx.lang))
+          weekdays: '[...new Set(years.map((y) => esWeekdayOf(y, monthIndex, Number(day))))]'
+          typed: ES_WEEKDAY_LIST.indexOf(weekday.toLowerCase())
+          near: esNearestDayOn(years[0], monthIndex, Number(day), typed)
+        when: years.length && !weekdays.includes(typed)
+        return: >-
+          ({
+            ruleId: "spanishTypography" as const,
+            messageKey: "review_msg_weekday_no_year" as const,
+            range: { start: m.index, end: dayStart + day.length },
+            alternatives: [
+              ...weekdays.map((w) => `${esCarryCase(weekday, ES_WEEKDAY_LIST[w])}${m[2]}${day}`),
+              ...(near === null ? [] : [`${weekday}${m[2]}${near}`]),
+            ],
+            requiresChoice: true as const,
+            context: { start: m.index, end: m.index + m[0].length },
+          })
     frames:
       # "31 de abril de 2020", "29 de febrero 2023", and a weekday before a full date
       # ("lunes, 7 de octubre de 2014").
@@ -593,20 +784,93 @@ rules:
         flags: giu
         scan: owned
         lookback: 16
-        fixer: namedDate
+        # A named date: its day, and the weekday before it. A full date with day 0 or a day above 31:
+        # "32 de abril de 2020". A weekday makes day 0 a date with no year: "el lunes 0 de abril". The
+        # next frame reports day 0 and a day above 31 after an article. The weekday of a full date is
+        # fixed: "lunes, 7 de octubre de 2014" was a Tuesday.
+        let:
+          weekday: m[1]
+          day: m[3]
+          year: m[5]
+          dayStart: 'm.index + (weekday ? weekday.length + m[2].length : 0)'
+          monthIndex: esMonthNumber(m[4])
+          yearNumber: 'year ? Number(year) : undefined'
+          dayNumber: Number(day)
+          fullDate: >-
+            yearNumber !== undefined && (dayNumber === 0 || dayNumber > 31) &&
+            !/(?:^|[\s(])(?:el|del|al|El|Del|Al)[ \t]{1,8}$/u.test(ctx.text.slice(Math.max(0, dayStart - 12), dayStart))
+        when: dayStart >= ctx.from
+        return: >-
+          [
+            esDayFinding(ctx, dayStart, day, monthIndex, yearNumber),
+            (fullDate || (weekday && dayNumber === 0)) && !namedExampleBefore(ctx.text, m.index)
+              ? esFinding("spanishTypography", "review_msg_spanish_date", dayStart, m.index + m[0].length, [], { warningOnly: true })
+              : null,
+            weekday && yearNumber && dayNumber >= 1 && dayNumber <= esDaysInMonth(monthIndex, yearNumber) &&
+            ES_WEEKDAY_LIST[esWeekdayOf(yearNumber, monthIndex, Number(day))] !== weekday.toLowerCase() &&
+            !namedExampleBefore(ctx.text, m.index)
+              ? {
+                  ruleId: "spanishTypography" as const,
+                  messageKey: "review_msg_spanish_date" as const,
+                  range: { start: m.index, end: m.index + weekday.length },
+                  alternatives: [esCarryCase(weekday, ES_WEEKDAY_LIST[esWeekdayOf(yearNumber, monthIndex, Number(day))])],
+                  context: { start: m.index, end: m.index + m[0].length },
+                  bulkBlock: "ambiguous" as const,
+                }
+              : null,
+            weekday && !year && dayNumber >= 1 && dayNumber <= esDaysInMonth(monthIndex) && !namedExampleBefore(ctx.text, m.index)
+              ? esWeekdayNoYear(ctx, m, dayStart, monthIndex)
+              : null,
+          ].filter((finding) => finding !== null)
       # "el 32 de enero", "el 0 de abril": a day no month has, after the article a date takes.
       - regex: "(?<=(?:^|[\\s(])(?:el|del|al|El|Del|Al)[ \\t]{1,8})(00?|3[2-9]|[4-9]\\d|\\d{3})(?:[ \\t]{1,8}de)?[ \\t]{1,8}(?:{{MONTH_NAMES}})(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 16
-        fixer: noSuchDay
+        # "el 32 de enero": a warning only.
+        when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+        return: 'esFinding("spanishTypography", "review_msg_spanish_date", m.index, m.index + m[0].length, [], { warningOnly: true })'
       # "31/11/1988", "30-2-2001". Numeric dates need a four-digit year: "30/2" alone is a
       # ratio. A two-digit year ("31.11.89") or none ("el 31.04.") only where a date goes.
       - regex: "(?<![\\p{N}/.:-])(\\d{1,3})([/.-])(\\d{1,2}|{{MONTH_NAMES}}|{{MONTH_SHORT}})(?:\\2([0-9]{4}|\\d{2}(?![\\p{N}])))?(?![\\p{N}/:-]|\\.\\p{N}|,\\p{N})"
         flags: giu
         scan: owned
         lookback: 16
-        fixer: numericDate
+        # A numeric date: "31/11/1988", "30-2-2001", "29-feb-2005". "el 31.04.", "el 30/2": a day and
+        # month only where a date goes and the clause ends; "el 30.2 por ciento" and the score "el 3-2"
+        # are numbers. "01/32/2014", "31.13.2014": no day-month or month-day reading. A zero day or
+        # month has none either; it is a date only with a four-digit year ("0/5/2020"). "será
+        # 32/04/2020" needs no cue: a full slash date with parts near a day or a month. "6-51-2032",
+        # "1.45.2020" and "Pedido N° 99/73/2022" are codes, versions or scores. "29.02.89": a two-digit
+        # year keeps its leap years ("00" may be 1900 or 2000).
+        let:
+          separator: m[2]
+          monthText: m[3]
+          yearText: m[4] ?? ""
+          month: >-
+            /^\d/u.test(monthText)
+              ? Number(monthText)
+              : ES_MONTHS.has(monthText.toLowerCase()) ? esMonthNumber(monthText) : esShortMonth(monthText)
+          day: Number(m[1])
+          dated: ES_DATED.test(ctx.text.slice(Math.max(0, m.index - 15), m.index))
+          impossible: >-
+            ((month > 12 || day > 31) && (day > 12 || month > 31)) ||
+            (yearText.length === 4 && (day === 0 || month === 0))
+          fullDate: >-
+            separator === "/" && yearText.length === 4 && day <= 39 && month <= 39 &&
+            !ES_CODE_LABEL.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+        when:
+          - m.index >= ctx.from
+          - >-
+            yearText.length === 4 ||
+            (dated && !(!yearText && (separator === "-" || !/^(?:[.;:!?)]|\s{0,8}$)/u.test(ctx.text.slice(m.index + m[0].length)))))
+          - '!impossible || ((dated || fullDate) && !namedExampleBefore(ctx.text, m.index))'
+          - impossible || (month >= 1 && month <= 12)
+        return: >-
+          impossible
+            ? esFinding("spanishTypography", "review_msg_spanish_date", m.index, m.index + m[0].length, [], { warningOnly: true })
+            : esDayFinding(ctx, m.index, m[1], month,
+                yearText.length === 4 ? Number(yearText) : yearText && yearText !== "00" ? 2000 + Number(yearText) : undefined)
   - id: es.isoDates
     checks: [spanishTypography]
     group: spanishTypography
@@ -621,24 +885,73 @@ rules:
       - regex: "{{ISO_DATE}}"
         flags: gdu
         owner: none
-        fixer: common:invalidIsoDate
+        let:
+          range: esInvalidIsoDate(m, ctx)
+        when: range
+        return: '({ ruleId: frame.ruleId, messageKey: frame.messageKey, range, alternatives: [], warningOnly: true })'
   - id: es.typographyMarks
     checks: [spanishTypography]
     group: spanishTypography
     style: match
     message: review_msg_spanish_abbreviation_period
+    maps:
+      ES_ABBREVIATION_FORMS:
+        nº: n.º
+        n.°: n.º
+        num: núm.
+        pag: pág.
+        pags: págs.
+        telf: tel.
+        tlf: tel.
+        tlfn: tel.
+    defs:
+      ES_NOT_ORDINAL_AFTER: /^(?:cent|fahr|kel|grad|norte|sur|este|oeste|latitud|longitud|bajo)/u
+      # A finding that replaces the whole match with `fix`; none when the fix is the typed text.
+      esMarkFix:
+        args: "m: RegExpExecArray, frame: FrameRef, fix: string | null"
+        when: fix && fix !== m[0]
+        return: esFinding("spanishTypography", frame.messageKey, m.index, m.index + m[0].length, [fix])
+      # The frames that replace the whole match run outside named examples, in the chunk.
+      esMarkOpen:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        return: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+      # The line of a closing mark from text[k], before text[stop]: -3 at a closing mark, -2 at a
+      # mark that stops the scan, -1 for no end, else the end of the sentence. "¿Vino el Sr.
+      # García?": a period ends the sentence only before a capital or the end.
+      esClosingEnd:
+        args: "text: string, k: number, stop: number"
+        type: number
+        let:
+          c: text[k]
+        return: >-
+          k >= stop
+            ? -1
+            : c === "?" || c === "!"
+              ? -3
+              : c === "¿" || c === "¡" || c === "\n" || c === "￼" || c === "«" || c === '"'
+                ? c === "\n" ? k : -2
+                : (c === "." || c === "…") && /^(?:[ \t]+\p{Lu}|[ \t]*(?:\n|$))/u.test(text.slice(k + 1, k + 12))
+                  ? /\p{Lu}\p{Ll}{0,3}$/u.test(text.slice(Math.max(0, k - 5), k)) ? esClosingEnd(text, k + 1, stop) : k
+                  : k === text.length - 1
+                    ? text.length
+                    : esClosingEnd(text, k + 1, stop)
+      # The last character before text[k] that is no space, from k back to `floor`.
+      esLastNonSpace:
+        args: "text: string, k: number, floor: number"
+        type: number
+        return: 'k > floor && /\s/u.test(text[k]) ? esLastNonSpace(text, k - 1, floor) : k'
     frames:
       # "etc..." and "etc…": the abbreviation ends in one point.
       - regex: "(?<!\\p{L})etc(?:\\.{2,}|…|\\.…)"
         flags: giu
         scan: owned
-        fixer: etcDots
+        return: esFinding("spanishTypography", frame.messageKey, m.index, m.index + m[0].length, [`${m[0].slice(0, 3)}.`])
         message: review_msg_spanish_abbreviation
       # "uno, dos…etc.": the ellipsis and "etc." say the same; keep one of them.
       - regex: "(?:,[ \\t]*)?(?:\\.{3}|…)[ \\t]*etc(?!\\p{L})\\.?"
         flags: giu
         scan: owned
-        fixer: etcEllipsis
+        return: esFinding("spanishTypography", frame.messageKey, m.index, m.index + m[0].length, [", etc.", "…"])
         message: review_msg_spanish_abbreviation
       # "2do", "5ta.", "1er": ordinal abbreviations take a period and a raised letter: "2.º",
       # "1.er".
@@ -646,14 +959,24 @@ rules:
         flags: gu
         scan: owned
         lookback: 8
-        fixer: ordinal
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, /^e?r$/u.test(m[2]) ? `${m[1]}.er` : `${m[1]}.${m[2].endsWith("a") ? "ª" : "º"}`)'
         message: review_msg_spanish_ordinal
       # "5 hrs", "48hrs", "15 h. será", "5grs": unit symbols take no plural and no period.
       - regex: "(?<![\\p{L}\\p{N}.,])(\\d+(?:[.,:]\\d+)?)([ \\t]?)(hrs|hr|hs|HRS|HS|grs|gr|GRS|h)(\\.(?=[ \\t]{1,8}\\p{Ll}))?(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: unit
+        # Hours only where a time goes ("a las 15 h. será", "a las 5hrs."): "500 h." may be
+        # inhabitants.
+        when: esMarkOpen(m, ctx)
+        return: >-
+          esMarkFix(m, frame,
+            /^g/iu.test(m[3])
+              ? `${m[1]} g`
+              : !/(?:^|\s)(?:las|la|sobre|hacia|desde|hasta|durante|en)\s{1,8}$/iu.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+                ? null
+                : m[3] === "h" && !m[4] && m[2] ? null : `${m[1]} h`)
         message: review_msg_spanish_unit
       # "la 2.º vez" -> "2.ª", "su 25ª aniversario" -> "25º": the raised letter takes the
       # gender of the noun after it.
@@ -661,7 +984,15 @@ rules:
         flags: gu
         scan: owned
         lookback: 8
-        fixer: genderedOrdinal
+        let:
+          noun: esReadNoun(m[4].toLowerCase())
+          fixed: 'noun?.gender === "f" ? "ª" : "º"'
+        when: esMarkOpen(m, ctx)
+        return: >-
+          esMarkFix(m, frame,
+            !noun?.gender || noun.paired || noun.plural || !/^\p{Lu}?\p{Ll}+$/u.test(m[4]) || fixed === m[3]
+              ? null
+              : `${m[1]}${m[2]}${fixed}`)
         message: review_msg_spanish_ordinal
       # "25ºC", "1 ºC": a degree sign, not the ordinal o, and a space before it ("3º C" is a
       # floor and a door).
@@ -669,7 +1000,8 @@ rules:
         flags: gu
         scan: owned
         lookback: 8
-        fixer: ordinalDegree
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, `${m[1]} °${m[2]}`)'
         message: review_msg_spanish_unit
       # "n° 18", "n°18": the number sign is "n.º", with the raised o, not a degree. A degree
       # sign right after a lowercase "n" only; "N° 54" heads forms and is left alone.
@@ -677,7 +1009,8 @@ rules:
         flags: gu
         scan: owned
         lookback: 8
-        fixer: numberSign
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, `${m[1]}.º `)'
         message: review_msg_spanish_ordinal
       # "el Sr García", "en el núm 25": an abbreviation before a name or a number takes its
       # period.
@@ -685,13 +1018,15 @@ rules:
         flags: gu
         scan: owned
         lookback: 8
-        fixer: bareAbbreviation
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, `${m[0]}.`)'
       # "2000euros", "5000habitantes": a number glued to the noun it counts.
       - regex: "(?<![\\p{L}\\p{N}.,])(\\p{N}+(?:[.,]\\p{N}{3})*)(\\p{Ll}{4,})(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: gluedCount
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, esIsNoun(m[2]) && m[2].endsWith("s") ? `${m[1]} ${m[2]}` : null)'
         message: review_msg_spanish_number_space
       # "LA semana pasada", "EL 2 de diciembre": an article in capitals opening a sentence of
       # lowercase words.
@@ -699,94 +1034,136 @@ rules:
         flags: gu
         scan: owned
         lookback: 8
-        fixer: shoutedArticle
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, `${m[0][0]}${m[0].slice(1).toLowerCase()}`)'
         message: review_msg_spanish_capital_article
       # "rojo, azul, etc", "el s XVIII", "N.I.F", "J. K Rowling": the abbreviation's period.
       - regex: "(?<![\\p{L}\\p{N}.])etc(?![\\p{L}\\p{N}.\\u2026])"
         flags: giu
         scan: owned
         lookback: 8
-        fixer: bareEtc
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, `${m[0]}.`)'
       - regex: "(?<=(?:^|[\\s(])(?:el|del|al|los|en|El|Del|Al|Los|En)[ \\t]{1,8}|^|[.!?][ \\t]{1,8})[sS](?=[ \\t]{1,8}{{ROMAN}}(?![\\p{L}\\p{N}]))"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: bareCentury
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, /(?:^|[.!?][ \t]{1,8})$/u.test(ctx.text.slice(Math.max(0, m.index - 9), m.index)) ? `${m[0]}.` : "s.")'
       # "N.I.F", "D.C", "S. A,": the last letter of dotted initials lost its period. A lone
       # "A", "E", "O", "U" or "Y" may be a word opening the next sentence.
       - regex: "(?<![\\p{L}\\p{N}.])(?:\\p{Lu}\\.){1,5}\\p{Lu}(?![\\p{L}\\p{N}.\\-/@_])|(?<=(?<![\\p{L}\\p{N}.])\\p{Lu}\\.[ \\t])(?:[B-DF-NP-TV-XZ](?=[ \\t]\\p{Lu}\\p{Ll})|\\p{Lu}(?=,))"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: openInitials
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, `${m[0]}.`)'
       # "p.ej.", "nº 18", "pag 4", "telf 666": the standard forms "p. ej.", "n.º", "pág.",
       # "tel.".
       - regex: "(?<![\\p{L}\\p{N}.])([pP])(?:[ \\t]?\\.[ \\t]?e(?:j[ \\t]?)?|[ \\t]ej[ \\t]?)\\.(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: forExample
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, `${m[1]}. ej.`)'
         message: review_msg_spanish_abbreviation_form
       - regex: "(?<![\\p{L}\\p{N}.])(n\\u00BA|n\\.\\u00B0|num|pag|pags|telf|tlf|tlfn)\\.?:?[ \\t]?(?=\\p{N})"
         flags: giu
         scan: owned
         lookback: 8
-        fixer: plainAbbreviation
+        let:
+          fix: '`${ES_ABBREVIATION_FORMS[m[1].toLowerCase()]}${m[0].includes(":") ? ":" : ""} `'
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, /^\p{Lu}/u.test(m[1]) ? fix[0].toUpperCase() + fix.slice(1) : fix)'
         message: review_msg_spanish_abbreviation_form
       # "el 9° clasificado", "la 2° edición": a degree sign for the ordinal's raised letter.
       - regex: "(?<=(?:^|[\\s(])(el|la|del|al|El|La|Del|Al)[ \\t]{1,8})(\\d{1,3})[ \\t]?\\u00B0(?=[ \\t]{1,8}(\\p{Ll}+))"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: degreeOrdinal
+        when: esMarkOpen(m, ctx)
+        return: >-
+          esMarkFix(m, frame,
+            ES_PREPOSITIONS.has(m[3]) || ES_NOT_ORDINAL_AFTER.test(m[3]) ? null : `${m[2]}.${/^la$/iu.test(m[1]) ? "ª" : "º"}`)
         message: review_msg_spanish_ordinal
       # "del '90", "los años '71": a shortened year takes no apostrophe.
       - regex: "(?:(?<=(?:^|[\\s(])(?:del|el|los|a\\u00F1os|d\\u00E9cada|en)[ \\t]{1,8})|(?<=['\\u2019\\u2018]\\d\\d[\\u2014\\u2013-]))['\\u2019\\u2018](\\d\\d)(?![\\p{L}\\p{N}'\\u2019])"
         flags: giu
         scan: owned
         lookback: 8
-        fixer: yearApostrophe
+        when: esMarkOpen(m, ctx)
+        return: esMarkFix(m, frame, m[1])
         message: review_msg_spanish_year_apostrophe
       # "la sra. García": abbreviations of address take a capital.
       - regex: "(?<![\\p{L}\\p{N}.])(?:sr|sra|srta|sres|sras|dr|dra)\\.(?=[ \\t]\\p{Lu}\\p{Ll})"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: lowerTreatment
+        when: esMarkOpen(m, ctx)
+        return: esMarkFix(m, frame, m[0][0].toUpperCase() + m[0].slice(1))
         message: review_msg_spanish_treatment_capital
       # "Sí sí, ven": a repeated "sí" or "no" takes a comma between.
       - regex: "(?<=(?:^|[.!?\\u00A1\\u00BF\\n])[ \\t]{0,8})(?:(S\\u00ED|s\\u00ED|S\\u00CD)[ \\t]+(s\\u00ED|S\\u00CD)|(No|no|NO)[ \\t]+(no|NO))(?=[ \\t]*[,.!?])"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: repeatedAnswer
+        when: esMarkOpen(m, ctx)
+        return: 'esMarkFix(m, frame, `${m[1] ?? m[3]}, ${m[2] ?? m[4]}`)'
         message: review_msg_spanish_repeated_answer
       # "Es él ─dijo": a box-drawing or Hangul stroke typed for the long dash.
       - regex: "(?<=[\\p{Script=Latin}.,!?][ \\t]?)[\\u2500\\u2501\\u3161](?=\\p{Script=Latin})"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: strokeDash
+        when: esMarkOpen(m, ctx)
+        return: esMarkFix(m, frame, "—")
         message: review_msg_spanish_dialogue_dash
       # "Adiós,. le dije": a comma and a period together; either one may be meant.
       - regex: "(?<=\\p{L}),\\.(?!\\.)"
         flags: gu
         scan: owned
-        fixer: commaPeriod
+        when: '!namedExampleBefore(ctx.text, m.index)'
+        return: 'esFinding("spanishTypography", frame.messageKey, m.index, m.index + 2, [",", "."], { requiresChoice: true })'
         message: review_msg_duplicate_punctuation
       # "¿Qué es lo que pasa aquí." -> "aquí?", "¡Qué bonito" -> "bonito!": an opening mark
       # whose sentence ends without a closing one.
       - regex: "[¿¡]"
         flags: gu
         scan: text
-        fixer: closingMark
+        # Either closing mark answers either opening one. The line ends without a mark: add the closing
+        # one after its last word.
+        let:
+          text: ctx.text
+          close: 'm[0] === "¿" ? "?" : "!"'
+          end: esClosingEnd(text, m.index + 1, Math.min(text.length, m.index + 400))
+          last: esLastNonSpace(text, end - 1, m.index)
+        when: end >= 0 && !namedExampleBefore(text, m.index)
+        return: >-
+          end === text.length || text[end] === "\n"
+            ? /[\p{L}\p{N}]/u.test(text[last] ?? "")
+              ? esFinding("spanishTypography", "review_msg_spanish_closing_mark", last, last + 1, [`${text[last]}${close}`])
+              : null
+            : text[end] === "."
+              ? esFinding("spanishTypography", "review_msg_spanish_closing_mark", end, end + 1, [close])
+              : null
         message: review_msg_spanish_closing_mark
       # "los años 1930s", "los 80's": a decade takes no plural ending in Spanish.
       - regex: "(?<=(?<![\\p{L}])(?:a\\u00F1os|los)[ \\t]{1,4})((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s)(?:[ \\t]+y[ \\t]+((?:1[0-9]|20)?[0-9]0)(?:['\\u2019]s|s))?(?![\\p{L}\\p{N}])"
         flags: giu
         scan: owned
         lookback: 8
-        fixer: decade
+        # "los años 20s y 30s": both decades of a pair.
+        let:
+          second: 'm[2] ? m.index + m[0].lastIndexOf(m[2]) : -1'
+          first: /^\d+['’]?s/u.exec(m[0])![0]
+        when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+        return: >-
+          [
+            esFinding("spanishTypography", "review_msg_spanish_decade", m.index, m.index + first.length, [m[1]]),
+            ...(m[2]
+              ? [esFinding("spanishTypography", "review_msg_spanish_decade", second, second + m[0].slice(second - m.index).length, [m[2]])]
+              : []),
+          ]
         message: review_msg_spanish_decade
   - id: es.commas
     checks: [spanishTypography]
@@ -1088,31 +1465,117 @@ rules:
       - regex: "(?<=\\p{L}\\p{Ll})(?:\\.(?=(?:{{STARTERS}})(?![\\p{L}\\p{N}])|[¿¡])|[?!](?=[¿¡]|\\p{Lu}\\p{Ll})|…(?=[¿¡]|\\p{L}))|(?<=\\p{L})[ \\t]+(?:[.?!]|…)(?=[¿¡]|\\p{Lu}\\p{Ll})"
         flags: gu
         scan: owned
-        fixer: missingSpace
+        # A sentence mark glued to the next sentence: "frase.Y otra" -> "frase. Y otra". "P.A.Čerenkov",
+        # "EE.UU.Hoy": initials and abbreviations stay glued.
+        when:
+          - '!/\.\p{L}{1,3}$/u.test(ctx.text.slice(Math.max(0, m.index - 4), m.index))'
+          - '!namedExampleBefore(ctx.text, m.index)'
+        return: >-
+          ({
+            ruleId: "commaPeriodSpacing",
+            messageKey: "review_msg_space_after_mark",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [`${m[0].trim()} `],
+            context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
+            bulkBlock: "context-dependent",
+          })
       # "dijo : ven" -> "dijo: ven", "vino;pero" -> "vino; pero": Spanish sets no space before
       # a colon or a semicolon, and one after a semicolon between words.
       - regex: "(?<=\\p{L})[ \\t]+[:;](?=[ \\t]|$)|(?<=\\p{L}\\p{Ll});(?=\\p{Ll}{2})"
         flags: gmu
         scan: owned
-        fixer: colonSpacing
+        # "dijo : ven" -> "dijo: ven", "vino;pero" -> "vino; pero". "&nbsp;texto", "a;b" in code: an
+        # entity or a token with no space around it.
+        let:
+          word: /\S*$/u.exec(ctx.text.slice(Math.max(0, m.index - 32), m.index))![0]
+        when: '!(namedExampleBefore(ctx.text, m.index) || /[&#=/]/u.test(word))'
+        return: >-
+          ({
+            ruleId: "commaPeriodSpacing",
+            messageKey: m[0].startsWith(";") ? "review_msg_space_after_mark" : "review_msg_space_before_mark",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [m[0].startsWith(";") ? "; " : m[0].trim()],
+            context: { start: Math.max(0, m.index - 16), end: Math.min(ctx.text.length, m.index + 16) },
+            bulkBlock: "context-dependent",
+          })
   - id: es.quoteSpaces
     checks: [commaPeriodSpacing]
     group: commaPeriodSpacing
     style: match
     message: review_msg_space_after_opening_mark
+    defs:
+      # The straight double marks from text[k] to text[end].
+      esQuoteMarks:
+        args: "text: string, k: number, end: number"
+        type: number[]
+        return: "k >= 0 && k < end ? [k, ...esQuoteMarks(text, text.indexOf('\"', k + 1), end)] : []"
+      # No space inside the pair of marks at `open` and `close`.
+      esQuotePairSpaces:
+        args: "ctx: DetectContext, open: number, close: number"
+        let:
+          inner: ctx.text.slice(open + 1, close)
+          lead: '/^[ \t ]+(?=[\p{L}\p{N}¿¡])/u.exec(inner)?.[0].length ?? 0'
+          trail: '/(?<=[\p{L}\p{N}.!?…])[ \t ]+$/u.exec(inner)?.[0].length ?? 0'
+        when: inner.trim() && inner.length <= 200 && !namedExampleBefore(ctx.text, open)
+        return: >-
+          [
+            lead && open >= ctx.from && open < ctx.to
+              ? {
+                  ruleId: "commaPeriodSpacing" as const,
+                  messageKey: "review_msg_space_after_opening_mark" as const,
+                  range: { start: open, end: open + 1 + lead },
+                  alternatives: ['"'],
+                  context: { start: open, end: close + 1 },
+                  bulkBlock: "context-dependent" as const,
+                }
+              : null,
+            trail && close >= ctx.from && close < ctx.to
+              ? {
+                  ruleId: "commaPeriodSpacing" as const,
+                  messageKey: "review_msg_space_before_mark" as const,
+                  range: { start: close - trail, end: close + 1 },
+                  alternatives: ['"'],
+                  context: { start: open, end: close + 1 },
+                  bulkBlock: "context-dependent" as const,
+                }
+              : null,
+          ].filter((finding) => finding !== null)
+        else: "[]"
     frames:
       # Each line that touches the chunk, from the chunk start (a regex cannot start before
       # it): the fixer pairs the straight quotes of the whole line by position.
       - regex: "[^\\n]+\\n?|\\n"
         flags: g
         scan: text
-        fixer: quoteSpaces
+        # 'Dijo " sí".' -> 'Dijo "sí".': no space inside a straight pair. The marks of a line pair up in
+        # order, so a line with an odd count, or with a mark after a digit (6" for inches), is left
+        # alone. The frame matches each line from the chunk start: the first match may start inside its
+        # line.
+        let:
+          text: ctx.text
+          lineStart: text.lastIndexOf("\n", m.index - 1) + 1
+          lineEnd: 'm.index + m[0].length - (m[0].endsWith("\n") ? 1 : 0)'
+          marks: "esQuoteMarks(text, text.indexOf('\"', lineStart), lineEnd)"
+          usable: marks.length >= 2 && marks.length % 2 === 0 && !marks.some((k) => /\d/.test(text[k - 1] ?? ""))
+        return: 'usable ? marks.flatMap((open, p) => (p % 2 ? [] : esQuotePairSpaces(ctx, open, marks[p + 1]))) : []'
   - id: es.dashes
     checks: [emdashShortcut]
     group: emdashShortcut
     style: match
     message: review_msg_spanish_dialogue_dash
-    filter: firstAtStart
+    defs:
+      # A dialogue or remark dash at [start, end) of the chunk gets the long dash.
+      esLongDash:
+        args: "ctx: DetectContext, start: number, end: number"
+        return: >-
+          start < ctx.from || start >= ctx.to
+            ? null
+            : esFinding("emdashShortcut", "review_msg_spanish_dialogue_dash", start, end, ["—"])
+    # A dash may both open a dialogue line and open a remark: one finding for it.
+    filter:
+      let:
+        seen: new Set<number>()
+      return: findings.filter((f) => !seen.has(f.range.start) && !!seen.add(f.range.start))
     frames:
       # "Ven -dijo.", "-¿Perdón?": the dialogue dash, an optional typography check like the
       # dash. Verbs of saying after a dialogue line use the long dash.
@@ -1120,19 +1583,30 @@ rules:
         flags: gu
         scan: owned
         lookback: 8
-        fixer: dialogueDash
+        when: '!namedExampleBefore(ctx.text, m.index)'
+        return: esLongDash(ctx, m.index, m.index + m[0].length)
       # "Se fue -¿no?-, y volvió", "Finol –medalla de bronce– ganó": a remark set off by a pair
       # of hyphens or en dashes, open after a space and closed before a space or a mark.
       - regex: "(?<=[ \\t])[-\\u2013](?=[\\p{L}\\u00BF\\u00A1])[^-\\u2013\\n]{0,150}?[\\p{L}\\p{N}?!.\\u2026][-\\u2013](?=[ \\t,.;:)]|$)"
         flags: gu
         scan: owned
         lookback: 160
-        fixer: remarkDashes
+        # "Se fue -¿no?-, y volvió", "Finol –medalla de bronce– ganó": both dashes of the remark.
+        let:
+          close: m.index + m[0].length - 1
+        when: '!namedExampleBefore(ctx.text, m.index)'
+        return: '[esLongDash(ctx, m.index, m.index + 1), esLongDash(ctx, close, close + 1)].filter((dash) => dash !== null)'
   - id: es.rangeDash
     checks: [emdashShortcut]
     group: emdashShortcut
     style: match
     message: review_msg_range_dash
+    defs:
+      # "las páginas 10-15" -> "10–15" (opt-in). A label that makes the pair a phone number, a postal
+      # code, an ID or a reference.
+      ES_RANGE_CODE_BEFORE: '/(?:^|[\s(])(?:tel|teléf|tfno|tlf|teléfono|móvil|fax|whatsapp|c\.?p|código|cód|n\.?º|núm|número|ref|referencia|expediente|exp|lote|pedido|factura|matrícula|dni|nie|nif|cif|cuenta|iban|tarjeta|art|artículo|ley|decreto|modelo|versión|vuelo|línea|ruta)\.?:?(?:[ \t]{1,8}(?:es|era|será))?[ \t]{0,8}$/iu'
+      # A result: "ganó 3-1", "empataron 2-2", "el marcador 1-2".
+      ES_RANGE_SCORE_BEFORE: '/(?:^|\s)(?:gan\p{L}*|perd\p{L}*|venc\p{L}*|empat\p{L}*|derrot\p{L}*|golea\p{L}*|marcador|resultado|partido|set|sets|tanteo)[ \t]{1,8}(?:\p{L}+[ \t]{1,8}){0,2}$/iu'
     frames:
       # "pages 10-15", "1990-1995": two numbers of up to four digits joined by a hyphen. A dash,
       # a colon, a slash or a digit group after the second number makes a date, a phone number
@@ -1141,7 +1615,23 @@ rules:
         scan: owned
         lookback: 8
         flags: gu
-        fixer: rangeDash
+        # "10-15" -> "10–15": an ascending range of numbers takes an en dash. A leading zero or a 3-4
+        # pair is a phone number or an ID: "0034-600", "12-05", "915-5512". A range runs up: "1990-95"
+        # and the season "2014-15" end in 1995 and 2015; "3-1" does not.
+        let:
+          a: m[1]
+          b: m[3]
+          last: 'a.length === 4 && b.length === 2 ? Number(a.slice(0, 2) + b) : Number(b)'
+          before: ctx.text.slice(Math.max(0, m.index - 48), m.index)
+        when:
+          - m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+          - '!(a[0] === "0" || b[0] === "0" || (a.length === 3 && b.length === 4))'
+          - last > Number(a)
+          - '!(ES_RANGE_CODE_BEFORE.test(before) || ES_RANGE_SCORE_BEFORE.test(before))'
+        return: >-
+          esFinding("emdashShortcut", "review_msg_range_dash", m.index + a.length, m.index + a.length + m[2].length, ["–"], {
+            context: { start: m.index, end: m.index + m[0].length },
+          })
   - id: es.decimalComma
     checks: [spanishTypographyStyle]
     style: match
@@ -1152,20 +1642,45 @@ rules:
         flags: gu
         scan: owned
         lookback: 32
-        fixer: decimalPoint
+        # "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma.
+        when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+        return: >-
+          ({
+            ruleId: "spanishTypographyStyle",
+            messageKey: "review_msg_spanish_decimal",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
+          })
       # "1.4 kg", "9349.5", "1 999 349.56": a decimal point before a unit, after four digits or
       # closing a group spaced by thousands. "a las 9.30", "versión 2.5" and "3.2.1" stay.
       - regex: "(?<![\\p{N}.,])(?:\\d{1,3}(?: \\d{3})+|\\d{4,}|\\d{1,3}(?=\\.\\d{1,2}{{UNIT_AFTER}}))\\.\\d{1,2}(?![\\p{N}]|[.,]\\p{N})"
         flags: gu
         scan: owned
         lookback: 32
-        fixer: decimalPoint
+        # "Pesa 1.4 kg" -> "1,4 kg", "9,349.5" -> "9.349,5": the Spanish decimal comma.
+        when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+        return: >-
+          ({
+            ruleId: "spanishTypographyStyle",
+            messageKey: "review_msg_spanish_decimal",
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [m[0].replace(/[.,]/gu, (c) => (c === "." ? "," : "."))],
+          })
       # "30 km2", "por m3": a unit's exponent is a superscript.
       - regex: "(?<=(?:\\d[ \\t\\u00a0]?|\\bpor[ \\t]|\\/))(?:km|cm|mm|dm|m)[23](?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 8
-        fixer: exponent
+        let:
+          start: m.index + m[0].length - 1
+        when: m.index >= ctx.from && !namedExampleBefore(ctx.text, m.index)
+        return: >-
+          ({
+            ruleId: "spanishTypographyStyle",
+            messageKey: "review_msg_typographic_symbol",
+            range: { start, end: start + 1 },
+            alternatives: [m[0].endsWith("2") ? "²" : "³"],
+          })
         message: review_msg_typographic_symbol
   - id: es.agreement
     checks: [spanishAgreement]

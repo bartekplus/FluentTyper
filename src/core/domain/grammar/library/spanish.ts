@@ -66,3 +66,13 @@ export {
   readNoun as esReadNoun,
   singulars as esSingulars,
 } from "../review/spanish/nouns";
+export { monthNumber as esMonthNumber } from "../review/spanish/typography";
+// Dates: the calendar, and the ISO date frame of every language.
+export {
+  contextYear as esContextYear,
+  daysInMonth as esDaysInMonth,
+  nearestDayOn as esNearestDayOn,
+  weekdayOf as esWeekdayOf,
+  yearsFor as esYearsFor,
+} from "../review/reviewClock";
+export { invalidIsoDate as esInvalidIsoDate } from "../review/isoDates";
