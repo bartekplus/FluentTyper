@@ -1,9 +1,9 @@
 import { describe, expect, test } from "bun:test";
-import { MeasurementUnitFormattingRule } from "../../src/core/domain/grammar/implementations/MeasurementUnitFormattingRule";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import type { GrammarHints } from "../../src/core/domain/grammar/types";
 import { proseContext } from "./grammarTestUtils";
 
-const rule = new MeasurementUnitFormattingRule();
+const rule = liveRule("measurementUnitFormatting");
 
 function apply(beforeCursor: string, lang = "en_US", extra: GrammarHints = {}) {
   return rule.apply(proseContext(beforeCursor, lang, extra));

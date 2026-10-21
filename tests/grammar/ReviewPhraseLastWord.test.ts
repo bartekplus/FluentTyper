@@ -1,10 +1,12 @@
 import { expect, test } from "bun:test";
+import {
+  AGREEMENT_REGEX,
+  ARTICLE_REGEX,
+  MODAL_OF_REGEX,
+  THEIR_THERE_BE_REGEX,
+  YOUR_WELCOME_REGEX,
+} from "../../src/core/domain/grammar/review/rules/common.generated";
 import { PHRASE_LAST_WORD } from "../../src/core/domain/grammar/review/reviewDetectors";
-import { MODAL_OF_REGEX } from "../../src/core/domain/grammar/implementations/EnglishModalOfCorrectionRule";
-import { YOUR_WELCOME_REGEX } from "../../src/core/domain/grammar/implementations/EnglishYourWelcomeCorrectionRule";
-import { THEIR_THERE_BE_REGEX } from "../../src/core/domain/grammar/implementations/EnglishTheirThereBeVerbRule";
-import { AGREEMENT_REGEX } from "../../src/core/domain/grammar/implementations/EnglishPronounVerbWhitelistAgreementRule";
-import { ARTICLE_REGEX } from "../../src/core/domain/grammar/implementations/EnglishArticleAnCorrectionRule";
 
 // Fuzz: when a pattern matches a window that ends at a word end, the last-word test of its
 // predicate is true. Then the test never skips a window that gives a match.

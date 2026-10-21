@@ -288,7 +288,7 @@ In YAML, quote a value that starts with `!`, `[`, `{`, `*`, `&`, `|`, `>`, `'`, 
 
 `library.ts` and the `library/` files it re-exports are the only TypeScript that rule code calls. A library function answers a question about the text or the language (lexicon, inflection, words around a position, casing, quotations), or builds a finding or an edit from the parts it gets. It names no check and no message, and it holds no rule's trigger words, exceptions or fix text: those stay in the rule files. Library names have an area prefix (`en`, `EN_`, `de`, `es`, ...). `tests/grammar/RuleLibrary.test.ts` checks these limits, and that no library file loads the engine (an import cycle) and that the typing rules load no Review code (the content scripts stay small).
 
-A TypeScript module that tests import keeps its path as a facade: it re-exports names of a generated module or the library, and a typing rule class delegates to `liveRule(id)` of `engine/liveRules.ts`.
+Tests import the names of a rule file from its generated module or from the library. Do not add a facade module for a test. A test runs one typing rule with `liveRule(id, options)` of `engine/liveRules.ts`.
 
 ### Token Predicates
 

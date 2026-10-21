@@ -1,4 +1,4 @@
-import { closesAbbreviation } from "../implementations/CapitalizeSentenceStartRule";
+import { closesAbbreviation } from "../library/typing/sentences";
 import { MAX_REVIEW_CHARS } from "./types";
 import type { ProtectedRange, ReviewSourceSnapshot, TextRange } from "./types";
 

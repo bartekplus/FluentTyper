@@ -1,14 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
 import { SUPPORTED_LANGUAGES } from "@core/domain/lang";
-import { MeasurementUnitFormattingRule } from "../../src/core/domain/grammar/implementations/MeasurementUnitFormattingRule";
 import type { GrammarEdit } from "../../src/core/domain/grammar/types";
 import { MEASUREMENT_LOCALES } from "../../src/core/domain/grammar/measurement/registry-data.generated";
 import { proseContext, typeText } from "./grammarTestUtils";
 
 const NBSP = "\u00a0";
-const rule = new MeasurementUnitFormattingRule();
+const rule = liveRule("measurementUnitFormatting");
 
 function apply(input: string, edit: GrammarEdit | null): string {
   if (!edit) return input;

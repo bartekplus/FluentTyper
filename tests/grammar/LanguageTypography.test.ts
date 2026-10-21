@@ -1,10 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { liveRule } from "../../src/core/domain/grammar/engine/liveRules";
+import { closesAbbreviation } from "../../src/core/domain/grammar/library/typing/sentences";
 import { GrammarRuleEngine } from "../../src/core/domain/grammar/GrammarRuleEngine";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
-import {
-  CapitalizeSentenceStartRule,
-  closesAbbreviation,
-} from "../../src/core/domain/grammar/implementations/CapitalizeSentenceStartRule";
 import {
   GRAMMAR_RULE_CATALOG,
   GRAMMAR_RULE_IDS,
@@ -290,7 +288,7 @@ describe("rule interactions", () => {
   test("a lone inverted mark is left alone", () => {
     // The engine swallows rule errors, so call the rule itself.
     expect(
-      new CapitalizeSentenceStartRule().apply({
+      liveRule("capitalizeSentenceStart").apply({
         beforeCursor: "hola. ¿ ",
         afterCursor: "",
         hints: { lang: "es_ES" },
