@@ -1,4 +1,3 @@
-import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
@@ -181,7 +180,7 @@ function nounGender(word: string): Gender | null {
 
 // ------------------------------------------------------------------ noun number
 
-const ACUTE: Record<string, string> = wordTable({ a: "á", e: "é", i: "í", o: "ó", u: "ú" });
+const ACUTE: Record<string, string> = { a: "á", e: "é", i: "í", o: "ó", u: "ú" };
 const VOWEL_GROUP = /[aeiouáéíóúü]+/gu;
 
 /** The singulars a plural may come from, most likely first. */
@@ -497,7 +496,7 @@ const PICKERS = [
 ].map((line) => line.split(" "));
 const PICKER = new Map<string, { forms: string[]; slot: number }>();
 for (const forms of PICKERS) forms.forEach((form, slot) => PICKER.set(form, { forms, slot }));
-const GROUP_GENDER: Record<string, Gender> = wordTable({});
+const GROUP_GENDER: Record<string, Gender> = {};
 for (const word of "los estos esos aquellos ellos nosotros vosotros nuestros vuestros".split(" "))
   GROUP_GENDER[word] = "m";
 for (const word of "las estas esas aquellas ellas nosotras vosotras nuestras vuestras".split(" "))
@@ -540,14 +539,14 @@ function pickerGroup(ctx: DetectContext, tokens: Tokens, i: number): RawFinding 
 }
 
 // "la primer vez" -> "primera"; "el primero ministro" -> "primer".
-const ORDINALS: Record<string, [string, string]> = wordTable({
+const ORDINALS: Record<string, [string, string]> = {
   primer: ["primer", "primera"],
   tercer: ["tercer", "tercera"],
   primero: ["primer", "primera"],
   tercero: ["tercer", "tercera"],
   bueno: ["buen", "buena"],
   malo: ["mal", "mala"],
-});
+};
 const FEMININE_BEFORE = words("la una esta esa aquella nuestra vuestra otra");
 const MASCULINE_BEFORE = words("el un este ese aquel nuestro vuestro otro del al");
 
@@ -639,7 +638,7 @@ function countedDeterminer(ctx: DetectContext, tokens: Tokens, i: number): RawFi
 // ------------------------------------------------------------------ adjectives after the noun
 
 // Time nouns and their gender: "el domingo pasado", "la semana próxima".
-const TIME_GENDER: Record<string, Gender> = wordTable({});
+const TIME_GENDER: Record<string, Gender> = {};
 for (const word of (
   "lunes martes miércoles jueves viernes sábado domingo día mes año siglo verano invierno " +
   "otoño trimestre semestre curso periodo período fin lustro milenio"
@@ -897,11 +896,11 @@ function darPorParticiple(ctx: DetectContext, tokens: Tokens, i: number): RawFin
 }
 
 // "esto"/"eso"/"aquello" stand alone; before a noun the determiner is este/ese/aquel.
-const NEUTER: Record<string, string[]> = wordTable({
+const NEUTER: Record<string, string[]> = {
   esto: ["este", "esta", "estos", "estas"],
   eso: ["ese", "esa", "esos", "esas"],
   aquello: ["aquel", "aquella", "aquellos", "aquellas"],
-});
+};
 // Nouns that also work as adverbs of time: "Haz eso mañana", "Termina esto hoy".
 const TIME_ADVERBS = words("mañana tarde noche hoy ayer anoche siempre ahora");
 
@@ -1108,12 +1107,12 @@ function neuterDegree(ctx: DetectContext, tokens: Tokens, i: number): RawFinding
 // "todo hombre", "medio día".
 const NOT_PRENOMINAL =
   /^(?:tod|much|poc|otr|mism|tant|cuant|vari|cierto|ciert|demasiad|medi|sol|ambos|ambas|cual|dich|propi|semejant)/u;
-const APOCOPE: Record<string, string> = wordTable({
+const APOCOPE: Record<string, string> = {
   buen: "bueno",
   mal: "malo",
   primer: "primero",
   tercer: "tercero",
-});
+};
 
 /**
  * "Con magníficos cucharas", "Buen amigos." -> "magníficas", "Buenos": an adjective opening a

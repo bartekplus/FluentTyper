@@ -1,4 +1,3 @@
-import { wordTable } from "../wordTable";
 import { bloomHas, decodeBits } from "../../implementations/helpers/EnglishLexicon";
 import { memoize } from "../../implementations/helpers/GenericRuleShared";
 import { graphWords } from "../wordGraph";
@@ -100,7 +99,7 @@ export function genderedForm(word: string): Agreement | null {
 /** A participle or a gendered adjective/noun form: what may follow "está" as its attribute. */
 export const attribute = (word: string): Agreement | null => participle(word) ?? genderedForm(word);
 
-const ACUTE: Record<string, string> = wordTable({ a: "á", e: "é", i: "í", o: "ó", u: "ú" });
+const ACUTE: Record<string, string> = { a: "á", e: "é", i: "í", o: "ó", u: "ú" };
 /** The written accent the singular takes back: "camion" -> "camión", "ingles" -> "inglés". */
 export function accentLast(stem: string): string {
   const m = /([aeiou])([ns])$/u.exec(stem);
@@ -127,7 +126,7 @@ export const isGerund = (word: string) =>
     word,
   );
 
-const PLAIN: Record<string, string> = wordTable({ á: "a", é: "e", í: "i", ó: "o", ú: "u" });
+const PLAIN: Record<string, string> = { á: "a", é: "e", í: "i", ó: "o", ú: "u" };
 export const plain = (word: string) => word.replace(/[áéíóú]/g, (c) => PLAIN[c]);
 
 /**
@@ -306,7 +305,7 @@ const IRREGULAR_FINITE = new Set(
 // "compuso" (componer), "obtuvo" (obtener), "deshizo" (deshacer), "previno" (prevenir).
 const STRONG_PRETERITE =
   /^(\p{L}*?)(duj|pus|tuv|hic|hiz|vin|traj)(e|iste|o|imos|isteis|ieron|eron)$/u;
-const STRONG_INFINITIVE: Record<string, string> = wordTable({
+const STRONG_INFINITIVE: Record<string, string> = {
   duj: "ducir",
   pus: "poner",
   tuv: "tener",
@@ -314,11 +313,11 @@ const STRONG_INFINITIVE: Record<string, string> = wordTable({
   hiz: "hacer",
   vin: "venir",
   traj: "traer",
-});
+};
 // Future and conditional stems that drop or change a vowel: "pondría", "tendrá", "dirán".
 const SHORT_FUTURE =
   /^(\p{L}*?)(pondr|tendr|vendr|saldr|valdr|podr|sabr|cabr|querr|har|dir)(é|ás|á|emos|éis|án|ía|ías|íamos|íais|ían)$/u;
-const SHORT_INFINITIVE: Record<string, string> = wordTable({
+const SHORT_INFINITIVE: Record<string, string> = {
   pondr: "poner",
   tendr: "tener",
   vendr: "venir",
@@ -330,7 +329,7 @@ const SHORT_INFINITIVE: Record<string, string> = wordTable({
   querr: "querer",
   har: "hacer",
   dir: "decir",
-});
+};
 
 /**
  * "españoles", "colores": the plural of a common noun or adjective reads before the

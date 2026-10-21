@@ -1,4 +1,3 @@
-import { wordTable } from "../wordTable";
 import { namedExampleBefore } from "../exampleCues";
 import { EMPHASIS_MARKS } from "../markdownEmphasis";
 import type { Detector, FindingsFilter, MatchFixer } from "../../engine/reviewRules";
@@ -330,7 +329,7 @@ const replaced =
     return finding(RULE, frame.messageKey, m.index, m.index + m[0].length, [replacement]);
   };
 
-const ABBREVIATION_FORMS: Record<string, string> = wordTable({
+const ABBREVIATION_FORMS: Record<string, string> = {
   nº: "n.º",
   "n.°": "n.º",
   num: "núm.",
@@ -339,7 +338,7 @@ const ABBREVIATION_FORMS: Record<string, string> = wordTable({
   telf: "tel.",
   tlf: "tel.",
   tlfn: "tel.",
-});
+};
 const NOT_ORDINAL_AFTER = /^(?:cent|fahr|kel|grad|norte|sur|este|oeste|latitud|longitud|bajo)/u;
 
 /** The frames of the typographyMarks rule, in the order of its frames. */

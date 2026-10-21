@@ -1,4 +1,3 @@
-import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import {
@@ -69,7 +68,7 @@ function paraQue(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | nu
 // ------------------------------------------------------------------ enclitics
 
 const ENCLITIC = words("lo la los las le les me te se nos");
-const STRESS: Record<string, string> = wordTable({ a: "á", e: "é" });
+const STRESS: Record<string, string> = { a: "á", e: "é" };
 
 /** The gerund or infinitive with a pronoun joined to it: "cantando" + "lo" -> "cantándolo". */
 function joined(verb: string, pronoun: string): string | null {
@@ -114,7 +113,7 @@ function separatedEnclitic(ctx: DetectContext, tokens: Tokens, i: number): RawFi
 // ------------------------------------------------------------------ impersonal haber
 
 // The es.clauseAgreement frame of rules/es.yaml lists these words.
-const PLURAL_MODAL: Record<string, string> = wordTable({
+const PLURAL_MODAL: Record<string, string> = {
   pueden: "puede",
   podían: "podía",
   podrían: "podría",
@@ -130,7 +129,7 @@ const PLURAL_MODAL: Record<string, string> = wordTable({
   tenían: "tenía",
   tendrán: "tendrá",
   tendrían: "tendría",
-});
+};
 // What the impersonal "haber" introduces: a quantity or a plural noun phrase.
 const QUANTITY = words(
   "muchos muchas varios varias algunos algunas unos unas pocos pocas demasiados demasiadas " +
@@ -228,7 +227,7 @@ function aPunto(ctx: DetectContext, tokens: Tokens, i: number): RawFinding | nul
 // ------------------------------------------------------------------ doubled pronouns
 
 // The dative clitic each "a" + pronoun doubles: "a mí me gusta", "a ellas les gusta".
-const DOUBLED: Record<string, string> = wordTable({
+const DOUBLED: Record<string, string> = {
   mí: "me",
   ti: "te",
   él: "le",
@@ -241,7 +240,7 @@ const DOUBLED: Record<string, string> = wordTable({
   ellos: "les",
   ellas: "les",
   ustedes: "les",
-});
+};
 const DATIVE = words("me te le les nos os");
 
 /** "A mí no te gusta" -> "me": the clitic repeats the person "a" + pronoun names. */

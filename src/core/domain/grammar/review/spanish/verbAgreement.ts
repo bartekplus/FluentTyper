@@ -1,4 +1,3 @@
-import { wordTable } from "../wordTable";
 import type { FindingsFilter, MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { DETERMINER, pluralOf, readNoun } from "./agreement";
@@ -41,7 +40,7 @@ import {
 const RULE = "spanishAgreement" as const;
 const MESSAGE = "review_msg_spanish_verb_agreement" as const;
 
-const SINGULAR_VERB: Record<string, string> = wordTable({
+const SINGULAR_VERB: Record<string, string> = {
   es: "son",
   fue: "fueron",
   ha: "han",
@@ -54,9 +53,9 @@ const SINGULAR_VERB: Record<string, string> = wordTable({
   estaba: "estaban",
   había: "habían",
   tiene: "tienen",
-});
-const PLURAL_VERB: Record<string, string> = wordTable(
-  Object.fromEntries(Object.entries(SINGULAR_VERB).map(([singular, plural]) => [plural, singular])),
+};
+const PLURAL_VERB: Record<string, string> = Object.fromEntries(
+  Object.entries(SINGULAR_VERB).map(([singular, plural]) => [plural, singular]),
 );
 
 /** A third-person verb's number ("tiene" -> singular, "siguen" -> plural), or null. */
@@ -173,14 +172,14 @@ function personOf(word: string): Person | null {
   return /[aeéí]$/u.test(word) ? "vowel" : null;
 }
 // What each subject pronoun's verb may show: "yo tenía" shares the 3rd person's form.
-const PERSONS: Record<string, Person[]> = wordTable({
+const PERSONS: Record<string, Person[]> = {
   yo: ["1s", "vowel"],
   tú: ["2s"],
   nosotros: ["1p"],
   nosotras: ["1p"],
   vosotros: ["2p"],
   vosotras: ["2p"],
-});
+};
 const NOT_VERBS = words(
   "solo sola mismo misma mismos mismas también tampoco todo todos todas ahora siempre nunca " +
     "antes después aquí allí bien mal más menos tanto apenas casi",
@@ -227,14 +226,14 @@ const PRESENT_PLURAL = [
   ["emos", "éis"],
   ["imos", "ís"],
 ];
-const SLOT: Record<string, number> = wordTable({
+const SLOT: Record<string, number> = {
   yo: 0,
   tú: 1,
   nosotros: 3,
   nosotras: 3,
   vosotros: 4,
   vosotras: 4,
-});
+};
 
 /** The pronoun's form of a verb in a tense that keeps its stem, or null. */
 function personForm(verb: string, pronoun: string): string | null {

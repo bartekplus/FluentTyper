@@ -1,4 +1,3 @@
-import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
 import {
   atToken,
@@ -172,7 +171,7 @@ const SER_ESTAR = words(
  * Checks by the typed (lowercase) word. Each returns the replacement(s) or null. The first
  * es.confusions frame of rules/es.yaml lists these words and the words of PLURAL_HABER.
  */
-const CHECKS: Record<string, Check> = wordTable({
+const CHECKS: Record<string, Check> = {
   ano: (at) => (yearReading(at) ? ["año"] : null),
   e: (at) => perfectHe(at) ?? strayE(at),
   eh: perfectHe,
@@ -419,7 +418,7 @@ const CHECKS: Record<string, Check> = wordTable({
       return prev === "fue" ? null : IR.has(prev) || !motion ? ["a ver", "a haber"] : ["a ver"];
     return CLITICS.has(next) || !motion ? null : ["a ver"];
   },
-});
+};
 
 const PLURAL_HABER: Record<string, string> = {
   han: "ha",

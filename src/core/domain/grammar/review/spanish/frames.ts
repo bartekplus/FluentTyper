@@ -1,4 +1,3 @@
-import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { DETERMINER, pluralOf, readNoun } from "./agreement";
@@ -219,13 +218,13 @@ const COMPOUND_VERB =
   /^(?:corta|para|lava|saca|abre|guarda|limpia|porta|pasa|cuenta|rompe|mata|quita|salva|tapa|cubre|pica|lanza|toca|cumple|sujeta|chupa|espanta|trota|ciempiés)\p{L}{3,}s$/u;
 
 // Shortened adjectives and their full plural forms: "buen amigo" but "buenos amigos".
-const APOCOPE: Record<string, [string, string]> = wordTable({
+const APOCOPE: Record<string, [string, string]> = {
   buen: ["buenos", "buenas"],
   mal: ["malos", "malas"],
   gran: ["grandes", "grandes"],
   primer: ["primeros", "primeras"],
   tercer: ["terceros", "terceras"],
-});
+};
 
 /** "buen amigos" -> "buenos amigos": the shortened form goes only before a singular noun. */
 function apocopePlural(ctx: DetectContext, at: Around): RawFinding | null {
@@ -282,13 +281,13 @@ function coordinatedAdjective(ctx: DetectContext, at: Around): RawFinding | null
 
 // Verbs in -uar whose stressed forms carry "ú": unaccented, they are adjectives.
 // The es.frameAccents frame of rules/es.yaml lists these words and those of DEMONSTRATIVE.
-const UAR: Record<string, string> = wordTable({
+const UAR: Record<string, string> = {
   continua: "continúa",
   continuas: "continúas",
   continuan: "continúan",
   perpetua: "perpetúa",
   perpetuan: "perpetúan",
-});
+};
 
 /** "Continua recibiendo apoyos", "se perpetua": the verb before a gerund or after a pronoun. */
 function uarVerb(ctx: DetectContext, at: Around): RawFinding | null {
@@ -456,7 +455,7 @@ function repeatedPair(ctx: DetectContext, at: Around): RawFinding | null {
 }
 
 // Accented demonstratives (pronouns in the old spelling) and their determiner forms.
-const DEMONSTRATIVE: Record<string, string> = wordTable({
+const DEMONSTRATIVE: Record<string, string> = {
   éste: "este",
   ésta: "esta",
   éstos: "estos",
@@ -469,7 +468,7 @@ const DEMONSTRATIVE: Record<string, string> = wordTable({
   aquélla: "aquella",
   aquéllos: "aquellos",
   aquéllas: "aquellas",
-});
+};
 
 /** "Éste señor" -> "Este señor": a demonstrative before its noun never takes an accent. */
 function accentedDeterminer(ctx: DetectContext, at: Around): RawFinding | null {
