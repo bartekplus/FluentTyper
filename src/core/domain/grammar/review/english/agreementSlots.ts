@@ -409,6 +409,25 @@ function verbAfterObjectRelative(text: string, tokens: ClauseToken[], i: number)
   return tokens[k] && ENGLISH_CLAUSE.isFiniteVerb(tokens[k]) ? k : -1;
 }
 
+// The word token of tokensAfter, with no other token kind.
+const WORD =
+  /[ \t\u00a0]*([A-Za-z]+(?:['’][A-Za-z]+)?)(?![\p{L}\p{M}\p{N}_@/#\\-]|\.[\p{L}\p{N}])/uy;
+
+/**
+ * The tokens of tokensAfter(ctx, index, count) before the first token that is not a word. It
+ * reads no token after that one.
+ */
+function wordsAfter(ctx: DetectContext, index: number, count: number): Token[] {
+  const words: Token[] = [];
+  WORD.lastIndex = index;
+  for (let m = WORD.exec(ctx.text); m && words.length < count; m = WORD.exec(ctx.text)) {
+    const text = m[1];
+    const end = m.index + m[0].length;
+    words.push({ text, lower: text.toLowerCase(), start: end - text.length, end, kind: "word" });
+  }
+  return words;
+}
+
 /** The fix for the main verb at `at` after a head of `number`, or null. */
 function distantFix(
   ctx: DetectContext,
@@ -1058,10 +1077,8 @@ export const FIXERS = {
    */
   agreementDistantSubject: (m, ctx) => {
     if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) return null;
-    const raw = tokensAfter(ctx, m.index, 24);
     // The words of the clause: a comma, a number or punctuation ends it.
-    const end = raw.findIndex((t) => t.kind !== "word");
-    const words = end < 0 ? raw : raw.slice(0, end);
+    const words = wordsAfter(ctx, m.index, 24);
     const tokens = words.map((t) => ({
       w: normal(t.lower),
       start: t.start,
