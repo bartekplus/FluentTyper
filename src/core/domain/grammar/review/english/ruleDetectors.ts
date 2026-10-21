@@ -19,13 +19,11 @@ import * as complementSlots from "./complementSlots";
 import * as missingVerbSlots from "./missingVerbSlots";
 import * as determinerSlots from "./determinerSlots";
 import * as agreementSlots from "./agreementSlots";
-import * as adverbSlots from "./adverbSlots";
 import * as confusionSlots from "./confusionSlots";
 import * as countSlots from "./countSlots";
 import * as relativeSlots from "./relativeSlots";
 import * as questionSlots from "./questionSlots";
 import * as collocationSlots from "./collocationSlots";
-import * as tenseSlots from "./tenseSlots";
 import * as noNotSlots from "./noNotSlots";
 import * as clauseAgreementSlots from "./clauseAgreementSlots";
 import * as wordClassSlots from "./wordClassSlots";
@@ -90,8 +88,6 @@ export const FIXERS = mergePredicates<Fixer>(
   clauseAgreementSlots.FIXERS,
   clauseSlots.FIXERS,
   collocationSlots.FIXERS,
-  adverbSlots.FIXERS,
-  tenseSlots.FIXERS,
   grammarStyle1.FIXERS,
   grammarStyle2.FIXERS,
   fixedPhrases.FIXERS,

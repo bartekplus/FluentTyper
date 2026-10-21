@@ -2,19 +2,83 @@
 // The code of grammar/rules/en.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
-import type { DetectContext, FixResult, FrameRef, MatchResult } from "../../library";
+import type {
+  DetectContext,
+  EnToken,
+  FixResult,
+  FrameRef,
+  MatchResult,
+  RawFinding,
+} from "../../library";
 import {
+  EN_DETERMINERS,
   EN_FUNCTION_WORDS,
+  EN_OBJECT_PRONOUNS,
+  EN_VERB_FORMS,
   caseLike,
+  dateSide,
+  dayCount,
   enAfterBreak,
   enEvidence,
+  enLexiconInflect,
   enNounOnly,
   enTokensAfter,
+  enWordBefore,
   englishWordInfo,
   finding,
   hasUserOrCasedWord,
+  recentPast,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const ADVERB_NOT_BASE: ReadonlySet<string> = new Set([
+  "dark",
+  "light",
+  "bright",
+  "pale",
+  "deep",
+  "red",
+  "blue",
+  "green",
+  "yellow",
+  "black",
+  "white",
+  "brown",
+  "grey",
+  "gray",
+  "pink",
+  "orange",
+  "purple",
+  "fast",
+  "hard",
+  "late",
+  "early",
+  "well",
+  "long",
+  "low",
+  "high",
+  "straight",
+  "free",
+  "sure",
+  "dead",
+]);
+
+export const ADVERB_COMPOUND_VERBS: ReadonlySet<string> = new Set([
+  "cold call",
+  "private message",
+  "direct message",
+  "double check",
+  "double click",
+  "fast track",
+  "spot check",
+  "dry clean",
+  "deep fry",
+  "free ride",
+  "blind copy",
+  "soft launch",
+  "hard code",
+  "cross check",
+]);
 
 export const PASSIVE_STATIVE: ReadonlySet<string> = new Set([
   "closed",
@@ -131,6 +195,65 @@ export const BRITISH_UNITS: Readonly<Record<string, string>> = {
   liters: "litres",
 };
 
+// en.yaml rule en.adjectiveForAdverb def adverbListedLy
+export function adverbListedLy(word: string) {
+  const ly = englishWordInfo(word);
+  return !!ly && (ly.adverb || (!ly.noun && !ly.adjective && !ly.verbs.length));
+}
+
+// en.yaml rule en.adjectiveForAdverb def adverbOf
+export function adverbOf(adjective: string): string | null {
+  if (adjective.length < 4 || ADVERB_NOT_BASE.has(adjective) || EN_FUNCTION_WORDS.has(adjective))
+    return null;
+  const read = englishWordInfo(adjective);
+  if (!(read?.adjective && !read.verbs.length && !read.adverb)) return null;
+  return (
+    [
+      adjective.replace(/le$/, "ly"),
+      adjective.replace(/ic$/, "ically"),
+      adjective.replace(/y$/, "ily"),
+      `${adjective}ly`,
+    ].find((c) => c !== adjective && /ly$/.test(c) && adverbListedLy(c)) ?? null
+  );
+}
+
+// en.yaml rule en.adjectiveForAdverb def adverbVerbAfter
+export function adverbVerbAfter(
+  word: string,
+  kind: "base" | "participle" | "finite",
+  after: EnToken | undefined,
+  derived: boolean,
+): boolean {
+  const read = englishWordInfo(word);
+  const nounEnds = !after || after.kind === "end" || after.kind === "comma";
+  const objectNext =
+    (derived || kind === "finite") &&
+    after?.kind === "word" &&
+    /^(?:the|a|an|my|your|his|her|our|their|this|these|those|it|them|him|us|me|you|all|some|any|out|up|down|off|away|back)$/.test(
+      after.lower,
+    );
+  return !read || EN_FUNCTION_WORDS.has(word)
+    ? kind === "finite"
+      ? /^(?:has|does|had|did|should|would|could|can|will|must|might|may)$/.test(word)
+      : /^(?:be|have|do|not)$/.test(word)
+    : kind === "base"
+      ? (!read.noun || nounEnds || objectNext) &&
+        read.verbs.some((v) => v.form === "base" && v.lemma === word)
+      : kind === "participle"
+        ? read.verbs.some((v) => v.form === "participle")
+        : (!read.noun || objectNext) &&
+          read.verbs.some((v) => v.form === "past" || v.form === "third" || v.form === "base");
+}
+
+// en.yaml rule en.adjectiveForAdverb def adverbFinding
+export function adverbFinding(ctx: DetectContext, m: RegExpExecArray, adverb: string) {
+  const start = m.indices!.groups!.target[0];
+  const end = m.indices!.groups!.target[1];
+  return finding("englishConfusedWords", "review_msg_adverb_form", start, end, [adverb], {
+    context: enEvidence(ctx, m.index, end + 24),
+  });
+}
+
 // en.yaml rule en.doubleNegatives def NEGATION_CLAUSE_BREAK
 export const NEGATION_CLAUSE_BREAK =
   /^(?:that|which|who|whom|whose|what|where|when|why|how|because|if|unless|but|and|or|so|than|as|while|until|whether|though|although|since|yet|nor|said|says|think|thought|know|knew|believe|believed|realize|realized|mean|meant)$/;
@@ -164,6 +287,213 @@ export function comparisonSuperlative(word: string) {
 export const COMPARISON_SET_PHRASES =
   /^(?:friends?|man|men|practices?|case|value|priority|quality|effort|seller|sellers|interests?|regards|wishes)$/;
 
+// en.yaml rule en.tenseTimeWords def TENSE_OTHER_CLAUSE
+export const TENSE_OTHER_CLAUSE =
+  /\b(?:if|unless|wish|wished|as though|as if|would|could|might|should|said|says|told|tell|thought|think|hoped|hope|planned|plan|decided|agreed|promised|expected|knew|know|realized|realised|guessed|assumed|supposed|announced|confirmed|scheduled|booked|arranged|that|when|whether|because|until|rather|time)\b/i;
+
+// en.yaml rule en.tenseTimeWords def TENSE_NO_WORDS_BETWEEN
+export const TENSE_NO_WORDS_BETWEEN =
+  /\b(?:to|that|if|when|until|before|after|because|and|but|or|so|than|while|since|which|who|for|about|of|by|from|on|in|at)\b/i;
+
+// en.yaml rule en.tenseTimeWords def TENSE_MODAL_OR_BE
+export const TENSE_MODAL_OR_BE =
+  /^(?:was|were|had|did|could|would|should|might|must|used|got|went|left|came|thought|said|told|knew)$/;
+
+// en.yaml rule en.tenseTimeWords def TENSE_ARRANGING
+export const TENSE_ARRANGING =
+  /^(?:book|reserve|order|schedule|plan|arrange|set|register|enrol|enroll|apply|request|invite|postpone|move|reschedule|delay|push|fix|agree|promise|confirm|announce|cancel)$/;
+
+// en.yaml rule en.tenseTimeWords def tensePastOnly
+export function tensePastOnly(word: string): string | null {
+  const lower = word.toLowerCase();
+  if (!(!EN_FUNCTION_WORDS.has(lower) && !TENSE_MODAL_OR_BE.test(lower))) return null;
+  const read = englishWordInfo(lower);
+  if (!(read && !read.noun)) return null;
+  const past = read.verbs.find((v) => v.form === "past");
+  if (!(past && !read.verbs.some((v) => v.form === "base" || v.form === "third"))) return null;
+  if (TENSE_ARRANGING.test(past.lemma)) return null;
+  return past.lemma;
+}
+
+// en.yaml rule en.tenseTimeWords def tensePastOf
+export function tensePastOf(lemma: string): string | null {
+  const read = englishWordInfo(lemma);
+  if (!read?.verbs.some((v) => v.form === "base" && v.lemma === lemma)) return null;
+  if (/^(?:be|have|do)$/.test(lemma)) return null;
+  return (
+    EN_VERB_FORMS.find((row) => row.lemma === lemma)?.past ??
+    enLexiconInflect(lemma, "past") ??
+    null
+  );
+}
+
+// en.yaml rule en.tenseTimeWords def tenseSentenceBefore
+export function tenseSentenceBefore(ctx: DetectContext, index: number) {
+  return /[^.!?\n]*$/.exec(ctx.text.slice(Math.max(0, index - 200), index))![0];
+}
+
+// en.yaml rule en.tenseTimeWords def tenseObjectBefore
+export function tenseObjectBefore(ctx: DetectContext, index: number): boolean {
+  const before = enWordBefore(ctx, index);
+  return (
+    EN_OBJECT_PRONOUNS.has(before) ||
+    (!!before &&
+      !EN_FUNCTION_WORDS.has(before) &&
+      (!!enNounOnly(before) ||
+        (!!englishWordInfo(before)?.noun &&
+          EN_DETERMINERS.has(enWordBefore(ctx, ctx.text.lastIndexOf(before, index) || index)))))
+  );
+}
+
+// en.yaml rule en.tenseTimeWords def tenseFinding
+export function tenseFinding(
+  ctx: DetectContext,
+  start: number,
+  end: number,
+  alternatives: string[],
+  messageKey:
+    "review_msg_tense_time_word" | "review_msg_future_date_past" | "review_msg_past_date_future",
+  from: number,
+) {
+  return finding("englishTenseConsistency", messageKey, start, end, alternatives, {
+    ...(alternatives.length ? { requiresChoice: true as const } : { warningOnly: true as const }),
+    context: enEvidence(ctx, from, end),
+  });
+}
+
+// en.yaml rule en.tenseTimeWords def TENSE_MONTHS
+export const TENSE_MONTHS = [
+  "jan",
+  "feb",
+  "mar",
+  "apr",
+  "may",
+  "jun",
+  "jul",
+  "aug",
+  "sep",
+  "oct",
+  "nov",
+  "dec",
+];
+
+// en.yaml rule en.tenseTimeWords def tenseAt
+export function tenseAt(
+  year: number,
+  month: number,
+  day: number,
+): [year: number, month: number, day: number][] {
+  return dayCount(year, month, day) === null ? [] : [[year, month, day]];
+}
+
+// en.yaml rule en.tenseTimeWords def tenseMonth
+export function tenseMonth(name: string) {
+  return TENSE_MONTHS.indexOf(name.slice(0, 3).toLowerCase()) + 1;
+}
+
+// en.yaml rule en.tenseTimeWords def tenseDateReadings
+export function tenseDateReadings(
+  g: Record<string, string | undefined>,
+): [year: number, month: number, day: number][] {
+  return g.a
+    ? [...tenseAt(+g.y1!, +g.b!, +g.a), ...tenseAt(+g.y1!, +g.a, +g.b!)]
+    : g.d2
+      ? tenseAt(+g.y2!, tenseMonth(g.m2!), +g.d2)
+      : tenseAt(+g.y3!, tenseMonth(g.m3!), +g.d3!);
+}
+
+// en.yaml rule en.tenseTimeWords def tenseFutureWordPastVerb
+export function tenseFutureWordPastVerb(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const target = m.groups!.target;
+  const lemma = tensePastOnly(target);
+  if (!(lemma && !hasUserOrCasedWord(ctx, target))) return null;
+  const between = m.groups!.between;
+  if (!(
+    between === undefined ||
+    (!TENSE_NO_WORDS_BETWEEN.test(between) && tenseObjectBefore(ctx, m.indices!.groups!.when[0]))
+  ))
+    return null;
+  if (TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))) return null;
+  return tenseFinding(
+    ctx,
+    m.indices!.groups!.target[0],
+    m.indices!.groups!.target[1],
+    [`will ${lemma}`],
+    "review_msg_tense_time_word",
+    m.index,
+  );
+}
+
+// en.yaml rule en.tenseTimeWords def tensePastWordFutureVerb
+export function tensePastWordFutureVerb(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const between = m.groups!.between;
+  const past = tensePastOf(m.groups!.verb.toLowerCase());
+  if (!(past && !hasUserOrCasedWord(ctx, m.groups!.target))) return null;
+  if (!(
+    between === undefined ||
+    (!TENSE_NO_WORDS_BETWEEN.test(between) && tenseObjectBefore(ctx, m.indices!.groups!.when[0]))
+  ))
+    return null;
+  if (TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))) return null;
+  const typed = m.indices!.groups!.target[0];
+  const end = m.indices!.groups!.target[1];
+  const contracted = /['’]$/.test(ctx.text.slice(typed - 1, typed));
+  return tenseFinding(
+    ctx,
+    contracted ? typed - 1 : typed,
+    end,
+    [contracted ? ` ${past}` : past],
+    "review_msg_tense_time_word",
+    m.index,
+  );
+}
+
+// en.yaml rule en.tenseTimeWords def tenseFutureDatePastVerb
+export function tenseFutureDatePastVerb(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const g = m.groups!;
+  const readings = tenseDateReadings(g);
+  if (!(readings.length && !readings.some((r) => dateSide(...r) !== "future"))) return null;
+  if (!(g.between === undefined || !TENSE_NO_WORDS_BETWEEN.test(g.between))) return null;
+  if (TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))) return null;
+  const word = (g.part ?? g.simple).toLowerCase();
+  const read = englishWordInfo(word);
+  const verbStart = m.indices!.groups!.verb[0];
+  const past = g.part
+    ? read?.verbs.some((v) => v.form === "participle" && !TENSE_ARRANGING.test(v.lemma)) &&
+      !/\b(?:will|shall|would|'ll)\s*$/i.test(
+        ctx.text.slice(Math.max(0, verbStart - 12), verbStart),
+      )
+    : !!tensePastOnly(word);
+  if (!past) return null;
+  return tenseFinding(
+    ctx,
+    m.indices!.groups!.date[0],
+    m.indices!.groups!.date[1],
+    [],
+    "review_msg_future_date_past",
+    m.index,
+  );
+}
+
+// en.yaml rule en.tenseTimeWords def tensePastDateFutureVerb
+export function tensePastDateFutureVerb(m: RegExpExecArray, ctx: DetectContext): RawFinding | null {
+  const g = m.groups!;
+  const readings = tenseDateReadings(g);
+  if (!(readings.length && readings.every((r) => recentPast(...r)))) return null;
+  if (!(g.between === undefined || !TENSE_NO_WORDS_BETWEEN.test(g.between))) return null;
+  if (TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))) return null;
+  const inf = g.inf.toLowerCase();
+  if (!(inf !== "have" && englishWordInfo(inf)?.verbs.some((v) => v.form === "base"))) return null;
+  return tenseFinding(
+    ctx,
+    m.indices!.groups!.date[0],
+    m.indices!.groups!.date[1],
+    [],
+    "review_msg_past_date_future",
+    m.index,
+  );
+}
+
 // en.yaml rule en.britishUsage def britishBoot
 export function britishBoot(m: RegExpExecArray, ctx: DetectContext) {
   if (/\bboots?\b/i.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120)))
@@ -185,6 +515,63 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.adjectiveForAdverb frame 1
+  "@en.adjectiveForAdverb/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    if (!(!ctx.dictionary.has(target) && target === target.toLowerCase())) return null;
+    const adverb = adverbOf(target);
+    if (!adverb) return null;
+    const lead = /([A-Za-z'’]+)[ \t ]+$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 16), m.index),
+    )![1];
+    const l = lead.toLowerCase();
+    const kind = /^(?:have|has|had)$/.test(l)
+      ? "participle"
+      : /^(?:i|we|you|they|it|he|she)$/.test(l)
+        ? "finite"
+        : "base";
+    const verbRead = englishWordInfo(verb);
+    const verbOnly = !!verbRead?.verbs.length && !verbRead.noun && !verbRead.adjective;
+    if (!(
+      l !== "to" ||
+      verbOnly ||
+      /\b(?:how|tried|try|trying|want|wants|need|needs|like|order|able|is|was|are|were)[ \t ]+to[ \t ]+$/i.test(
+        ctx.text.slice(Math.max(0, m.index - 24), m.index),
+      )
+    ))
+      return null;
+    if (kind === "base" && enAfterBreak(ctx, m.index - lead.length - 1)) return null;
+    if (ADVERB_COMPOUND_VERBS.has(`${target} ${verb}`)) return null;
+    const after = enTokensAfter(ctx, m.indices!.groups!.verb[1], 1)[0];
+    if (!adverbVerbAfter(verb, kind, after, /(?:ily|ally|bly)$/.test(adverb))) return null;
+    return adverbFinding(ctx, m, adverb);
+  },
+  // en.yaml rule en.adjectiveForAdverb frame 2
+  "@en.adjectiveForAdverb/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    if (!(target === target.toLowerCase() && !ctx.dictionary.has(target))) return null;
+    if (!/(?:ble|al|ary|ic|ent|ous|ive|ful|ple|real|easy)$/.test(target)) return null;
+    const adverb = adverbOf(target);
+    if (!adverb) return null;
+    const read = englishWordInfo(next);
+    if (
+      !read ||
+      read.noun ||
+      read.plural ||
+      !(read.adjective || read.verbs.some((v) => v.form === "participle"))
+    )
+      return null;
+    if (!(!ADVERB_NOT_BASE.has(next) && !EN_FUNCTION_WORDS.has(next))) return null;
+    if (
+      /^(?:soon|early|late|later|earlier|sooner|longer|enough|then|based|compared|given|considering|including|regarding)$/.test(
+        next,
+      )
+    )
+      return null;
+    return adverbFinding(ctx, m, adverb);
   },
   // en.yaml rule en.doubleNegatives frame 1
   "@en.doubleNegatives/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -324,6 +711,38 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives: [caseLike(target, "than")],
       context: enEvidence(ctx, m.index, end),
     };
+  },
+  // en.yaml rule en.tenseTimeWords frame 1
+  "@en.tenseTimeWords/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tenseFutureWordPastVerb(m, ctx);
+  },
+  // en.yaml rule en.tenseTimeWords frame 2
+  "@en.tenseTimeWords/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tenseFutureWordPastVerb(m, ctx);
+  },
+  // en.yaml rule en.tenseTimeWords frame 3
+  "@en.tenseTimeWords/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tensePastWordFutureVerb(m, ctx);
+  },
+  // en.yaml rule en.tenseTimeWords frame 4
+  "@en.tenseTimeWords/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tensePastWordFutureVerb(m, ctx);
+  },
+  // en.yaml rule en.tenseTimeWords frame 5
+  "@en.tenseTimeWords/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tenseFutureDatePastVerb(m, ctx);
+  },
+  // en.yaml rule en.tenseTimeWords frame 6
+  "@en.tenseTimeWords/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tenseFutureDatePastVerb(m, ctx);
+  },
+  // en.yaml rule en.tenseTimeWords frame 7
+  "@en.tenseTimeWords/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tensePastDateFutureVerb(m, ctx);
+  },
+  // en.yaml rule en.tenseTimeWords frame 8
+  "@en.tenseTimeWords/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return tensePastDateFutureVerb(m, ctx);
   },
   // en.yaml rule en.passiveVoice frame 1
   "@en.passiveVoice/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

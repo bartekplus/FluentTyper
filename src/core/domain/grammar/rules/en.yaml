@@ -2676,15 +2676,155 @@ rules:
     style: match
     message: review_msg_adverb_form
     filter: usSlotsOnePerStart
+    sets:
+      # Colour and shade words combine with each other ("dark blue"), and these adjectives are
+      # adverbs too ("fast", "hard", "late", "well").
+      ADVERB_NOT_BASE:
+        [
+          dark,
+          light,
+          bright,
+          pale,
+          deep,
+          red,
+          blue,
+          green,
+          yellow,
+          black,
+          white,
+          brown,
+          grey,
+          gray,
+          pink,
+          orange,
+          purple,
+          fast,
+          hard,
+          late,
+          early,
+          well,
+          long,
+          low,
+          high,
+          straight,
+          free,
+          sure,
+          dead,
+        ]
+      ADVERB_COMPOUND_VERBS:
+        [
+          cold call,
+          private message,
+          direct message,
+          double check,
+          double click,
+          fast track,
+          spot check,
+          dry clean,
+          deep fry,
+          free ride,
+          blind copy,
+          soft launch,
+          hard code,
+          cross check,
+        ]
+    defs:
+      # Some -ly words are listed with no class ("understandably").
+      adverbListedLy:
+        args: "word: string"
+        let:
+          ly: englishWordInfo(word)
+        return: "!!ly && (ly.adverb || (!ly.noun && !ly.adjective && !ly.verbs.length))"
+      # The -ly adverb of an adjective, when the lexicon knows it as an adverb.
+      adverbOf:
+        args: "adjective: string"
+        type: string | null
+        let:
+          read: englishWordInfo(adjective)
+        when:
+          - "!(adjective.length < 4 || ADVERB_NOT_BASE.has(adjective) || EN_FUNCTION_WORDS.has(adjective))"
+          - read?.adjective && !read.verbs.length && !read.adverb
+        return: >-
+          [adjective.replace(/le$/, "ly"), adjective.replace(/ic$/, "ically"),
+          adjective.replace(/y$/, "ily"), `${adjective}ly`].find((c) => c !== adjective &&
+          /ly$/.test(c) && adverbListedLy(c)) ?? null
+      # A verb form that the auxiliary or subject before the adjective takes.
+      adverbVerbAfter:
+        args: 'word: string, kind: "base" | "participle" | "finite", after: EnToken | undefined, derived: boolean'
+        type: boolean
+        let:
+          read: englishWordInfo(word)
+          # "Would soft wire work", "could private message me": a noun after the adjective,
+          # unless the phrase ends there ("could possible work.").
+          nounEnds: '!after || after.kind === "end" || after.kind === "comma"'
+          # "we temporary stay the course": a noun-or-verb with its own object after it. Only for
+          # a long derived adverb: "could private message me", "cold transfer" are compound
+          # verbs. After a subject pronoun the word is a finite verb anyway: "You simple need the
+          # cable".
+          objectNext: >-
+            (derived || kind === "finite") && after?.kind === "word" &&
+            /^(?:the|a|an|my|your|his|her|our|their|this|these|those|it|them|him|us|me|you|all|some|any|out|up|down|off|away|back)$/.test(after.lower)
+        return: >-
+          !read || EN_FUNCTION_WORDS.has(word)
+          ? (kind === "finite" ? /^(?:has|does|had|did|should|would|could|can|will|must|might|may)$/.test(word)
+          : /^(?:be|have|do|not)$/.test(word))
+          : kind === "base"
+          ? (!read.noun || nounEnds || objectNext) && read.verbs.some((v) => v.form === "base" && v.lemma === word)
+          : kind === "participle"
+          ? read.verbs.some((v) => v.form === "participle")
+          : (!read.noun || objectNext) && read.verbs.some((v) => v.form === "past" || v.form === "third" || v.form === "base")
+      # The rule keeps one finding per start: its filter is usSlotsOnePerStart.
+      adverbFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, adverb: string"
+        let:
+          start: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+        return: >-
+          finding("englishConfusedWords", "review_msg_adverb_form", start, end, [adverb],
+          { context: enEvidence(ctx, m.index, end + 24) })
     frames:
       # "could possible go", "to easy achieve": an adjective between an auxiliary, "to" or a
       # subject and a verb. The lead sits in a lookbehind so that "It could possible work" is
       # not consumed by "It".
       - regex: "(?<=(?<![\\p{L}'’])(?:could|would|should|can|will|might|must|may|won['’]t|can['’]t|couldn['’]t|didn['’]t|doesn['’]t|don['’]t|does|did|to|have|has|had|I|we|you|they|it|he|she){{S}})(?<target>[a-z]+)(?={{S}}(?<verb>[a-z]+){{E}})"
-        fixer: adverbAdjectiveForAdverb1
+        let:
+          adverb: adverbOf(target)
+          # The frame's lookbehind puts the lead word and its spaces in these 16 characters.
+          lead: '/([A-Za-z''’]+)[ \t ]+$/.exec(ctx.text.slice(Math.max(0, m.index - 16), m.index))![1]'
+          l: lead.toLowerCase()
+          kind: '/^(?:have|has|had)$/.test(l) ? "participle" : /^(?:i|we|you|they|it|he|she)$/.test(l) ? "finite" : "base"'
+          verbRead: englishWordInfo(verb)
+          verbOnly: "!!verbRead?.verbs.length && !verbRead.noun && !verbRead.adjective"
+          after: enTokensAfter(ctx, m.indices!.groups!.verb[1], 1)[0]
+        when:
+          - "!ctx.dictionary.has(target) && target === target.toLowerCase()"
+          - adverb
+          # "to" must be an infinitive marker: "how to quick fix" yes, "close to perfect" no. A
+          # verb that is no noun after it shows the infinitive too: "wise to temporary disable".
+          - >-
+            l !== "to" || verbOnly ||
+            /\b(?:how|tried|try|trying|want|wants|need|needs|like|order|able|is|was|are|were)[ \t ]+to[ \t ]+$/i.test(ctx.text.slice(Math.max(0, m.index - 24), m.index))
+          # "Should intent be part of…": an inverted modal makes the next word its subject.
+          - '!(kind === "base" && enAfterBreak(ctx, m.index - lead.length - 1))'
+          # "We cold call them": an adjective-noun compound verb.
+          - "!ADVERB_COMPOUND_VERBS.has(`${target} ${verb}`)"
+          - adverbVerbAfter(verb, kind, after, /(?:ily|ally|bly)$/.test(adverb))
+        return: adverbFinding(ctx, m, adverb)
       # "Your site is terrible slow": be + adjective + adjective.
       - regex: "(?<=(?:(?<![\\p{L}'’])(?:is|are|was|were|be|been|seems?|seemed|looks?)|[\\p{L}](?:['’]s|['’]m|['’]re)){{S}})(?<target>[a-z]+)(?={{S}}(?<next>[a-z]+){{E}})"
-        fixer: adverbAdjectiveForAdverb2
+        let:
+          adverb: adverbOf(target)
+          read: englishWordInfo(next)
+        when:
+          - target === target.toLowerCase() && !ctx.dictionary.has(target)
+          - /(?:ble|al|ary|ic|ent|ous|ive|ful|ple|real|easy)$/.test(target)
+          - adverb
+          # The second word must be a predicate adjective or participle, never a noun.
+          - '!(!read || read.noun || read.plural || !(read.adjective || read.verbs.some((v) => v.form === "participle")))'
+          - "!ADVERB_NOT_BASE.has(next) && !EN_FUNCTION_WORDS.has(next)"
+          # "be reasonable based on", "necessary soon": a preposition-like participle or an adverb.
+          - "!/^(?:soon|early|late|later|earlier|sooner|longer|enough|then|based|compared|given|considering|including|regarding)$/.test(next)"
+        return: adverbFinding(ctx, m, adverb)
   - id: en.confusionPairs
     checks: [englishConfusedWords]
     style: match
@@ -3081,37 +3221,187 @@ rules:
     style: match
     message: review_msg_tense_time_word
     filter: usSlots
+    defs:
+      # Reporting, planning and wishing verbs move the time word into another clause: "I thought
+      # we left tomorrow", "we agreed last week that we will meet".
+      TENSE_OTHER_CLAUSE: /\b(?:if|unless|wish|wished|as though|as if|would|could|might|should|said|says|told|tell|thought|think|hoped|hope|planned|plan|decided|agreed|promised|expected|knew|know|realized|realised|guessed|assumed|supposed|announced|confirmed|scheduled|booked|arranged|that|when|whether|because|until|rather|time)\b/i
+      TENSE_NO_WORDS_BETWEEN: /\b(?:to|that|if|when|until|before|after|because|and|but|or|so|than|while|since|which|who|for|about|of|by|from|on|in|at)\b/i
+      TENSE_MODAL_OR_BE: /^(?:was|were|had|did|could|would|should|might|must|used|got|went|left|came|thought|said|told|knew)$/
+      # Arranging verbs name the date of what was arranged: "we booked a room on 5 May".
+      TENSE_ARRANGING: /^(?:book|reserve|order|schedule|plan|arrange|set|register|enrol|enroll|apply|request|invite|postpone|move|reschedule|delay|push|fix|agree|promise|confirm|announce|cancel)$/
+      # A word the lexicon reads only as a past form: "visited", "wrote"; not "put" or "read".
+      tensePastOnly:
+        args: "word: string"
+        type: string | null
+        let:
+          lower: word.toLowerCase()
+          read: englishWordInfo(lower)
+          past: read.verbs.find((v) => v.form === "past")
+        when:
+          - "!EN_FUNCTION_WORDS.has(lower) && !TENSE_MODAL_OR_BE.test(lower)"
+          - read && !read.noun
+          - past && !read.verbs.some((v) => v.form === "base" || v.form === "third")
+          - "!TENSE_ARRANGING.test(past.lemma)"
+        return: past.lemma
+      # The simple past of a base verb: "call" -> "called", "go" -> "went".
+      tensePastOf:
+        args: "lemma: string"
+        type: string | null
+        let:
+          read: englishWordInfo(lemma)
+        when:
+          - read?.verbs.some((v) => v.form === "base" && v.lemma === lemma)
+          - "!/^(?:be|have|do)$/.test(lemma)"
+        return: 'EN_VERB_FORMS.find((row) => row.lemma === lemma)?.past ?? enLexiconInflect(lemma, "past") ?? null'
+      # The text of the sentence before `index`.
+      tenseSentenceBefore:
+        args: "ctx: DetectContext, index: number"
+        return: '/[^.!?\n]*$/.exec(ctx.text.slice(Math.max(0, index - 200), index))![0]'
+      # The word before a closing time word is no preposition or verb: "call him yesterday".
+      # "painted the fence": a noun that is also a verb, after its determiner.
+      tenseObjectBefore:
+        args: "ctx: DetectContext, index: number"
+        type: boolean
+        let:
+          before: enWordBefore(ctx, index)
+        return: >-
+          EN_OBJECT_PRONOUNS.has(before) || (!!before && !EN_FUNCTION_WORDS.has(before) &&
+          (!!enNounOnly(before) || (!!englishWordInfo(before)?.noun &&
+          EN_DETERMINERS.has(enWordBefore(ctx, ctx.text.lastIndexOf(before, index) || index)))))
+      # The time word may be the slip instead: nothing is preselected.
+      tenseFinding:
+        args: 'ctx: DetectContext, start: number, end: number, alternatives: string[], messageKey: "review_msg_tense_time_word" | "review_msg_future_date_past" | "review_msg_past_date_future", from: number'
+        return: >-
+          finding("englishTenseConsistency", messageKey, start, end, alternatives, {
+          ...(alternatives.length ? { requiresChoice: true as const } : { warningOnly: true as const }),
+          context: enEvidence(ctx, from, end) })
+      TENSE_MONTHS: '["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]'
+      tenseAt:
+        args: "year: number, month: number, day: number"
+        type: "[year: number, month: number, day: number][]"
+        return: "dayCount(year, month, day) === null ? [] : [[year, month, day]]"
+      tenseMonth:
+        args: "name: string"
+        return: TENSE_MONTHS.indexOf(name.slice(0, 3).toLowerCase()) + 1
+      # Every reading of a typed date (month 1 to 12); an all-numeric day and month can swap.
+      tenseDateReadings:
+        args: "g: Record<string, string | undefined>"
+        type: "[year: number, month: number, day: number][]"
+        return: >-
+          g.a ? [...tenseAt(+g.y1!, +g.b!, +g.a), ...tenseAt(+g.y1!, +g.a, +g.b!)]
+          : g.d2 ? tenseAt(+g.y2!, tenseMonth(g.m2!), +g.d2)
+          : tenseAt(+g.y3!, tenseMonth(g.m3!), +g.d3!)
+      # "Tomorrow we visited", "We visited them tomorrow": the future asks for "will".
+      tenseFutureWordPastVerb:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          target: m.groups!.target
+          lemma: tensePastOnly(target)
+          between: m.groups!.between
+        when:
+          - lemma && !hasUserOrCasedWord(ctx, target)
+          - >-
+            between === undefined || (!TENSE_NO_WORDS_BETWEEN.test(between) &&
+            tenseObjectBefore(ctx, m.indices!.groups!.when[0]))
+          - "!TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))"
+        return: >-
+          tenseFinding(ctx, m.indices!.groups!.target[0], m.indices!.groups!.target[1],
+          [`will ${lemma}`], "review_msg_tense_time_word", m.index)
+      # "Yesterday I will call him", "We will call him two days ago": the past asks for the past.
+      tensePastWordFutureVerb:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          between: m.groups!.between
+          past: tensePastOf(m.groups!.verb.toLowerCase())
+          typed: m.indices!.groups!.target[0]
+          end: m.indices!.groups!.target[1]
+          # "we'll call": the apostrophe of the contraction goes too.
+          contracted: /['’]$/.test(ctx.text.slice(typed - 1, typed))
+        when:
+          - past && !hasUserOrCasedWord(ctx, m.groups!.target)
+          - >-
+            between === undefined || (!TENSE_NO_WORDS_BETWEEN.test(between) &&
+            tenseObjectBefore(ctx, m.indices!.groups!.when[0]))
+          - "!TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))"
+        return: >-
+          tenseFinding(ctx, contracted ? typed - 1 : typed, end, [contracted ? ` ${past}` : past],
+          "review_msg_tense_time_word", m.index)
+      # "We visited the client on 27/10/2090": a past verb on a date that is still to come.
+      # Every reading is more than a day after today on the Review clock.
+      tenseFutureDatePastVerb:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          g: m.groups!
+          readings: tenseDateReadings(g)
+          word: (g.part ?? g.simple).toLowerCase()
+          read: englishWordInfo(word)
+          verbStart: m.indices!.groups!.verb[0]
+          # "have visited", but "will have visited" stays future.
+          past: >-
+            g.part ? read?.verbs.some((v) => v.form === "participle" && !TENSE_ARRANGING.test(v.lemma)) &&
+            !/\b(?:will|shall|would|'ll)\s*$/i.test(ctx.text.slice(Math.max(0, verbStart - 12), verbStart))
+            : !!tensePastOnly(word)
+        when:
+          - readings.length && !readings.some((r) => dateSide(...r) !== "future")
+          - g.between === undefined || !TENSE_NO_WORDS_BETWEEN.test(g.between)
+          - "!TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))"
+          - past
+        return: >-
+          tenseFinding(ctx, m.indices!.groups!.date[0], m.indices!.groups!.date[1], [],
+          "review_msg_future_date_past", m.index)
+      # "We will visit the client on 27/10/2025" when that date has passed: a future verb on a
+      # past date. Only a date of the last three years: older dates are history, which can use
+      # "will" for the future in the past.
+      tensePastDateFutureVerb:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        type: RawFinding | null
+        let:
+          g: m.groups!
+          readings: tenseDateReadings(g)
+          inf: g.inf.toLowerCase()
+        when:
+          - readings.length && readings.every((r) => recentPast(...r))
+          - g.between === undefined || !TENSE_NO_WORDS_BETWEEN.test(g.between)
+          - "!TENSE_OTHER_CLAUSE.test(tenseSentenceBefore(ctx, m.index))"
+          # "will have visited" is a future perfect; the verb must be a base form.
+          - inf !== "have" && englishWordInfo(inf)?.verbs.some((v) => v.form === "base")
+        return: >-
+          tenseFinding(ctx, m.indices!.groups!.date[0], m.indices!.groups!.date[1], [],
+          "review_msg_past_date_future", m.index)
     frames:
       # "Tomorrow we visited", "We visited them tomorrow": the future asks for "will".
       - regex: "{{TENSE_START}}{{TENSE_FUTURE_WORD}},?{{S}}{{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+){{E}}(?!['’])"
-        fixer: tenseFutureWordPastVerb
+        return: tenseFutureWordPastVerb(m, ctx)
       - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}{{S}}(?<target>[a-z]+)(?<between>(?:{{S}}[a-z]+){0,4}){{S}}(?<when>{{TENSE_FUTURE_WORD}}){{E}}(?![ \\t\\u00a0]*['’])(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)"
-        fixer: tenseFutureWordPastVerb
+        return: tenseFutureWordPastVerb(m, ctx)
       # "Yesterday I will call him", "We will call him two days ago": the past asks for the past.
       - regex: "{{TENSE_START}}(?:{{TENSE_PAST_WORD}}|{{TENSE_AGO}}),?{{S}}{{TENSE_SUBJECT}}(?:{{S}}|['’])(?<target>(?:will|shall|ll){{S}}(?<verb>[a-z]+)){{E}}"
-        fixer: tensePastWordFutureVerb
+        return: tensePastWordFutureVerb(m, ctx)
       - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}(?:{{S}}|['’])(?<target>(?:will|shall|ll){{S}}(?<verb>[a-z]+))(?<between>(?:{{S}}[a-z]+){1,4}){{S}}(?<when>{{TENSE_PAST_WORD}}|{{TENSE_AGO}}){{E}}(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)"
-        fixer: tensePastWordFutureVerb
+        return: tensePastWordFutureVerb(m, ctx)
       # "We visited the client on 27/10/2090": a past verb on a date that is still to come.
       - regex: "{{TENSE_START}}On{{S}}{{TENSE_DATE}},?{{S}}{{TENSE_SUBJECT}}{{S}}{{TENSE_PERFECT_ADVERB}}{{TENSE_VERB_PHRASE}}{{E}}"
         owner: date
         message: review_msg_future_date_past
-        fixer: tenseFutureDatePastVerb
+        return: tenseFutureDatePastVerb(m, ctx)
       - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}{{S}}{{TENSE_PERFECT_ADVERB}}{{TENSE_VERB_PHRASE}}(?<between>(?:{{S}}[a-z]+){0,4}){{S}}on{{S}}{{TENSE_DATE}}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)"
         owner: date
         message: review_msg_future_date_past
-        fixer: tenseFutureDatePastVerb
+        return: tenseFutureDatePastVerb(m, ctx)
       # "We will visit the client on 27/10/2025" when that date has passed: a future verb on a
       # past date. Only a date of the last three years: older dates are history, which can use
       # "will" for the future in the past.
       - regex: "{{TENSE_START}}On{{S}}{{TENSE_DATE}},?{{S}}{{TENSE_SUBJECT}}(?:{{S}}|['’])(?:will|shall|ll){{S}}(?<inf>[a-z]+){{E}}"
         owner: date
         message: review_msg_past_date_future
-        fixer: tensePastDateFutureVerb
+        return: tensePastDateFutureVerb(m, ctx)
       - regex: "(?<![\\p{L}'’]){{TENSE_SUBJECT}}(?:{{S}}|['’])(?:will|shall|ll){{S}}(?<inf>[a-z]+)(?<between>(?:{{S}}[a-z]+){0,4}){{S}}on{{S}}{{TENSE_DATE}}(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)"
         owner: date
         message: review_msg_past_date_future
-        fixer: tensePastDateFutureVerb
+        return: tensePastDateFutureVerb(m, ctx)
   - id: en.noForNot
     checks: [englishConfusedWords]
     style: match

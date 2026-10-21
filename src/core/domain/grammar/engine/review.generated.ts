@@ -10504,13 +10504,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?<![\\p{L}'’])(?:could|would|should|can|will|might|must|may|won['’]t|can['’]t|couldn['’]t|didn['’]t|doesn['’]t|don['’]t|does|did|to|have|has|had|I|we|you|they|it|he|she)[ \\t\\u00a0]{1,8})(?<target>[a-z]+)(?=[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:adverbAdjectiveForAdverb1",
+    fixer: "en:@en.adjectiveForAdverb/1",
   }),
   frame({
     pattern:
       "(?<=(?:(?<![\\p{L}'’])(?:is|are|was|were|be|been|seems?|seemed|looks?)|[\\p{L}](?:['’]s|['’]m|['’]re))[ \\t\\u00a0]{1,8})(?<target>[a-z]+)(?=[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:adverbAdjectiveForAdverb2",
+    fixer: "en:@en.adjectiveForAdverb/2",
   }),
   frame({
     pattern:
@@ -11241,13 +11241,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[.!?\\n][ \\t\\u00a0\"“]{0,8}|^[\"“]))(?:tomorrow|next[ \\t\\u00a0]{1,8}(?:(?:week|month|year|weekend|summer|winter|spring|autumn|fall|semester|term)|(?:mon|tues|wednes|thurs|fri|satur|sun)day)),?[ \\t\\u00a0]{1,8}(?:I|we|you|he|she|they)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!['’])",
     literals: ["tomorrow", "next"],
-    fixer: "en:tenseFutureWordPastVerb",
+    fixer: "en:@en.tenseTimeWords/1",
   }),
   frame({
     pattern:
       "(?<![\\p{L}'’])(?:I|we|you|he|she|they)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?<between>(?:[ \\t\\u00a0]{1,8}[a-z]+){0,4})[ \\t\\u00a0]{1,8}(?<when>(?:tomorrow|next[ \\t\\u00a0]{1,8}(?:(?:week|month|year|weekend|summer|winter|spring|autumn|fall|semester|term)|(?:mon|tues|wednes|thurs|fri|satur|sun)day)))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]*['’])(?=[ \\t\\u00a0]*[.!?,;]|[ \\t\\u00a0]*$)",
     literals: ["tomorrow", "next"],
-    fixer: "en:tenseFutureWordPastVerb",
+    fixer: "en:@en.tenseTimeWords/2",
   }),
   frame({
     pattern:
@@ -11264,7 +11264,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "month",
       "year",
     ],
-    fixer: "en:tensePastWordFutureVerb",
+    fixer: "en:@en.tenseTimeWords/3",
   }),
   frame({
     pattern:
@@ -11281,13 +11281,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "month",
       "year",
     ],
-    fixer: "en:tensePastWordFutureVerb",
+    fixer: "en:@en.tenseTimeWords/4",
   }),
   frame({
     pattern:
       '(?<=(?:^|[.!?\\n][ \\t\\u00a0"“]{0,8}|^["“]))On[ \\t\\u00a0]{1,8}(?<date>(?<a>[0-9]{1,2})(?<sep>[/.-])(?<b>[0-9]{1,2})\\k<sep>(?<y1>2[0-9]{3})|(?<d2>[0-9]{1,2})(?:st|nd|rd|th)?(?:[ \\t\\u00a0]{1,8}of)?[ \\t\\u00a0]{1,8}(?<m2>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?)),?[ \\t\\u00a0]{1,8}(?<y2>2[0-9]{3})|(?<m3>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?))[ \\t\\u00a0]{1,8}(?<d3>[0-9]{1,2})(?:st|nd|rd|th)?,?[ \\t\\u00a0]{1,8}(?<y3>2[0-9]{3}))(?![\\p{L}\\p{N}]|[./-][0-9]),?[ \\t\\u00a0]{1,8}(?:I|we|you|he|she|they)[ \\t\\u00a0]{1,8}(?:(?:already|just|also|finally|first|then|once)[ \\t\\u00a0]{1,8})?(?<verb>(?<aux>have|has|had)[ \\t\\u00a0]{1,8}(?:(?:already|just|also|finally|first|then|once)[ \\t\\u00a0]{1,8})?(?<part>[a-z]+)|(?<simple>[a-z]+))(?![\\p{L}\\p{M}\\p{N}_\'’@/#\\\\-])',
     literals: [],
-    fixer: "en:tenseFutureDatePastVerb",
+    fixer: "en:@en.tenseTimeWords/5",
     message: "review_msg_future_date_past",
     owner: "date",
   }),
@@ -11295,7 +11295,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:I|we|you|he|she|they)[ \\t\\u00a0]{1,8}(?:(?:already|just|also|finally|first|then|once)[ \\t\\u00a0]{1,8})?(?<verb>(?<aux>have|has|had)[ \\t\\u00a0]{1,8}(?:(?:already|just|also|finally|first|then|once)[ \\t\\u00a0]{1,8})?(?<part>[a-z]+)|(?<simple>[a-z]+))(?<between>(?:[ \\t\\u00a0]{1,8}[a-z]+){0,4})[ \\t\\u00a0]{1,8}on[ \\t\\u00a0]{1,8}(?<date>(?<a>[0-9]{1,2})(?<sep>[/.-])(?<b>[0-9]{1,2})\\k<sep>(?<y1>2[0-9]{3})|(?<d2>[0-9]{1,2})(?:st|nd|rd|th)?(?:[ \\t\\u00a0]{1,8}of)?[ \\t\\u00a0]{1,8}(?<m2>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?)),?[ \\t\\u00a0]{1,8}(?<y2>2[0-9]{3})|(?<m3>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?))[ \\t\\u00a0]{1,8}(?<d3>[0-9]{1,2})(?:st|nd|rd|th)?,?[ \\t\\u00a0]{1,8}(?<y3>2[0-9]{3}))(?![\\p{L}\\p{N}]|[./-][0-9])(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)",
     literals: [],
-    fixer: "en:tenseFutureDatePastVerb",
+    fixer: "en:@en.tenseTimeWords/6",
     message: "review_msg_future_date_past",
     owner: "date",
   }),
@@ -11303,7 +11303,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=(?:^|[.!?\\n][ \\t\\u00a0\"“]{0,8}|^[\"“]))On[ \\t\\u00a0]{1,8}(?<date>(?<a>[0-9]{1,2})(?<sep>[/.-])(?<b>[0-9]{1,2})\\k<sep>(?<y1>2[0-9]{3})|(?<d2>[0-9]{1,2})(?:st|nd|rd|th)?(?:[ \\t\\u00a0]{1,8}of)?[ \\t\\u00a0]{1,8}(?<m2>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?)),?[ \\t\\u00a0]{1,8}(?<y2>2[0-9]{3})|(?<m3>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?))[ \\t\\u00a0]{1,8}(?<d3>[0-9]{1,2})(?:st|nd|rd|th)?,?[ \\t\\u00a0]{1,8}(?<y3>2[0-9]{3}))(?![\\p{L}\\p{N}]|[./-][0-9]),?[ \\t\\u00a0]{1,8}(?:I|we|you|he|she|they)(?:[ \\t\\u00a0]{1,8}|['’])(?:will|shall|ll)[ \\t\\u00a0]{1,8}(?<inf>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:tensePastDateFutureVerb",
+    fixer: "en:@en.tenseTimeWords/7",
     message: "review_msg_past_date_future",
     owner: "date",
   }),
@@ -11311,7 +11311,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}'’])(?:I|we|you|he|she|they)(?:[ \\t\\u00a0]{1,8}|['’])(?:will|shall|ll)[ \\t\\u00a0]{1,8}(?<inf>[a-z]+)(?<between>(?:[ \\t\\u00a0]{1,8}[a-z]+){0,4})[ \\t\\u00a0]{1,8}on[ \\t\\u00a0]{1,8}(?<date>(?<a>[0-9]{1,2})(?<sep>[/.-])(?<b>[0-9]{1,2})\\k<sep>(?<y1>2[0-9]{3})|(?<d2>[0-9]{1,2})(?:st|nd|rd|th)?(?:[ \\t\\u00a0]{1,8}of)?[ \\t\\u00a0]{1,8}(?<m2>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?)),?[ \\t\\u00a0]{1,8}(?<y2>2[0-9]{3})|(?<m3>(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)\\.?))[ \\t\\u00a0]{1,8}(?<d3>[0-9]{1,2})(?:st|nd|rd|th)?,?[ \\t\\u00a0]{1,8}(?<y3>2[0-9]{3}))(?![\\p{L}\\p{N}]|[./-][0-9])(?=[ \\t\\u00a0]*[.!?;]|[ \\t\\u00a0]*$)",
     literals: [],
-    fixer: "en:tensePastDateFutureVerb",
+    fixer: "en:@en.tenseTimeWords/8",
     message: "review_msg_past_date_future",
     owner: "date",
   }),
