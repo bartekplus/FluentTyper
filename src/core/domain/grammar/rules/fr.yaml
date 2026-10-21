@@ -8998,19 +8998,25 @@ rules:
           - 'typed === word && verbReadings(word).some((r) => r.slot === "Q")'
           - genders.size === 1
         return: "({ person, gender: [...genders][0], slot: slots[0], word, start, end: start + typed.length })"
-      # The first participle of `person` in the chunk before `stop` that the sentence keeps: a
-      # match after another sentence or a quote starts again.
-      keptEntry:
-        args: "ctx: DetectContext, at: number, stop: number, person: string, entry: { gender: string; end: number } | null"
-        type: "{ gender: string; end: number } | null"
+      # The participles the sentence keeps, one walk per chunk: after each match of KEPT_PATTERN,
+      # the first participle of each person. A match after another sentence or a quote starts
+      # its person again.
+      KEPT_STEPS: "new WeakMap<DetectContext, { index: number; kept: Map<string, { gender: string; end: number }> }[]>()"
+      keptSteps:
+        args: "ctx: DetectContext"
         let:
-          found: execAt(KEPT_PATTERN, ctx.scanText, at)
-          read: "found && found.index < stop ? keptRead(found) : null"
-          next: >-
-            found && read && read.person === person && (!entry || /[.!?…\n«»"“”]/u.test(ctx.text.slice(entry.end, found.index)))
-              ? { gender: read.gender, end: read.end }
-              : entry
-        return: "!found || found.index >= stop ? entry : keptEntry(ctx, found.index + found[0].length, stop, person, next)"
+          kept: "new Map<string, { gender: string; end: number }>()"
+        return: >-
+          KEPT_STEPS.get(ctx) ??
+            KEPT_STEPS.set(ctx, matchesFrom(KEPT_PATTERN, ctx.scanText, ctx.from).map((found) => keptStep(ctx, kept, found))).get(ctx)!
+      keptStep:
+        args: "ctx: DetectContext, kept: Map<string, { gender: string; end: number }>, found: RegExpExecArray"
+        let:
+          read: keptRead(found)
+          entry: read && kept.get(read.person)
+          next: read && (!entry || /[.!?…\n«»"“”]/u.test(ctx.text.slice(entry.end, found.index)))
+        return: >-
+          ({ index: found.index, kept: new Map(next && read ? kept.set(read.person, { gender: read.gender, end: read.end }) : kept) })
     frames:
       # "trois heures et demi" -> "demie": "demi" after its noun.
       - regex: "{{WORD_START}}(?<noun>\\p{L}+)[ \\t]+et[ \\t]+(?<half>demi(?:e|s|es)?){{WORD_END}}"
@@ -9303,7 +9309,7 @@ rules:
         # participle of être shows.
         let:
           read: keptRead(m)
-          entry: keptEntry(ctx, ctx.from, m.index, read.person, null)
+          entry: lastBefore(keptSteps(ctx), m.index)?.kept.get(read.person)
         when:
           - m.index >= ctx.from
           - "!!read"

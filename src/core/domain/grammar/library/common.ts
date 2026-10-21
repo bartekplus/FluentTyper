@@ -34,7 +34,7 @@ export { lastNonBlankBefore, opensClause } from "../implementations/helpers/Engl
 export { MASK_CHAR } from "../review/types";
 export { digitValue, invalidIsoDate } from "../review/isoDates";
 export { phraseRows } from "./common/engine";
-export { atClauseStart, previousWord } from "./common/text";
+export { atClauseStart, lastBefore, matchesFrom, previousWord } from "./common/text";
 export {
   englishNounNumber,
   isEnglishFunctionWord,

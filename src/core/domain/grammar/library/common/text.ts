@@ -50,3 +50,32 @@ export function previousWord(text: string, start: number): [string, number] {
   }
   return found < 0 ? ["", start] : [text.slice(found, end), found];
 }
+
+/**
+ * All matches of `regex` (with the g flag) in `text` from index `from`, in order. Its lookbehinds
+ * still read the text before `from`.
+ */
+export function matchesFrom(regex: RegExp, text: string, from: number): RegExpExecArray[] {
+  const found: RegExpExecArray[] = [];
+  regex.lastIndex = Math.max(0, from);
+  for (let m = regex.exec(text); m; m = regex.exec(text)) {
+    found.push(m);
+    if (m[0] === "") regex.lastIndex++;
+  }
+  return found;
+}
+
+/** The last item of `items` (in the order of their `index`) whose `index` is below `stop`. */
+export function lastBefore<T extends { index: number }>(
+  items: readonly T[],
+  stop: number,
+): T | undefined {
+  let low = 0;
+  let high = items.length;
+  while (low < high) {
+    const middle = (low + high) >> 1;
+    if (items[middle].index < stop) low = middle + 1;
+    else high = middle;
+  }
+  return items[low - 1];
+}
