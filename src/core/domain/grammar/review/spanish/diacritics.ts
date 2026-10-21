@@ -1,3 +1,4 @@
+import { wordTable } from "../wordTable";
 import type { MatchFixer } from "../../engine/reviewRules";
 import { readNoun } from "./agreement";
 import {
@@ -40,7 +41,7 @@ const RULE = "spanishAccents" as const;
 
 // The es.diacritics frame of rules/es.yaml lists the words of INTERROGATIVE, PLAIN_RELATIVE
 // and the cases of monosyllable().
-const INTERROGATIVE: Record<string, string> = {
+const INTERROGATIVE: Record<string, string> = wordTable({
   que: "qué",
   como: "cómo",
   donde: "dónde",
@@ -55,7 +56,7 @@ const INTERROGATIVE: Record<string, string> = {
   cuantos: "cuántos",
   cuantas: "cuántas",
   cuan: "cuán",
-};
+});
 // Words a question may open with before its question word: "¿Y de qué…?", "¿Pero cómo…?".
 const LEAD = words("y e o u pero pues entonces bueno ah oye");
 const ADVERBIALS = words("bien mal tarde pronto aquí allí ahí siempre nunca");
@@ -630,19 +631,19 @@ function verbAhead(at: Around): boolean {
 // Relatives written as question words after their antecedent: "nada qué hacer" -> "que",
 // "el modo cómo" -> "como", "la fecha cuándo" -> "cuando", "el lugar dónde" -> "donde".
 const QUANTITY_ANTECEDENTS = words("nada algo nadie alguien mucho poco bastante");
-const NOUN_ANTECEDENTS: Record<string, Set<string>> = {
+const NOUN_ANTECEDENTS: Record<string, Set<string>> = wordTable({
   cómo: words("modo manera forma"),
   cuándo: words("fecha día momento época hora año"),
   dónde: words("lugar sitio casa ciudad zona pueblo país parte punto"),
-};
-const PLAIN_RELATIVE: Record<string, string> = {
+});
+const PLAIN_RELATIVE: Record<string, string> = wordTable({
   qué: "que",
   quién: "quien",
   quiénes: "quienes",
   dónde: "donde",
   cómo: "como",
   cuándo: "cuando",
-};
+});
 
 /** "No tengo nada qué hacer", "alguien en quién confiar": a relative after its antecedent. */
 function relative(at: Around): string | null {
