@@ -432,7 +432,6 @@ const afterInfinitiveTo: MatchFixer = (match, ctx) => {
   const word = token.toLowerCase();
   // "committed to fixing" is valid, and -ing after "to" is never safe to guess.
   if (word.endsWith("ing") || !plainToken(ctx, token)) return findings;
-  if (hasUserOrCasedWord(ctx, match[0])) return findings;
   if (adverb && !englishWordInfo(adverb.trim())?.adverb) return findings;
   const lemma = inflectedLemma(word);
   if (!lemma) return findings;
@@ -480,6 +479,8 @@ const afterInfinitiveTo: MatchFixer = (match, ctx) => {
     )
   )
     return findings;
+  // The user-word test reads each word of the match: it runs after the cheap tests.
+  if (hasUserOrCasedWord(ctx, match[0])) return findings;
   const verbStart = end - token.length;
   findings.push({
     ruleId: "englishAuxiliaryBaseVerb",
@@ -497,7 +498,7 @@ const afterInfinitiveTo: MatchFixer = (match, ctx) => {
 const needToNoun: MatchFixer = (match, ctx) => {
   const findings: RawFinding[] = [];
   const noun = match.groups!.noun.toLowerCase();
-  if (FUNCTION_WORD.test(noun) || hasUserOrCasedWord(ctx, match[0])) return findings;
+  if (FUNCTION_WORD.test(noun)) return findings;
   // "don't want to today", "wants to may be": an elided verb before a time word or modal.
   if (
     /^(?:today|tomorrow|tonight|yesterday|may|might|can|could|will|would|should|must)$/.test(noun)
@@ -550,6 +551,8 @@ const needToNoun: MatchFixer = (match, ctx) => {
       (info.noun || info.plural || participleNext)
     : NOUN_ENDING.test(noun);
   if (!isNoun) return findings;
+  // The user-word test reads each word of the match: it runs after the cheap tests.
+  if (hasUserOrCasedWord(ctx, match[0])) return findings;
   const original = ctx.source.slice(nounStart, end);
   findings.push({
     ruleId: "englishAuxiliaryBaseVerb",
