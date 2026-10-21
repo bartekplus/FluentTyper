@@ -19478,14 +19478,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}\\p{N}.,:/-])(?<target>\\d{1,4})([ae])(?![\\p{L}\\p{N}:])",
     literals: [],
-    fixer: "sv:ordinal",
+    fixer: "sv:@sv.typography/1",
     flags: "gu",
     scan: "owned",
   }),
   frame({
     pattern: "(?<![\\p{L}\\p{N}])(?<target>\\p{Lu}{2,6})s(?![\\p{L}\\p{N}:'\\u2019])",
     literals: [],
-    fixer: "sv:acronymGenitive",
+    fixer: "sv:@sv.typography/2",
     message: "review_msg_swedish_acronym_genitive",
     flags: "gu",
     scan: "owned",
@@ -19514,7 +19514,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "november",
       "december",
     ],
-    fixer: "sv:lowercaseName",
+    fixer: "sv:@sv.typography/3",
     message: "review_msg_swedish_lowercase_names",
     flags: "gu",
     scan: "owned",
@@ -19523,7 +19523,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>[Ee]tt|[Ee]n|ETT|EN)(?=(?<gap1>[ \\t\\u00a0]+)(?<adjective>\\p{Ll}+)(?<gap2>[ \\t\\u00a0]+)(?<noun>\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.\\p{L}))",
     literals: [],
-    fixer: "sv:agreement",
+    fixer: "sv:@sv.agreement/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -19531,7 +19531,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>[Mm]ellan)(?<middle>[ \\t\\u00a0]+(?:(?:klockan|kl\\.|år|åren)[ \\t\\u00a0]+)?(?:\\d{1,4}(?:[.:]\\d{2})?|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio|elva|tolv|måndag|tisdag|onsdag|torsdag|fredag|lördag|söndag|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december|\\p{Lu}\\p{Ll}+))[ \\t\\u00a0]+(?<till>till)(?<rest>[ \\t\\u00a0]+(?:\\d{1,4}(?:[.:]\\d{2})?|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio|elva|tolv|måndag|tisdag|onsdag|torsdag|fredag|lördag|söndag|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december|\\p{Lu}\\p{Ll}+))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["mellan"],
-    fixer: "sv:mellanTill",
+    fixer: "sv:@sv.mellanTillDeDem/1",
     flags: "dgu",
     scan: "owned",
   }),
@@ -19539,7 +19539,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>[Dd]em|DEM)[ \\t\\u00a0]+(?:är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["dem", "dem"],
-    fixer: "sv:demSubject",
+    fixer: "sv:@sv.mellanTillDeDem/2",
     message: "review_msg_swedish_de_dem",
     flags: "gu",
     scan: "owned",
@@ -19548,7 +19548,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:med|till|för|av|hos|åt|om|från|på|mot|utan|efter|bredvid|framför|bakom|över|genom|mellan|kring)[ \\t\\u00a0]+(?<target>de|DE)(?=[ \\t\\u00a0]*(?:[.,!?;:)]|$))",
     literals: [],
-    fixer: "sv:deObject",
+    fixer: "sv:@sv.mellanTillDeDem/3",
     message: "review_msg_swedish_de_dem",
     flags: "giu",
     scan: "owned",
@@ -19557,7 +19557,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<target>[Ee]n|[Ee]tt)(?<gap1>[ \\t\\u00a0]+)(?<till>till)(?<gap2>[ \\t\\u00a0]+)(?<noun>\\p{Ll}{3,})(?=[ \\t\\u00a0]*(?:[.,!?;:]|$))",
     literals: ["till"],
-    fixer: "sv:enTill",
+    fixer: "sv:@sv.enTillSpeechComma/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -19565,7 +19565,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\p{L})(?<target>[ \\t\\u00a0]+)(?<verb>sa|sade|svarade|frågade|ropade|skrek|viskade|utbrast|förklarade|menade|tänkte)[ \\t\\u00a0]+(?:han|hon|hen|jag|vi|de|du|ni|\\p{Lu}\\p{Ll}+)(?=[.!?])",
     literals: [],
-    fixer: "sv:speechComma",
+    fixer: "sv:@sv.enTillSpeechComma/2",
     message: "review_msg_swedish_speech_comma",
     flags: "gu",
     scan: "owned",

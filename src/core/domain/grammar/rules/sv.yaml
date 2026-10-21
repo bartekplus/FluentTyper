@@ -8,6 +8,46 @@ fragments:
   END: "(?:\\d{1,4}(?:[.:]\\d{2})?|en|ett|två|tre|fyra|fem|sex|sju|åtta|nio|tio|elva|tolv|måndag|tisdag|onsdag|torsdag|fredag|lördag|söndag|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december|\\p{Lu}\\p{Ll}+)"
   FINITE: "är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde"
 
+# The code of the rules' expressions (`let`, `when`, `return`): sets and defs.
+sets:
+  ORDINAL_BEFORE:
+    [den, det, på, i, för, till, sin, sitt, sina, min, mitt, din, ditt, hans, hennes, deras, dess, vår, vårt, er, ert, varje, kom, slutade, hamnade]
+  # After these the -s is a plural ("två PCs"), before these the word ends its phrase.
+  PLURAL_BEFORE: [två, tre, fyra, fem, sex, flera, många, alla, några, olika, dessa, de, inga, få, fler, våra, era, deras]
+  NOT_NOUNS:
+    [
+      för, och, som, i, på, med, till, av, är, var, har, hade, kan, ska, skulle, eller, men, från, att, om, under, efter,
+      inte, blir, blev, finns, kommer, måste, vid, mot, utan, så, när, då, där, hos, än, samt,
+    ]
+  CLAUSE_OPENERS:
+    [att, och, men, när, om, eftersom, då, så, medan, innan, tills, fast, fastän, ifall, därför, hur, varför, var, vad, sedan]
+  # "gav en till mamma", "en till varje": till is the preposition before a person, a pronoun or
+  # a quantifier.
+  PERSONS:
+    [
+      mamma, pappa, mormor, morfar, farmor, farfar, bror, syster, kompis, vän, chef, granne, kollega, lärare, barn,
+      honom, henne, dem, dom, oss, er, mig, dig, sig, varje, alla, var, varandra,
+    ]
+defs:
+  ORDINAL_NOUNS: '/^[ \t\u00a0]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u'
+  # "Mars" is also the planet and "Maj" a first name: only in a date.
+  DATE_ONLY: /^(?:Mars|Maj)$/
+  DATE_BEFORE: '/(?:\d\.?|(?<!\p{L})(?:i|av|sedan|från|till|under|början|slutet|mitten))[ \t\u00a0]+$/u'
+  # A finite verb, as the fragments EDGE and FINITE give it.
+  HAS_FINITE: '/(?<![\p{L}\p{M}\p{N}_''’@/#\\-])(?:är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde|finns|fanns)(?![\p{L}\p{M}\p{N}_''’@/#\\-])/iu'
+  # The word before `at`, "" after punctuation or at the start.
+  wordBefore:
+    args: "text: string, at: number"
+    return: '/(\p{L}[\p{L}\p{N}:]*)[ \t\u00a0]+$/u.exec(text.slice(Math.max(0, at - 32), at))?.[1] ?? ""'
+  atSentenceStart:
+    args: "text: string, at: number"
+    let:
+      before: text.slice(Math.max(0, at - 8), at)
+    return: '/[.!?:…\n][ \t\u00a0"”»''(–-]*$/u.test(before) || (at <= 8 && /^[ \t\u00a0"”»''(–-]*$/u.test(before))'
+  capitalized:
+    args: "word: string"
+    return: '/^\p{Lu}\p{Ll}/u.test(word)'
+
 rules:
   - id: sv.typography
     checks: [swedishTypography]
@@ -18,19 +58,72 @@ rules:
       - regex: "(?<![\\p{L}\\p{N}.,:/-])(?<target>\\d{1,4})([ae])(?![\\p{L}\\p{N}:])"
         scan: owned
         flags: gu
-        fixer: ordinal
+        let:
+          n: Number(m[1])
+          expected: 'n % 100 !== 11 && n % 100 !== 12 && (n % 10 === 1 || n % 10 === 2) ? "a" : "e"'
+          before: wordBefore(ctx.text, m.index)
+          end: m.index + m[0].length
+        when:
+          - '!namedExampleBefore(ctx.text, m.index)'
+          - m[2] === expected
+          - '!(capitalized(before) && !atSentenceStart(ctx.text, m.index - before.length - 1))'
+          - ORDINAL_BEFORE.has(before.toLowerCase()) || ORDINAL_NOUNS.test(ctx.text.slice(end, end + 24))
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end },
+            alternatives: [`${m[1]}:${m[2]}`],
+            context: { start: m.index, end },
+          })
       # "APIs fördelar": an acronym's genitive -s follows a colon (API:s).
       - regex: "(?<![\\p{L}\\p{N}])(?<target>\\p{Lu}{2,6})s(?![\\p{L}\\p{N}:'\\u2019])"
         scan: owned
         flags: gu
         message: review_msg_swedish_acronym_genitive
-        fixer: acronymGenitive
+        let:
+          end: m.index + m[0].length
+          next: '/^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 32))?.[1]'
+          before: wordBefore(ctx.text, m.index).toLowerCase()
+        when:
+          - '!namedExampleBefore(ctx.text, m.index)'
+          - next && !NOT_NOUNS.has(next)
+          - '!(PLURAL_BEFORE.has(before) || /\d[ \t\u00a0]+$/u.test(ctx.text.slice(m.index - 4, m.index)))'
+          - '!ctx.dictionary.has(m[0].toLowerCase())'
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end },
+            alternatives: [`${m[1]}:s`],
+            context: { start: m.index, end: end + 1 + next.length },
+          })
       # "idag är det Måndag": Swedish weekdays and months are common nouns.
       - regex: "(?<!{{EDGE}})(?<target>(?:Måndag|Tisdag|Onsdag|Torsdag|Fredag|Lördag|Söndag|Januari|Februari|Mars|April|Maj|Juni|Juli|Augusti|September|Oktober|November|December)(?:en|ens|s|ar|arna|ens)?)(?!{{EDGE}})"
         scan: owned
         flags: gu
         message: review_msg_swedish_lowercase_names
-        fixer: lowercaseName
+        let:
+          word: m[0]
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          end: m.index + word.length
+        when:
+          - '!namedExampleBefore(ctx.text, m.index)'
+          - '!atSentenceStart(ctx.text, m.index)'
+          - '!(DATE_ONLY.test(word) && !DATE_BEFORE.test(before))'
+          # A title or a name around it ("Svarta Fredagen", "Maj Andersson").
+          - >-
+            !(/\p{Lu}\p{Ll}*[ \t\u00a0]+$/u.test(before) ||
+            /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3)))
+          - '!ctx.dictionary.has(word.toLowerCase())'
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + 1 },
+            alternatives: [word[0].toLowerCase()],
+            context: { start: m.index, end },
+          })
   - id: sv.agreement
     checks: [swedishAgreement]
     style: match
@@ -45,7 +138,48 @@ rules:
       - regex: "(?<!{{EDGE}})(?<target>[Ee]tt|[Ee]n|ETT|EN)(?=(?<gap1>{{GAP}})(?<adjective>\\p{Ll}+)(?<gap2>{{GAP}})(?<noun>\\p{Ll}+)(?!{{EDGE}}|\\.\\p{L}))"
         scan: owned
         flags: gu
-        fixer: agreement
+        let:
+          form: adjectiveForm(adjective)
+          gender: nounGender(noun)
+          # The match is the article only: the phrase ends after the noun.
+          end: m.index + target.length + gap1.length + adjective.length + gap2.length + noun.length
+          # The noun is itself a modifier when a noun or adjective follows it.
+          next: '/^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 40))?.[1]'
+          articleGender: target.toLowerCase() as "en" | "ett"
+          adjectiveGender: 'form.form === "common" ? "en" : "ett"'
+          fixed: 'gender === "ett" ? "ett" : "en"'
+        when:
+          - form && form.form !== "both" && !adjectiveForm(noun)
+          - gender
+          - '!(next && (adjectiveForm(next) || (next.length > 3 && nounGender(next))))'
+          - '![adjective, noun].some((word) => ctx.dictionary.has(word))'
+          - '!namedExampleBefore(ctx.text, m.index)'
+          - articleGender !== adjectiveGender
+        return: >-
+          gender === articleGender
+            ? {
+                ruleId: frame.ruleId,
+                messageKey: frame.messageKey,
+                range: {
+                  start: m.index + target.length + gap1.length,
+                  end: m.index + target.length + gap1.length + adjective.length,
+                },
+                alternatives: [form.other],
+                context: { start: m.index, end },
+              }
+            : {
+                ruleId: frame.ruleId,
+                messageKey: frame.messageKey,
+                range: { start: m.index, end: m.index + target.length },
+                alternatives: [
+                  target === target.toUpperCase() && target.length > 1
+                    ? fixed.toUpperCase()
+                    : target[0] === "E"
+                      ? "E" + fixed.slice(1)
+                      : fixed,
+                ],
+                context: { start: m.index, end },
+              }
   - id: sv.mellanTillDeDem
     checks: [englishPhraseCorrections]
     style: match
@@ -55,21 +189,59 @@ rules:
       - regex: "(?<!{{EDGE}})(?<target>[Mm]ellan)(?<middle>{{GAP}}(?:(?:klockan|kl\\.|år|åren){{GAP}})?{{END}}){{GAP}}(?<till>till)(?<rest>{{GAP}}{{END}})(?!{{EDGE}})"
         scan: owned
         flags: dgu
-        fixer: mellanTill
+        let:
+          span: m.indices!.groups!.till
+          between: ctx.text.slice(m.index + target.length, span[0])
+        when: '!namedExampleBefore(ctx.text, m.index)'
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: span[1] },
+            alternatives: [
+              target + between + (till === till.toUpperCase() ? "OCH" : "och"),
+              (target[0] === "M" ? "Från" : "från") + between + till,
+            ],
+            requiresChoice: true,
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # "dem är här" -> "de är här": the subject form is "de". Only where the role is plain:
       # "dem" opening a clause before its verb.
       - regex: "(?<!{{EDGE}})(?<target>[Dd]em|DEM){{GAP}}(?:{{FINITE}})(?!{{EDGE}})"
         scan: owned
         flags: gu
         message: review_msg_swedish_de_dem
-        fixer: demSubject
+        when:
+          - '!namedExampleBefore(ctx.text, m.index)'
+          - >-
+            atSentenceStart(ctx.text, m.index) || /,[ \t\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index)) ||
+            CLAUSE_OPENERS.has(wordBefore(ctx.text, m.index).toLowerCase())
+          - '!ctx.dictionary.has(target.toLowerCase())'
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + target.length },
+            alternatives: [target === "DEM" ? "DE" : target[0] + "e"],
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # "med de." -> "med dem.": after a preposition the object form is "dem". Only "de" ending
       # a clause after a preposition ("med de andra" is the article).
       - regex: "(?<!{{EDGE}})(?:med|till|för|av|hos|åt|om|från|på|mot|utan|efter|bredvid|framför|bakom|över|genom|mellan|kring){{GAP}}(?<target>de|DE)(?=[ \\t\\u00a0]*(?:[.,!?;:)]|$))"
         scan: owned
         flags: giu
         message: review_msg_swedish_de_dem
-        fixer: deObject
+        let:
+          start: m.index + m[0].length - target.length
+        when: '!namedExampleBefore(ctx.text, m.index)'
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start, end: start + target.length },
+            alternatives: [target === "DE" ? "DEM" : "dem"],
+            context: { start: m.index, end: start + target.length },
+          })
   - id: sv.enTillSpeechComma
     checks: [stylePhrasing]
     style: match
@@ -79,7 +251,22 @@ rules:
       - regex: "(?<!{{EDGE}})(?<target>[Ee]n|[Ee]tt)(?<gap1>{{GAP}})(?<till>till)(?<gap2>{{GAP}})(?<noun>\\p{Ll}{3,})(?=[ \\t\\u00a0]*(?:[.,!?;:]|$))"
         scan: owned
         flags: gu
-        fixer: enTill
+        let:
+          # A noun of the other gender cannot be "another"; one the dictionary lacks may be.
+          gender: nounGender(noun)
+        when:
+          - '!namedExampleBefore(ctx.text, m.index)'
+          - '!(PERSONS.has(noun) || adjectiveForm(noun))'
+          - '!(gender ? gender !== target.toLowerCase() : !/a$/u.test(noun) || target !== "en")'
+          - '!ctx.dictionary.has(noun)'
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + m[0].length },
+            alternatives: [`${target}${gap1}${noun} till`],
+            context: { start: m.index, end: m.index + m[0].length },
+          })
       # "Det var finfint sade Johan." -> "finfint, sade Johan": quoted speech is set off from
       # the speech verb that follows it. Only when the words before already hold a finite verb,
       # so they cannot be a fronted object ("Det sa Johan").
@@ -87,7 +274,23 @@ rules:
         scan: owned
         flags: gu
         message: review_msg_swedish_speech_comma
-        fixer: speechComma
+        let:
+          sentence: ctx.text.slice(Math.max(0, m.index - 200), m.index)
+          clause: sentence.slice(sentence.search(/[^.!?:\n]*$/u))
+        when:
+          - '!namedExampleBefore(ctx.text, m.index)'
+          - '!(clause.trim().split(/\s+/u).length < 3 || !HAS_FINITE.test(clause))'
+          - '!/(?<!\p{L})(?:som|vad|vilket|vilken|vilka)(?!\p{L})/iu.test(clause)'
+          # A fronted subordinate clause ("När han kom hem frågade hon") is followed by V2.
+          - '!/^[\s"”»''(–-]*(?:när|om|eftersom|innan|medan|sedan|då|fast|fastän|ifall|tills|därför|för att)(?!\p{L})/iu.test(clause)'
+        return: >-
+          ({
+            ruleId: frame.ruleId,
+            messageKey: frame.messageKey,
+            range: { start: m.index, end: m.index + target.length },
+            alternatives: [", "],
+            context: { start: m.index - Math.min(clause.length, 24), end: m.index + m[0].length },
+          })
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:
