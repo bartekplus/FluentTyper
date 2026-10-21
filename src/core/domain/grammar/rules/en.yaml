@@ -2853,8 +2853,9 @@ rules:
     frames:
       # A word that governs a fixed preposition, typed with another one: "afraid from the dark"
       # (of), "participated to the event" (in). Every word from 40 characters before the chunk
-      # is looked up in the head table of collocationSlots.
-      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])"
+      # is looked up in the head table of collocationSlots, when one of the typed prepositions of
+      # that table comes next (a test keeps the two lists the same).
+      - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])(?=[ \\t\\u00a0]+(?:about|against|from|with|for|of|on|at|as|to)(?![\\p{L}\\p{M}\\p{N}_@/#\\\\-]|\\.[\\p{L}\\p{N}]))"
         scan: text
         lookback: 40
         flags: gu

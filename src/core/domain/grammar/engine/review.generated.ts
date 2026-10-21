@@ -10746,7 +10746,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])",
+      "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])(?=[ \\t\\u00a0]+(?:about|against|from|with|for|of|on|at|as|to)(?![\\p{L}\\p{M}\\p{N}_@/#\\\\-]|\\.[\\p{L}\\p{N}]))",
     literals: [],
     fixer: "en:collocationHead",
     flags: "gu",

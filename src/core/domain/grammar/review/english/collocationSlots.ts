@@ -125,7 +125,8 @@ const bareNoun: Guard = (ctx, head, [, next]) =>
   !englishWordInfo(next.lower)?.verbs.some((v) => v.form === "base");
 
 // [heads, typed prepositions, the fixed one, guard]. "" as the fixed one deletes the typed word.
-const ROWS: readonly (readonly [string, string, string | string[], Guard?])[] = [
+// The head frame of en.collocations lists every typed preposition (a test checks it).
+export const ROWS: readonly (readonly [string, string, string | string[], Guard?])[] = [
   // ---- adjectives and participles ----
   ["afraid scared frightened terrified", "from", "of", object],
   ["interested", "for at", "in", object],
