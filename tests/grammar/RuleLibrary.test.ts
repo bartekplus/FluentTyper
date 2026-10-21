@@ -69,3 +69,25 @@ test("the rule library never loads the engine or the generated rule modules (no 
   }
   expect(offenders).toEqual([]);
 });
+
+test("the typing rules load no Review code: the content scripts stay small", () => {
+  // engine/liveRules.ts runs in the content scripts. It loads the typing rules of the rule files
+  // (rules/<file>.live.generated.ts), never their Review code or a language's library file.
+  const review =
+    /engine\/rules\/(?!live-index)[^/]+(?<!\.live)\.generated\.ts$|library\/(?:english|german|french|spanish|polish|portuguese|arabic|greek|swedish)(?:\.ts|\/)/;
+  const transpiler = new Bun.Transpiler({ loader: "ts" });
+  const seen = new Set<string>();
+  const loads: string[] = [];
+  const visit = (file: string) => {
+    if (seen.has(file)) return;
+    seen.add(file);
+    if (review.test(file)) loads.push(path.relative(GRAMMAR, file));
+    for (const entry of transpiler.scanImports(readFileSync(file, "utf8"))) {
+      if (entry.kind !== "import-statement") continue;
+      const next = resolveImport(file, entry.path);
+      if (next) visit(next);
+    }
+  };
+  visit(path.join(GRAMMAR, "engine/liveRules.ts"));
+  expect(loads).toEqual([]);
+});
