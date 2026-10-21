@@ -313,9 +313,6 @@ function owned(ctx: DetectContext, start: number): boolean {
   return start >= ctx.from && start < ctx.to;
 }
 
-const ownedFindings = (ctx: DetectContext, list: readonly RawFinding[] | undefined) =>
-  (list ?? []).filter((f) => owned(ctx, f.range.start));
-
 // Words after which a lowercase "i" names something ("the variable i"): an identifier.
 const IDENTIFIER_WORDS = "each|every|the|a|index|variable|counter|iterator|loop";
 const IDENTIFIER_BEFORE = new RegExp(`\\b(?:${IDENTIFIER_WORDS})\\s+$`, "i");
@@ -1702,11 +1699,8 @@ const repeatedWord: MatchFixer = (match, ctx) => {
  * checks, languages and order.
  */
 export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {
-  styleFindings: (ctx) => ownedFindings(ctx, ctx.styleFindings),
-  terminology: (ctx) => ownedFindings(ctx, ctx.terminologyFindings),
   // The phrase rows of the rule files (engine/phraseRows.ts), after the casing frame.
   phraseRows: phraseCorrections,
-  quotationFindings: (ctx) => ownedFindings(ctx, ctx.quotationFindings),
   typographicQuotes: TYPOGRAPHIC_QUOTES.detect,
   modalOf,
   yourWelcome,

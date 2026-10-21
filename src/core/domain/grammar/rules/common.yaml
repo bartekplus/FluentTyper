@@ -4636,12 +4636,12 @@ rules:
   # Review rules: each names a shared detector (CORE_PREDICATES in review/reviewDetectors.ts).
   - id: styleFindings
     checks: [styleRedundancy, styleLongSentence]
-    # predicate: reads the style findings that Review made before the scan; no regex scan.
-    predicate: styleFindings
+    # The style findings Review made before the rule scan, in the chunk.
+    findings: style
   - id: terminology
     checks: [preferredTerminology]
-    # predicate: reads the terminology findings that Review made before the scan; no regex scan.
-    predicate: terminology
+    # The terminology findings Review made before the rule scan, in the chunk.
+    findings: terminology
   - id: phraseTables
     checks:
       [
@@ -4669,8 +4669,8 @@ rules:
     predicate: phraseRows
   - id: quotationFindings
     checks: [unclosedQuotation]
-    # predicate: reads the quotation findings that Review made before the scan; no regex scan.
-    predicate: quotationFindings
+    # The quotation findings Review made before the rule scan, in the chunk.
+    findings: quotation
   - id: typographicQuotes
     checks: [typographicQuotes]
     # predicate: typographicQuotes.ts pairs the quote marks of each line with a stack.

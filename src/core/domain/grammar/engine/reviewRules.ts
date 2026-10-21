@@ -191,7 +191,12 @@ export function buildReviewDetectors(
 ): ReviewDetectorEntry[] {
   const entries = REVIEW_RULES.map((rule) => {
     let detect: Detector;
-    if (rule.pattern !== undefined) detect = patternDetector(rule.pattern);
+    if (rule.findings !== undefined) {
+      const field = FINDINGS_FIELDS[rule.findings];
+      // The findings whose range starts in the chunk.
+      detect = (ctx) =>
+        (ctx[field] ?? []).filter((f) => f.range.start >= ctx.from && f.range.start < ctx.to);
+    } else if (rule.pattern !== undefined) detect = patternDetector(rule.pattern);
     else if (rule.frames !== undefined) {
       detect = frameRuleDetector(rule.id, fixers, filters);
       if (rule.predicate !== undefined) {
@@ -218,6 +223,13 @@ export function buildReviewDetectors(
   });
   return grouped(entries);
 }
+
+// The context field of each findings rule.
+const FINDINGS_FIELDS = {
+  style: "styleFindings",
+  terminology: "terminologyFindings",
+  quotation: "quotationFindings",
+} as const;
 
 /**
  * Consecutive entries of one rule group (same file, same `group`) as one entry: the parts run

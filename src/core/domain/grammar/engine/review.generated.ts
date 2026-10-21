@@ -8,13 +8,13 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
   {
     id: "styleFindings",
     checks: ["styleRedundancy", "styleLongSentence"],
-    predicate: "common:styleFindings",
+    findings: "style",
     source: "common",
   },
   {
     id: "terminology",
     checks: ["preferredTerminology"],
-    predicate: "common:terminology",
+    findings: "terminology",
     source: "common",
   },
   {
@@ -40,7 +40,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
   {
     id: "quotationFindings",
     checks: ["unclosedQuotation"],
-    predicate: "common:quotationFindings",
+    findings: "quotation",
     source: "common",
   },
   {

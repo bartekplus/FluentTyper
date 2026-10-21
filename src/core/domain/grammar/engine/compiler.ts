@@ -94,6 +94,7 @@ const RULE_KEYS = new Set<keyof RuleSpec>([
   "style",
   "filter",
   "group",
+  "findings",
 ]);
 const FRAME_KEYS = new Set([
   "regex",
@@ -458,14 +459,28 @@ export function compileRuleFiles(files: readonly (readonly [string, RuleFile])[]
       if (!checks.has(id)) errors.push(`${where}: unknown check "${id}"`);
     // A frame rule may also name a predicate: it runs after the frames.
     if (
-      [spec.pattern, spec.frames ?? spec.predicate].filter((k) => k !== undefined).length !== 1 ||
+      [spec.pattern, spec.frames ?? spec.predicate, spec.findings].filter((k) => k !== undefined)
+        .length !== 1 ||
       (spec.pattern !== undefined && spec.predicate !== undefined)
     )
-      errors.push(`${where}: give exactly one of "predicate", "pattern" and "frames"`);
+      errors.push(`${where}: give exactly one of "predicate", "pattern", "frames" and "findings"`);
     const check = checks.get(spec.checks?.[0]);
     const modes = spec.modes ?? ["review"];
     const lang = code(spec.lang ?? file.lang);
 
+    if (spec.findings !== undefined) {
+      if (!["style", "terminology", "quotation"].includes(spec.findings))
+        errors.push(`${where}: unknown findings "${spec.findings}"`);
+      rules.push({
+        id: spec.id,
+        checks: [...spec.checks],
+        ...(lang ? { lang } : {}),
+        findings: spec.findings,
+        ...(spec.group === undefined ? {} : { group: spec.group }),
+        source: name,
+      });
+      continue;
+    }
     if (spec.predicate !== undefined && spec.frames === undefined) {
       if (modes.includes("live")) {
         if (modes.length > 1) errors.push(`${where}: a live predicate rule has only mode "live"`);

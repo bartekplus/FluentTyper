@@ -208,6 +208,11 @@ export interface RuleSpec {
   /** A named filter of the rule's findings (a `FILTERS` record of the rule file). */
   filter?: string;
   /**
+   * A rule that reports findings Review made before the rule scan, in the chunk: "style" (the
+   * style advice), "terminology" (the user's preferred terms) or "quotation" (unclosed quotes).
+   */
+  findings?: "style" | "terminology" | "quotation";
+  /**
    * Consecutive Review rules of one group run as one detector: their findings join in order,
    * and a rule that throws stops the group and drops its findings (as one composite check).
    */
@@ -288,6 +293,7 @@ export interface CompiledRule {
   filter?: string;
   cacheable?: true;
   group?: string;
+  findings?: "style" | "terminology" | "quotation";
   /** The rule file it came from ("common", "en", "de", ...). */
   source: string;
 }

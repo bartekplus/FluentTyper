@@ -199,7 +199,7 @@ test("invalid rules are reported together", () => {
     'unknown pattern field "bogus"',
     "a live pattern needs a check with safeToFix",
     "duplicate rule id",
-    'give exactly one of "predicate", "pattern" and "frames"',
+    'give exactly one of "predicate", "pattern", "frames" and "findings"',
   ])
     expect(message).toContain(fragment);
   expect(
@@ -318,4 +318,38 @@ test("match frames: language files read common fragments; their own fragments wi
   expect(set.frames[0].pattern).toBe("(?<target>[0-9]{4}) [a-z]+");
   // An owned scan needs no target group.
   expect(set.frames[1]).toMatchObject({ pattern: "[a-z]+", scan: "owned", lookahead: 8 });
+});
+
+test("rule kinds: findings, groups, frame languages and frames with a predicate", () => {
+  const set = compile(
+    { lang: "*", checks: [check()] },
+    {
+      lang: "en",
+      rules: [
+        { id: "en.found", checks: ["demoCheck"], findings: "style", group: "g" },
+        {
+          id: "en.both",
+          checks: ["demoCheck"],
+          group: "g",
+          style: "match",
+          message: "review_msg_phrase_correction",
+          predicate: "after",
+          frames: [{ regex: "[a-z]+", scan: "owned", flags: "gu", lang: "de", fixer: "f" }],
+        },
+      ],
+    },
+  );
+  expect(set.rules[0]).toMatchObject({ id: "en.found", findings: "style", group: "g" });
+  expect(set.rules[1]).toMatchObject({ predicate: "en:after", group: "g", frames: [0] });
+  expect(set.frames[0]).toMatchObject({ lang: "de", scan: "owned" });
+  const message = errorsOf(() =>
+    compile(
+      { lang: "*", checks: [check()] },
+      {
+        lang: "en",
+        rules: [{ id: "en.bad", checks: ["demoCheck"], findings: "other" as "style" }],
+      },
+    ),
+  );
+  expect(message).toContain('unknown findings "other"');
 });
