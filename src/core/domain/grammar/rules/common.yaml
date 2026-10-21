@@ -5374,10 +5374,14 @@ rules:
       # An object-taking verb + own + a known noun supplies a complete possessive phrase.
       - regex: "(?:check|checked|reset|update|updated|save|saved|change|changed|remember|remembered|forgot|entered|used|found|lost){{S}}(?<target>you['’]re){{S}}own{{S}}{{CONFUSION_NOUN}}{{COMPLETE_OR_PAREN}}"
         check: englishYourYouAre
+        gate: "you['’]re[ \\t\\u00a0]{1,8}own"
+        gateFlags: giu
         fixer: youreOwn
       # No light/fast/slow: those adjectives are also base verbs after prospective "is to".
       - regex: "(?:is|are|was|were|am|be|seems?|looks?){{S}}(?<target>to){{S}}(?:heavy|large|small|hot|cold|late|early|expensive|difficult|hard|tired){{S}}to{{S}}(?:lift|carry|fit|eat|drink|finish|move|read|use|reach|leave|start|stop|understand){{E}}"
         check: englishToToo
+        gate: "to[ \\t\\u00a0]{1,8}(?:heavy|large|small|hot|cold|late|early|expensive|difficult|hard|tired)[ \\t\\u00a0]{1,8}to"
+        gateFlags: giu
         fixer: toTooAdjective
       # their/there/they're in frames where only one reading is grammatical. A finding at a start
       # where an earlier one is stays out (filter firstPerStart).
@@ -5412,6 +5416,8 @@ rules:
       # "people there own cars", so it needs a clause start, preposition or verb before it.
       - regex: "(?<target>there|they['’]?re){{S}}own{{S}}[a-z]+{{E}}"
         check: englishTheirThereTheyAre
+        gate: "(?:there|they['’]?re)[ \\t\\u00a0]{1,8}own"
+        gateFlags: giu
         fixer: theirOwn
       # then/than and to/too where the other reading has no grammatical slot. Identifiers and
       # names in the evidence ("versionName") abstain.
@@ -5443,6 +5449,8 @@ rules:
         fixer: toTooDegree
       - regex: "(?:(?:go|goes|going|gone|went|take|takes|took|taken|push|pushed|carry|carried|speak|spoke|spoken|speaking|talk|talked|celebrate|celebrated|act|acted|judge|judged){{S}}(?<target>to){{S}}(?:far|soon)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$)|{{S}}(?:with|for|on|in|this|and|but|when|because|like){{E}})|(?<![Tt]he{{S}}|[Aa]{{S}}|[Tt]his{{S}}|[Tt]hat{{S}}|[Oo]ne{{S}}|[Nn]o{{S}}|[Bb]est{{S}}|[Ww]hich{{S}})way{{S}}(?<target>to){{S}}(?:much|many|long|big|small|far|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often)){{E}}"
         check: englishToToo
+        gate: "to[ \\t\\u00a0]{1,8}(?:far|soon|much|many|long|big|small|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often)"
+        gateFlags: giu
         fixer: toTooDegree
       # "too" never precedes a determiner or object pronoun, nor a bare verb after want/need…
       - regex: "(?<target>too){{S}}(?:the|a|an|him|them|me|us|my|your|his|our|their){{E}}"
@@ -5463,6 +5471,8 @@ rules:
       # where: a verb of knowing or finding before were + a subject and more clause.
       - regex: "(?:go|goes|went|look|looked|know|knows|knew|forgot|forget|remember|remembers|found|find|check|asked|ask|wonder|wondered|show|showed|tell|told|see|saw|sure|idea){{S}}(?:(?:me|us|him|her|them){{S}})?(?<target>were){{S}}(?:I|he|she|it|we|they|you|the{{S}}[a-z]+{{S}}(?:is|was|are|were|[a-z]+ed)){{E}}"
         check: englishWereWhere
+        gate: "were[ \\t\\u00a0]{1,8}(?:I|he|she|it|we|they|you|the[ \\t\\u00a0])"
+        gateFlags: giu
         fixer: whereClause
   - id: capitalizeStarts
     checks: [capitalizeSentenceStart, capitalizeAfterLineBreak]

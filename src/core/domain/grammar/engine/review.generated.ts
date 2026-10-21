@@ -5162,6 +5162,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     ],
     fixer: "common:youreOwn",
     check: "englishYourYouAre",
+    gate: "you['’]re[ \\t\\u00a0]{1,8}own",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -5181,6 +5183,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     ],
     fixer: "common:toTooAdjective",
     check: "englishToToo",
+    gate: "to[ \\t\\u00a0]{1,8}(?:heavy|large|small|hot|cold|late|early|expensive|difficult|hard|tired)[ \\t\\u00a0]{1,8}to",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -5237,6 +5241,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["there", "they"],
     fixer: "common:theirOwn",
     check: "englishTheirThereTheyAre",
+    gate: "(?:there|they['’]?re)[ \\t\\u00a0]{1,8}own",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -5380,6 +5386,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["far", "soon", "way"],
     fixer: "common:toTooDegree",
     check: "englishToToo",
+    gate: "to[ \\t\\u00a0]{1,8}(?:far|soon|much|many|long|big|small|late|early|hard|easy|fast|slow|good|bad|high|low|expensive|complicated|little|often)",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
@@ -5410,6 +5418,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["were"],
     fixer: "common:whereClause",
     check: "englishWereWhere",
+    gate: "were[ \\t\\u00a0]{1,8}(?:I|he|she|it|we|they|you|the[ \\t\\u00a0])",
+    gateFlags: "giu",
   }),
   frame({
     pattern: "(?<target>[^\\s\\uFFFC]+)",
