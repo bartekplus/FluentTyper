@@ -5409,6 +5409,9 @@ rules:
       # slot; a pronoun, demonstrative or name there is a subject ("Didn't Sam too notice?").
       - regex: "(?:want|wants|wanted|need|needs|needed|going|able|trying|try|tried|supposed|used|have|has|had|like|love|hope|plan|decided|n['’]t{{S}}(?!(?:i|you|we|they|he|she|it|this|that|these|those){{E}})(?<middle>[a-z]+)){{S}}(?<target>too){{S}}(?<verb>[a-z]+){{E}}"
         check: englishToToo
+        # Skips the frame when no "too" + a word stands in the text.
+        gate: "too[ \\t\\u00a0]{1,8}[a-z]"
+        gateFlags: giu
         fixer: tooBeforeVerb
       # were: a subject pronoun before where + a predicate that cannot start a place clause.
       - regex: "(?:we|they|you){{S}}(?<target>where){{S}}(?:(?:not|all|still|just|already|also|never|always|almost){{S}})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the{{S}}only|allowed|given|shown|sent|invited|expected|lucky|about|trying|waiting|working|looking|talking|finished|gone){{E}}"

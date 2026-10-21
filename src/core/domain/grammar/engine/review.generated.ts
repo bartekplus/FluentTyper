@@ -5365,6 +5365,8 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     literals: ["too"],
     fixer: "common:tooBeforeVerb",
     check: "englishToToo",
+    gate: "too[ \\t\\u00a0]{1,8}[a-z]",
+    gateFlags: "giu",
   }),
   frame({
     pattern:
