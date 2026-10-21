@@ -8,7 +8,6 @@ import * as passiveVoice from "./passiveVoice";
 import * as punctuation from "./punctuation";
 import * as slotConfusions from "./slotConfusions";
 import * as britishUsage from "./britishUsage";
-import * as typography from "./typography";
 import * as confusions1 from "./confusions1";
 import * as dates from "./dates";
 import * as contractionSlots from "./contractionSlots";
@@ -100,7 +99,6 @@ export const FIXERS = mergePredicates<Fixer>(
   lexical.FIXERS,
   dialects.FIXERS,
   usageTables.FIXERS,
-  typography.FIXERS,
   dates.FIXERS,
   compoundForms.FIXERS,
   punctuation.FIXERS,

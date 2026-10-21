@@ -3580,6 +3580,66 @@ rules:
     # the chunk. A gate that every match holds near its start skips the scan when the text
     # lacks it: most prose has no notation, and these regexes open with lookbehinds the engine
     # tries at every position.
+    sets:
+      TYPOGRAPHY_MEASURES:
+        [
+          seconds,
+          minutes,
+          hours,
+          days,
+          meters,
+          metres,
+          grams,
+          liters,
+          litres,
+          miles,
+          kilometers,
+          kilometres,
+          inches,
+          feet,
+          pounds,
+          ounces,
+          degrees,
+          volts,
+          amps,
+          watts,
+          points,
+          percent,
+          units,
+          years,
+        ]
+    maps:
+      TYPOGRAPHY_FULL_WIDTH: { "？": "?", "！": "!" }
+      TYPOGRAPHY_ARROWS: { "-->": "→", "->": "→", "<-": "←", "<->": "↔", "<=>": "⇔", "=>": "⇒" }
+    defs:
+      TYPOGRAPHY_SUBSCRIPTS: '"₀₁₂₃₄₅₆₇₈₉"'
+      # The fixer of an owned scan that starts 64 characters before the chunk: a match that
+      # starts before the chunk, or inside a named example, gives no finding.
+      typographyOwned:
+        args: "m: RegExpExecArray, ctx: DetectContext"
+        return: "!(m.index < ctx.from || namedExampleBefore(ctx.text, m.index))"
+      typographyFinding:
+        args: >-
+          ruleId: RawFinding["ruleId"], messageKey: RawFinding["messageKey"], start: number, end: number,
+          alternatives: string[]
+        return: >-
+          finding(ruleId, messageKey, start, end, alternatives, {
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
+      # An englishNotation finding on the whole match.
+      typographyWhole:
+        args: 'm: RegExpExecArray, messageKey: RawFinding["messageKey"], alternatives: string[]'
+        return: 'typographyFinding("englishNotation", messageKey, m.index, m.index + m[0].length, alternatives)'
+      # An englishTypography finding.
+      typographySymbol:
+        args: 'messageKey: RawFinding["messageKey"], start: number, end: number, alternatives: string[]'
+        return: 'typographyFinding("englishTypography", messageKey, start, end, alternatives)'
+      typographyOrdinalSuffix:
+        args: "n: number"
+        return: 'n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th")'
+      typographyDateComma:
+        args: "start: number, alternatives: string[]"
+        return: 'typographyFinding("englishNotation", "review_msg_date_comma", start, start + 1, alternatives)'
     frames:
       # "12,5%", "$12,50", "2,5 million": a decimal comma before a unit or after a currency sign.
       - regex: "(?<![\\p{N}.,])(?:(?<sign>[$£€])(?<a>\\d{1,3}),(?<b>\\d{1,2})|(?<c>\\d{1,3}),(?<d>\\d{1,2})(?=[ \\u00a0]?(?:%|‰|percent|per cent|million|billion|trillion|thousand|[KMGT]B|kg|g|mg|km|m|cm|mm|ml|l|°)(?![\\p{L}\\p{N}])))(?![\\p{N},]|\\.\\p{N})"
@@ -3588,7 +3648,8 @@ rules:
         flags: gu
         gate: "\\d,\\d"
         gateFlags: g
-        fixer: decimalComma
+        when: typographyOwned(m, ctx)
+        return: 'typographyWhole(m, "review_msg_english_decimal", [sign ? `${sign}${a}.${b}` : `${c}.${d}`])'
       # "32.500.000", "32.000,23": dots between digit groups and a comma before the decimals.
       - regex: "(?<![\\p{N}.,])\\d{1,3}(?:\\.\\d{3}){2,3}(?:,\\d{1,2})?(?![\\p{N}]|[.,]\\p{N})"
         scan: owned
@@ -3596,14 +3657,27 @@ rules:
         flags: gu
         gate: "\\d\\.\\d"
         gateFlags: g
-        fixer: dotGroups
+        let:
+          parts: m[0].split(/[.,]/)
+        when:
+          - typographyOwned(m, ctx)
+          # "192.168.100.200" is an address.
+          - '!(!m[0].includes(",") && parts.length === 4 && parts.every((x) => Number(x) <= 255))'
+        return: >-
+          typographyWhole(m, "review_msg_english_digit_groups", [
+            m[0].replace(/,/, "#").replace(/\./g, ",").replace("#", "."),
+          ])
       - regex: "(?<![\\p{N}.,])\\d{1,3}\\.\\d{3},\\d{1,2}(?![\\p{N}]|[.,]\\p{N})"
         scan: owned
         lookback: 64
         flags: gu
         gate: "\\d\\.\\d"
         gateFlags: g
-        fixer: dotDecimal
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographyWhole(m, "review_msg_english_digit_groups", [
+            m[0].replace(".", ",").replace(/,(\d{1,2})$/, ".$1"),
+          ])
       # "32.000 users": a whole thousand before a counted noun.
       - regex: "(?<![\\p{N}.,])(\\d{1,3})\\.000(?=[ \\u00A0]+([a-z]+)(?![\\p{L}]))"
         scan: owned
@@ -3611,7 +3685,10 @@ rules:
         flags: gu
         gate: "\\d\\.000"
         gateFlags: g
-        fixer: dotThousand
+        when:
+          - typographyOwned(m, ctx)
+          - "!(TYPOGRAPHY_MEASURES.has(m[2]) || !englishWordInfo(m[2])?.plural)"
+        return: 'typographyWhole(m, "review_msg_english_digit_groups", [`${m[1]},000`])'
       # "8 th": a split ordinal.
       - regex: "(?<![\\p{N}.,])(\\d{1,4})[ \\u00A0](st|nd|rd|th)(?![\\p{L}\\p{N}])"
         scan: owned
@@ -3619,7 +3696,10 @@ rules:
         flags: gu
         gate: "\\d[ \\u00a0](?:st|nd|rd|th)"
         gateFlags: g
-        fixer: ordinalSplit
+        when:
+          - typographyOwned(m, ctx)
+          - typographyOrdinalSuffix(Number(m[1])) === m[2]
+        return: 'typographyWhole(m, "review_msg_ordinal", [`${m[1]}${m[2]}`])'
       # Full-width marks after Latin letters. The full-width comma is commaPeriodSpacing's.
       - regex: "(?<=[A-Za-z])[\\uFF1F\\uFF01]"
         scan: owned
@@ -3627,7 +3707,11 @@ rules:
         flags: gu
         gate: "[？！]"
         gateFlags: g
-        fixer: fullWidthMark
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographyFinding("englishNotation", "review_msg_full_width_mark", m.index, m.index + 1, [
+            TYPOGRAPHY_FULL_WIDTH[m[0]],
+          ])
       # "U.S.A", "e.g": an initialism that lost its last period.
       - regex: "(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:[A-Z]\\.){1,4}[A-Z](?![\\p{L}\\p{N}.'’@/\\\\_-])|(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:e\\.g|i\\.e|a\\.k\\.a)(?![\\p{L}\\p{N}.'’@/\\\\_-])"
         scan: owned
@@ -3635,7 +3719,10 @@ rules:
         flags: gu
         gate: "[A-Za-z]\\.[A-Za-z]"
         gateFlags: g
-        fixer: initialism
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographyWhole(m, "review_msg_initialism_period",
+            /[A-Z]/.test(m[0]) ? [`${m[0]}.`, m[0].replace(/\./g, "")] : [`${m[0]}.`])
       # Academic degrees: "PH.D", "Phd", "B. Sc", "BSc." before a lowercase word.
       - regex: "(?<![\\p{L}.])(?<core>P[Hh](?:\\. ?| )D|PHD|Phd|PhD)\\.?(?![\\p{L}])"
         scan: owned
@@ -3643,21 +3730,42 @@ rules:
         flags: gu
         gate: "P[Hh]"
         gateFlags: g
-        fixer: phd
+        let:
+          # "PhD." ends its sentence; "Ph. D", "PH.D" are the dotted form.
+          dotted: /[. ]/.test(core)
+        when:
+          - typographyOwned(m, ctx)
+          - '!(dotted ? m[0] === "Ph.D." : core === "PhD")'
+        return: >-
+          typographyFinding("englishNotation", "review_msg_degree_abbreviation", m.index,
+            m.index + (dotted ? m[0].length : core.length), [dotted ? "Ph.D." : "PhD"])
       - regex: "(?<![\\p{L}.])(?<l>[BM])\\. ?(?<d>Sc|Eng|Ed|Phil|Arch|Com|Tech)\\.?(?![\\p{L}])"
         scan: owned
         lookback: 64
         flags: gu
         gate: "[BM]\\."
         gateFlags: g
-        fixer: degree
+        let:
+          fixed: "`${l}.${d}.`"
+          end: m.index + m[0].length
+        when:
+          - typographyOwned(m, ctx)
+          - m[0] !== fixed
+          # "B.Sc" at a sentence end keeps the sentence's period.
+          - '!(!m[0].endsWith(".") && !m[0].includes(" ") && ctx.text[end] === ".")'
+        return: 'typographyWhole(m, "review_msg_degree_abbreviation", [fixed])'
       - regex: "(?<![\\p{L}.])(?<d>BSc|MSc|BEng|MEng|MPhil|DPhil|MBA)\\.(?=[ \\u00A0]+\\p{Ll})"
         scan: owned
         lookback: 64
         flags: gu
         gate: "(?:Sc|Eng|Phil|MBA)\\."
         gateFlags: g
-        fixer: dottedDegree
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographyWhole(m, "review_msg_degree_abbreviation", [
+            d,
+            d.replace(/^([A-Z])([A-Z]?[a-z]*)([A-Z])?$/, (_, a, b, c) => (c ? `${a}.${b}.${c}.` : `${a}.${b}.`)),
+          ])
       # "e. g.", "i. e.", "o' clock": abbreviations without their inner spaces.
       - regex: "(?<![\\p{L}.])(?:e\\.[ \\u00A0]g\\.|i\\.[ \\u00A0]e\\.|o['’][ \\u00A0]clock)(?![\\p{L}])"
         scan: owned
@@ -3665,7 +3773,8 @@ rules:
         flags: gu
         gate: "(?:e\\.|i\\.|o['’])[ \\u00a0]"
         gateFlags: g
-        fixer: spacedAbbreviation
+        when: typographyOwned(m, ctx)
+        return: 'typographyWhole(m, "review_msg_initialism_period", [m[0].replace(/[  ]/g, "")])'
       # "June 16,1963", "October, 1958", "October 18 1983", "Friday July 15".
       - regex: "(?<![\\p{L}])(?:(?:{{TYPOGRAPHY_MONTH}})(?<monthComma>,)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N},]|[.:]\\p{N}))|(?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d{1,2}(?<glued>,)(?=(?:1[5-9]|20)\\d\\d(?!\\p{N}))|(?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d{1,2}(?<dayGap>)(?=[ \\u00a0](?:1[5-9]|20)\\d\\d(?![\\p{N}:]|[.,]\\p{N}))|(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)(?<weekGap>)(?=[ \\u00a0](?:{{TYPOGRAPHY_MONTH}})[ \\u00a0]\\d))"
         scan: owned
@@ -3673,7 +3782,19 @@ rules:
         flags: dgu
         gate: "\\d"
         gateFlags: g
-        fixer: dateComma
+        let:
+          gluedAt: m.indices!.groups!.glued?.[0]
+          monthCommaAt: m.indices!.groups!.monthComma?.[0]
+          gapAt: m.indices!.groups!.dayGap?.[0] ?? m.indices!.groups!.weekGap?.[0]
+        when: typographyOwned(m, ctx)
+        return: >-
+          gluedAt !== undefined
+            ? typographyDateComma(gluedAt, [", "])
+            : monthCommaAt !== undefined
+              ? typographyDateComma(monthCommaAt, [""])
+              : gapAt !== undefined
+                ? typographyDateComma(gapAt, [", "])
+                : null
       # "7:00 o'clock": a clock time or "o'clock", not both.
       - regex: "(?<![\\p{N}:])(?<h>\\d{1,2}):(?<mm>[0-5]\\d)[ \\u00A0]o['’][ \\u00A0]?clock(?![\\p{L}])"
         scan: owned
@@ -3681,7 +3802,9 @@ rules:
         flags: gu
         gate: clock
         gateFlags: g
-        fixer: clockOclock
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographyWhole(m, "review_msg_oclock", mm === "00" ? [`${h}:00`, `${h} o'clock`] : [`${h}:${mm}`])
   - id: en.typography
     checks: [englishTypography]
     style: match
@@ -3698,14 +3821,25 @@ rules:
         flags: gu
         gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
         gateFlags: g
-        fixer: timesSign
+        let:
+          start: m.index + a.length
+        when:
+          - typographyOwned(m, ctx)
+          # "0x1F" is hexadecimal.
+          - '!(a === "0" && op === "x")'
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
+            op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
+          ])
       - regex: "{{TYPOGRAPHY_ARROW}}"
         scan: owned
         lookback: 64
         flags: gmu
         gate: "[<>]"
         gateFlags: g
-        fixer: arrowSign
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [TYPOGRAPHY_ARROWS[m[0]]])
       # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
       - regex: "{{TYPOGRAPHY_SIGNS}}"
         scan: owned
@@ -3713,14 +3847,33 @@ rules:
         flags: gu
         gate: "Copyright|\\([cCRTt]"
         gateFlags: g
-        fixer: legalSign
+        let:
+          start: m.index + (pre?.length ?? 0)
+          before: ctx.text[start - 1] ?? ""
+          upper: s.toUpperCase()
+        when:
+          - typographyOwned(m, ctx)
+          # "(c)" is a list item unless it follows "Copyright" or precedes a year.
+          - '!(upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))'
+          # "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
+          - '!(s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
+          # "Burr (D) and Hagan (R)": party letters after names.
+          - '!(s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
+          # "(R)" and "(TM)" mark a name right before them.
+          - '!(upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))'
+          - '!(upper === "(R)" && !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start)))'
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
+            upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
+          ])
       - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
         scan: owned
         lookback: 64
         flags: gu
         gate: "\\+"
         gateFlags: g
-        fixer: plusMinus
+        when: typographyOwned(m, ctx)
+        return: 'typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"])'
       # "H0: …": a hypothesis takes a subscript.
       - regex: "(?<=^|\\n|[.!?][ \\t]{1,8})H(?<n>[0-9])(?=:[ \\t])"
         scan: owned
@@ -3728,13 +3881,25 @@ rules:
         flags: gu
         gate: "H\\d:"
         gateFlags: g
-        fixer: hypothesis
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", m.index, m.index + 2, [`H${TYPOGRAPHY_SUBSCRIPTS[Number(n)]}`])
       # „…“ is German; English opens with “ and closes with ”.
       - regex: "[\\u201E\\u201C]"
         scan: owned
         lookback: 64
         flags: gu
-        fixer: lowQuote
+        # „…“ is German; English opens with “ and closes with ”. A “ after a „ on its line closes
+        # it. Straight quotes stay: they are just as correct, and often code.
+        let:
+          opened: ctx.text.lastIndexOf("„", m.index)
+        when: typographyOwned(m, ctx)
+        return: >-
+          m[0] === "„"
+            ? typographySymbol("review_msg_english_quotes", m.index, m.index + 1, ["“"])
+            : opened > ctx.text.lastIndexOf("\n", m.index) && opened > ctx.text.lastIndexOf("”", m.index)
+              ? typographySymbol("review_msg_english_quotes", m.index, m.index + 1, ["”"])
+              : null
       # "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. The
       # gate is the digit that opens the match: the spaces before the hyphen have no limit.
       - regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
@@ -3743,7 +3908,13 @@ rules:
         flags: gu
         gate: "\\d"
         gateFlags: g
-        fixer: numberRangeDash
+        let:
+          dash: spaced ?? joined
+          start: m.index + m[0].indexOf(dash)
+        when:
+          - typographyOwned(m, ctx)
+          - "!(joined && Number(y2) <= Number(y1))"
+        return: 'typographySymbol("review_msg_range_dash", start, start + dash.length, ["–"])'
       # "Monday - Friday", "May-June": a range of names takes an en dash.
       - regex: "(?<=\\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|{{TYPOGRAPHY_MONTH}}))(?:[ \\u00a0]+-[ \\u00a0]+|-)(?=(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|{{TYPOGRAPHY_MONTH}})\\b)"
         scan: owned
@@ -3751,7 +3922,8 @@ rules:
         flags: gu
         gate: "-"
         gateFlags: g
-        fixer: nameRangeDash
+        when: typographyOwned(m, ctx)
+        return: 'typographySymbol("review_msg_range_dash", m.index, m.index + m[0].length, ["–"])'
       # "different - like": a spaced hyphen between words is a dash.
       - regex: "(?<=\\p{Ll}) - (?=\\p{Ll})"
         scan: owned
@@ -3759,7 +3931,8 @@ rules:
         flags: gu
         gate: " - "
         gateFlags: g
-        fixer: spacedHyphen
+        when: typographyOwned(m, ctx)
+        return: 'typographySymbol("review_msg_typed_dash", m.index, m.index + 3, ["—", " — "])'
   - id: en.typographyFrench
     checks: [englishTypography]
     lang: fr
@@ -3775,14 +3948,25 @@ rules:
         flags: gu
         gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
         gateFlags: g
-        fixer: timesSign
+        let:
+          start: m.index + a.length
+        when:
+          - typographyOwned(m, ctx)
+          # "0x1F" is hexadecimal.
+          - '!(a === "0" && op === "x")'
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
+            op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
+          ])
       - regex: "{{TYPOGRAPHY_ARROW}}"
         scan: owned
         lookback: 64
         flags: gmu
         gate: "[<>]"
         gateFlags: g
-        fixer: arrowSign
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [TYPOGRAPHY_ARROWS[m[0]]])
       # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
       - regex: "{{TYPOGRAPHY_SIGNS}}"
         scan: owned
@@ -3790,14 +3974,33 @@ rules:
         flags: gu
         gate: "Copyright|\\([cCRTt]"
         gateFlags: g
-        fixer: legalSign
+        let:
+          start: m.index + (pre?.length ?? 0)
+          before: ctx.text[start - 1] ?? ""
+          upper: s.toUpperCase()
+        when:
+          - typographyOwned(m, ctx)
+          # "(c)" is a list item unless it follows "Copyright" or precedes a year.
+          - '!(upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))'
+          # "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
+          - '!(s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
+          # "Burr (D) and Hagan (R)": party letters after names.
+          - '!(s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
+          # "(R)" and "(TM)" mark a name right before them.
+          - '!(upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))'
+          - '!(upper === "(R)" && !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start)))'
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
+            upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
+          ])
       - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
         scan: owned
         lookback: 64
         flags: gu
         gate: "\\+"
         gateFlags: g
-        fixer: plusMinus
+        when: typographyOwned(m, ctx)
+        return: 'typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"])'
   - id: en.typographySpanish
     checks: [englishTypography]
     lang: es
@@ -3813,14 +4016,25 @@ rules:
         flags: gu
         gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
         gateFlags: g
-        fixer: timesSign
+        let:
+          start: m.index + a.length
+        when:
+          - typographyOwned(m, ctx)
+          # "0x1F" is hexadecimal.
+          - '!(a === "0" && op === "x")'
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
+            op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
+          ])
       - regex: "{{TYPOGRAPHY_ARROW}}"
         scan: owned
         lookback: 64
         flags: gmu
         gate: "[<>]"
         gateFlags: g
-        fixer: arrowSign
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [TYPOGRAPHY_ARROWS[m[0]]])
       # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
       - regex: "{{TYPOGRAPHY_SIGNS}}"
         scan: owned
@@ -3828,14 +4042,33 @@ rules:
         flags: gu
         gate: "Copyright|\\([cCRTt]"
         gateFlags: g
-        fixer: legalSign
+        let:
+          start: m.index + (pre?.length ?? 0)
+          before: ctx.text[start - 1] ?? ""
+          upper: s.toUpperCase()
+        when:
+          - typographyOwned(m, ctx)
+          # "(c)" is a list item unless it follows "Copyright" or precedes a year.
+          - '!(upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))'
+          # "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
+          - '!(s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
+          # "Burr (D) and Hagan (R)": party letters after names.
+          - '!(s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
+          # "(R)" and "(TM)" mark a name right before them.
+          - '!(upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))'
+          - '!(upper === "(R)" && !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start)))'
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
+            upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
+          ])
       - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
         scan: owned
         lookback: 64
         flags: gu
         gate: "\\+"
         gateFlags: g
-        fixer: plusMinus
+        when: typographyOwned(m, ctx)
+        return: 'typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"])'
   - id: en.typographyPortuguese
     checks: [englishTypography]
     lang: pt
@@ -3851,14 +4084,25 @@ rules:
         flags: gu
         gate: "\\d[ \\u00a0]?[xX*]|\\d{30}"
         gateFlags: g
-        fixer: timesSign
+        let:
+          start: m.index + a.length
+        when:
+          - typographyOwned(m, ctx)
+          # "0x1F" is hexadecimal.
+          - '!(a === "0" && op === "x")'
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
+            op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
+          ])
       - regex: "{{TYPOGRAPHY_ARROW}}"
         scan: owned
         lookback: 64
         flags: gmu
         gate: "[<>]"
         gateFlags: g
-        fixer: arrowSign
+        when: typographyOwned(m, ctx)
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [TYPOGRAPHY_ARROWS[m[0]]])
       # "(c)", "(R)", "(TM)". Spaces after "Copyright" have no limit: the gate also takes it.
       - regex: "{{TYPOGRAPHY_SIGNS}}"
         scan: owned
@@ -3866,14 +4110,33 @@ rules:
         flags: gu
         gate: "Copyright|\\([cCRTt]"
         gateFlags: g
-        fixer: legalSign
+        let:
+          start: m.index + (pre?.length ?? 0)
+          before: ctx.text[start - 1] ?? ""
+          upper: s.toUpperCase()
+        when:
+          - typographyOwned(m, ctx)
+          # "(c)" is a list item unless it follows "Copyright" or precedes a year.
+          - '!(upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))'
+          # "(a) …, (b) …, (c) 2014 itens": after "(b)" a "(c)" is a list item.
+          - '!(s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
+          # "Burr (D) and Hagan (R)": party letters after names.
+          - '!(s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start)))'
+          # "(R)" and "(TM)" mark a name right before them.
+          - '!(upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))'
+          - '!(upper === "(R)" && !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start)))'
+        return: >-
+          typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
+            upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
+          ])
       - regex: "{{TYPOGRAPHY_PLUS_MINUS}}"
         scan: owned
         lookback: 64
         flags: gu
         gate: "\\+"
         gateFlags: g
-        fixer: plusMinus
+        when: typographyOwned(m, ctx)
+        return: 'typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"])'
       # "1901 - 1978", "8am - 5pm", "30 BC - AD 284", "1990-1995": a range takes an en dash. The
       # gate is the digit that opens the match: the spaces before the hyphen have no limit.
       - regex: "{{TYPOGRAPHY_NUMBER_RANGE}}"
@@ -3882,7 +4145,13 @@ rules:
         flags: gu
         gate: "\\d"
         gateFlags: g
-        fixer: numberRangeDash
+        let:
+          dash: spaced ?? joined
+          start: m.index + m[0].indexOf(dash)
+        when:
+          - typographyOwned(m, ctx)
+          - "!(joined && Number(y2) <= Number(y1))"
+        return: 'typographySymbol("review_msg_range_dash", start, start + dash.length, ["–"])'
   - id: en.plainStyle
     checks: [stylePhrasing]
     style: match

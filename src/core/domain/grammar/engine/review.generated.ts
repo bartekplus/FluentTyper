@@ -11654,7 +11654,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}.,])(?:(?<sign>[$£€])(?<a>\\d{1,3}),(?<b>\\d{1,2})|(?<c>\\d{1,3}),(?<d>\\d{1,2})(?=[ \\u00a0]?(?:%|‰|percent|per cent|million|billion|trillion|thousand|[KMGT]B|kg|g|mg|km|m|cm|mm|ml|l|°)(?![\\p{L}\\p{N}])))(?![\\p{N},]|\\.\\p{N})",
     literals: [],
-    fixer: "en:decimalComma",
+    fixer: "en:@en.notation/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11664,7 +11664,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{N}.,])\\d{1,3}(?:\\.\\d{3}){2,3}(?:,\\d{1,2})?(?![\\p{N}]|[.,]\\p{N})",
     literals: [],
-    fixer: "en:dotGroups",
+    fixer: "en:@en.notation/2",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11674,7 +11674,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{N}.,])\\d{1,3}\\.\\d{3},\\d{1,2}(?![\\p{N}]|[.,]\\p{N})",
     literals: [],
-    fixer: "en:dotDecimal",
+    fixer: "en:@en.notation/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11684,7 +11684,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{N}.,])(\\d{1,3})\\.000(?=[ \\u00A0]+([a-z]+)(?![\\p{L}]))",
     literals: [],
-    fixer: "en:dotThousand",
+    fixer: "en:@en.notation/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11694,7 +11694,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{N}.,])(\\d{1,4})[ \\u00A0](st|nd|rd|th)(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "en:ordinalSplit",
+    fixer: "en:@en.notation/5",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11704,7 +11704,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=[A-Za-z])[\\uFF1F\\uFF01]",
     literals: [],
-    fixer: "en:fullWidthMark",
+    fixer: "en:@en.notation/6",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11715,7 +11715,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:[A-Z]\\.){1,4}[A-Z](?![\\p{L}\\p{N}.'’@/\\\\_-])|(?<![\\p{L}\\p{N}.'’@/\\\\_-])(?:e\\.g|i\\.e|a\\.k\\.a)(?![\\p{L}\\p{N}.'’@/\\\\_-])",
     literals: [],
-    fixer: "en:initialism",
+    fixer: "en:@en.notation/7",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11725,7 +11725,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}.])(?<core>P[Hh](?:\\. ?| )D|PHD|Phd|PhD)\\.?(?![\\p{L}])",
     literals: [],
-    fixer: "en:phd",
+    fixer: "en:@en.notation/8",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11735,7 +11735,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}.])(?<l>[BM])\\. ?(?<d>Sc|Eng|Ed|Phil|Arch|Com|Tech)\\.?(?![\\p{L}])",
     literals: [],
-    fixer: "en:degree",
+    fixer: "en:@en.notation/9",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11745,7 +11745,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<![\\p{L}.])(?<d>BSc|MSc|BEng|MEng|MPhil|DPhil|MBA)\\.(?=[ \\u00A0]+\\p{Ll})",
     literals: ["bsc", "msc", "beng", "meng", "mphil", "dphil", "mba"],
-    fixer: "en:dottedDegree",
+    fixer: "en:@en.notation/10",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11756,7 +11756,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}.])(?:e\\.[ \\u00A0]g\\.|i\\.[ \\u00A0]e\\.|o['’][ \\u00A0]clock)(?![\\p{L}])",
     literals: [],
-    fixer: "en:spacedAbbreviation",
+    fixer: "en:@en.notation/11",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11811,7 +11811,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "saturday",
       "sunday",
     ],
-    fixer: "en:dateComma",
+    fixer: "en:@en.notation/12",
     flags: "dgu",
     scan: "owned",
     lookback: 64,
@@ -11822,7 +11822,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{N}:])(?<h>\\d{1,2}):(?<mm>[0-5]\\d)[ \\u00A0]o['’][ \\u00A0]?clock(?![\\p{L}])",
     literals: ["clock"],
-    fixer: "en:clockOclock",
+    fixer: "en:@en.notation/13",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11833,7 +11833,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)",
     literals: [],
-    fixer: "en:timesSign",
+    fixer: "en:@en.typography/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11843,7 +11843,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)",
     literals: [],
-    fixer: "en:arrowSign",
+    fixer: "en:@en.typography/2",
     flags: "gmu",
     scan: "owned",
     lookback: 64,
@@ -11853,7 +11853,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))",
     literals: [],
-    fixer: "en:legalSign",
+    fixer: "en:@en.typography/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11863,7 +11863,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)",
     literals: [],
-    fixer: "en:plusMinus",
+    fixer: "en:@en.typography/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11873,7 +11873,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|\\n|[.!?][ \\t]{1,8})H(?<n>[0-9])(?=:[ \\t])",
     literals: [],
-    fixer: "en:hypothesis",
+    fixer: "en:@en.typography/5",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11883,7 +11883,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "[\\u201E\\u201C]",
     literals: [],
-    fixer: "en:lowQuote",
+    fixer: "en:@en.typography/6",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11892,7 +11892,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d(?!\\d*[./:]\\d)|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))",
     literals: [],
-    fixer: "en:numberRangeDash",
+    fixer: "en:@en.typography/7",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11903,7 +11903,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<=\\b(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December))(?:[ \\u00a0]+-[ \\u00a0]+|-)(?=(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|January|February|March|April|May|June|July|August|September|October|November|December)\\b)",
     literals: [],
-    fixer: "en:nameRangeDash",
+    fixer: "en:@en.typography/8",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11913,7 +11913,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\p{Ll}) - (?=\\p{Ll})",
     literals: [],
-    fixer: "en:spacedHyphen",
+    fixer: "en:@en.typography/9",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11924,7 +11924,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)",
     literals: [],
-    fixer: "en:timesSign",
+    fixer: "en:@en.typographyFrench/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11934,7 +11934,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)",
     literals: [],
-    fixer: "en:arrowSign",
+    fixer: "en:@en.typographyFrench/2",
     flags: "gmu",
     scan: "owned",
     lookback: 64,
@@ -11944,7 +11944,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))",
     literals: [],
-    fixer: "en:legalSign",
+    fixer: "en:@en.typographyFrench/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11954,7 +11954,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)",
     literals: [],
-    fixer: "en:plusMinus",
+    fixer: "en:@en.typographyFrench/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11965,7 +11965,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)",
     literals: [],
-    fixer: "en:timesSign",
+    fixer: "en:@en.typographySpanish/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11975,7 +11975,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)",
     literals: [],
-    fixer: "en:arrowSign",
+    fixer: "en:@en.typographySpanish/2",
     flags: "gmu",
     scan: "owned",
     lookback: 64,
@@ -11985,7 +11985,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))",
     literals: [],
-    fixer: "en:legalSign",
+    fixer: "en:@en.typographySpanish/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -11995,7 +11995,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)",
     literals: [],
-    fixer: "en:plusMinus",
+    fixer: "en:@en.typographySpanish/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12006,7 +12006,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,])(?<a>\\d+(?:[.,]\\d+)?)(?<op>[ \\u00A0]?[xX*][ \\u00A0]?)(?=\\d)",
     literals: [],
-    fixer: "en:timesSign",
+    fixer: "en:@en.typographyPortuguese/1",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12016,7 +12016,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=^|[ \\t\\u00A0(])(?<a>-->|->|<-|<->|<=>|=>)(?=[ \\t\\u00A0)]|$)",
     literals: [],
-    fixer: "en:arrowSign",
+    fixer: "en:@en.typographyPortuguese/2",
     flags: "gmu",
     scan: "owned",
     lookback: 64,
@@ -12026,7 +12026,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<pre>Copyright[ \\u00A0]+)?(?<s>\\((?:c|C|R|TM|tm)\\))",
     literals: [],
-    fixer: "en:legalSign",
+    fixer: "en:@en.typographyPortuguese/3",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12036,7 +12036,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<=\\d[ \\u00A0]?)(?:\\+-|-\\+|\\+\\/-)(?=[ \\u00A0]?\\d)",
     literals: [],
-    fixer: "en:plusMinus",
+    fixer: "en:@en.typographyPortuguese/4",
     flags: "gu",
     scan: "owned",
     lookback: 64,
@@ -12047,7 +12047,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?:\\d{1,4}(?:[ \\u00a0]?(?:BC|AD|BCE|CE|am|pm|AM|PM))?(?<spaced>[ \\u00a0]+-[ \\u00a0]+)(?:(?:AD|BC)[ \\u00a0])?\\d(?!\\d*[./:]\\d)|(?<y1>1[5-9]\\d\\d|20\\d\\d)(?<joined>-)(?<y2>1[5-9]\\d\\d|20\\d\\d)(?![\\p{N}-]))",
     literals: [],
-    fixer: "en:numberRangeDash",
+    fixer: "en:@en.typographyPortuguese/5",
     flags: "gu",
     scan: "owned",
     lookback: 64,

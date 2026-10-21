@@ -30,8 +30,36 @@ import {
   englishNounPair,
   englishWordInfo,
   finding,
+  namedExampleBefore,
 } from "../../library";
 import { isoDateWarning } from "./common.generated";
+
+export const TYPOGRAPHY_MEASURES: ReadonlySet<string> = new Set([
+  "seconds",
+  "minutes",
+  "hours",
+  "days",
+  "meters",
+  "metres",
+  "grams",
+  "liters",
+  "litres",
+  "miles",
+  "kilometers",
+  "kilometres",
+  "inches",
+  "feet",
+  "pounds",
+  "ounces",
+  "degrees",
+  "volts",
+  "amps",
+  "watts",
+  "points",
+  "percent",
+  "units",
+  "years",
+]);
 
 export const PLAIN_QUESTION_LEADS: ReadonlySet<string> = new Set([
   "why",
@@ -195,6 +223,17 @@ export const ARTICLES_COUNT_NOUNS: ReadonlySet<string> = new Set([
   "ticket",
 ]);
 
+export const TYPOGRAPHY_FULL_WIDTH: Readonly<Record<string, string>> = { "？": "?", "！": "!" };
+
+export const TYPOGRAPHY_ARROWS: Readonly<Record<string, string>> = {
+  "-->": "→",
+  "->": "→",
+  "<-": "←",
+  "<->": "↔",
+  "<=>": "⇔",
+  "=>": "⇒",
+};
+
 export const PLAIN_CONTRACTED: Readonly<Record<string, string>> = {
   am: "aren't",
   can: "can't",
@@ -295,6 +334,68 @@ export function confusionComparative(word: string) {
 // en.yaml rule en.thenAfterComparative def confusionLastComparative
 export function confusionLastComparative(words: string[], k: number): number {
   return k < 0 || confusionComparative(words[k]) ? k : confusionLastComparative(words, k - 1);
+}
+
+// en.yaml rule en.notation def TYPOGRAPHY_SUBSCRIPTS
+export const TYPOGRAPHY_SUBSCRIPTS = "₀₁₂₃₄₅₆₇₈₉";
+
+// en.yaml rule en.notation def typographyOwned
+export function typographyOwned(m: RegExpExecArray, ctx: DetectContext) {
+  return !(m.index < ctx.from || namedExampleBefore(ctx.text, m.index));
+}
+
+// en.yaml rule en.notation def typographyFinding
+export function typographyFinding(
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  start: number,
+  end: number,
+  alternatives: string[],
+) {
+  return finding(ruleId, messageKey, start, end, alternatives, {
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  });
+}
+
+// en.yaml rule en.notation def typographyWhole
+export function typographyWhole(
+  m: RegExpExecArray,
+  messageKey: RawFinding["messageKey"],
+  alternatives: string[],
+) {
+  return typographyFinding(
+    "englishNotation",
+    messageKey,
+    m.index,
+    m.index + m[0].length,
+    alternatives,
+  );
+}
+
+// en.yaml rule en.notation def typographySymbol
+export function typographySymbol(
+  messageKey: RawFinding["messageKey"],
+  start: number,
+  end: number,
+  alternatives: string[],
+) {
+  return typographyFinding("englishTypography", messageKey, start, end, alternatives);
+}
+
+// en.yaml rule en.notation def typographyOrdinalSuffix
+export function typographyOrdinalSuffix(n: number) {
+  return n % 100 >= 11 && n % 100 <= 13 ? "th" : (["th", "st", "nd", "rd"][n % 10] ?? "th");
+}
+
+// en.yaml rule en.notation def typographyDateComma
+export function typographyDateComma(start: number, alternatives: string[]) {
+  return typographyFinding(
+    "englishNotation",
+    "review_msg_date_comma",
+    start,
+    start + 1,
+    alternatives,
+  );
 }
 
 // en.yaml rule en.plainStyle def PLAIN_DIMENSIONS
@@ -854,6 +955,369 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       "were",
       m.index,
     );
+  },
+  // en.yaml rule en.notation frame 1
+  "@en.notation/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const sign = m.groups!.sign;
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const c = m.groups!.c;
+    const d = m.groups!.d;
+    if (!typographyOwned(m, ctx)) return null;
+    return typographyWhole(m, "review_msg_english_decimal", [
+      sign ? `${sign}${a}.${b}` : `${c}.${d}`,
+    ]);
+  },
+  // en.yaml rule en.notation frame 2
+  "@en.notation/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    const parts = m[0].split(/[.,]/);
+    if (!m[0].includes(",") && parts.length === 4 && parts.every((x) => Number(x) <= 255))
+      return null;
+    return typographyWhole(m, "review_msg_english_digit_groups", [
+      m[0].replace(/,/, "#").replace(/\./g, ",").replace("#", "."),
+    ]);
+  },
+  // en.yaml rule en.notation frame 3
+  "@en.notation/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographyWhole(m, "review_msg_english_digit_groups", [
+      m[0].replace(".", ",").replace(/,(\d{1,2})$/, ".$1"),
+    ]);
+  },
+  // en.yaml rule en.notation frame 4
+  "@en.notation/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    if (TYPOGRAPHY_MEASURES.has(m[2]) || !englishWordInfo(m[2])?.plural) return null;
+    return typographyWhole(m, "review_msg_english_digit_groups", [`${m[1]},000`]);
+  },
+  // en.yaml rule en.notation frame 5
+  "@en.notation/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    if (!(typographyOrdinalSuffix(Number(m[1])) === m[2])) return null;
+    return typographyWhole(m, "review_msg_ordinal", [`${m[1]}${m[2]}`]);
+  },
+  // en.yaml rule en.notation frame 6
+  "@en.notation/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographyFinding(
+      "englishNotation",
+      "review_msg_full_width_mark",
+      m.index,
+      m.index + 1,
+      [TYPOGRAPHY_FULL_WIDTH[m[0]]],
+    );
+  },
+  // en.yaml rule en.notation frame 7
+  "@en.notation/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographyWhole(
+      m,
+      "review_msg_initialism_period",
+      /[A-Z]/.test(m[0]) ? [`${m[0]}.`, m[0].replace(/\./g, "")] : [`${m[0]}.`],
+    );
+  },
+  // en.yaml rule en.notation frame 8
+  "@en.notation/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const core = m.groups!.core;
+    if (!typographyOwned(m, ctx)) return null;
+    const dotted = /[. ]/.test(core);
+    if (dotted ? m[0] === "Ph.D." : core === "PhD") return null;
+    return typographyFinding(
+      "englishNotation",
+      "review_msg_degree_abbreviation",
+      m.index,
+      m.index + (dotted ? m[0].length : core.length),
+      [dotted ? "Ph.D." : "PhD"],
+    );
+  },
+  // en.yaml rule en.notation frame 9
+  "@en.notation/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const l = m.groups!.l;
+    const d = m.groups!.d;
+    if (!typographyOwned(m, ctx)) return null;
+    const fixed = `${l}.${d}.`;
+    if (!(m[0] !== fixed)) return null;
+    const end = m.index + m[0].length;
+    if (!m[0].endsWith(".") && !m[0].includes(" ") && ctx.text[end] === ".") return null;
+    return typographyWhole(m, "review_msg_degree_abbreviation", [fixed]);
+  },
+  // en.yaml rule en.notation frame 10
+  "@en.notation/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const d = m.groups!.d;
+    if (!typographyOwned(m, ctx)) return null;
+    return typographyWhole(m, "review_msg_degree_abbreviation", [
+      d,
+      d.replace(/^([A-Z])([A-Z]?[a-z]*)([A-Z])?$/, (_, a, b, c) =>
+        c ? `${a}.${b}.${c}.` : `${a}.${b}.`,
+      ),
+    ]);
+  },
+  // en.yaml rule en.notation frame 11
+  "@en.notation/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographyWhole(m, "review_msg_initialism_period", [m[0].replace(/[  ]/g, "")]);
+  },
+  // en.yaml rule en.notation frame 12
+  "@en.notation/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    const gluedAt = m.indices!.groups!.glued?.[0];
+    const monthCommaAt = m.indices!.groups!.monthComma?.[0];
+    const gapAt = m.indices!.groups!.dayGap?.[0] ?? m.indices!.groups!.weekGap?.[0];
+    return gluedAt !== undefined
+      ? typographyDateComma(gluedAt, [", "])
+      : monthCommaAt !== undefined
+        ? typographyDateComma(monthCommaAt, [""])
+        : gapAt !== undefined
+          ? typographyDateComma(gapAt, [", "])
+          : null;
+  },
+  // en.yaml rule en.notation frame 13
+  "@en.notation/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const h = m.groups!.h;
+    const mm = m.groups!.mm;
+    if (!typographyOwned(m, ctx)) return null;
+    return typographyWhole(
+      m,
+      "review_msg_oclock",
+      mm === "00" ? [`${h}:00`, `${h} o'clock`] : [`${h}:${mm}`],
+    );
+  },
+  // en.yaml rule en.typography frame 1
+  "@en.typography/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const op = m.groups!.op;
+    if (!typographyOwned(m, ctx)) return null;
+    if (a === "0" && op === "x") return null;
+    const start = m.index + a.length;
+    return typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
+      op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
+    ]);
+  },
+  // en.yaml rule en.typography frame 2
+  "@en.typography/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [
+      TYPOGRAPHY_ARROWS[m[0]],
+    ]);
+  },
+  // en.yaml rule en.typography frame 3
+  "@en.typography/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pre = m.groups!.pre;
+    const s = m.groups!.s;
+    if (!typographyOwned(m, ctx)) return null;
+    const start = m.index + (pre?.length ?? 0);
+    const before = ctx.text[start - 1] ?? "";
+    const upper = s.toUpperCase();
+    if (upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))
+      return null;
+    if (s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
+    if (s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
+    if (upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))
+      return null;
+    if (
+      upper === "(R)" &&
+      !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start))
+    )
+      return null;
+    return typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
+      upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
+    ]);
+  },
+  // en.yaml rule en.typography frame 4
+  "@en.typography/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]);
+  },
+  // en.yaml rule en.typography frame 5
+  "@en.typography/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const n = m.groups!.n;
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + 2, [
+      `H${TYPOGRAPHY_SUBSCRIPTS[Number(n)]}`,
+    ]);
+  },
+  // en.yaml rule en.typography frame 6
+  "@en.typography/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    const opened = ctx.text.lastIndexOf("„", m.index);
+    return m[0] === "„"
+      ? typographySymbol("review_msg_english_quotes", m.index, m.index + 1, ["“"])
+      : opened > ctx.text.lastIndexOf("\n", m.index) && opened > ctx.text.lastIndexOf("”", m.index)
+        ? typographySymbol("review_msg_english_quotes", m.index, m.index + 1, ["”"])
+        : null;
+  },
+  // en.yaml rule en.typography frame 7
+  "@en.typography/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const spaced = m.groups!.spaced;
+    const y1 = m.groups!.y1;
+    const joined = m.groups!.joined;
+    const y2 = m.groups!.y2;
+    if (!typographyOwned(m, ctx)) return null;
+    if (joined && Number(y2) <= Number(y1)) return null;
+    const dash = spaced ?? joined;
+    const start = m.index + m[0].indexOf(dash);
+    return typographySymbol("review_msg_range_dash", start, start + dash.length, ["–"]);
+  },
+  // en.yaml rule en.typography frame 8
+  "@en.typography/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_range_dash", m.index, m.index + m[0].length, ["–"]);
+  },
+  // en.yaml rule en.typography frame 9
+  "@en.typography/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typed_dash", m.index, m.index + 3, ["—", " — "]);
+  },
+  // en.yaml rule en.typographyFrench frame 1
+  "@en.typographyFrench/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const op = m.groups!.op;
+    if (!typographyOwned(m, ctx)) return null;
+    if (a === "0" && op === "x") return null;
+    const start = m.index + a.length;
+    return typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
+      op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
+    ]);
+  },
+  // en.yaml rule en.typographyFrench frame 2
+  "@en.typographyFrench/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [
+      TYPOGRAPHY_ARROWS[m[0]],
+    ]);
+  },
+  // en.yaml rule en.typographyFrench frame 3
+  "@en.typographyFrench/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pre = m.groups!.pre;
+    const s = m.groups!.s;
+    if (!typographyOwned(m, ctx)) return null;
+    const start = m.index + (pre?.length ?? 0);
+    const before = ctx.text[start - 1] ?? "";
+    const upper = s.toUpperCase();
+    if (upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))
+      return null;
+    if (s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
+    if (s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
+    if (upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))
+      return null;
+    if (
+      upper === "(R)" &&
+      !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start))
+    )
+      return null;
+    return typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
+      upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
+    ]);
+  },
+  // en.yaml rule en.typographyFrench frame 4
+  "@en.typographyFrench/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]);
+  },
+  // en.yaml rule en.typographySpanish frame 1
+  "@en.typographySpanish/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const op = m.groups!.op;
+    if (!typographyOwned(m, ctx)) return null;
+    if (a === "0" && op === "x") return null;
+    const start = m.index + a.length;
+    return typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
+      op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
+    ]);
+  },
+  // en.yaml rule en.typographySpanish frame 2
+  "@en.typographySpanish/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [
+      TYPOGRAPHY_ARROWS[m[0]],
+    ]);
+  },
+  // en.yaml rule en.typographySpanish frame 3
+  "@en.typographySpanish/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pre = m.groups!.pre;
+    const s = m.groups!.s;
+    if (!typographyOwned(m, ctx)) return null;
+    const start = m.index + (pre?.length ?? 0);
+    const before = ctx.text[start - 1] ?? "";
+    const upper = s.toUpperCase();
+    if (upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))
+      return null;
+    if (s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
+    if (s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
+    if (upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))
+      return null;
+    if (
+      upper === "(R)" &&
+      !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start))
+    )
+      return null;
+    return typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
+      upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
+    ]);
+  },
+  // en.yaml rule en.typographySpanish frame 4
+  "@en.typographySpanish/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]);
+  },
+  // en.yaml rule en.typographyPortuguese frame 1
+  "@en.typographyPortuguese/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const op = m.groups!.op;
+    if (!typographyOwned(m, ctx)) return null;
+    if (a === "0" && op === "x") return null;
+    const start = m.index + a.length;
+    return typographySymbol("review_msg_typographic_symbol", start, start + op.length, [
+      op.replace(/[xX*]/g, "×").includes(" ") ? " × " : "×",
+    ]);
+  },
+  // en.yaml rule en.typographyPortuguese frame 2
+  "@en.typographyPortuguese/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, [
+      TYPOGRAPHY_ARROWS[m[0]],
+    ]);
+  },
+  // en.yaml rule en.typographyPortuguese frame 3
+  "@en.typographyPortuguese/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const pre = m.groups!.pre;
+    const s = m.groups!.s;
+    if (!typographyOwned(m, ctx)) return null;
+    const start = m.index + (pre?.length ?? 0);
+    const before = ctx.text[start - 1] ?? "";
+    const upper = s.toUpperCase();
+    if (upper === "(C)" && !pre && !/^[  ]?(?:1[89]|20)\d\d\b/.test(ctx.text.slice(start + 3)))
+      return null;
+    if (s === "(c)" && /\([bB]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
+    if (s === "(R)" && /\([DI]\)/.test(ctx.text.slice(Math.max(0, start - 80), start))) return null;
+    if (upper !== "(C)" && (!/[\p{L}\p{N} ]/u.test(before) || s === "(tm)" || s === "(r)"))
+      return null;
+    if (
+      upper === "(R)" &&
+      !/\p{Lu}[\p{L}]*[  ]?$/u.test(ctx.text.slice(Math.max(0, start - 24), start))
+    )
+      return null;
+    return typographySymbol("review_msg_typographic_symbol", start, start + s.length, [
+      upper === "(C)" ? "©" : upper === "(R)" ? "®" : "™",
+    ]);
+  },
+  // en.yaml rule en.typographyPortuguese frame 4
+  "@en.typographyPortuguese/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    if (!typographyOwned(m, ctx)) return null;
+    return typographySymbol("review_msg_typographic_symbol", m.index, m.index + m[0].length, ["±"]);
+  },
+  // en.yaml rule en.typographyPortuguese frame 5
+  "@en.typographyPortuguese/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const spaced = m.groups!.spaced;
+    const y1 = m.groups!.y1;
+    const joined = m.groups!.joined;
+    const y2 = m.groups!.y2;
+    if (!typographyOwned(m, ctx)) return null;
+    if (joined && Number(y2) <= Number(y1)) return null;
+    const dash = spaced ?? joined;
+    const start = m.index + m[0].indexOf(dash);
+    return typographySymbol("review_msg_range_dash", start, start + dash.length, ["–"]);
   },
   // en.yaml rule en.plainStyle frame 1
   "@en.plainStyle/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
