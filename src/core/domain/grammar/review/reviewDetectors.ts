@@ -2,7 +2,6 @@ import { CUE_AND_QUOTE } from "./exampleCues";
 import { isoDateWarning, quotedContraction } from "../engine/rules/common.generated";
 import { phraseCorrections } from "./englishPhraseCorrections";
 import { usePhraseRows } from "../library/common/engine";
-import { FIXERS as PARTICIPLE_FIXERS } from "./englishParticiples";
 import { FIXERS as COMPLEMENT_FIXERS } from "./englishComplements";
 import { FIXERS as AGREEMENT_FIXERS } from "./englishAgreement";
 import { FIXERS as AUXILIARY_FIXERS } from "./englishAuxiliaryForms";
@@ -1676,7 +1675,6 @@ const CORE_FIXERS = mergePredicates<Fixer>(
   DETECTOR_FIXERS,
   COMPLEMENT_FIXERS,
   AUXILIARY_FIXERS,
-  PARTICIPLE_FIXERS,
   AGREEMENT_FIXERS,
   DATE_FIXERS,
   // The other rule files still name the ISO date frame fixer "common:invalidIsoDate".

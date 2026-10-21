@@ -4423,7 +4423,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its))(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|often|sometimes|seldom|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?!(?:be|been|being|have|having)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<verb>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:participleAfterAuxiliary",
+    fixer: "common:@perfectParticiples/1",
     wordStart: false,
     owner: "verb",
   }),
@@ -4431,21 +4431,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<aux>have|has|had|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t)[ \\t\\u00a0]{1,8}(?<subject>i|you|we|they|he|she|it|(?:the|this|that|these|those|my|your|his|her|our|their|its)[ \\t\\u00a0]{1,8}[a-z]+)(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|often|sometimes|seldom|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?!(?:be|been|being|have|having)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<verb>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:participleAfterInverted",
+    fixer: "common:@perfectParticiples/2",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<subject>I|you|we|they|he|she|it)(?:(?:[ \\t\\u00a0]{1,8}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})(?<aux>have|has)|(?<contract>['’]ve)|(?<bare>ve))(?:[ \\t\\u00a0]{1,8}|[ \\t\\u00a0]{0,8}\\r?\\n[ \\t\\u00a0]{0,8})(?:(?<verb>[A-Za-z]{2,}ing)[ \\t\\u00a0]{1,8}(?<follow>(?:it|them|him|her|us|me|this|that)|(?:(?:on|into|about|at|for|with|to)[ \\t\\u00a0]{1,8})?(?:(?:it|them|him|her|us|me|this|that)|the|a|an|my|your|our|his|her|their)|today|now|tonight|lately)|(?<doing>doing)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|[ \\t\\u00a0]{1,8}(?:and|or|but|right|now|here|there)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ing", "doing"],
-    fixer: "common:progressiveAfterHave",
+    fixer: "common:@perfectParticiples/3",
     owner: "contract|subject",
   }),
   frame({
     pattern:
       "(?<subject>I|you|we|they|he|she)(?:[ \\t\\u00a0]{1,8}(?<be>am|is|are)(?<neg>n['’]t)?|(?<contract>['’](?:m|re|s)))(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|also|just|still|really)){0,2})[ \\t\\u00a0]{1,8}(?<verb>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:baseAfterBe",
+    fixer: "common:@perfectParticiples/4",
     owner: "none",
   }),
   frame({

@@ -1,5 +1,6 @@
 // The rule library (library.ts): helpers of every language. Quotations, examples, words around
-// a match and the findings built from them.
+// a match and the findings built from them, and the English lexicon that the shared English
+// rules of common.yaml read.
 export { namedExampleBefore, quotedSpan, CUE_AND_QUOTE } from "../review/exampleCues";
 export {
   around,
@@ -11,6 +12,7 @@ export {
   isLang,
   nextLowerWord,
   ownedMatches,
+  plainToken,
   PSEUDO_CLEFT_BEFORE,
   TOKEN_END,
   WORD_START,
@@ -30,12 +32,13 @@ export { lastNonBlankBefore, opensClause } from "../implementations/helpers/Engl
 export { MASK_CHAR } from "../review/types";
 export { digitValue, invalidIsoDate } from "../review/isoDates";
 export { phraseRows } from "./common/engine";
+export { atClauseStart } from "./common/text";
+export { isUniquePast, pluralNoun, simplePastOnly } from "./common/english";
 export {
   englishNounForms,
   hasCountPrefix,
 } from "../implementations/helpers/EnglishNounNumber";
 export { englishWordInfo, hasVerbForm } from "../implementations/helpers/EnglishLexicon";
-export { atClauseStart } from "./common/text";
 export { englishVerbForms } from "../implementations/helpers/EnglishVerbForms";
-export { isUniquePast, pluralNoun } from "./common/english";
 export { englishInitialSound } from "../implementations/helpers/EnglishInitialSound";
+export { englishInflect } from "../implementations/helpers/EnglishInflection";

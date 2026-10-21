@@ -5112,6 +5112,795 @@ rules:
     checks: [englishPerfectParticiples]
     style: match
     message: review_msg_perfect_participle
+    sets:
+      PARTICIPLE_DETERMINERS:
+        [
+          the,
+          a,
+          an,
+          this,
+          that,
+          these,
+          those,
+          my,
+          your,
+          his,
+          her,
+          its,
+          our,
+          their,
+          some,
+          any,
+          every,
+          each,
+          no,
+        ]
+      # Closed-class words: after an ambiguous past they start no noun compound ("saw that",
+      # "fell out").
+      PARTICIPLE_CLOSED:
+        [
+          the,
+          a,
+          an,
+          this,
+          that,
+          these,
+          those,
+          my,
+          your,
+          his,
+          her,
+          its,
+          our,
+          their,
+          some,
+          any,
+          every,
+          each,
+          no,
+          it,
+          them,
+          him,
+          us,
+          me,
+          you,
+          i,
+          he,
+          she,
+          we,
+          they,
+          what,
+          which,
+          who,
+          whom,
+          how,
+          why,
+          where,
+          when,
+          if,
+          whether,
+          to,
+          of,
+          in,
+          on,
+          at,
+          by,
+          for,
+          from,
+          with,
+          into,
+          onto,
+          out,
+          up,
+          down,
+          off,
+          over,
+          under,
+          through,
+          about,
+          after,
+          before,
+          since,
+          until,
+          around,
+          across,
+          along,
+          behind,
+          beneath,
+          between,
+          beyond,
+          against,
+          toward,
+          towards,
+          away,
+          back,
+          again,
+          here,
+          there,
+          now,
+          then,
+          and,
+          but,
+          or,
+          nor,
+          so,
+          as,
+          than,
+          not,
+          never,
+          yet,
+          too,
+          also,
+          very,
+          asleep,
+          apart,
+          aside,
+          ahead,
+          alone,
+          awake,
+          something,
+          anything,
+          nothing,
+          everything,
+          someone,
+          anyone,
+          everyone,
+          nobody,
+          somebody,
+          anybody,
+          everybody,
+          past,
+          near,
+          like,
+          upon,
+          via,
+          within,
+          without,
+          throughout,
+          inside,
+          outside,
+          below,
+          above,
+          beside,
+          among,
+          during,
+          except,
+          per,
+          despite,
+          unlike,
+          once,
+          twice,
+        ]
+      PARTICIPLE_ADVERBS:
+        [
+          not,
+          never,
+          already,
+          just,
+          ever,
+          really,
+          still,
+          also,
+          even,
+          only,
+          all,
+          both,
+          since,
+          then,
+          now,
+          always,
+          often,
+          sometimes,
+          seldom,
+        ]
+      # A head the following clause can modify with an object gap: "Everything we had went into
+      # it".
+      GAP_HEADS: [what, whatever, whoever, whichever, everything, anything, something, nothing, all]
+      # The lexicon does not mark these pasts as adjectives ("I am broke", "a woke reader").
+      # Penniless "broke" describes people, so a thing that "is broke" is broken.
+      ADJECTIVE_PASTS: [broke, woke]
+      # Pasts whose noun reading never heads an object: "has sang many songs" is not "sang songs".
+      VERB_PASTS: [sang, drove, spoke]
+      # Ambiguous pasts whose other reading (a stole, to saw) cannot stand bare after be.
+      BARE_PAST: [stole, saw]
+      # Closed-class words (prepositions, adverbs, determiners, reflexives), plus adjectives and
+      # role nouns that take an object, a clause or a time phrase ("I am sure the build works",
+      # "He is mean the whole time", "I am lead on this"). Open classes stay unlisted.
+      # Function words that the lexicon also lists as nouns or verbs ("in", "it", "up", "now").
+      GAP_FUNCTION_WORDS:
+        [
+          a,
+          an,
+          the,
+          my,
+          your,
+          our,
+          his,
+          her,
+          their,
+          this,
+          that,
+          these,
+          those,
+          some,
+          any,
+          no,
+          every,
+          each,
+          another,
+          me,
+          him,
+          us,
+          them,
+          you,
+          it,
+          i,
+          he,
+          she,
+          we,
+          they,
+          what,
+          where,
+          when,
+          why,
+          how,
+          who,
+          which,
+          whatever,
+          of,
+          in,
+          on,
+          at,
+          by,
+          for,
+          from,
+          with,
+          without,
+          about,
+          into,
+          onto,
+          upon,
+          between,
+          among,
+          through,
+          during,
+          until,
+          against,
+          near,
+          under,
+          over,
+          toward,
+          towards,
+          within,
+          across,
+          along,
+          around,
+          behind,
+          beyond,
+          inside,
+          outside,
+          off,
+          out,
+          up,
+          down,
+          past,
+          via,
+          per,
+          like,
+          despite,
+          throughout,
+          not,
+          never,
+          always,
+          also,
+          just,
+          still,
+          really,
+          so,
+          too,
+          already,
+          probably,
+          definitely,
+          certainly,
+          actually,
+          basically,
+          finally,
+          simply,
+          totally,
+          completely,
+          absolutely,
+          pretty,
+          quite,
+          rather,
+          almost,
+          nearly,
+          sometimes,
+          usually,
+          often,
+          now,
+          then,
+          here,
+          there,
+          way,
+          far,
+          much,
+          even,
+          only,
+          very,
+          literally,
+          seriously,
+          truly,
+          obviously,
+          clearly,
+          apparently,
+          surely,
+          hardly,
+          barely,
+          maybe,
+          perhaps,
+          again,
+          soon,
+          once,
+          ever,
+          all,
+          and,
+          or,
+          but,
+          nor,
+          yet,
+          as,
+          than,
+          if,
+          whether,
+          because,
+          since,
+          though,
+          although,
+          while,
+          unless,
+          to,
+          is,
+          are,
+          was,
+          were,
+          be,
+          been,
+          being,
+          am,
+          have,
+          has,
+          had,
+          do,
+          does,
+          did,
+          can,
+          could,
+          will,
+          would,
+          shall,
+          should,
+          may,
+          might,
+          must,
+          own,
+          other,
+          others,
+          such,
+          same,
+          both,
+          either,
+          neither,
+          more,
+          most,
+          less,
+          least,
+          few,
+          many,
+          several,
+        ]
+      NOT_A_VERB:
+        [
+          like,
+          near,
+          past,
+          about,
+          above,
+          across,
+          after,
+          against,
+          along,
+          among,
+          amid,
+          around,
+          before,
+          behind,
+          below,
+          beneath,
+          beside,
+          between,
+          beyond,
+          by,
+          despite,
+          down,
+          during,
+          except,
+          for,
+          from,
+          in,
+          inside,
+          into,
+          off,
+          on,
+          onto,
+          opposite,
+          out,
+          outside,
+          over,
+          per,
+          round,
+          through,
+          throughout,
+          to,
+          toward,
+          towards,
+          under,
+          underneath,
+          unlike,
+          until,
+          up,
+          upon,
+          via,
+          with,
+          within,
+          without,
+          worth,
+          atop,
+          aboard,
+          alongside,
+          all,
+          both,
+          each,
+          either,
+          neither,
+          only,
+          just,
+          still,
+          also,
+          now,
+          here,
+          there,
+          home,
+          back,
+          away,
+          then,
+          so,
+          too,
+          very,
+          as,
+          at,
+          of,
+          not,
+          more,
+          most,
+          less,
+          again,
+          even,
+          ever,
+          never,
+          already,
+          once,
+          twice,
+          half,
+          double,
+          triple,
+          often,
+          quite,
+          rather,
+          almost,
+          yet,
+          soon,
+          maybe,
+          kinda,
+          sorta,
+          somewhat,
+          otherwise,
+          together,
+          apart,
+          ahead,
+          aside,
+          abroad,
+          alike,
+          instead,
+          the,
+          a,
+          an,
+          this,
+          that,
+          these,
+          those,
+          my,
+          your,
+          his,
+          her,
+          our,
+          their,
+          its,
+          some,
+          any,
+          no,
+          every,
+          one,
+          what,
+          who,
+          whom,
+          whose,
+          which,
+          where,
+          when,
+          why,
+          how,
+          myself,
+          yourself,
+          himself,
+          herself,
+          itself,
+          sure,
+          unsure,
+          aware,
+          unaware,
+          glad,
+          afraid,
+          sorry,
+          proud,
+          certain,
+          uncertain,
+          correct,
+          busy,
+          free,
+          ready,
+          done,
+          able,
+          unable,
+          due,
+          late,
+          early,
+          open,
+          close,
+          next,
+          full,
+          short,
+          sad,
+          mad,
+          fine,
+          ok,
+          okay,
+          right,
+          wrong,
+          alone,
+          asleep,
+          awake,
+          well,
+          ill,
+          safe,
+          new,
+          mean,
+          light,
+          lead,
+        ]
+    defs:
+      NON_PERSON: /^(?:it|its|this|that|which|what|everything|something|nothing|anything)$/
+      PARTICLE: '/^[ \t ]+(?:up|down|off|out|into|open|apart)(?![A-Za-z])/i'
+      # No passive: "He was went" more likely meant "went". A has-'s still takes the participle.
+      NO_PASSIVE: /^(?:arise|come|become|go|stink|swim)$/
+      MODAL_BEFORE: >-
+        /(?:^|[^A-Za-z'’])(?:(?:could|would|should|might|must)(?:n['’]?t)?|may|will|won['’]?t|shall|can(?:not|['’]?t)?|to)(?:[ \t ]+not)?[ \t ]+$/i
+      # Clitic owners: 'd and 's need a pronoun subject ("John's saw" is possessive).
+      LEADS: >-
+        ({
+          ve: /^(?:i|you|we|they|who|what|that|there|could|would|should|must|might|may)$/,
+          d: /^(?:i|you|we|they|he|she|it|who|that|there)$/,
+          s: /^(?:he|she|it|that|there|here|what|who|where|(?:every|some|no|any)(?:thing|one|body))$/,
+          re: /^(?:you|we|they)$/,
+          m: /^i$/,
+        }) as Readonly<Record<string, RegExp>>
+      OPENS_CLAUSE: >-
+        /(?:[.!?;:,"“(\n]|(?:^|[^A-Za-z])(?:and|but|or|so|why|how|where|when|what|who|which))[ \t ]*$/i
+      # -ing forms that are also everyday nouns ("We have training on Monday") need an object
+      # pronoun.
+      NOUN_LIKE_ING: >-
+        /^(?:reading|writing|testing|planning|building|training|meeting|painting|drawing|shopping|setting|spending|recording|funding|parking|housing|clothing|seating|heating|lighting|cooking|swimming|dancing|marketing|pricing|timing|booking|warning|opening|ending|beginning|feeling|morning|evening|ceiling|nothing|something|anything|everything|thing|king|ring|spring|string|wedding|pudding|sibling|during)$/
+      # Adjective and noun shapes: -ing, -ed, -s, -ful, -ic, -al, -ible, -able (not
+      # enable/disable), -tive/-sive/-live, consonant + y (not -ify, apply, supply), polysyllabic
+      # -ant/-ent (not -ment).
+      ADJECTIVE_SHAPE: >-
+        /(?:ing|ed|s|ful|ic|[^e]al|ible|[tsla]ive)$|(?<!en|dis)able$|(?<![aeo]|if|ppl)y$|[aeiouy][^aeiouy]+(?<!m)[ae]nt$/
+      # An object pronoun, or a determiner opening a noun phrase that is not a time or degree
+      # phrase ("busy the whole day", "a lot"). Demonstratives stay out: "She is captain this
+      # season".
+      OBJECT_AFTER: >-
+        /^[ \t ]{1,8}(?:(?:me|him|us|them)(?![\p{L}\p{M}\p{N}_'’@/#\\-])|(?:the|a|an|my|your|his|our|their)[ \t ]{1,8}(?!(?:whole|entire|next|last|first|second|third|final|same|rest|other|day|days|week|weeks|month|months|year|years|morning|mornings|afternoon|evening|evenings|night|nights|weekend|weekends|time|times|moment|minute|minutes|hour|hours|while|way|lot|bit|little|few)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))[A-Za-z])/iu
+      # Any next word unless it makes a compound ("sleep deprived", "fly fishing", "swing
+      # voters").
+      WORD_AFTER: >-
+        /^[ \t ]{1,8}(?:(?:this|his|us|its)(?![\p{L}\p{M}\p{N}_'’@/#\\-])|(?![A-Za-z]*(?:ed|ing|s)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))[A-Za-z])/iu
+      # "anything you need", "the contracts we need", "All you need": `before` (the text before a
+      # verb) ends in a fronted object and a subject pronoun, so the verb closes a relative
+      # clause.
+      frontedObjectGap:
+        args: "before: string"
+        let:
+          head: '/([A-Za-z]+)[ \t ]+(?:I|you|we|they|he|she)[ \t ]*$/i.exec(before)?.[1].toLowerCase()'
+          read: englishWordInfo(head)
+        when: "!!head"
+        return: >-
+          /^(?:anything|everything|something|nothing|all|what|whatever|whichever)$/.test(head) ||
+          (!!read && (read.noun || read.plural) && !GAP_FUNCTION_WORDS.has(head))
+        else: "false"
+      # The next word after `after`, lowercased.
+      participleNextWord:
+        args: "after: string"
+        return: "/^[ \\t\\u00a0]+([A-Za-z]+)(?![A-Za-z'’-])/.exec(after)?.[1].toLowerCase()"
+      # The next word may continue a noun ("have saw blades", "have rose bushes", "saw teeth").
+      # No reading at all is an unlisted word or an irregular plural.
+      nounFollows:
+        args: "after: string"
+        let:
+          next: participleNextWord(after)
+          info: englishWordInfo(next)
+        when: "!!next && !PARTICIPLE_CLOSED.has(next) && !PARTICIPLE_ADVERBS.has(next)"
+        return: >-
+          !info || next.endsWith("ing") || !(info.verbs.length || info.adjective || info.adverb)
+            ? true
+            : (info.noun || info.plural) && !info.adjective
+        else: "false"
+      # A noun read as a modifier, not a verb: plural, determiner-led, or nothing but a noun.
+      # "Whatever time he had went…": a free relative's head.
+      nounHead:
+        args: "word: string, before: string | undefined"
+        let:
+          info: englishWordInfo(word)
+        return: >-
+          GAP_HEADS.has(word) ||
+          (!PARTICIPLE_CLOSED.has(word) &&
+            !!info &&
+            (info.noun || info.plural) &&
+            ((info.plural && !info.verbs.some((v) => v.form === "third")) ||
+              !info.verbs.length ||
+              (before !== undefined &&
+                (PARTICIPLE_DETERMINERS.has(before) || /^(?:whatever|whichever)$/.test(before)))))
+      # The auxiliary closes a clause whose object is a head before it: "Everything we had went
+      # into it", "the cat my dad had ran off with". have/be is then a main verb and the past is
+      # the next clause's verb.
+      objectGap:
+        args: "text: string, start: number"
+        let:
+          run: '/(?:[A-Za-z]+[ \t ]+){1,5}$/.exec(text.slice(Math.max(0, start - 64), start))'
+          w: "run[0].trim().toLowerCase().split(/[ \\t\\u00a0]+/)"
+          last: w.length - 1
+          # After a pronoun subject, or a determiner and a noun.
+          subjectStart: >-
+            /^(?:i|you|we|they|he|she|it)$/.test(w[last])
+              ? last - 1
+              : last >= 1 && PARTICIPLE_DETERMINERS.has(w[last - 1])
+                ? last - 2
+                : null
+          head: >-
+            subjectStart !== null && subjectStart >= 0 && /^(?:that|which|whom)$/.test(w[subjectStart])
+              ? subjectStart - 1
+              : subjectStart
+        when:
+          - "!!run"
+          - subjectStart !== null
+        return: head >= 0 && nounHead(w[head], w[head - 1])
+        else: "false"
+      # Pronoun and be/have agreement; a mismatch is left to the agreement checks.
+      beAgrees:
+        args: "subject: string, be: string"
+        let:
+          s: subject.toLowerCase()
+          first: s === "i"
+          singular: /^(?:he|she|it|this|that)$/.test(s)
+        return: >-
+          be === "m" || be === "am"
+            ? first
+            : be === "s" || be === "is" || be === "has"
+              ? singular
+              : be === "re" || be === "are" || be === "were"
+                ? !first && !singular
+                : be === "was"
+                  ? first || singular
+                  : be !== "have" || !singular
+      # The auxiliary's key: have, has, had, having, be, been, being, am, is, …, or a clitic.
+      auxKey:
+        args: "aux: string"
+        let:
+          a: aux.toLowerCase().replace(/n['’]?t$/, "")
+        return: 'a === "its" ? "s" : a.endsWith("ve") ? "have" : a'
+      # An -ly word between the auxiliary and the past must be only an adverb ("has recently
+      # went", not "has family").
+      adverbOnly:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        return: "PARTICIPLE_ADVERBS.has(word) || (!!info?.adverb && !info.noun && !info.verbs.length)"
+      # Past participle after have or be: "has went", "was took", "Having went", "Have you
+      # ate?", "it's broke". Any subject; possessive have ("I have saw blades"), adjectives ("I
+      # am broke"), noun-clause subjects ("What it was took courage") and object gaps abstain.
+      participleFinding:
+        args: "ctx: DetectContext, m: RegExpExecArray, inverted: boolean"
+        type: RawFinding | null
+        let:
+          g: m.groups!
+          end: group(m, "verb")[1]
+          word: g.verb.toLowerCase()
+          past: simplePastOnly(word)
+          key: "auxKey(g.clitic ? g.clitic.slice(1) : g.aux)"
+          before: ctx.text.slice(Math.max(0, m.index - 64), m.index)
+          # The written subject, when one is known: the clitic's owner, the inverted subject, or a
+          # pronoun right before the auxiliary.
+          prev: '/([A-Za-z]+)[ \t ]+$/.exec(before)?.[1].toLowerCase()'
+          subject: '(g.lead ?? g.subject ?? (/^its$/i.test(g.aux ?? "") ? "its" : prev))?.toLowerCase()'
+          opener: ctx.text.slice(Math.max(0, m.index - 32), m.index)
+          after: ctx.scanText.slice(end, end + 48)
+          next: participleNextWord(after)
+          info: englishWordInfo(word)
+          adjective: ADJECTIVE_PASTS.has(word) || !!info?.adjective
+          nounish: (past.ambiguous || !!info?.noun) && !VERB_PASTS.has(word)
+          have: /^(?:have|has|had|having|d)$/.test(key)
+          kase: detectWordCase(g.verb)
+          participle: applyWordCase(past.participle, kase)
+          # 'd is had (participle) or would (base): both fit, the writer picks.
+          base: 'key === "d" ? applyWordCase(past.lemma, kase) : participle'
+        when:
+          # Title case inside a clause is a name ("I have Drew on the line").
+          - plainToken(ctx, g.verb)
+          - "!!past"
+          - g.adverbs.toLowerCase().split(/[ \t ]+/).slice(1).every((adverb) => adverbOnly(adverb))
+          - >-
+            !inverted ||
+            OPENS_CLAUSE.test(opener) ||
+            (m.index <= 32 && /^[ \t ]*$/.test(opener))
+          - "!g.lead || LEADS[g.clitic.slice(1).toLowerCase()].test(g.lead.toLowerCase())"
+          - "!(subject && /^(?:i|you|we|they|he|she|it|this|that)$/.test(subject) && !beAgrees(subject, key))"
+          # "could has went" belongs to the modal checks; "I am" alone carries "am" ("9 am took").
+          - >-
+            !!g.lead ||
+            inverted ||
+            (!(MODAL_BEFORE.test(before) && !/^(?:have|be)$/.test(g.aux.toLowerCase())) &&
+              !(key === "am" && prev !== "i") &&
+              !(/^(?:has|have|had|am|is|are|was|were)$/.test(key) && objectGap(ctx.text, m.index)))
+          # "its" for "it's" only where no modifier reading fits: "its broke and", not "its
+          # bespoke UI".
+          - '!(/^its$/i.test(g.aux ?? "") && next && !PARTICIPLE_CLOSED.has(next))'
+          # After have: "having bit of a problem": a noun before "of" lost its article, not its
+          # participle. After be: "The question is did he go" is an embedded question, not a
+          # passive; "a being", "human being stole the car" is the noun, not the auxiliary.
+          - >-
+            have
+              ? !((nounish || adjective) && nounFollows(after)) && !(nounish && next === "of")
+              : (adjective
+                  ? PARTICLE.test(after) || (word === "broke" && !!subject && NON_PERSON.test(subject))
+                  : !past.ambiguous || BARE_PAST.has(word)) &&
+                !(nounish && nounFollows(after)) &&
+                !(key !== "s" && NO_PASSIVE.test(past.lemma)) &&
+                !(word === "did" && key !== "s") &&
+                !(key === "being" &&
+                  (PARTICIPLE_DETERMINERS.has(prev ?? "") ||
+                    /^[ \t ]+(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those|me|him|us|them)(?![A-Za-z])/i.test(after)))
+          - "!hasUserOrCasedWord(ctx, m[0])"
+        return: >-
+          found(
+            ctx,
+            m,
+            "englishPerfectParticiples",
+            base !== participle
+              ? "review_msg_had_or_would"
+              : have
+                ? "review_msg_perfect_participle"
+                : "review_msg_be_participle",
+            base !== participle ? [participle, base] : [participle],
+            "verb",
+          )
     frames:
       # have/be in every spelling, clitics on their owner ("I'd", "it's") and dropped apostrophes.
       # A complete regex: WORD_START is one lookbehind here. Its "n't" test cannot start a match
@@ -5119,21 +5908,120 @@ rules:
       - regex: "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its)){{PARTICIPLE_TAIL}}"
         wordStart: false
         owner: verb
-        fixer: participleAfterAuxiliary
+        return: participleFinding(ctx, m, false)
       # "Have you ate?", "Was it took?": the auxiliary opens the clause, a subject follows.
       - regex: "(?<aux>have|has|had|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t){{S}}(?<subject>i|you|we|they|he|she|it|(?:the|this|that|these|those|my|your|his|her|our|their|its){{S}}[a-z]+){{PARTICIPLE_TAIL}}"
         owner: verb
-        fixer: participleAfterInverted
+        return: participleFinding(ctx, m, true)
       # "I've looking into it". "Ive" lost its apostrophe; a time adverb also closes the
       # progressive ("I've working today"). A soft line wrap may split it ("I've\nlooking");
       # "doing" needs nothing after it.
       - regex: "(?<subject>I|you|we|they|he|she|it)(?:{{PARTICIPLE_WRAP}}(?<aux>have|has)|(?<contract>['’]ve)|(?<bare>ve)){{PARTICIPLE_WRAP}}(?:(?<verb>[A-Za-z]{2,}ing){{S}}(?<follow>{{PARTICIPLE_OBJECT}}|(?:(?:on|into|about|at|for|with|to){{S}})?(?:{{PARTICIPLE_OBJECT}}|the|a|an|my|your|our|his|her|their)|today|now|tonight|lately)|(?<doing>doing)(?=[ \\t\\u00a0]{0,8}(?:[.!?,;:]|$)|{{S}}(?:and|or|but|right|now|here|there){{E}})){{E}}"
         owner: contract|subject
-        fixer: progressiveAfterHave
+        let:
+          lexical: verb ?? doing
+          startSpan: 'm.indices!.groups![contract ? "contract" : "subject"]'
+          endSpan: 'm.indices!.groups![contract ? "contract" : aux ? "aux" : "bare"]'
+          singular: /^(?:he|she|it)$/i.test(subject)
+          ing: lexical.toLowerCase()
+          before: ctx.scanText.slice(Math.max(0, m.index - 96), m.index)
+          typed: contract ?? aux ?? bare
+          first: /^i$/i.test(subject)
+          mark: contract?.[0] ?? "'"
+          short: '`${mark}${first ? "m" : singular ? "s" : "re"}`'
+          kase: detectWordCase(typed)
+          # A contracted have becomes the contracted be; a full one is offered both ways ("I am",
+          # "I'm"), and the perfect progressive.
+          alternatives: >-
+            contract
+              ? [applyWordCase(short, kase), applyWordCase(`${mark}ve been`, kase)]
+              : bare
+                ? [subject + applyWordCase(short, kase), subject + applyWordCase(`${mark}ve been`, kase)]
+                : [
+                    `${subject}${ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0])}${applyWordCase(first ? "am" : singular ? "is" : "are", kase)}`,
+                    `${subject}${applyWordCase(short, kase)}`,
+                    `${subject}${ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0])}${applyWordCase(`${aux.toLowerCase()} been`, kase)}`,
+                  ]
+        when:
+          - '!(contract || bare ? singular : (aux.toLowerCase() === "has") !== singular)'
+          - '!NOUN_LIKE_ING.test(ing) || /^(?:it|them|him|her|us|me|this|that)$/i.test(follow ?? "")'
+          # "any questions you have regarding the trip": a preposition in -ing.
+          - "!/^(?:regarding|concerning|including|following|considering|involving|pending)$/.test(ing)"
+          # "How much junk do you have cluttering…", "the notes you have…": have is the main verb.
+          - >-
+            !(!contract &&
+              !bare &&
+              (/\b(?:do|does|did|don['’]t|doesn['’]t|didn['’]t)[ \t ]+$/i.test(before) ||
+                frontedObjectGap(`${before}${subject} `)))
+          # A modal or question word owns have ("Why have you…", "could have…", "what I have
+          # going"); nothing is ever had "doing" ("what they've doing").
+          - >-
+            !(/\b(?:could|would|should|might|must|may|will|to|what|why|how|where|when|which)[ \t ]+$/i.test(before) &&
+              !(doing && /\bwhat[ \t ]+$/i.test(before)))
+          - "!hasUserOrCasedWord(ctx, m[0])"
+          # A quoted example under discussion ("She has cleaning the kitchen") is not prose.
+          - "!namedExampleBefore(ctx.text, startSpan[0])"
+        return: >-
+          ({
+            ruleId: "englishPerfectParticiples",
+            messageKey: "review_msg_progressive_be",
+            range: { start: startSpan[0], end: endSpan[1] },
+            alternatives,
+            requiresChoice: true as const,
+            context: around(ctx, m),
+          })
       # "I am go to the store": be before a bare verb.
       - regex: "(?<subject>I|you|we|they|he|she)(?:{{S}}(?<be>am|is|are)(?<neg>n['’]t)?|(?<contract>['’](?:m|re|s)))(?<adverbs>(?:{{S}}(?:not|also|just|still|really)){0,2}){{S}}(?<verb>[A-Za-z]+){{E}}"
         owner: none
-        fixer: baseAfterBe
+        let:
+          verbSpan: group(m, "verb")
+          lemma: verb.toLowerCase()
+          after: ctx.scanText.slice(verbSpan[1], verbSpan[1] + 32)
+          forms: englishVerbForms(lemma)
+          singular: /^(?:he|she)$/i.test(subject)
+          negated: "!!neg || /\\bnot\\b/i.test(adverbs)"
+          ing: englishInflect(lemma, "ing")
+          finite: 'negated || !singular ? lemma : englishInflect(lemma, "third")'
+          kase: detectWordCase(verb)
+          support: 'applyWordCase(singular ? "does" : "do", kase)'
+          gap: ctx.source.slice(group(m, "adverbs")[1], verbSpan[0])
+          # Negation needs do-support: "I am not go" -> "I do not go", "He isn't write" -> "He
+          # doesn't write".
+          present: >-
+            neg
+              ? `${subject} ${support}${neg}${adverbs}`
+              : `${subject}${adverbs.replace(/(?<![A-Za-z])not(?![A-Za-z])/i, (not) => `${support} ${not}`)}`
+        when:
+          - m.index >= ctx.from && m.index < ctx.to
+          - atClauseStart(ctx.text, m.index)
+          - "beAgrees(subject, (contract ? contract.slice(1) : be).toLowerCase())"
+          - plainToken(ctx, verb) && !NOT_A_VERB.has(lemma)
+          # The word must be a verb by spelling: an irregular base whose past and participle both
+          # differ from it, or a regular base right before an object. Anything else may be an
+          # adjective or noun. "We are go for launch."
+          - >-
+            forms
+              ? lemma === forms.lemma &&
+                forms.past !== lemma &&
+                forms.participle !== lemma &&
+                !forms.ambiguous.includes(lemma) &&
+                WORD_AFTER.test(after) &&
+                !(lemma === "go" && /^[ \t ]+for\b/i.test(after))
+              : !ADJECTIVE_SHAPE.test(lemma) && !!englishInflect(lemma, "past") && OBJECT_AFTER.test(after)
+          - "!!ing && !!finite"
+          - "!hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, verbSpan[1]))"
+        return: >-
+          ({
+            ruleId: "englishPerfectParticiples",
+            messageKey: "review_msg_be_base",
+            range: { start: m.index, end: verbSpan[1] },
+            alternatives: [
+              `${ctx.source.slice(m.index, verbSpan[0])}${applyWordCase(ing, kase)}`,
+              `${present}${gap}${applyWordCase(finite, kase)}`,
+            ],
+            requiresChoice: true as const,
+            context: { start: Math.max(0, m.index - 96), end: Math.min(ctx.text.length, verbSpan[1] + 32) },
+          })
   # Known inflections only; explicit counts win, ambiguous demonstratives require a choice.
   # Ownership waits for the choice between the demonstrative and the noun. The first finding at
   # a start wins.

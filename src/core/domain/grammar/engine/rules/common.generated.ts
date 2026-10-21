@@ -18,6 +18,7 @@ import {
   atClauseStart,
   caseLike,
   detectWordCase,
+  englishInflect,
   englishInitialSound,
   englishNounForms,
   englishVerbForms,
@@ -37,9 +38,11 @@ import {
   normalizeWordSet,
   ownedMatches,
   phraseRows,
+  plainToken,
   pluralNoun,
   quotedSpan,
   replaceFrom,
+  simplePastOnly,
   withTextApostrophes,
 } from "../../library";
 
@@ -100,6 +103,582 @@ export const BRAND_PRONOUNS: ReadonlySet<string> = new Set([
   "us",
   "them",
   "one",
+]);
+
+export const PARTICIPLE_DETERMINERS: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "some",
+  "any",
+  "every",
+  "each",
+  "no",
+]);
+
+export const PARTICIPLE_CLOSED: ReadonlySet<string> = new Set([
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "its",
+  "our",
+  "their",
+  "some",
+  "any",
+  "every",
+  "each",
+  "no",
+  "it",
+  "them",
+  "him",
+  "us",
+  "me",
+  "you",
+  "i",
+  "he",
+  "she",
+  "we",
+  "they",
+  "what",
+  "which",
+  "who",
+  "whom",
+  "how",
+  "why",
+  "where",
+  "when",
+  "if",
+  "whether",
+  "to",
+  "of",
+  "in",
+  "on",
+  "at",
+  "by",
+  "for",
+  "from",
+  "with",
+  "into",
+  "onto",
+  "out",
+  "up",
+  "down",
+  "off",
+  "over",
+  "under",
+  "through",
+  "about",
+  "after",
+  "before",
+  "since",
+  "until",
+  "around",
+  "across",
+  "along",
+  "behind",
+  "beneath",
+  "between",
+  "beyond",
+  "against",
+  "toward",
+  "towards",
+  "away",
+  "back",
+  "again",
+  "here",
+  "there",
+  "now",
+  "then",
+  "and",
+  "but",
+  "or",
+  "nor",
+  "so",
+  "as",
+  "than",
+  "not",
+  "never",
+  "yet",
+  "too",
+  "also",
+  "very",
+  "asleep",
+  "apart",
+  "aside",
+  "ahead",
+  "alone",
+  "awake",
+  "something",
+  "anything",
+  "nothing",
+  "everything",
+  "someone",
+  "anyone",
+  "everyone",
+  "nobody",
+  "somebody",
+  "anybody",
+  "everybody",
+  "past",
+  "near",
+  "like",
+  "upon",
+  "via",
+  "within",
+  "without",
+  "throughout",
+  "inside",
+  "outside",
+  "below",
+  "above",
+  "beside",
+  "among",
+  "during",
+  "except",
+  "per",
+  "despite",
+  "unlike",
+  "once",
+  "twice",
+]);
+
+export const PARTICIPLE_ADVERBS: ReadonlySet<string> = new Set([
+  "not",
+  "never",
+  "already",
+  "just",
+  "ever",
+  "really",
+  "still",
+  "also",
+  "even",
+  "only",
+  "all",
+  "both",
+  "since",
+  "then",
+  "now",
+  "always",
+  "often",
+  "sometimes",
+  "seldom",
+]);
+
+export const GAP_HEADS: ReadonlySet<string> = new Set([
+  "what",
+  "whatever",
+  "whoever",
+  "whichever",
+  "everything",
+  "anything",
+  "something",
+  "nothing",
+  "all",
+]);
+
+export const ADJECTIVE_PASTS: ReadonlySet<string> = new Set(["broke", "woke"]);
+
+export const VERB_PASTS: ReadonlySet<string> = new Set(["sang", "drove", "spoke"]);
+
+export const BARE_PAST: ReadonlySet<string> = new Set(["stole", "saw"]);
+
+export const GAP_FUNCTION_WORDS: ReadonlySet<string> = new Set([
+  "a",
+  "an",
+  "the",
+  "my",
+  "your",
+  "our",
+  "his",
+  "her",
+  "their",
+  "this",
+  "that",
+  "these",
+  "those",
+  "some",
+  "any",
+  "no",
+  "every",
+  "each",
+  "another",
+  "me",
+  "him",
+  "us",
+  "them",
+  "you",
+  "it",
+  "i",
+  "he",
+  "she",
+  "we",
+  "they",
+  "what",
+  "where",
+  "when",
+  "why",
+  "how",
+  "who",
+  "which",
+  "whatever",
+  "of",
+  "in",
+  "on",
+  "at",
+  "by",
+  "for",
+  "from",
+  "with",
+  "without",
+  "about",
+  "into",
+  "onto",
+  "upon",
+  "between",
+  "among",
+  "through",
+  "during",
+  "until",
+  "against",
+  "near",
+  "under",
+  "over",
+  "toward",
+  "towards",
+  "within",
+  "across",
+  "along",
+  "around",
+  "behind",
+  "beyond",
+  "inside",
+  "outside",
+  "off",
+  "out",
+  "up",
+  "down",
+  "past",
+  "via",
+  "per",
+  "like",
+  "despite",
+  "throughout",
+  "not",
+  "never",
+  "always",
+  "also",
+  "just",
+  "still",
+  "really",
+  "so",
+  "too",
+  "already",
+  "probably",
+  "definitely",
+  "certainly",
+  "actually",
+  "basically",
+  "finally",
+  "simply",
+  "totally",
+  "completely",
+  "absolutely",
+  "pretty",
+  "quite",
+  "rather",
+  "almost",
+  "nearly",
+  "sometimes",
+  "usually",
+  "often",
+  "now",
+  "then",
+  "here",
+  "there",
+  "way",
+  "far",
+  "much",
+  "even",
+  "only",
+  "very",
+  "literally",
+  "seriously",
+  "truly",
+  "obviously",
+  "clearly",
+  "apparently",
+  "surely",
+  "hardly",
+  "barely",
+  "maybe",
+  "perhaps",
+  "again",
+  "soon",
+  "once",
+  "ever",
+  "all",
+  "and",
+  "or",
+  "but",
+  "nor",
+  "yet",
+  "as",
+  "than",
+  "if",
+  "whether",
+  "because",
+  "since",
+  "though",
+  "although",
+  "while",
+  "unless",
+  "to",
+  "is",
+  "are",
+  "was",
+  "were",
+  "be",
+  "been",
+  "being",
+  "am",
+  "have",
+  "has",
+  "had",
+  "do",
+  "does",
+  "did",
+  "can",
+  "could",
+  "will",
+  "would",
+  "shall",
+  "should",
+  "may",
+  "might",
+  "must",
+  "own",
+  "other",
+  "others",
+  "such",
+  "same",
+  "both",
+  "either",
+  "neither",
+  "more",
+  "most",
+  "less",
+  "least",
+  "few",
+  "many",
+  "several",
+]);
+
+export const NOT_A_VERB: ReadonlySet<string> = new Set([
+  "like",
+  "near",
+  "past",
+  "about",
+  "above",
+  "across",
+  "after",
+  "against",
+  "along",
+  "among",
+  "amid",
+  "around",
+  "before",
+  "behind",
+  "below",
+  "beneath",
+  "beside",
+  "between",
+  "beyond",
+  "by",
+  "despite",
+  "down",
+  "during",
+  "except",
+  "for",
+  "from",
+  "in",
+  "inside",
+  "into",
+  "off",
+  "on",
+  "onto",
+  "opposite",
+  "out",
+  "outside",
+  "over",
+  "per",
+  "round",
+  "through",
+  "throughout",
+  "to",
+  "toward",
+  "towards",
+  "under",
+  "underneath",
+  "unlike",
+  "until",
+  "up",
+  "upon",
+  "via",
+  "with",
+  "within",
+  "without",
+  "worth",
+  "atop",
+  "aboard",
+  "alongside",
+  "all",
+  "both",
+  "each",
+  "either",
+  "neither",
+  "only",
+  "just",
+  "still",
+  "also",
+  "now",
+  "here",
+  "there",
+  "home",
+  "back",
+  "away",
+  "then",
+  "so",
+  "too",
+  "very",
+  "as",
+  "at",
+  "of",
+  "not",
+  "more",
+  "most",
+  "less",
+  "again",
+  "even",
+  "ever",
+  "never",
+  "already",
+  "once",
+  "twice",
+  "half",
+  "double",
+  "triple",
+  "often",
+  "quite",
+  "rather",
+  "almost",
+  "yet",
+  "soon",
+  "maybe",
+  "kinda",
+  "sorta",
+  "somewhat",
+  "otherwise",
+  "together",
+  "apart",
+  "ahead",
+  "aside",
+  "abroad",
+  "alike",
+  "instead",
+  "the",
+  "a",
+  "an",
+  "this",
+  "that",
+  "these",
+  "those",
+  "my",
+  "your",
+  "his",
+  "her",
+  "our",
+  "their",
+  "its",
+  "some",
+  "any",
+  "no",
+  "every",
+  "one",
+  "what",
+  "who",
+  "whom",
+  "whose",
+  "which",
+  "where",
+  "when",
+  "why",
+  "how",
+  "myself",
+  "yourself",
+  "himself",
+  "herself",
+  "itself",
+  "sure",
+  "unsure",
+  "aware",
+  "unaware",
+  "glad",
+  "afraid",
+  "sorry",
+  "proud",
+  "certain",
+  "uncertain",
+  "correct",
+  "busy",
+  "free",
+  "ready",
+  "done",
+  "able",
+  "unable",
+  "due",
+  "late",
+  "early",
+  "open",
+  "close",
+  "next",
+  "full",
+  "short",
+  "sad",
+  "mad",
+  "fine",
+  "ok",
+  "okay",
+  "right",
+  "wrong",
+  "alone",
+  "asleep",
+  "awake",
+  "well",
+  "ill",
+  "safe",
+  "new",
+  "mean",
+  "light",
+  "lead",
 ]);
 
 export const CANONICAL: Readonly<Record<string, string>> = {
@@ -554,6 +1133,226 @@ export function possessiveFix(
   )
     return null;
   return applyWordCase(how.replacement, detectWordCase(typed));
+}
+
+// common.yaml rule perfectParticiples def NON_PERSON
+export const NON_PERSON = /^(?:it|its|this|that|which|what|everything|something|nothing|anything)$/;
+
+// common.yaml rule perfectParticiples def PARTICLE
+export const PARTICLE = /^[ \t ]+(?:up|down|off|out|into|open|apart)(?![A-Za-z])/i;
+
+// common.yaml rule perfectParticiples def NO_PASSIVE
+export const NO_PASSIVE = /^(?:arise|come|become|go|stink|swim)$/;
+
+// common.yaml rule perfectParticiples def MODAL_BEFORE
+export const MODAL_BEFORE =
+  /(?:^|[^A-Za-z'’])(?:(?:could|would|should|might|must)(?:n['’]?t)?|may|will|won['’]?t|shall|can(?:not|['’]?t)?|to)(?:[ \t ]+not)?[ \t ]+$/i;
+
+// common.yaml rule perfectParticiples def LEADS
+export const LEADS = {
+  ve: /^(?:i|you|we|they|who|what|that|there|could|would|should|must|might|may)$/,
+  d: /^(?:i|you|we|they|he|she|it|who|that|there)$/,
+  s: /^(?:he|she|it|that|there|here|what|who|where|(?:every|some|no|any)(?:thing|one|body))$/,
+  re: /^(?:you|we|they)$/,
+  m: /^i$/,
+} as Readonly<Record<string, RegExp>>;
+
+// common.yaml rule perfectParticiples def OPENS_CLAUSE
+export const OPENS_CLAUSE =
+  /(?:[.!?;:,"“(\n]|(?:^|[^A-Za-z])(?:and|but|or|so|why|how|where|when|what|who|which))[ \t ]*$/i;
+
+// common.yaml rule perfectParticiples def NOUN_LIKE_ING
+export const NOUN_LIKE_ING =
+  /^(?:reading|writing|testing|planning|building|training|meeting|painting|drawing|shopping|setting|spending|recording|funding|parking|housing|clothing|seating|heating|lighting|cooking|swimming|dancing|marketing|pricing|timing|booking|warning|opening|ending|beginning|feeling|morning|evening|ceiling|nothing|something|anything|everything|thing|king|ring|spring|string|wedding|pudding|sibling|during)$/;
+
+// common.yaml rule perfectParticiples def ADJECTIVE_SHAPE
+export const ADJECTIVE_SHAPE =
+  /(?:ing|ed|s|ful|ic|[^e]al|ible|[tsla]ive)$|(?<!en|dis)able$|(?<![aeo]|if|ppl)y$|[aeiouy][^aeiouy]+(?<!m)[ae]nt$/;
+
+// common.yaml rule perfectParticiples def OBJECT_AFTER
+export const OBJECT_AFTER =
+  /^[ \t ]{1,8}(?:(?:me|him|us|them)(?![\p{L}\p{M}\p{N}_'’@/#\\-])|(?:the|a|an|my|your|his|our|their)[ \t ]{1,8}(?!(?:whole|entire|next|last|first|second|third|final|same|rest|other|day|days|week|weeks|month|months|year|years|morning|mornings|afternoon|evening|evenings|night|nights|weekend|weekends|time|times|moment|minute|minutes|hour|hours|while|way|lot|bit|little|few)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))[A-Za-z])/iu;
+
+// common.yaml rule perfectParticiples def WORD_AFTER
+export const WORD_AFTER =
+  /^[ \t ]{1,8}(?:(?:this|his|us|its)(?![\p{L}\p{M}\p{N}_'’@/#\\-])|(?![A-Za-z]*(?:ed|ing|s)(?![\p{L}\p{M}\p{N}_'’@/#\\-]))[A-Za-z])/iu;
+
+// common.yaml rule perfectParticiples def frontedObjectGap
+export function frontedObjectGap(before: string) {
+  const head = /([A-Za-z]+)[ \t ]+(?:I|you|we|they|he|she)[ \t ]*$/i
+    .exec(before)?.[1]
+    .toLowerCase();
+  if (!head) return false;
+  const read = englishWordInfo(head);
+  return (
+    /^(?:anything|everything|something|nothing|all|what|whatever|whichever)$/.test(head) ||
+    (!!read && (read.noun || read.plural) && !GAP_FUNCTION_WORDS.has(head))
+  );
+}
+
+// common.yaml rule perfectParticiples def participleNextWord
+export function participleNextWord(after: string) {
+  return /^[ \t\u00a0]+([A-Za-z]+)(?![A-Za-z'’-])/.exec(after)?.[1].toLowerCase();
+}
+
+// common.yaml rule perfectParticiples def nounFollows
+export function nounFollows(after: string) {
+  const next = participleNextWord(after);
+  if (!(!!next && !PARTICIPLE_CLOSED.has(next) && !PARTICIPLE_ADVERBS.has(next))) return false;
+  const info = englishWordInfo(next);
+  return !info || next.endsWith("ing") || !(info.verbs.length || info.adjective || info.adverb)
+    ? true
+    : (info.noun || info.plural) && !info.adjective;
+}
+
+// common.yaml rule perfectParticiples def nounHead
+export function nounHead(word: string, before: string | undefined) {
+  const info = englishWordInfo(word);
+  return (
+    GAP_HEADS.has(word) ||
+    (!PARTICIPLE_CLOSED.has(word) &&
+      !!info &&
+      (info.noun || info.plural) &&
+      ((info.plural && !info.verbs.some((v) => v.form === "third")) ||
+        !info.verbs.length ||
+        (before !== undefined &&
+          (PARTICIPLE_DETERMINERS.has(before) || /^(?:whatever|whichever)$/.test(before)))))
+  );
+}
+
+// common.yaml rule perfectParticiples def objectGap
+export function objectGap(text: string, start: number) {
+  const run = /(?:[A-Za-z]+[ \t ]+){1,5}$/.exec(text.slice(Math.max(0, start - 64), start));
+  if (!run) return false;
+  const w = run[0]
+    .trim()
+    .toLowerCase()
+    .split(/[ \t\u00a0]+/);
+  const last = w.length - 1;
+  const subjectStart = /^(?:i|you|we|they|he|she|it)$/.test(w[last])
+    ? last - 1
+    : last >= 1 && PARTICIPLE_DETERMINERS.has(w[last - 1])
+      ? last - 2
+      : null;
+  if (!(subjectStart !== null)) return false;
+  const head =
+    subjectStart !== null && subjectStart >= 0 && /^(?:that|which|whom)$/.test(w[subjectStart])
+      ? subjectStart - 1
+      : subjectStart;
+  return head >= 0 && nounHead(w[head], w[head - 1]);
+}
+
+// common.yaml rule perfectParticiples def beAgrees
+export function beAgrees(subject: string, be: string) {
+  const s = subject.toLowerCase();
+  const first = s === "i";
+  const singular = /^(?:he|she|it|this|that)$/.test(s);
+  return be === "m" || be === "am"
+    ? first
+    : be === "s" || be === "is" || be === "has"
+      ? singular
+      : be === "re" || be === "are" || be === "were"
+        ? !first && !singular
+        : be === "was"
+          ? first || singular
+          : be !== "have" || !singular;
+}
+
+// common.yaml rule perfectParticiples def auxKey
+export function auxKey(aux: string) {
+  const a = aux.toLowerCase().replace(/n['’]?t$/, "");
+  return a === "its" ? "s" : a.endsWith("ve") ? "have" : a;
+}
+
+// common.yaml rule perfectParticiples def adverbOnly
+export function adverbOnly(word: string) {
+  const info = englishWordInfo(word);
+  return PARTICIPLE_ADVERBS.has(word) || (!!info?.adverb && !info.noun && !info.verbs.length);
+}
+
+// common.yaml rule perfectParticiples def participleFinding
+export function participleFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  inverted: boolean,
+): RawFinding | null {
+  const g = m.groups!;
+  if (!plainToken(ctx, g.verb)) return null;
+  const end = group(m, "verb")[1];
+  const word = g.verb.toLowerCase();
+  const past = simplePastOnly(word);
+  if (!past) return null;
+  if (
+    !g.adverbs
+      .toLowerCase()
+      .split(/[ \t ]+/)
+      .slice(1)
+      .every((adverb) => adverbOnly(adverb))
+  )
+    return null;
+  const key = auxKey(g.clitic ? g.clitic.slice(1) : g.aux);
+  const before = ctx.text.slice(Math.max(0, m.index - 64), m.index);
+  const prev = /([A-Za-z]+)[ \t ]+$/.exec(before)?.[1].toLowerCase();
+  const subject = (
+    g.lead ??
+    g.subject ??
+    (/^its$/i.test(g.aux ?? "") ? "its" : prev)
+  )?.toLowerCase();
+  const opener = ctx.text.slice(Math.max(0, m.index - 32), m.index);
+  if (!(!inverted || OPENS_CLAUSE.test(opener) || (m.index <= 32 && /^[ \t ]*$/.test(opener))))
+    return null;
+  if (!(!g.lead || LEADS[g.clitic.slice(1).toLowerCase()].test(g.lead.toLowerCase()))) return null;
+  if (subject && /^(?:i|you|we|they|he|she|it|this|that)$/.test(subject) && !beAgrees(subject, key))
+    return null;
+  if (!(
+    !!g.lead ||
+    inverted ||
+    (!(MODAL_BEFORE.test(before) && !/^(?:have|be)$/.test(g.aux.toLowerCase())) &&
+      !(key === "am" && prev !== "i") &&
+      !(/^(?:has|have|had|am|is|are|was|were)$/.test(key) && objectGap(ctx.text, m.index)))
+  ))
+    return null;
+  const after = ctx.scanText.slice(end, end + 48);
+  const next = participleNextWord(after);
+  if (/^its$/i.test(g.aux ?? "") && next && !PARTICIPLE_CLOSED.has(next)) return null;
+  const info = englishWordInfo(word);
+  const adjective = ADJECTIVE_PASTS.has(word) || !!info?.adjective;
+  const nounish = (past.ambiguous || !!info?.noun) && !VERB_PASTS.has(word);
+  const have = /^(?:have|has|had|having|d)$/.test(key);
+  if (
+    !(have
+      ? !((nounish || adjective) && nounFollows(after)) && !(nounish && next === "of")
+      : (adjective
+          ? PARTICLE.test(after) || (word === "broke" && !!subject && NON_PERSON.test(subject))
+          : !past.ambiguous || BARE_PAST.has(word)) &&
+        !(nounish && nounFollows(after)) &&
+        !(key !== "s" && NO_PASSIVE.test(past.lemma)) &&
+        !(word === "did" && key !== "s") &&
+        !(
+          key === "being" &&
+          (PARTICIPLE_DETERMINERS.has(prev ?? "") ||
+            /^[ \t ]+(?:the|a|an|my|your|his|her|its|our|their|this|that|these|those|me|him|us|them)(?![A-Za-z])/i.test(
+              after,
+            ))
+        ))
+  )
+    return null;
+  if (hasUserOrCasedWord(ctx, m[0])) return null;
+  const kase = detectWordCase(g.verb);
+  const participle = applyWordCase(past.participle, kase);
+  const base = key === "d" ? applyWordCase(past.lemma, kase) : participle;
+  return found(
+    ctx,
+    m,
+    "englishPerfectParticiples",
+    base !== participle
+      ? "review_msg_had_or_would"
+      : have
+        ? "review_msg_perfect_participle"
+        : "review_msg_be_participle",
+    base !== participle ? [participle, base] : [participle],
+    "verb",
+  );
 }
 
 // common.yaml rule nounNumber def LABEL_WITH_NUMBER
@@ -1115,6 +1914,129 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // common.yaml rule possessives frame 12
   "@possessives/12": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return possessiveFix(m, ctx, frame, { replacement: "else's" });
+  },
+  // common.yaml rule perfectParticiples frame 1
+  "@perfectParticiples/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return participleFinding(ctx, m, false);
+  },
+  // common.yaml rule perfectParticiples frame 2
+  "@perfectParticiples/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return participleFinding(ctx, m, true);
+  },
+  // common.yaml rule perfectParticiples frame 3
+  "@perfectParticiples/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const aux = m.groups!.aux;
+    const contract = m.groups!.contract;
+    const bare = m.groups!.bare;
+    const verb = m.groups!.verb;
+    const follow = m.groups!.follow;
+    const doing = m.groups!.doing;
+    const lexical = verb ?? doing;
+    const startSpan = m.indices!.groups![contract ? "contract" : "subject"];
+    const endSpan = m.indices!.groups![contract ? "contract" : aux ? "aux" : "bare"];
+    const singular = /^(?:he|she|it)$/i.test(subject);
+    if (contract || bare ? singular : (aux.toLowerCase() === "has") !== singular) return null;
+    const ing = lexical.toLowerCase();
+    if (!(!NOUN_LIKE_ING.test(ing) || /^(?:it|them|him|her|us|me|this|that)$/i.test(follow ?? "")))
+      return null;
+    if (/^(?:regarding|concerning|including|following|considering|involving|pending)$/.test(ing))
+      return null;
+    const before = ctx.scanText.slice(Math.max(0, m.index - 96), m.index);
+    if (
+      !contract &&
+      !bare &&
+      (/\b(?:do|does|did|don['’]t|doesn['’]t|didn['’]t)[ \t ]+$/i.test(before) ||
+        frontedObjectGap(`${before}${subject} `))
+    )
+      return null;
+    if (
+      /\b(?:could|would|should|might|must|may|will|to|what|why|how|where|when|which)[ \t ]+$/i.test(
+        before,
+      ) &&
+      !(doing && /\bwhat[ \t ]+$/i.test(before))
+    )
+      return null;
+    if (hasUserOrCasedWord(ctx, m[0])) return null;
+    if (namedExampleBefore(ctx.text, startSpan[0])) return null;
+    const typed = contract ?? aux ?? bare;
+    const first = /^i$/i.test(subject);
+    const mark = contract?.[0] ?? "'";
+    const short = `${mark}${first ? "m" : singular ? "s" : "re"}`;
+    const kase = detectWordCase(typed);
+    const alternatives = contract
+      ? [applyWordCase(short, kase), applyWordCase(`${mark}ve been`, kase)]
+      : bare
+        ? [subject + applyWordCase(short, kase), subject + applyWordCase(`${mark}ve been`, kase)]
+        : [
+            `${subject}${ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0])}${applyWordCase(first ? "am" : singular ? "is" : "are", kase)}`,
+            `${subject}${applyWordCase(short, kase)}`,
+            `${subject}${ctx.text.slice(group(m, "subject")[1], group(m, "aux")[0])}${applyWordCase(`${aux.toLowerCase()} been`, kase)}`,
+          ];
+    return {
+      ruleId: "englishPerfectParticiples",
+      messageKey: "review_msg_progressive_be",
+      range: { start: startSpan[0], end: endSpan[1] },
+      alternatives,
+      requiresChoice: true as const,
+      context: around(ctx, m),
+    };
+  },
+  // common.yaml rule perfectParticiples frame 4
+  "@perfectParticiples/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const be = m.groups!.be;
+    const neg = m.groups!.neg;
+    const contract = m.groups!.contract;
+    const adverbs = m.groups!.adverbs;
+    const verb = m.groups!.verb;
+    if (!(m.index >= ctx.from && m.index < ctx.to)) return null;
+    if (!atClauseStart(ctx.text, m.index)) return null;
+    if (!beAgrees(subject, (contract ? contract.slice(1) : be).toLowerCase())) return null;
+    const verbSpan = group(m, "verb");
+    const lemma = verb.toLowerCase();
+    if (!(plainToken(ctx, verb) && !NOT_A_VERB.has(lemma))) return null;
+    const after = ctx.scanText.slice(verbSpan[1], verbSpan[1] + 32);
+    const forms = englishVerbForms(lemma);
+    if (
+      !(forms
+        ? lemma === forms.lemma &&
+          forms.past !== lemma &&
+          forms.participle !== lemma &&
+          !forms.ambiguous.includes(lemma) &&
+          WORD_AFTER.test(after) &&
+          !(lemma === "go" && /^[ \t ]+for\b/i.test(after))
+        : !ADJECTIVE_SHAPE.test(lemma) &&
+          !!englishInflect(lemma, "past") &&
+          OBJECT_AFTER.test(after))
+    )
+      return null;
+    const singular = /^(?:he|she)$/i.test(subject);
+    const negated = !!neg || /\bnot\b/i.test(adverbs);
+    const ing = englishInflect(lemma, "ing");
+    const finite = negated || !singular ? lemma : englishInflect(lemma, "third");
+    if (!(!!ing && !!finite)) return null;
+    if (hasUserOrCasedWord(ctx, ctx.scanText.slice(m.index, verbSpan[1]))) return null;
+    const kase = detectWordCase(verb);
+    const support = applyWordCase(singular ? "does" : "do", kase);
+    const gap = ctx.source.slice(group(m, "adverbs")[1], verbSpan[0]);
+    const present = neg
+      ? `${subject} ${support}${neg}${adverbs}`
+      : `${subject}${adverbs.replace(/(?<![A-Za-z])not(?![A-Za-z])/i, (not) => `${support} ${not}`)}`;
+    return {
+      ruleId: "englishPerfectParticiples",
+      messageKey: "review_msg_be_base",
+      range: { start: m.index, end: verbSpan[1] },
+      alternatives: [
+        `${ctx.source.slice(m.index, verbSpan[0])}${applyWordCase(ing, kase)}`,
+        `${present}${gap}${applyWordCase(finite, kase)}`,
+      ],
+      requiresChoice: true as const,
+      context: {
+        start: Math.max(0, m.index - 96),
+        end: Math.min(ctx.text.length, verbSpan[1] + 32),
+      },
+    };
   },
   // common.yaml rule nounNumber frame 1
   "@nounNumber/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
