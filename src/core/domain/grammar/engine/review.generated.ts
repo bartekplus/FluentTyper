@@ -10393,112 +10393,112 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>he|she|it)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:agreementThirdPersonBase",
+    fixer: "en:@en.thirdPersonBase/1",
   }),
   frame({
     pattern:
       "(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:agreementNounSubject",
+    fixer: "en:@en.subjectAgreement/1",
   }),
   frame({
     pattern:
       '(?<=(?:^|[.!?;:\\n"“(—–]|(?:^|[^\\p{L}])(?:because|since|when|while|if|although|though|whereas|unless|until|but|whether|where)[ \\t\\u00a0])[ \\t\\u00a0"“‘\']{0,8})(?<target>[A-Za-z][a-z]+)[ \\t\\u00a0]{1,8}(?=[a-z])',
     literals: [],
-    fixer: "en:agreementBareSubject",
+    fixer: "en:@en.subjectAgreement/2",
   }),
   frame({
     pattern:
       "(?:(?<det>some|most|many|these|those|the|our|their|my|your|all|other)[ \\t\\u00a0]{1,8})?(?<target>people|children|men|women)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["people", "children", "men", "women"],
-    fixer: "en:agreementIrregularPlurals",
+    fixer: "en:@en.subjectAgreementIrregular/1",
   }),
   frame({
     pattern:
       "(?<target>these|those)(?:[ \\t\\u00a0]{1,8}(?:two|three|four|five|both|all))?[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["these", "those"],
-    fixer: "en:agreementDemonstratives1",
+    fixer: "en:@en.subjectAgreementDemonstratives/1",
   }),
   frame({
     pattern:
       "(?<target>this|that)[ \\t\\u00a0]{1,8}(?<verb>are|were)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["this", "that"],
-    fixer: "en:agreementDemonstratives2",
+    fixer: "en:@en.subjectAgreementDemonstratives/2",
   }),
   frame({
     pattern:
       "(?<aux>do|does|have|has|is|are|was|were)[ \\t\\u00a0]{1,8}(?:the|your|my|his|her|our|their)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?:ever|never|already|really|just|always|also|still|actually)(?=[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))?(?:[ \\t\\u00a0]{1,8}(?<verb>[a-z]+))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:agreementInvertedAuxiliary1",
+    fixer: "en:@en.subjectAgreementInverted/1",
     owner: "aux",
   }),
   frame({
     pattern:
       "(?<aux>does)[ \\t\\u00a0]{1,8}(?<subject>you|I|we|they)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["does"],
-    fixer: "en:agreementInvertedAuxiliary2",
+    fixer: "en:@en.subjectAgreementInverted/2",
     owner: "aux",
   }),
   frame({
     pattern:
       "(?:does|do|did)[ \\t\\u00a0]{1,8}(?:anyone|anybody|someone|somebody|everyone|nobody)(?:[ \\t\\u00a0]{1,8}here)?[ \\t\\u00a0]{1,8}(?<verb>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["anyone", "anybody", "someone", "somebody", "everyone", "nobody"],
-    fixer: "en:agreementInvertedAuxiliary3",
+    fixer: "en:@en.subjectAgreementInverted/3",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<det>the|these|those|my|our|their|his|her|your|all|many|some|most|this|that|a|an|every|each)[ \\t\\u00a0]{1,8}(?<head>(?:[a-z]+[ \\t\\u00a0]{1,8}){0,2}?[a-z]+)[ \\t\\u00a0]{1,8}(?:who|that)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["who", "that"],
-    fixer: "en:agreementRelativeClauseSubject",
+    fixer: "en:@en.subjectAgreementRelative/1",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<head>anyone|anybody|someone|somebody|everyone|everybody|nobody)[ \\t\\u00a0]{1,8}who[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: ["anyone", "anybody", "someone", "somebody", "everyone", "everybody", "nobody"],
-    fixer: "en:agreementRelativeClauseSubject",
+    fixer: "en:@en.subjectAgreementRelative/2",
     owner: "none",
   }),
   frame({
     pattern:
       "(?<name>[a-z]{2,})[ \\t\\u00a0]{1,8}(?<target>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:agreementNameSubject",
+    fixer: "en:@en.subjectAgreementName/1",
   }),
   frame({
     pattern:
       "(?:each[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|us|you|(?:the|these|those|my|your|our|their|his|her|its)(?:[ \\t\\u00a0]{1,8}[a-z]+){1,2})|the[ \\t\\u00a0]{1,8}number[ \\t\\u00a0]{1,8}of(?:[ \\t\\u00a0]{1,8}[a-z]+){1,2})[ \\t\\u00a0]{1,8}(?<verb>are|were|have|do)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["each", "number"],
-    fixer: "en:agreementQuantifiedSubjects1",
+    fixer: "en:@en.subjectAgreementQuantified/1",
     owner: "verb",
   }),
   frame({
     pattern:
       "both[ \\t\\u00a0]{1,8}of[ \\t\\u00a0]{1,8}(?:them|us|you|these|those)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["both"],
-    fixer: "en:agreementQuantifiedSubjects2",
+    fixer: "en:@en.subjectAgreementQuantified/2",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?:[a-z]{2,}|(?:the|my|your|his|her|our|their)[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}(?:the|my|your|his|her|our|their)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?<verb>is|was|has|does|[a-z]+s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["and"],
-    fixer: "en:agreementQuantifiedSubjects3",
+    fixer: "en:@en.subjectAgreementQuantified/3",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<aux>does|doesn['’]t)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+s)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["does", "doesn"],
-    fixer: "en:agreementQuantifiedSubjects4",
+    fixer: "en:@en.subjectAgreementQuantified/4",
     owner: "aux",
   }),
   frame({
     pattern:
       "(?<target>the|these|those|my|your|his|her|our|their|many|some|most|both|several|this|that|all|each)[ \\t\\u00a0]{1,8}(?=[a-z])",
     literals: [],
-    fixer: "en:agreementDistantSubject",
+    fixer: "en:@en.subjectAgreementDistant/1",
   }),
   frame({
     pattern:

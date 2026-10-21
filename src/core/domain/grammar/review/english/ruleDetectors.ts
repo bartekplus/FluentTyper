@@ -19,7 +19,6 @@ import * as nounNumberSlots from "./nounNumberSlots";
 import * as verbGroupSlots from "./verbGroupSlots";
 import * as complementSlots from "./complementSlots";
 import * as determinerSlots from "./determinerSlots";
-import * as agreementSlots from "./agreementSlots";
 import * as adverbSlots from "./adverbSlots";
 import * as confusionSlots from "./confusionSlots";
 import * as countSlots from "./countSlots";
@@ -83,7 +82,6 @@ export const FIXERS = mergePredicates<Fixer>(
   everydaySlots.FIXERS,
   wordFormSlots.FIXERS,
   verbGroupSlots.FIXERS,
-  agreementSlots.FIXERS,
   wordClassSlots.FIXERS,
   clauseSlots.FIXERS,
   collocationSlots.FIXERS,
