@@ -5,12 +5,20 @@ import type { LiveCode } from "../liveRules";
 import type { DetectContext, MatchResult, RawFinding } from "../../library";
 import {
   applyWordCase,
+  contextYear,
+  daysInMonth,
   detectWordCase,
   finding,
   namedExampleBefore,
+  nearestDayOn,
+  ptConjugate,
+  ptInfinitive,
   ptNoun,
+  ptVerbSlots,
   resolveMeasurementLocale,
   userWord,
+  weekdayOf,
+  yearsFor,
 } from "../../library";
 
 export const FEMININE_R: ReadonlySet<string> = new Set([
@@ -41,6 +49,137 @@ export const FEMININE_R: ReadonlySet<string> = new Set([
   "hospitalar",
   "curricular",
   "disciplinar",
+]);
+
+export const NOUN_R: ReadonlySet<string> = new Set([
+  "ser",
+  "seres",
+  "mulher",
+  "mulheres",
+  "poder",
+  "poderes",
+  "lugar",
+  "lugares",
+  "ar",
+  "lar",
+  "lares",
+  "qualquer",
+  "olhar",
+  "olhares",
+  "mar",
+  "mares",
+  "líder",
+  "líderes",
+  "câncer",
+  "celular",
+  "celulares",
+  "prazer",
+  "prazeres",
+  "caráter",
+  "dever",
+  "deveres",
+  "saber",
+  "saberes",
+  "titular",
+  "titulares",
+  "jantar",
+  "jantares",
+  "par",
+  "pares",
+  "bar",
+  "bares",
+  "militar",
+  "militares",
+  "familiar",
+  "familiares",
+  "açúcar",
+  "parlamentar",
+  "parlamentares",
+  "altar",
+  "altares",
+  "dólar",
+  "dólares",
+  "colher",
+  "colheres",
+  "talher",
+  "talheres",
+  "pilar",
+  "pilares",
+  "radar",
+  "luar",
+  "patamar",
+  "polegar",
+  "escolar",
+  "escolares",
+  "similar",
+  "similares",
+  "popular",
+  "populares",
+  "particular",
+  "particulares",
+  "exemplar",
+  "exemplares",
+]);
+
+export const VERB_LATER: ReadonlySet<string> = new Set([
+  "ser",
+  "poder",
+  "dever",
+  "saber",
+  "olhar",
+  "jantar",
+]);
+
+export const KEEP_SPACED: ReadonlySet<string> = new Set(["sub judice", "sub rosa", "pós doc"]);
+
+export const SUBJECTS: ReadonlySet<string> = new Set([
+  "eu",
+  "tu",
+  "ele",
+  "ela",
+  "você",
+  "nós",
+  "eles",
+  "elas",
+  "vocês",
+]);
+
+export const STATEMENT_VERB: ReadonlySet<string> = new Set([
+  "é",
+  "era",
+  "foi",
+  "será",
+  "sei",
+  "sabe",
+  "sabem",
+  "sabemos",
+  "saber",
+  "pergunto",
+  "mistério",
+  "depende",
+  "interessa",
+  "importa",
+]);
+
+export const AUXILIARY_NOT_VERBS: ReadonlySet<string> = new Set([
+  "para",
+  "nada",
+  "cada",
+  "casa",
+  "toda",
+  "fora",
+  "pra",
+  "agora",
+  "parte",
+  "sorte",
+  "mente",
+  "corte",
+  "porte",
+  "forte",
+  "norte",
+  "peste",
+  "vale",
+  "sede",
 ]);
 
 export const NOUN_TWIN: Readonly<Record<string, string>> = {
@@ -190,9 +329,267 @@ export const HAD_TO: Readonly<Record<string, string>> = {
   estiveram: "tiveram",
 };
 
+export const FUSED: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  a: {
+    a: "à",
+    as: "às",
+    o: "ao",
+    os: "aos",
+    aquele: "àquele",
+    aquela: "àquela",
+    aqueles: "àqueles",
+    aquelas: "àquelas",
+    aquilo: "àquilo",
+  },
+  de: {
+    a: "da",
+    as: "das",
+    o: "do",
+    os: "dos",
+    este: "deste",
+    esta: "desta",
+    estes: "destes",
+    estas: "destas",
+    esse: "desse",
+    essa: "dessa",
+    esses: "desses",
+    essas: "dessas",
+    aquele: "daquele",
+    aquela: "daquela",
+    aqueles: "daqueles",
+    aquelas: "daquelas",
+    aquilo: "daquilo",
+    ele: "dele",
+    ela: "dela",
+    eles: "deles",
+    elas: "delas",
+    isto: "disto",
+    isso: "disso",
+    aqui: "daqui",
+    ali: "dali",
+    aí: "daí",
+  },
+  em: {
+    a: "na",
+    as: "nas",
+    o: "no",
+    os: "nos",
+    este: "neste",
+    esta: "nesta",
+    estes: "nestes",
+    estas: "nestas",
+    esse: "nesse",
+    essa: "nessa",
+    esses: "nesses",
+    essas: "nessas",
+    aquele: "naquele",
+    aquela: "naquela",
+    aqueles: "naqueles",
+    aquelas: "naquelas",
+    aquilo: "naquilo",
+    ele: "nele",
+    ela: "nela",
+    eles: "neles",
+    elas: "nelas",
+    isto: "nisto",
+    isso: "nisso",
+  },
+  por: { a: "pela", as: "pelas", o: "pelo", os: "pelos" },
+};
+
+export const COUNTRIES: Readonly<Record<string, string>> = {
+  Brasil: "o",
+  Japão: "o",
+  Canadá: "o",
+  México: "o",
+  Peru: "o",
+  Chile: "o",
+  Uruguai: "o",
+  Paraguai: "o",
+  Equador: "o",
+  Egito: "o",
+  Egipto: "o",
+  Iraque: "o",
+  Irã: "o",
+  Irão: "o",
+  Afeganistão: "o",
+  Paquistão: "o",
+  Vietnã: "o",
+  Vietname: "o",
+  Vaticano: "o",
+  "Reino Unido": "o",
+  China: "a",
+  Índia: "a",
+  Argentina: "a",
+  Bolívia: "a",
+  Colômbia: "a",
+  Venezuela: "a",
+  Rússia: "a",
+  Austrália: "a",
+  "Nova Zelândia": "a",
+  "Nova Guiné": "a",
+  "Costa Rica": "a",
+  "Costa do Marfim": "a",
+  "África do Sul": "a",
+  Suíça: "a",
+  Suécia: "a",
+  Noruega: "a",
+  Finlândia: "a",
+  Holanda: "a",
+  Bélgica: "a",
+  Turquia: "a",
+  Coreia: "a",
+  Tailândia: "a",
+  Indonésia: "a",
+  Nigéria: "a",
+  "Estados Unidos": "os",
+  EUA: "os",
+};
+
+export const WITH_ARTICLE: Readonly<Record<string, Readonly<Record<string, string>>>> = {
+  em: { o: "no", a: "na", os: "nos" },
+  de: { o: "do", a: "da", os: "dos" },
+  a: { o: "ao", a: "à", os: "aos" },
+  para: { o: "para o", a: "para a", os: "para os" },
+  por: { o: "pelo", a: "pela", os: "pelos" },
+};
+
 export const ORDINAL: Readonly<Record<string, string>> = { o: "º", a: "ª", os: "ºs", as: "ªs" };
 
 export const SUPERSCRIPT: Readonly<Record<string, string>> = { "2": "²", "3": "³" };
+
+export const PREFIXES: Readonly<Record<string, string>> = {
+  anti: "i",
+  auto: "o",
+  contra: "a",
+  extra: "a",
+  infra: "a",
+  intra: "a",
+  ultra: "a",
+  mega: "a",
+  micro: "o",
+  macro: "o",
+  neo: "o",
+  pseudo: "o",
+  proto: "o",
+  semi: "i",
+  mini: "i",
+  multi: "i",
+  arqui: "i",
+  tele: "e",
+  bio: "o",
+  super: "r",
+  hiper: "r",
+  inter: "r",
+  sub: "rb",
+  bi: "i",
+  tri: "i",
+  tetra: "a",
+  penta: "a",
+  hexa: "a",
+  euro: "o",
+  pan: "aeiouáéíóúmn",
+  circum: "aeiouáéíóúmn",
+  co: "",
+};
+
+export const GERUND_ENDING: Readonly<Record<string, string>> = {
+  ando: "ar",
+  endo: "er",
+  indo: "ir",
+};
+
+export const ACTION_NOUNS: Readonly<Record<string, string>> = {
+  "a seleção": "selecionar",
+  "a coleta": "coletar",
+  "a distribuição": "distribuir",
+  "a preparação": "preparar",
+  "a aplicação": "aplicar",
+  "a configuração": "configurar",
+  "a remoção": "remover",
+  "a inclusão": "incluir",
+  "a exclusão": "excluir",
+  "a alteração": "alterar",
+  "a modificação": "modificar",
+  "a identificação": "identificar",
+  "a classificação": "classificar",
+  "a elaboração": "elaborar",
+  "a execução": "executar",
+  "a programação": "programar",
+  "a negociação": "negociar",
+  "a reformulação": "reformular",
+  "a validação": "validar",
+  "a aprovação": "aprovar",
+  "a utilização": "utilizar",
+  "a marcação": "marcar",
+  "a digitação": "digitar",
+  "a conversão": "converter",
+  "a edição": "editar",
+  "a publicação": "publicar",
+  "a gravação": "gravar",
+  "a emissão": "emitir",
+  "a solicitação": "solicitar",
+  "a apuração": "apurar",
+  "a análise": "analisar",
+  "a avaliação": "avaliar",
+  "a verificação": "verificar",
+  "a correção": "corrigir",
+  "a instalação": "instalar",
+  "a organização": "organizar",
+  "a limpeza": "limpar",
+  "a entrega": "entregar",
+  "a divulgação": "divulgar",
+  "a contratação": "contratar",
+  "a criação": "criar",
+  "a atualização": "atualizar",
+  "a implementação": "implementar",
+  "a revisão": "revisar",
+  "a leitura": "ler",
+  "a descrição": "descrever",
+  "o planejamento": "planejar",
+  "o agendamento": "agendar",
+  "o orçamento": "orçar",
+  "o conserto": "consertar",
+  "o preenchimento": "preencher",
+  "o tratamento": "tratar",
+  "o armazenamento": "armazenar",
+  "o processamento": "processar",
+  "o desenvolvimento": "desenvolver",
+  "o mapeamento": "mapear",
+  "o lançamento": "lançar",
+  "o encerramento": "encerrar",
+  "o recebimento": "receber",
+  "o fornecimento": "fornecer",
+  "o treinamento": "treinar",
+  "o ajuste": "ajustar",
+  "o cálculo": "calcular",
+  "o cadastro": "cadastrar",
+  "o registro": "registrar",
+  "o envio": "enviar",
+  "o acompanhamento": "acompanhar",
+  "o monitoramento": "monitorar",
+  "o pagamento": "pagar",
+};
+
+export const TORNAR: Readonly<Record<string, string>> = {
+  possível: "possibilitar",
+  impossível: "impossibilitar",
+  "mais fácil": "facilitar",
+  "mais difícil": "dificultar",
+  "mais forte": "fortalecer",
+  "mais fraco": "enfraquecer",
+  "mais claro": "esclarecer",
+  "mais rápido": "acelerar",
+};
+
+export const ARTICLE_AFTER: Readonly<Record<string, string>> = {
+  o: " o",
+  a: " a",
+  os: " os",
+  as: " as",
+};
+
+export const GOOD: Readonly<Record<string, string>> = { bom: "", boa: "", bons: "s", boas: "s" };
 
 // pt_BR.yaml rule pt_BR.confusions def CLAUSE_START
 export const CLAUSE_START = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
@@ -214,6 +611,30 @@ export function crase(
     context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
     ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
   };
+}
+
+// pt_BR.yaml rule pt_BR.contractions def INFINITIVE_FORM
+export const INFINITIVE_FORM =
+  /^(?:\p{L}+(?:ar|er|ir|ares|eres|ires|armos|ermos|irmos|arem|erem|irem)|\p{L}*p[oô]r|\p{L}*por(?:es|mos|em)|\p{L}+(?:ar|er|ir)-(?:me|te|se|lhes?|nos|vos)|\p{L}+[áêíô]-[ln][oa]s?)$/u;
+
+// pt_BR.yaml rule pt_BR.contractions def CLAUSE_AHEAD
+export const CLAUSE_AHEAD = /^[^.;:!?()\n]{0,80}/;
+
+// pt_BR.yaml rule pt_BR.contractions def MODAL_BEFORE
+export const MODAL_BEFORE =
+  /(?<![\p{L}])(?:pode|posso|podemos|podem|podia|quero|queremos|quer|queria|deve|devemos|devem|deveria|preciso|precisamos|precisa|precisam|para|sem|que|de|há|hei)[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.contractions def CONTRACTION_START
+export const CONTRACTION_START = /(?:^|[.!?:;]["”»)]?[ \t\u00a0]*|\n[ \t\u00a0]*)$/;
+
+// pt_BR.yaml rule pt_BR.contractions def infinitiveAhead
+export function infinitiveAhead(text: string) {
+  return (CLAUSE_AHEAD.exec(text)![0].match(/[\p{L}\p{M}-]+/gu) ?? []).some(
+    (word, index, words) =>
+      INFINITIVE_FORM.test(word) &&
+      (!NOUN_R.has(word.toLowerCase()) ||
+        (VERB_LATER.has(word.toLowerCase()) && (index > 0 || words.length === 1))),
+  );
 }
 
 // pt_BR.yaml rule pt_BR.typographyStyleFrames def ROMAN
@@ -245,6 +666,246 @@ export const RANGE_CODE =
 // pt_BR.yaml rule pt_BR.rangeDash def RANGE_SCORE
 export const RANGE_SCORE =
   /(?:^|[^\p{L}])(?:venc|ganh|perd|derrot|empat|golead|goleou|placar|resultado|partida|jogo|set|vitória|derrota)\p{L}*(?:[ \t\u00a0]+\p{L}+){0,3}[ \t\u00a0]+$/iu;
+
+// pt_BR.yaml rule pt_BR.ao90 def SMALL_WORDS
+export const SMALL_WORDS = /^(?:que|em|de|do|da|dos|das|e|o|a|os|as|no|na|com|para|por|se|um|uma)$/;
+
+// pt_BR.yaml rule pt_BR.ao90 def NAMED_PLACE
+export const NAMED_PLACE =
+  /(?<![\p{L}])(?:Rua|Avenida|Av\.|Praça|Largo|Travessa|Estrada|Rodovia|Ponte|Estádio|Escola|Colégio|Parque|Vila|Bairro|Jardim|Hospital|Revolução)[ \t\u00a0]+(?:\d{1,2}|\p{Lu}\p{Ll}+)[ \t\u00a0]+de[ \t\u00a0]+$/u;
+
+// pt_BR.yaml rule pt_BR.ao90 def joinPrefix
+export function joinPrefix(prefix: string, word: string) {
+  return prefix === "co"
+    ? `co${word[0] === "h" ? word.slice(1) : word}`
+    : word[0] === "h" || PREFIXES[prefix].includes(word[0])
+      ? `${prefix}-${word}`
+      : /[aeiou]$/.test(prefix) && /^[rs]/.test(word)
+        ? `${prefix}${word[0]}${word}`
+        : `${prefix}${word}`;
+}
+
+// pt_BR.yaml rule pt_BR.ao90 def ao90Finding
+export function ao90Finding(ctx: DetectContext, start: number, end: number, replacement: string) {
+  if (ctx.dictionary.has(ctx.text.slice(start, end).toLowerCase())) return null;
+  return finding("portugueseAO90", "review_msg_pt_ao90", start, end, [replacement]);
+}
+
+// pt_BR.yaml rule pt_BR.invalidDates def MONTH_NAMES
+export const MONTH_NAMES =
+  "janeiro fevereiro março abril maio junho julho agosto setembro outubro novembro dezembro".split(
+    " ",
+  );
+
+// pt_BR.yaml rule pt_BR.invalidDates def WEEKDAY_NAMES
+export const WEEKDAY_NAMES = "domingo segunda terça quarta quinta sexta sábado".split(" ");
+
+// pt_BR.yaml rule pt_BR.invalidDates def DATE_CUE
+export const DATE_CUE =
+  /(?:^|[\s(])(?:em|desde|até|dia|data|prazo|vence)(?:[ \t]+(?:é|era|foi|será))?[ \t]*:?[ \t]{1,8}$/iu;
+
+// pt_BR.yaml rule pt_BR.invalidDates def monthOf
+export function monthOf(name: string) {
+  return MONTH_NAMES.findIndex((month) => month.startsWith(name.toLowerCase())) + 1;
+}
+
+// pt_BR.yaml rule pt_BR.invalidDates def dateExists
+export function dateExists(day: number, month: number, year?: number) {
+  return month >= 1 && month <= 12 && day >= 1 && day <= daysInMonth(month, year);
+}
+
+// pt_BR.yaml rule pt_BR.invalidDates def invalidDate
+export function invalidDate(m: RegExpExecArray): RawFinding {
+  return {
+    ruleId: "portugueseDates",
+    messageKey: "review_msg_pt_invalid_date",
+    range: { start: m.index, end: m.index + m[0].length },
+    alternatives: [],
+    warningOnly: true,
+  };
+}
+
+// pt_BR.yaml rule pt_BR.invalidDates def weekdayLike
+export function weekdayLike(typed: string, full: string) {
+  return /^\p{Lu}/u.test(typed) ? full[0].toUpperCase() + full.slice(1) : full;
+}
+
+// pt_BR.yaml rule pt_BR.invalidDates def wrongWeekday
+export function wrongWeekday(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  month: number,
+  dayGroup: string,
+): RawFinding | null {
+  const weekday = m.groups!.weekday;
+  const year = m.groups!.year as string | undefined;
+  const day = Number(m.groups![dayGroup]);
+  if (!dateExists(day, month, year === undefined ? undefined : Number(year))) return null;
+  const years =
+    year === undefined
+      ? yearsFor(month, day, contextYear(ctx.text, m.index, ctx.lang))
+      : [Number(year)];
+  const weekdays = [...new Set(years.map((one) => weekdayOf(one, month, day)))];
+  const typed = WEEKDAY_NAMES.findIndex((name) =>
+    name.startsWith(weekday.toLowerCase().slice(0, 3)),
+  );
+  if (!years.length || weekdays.includes(typed)) return null;
+  const text = m[0];
+  const alternatives = weekdays.map(
+    (actual) =>
+      `${weekdayLike(weekday, WEEKDAY_NAMES[actual] + (actual % 6 === 0 ? "" : "-feira"))}${text.slice(weekday.length)}`,
+  );
+  const shifted = nearestDayOn(years[0], month, day, typed);
+  const dayAt = m.indices!.groups![dayGroup].map((at) => at - m.index);
+  return {
+    ruleId: "portugueseDates",
+    messageKey: year === undefined ? "review_msg_weekday_no_year" : "review_msg_pt_weekday_date",
+    range: { start: m.index, end: m.index + text.length },
+    alternatives:
+      shifted !== null
+        ? [...alternatives, `${text.slice(0, dayAt[0])}${shifted}${text.slice(dayAt[1])}`]
+        : alternatives,
+    requiresChoice: true,
+  };
+}
+
+// pt_BR.yaml rule pt_BR.commas def NO_COMMA_BEFORE
+export const NO_COMMA_BEFORE =
+  /^(?:e|mas|ou|nem|que|pois|porém|se|quando|como|onde|porque|então|logo|assim|também)$/iu;
+
+// pt_BR.yaml rule pt_BR.commas def MAS_NO_COMMA
+export const MAS_NO_COMMA = /^(?:e|ou|nem|não|só|somente|apenas|mas|que|porém)$/iu;
+
+// pt_BR.yaml rule pt_BR.commas def commaAt
+export function commaAt(m: RegExpExecArray, fixed: string) {
+  const span = m.indices!.groups!.target;
+  return finding("portugueseCommas", "review_msg_pt_comma", span[0], span[1], [fixed], {
+    context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
+  });
+}
+
+// pt_BR.yaml rule pt_BR.commas def direct
+export function direct(rest: string) {
+  const words = rest.toLowerCase().match(/\p{L}+/gu) ?? [];
+  return (
+    !words.some((word) => STATEMENT_VERB.has(word)) &&
+    !words.some((word, index) => index > 0 && SUBJECTS.has(word))
+  );
+}
+
+// pt_BR.yaml rule pt_BR.verbFrames def ACTION_SLOTS
+export const ACTION_SLOTS = ptVerbSlots(["fazer", "realizar", "efetuar"]);
+
+// pt_BR.yaml rule pt_BR.verbFrames def TORNAR_SLOTS
+export const TORNAR_SLOTS = ptVerbSlots(["tornar"]);
+
+// pt_BR.yaml rule pt_BR.verbFrames def verbFrame
+export function verbFrame(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  slots: ReadonlyMap<string, number>,
+  complements: Readonly<Record<string, string>>,
+) {
+  const head = m.groups!.head;
+  const of = m.groups!.of as string | undefined;
+  const span = m.indices!.groups!.target;
+  const words = m.groups!.target.split(/[ \t\u00a0]+/);
+  if (
+    words.some(
+      (word, i) => (i > 0 && word !== word.toLowerCase()) || ctx.dictionary.has(word.toLowerCase()),
+    )
+  )
+    return null;
+  const slot = slots.get(head.toLowerCase());
+  const verb = complements[m.groups!.complement.toLowerCase().replace(/[ \t\u00a0]+/, " ")] as
+    string | undefined;
+  if (!(slot !== undefined && !!verb)) return null;
+  const article = !of || of.toLowerCase() === "de" ? "" : ` ${of.slice(1).toLowerCase()}`;
+  const plain = `${ptConjugate(verb)[slot]}${article}`;
+  return finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], [
+    /^\p{Lu}/u.test(head) ? plain[0].toUpperCase() + plain.slice(1) : plain,
+  ]);
+}
+
+// pt_BR.yaml rule pt_BR.formalVerbs def ACHAR_SLOTS
+export const ACHAR_SLOTS = ptVerbSlots(["achar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def BAIXAR_SLOTS
+export const BAIXAR_SLOTS = ptVerbSlots(["baixar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def PASSAR_SLOTS
+export const PASSAR_SLOTS = ptVerbSlots(["passar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def PEGAR_SLOTS
+export const PEGAR_SLOTS = ptVerbSlots(["pegar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def ARRUMAR_SLOTS
+export const ARRUMAR_SLOTS = ptVerbSlots(["arrumar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def FAZER_SLOTS
+export const FAZER_SLOTS = ptVerbSlots(["fazer"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def DEIXAR_SLOTS
+export const DEIXAR_SLOTS = ptVerbSlots(["deixar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def PEDIR_SLOTS
+export const PEDIR_SLOTS = ptVerbSlots(["pedir"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def CHATEAR_SLOTS
+export const CHATEAR_SLOTS = ptVerbSlots(["chatear"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def ATURAR_SLOTS
+export const ATURAR_SLOTS = ptVerbSlots(["aturar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def JOGAR_SLOTS
+export const JOGAR_SLOTS = ptVerbSlots(["jogar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def FALAR_SLOTS
+export const FALAR_SLOTS = ptVerbSlots(["falar"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def MEXER_SLOTS
+export const MEXER_SLOTS = ptVerbSlots(["mexer"]);
+
+// pt_BR.yaml rule pt_BR.formalVerbs def formalFinding
+export function formalFinding(ctx: DetectContext, m: RegExpExecArray, alternatives: string[]) {
+  const span = m.indices!.groups!.target;
+  const typed = m.groups!.target;
+  if (typed.split(/[ \t\u00a0]+/).some((word) => ctx.dictionary.has(word.toLowerCase())))
+    return null;
+  const cased = /^\p{Lu}/u.test(typed)
+    ? alternatives.map((alt) => alt[0].toUpperCase() + alt.slice(1))
+    : alternatives;
+  return finding("stylePhrasing", "review_msg_style_phrasing", span[0], span[1], cased, {
+    ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+  });
+}
+
+// pt_BR.yaml rule pt_BR.formalVerbs def formalSwap
+export function formalSwap(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  slots: ReadonlyMap<string, number>,
+  formal: string[],
+  statement: boolean,
+) {
+  const head = m.groups!.head;
+  if (!(head === head.toLowerCase() || /^\p{Lu}\p{Ll}*$/u.test(head))) return null;
+  const of = m.groups!.of as string | undefined;
+  const slot = slots.get(head.toLowerCase());
+  if (!(slot !== undefined)) return null;
+  if (statement && /^[^.!?\n]*\?/.test(ctx.text.slice(m.index, m.index + 200))) return null;
+  const article = of
+    ? (ARTICLE_AFTER[of.toLowerCase().replace(/^(?:d|n|sobre\s+)/, "")] ?? "")
+    : "";
+  return formalFinding(
+    ctx,
+    m,
+    formal.map(
+      (verb) =>
+        [ptConjugate(verb.split(" ")[0])[slot], ...verb.split(" ").slice(1)].join(" ") + article,
+    ),
+  );
+}
 
 // pt_BR.yaml rule pt_BR.sentenceStartNumbers def UNITS
 export const UNITS =
@@ -493,6 +1154,46 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (FEMININE_R.has(verb) || ctx.dictionary.has(verb)) return null;
     return crase(ctx, m, ["a"]);
   },
+  // pt_BR.yaml rule pt_BR.contractions frame 1
+  "@pt_BR.contractions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    if (!(second === second.toLowerCase())) return null;
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (first !== first.toLowerCase() && !CONTRACTION_START.test(before)) return null;
+    const fused = FUSED[first.toLowerCase()][second];
+    if (!fused) return null;
+    const end = m.index + target.length;
+    if (infinitiveAhead(ctx.text.slice(end, end + 96))) return null;
+    if (first.toLowerCase() === "por" && MODAL_BEFORE.test(before)) return null;
+    if (ctx.dictionary.has(target.toLowerCase())) return null;
+    return {
+      ruleId: "portugueseContractions",
+      messageKey: "review_msg_pt_contraction",
+      range: { start: m.index, end },
+      alternatives: [applyWordCase(fused, detectWordCase(first))],
+      context: { start: m.index, end: Math.min(ctx.text.length, end + 24) },
+    };
+  },
+  // pt_BR.yaml rule pt_BR.contractions frame 2
+  "@pt_BR.contractions/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const country = m.groups!.country;
+    if (!(first === first.toLowerCase())) return null;
+    const name = country.replace(/[ \t ]+/g, " ");
+    const article = COUNTRIES[name];
+    if (!article || (first === "a" && article === "a") || ctx.dictionary.has(name.toLowerCase()))
+      return null;
+    const span = m.indices!.groups!.target;
+    if (/^[ \t ]+\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 3))) return null;
+    return {
+      ruleId: "portugueseContractions",
+      messageKey: "review_msg_pt_country_article",
+      range: { start: span[0], end: span[1] },
+      alternatives: [`${WITH_ARTICLE[first][article]} ${country}`],
+    };
+  },
   // pt_BR.yaml rule pt_BR.numberFormat frame 2
   "@pt_BR.numberFormat/2": (m: RegExpExecArray): string => {
     const target = m.groups!.target;
@@ -598,6 +1299,431 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     return finding("emdashShortcut", "review_msg_range_dash", at, at + dash.length, ["–"], {
       context: { start: m.index, end: m.index + whole.length },
     });
+  },
+  // pt_BR.yaml rule pt_BR.ao90 frame 1
+  "@pt_BR.ao90/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prefix = m.groups!.prefix;
+    const word = m.groups!.word;
+    const fixed = joinPrefix(prefix, word);
+    if (!(fixed !== m[0])) return null;
+    return ao90Finding(ctx, m.index, m.index + m[0].length, fixed);
+  },
+  // pt_BR.yaml rule pt_BR.ao90 frame 2
+  "@pt_BR.ao90/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const prefix = m.groups!.prefix;
+    const word = m.groups!.word;
+    if (KEEP_SPACED.has(target.toLowerCase()) || SMALL_WORDS.test(word)) return null;
+    if (!(prefix === prefix.toLowerCase() && word === word.toLowerCase())) return null;
+    return ao90Finding(ctx, m.index, m.index + target.length, joinPrefix(prefix, word));
+  },
+  // pt_BR.yaml rule pt_BR.ao90 frame 3
+  "@pt_BR.ao90/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const prefix = m.groups!.prefix;
+    const word = m.groups!.word;
+    if (KEEP_SPACED.has(target.toLowerCase()) || SMALL_WORDS.test(word)) return null;
+    if (!(prefix === prefix.toLowerCase() && word === word.toLowerCase())) return null;
+    return ao90Finding(ctx, m.index, m.index + target.length, `${prefix}-${word}`);
+  },
+  // pt_BR.yaml rule pt_BR.ao90 frame 4
+  "@pt_BR.ao90/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const word = m.groups!.word;
+    if (!(target === target.toLowerCase() && word !== "me")) return null;
+    return ao90Finding(ctx, m.index, m.index + target.length, `não ${word}`);
+  },
+  // pt_BR.yaml rule pt_BR.ao90 frame 5
+  "@pt_BR.ao90/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!/^\p{Lu}\p{Ll}/u.test(target)) return null;
+    const span = m.indices!.groups!.target;
+    if (
+      /-F/.test(target) ||
+      /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
+    )
+      return null;
+    if (NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))) return null;
+    return ao90Finding(ctx, span[0], span[1], target.toLowerCase());
+  },
+  // pt_BR.yaml rule pt_BR.ao90 frame 6
+  "@pt_BR.ao90/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!/^\p{Lu}\p{Ll}/u.test(target)) return null;
+    const span = m.indices!.groups!.target;
+    if (
+      /-F/.test(target) ||
+      /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
+    )
+      return null;
+    if (NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))) return null;
+    return ao90Finding(ctx, span[0], span[1], target.toLowerCase());
+  },
+  // pt_BR.yaml rule pt_BR.ao90 frame 7
+  "@pt_BR.ao90/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!/^\p{Lu}\p{Ll}/u.test(target)) return null;
+    const span = m.indices!.groups!.target;
+    if (
+      /-F/.test(target) ||
+      /^[ \t ]+(?:de[ \t ]+)?\p{Lu}/u.test(ctx.text.slice(span[1], span[1] + 8))
+    )
+      return null;
+    if (NAMED_PLACE.test(ctx.text.slice(Math.max(0, span[0] - 40), span[0]))) return null;
+    return ao90Finding(ctx, span[0], span[1], target.toLowerCase());
+  },
+  // pt_BR.yaml rule pt_BR.invalidDates frame 1
+  "@pt_BR.invalidDates/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const month = m.groups!.month;
+    return wrongWeekday(ctx, m, monthOf(month), "day");
+  },
+  // pt_BR.yaml rule pt_BR.invalidDates frame 2
+  "@pt_BR.invalidDates/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const month = m.groups!.month;
+    return wrongWeekday(ctx, m, monthOf(month), "day");
+  },
+  // pt_BR.yaml rule pt_BR.invalidDates frame 3
+  "@pt_BR.invalidDates/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const month = m.groups!.month;
+    return wrongWeekday(ctx, m, monthOf(month), "day");
+  },
+  // pt_BR.yaml rule pt_BR.invalidDates frame 4
+  "@pt_BR.invalidDates/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const month = m.groups!.month;
+    return wrongWeekday(ctx, m, Number(month), "day");
+  },
+  // pt_BR.yaml rule pt_BR.invalidDates frame 5
+  "@pt_BR.invalidDates/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    return Number(a) > 12 && Number(b) <= 12
+      ? wrongWeekday(ctx, m, Number(b), "a")
+      : Number(b) > 12 && Number(a) <= 12
+        ? wrongWeekday(ctx, m, Number(a), "b")
+        : null;
+  },
+  // pt_BR.yaml rule pt_BR.invalidDates frame 6
+  "@pt_BR.invalidDates/6": (m: RegExpExecArray): MatchResult => {
+    const day = m.groups!.day;
+    const month = m.groups!.month;
+    const given = m.groups!.year as string | undefined;
+    if (dateExists(Number(day), monthOf(month), given === undefined ? undefined : Number(given)))
+      return null;
+    return invalidDate(m);
+  },
+  // pt_BR.yaml rule pt_BR.invalidDates frame 7
+  "@pt_BR.invalidDates/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const day = m.groups!.day;
+    const sep = m.groups!.sep;
+    const month = m.groups!.month;
+    const year = m.groups!.year;
+    if (/^(?:0+|9+)$/.test(day + month) && day[0] === month[0]) return null;
+    const fullYear = year.length === 4 ? Number(year) : undefined;
+    if (sep === "." && fullYear === undefined) return null;
+    if (
+      sep === "." &&
+      (Number(day) > 31 || Number(month) > 31) &&
+      !DATE_CUE.test(ctx.text.slice(Math.max(0, m.index - 16), m.index))
+    )
+      return null;
+    if (
+      dateExists(Number(day), Number(month), fullYear) ||
+      dateExists(Number(month), Number(day), fullYear)
+    )
+      return null;
+    return invalidDate(m);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 1
+  "@pt_BR.commas/1": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return commaAt(m, `${target},`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 2
+  "@pt_BR.commas/2": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 3
+  "@pt_BR.commas/3": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return commaAt(m, `${target},`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 4
+  "@pt_BR.commas/4": (m: RegExpExecArray): MatchResult => {
+    const lead = m.groups!.lead;
+    const target = m.groups!.target;
+    if (NO_COMMA_BEFORE.test(lead)) return null;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 5
+  "@pt_BR.commas/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!/^\p{Lu}/u.test(ctx.text.slice(m.indices!.groups!.target[1]))) return null;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 6
+  "@pt_BR.commas/6": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 7
+  "@pt_BR.commas/7": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 8
+  "@pt_BR.commas/8": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 9
+  "@pt_BR.commas/9": (m: RegExpExecArray): MatchResult => {
+    const lead = m.groups!.lead;
+    const target = m.groups!.target;
+    if (MAS_NO_COMMA.test(lead)) return null;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 10
+  "@pt_BR.commas/10": (m: RegExpExecArray): MatchResult => {
+    const lead = m.groups!.lead;
+    const target = m.groups!.target;
+    if (MAS_NO_COMMA.test(lead)) return null;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 11
+  "@pt_BR.commas/11": (m: RegExpExecArray): MatchResult => {
+    const lead = m.groups!.lead;
+    const target = m.groups!.target;
+    if (/^(?:e|ou|nem)$/iu.test(lead)) return null;
+    return commaAt(m, `,${target}`);
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 12
+  "@pt_BR.commas/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const before = m.groups!.before;
+    const after = m.groups!.after;
+    if (before && after) return null;
+    const start = m.indices!.groups!.before[0];
+    if (start < ctx.from || start >= ctx.to) return null;
+    const end = m.index + m[0].length;
+    const typed = ctx.text.slice(start, end);
+    return {
+      ruleId: "portugueseCommas",
+      messageKey: "review_msg_pt_comma",
+      range: { start, end },
+      alternatives: [`, ${typed.replace(/^,?[ \t ]+/, "").replace(/,$/, "")},`],
+      context: { start: m.index, end },
+    };
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 13
+  "@pt_BR.commas/13": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    return commaAt(m, target.replace(/[.;]?$/, ","));
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 14
+  "@pt_BR.commas/14": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    if (!/[ \t ]\p{Lu}|senhor|doutor|professor|colegas|amig|clientes/u.test(m[0])) return null;
+    return commaAt(m, target.replace(/!?$/, ","));
+  },
+  // pt_BR.yaml rule pt_BR.commas frame 15
+  "@pt_BR.commas/15": (m: RegExpExecArray): MatchResult => {
+    if (!direct(m[0].replace(/^.*?(?:foi|é|era)[ \t ]+que/isu, ""))) return null;
+    const span = m.indices!.groups!.target;
+    return finding("portugueseCommas", "review_msg_pt_question_mark", span[0], span[1], ["?"], {
+      context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
+    });
+  },
+  // pt_BR.yaml rule pt_BR.introductoryCommas frame 1
+  "@pt_BR.introductoryCommas/1": (m: RegExpExecArray): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    return {
+      ruleId: "styleIntroductoryComma",
+      messageKey: "review_msg_introductory_comma",
+      range: { start: span[0], end: span[1] },
+      alternatives: [`,${target}`],
+      context: { start: m.index, end: span[1] },
+    };
+  },
+  // pt_BR.yaml rule pt_BR.auxiliaryInfinitives frame 1
+  "@pt_BR.auxiliaryInfinitives/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (ctx.dictionary.has(target.toLowerCase())) return null;
+    const lower = target.toLowerCase();
+    const fixed =
+      lower === "pondo" ? "pôr" : `${lower.slice(0, -4)}${GERUND_ENDING[lower.slice(-4)]}`;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_auxiliary_infinitive",
+      span[0],
+      span[1],
+      [fixed],
+      { context: { start: m.index, end: span[1] } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.auxiliaryInfinitives frame 2
+  "@pt_BR.auxiliaryInfinitives/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const span = m.indices!.groups!.target;
+    const typed = ctx.text.slice(span[0], span[1] + 2);
+    if (ctx.dictionary.has(typed.toLowerCase())) return null;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_auxiliary_infinitive",
+      span[0],
+      span[1] + 2,
+      [target],
+      { context: { start: m.index, end: span[1] + 2 } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.auxiliaryInfinitives frame 3
+  "@pt_BR.auxiliaryInfinitives/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (target.length < 4 || AUXILIARY_NOT_VERBS.has(target) || ctx.dictionary.has(target))
+      return null;
+    const fixed = ptInfinitive(target);
+    if (!(fixed !== null)) return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_auxiliary_infinitive",
+      span[0],
+      span[1],
+      [fixed],
+      { context: { start: m.index, end: span[1] } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.auxiliaryInfinitives frame 4
+  "@pt_BR.auxiliaryInfinitives/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (target.length < 4 || AUXILIARY_NOT_VERBS.has(target) || ctx.dictionary.has(target))
+      return null;
+    const fixed = ptInfinitive(target);
+    if (!(fixed !== null)) return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_auxiliary_infinitive",
+      span[0],
+      span[1],
+      [fixed],
+      { context: { start: m.index, end: span[1] } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.auxiliaryInfinitives frame 5
+  "@pt_BR.auxiliaryInfinitives/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (target.length < 4 || AUXILIARY_NOT_VERBS.has(target) || ctx.dictionary.has(target))
+      return null;
+    const fixed = ptInfinitive(target);
+    if (!(fixed !== null)) return null;
+    const span = m.indices!.groups!.target;
+    return finding(
+      "portugueseAgreement",
+      "review_msg_pt_auxiliary_infinitive",
+      span[0],
+      span[1],
+      [fixed],
+      { context: { start: m.index, end: span[1] } },
+    );
+  },
+  // pt_BR.yaml rule pt_BR.verbFrames frame 1
+  "@pt_BR.verbFrames/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return verbFrame(m, ctx, ACTION_SLOTS, ACTION_NOUNS);
+  },
+  // pt_BR.yaml rule pt_BR.verbFrames frame 2
+  "@pt_BR.verbFrames/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return verbFrame(m, ctx, TORNAR_SLOTS, TORNAR);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 1
+  "@pt_BR.formalVerbs/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, ACHAR_SLOTS, ["considerar", "julgar", "pensar"], true);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 2
+  "@pt_BR.formalVerbs/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, BAIXAR_SLOTS, ["reduzir"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 3
+  "@pt_BR.formalVerbs/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, PASSAR_SLOTS, ["passar por", "enfrentar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 4
+  "@pt_BR.formalVerbs/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, PEGAR_SLOTS, ["obter"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 5
+  "@pt_BR.formalVerbs/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, PEGAR_SLOTS, ["contrair"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 6
+  "@pt_BR.formalVerbs/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, PEGAR_SLOTS, ["tomar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 7
+  "@pt_BR.formalVerbs/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, ARRUMAR_SLOTS, ["conseguir"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 8
+  "@pt_BR.formalVerbs/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, FAZER_SLOTS, ["elaborar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 9
+  "@pt_BR.formalVerbs/9": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, DEIXAR_SLOTS, ["permitir"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 10
+  "@pt_BR.formalVerbs/10": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, PEDIR_SLOTS, ["solicitar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 11
+  "@pt_BR.formalVerbs/11": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, CHATEAR_SLOTS, ["incomodar", "importunar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 12
+  "@pt_BR.formalVerbs/12": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, ATURAR_SLOTS, ["suportar", "tolerar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 13
+  "@pt_BR.formalVerbs/13": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, JOGAR_SLOTS, ["descartar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 14
+  "@pt_BR.formalVerbs/14": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, FALAR_SLOTS, ["abordar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 15
+  "@pt_BR.formalVerbs/15": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalSwap(m, ctx, MEXER_SLOTS, ["alterar"], false);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 16
+  "@pt_BR.formalVerbs/16": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalFinding(ctx, m, ["do"]);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 17
+  "@pt_BR.formalVerbs/17": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalFinding(ctx, m, ["supõe-se"]);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 18
+  "@pt_BR.formalVerbs/18": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalFinding(ctx, m, ["conforme"]);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 19
+  "@pt_BR.formalVerbs/19": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return formalFinding(ctx, m, ["em torno"]);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 20
+  "@pt_BR.formalVerbs/20": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const good = m.groups!.good;
+    const noun = m.groups!.noun;
+    const plural = GOOD[good.toLowerCase()];
+    return formalFinding(ctx, m, [`${noun} pertinente${plural}`, `${noun} relevante${plural}`]);
+  },
+  // pt_BR.yaml rule pt_BR.formalVerbs frame 21
+  "@pt_BR.formalVerbs/21": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const plural = GOOD[target.toLowerCase()];
+    return formalFinding(ctx, m, [`pertinente${plural}`, `relevante${plural}`]);
   },
   // pt_BR.yaml rule pt_BR.sentenceStartNumbers frame 1
   "@pt_BR.sentenceStartNumbers/1": (m: RegExpExecArray): MatchResult => {

@@ -7,18 +7,11 @@ import {
   type FindingsFilter,
 } from "../../engine/reviewRules";
 import { FIXERS as AGREEMENT_FIXERS } from "./agreement";
-import { FIXERS as AO90_FIXERS } from "./ao90";
 import { FILTERS as CLITIC_FILTERS, FIXERS as CLITIC_FIXERS } from "./clitics";
-import { FIXERS as COMMA_FIXERS } from "./commas";
-import { FIXERS as CONTRACTION_FIXERS } from "./contractions";
-import { FIXERS as DATE_FIXERS } from "./dates";
-import { FIXERS as FORMAL_FIXERS } from "./formal";
-import { FIXERS as INFINITIVE_FIXERS } from "./infinitives";
 import { FIXERS as NOUN_AGREEMENT_FIXERS } from "./nounAgreement";
 import { FILTERS as PARONYM_FILTERS, FIXERS as PARONYM_FIXERS } from "./paronyms";
 import { FIXERS as PERSON_FIXERS } from "./personAgreement";
 import { FIXERS as PREDICATE_FIXERS } from "./predicates";
-import { FIXERS as VERB_FRAME_FIXERS } from "./style";
 import { FIXERS as SUBJUNCTIVE_FIXERS } from "./subjunctive";
 import { FIXERS as VERB_AGREEMENT_FIXERS } from "./verbAgreement";
 
@@ -26,13 +19,6 @@ export const PREDICATES = {} satisfies Record<string, Detector>;
 
 /** The named frame fixes of grammar/rules/pt_BR.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<AnyFixer>(
-  INFINITIVE_FIXERS,
-  VERB_FRAME_FIXERS,
-  AO90_FIXERS,
-  DATE_FIXERS,
-  CONTRACTION_FIXERS,
-  FORMAL_FIXERS,
-  COMMA_FIXERS,
   CLITIC_FIXERS,
   PARONYM_FIXERS,
   PERSON_FIXERS,

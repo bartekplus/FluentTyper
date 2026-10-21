@@ -6,7 +6,7 @@ import { graphWords } from "../wordGraph";
 import type * as Data from "./verbs.generated";
 import { reviewData } from "../reviewLanguageData";
 import { analyze, SENTENCE_START } from "./nounAgreement";
-import { infinitive } from "./infinitives";
+import { ptInfinitive as infinitive } from "../../library/portuguese/verbs";
 import { verbStems } from "./subjunctive";
 import {
   type ClauseProfile,

@@ -3,7 +3,7 @@ import { SPACE as S, WORD_END as W } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { MatchFixer } from "../../engine/reviewRules";
 import { analyze } from "./nounAgreement";
-import { infinitive } from "./infinitives";
+import { ptInfinitive as infinitive } from "../../library/portuguese/verbs";
 
 /**
  * Agreement Portuguese marks on words a closed list can name.
