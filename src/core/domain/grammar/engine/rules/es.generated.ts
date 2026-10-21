@@ -12,13 +12,18 @@ import type {
   SpanishTokens,
 } from "../../library";
 import {
+  ES_BOUNDARY,
   ES_CLITICS,
   ES_CONJUNCTIONS,
   ES_DETERMINER,
   ES_DETERMINERS,
+  ES_GIVEN_NAMES,
+  ES_INVARIANT,
   ES_NOUN_ENDING,
+  ES_OPENING,
   ES_PRENOMINAL,
   ES_PREPOSITIONS,
+  ES_SER,
   esAround,
   esAttribute,
   esAttributeOf,
@@ -28,7 +33,9 @@ import {
   esFiniteVerb,
   esGenderedForm,
   esInvalidIsoDate,
+  esIsBoundary,
   esIsGenderedEntry,
+  esIsGerund,
   esIsInfinitive,
   esIsNoun,
   esKeepsTyped,
@@ -46,6 +53,268 @@ import {
   esYearsFor,
   namedExampleBefore,
 } from "../../library";
+
+export const ES_ESTAR_PLACE_MANNER: ReadonlySet<string> = new Set([
+  "bien",
+  "mal",
+  "aquí",
+  "ahí",
+  "allí",
+  "allá",
+  "acá",
+]);
+
+export const ES_ESTAR_DEGREE: ReadonlySet<string> = new Set([
+  "muy",
+  "tan",
+  "bastante",
+  "demasiado",
+  "medio",
+  "casi",
+]);
+
+export const ES_ESTAR_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "en",
+  "con",
+  "sin",
+  "bajo",
+  "sobre",
+  "entre",
+  "junto",
+  "dentro",
+  "detrás",
+  "delante",
+  "encima",
+]);
+
+export const ES_ESTAR_PARENTHETICAL: ReadonlySet<string> = new Set([
+  "realidad",
+  "cambio",
+  "particular",
+  "concreto",
+  "general",
+  "especial",
+  "principio",
+  "efecto",
+  "definitiva",
+  "resumen",
+  "cuanto",
+  "parte",
+  "todo",
+  "duda",
+  "embargo",
+]);
+
+export const ES_ESTAR_DE: ReadonlySet<string> = new Set([
+  "acuerdo",
+  "vacaciones",
+  "moda",
+  "pie",
+  "viaje",
+  "broma",
+  "baja",
+  "luto",
+  "más",
+  "sobra",
+  "paso",
+  "vuelta",
+  "camino",
+  "servicio",
+  "guardia",
+  "parto",
+  "suerte",
+  "buenas",
+  "malas",
+  "fiesta",
+  "rodillas",
+  "espaldas",
+]);
+
+export const ES_ESTAR_QUANTIFIERS: ReadonlySet<string> = new Set([
+  "mucho",
+  "poco",
+  "tanto",
+  "otro",
+  "cuanto",
+  "uno",
+  "ninguno",
+  "alguno",
+  "mismo",
+  "todo",
+  "solo",
+]);
+
+export const ES_PARTICIPLE_NOUNS: ReadonlySet<string> = new Set([
+  "subida",
+  "bajada",
+  "bebida",
+  "entrada",
+  "llegada",
+  "mirada",
+  "parada",
+  "jugada",
+  "caída",
+  "herida",
+  "medida",
+  "venida",
+  "ida",
+  "salida",
+  "comida",
+  "llamada",
+  "partida",
+  "vuelta",
+  "propuesta",
+  "respuesta",
+  "puesta",
+  "vista",
+]);
+
+export const ES_ESTAR_BEFORE_VERB: ReadonlySet<string> = new Set([
+  "no",
+  "ya",
+  "ahora",
+  "todavía",
+  "aún",
+  "siempre",
+  "también",
+  "tampoco",
+  "nunca",
+  "hoy",
+  "ayer",
+  "aquí",
+  "ahí",
+  "allí",
+  "que",
+  "él",
+  "ella",
+  "usted",
+  "uno",
+]);
+
+export const ES_ESTAR_TIME: ReadonlySet<string> = new Set([
+  "siempre",
+  "todavía",
+  "ya",
+  "aún",
+  "ahora",
+  "también",
+  "hoy",
+  "nunca",
+]);
+
+export const ES_ESTAR_TIME_NOUNS: ReadonlySet<string> = new Set([
+  "domingos",
+  "lunes",
+  "martes",
+  "miércoles",
+  "jueves",
+  "viernes",
+  "sábados",
+  "semana",
+  "semanas",
+  "mañanas",
+  "tardes",
+  "noches",
+  "días",
+  "veces",
+  "vez",
+  "año",
+  "años",
+  "mes",
+  "meses",
+]);
+
+export const ES_ESTAR_RELATIVES: ReadonlySet<string> = new Set([
+  "y",
+  "e",
+  "pero",
+  "cual",
+  "cuales",
+  "quien",
+  "quienes",
+  "donde",
+  "cuando",
+]);
+
+export const ES_ESTAR_INTERROGATIVES: ReadonlySet<string> = new Set([
+  "dónde",
+  "adónde",
+  "cómo",
+  "quién",
+  "quiénes",
+  "cuándo",
+]);
+
+export const ES_ESTAR_SUBJECTS_3: ReadonlySet<string> = new Set(["él", "ella", "usted"]);
+
+export const ES_ESTAR_COUNTS: ReadonlySet<string> = new Set([
+  "dos",
+  "tres",
+  "cuatro",
+  "cinco",
+  "seis",
+  "siete",
+  "ocho",
+  "nueve",
+  "diez",
+  "veinte",
+  "treinta",
+  "cien",
+  "mil",
+]);
+
+export const ES_ESTAR_SUBJECTS_2: ReadonlySet<string> = new Set(["tú", "vos"]);
+
+export const ES_ESTAR_NOT_DETERMINED: ReadonlySet<string> = new Set([
+  "cada",
+  "afuera",
+  "encima",
+  "arriba",
+  "apenas",
+]);
+
+export const ES_ESTAR_HABER: ReadonlySet<string> = new Set([
+  "he",
+  "has",
+  "ha",
+  "hemos",
+  "habéis",
+  "han",
+  "hay",
+  "había",
+  "habías",
+  "habían",
+  "hubo",
+  "haya",
+  "hayan",
+]);
+
+export const ES_SUBJUNCTIVE_TRIGGERS: ReadonlySet<string> = new Set([
+  "que",
+  "cuando",
+  "aunque",
+  "mientras",
+  "ojalá",
+  "quizá",
+  "quizás",
+]);
+
+export const ES_NOT_AFTER_DEMONSTRATIVE: ReadonlySet<string> = new Set([
+  "nada",
+  "cada",
+  "nunca",
+  "ahora",
+  "fuera",
+  "afuera",
+  "cerca",
+  "encima",
+  "arriba",
+  "contra",
+  "mañana",
+  "media",
+  "toda",
+  "apenas",
+]);
 
 export const ES_FREE_PREFIXES: ReadonlySet<string> = new Set([
   "ex",
@@ -515,6 +784,29 @@ export function esSpan(ctx: DetectContext, first: SpanishToken, last: SpanishTok
   return { ...first, end: last.end, text: ctx.text.slice(first.start, last.end) };
 }
 
+// es.yaml def esGreetingBack
+export function esGreetingBack(at: SpanishAround, j: number, floor: number): boolean {
+  return j < floor || /^[.!?¿;]$/u.test(at.tokens[j].text) || at.tokens[j + 1].broken
+    ? false
+    : /^(?:hola|buenas|oye)$/u.test(at.tokens[j].lower) || esGreetingBack(at, j - 1, floor);
+}
+
+// es.yaml def esGreetingSlot
+export function esGreetingSlot(at: SpanishAround) {
+  return esGreetingBack(at, at.i - 1, Math.max(0, at.i - 6));
+}
+
+// es.yaml def esEndsQuestion
+export function esEndsQuestion(at: SpanishAround) {
+  const after = at.tokens[at.i + 1];
+  return (
+    after?.text === "?" ||
+    (!!after?.word &&
+      (/^(?:hoy|ahora|usted|ustedes)$/u.test(after.lower) || /^\p{Lu}\p{Ll}/u.test(after.text)) &&
+      at.tokens[at.i + 2]?.text === "?")
+  );
+}
+
 // es.yaml def esResume
 export function esResume(frame: FrameRef, index: number) {
   return frame.resume?.(index) === undefined;
@@ -526,6 +818,436 @@ export function esJoinPrefix(prefix: string, word: string) {
   return /[aeiou]$/iu.test(base) && word.startsWith("r") && !word.startsWith("rr")
     ? `${base}r${word}`
     : `${base}${word}`;
+}
+
+// es.yaml rule es.estarAccents def ES_ESTAR_ASKING
+export const ES_ESTAR_ASKING =
+  /^(?:s[ée]|sab\p{L}*|sup\p{L}*|pregunt\p{L}*|ver|veamos|dime|dinos|explica\p{L}*)$/u;
+
+// es.yaml rule es.estarAccents def esNameLike
+export function esNameLike(at: SpanishAround) {
+  const before = at.tokens[at.i - 1];
+  if (!(before?.word && !at.tokens[at.i].broken && /^\p{Lu}\p{Ll}/u.test(before.text)))
+    return false;
+  const word = before.lower;
+  return (
+    ES_GIVEN_NAMES.has(word) ||
+    (word.length > 2 &&
+      !esIsNoun(word) &&
+      !esAttribute(word) &&
+      !esVerbLike(word) &&
+      !esIsInfinitive(word) &&
+      !ES_PREPOSITIONS.has(word) &&
+      !ES_CONJUNCTIONS.has(word) &&
+      !ES_DETERMINERS.has(word) &&
+      !ES_CLITICS.has(word) &&
+      !ES_SER.has(word) &&
+      !/mente$/u.test(word))
+  );
+}
+
+// es.yaml rule es.estarAccents def esAsksBack
+export function esAsksBack(at: SpanishAround, j: number, floor: number): boolean {
+  return j < floor
+    ? false
+    : at.tokens[j].text === "¿"
+      ? true
+      : /^[.;!?…]$/u.test(at.tokens[j].text) || at.tokens[j + 1].broken
+        ? false
+        : esAsksBack(at, j - 1, floor);
+}
+
+// es.yaml rule es.estarAccents def esAsks
+export function esAsks(at: SpanishAround) {
+  return ES_ESTAR_ASKING.test(at.prev(2)) || esAsksBack(at, at.i - 1, Math.max(0, at.i - 12));
+}
+
+// es.yaml rule es.estarAccents def esCloses
+export function esCloses(at: SpanishAround, k: number): boolean {
+  const after = at.next(k + 1);
+  const coordinated = at.next(k + 2);
+  return (
+    at.endsAfter(k) ||
+    ES_PREPOSITIONS.has(after) ||
+    ((after === "y" || after === "e") && !esIsNoun(coordinated) && !esAttributeOf(coordinated)) ||
+    ((after === "y" || after === "e") &&
+      !!esParticiple(at.next(k)) &&
+      !!esParticiple(coordinated) &&
+      !esIsNoun(coordinated) &&
+      esCloses(at, k + 2)) ||
+    ES_ESTAR_PLACE_MANNER.has(after) ||
+    /^\p{L}{4,}mente$/u.test(after)
+  );
+}
+
+// es.yaml rule es.estarAccents def esNounPhraseStep
+export function esNounPhraseStep(at: SpanishAround, k: number): boolean {
+  const word = at.prev(k);
+  return k > 3
+    ? false
+    : ES_DETERMINERS.has(word)
+      ? k > 2
+      : !ES_PRENOMINAL.has(word.replace(/s$/u, "")) && (!esAttributeOf(word) || esFiniteVerb(word))
+        ? false
+        : esNounPhraseStep(at, k + 1);
+}
+
+// es.yaml rule es.estarAccents def esNounPhraseBefore
+export function esNounPhraseBefore(at: SpanishAround) {
+  return !!at.prev() && esIsNoun(at.prev()) && esNounPhraseStep(at, 2);
+}
+
+// es.yaml rule es.estarAccents def esEstarFinite
+export function esEstarFinite(token: SpanishToken) {
+  return (
+    token.word &&
+    (esFiniteVerb(token.lower) ||
+      ES_ESTAR_HABER.has(token.lower) ||
+      (ES_SER.has(token.lower) && !/^(?:ser|siendo|sido)$/u.test(token.lower)))
+  );
+}
+
+// es.yaml rule es.estarAccents def esFiniteBefore
+export function esFiniteBefore(tokens: SpanishTokens, j: number): boolean {
+  return j < 0 ||
+    tokens[j + 1].broken ||
+    ES_BOUNDARY.test(tokens[j].text) ||
+    ES_OPENING.test(tokens[j].text)
+    ? false
+    : esEstarFinite(tokens[j]) || esFiniteBefore(tokens, j - 1);
+}
+
+// es.yaml rule es.estarAccents def esFiniteAfter
+export function esFiniteAfter(tokens: SpanishTokens, j: number): boolean {
+  return esIsBoundary(tokens[j]) ? false : esEstarFinite(tokens[j]) || esFiniteAfter(tokens, j + 1);
+}
+
+// es.yaml rule es.estarAccents def esVerbless
+export function esVerbless(at: SpanishAround) {
+  return !esFiniteBefore(at.tokens, at.i - 1) && !esFiniteAfter(at.tokens, at.i + 2);
+}
+
+// es.yaml rule es.estarAccents def esEstarCounts
+export function esEstarCounts(at: SpanishAround, plural: boolean) {
+  const count = at.tokens[at.i + 1];
+  return (
+    !plural &&
+    !!count &&
+    !count.broken &&
+    ((/^\p{N}+$/u.test(count.text) && count.text !== "1") || ES_ESTAR_COUNTS.has(count.lower)) &&
+    ((!!at.tokens[at.i + 2]?.word && at.next(2) !== "de") || at.tokens[at.i + 2]?.text === "%")
+  );
+}
+
+// es.yaml rule es.estarAccents def esEstarAtEnd
+export function esEstarAtEnd(at: SpanishAround, plural: boolean, prev: string, prev2: string) {
+  if (!at.endsAfter()) return false;
+  const subjects = plural ? ES_ESTAR_SUBJECTS_2 : ES_ESTAR_SUBJECTS_3;
+  return (
+    prev === "no" ||
+    (ES_ESTAR_INTERROGATIVES.has(prev) && esAsks(at)) ||
+    (prev === "tal" && prev2 === "qué") ||
+    (subjects.has(prev) && !ES_PREPOSITIONS.has(prev2)) ||
+    ES_ESTAR_PLACE_MANNER.has(prev) ||
+    ((prev2 === "qué" || prev2 === "que") &&
+      at.tokens[at.i + 1]?.text === "!" &&
+      (!!esAttributeOf(prev) ||
+        prev === "cerca" ||
+        prev === "lejos" ||
+        ES_ESTAR_PLACE_MANNER.has(prev))) ||
+    (!plural && esAttribute(prev)?.feminine === false && !esAttribute(prev)?.plural)
+  );
+}
+
+// es.yaml rule es.estarAccents def esEstarSlot
+export function esEstarSlot(
+  at: SpanishAround,
+  plural: boolean,
+  prev: string,
+  prev2: string,
+  next: string,
+  reading: ReturnType<typeof esAttributeOf>,
+) {
+  const subjects = plural ? ES_ESTAR_SUBJECTS_2 : ES_ESTAR_SUBJECTS_3;
+  const afterNoun =
+    (ES_DETERMINERS.has(prev2) &&
+      !!prev &&
+      !ES_PREPOSITIONS.has(prev) &&
+      !ES_CONJUNCTIONS.has(prev)) ||
+    esNounPhraseBefore(at);
+  const asked = /^(?:qué|cuál|cuánto|cuánta|cuántos|cuántas)$/u.test(prev2) && esIsNoun(prev);
+  const slot =
+    asked ||
+    at.starts ||
+    at.prevIsName ||
+    afterNoun ||
+    esNameLike(at) ||
+    ES_ESTAR_BEFORE_VERB.has(prev) ||
+    subjects.has(prev) ||
+    ES_ESTAR_INTERROGATIVES.has(prev) ||
+    ((esIsNoun(prev) || esAttribute(prev) !== null) && !esVerbLike(prev));
+  const nextToken = at.tokens[at.i + 1];
+  return afterNoun &&
+    reading &&
+    !reading.plural &&
+    !ES_ESTAR_QUANTIFIERS.has(next) &&
+    esCloses(at, 1)
+    ? true
+    : !slot &&
+        (ES_ESTAR_RELATIVES.has(prev) || prev === "que") &&
+        reading &&
+        !reading.plural &&
+        !!esParticiple(next) &&
+        (!esIsNoun(next) || /[ai]da$/u.test(next)) &&
+        !ES_PARTICIPLE_NOUNS.has(next) &&
+        !esVerbLike(next) &&
+        esCloses(at, 1)
+      ? true
+      : !plural &&
+          !ES_ESTAR_QUANTIFIERS.has(next) &&
+          esVerbless(at) &&
+          (((ES_ESTAR_NOT_DETERMINED.has(next) || (next === "fuera" && at.next(2) === "de")) &&
+            !at.endsAfter(1)) ||
+            (reading &&
+              !reading.plural &&
+              reading.feminine !== false &&
+              esCloses(at, 1) &&
+              (at.endsAfter(1) ? !ES_PARTICIPLE_NOUNS.has(next) : !esFiniteVerb(next))))
+        ? true
+        : !slot
+          ? false
+          : asked &&
+              !plural &&
+              ((/^(?:el|la|los|las|mi|su|tu)$/u.test(next) && esIsNoun(at.next(2))) ||
+                (/^\p{Lu}\p{Ll}/u.test(nextToken.text) && !nextToken.broken))
+            ? true
+            : /^(?:el|la|los|las|un|una|mi|su|tu)$/u.test(next) &&
+                !esIsBoundary(at.tokens[at.i + 2]) &&
+                esIsNoun(at.next(2)) &&
+                !esVerbLike(at.next(2)) &&
+                !esFiniteVerb(at.next(2)) &&
+                !ES_ESTAR_TIME_NOUNS.has(at.next(2))
+              ? !at.starts
+              : next === "más" &&
+                  /^(?:allá|cerca|lejos|adelante|atrás|arriba|abajo)$/u.test(at.next(2))
+                ? true
+                : next === "al" &&
+                    /^(?:lado|fondo|final|norte|sur|este|oeste|borde|otro)$/u.test(at.next(2))
+                  ? true
+                  : esEstarAfterSlot(
+                      at,
+                      plural,
+                      prev,
+                      prev2,
+                      next,
+                      reading,
+                      subjects,
+                      afterNoun,
+                      nextToken,
+                    );
+}
+
+// es.yaml rule es.estarAccents def esEstarAfterSlot
+export function esEstarAfterSlot(
+  at: SpanishAround,
+  plural: boolean,
+  prev: string,
+  prev2: string,
+  next: string,
+  reading: ReturnType<typeof esAttributeOf>,
+  subjects: ReadonlySet<string>,
+  afterNoun: boolean,
+  nextToken: SpanishToken,
+) {
+  return ES_ESTAR_TIME.has(next)
+    ? esEstarTimeAdverb(at, plural)
+    : reading &&
+        !reading.plural &&
+        !ES_ESTAR_QUANTIFIERS.has(next) &&
+        !ES_PARTICIPLE_NOUNS.has(next) &&
+        !esVerbLike(next) &&
+        (!esIsNoun(next) ||
+          ES_INVARIANT.has(next) ||
+          (!!esParticiple(next) && /[ai]da$/u.test(next))) &&
+        (esCloses(at, 1) ||
+          (ES_ESTAR_BEFORE_VERB.has(prev) && !!esParticiple(next) && !esIsNoun(next)))
+      ? true
+      : ES_ESTAR_PLACE_MANNER.has(next)
+        ? !ES_CLITICS.has(at.next(2)) && at.next(2) !== "la"
+        : next === "cerca" || next === "lejos"
+          ? at.next(2) === "de" || at.endsAfter(1)
+          : ES_ESTAR_DEGREE.has(next)
+            ? (ES_ESTAR_PLACE_MANNER.has(at.next(2)) ||
+                at.next(2) === "cerca" ||
+                at.next(2) === "lejos" ||
+                !!esAttributeOf(at.next(2))) &&
+              (next === "muy" || !esIsNoun(at.next(2)) || ES_INVARIANT.has(at.next(2))) &&
+              !esIsNoun(at.next(3))
+            : ES_ESTAR_PREPOSITIONS.has(next)
+              ? !ES_ESTAR_PARENTHETICAL.has(at.next(2))
+              : (next === "al" || next === "a") && (afterNoun || subjects.has(prev))
+                ? !ES_CLITICS.has(at.next(2)) && !esIsInfinitive(at.next(2))
+                : prev === "no"
+                  ? !esIsNoun(next) && !ES_CLITICS.has(next)
+                  : ES_ESTAR_INTERROGATIVES.has(prev) ||
+                      subjects.has(prev) ||
+                      (prev === "tal" && prev2 === "qué")
+                    ? (!esIsNoun(next) ||
+                        ES_DETERMINERS.has(next) ||
+                        /^\p{Lu}/u.test(nextToken.text)) &&
+                      !ES_CLITICS.has(next)
+                    : false;
+}
+
+// es.yaml rule es.estarAccents def esEstarTimeAdverb
+export function esEstarTimeAdverb(at: SpanishAround, plural: boolean) {
+  const after = at.next(2);
+  const later = esAttributeOf(after);
+  return esIsGerund(after)
+    ? true
+    : later && !later.plural && later.feminine !== null && (plural || !later.feminine)
+      ? !ES_ESTAR_QUANTIFIERS.has(after)
+      : !!later && !later.plural && !esIsNoun(after) && !esVerbLike(after) && esCloses(at, 2);
+}
+
+// es.yaml rule es.estarAccents def esEstarBeforeWord
+export function esEstarBeforeWord(
+  at: SpanishAround,
+  plural: boolean,
+  prev: string,
+  prev2: string,
+  next: string,
+) {
+  const reading = esAttributeOf(next);
+  return esIsGerund(next)
+    ? true
+    : next === "de"
+      ? ES_ESTAR_DE.has(at.next(2))
+      : /^\p{L}{4,}mente$/u.test(next)
+        ? !ES_CONJUNCTIONS.has(prev) || prev === "que"
+        : reading &&
+            !ES_ESTAR_QUANTIFIERS.has(next) &&
+            reading.feminine !== null &&
+            !reading.plural &&
+            (plural || !reading.feminine)
+          ? true
+          : ES_ESTAR_QUANTIFIERS.has(next) && (next === "solo" || next === "todo")
+            ? at.endsAfter(1) ||
+              ES_ESTAR_PLACE_MANNER.has(at.next(2)) ||
+              ES_ESTAR_DEGREE.has(at.next(2))
+            : esEstarSlot(at, plural, prev, prev2, next, reading);
+}
+
+// es.yaml rule es.estarAccents def esEstarReading
+export function esEstarReading(at: SpanishAround, plural: boolean) {
+  const prev = at.prev();
+  const prev2 = at.prev(2);
+  const next = at.next();
+  return prev === "como" &&
+    !next &&
+    at.endsAfter() &&
+    [2, 3, 4, 5].some((k) => /^(?:d[eé]j|qued)\p{L}*$/u.test(at.prev(k)))
+    ? true
+    : prev === "como" && esGreetingSlot(esAround(at.tokens, at.i - 1)) && esEndsQuestion(at)
+      ? true
+      : ES_PREPOSITIONS.has(prev) || ES_SER.has(prev) || esIsInfinitive(prev) || prev === "como"
+        ? false
+        : /^tod[oa]s?$/u.test(prev)
+          ? false
+          : !next && at.endsAfter() && !plural && esParticiple(prev)?.feminine === false
+            ? true
+            : esParticiple(prev) && esAround(at.tokens, at.i - 1).starts
+              ? false
+              : ES_CLITICS.has(prev) && prev !== "la" && prev !== "las"
+                ? true
+                : esEstarCounts(at, plural)
+                  ? true
+                  : !next
+                    ? esEstarAtEnd(at, plural, prev, prev2)
+                    : esEstarBeforeWord(at, plural, prev, prev2, next);
+}
+
+// es.yaml rule es.estarAccents def esDistantTrigger
+export function esDistantTrigger(at: SpanishAround) {
+  const next = at.next();
+  return (
+    at.tokens[at.i].lower === "este" &&
+    [2, 3, 4].some(
+      (k) =>
+        ES_SUBJUNCTIVE_TRIGGERS.has(at.prev(k)) &&
+        !/^(?:dij|dic|dec|cre|pens|piens|sab|sé|afirm|asegur|explic|cuent|cont)\p{L}*$/u.test(
+          at.prev(k + 1),
+        ),
+    ) &&
+    ((!!esParticiple(next)?.feminine && !esIsNoun(next)) || (next === "a" && at.next(2) === "la"))
+  );
+}
+
+// es.yaml rule es.estarAccents def esSubjunctiveReading
+export function esSubjunctiveReading(at: SpanishAround) {
+  const prev = at.prev();
+  const prev2 = at.prev(2);
+  const clitic = ES_CLITICS.has(prev) && prev !== "la" && prev !== "las" && prev !== "los";
+  const prev3 = at.prev(3);
+  const trigger =
+    clitic ||
+    ES_SUBJUNCTIVE_TRIGGERS.has(prev) ||
+    (prev === "vez" && prev2 === "tal") ||
+    (prev === "pronto" && prev2 === "tan") ||
+    (prev === "no" && ES_SUBJUNCTIVE_TRIGGERS.has(prev2)) ||
+    (ES_SUBJUNCTIVE_TRIGGERS.has(prev3) &&
+      ES_DETERMINERS.has(prev2) &&
+      !!prev &&
+      !ES_CLITICS.has(prev2));
+  const next = at.next();
+  const reading = esAttributeOf(next);
+  return !trigger
+    ? esDistantTrigger(at)
+    : !next
+      ? clitic && at.endsAfter()
+      : esIsGerund(next)
+        ? true
+        : ES_ESTAR_PLACE_MANNER.has(next)
+          ? esCloses(at, 1)
+          : next === "de"
+            ? ES_ESTAR_DE.has(at.next(2))
+            : ES_ESTAR_PREPOSITIONS.has(next) || next === "al"
+              ? !ES_ESTAR_PARENTHETICAL.has(at.next(2))
+              : next === "por" || next === "a"
+                ? /^(?:encima|debajo|punto|tiempo)$/u.test(at.next(2))
+                : at.tokens[at.i].lower === "este" &&
+                    esParticiple(next)?.feminine &&
+                    !esIsNoun(next)
+                  ? true
+                  : next === "cerca" || next === "lejos"
+                    ? at.next(2) === "de"
+                    : ES_ESTAR_DEGREE.has(next)
+                      ? !!esAttributeOf(at.next(2)) && esCloses(at, 2)
+                      : !!reading &&
+                        !ES_ESTAR_QUANTIFIERS.has(next) &&
+                        !ES_PARTICIPLE_NOUNS.has(next) &&
+                        !(esVerbLike(next) && !next.endsWith("o")) &&
+                        esCloses(at, 1);
+}
+
+// es.yaml rule es.estarAccents def esDemonstrativeReading
+export function esDemonstrativeReading(at: SpanishAround) {
+  const prev = at.prev();
+  const next = at.next();
+  if (!next) return false;
+  const form = at.tokens[at.i].lower;
+  return /^mism[oa]s?$/u.test(next)
+    ? true
+    : ES_PREPOSITIONS.has(prev) && !/^(?:a|al|del|según|hasta)$/u.test(prev)
+      ? (esIsNoun(next) || (!!esGenderedForm(next) && !esParticiple(next))) &&
+        !ES_NOT_AFTER_DEMONSTRATIVE.has(next) &&
+        !esIsGerund(next)
+      : esAttributeOf(next) || ES_NOT_AFTER_DEMONSTRATIVE.has(next) || !esIsNoun(next)
+        ? false
+        : form === "está"
+          ? at.next(2) !== "de" &&
+            (/(?:ión|dad|tud)$/u.test(next) || (/a$/u.test(next) && esIsInfinitive(prev)))
+          : form === "estás" && /as$/u.test(next);
 }
 
 // es.yaml rule es.prefixes def esKnownWord
@@ -1315,6 +2037,54 @@ export function esQuotePair(m: RegExpExecArray, ctx: DetectContext, open: string
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // es.yaml rule es.estarAccents frame 1
+  "@es.estarAccents/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    const token = tokens[i];
+    if (!(token.word && token.start >= ctx.from && token.start < ctx.to)) return null;
+    const at = esAround(tokens, i);
+    const lower = token.lower;
+    const verb =
+      lower === "esta"
+        ? esEstarReading(at, false) && "está"
+        : lower === "estas"
+          ? esEstarReading(at, true) && "estás"
+          : lower === "este"
+            ? esSubjunctiveReading(at) && "esté"
+            : false;
+    const demonstrative =
+      lower === "está"
+        ? "esta"
+        : lower === "estás"
+          ? "estas"
+          : lower === "esté"
+            ? "este"
+            : undefined;
+    return [
+      verb
+        ? esReplaceToken(
+            ctx,
+            token,
+            [verb],
+            "spanishAccents",
+            "review_msg_spanish_accent",
+            tokens[i + 1],
+          )
+        : null,
+      demonstrative && esDemonstrativeReading(at)
+        ? esReplaceToken(
+            ctx,
+            token,
+            [demonstrative],
+            "spanishAccents",
+            "review_msg_spanish_accent_extra",
+            tokens[i + 1],
+          )
+        : null,
+    ].filter((finding) => finding !== null);
+  },
   // es.yaml rule es.prefixes frame 1
   "@es.prefixes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     if (!(m.index >= ctx.from)) return null;

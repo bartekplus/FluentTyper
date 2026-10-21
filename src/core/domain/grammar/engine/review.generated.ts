@@ -17550,7 +17550,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "est(?:[aá]s?|[eé])(?![\\p{L}\\p{M}])",
     literals: ["est"],
-    fixer: "es:estarAccents",
+    fixer: "es:@es.estarAccents/1",
     flags: "giu",
     scan: "owned",
   }),
