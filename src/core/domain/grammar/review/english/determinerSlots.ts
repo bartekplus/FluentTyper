@@ -1,6 +1,8 @@
 import { englishVerbNouns, englishWordInfo } from "../../implementations/helpers/EnglishLexicon";
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import type { MatchFixer } from "../../engine/reviewRules";
+import type { DetectContext } from "../reviewDetectors";
+import { wordsAfter } from "./nounNumberSlots";
 import {
   afterBreak,
   caseLike,
@@ -103,6 +105,32 @@ function derivedNouns(verb: string): string[] {
 const MODAL_THEY =
   /^(?:would|should|could|cannot|can['’]t|won['’]t|don['’]t|didn['’]t|wouldn['’]t|shouldn['’]t|couldn['’]t|haven['’]t)$/;
 
+/**
+ * True when determinerTheForThey surely finds nothing: the word after "the" is no lowercase word,
+ * or none of the fixer's tests below can accept it (a modal, have/be, an adverb or a verb that is
+ * no noun or adjective). Keep it in step with the fixer. Most words after "the" are nouns.
+ */
+function noVerbAfterThe(ctx: DetectContext, end: number): boolean {
+  const first = wordsAfter(ctx, end, 1)[0];
+  if (!first || first.text !== first.lower) return true;
+  const word = first.lower;
+  if (
+    MODAL_THEY.test(word) ||
+    /^(?:will|can|may|might|must|have|had|are|were|also|always|really|probably|never|just|correctly|quietly)$/.test(
+      word,
+    ) ||
+    /ly$/.test(word)
+  )
+    return false;
+  const read = englishWordInfo(word);
+  return !(
+    read &&
+    !read.noun &&
+    !read.adjective &&
+    read.verbs.some((v) => v.form === "past" || v.form === "base")
+  );
+}
+
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = {
   determinerVerbAsNoun: (m, ctx) => {
@@ -162,6 +190,7 @@ export const FIXERS = {
     };
   },
   determinerTheForThey: (m, ctx) => {
+    if (noVerbAfterThe(ctx, m.index + m[0].length)) return null;
     const target = m.groups!.target;
     const before = wordBefore(ctx, m.index);
     // A word right before the match means no break stands there (see opensClause).
