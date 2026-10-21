@@ -91,3 +91,44 @@ export {
   yearsFor as enYearsFor,
 } from "../review/reviewClock";
 export { enTable, useEnglishTables } from "./english/tables";
+// Group 5 (remaining, fixedPhrases, grammarStyle2, idioms1, confusions1, confusions2,
+// compoundForms, lexical): the listed nouns of the lexicon and the irregular verb table.
+export {
+  englishListedNoun as enListedNoun,
+  englishListedWithoutPlural as enListedWithoutPlural,
+} from "../implementations/helpers/EnglishLexicon";
+export { ENGLISH_VERB_FORMS as EN_VERB_FORMS } from "../implementations/helpers/EnglishVerbForms";
+// Group 5: the text before an index and the word after it.
+export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";
+// Group 5: the word key (lowercase, ’ as ') and the tokens around a target in its text block
+// (library/english/blockTokens.ts).
+export { wordKey as enWordKey } from "../implementations/helpers/GenericRuleShared";
+export {
+  blockTokensAfter as enBlockTokensAfter,
+  blockTokensBefore as enBlockTokensBefore,
+  isBlockWord as enIsBlockWord,
+} from "./english/blockTokens";
+export type { BlockHit as EnBlockHit, BlockToken as EnBlockToken } from "./english/blockTokens";
+// Group 5: the words around a position in its clause and the clause bounds
+// (library/english/clauseWords.ts), and a word glued to the text after it.
+export {
+  clauseClosesAt as enClauseClosesAt,
+  clauseOpensAt as enClauseOpensAt,
+  clauseWordsAfter as enClauseWordsAfter,
+  clauseWordsBefore as enClauseWordsBefore,
+  wordsAround as enWordsAround,
+} from "./english/clauseWords";
+export type {
+  ClauseWord as EnClauseWord,
+  WordsAround as EnWordsAround,
+} from "./english/clauseWords";
+export { gluedAfter as enGluedAfter } from "../review/phraseTemplates";
+// Group 5: views, and the findings of a frame rule by its id (library/english/views.ts).
+export {
+  inView as enInView,
+  ruleFindings as enRuleFindings,
+  useRuleDetectors as enUseRuleDetectors,
+} from "./english/views";
+export type { ViewSwap as EnViewSwap } from "./english/views";
+// Group 5: a read through a cache that a rule file keeps (library/english/cache.ts).
+export { readThrough as enReadThrough } from "./english/cache";
