@@ -250,7 +250,7 @@ Use a predicate only when none of these fit. A predicate rule in a rule file has
 
 - **Token predicates** (`engine/predicates.ts`) test one token in a pattern, for example `enStartsWithVowelSound`, `isMeasurementUnit` or `isNotAbbreviation`. They must stay small: content scripts load them.
 - **Review detectors** are functions `(ctx) => RawFinding[]`. A language registers them in the `PREDICATES` record of `review/<lang>/ruleDetectors.ts`. The shared detectors are in `CORE_PREDICATES` of `review/reviewDetectors.ts`. A rule names one with `predicate: <name>`. Use `<file>:<name>` to name a detector of another file.
-- **Live implementations** are typing rules that read the cursor state (`engine/liveRules.ts`). A rule with `modes: [live]` names one.
+- **Typing rules** that read the cursor state are code in `common.yaml`: a rule with `modes: [live]` has `triggers`, `let`, `when` and `return` (parameters `context` and `options`). Their helpers are in the rule library (`library/typing.ts`). No typing rule names a TypeScript implementation.
 
 A name that no module defines stops the extension at load. The unit tests find it first.
 

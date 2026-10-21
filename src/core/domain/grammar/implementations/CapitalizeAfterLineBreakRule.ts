@@ -1,16 +1,13 @@
-import type { GrammarContext, GrammarEdit, GrammarEventType, GrammarRule } from "../types";
-import { lastNonSpaceBefore } from "./helpers/GenericRuleShared";
-import { capitalizeCompletedWord } from "./CapitalizeSentenceStartRule";
+// Facade: the rule's code is in grammar/rules/common.yaml (capitalizeAfterLineBreak.live).
+import { liveRule } from "../engine/liveRules";
+import type { GrammarContext, GrammarEdit, GrammarRule } from "../types";
 
 export class CapitalizeAfterLineBreakRule implements GrammarRule {
   readonly id = "capitalizeAfterLineBreak" as const;
-  // A newline arrives as insertChar, hence both triggers.
-  readonly triggers: GrammarEventType[] = ["insertChar", "wordBoundary"];
+  private readonly rule = liveRule(this.id);
+  readonly triggers = this.rule.triggers;
 
   apply(context: GrammarContext): GrammarEdit | null {
-    return capitalizeCompletedWord(
-      context,
-      (text, wordStart) => text[lastNonSpaceBefore(text, wordStart)] === "\n",
-    );
+    return this.rule.apply(context);
   }
 }

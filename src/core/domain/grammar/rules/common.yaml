@@ -4511,43 +4511,432 @@ fragments:
   DE_GLUED_UNIT: "(?<![\\p{L}\\p{N}.,_/\\\\-])(?<n>\\d{1,3}(?:\\.\\d{3})+(?:,\\d+)?|\\d+(?:,\\d+)?)(?<unit>\\p{L}{1,4}|[$£€])(?![\\p{L}\\p{N}_-])"
 
 rules:
-  # Typing rules: each live check names its implementation (engine/liveRules.ts).
+  # Typing rules: each live check has its code here (`triggers`, `let`, `when`, `return`, with
+  # the parameters `context` and `options`). The library (library/typing.ts) gives the text
+  # helpers and the sentence bounds.
   - id: capitalizeSentenceStart.live
     checks: [capitalizeSentenceStart]
     modes: [live]
-    predicate: CapitalizeSentenceStartRule
+    # A newline comes as insertChar, thus the rule runs on the two events.
+    triggers: [insertChar, wordBoundary]
+    defs:
+      # The start of the word that a boundary (a space, a no-break space or a newline) just
+      # completed, or -1. The first letter waits for the full word: "u" can become
+      # "user.save()" and "i" can become "iPhone".
+      completedWordStart:
+        args: "text: string"
+        type: number
+        let:
+          boundary: text.length - 1
+        when: 'boundary >= 1 && /[ \xA0\n]/.test(text[boundary]) && !/[ \xA0\n]/.test(text[boundary - 1])'
+        return: 'runStart(text, boundary, /[^ \xA0\n]/)'
+        else: "-1"
+      # The edit that capitalizes the completed word at `wordStart`, or null when its first
+      # letter (after "¿" or "¡") is not lowercase, or when the word is a technical token or
+      # keeps its own case ("iPhone", "x2").
+      capitalizedWord:
+        args: "text: string, wordStart: number"
+        type: GrammarEdit | null
+        let:
+          word: text.slice(wordStart, text.length - 1)
+          letter: "SENTENCE_OPENING_MARKS.has(word[0]) ? 1 : 0"
+          bare: 'word.replace(TRAILING_PUNCTUATION_REGEX, "")'
+        when:
+          - 'isLowercaseLetter(word[letter] ?? "")'
+          - "!isTechnicalToken(bare)"
+          - "!keepsOwnCasing(bare)"
+        return: >-
+          typingEdit(`${word.slice(0, letter)}${word[letter].toUpperCase()}${text.slice(wordStart + letter + 1)}`,
+          text.length - wordStart)
+    let:
+      text: context.beforeCursor
+      wordStart: completedWordStart(text)
+      edit: capitalizedWord(text, wordStart)
+    when:
+      - wordStart >= 0
+      - edit !== null
+      # After an abbreviation, typing keeps the word as typed: it cannot see the rest of the
+      # sentence.
+      - "startsSentence(text, wordStart, context.hints?.lang, { typing: true })"
+    return: edit
   - id: capitalizeAfterLineBreak.live
     checks: [capitalizeAfterLineBreak]
     modes: [live]
-    predicate: CapitalizeAfterLineBreakRule
+    triggers: [insertChar, wordBoundary]
+    let:
+      text: context.beforeCursor
+      wordStart: completedWordStart(text)
+      edit: capitalizedWord(text, wordStart)
+    when:
+      - wordStart >= 0
+      - edit !== null
+      - 'text[lastNonSpaceBefore(text, wordStart)] === "\n"'
+    return: edit
   - id: englishPronounICapitalization.live
     checks: [englishPronounICapitalization]
     modes: [live]
-    predicate: EnglishPronounICapitalizationRule
+    triggers: [insertChar, wordBoundary]
+    sets:
+      # A lone "i" before these words is a loop variable: "for i in range", "if i is None".
+      NON_PRONOUN_FOLLOWERS: [is, in, are, of, not]
+    defs:
+      ENGLISH_APOSTROPHE_PRONOUN_REGEX: /(^|[^A-Za-z0-9_])(i)(['’](?:m|ve|ll|d))$/
+      # A lone "i", a space, then the next word: the next word tells the pronoun from a variable.
+      DEFERRED_PRONOUN_I_REGEX: '/(?:^|[^\p{L}\p{N}_''’])i([ \t]+)(\S+)$/u'
+      # "i'm", "i've", "i'll", "i'd" -> "I'm", ...
+      apostrophePronounI:
+        args: "boundary: EnglishBoundaryContext"
+        let:
+          match: boundary.core.match(ENGLISH_APOSTROPHE_PRONOUN_REGEX)
+          start: boundary.core.length - (1 + match[3].length)
+        when:
+          - "!!match"
+          - "!isPartOfTechnicalToken(boundary.core, start, start + 1)"
+        return: "replaceFrom(boundary, start, `I${boundary.core.slice(start + 1)}`)"
+      # A lone "i" that the next word shows to be the pronoun: "i think" -> "I think".
+      deferredPronounI:
+        args: "boundary: EnglishBoundaryContext"
+        let:
+          match: DEFERRED_PRONOUN_I_REGEX.exec(boundary.core)
+          gap: match[1]
+          following: match[2]
+          index: boundary.core.length - (1 + gap.length + following.length)
+        when:
+          - "!!match"
+          - '/^\p{L}+$/u.test(following) && !NON_PRONOUN_FOLLOWERS.has(following.toLowerCase())'
+          - "!isPartOfTechnicalToken(boundary.core, index, index + 1)"
+        return: "replaceFrom(boundary, index, `I${gap}${following}`)"
+      # "i" before a mark. A bare "i." can be the start of "i.e.", and a space alone does not
+      # tell the pronoun from a variable: these wait for the next character or word.
+      lonePronounI:
+        args: "boundary: EnglishBoundaryContext"
+        let:
+          token: findTrailingLetterToken(boundary.input)
+        when:
+          - "!!token"
+          - token.token === "i"
+          - token.trailing !== "."
+          - '!/^[ \t]+$/.test(token.trailing)'
+          - "!isPartOfTechnicalToken(token.core, token.tokenStart, token.tokenEnd)"
+        return: replaceFrom(boundary, token.tokenStart, "I")
+    let:
+      boundary: resolveEnglishBoundaryContext(context)
+    when: "!!boundary"
+    return: apostrophePronounI(boundary) ?? deferredPronounI(boundary) ?? lonePronounI(boundary)
   - id: englishContractionNormalization.live
     checks: [englishContractionNormalization]
     modes: [live]
-    predicate: EnglishContractionNormalizationRule
+    triggers: [insertChar, wordBoundary]
+    # "ill", "cant" and "wont" are also English words: typing has no word after them, thus only
+    # Review (normalizeContractionInContext) changes them.
+    maps:
+      ENGLISH_CONTRACTIONS:
+        im: "i'm"
+        ive: "i've"
+        dont: "don't"
+        isnt: "isn't"
+        arent: "aren't"
+        wasnt: "wasn't"
+        werent: "weren't"
+        didnt: "didn't"
+        doesnt: "doesn't"
+        havent: "haven't"
+        hasnt: "hasn't"
+        hadnt: "hadn't"
+        shouldnt: "shouldn't"
+        couldnt: "couldn't"
+        wouldnt: "wouldn't"
+        mustnt: "mustn't"
+      # Also ordinary words ("fell ill", "the cant of a roof", "as is his wont"): only finished
+      # text, where the next word is known, can tell.
+      CONTEXT_CONTRACTIONS:
+        cant: "can't"
+        wont: "won't"
+        ill: "i'll"
+    sets:
+      FORCE_PRONOUN_I_PREFIX: [im, ive]
+      # Verbs that follow "can't", "won't" and "I'll" in their bare form. None of them is a noun
+      # that "ill" or "cant" changes ("ill will", "ill health").
+      CONTRACTION_BARE_VERBS:
+        [
+          be,
+          go,
+          do,
+          get,
+          see,
+          find,
+          wait,
+          believe,
+          stop,
+          help,
+          make,
+          say,
+          tell,
+          think,
+          understand,
+          remember,
+          sleep,
+          come,
+          have,
+          work,
+          let,
+          take,
+          give,
+          use,
+          open,
+          load,
+          start,
+          run,
+          hear,
+          figure,
+          afford,
+          imagine,
+          explain,
+          decide,
+          read,
+          write,
+          send,
+          call,
+          try,
+          keep,
+          leave,
+          know,
+          change,
+          fix,
+          happen,
+          hurt,
+          matter,
+          stay,
+          agree,
+          check,
+          bring,
+          look,
+          need,
+        ]
+      # One adverb can come between: "I cant really say".
+      CONTRACTION_ADVERBS: [really, even, just, ever, always, possibly, still, actually]
+    defs:
+      CONTRACTION_SUBJECT_BEFORE: '/(?:^|[^\p{L}\p{N}_''’])(?:i|you|we|they|he|she|it|who|that|this|there|someone|nobody|everyone)[ \t]+$/iu'
+      CONTRACTION_CLAUSE_OPENER: '/(?:^|[^\p{L}])(?:and|but|so|then|maybe|ok|okay|yes|no|well|or)$/iu'
+      # The apostrophe form of `token` ("dont" -> "don't", "Im" -> "I'm"), or null. `beforeToken`
+      # is the text before it: a capitalized word after another capitalized word or an initial on
+      # the same line is a name ("Jony Ive", "Andrew D. Ive"). "IM" is an acronym.
+      normalizeContractionToken:
+        args: "token: string, beforeToken: string"
+        type: string | null
+        let:
+          lower: token.toLowerCase()
+          canonical: "Object.hasOwn(ENGLISH_CONTRACTIONS, lower) ? ENGLISH_CONTRACTIONS[lower] : undefined"
+          lineStart: 'Math.max(beforeToken.lastIndexOf("\n"), beforeToken.lastIndexOf("\r")) + 1'
+          cased: applyWordCase(canonical, detectWordCase(token))
+          normalized: "FORCE_PRONOUN_I_PREFIX.has(lower) ? `I${cased.slice(1)}` : cased"
+        when:
+          - "!!canonical"
+          - '!/^[A-Z][a-z]/.test(token) || !/(?:[A-Z][a-z]*|\b[A-Z]\.)$/.test(beforeToken.slice(lineStart).trimEnd())'
+          - "!(FORCE_PRONOUN_I_PREFIX.has(lower) && token === token.toUpperCase())"
+          - normalized !== token
+        return: normalized
+      # True when `before` leaves the next word at the start of a clause.
+      contractionOpensClause:
+        args: "before: string"
+        let:
+          trimmed: 'before.replace(/[ \t]+$/u, "")'
+        return: >-
+          trimmed === "" || /[.!?;:,\n]["'”’)\]]*$/u.test(trimmed) ||
+          CONTRACTION_CLAUSE_OPENER.test(trimmed)
+      # Finished text only (Review): "cant", "wont" and "ill" as contractions, by the word after
+      # them. Each needs a bare verb next ("i cant go", "it wont work", "ill be there"). "cant"
+      # and "wont" also need a subject or a clause start before them ("Cant wait"), and "ill" a
+      # clause start. All capitals can be an acronym ("ILL"); "Ada Ill" on one line is a name.
+      normalizeContractionInContext:
+        args: "token: string, before: string, after: string"
+        type: string | null
+        let:
+          lower: token.toLowerCase()
+          canonical: "Object.hasOwn(CONTEXT_CONTRACTIONS, lower) ? CONTEXT_CONTRACTIONS[lower] : undefined"
+          words: '/^[ \t]+(\p{L}+)(?:[ \t]+(\p{L}+))?/u.exec(after)'
+          verb: "(CONTRACTION_ADVERBS.has(words[1].toLowerCase()) ? words[2] : words[1])?.toLowerCase()"
+          cased: applyWordCase(canonical, detectWordCase(token))
+        when:
+          - "!!canonical && !(token === token.toUpperCase() && token.length > 1)"
+          - "!!words"
+          - "!!verb && CONTRACTION_BARE_VERBS.has(verb)"
+          - >-
+            lower === "ill" ? contractionOpensClause(before) :
+            CONTRACTION_SUBJECT_BEFORE.test(before) || contractionOpensClause(before)
+          - >-
+            !/^[A-Z][a-z]/.test(token) ||
+            !/[A-Z][a-z]*$/.test(before.slice(before.lastIndexOf("\n") + 1).trimEnd())
+        return: 'lower === "ill" ? `I${cased.slice(1)}` : cased'
+    let:
+      boundary: resolveEnglishBoundaryContext(context)
+      token: findTrailingLetterToken(boundary.input)
+      normalized: normalizeContractionToken(token.token, token.core.slice(0, token.tokenStart))
+    when:
+      - "!!boundary"
+      - "!!token"
+      - "!isPartOfTechnicalToken(token.core, token.tokenStart, token.tokenEnd)"
+      - normalized !== null
+    return: replaceFrom(boundary, token.tokenStart, normalized)
   - id: englishTypoWhitelistCorrection.live
     checks: [englishTypoWhitelistCorrection]
     modes: [live]
-    predicate: EnglishTypoWhitelistCorrectionRule
+    triggers: [insertChar, wordBoundary]
+    maps:
+      TYPO_WHITELIST:
+        teh: the
+        adn: and
+        recieve: receive
+        seperate: separate
+        occured: occurred
+        untill: until
+        wich: which
+        thier: their
+        becuase: because
+        definately: definitely
+    defs:
+      # The correction of `token` in its own case, or null (also for a word of `dictionary`).
+      correctWhitelistedTypo:
+        args: "token: string, dictionary: ReadonlySet<string>"
+        type: string | null
+        let:
+          lower: token.toLowerCase()
+          correction: "Object.hasOwn(TYPO_WHITELIST, lower) ? TYPO_WHITELIST[lower] : undefined"
+          replacement: applyWordCase(correction, detectWordCase(token))
+        when:
+          - "!!correction && !dictionary.has(lower)"
+          - replacement !== token
+        return: replacement
+    let:
+      boundary: resolveEnglishBoundaryContext(context)
+      token: findTrailingLetterToken(boundary.input)
+      replacement: >-
+        correctWhitelistedTypo(token.token, normalizeWordSet(context.hints?.userDictionary ?? []))
+    when:
+      - "!!boundary"
+      - "!!token"
+      - "!isPartOfTechnicalToken(token.core, token.tokenStart, token.tokenEnd)"
+      - replacement !== null
+    return: replaceFrom(boundary, token.tokenStart, replacement)
   - id: doubleSpaceToPeriod.live
     checks: [doubleSpaceToPeriod]
     modes: [live]
-    predicate: DoubleSpaceToPeriodRule
+    triggers: [wordBoundary]
+    # Only a word can end a sentence. Punctuation, brackets and quotes come here when an earlier
+    # rule added its own space: ". " there breaks "(quietly) that" and "{a: 1} now".
+    let:
+      input: context.beforeCursor
+      core: splitTrailingSpaces(input).core
+    when:
+      - '/[ \xA0]{2}$/.test(input)'
+      - '/\p{L}$/u.test(core)'
+      - "!shouldSkipGenericReplacement(core)"
+    return: typingEdit(". ", 2)
   - id: englishModalOfCorrection.live
     checks: [englishModalOfCorrection]
     modes: [live]
-    predicate: EnglishModalOfCorrectionRule
+    triggers: [wordBoundary]
+    sets:
+      # "must of course", "would of necessity": a prepositional "of" looks like a mistake until
+      # the next word comes, thus the correction waits for it.
+      OF_IDIOMS:
+        [
+          course,
+          necessity,
+          itself,
+          himself,
+          herself,
+          themselves,
+          late,
+          old,
+          sorts,
+          note,
+          interest,
+          value,
+          which,
+          whom,
+          them,
+          us,
+          these,
+          those,
+          the,
+          a,
+          an,
+          his,
+          her,
+          their,
+          its,
+          our,
+          my,
+          your,
+        ]
+    defs:
+      MODAL_OF_REGEX: '/\b((?:could|would|should|must|might)(?:n[''’]t)?)\s+of\s+([A-Za-z]+)$/i'
+      # "the might of Rome", "with all our might of": the noun, not the modal.
+      NOUN_MIGHT_BEFORE: '/\b(?:the|its|his|her|their|our|your|my|all|full|with|by|of)\s+$/i'
+      # True when "might" before "of" is the noun ("the might of"), by the text before it.
+      isNounMight:
+        args: "modal: string, before: string"
+        return: 'modal.toLowerCase() === "might" && NOUN_MIGHT_BEFORE.test(before.slice(-24))'
+      # "have" in the case of the "of" it replaces: "COULD OF" -> "HAVE", "Could Of" -> "Have".
+      modalHaveWord:
+        args: "modal: string, of: string"
+        return: 'detectWordCase(modal) === "upper" ? "HAVE" : of === "Of" ? "Have" : "have"'
+    let:
+      matched: matchTrailingEnglishPhrase(context, MODAL_OF_REGEX)
+      modal: matched.match[1]
+      following: matched.match[2]
+    when:
+      - "!!matched"
+      - >-
+        !OF_IDIOMS.has(following.toLowerCase()) &&
+        !isNounMight(modal, matched.boundary.core.slice(0, matched.phraseStart))
+    return: >-
+      replaceFrom(matched.boundary, matched.phraseStart, `${applyWordCase(modal,
+      detectWordCase(modal))} ${modalHaveWord(modal,
+      matched.match[0].slice(modal.length).trimStart().slice(0, 2))} ${following}`)
   - id: englishYourWelcomeCorrection.live
     checks: [englishYourWelcomeCorrection]
     modes: [live]
-    predicate: EnglishYourWelcomeCorrectionRule
+    triggers: [wordBoundary]
+    defs:
+      YOUR_WELCOME_REGEX: /\byour\s+welcome$/i
+      # ["you're", "welcome"] in the case of the typed "your".
+      correctYourWelcome:
+        args: "firstToken: string"
+        type: "[string, string]"
+        let:
+          style: detectWordCase(firstToken)
+        return: >-
+          [style === "upper" ? "YOU'RE" : style === "title" ? "You're" : "you're",
+          applyWordCase("welcome", style === "upper" ? "upper" : "lower")]
+    let:
+      matched: matchTrailingEnglishPhrase(context, YOUR_WELCOME_REGEX)
+      fixed: correctYourWelcome(matched.match[0].split(/\s+/)[0])
+    when:
+      - "!!matched"
+      # "Your welcome email arrived" is possessive: only the phrase at the sentence end is
+      # surely "you're welcome".
+      - '/^[.!?\n]/.test(matched.boundary.trailing)'
+    return: "replaceFrom(matched.boundary, matched.phraseStart, `${fixed[0]} ${fixed[1]}`)"
   - id: englishTheirThereBeVerb.live
     checks: [englishTheirThereBeVerb]
     modes: [live]
-    predicate: EnglishTheirThereBeVerbRule
+    triggers: [wordBoundary]
+    defs:
+      THEIR_THERE_BE_REGEX: /\btheir\s+(is|are|was|were)$/i
+      # ["there", verb], each in the case it was typed in.
+      correctTheirBeVerb:
+        args: "their: string, verb: string"
+        type: "[string, string]"
+        return: >-
+          [applyWordCase("there", detectWordCase(their)), applyWordCase(verb,
+          detectWordCase(verb))]
+    let:
+      matched: matchTrailingEnglishPhrase(context, THEIR_THERE_BE_REGEX)
+      fixed: correctTheirBeVerb(matched.match[0].split(/\s+/)[0], matched.match[1])
+    when: "!!matched"
+    return: "replaceFrom(matched.boundary, matched.phraseStart, `${fixed[0]} ${fixed[1]}`)"
   - id: englishAlotCorrection.live
     checks: [englishAlotCorrection]
     modes: [live]
@@ -4570,83 +4959,1338 @@ rules:
   - id: englishPronounVerbWhitelistAgreement.live
     checks: [englishPronounVerbWhitelistAgreement]
     modes: [live]
-    predicate: EnglishPronounVerbWhitelistAgreementRule
+    triggers: [wordBoundary]
+    sets:
+      # Verbs and prepositions after which "you" can only be their object: "I told you was"
+      # reads "(what) I told you was". Verbs that can start a clause ("I heard you was sick",
+      # "I knew you was lying") are not in the list: after them "you" is usually the subject.
+      OBJECT_YOU_BEFORE:
+        [
+          tell,
+          tells,
+          told,
+          give,
+          gives,
+          gave,
+          given,
+          show,
+          shows,
+          showed,
+          shown,
+          send,
+          sends,
+          sent,
+          ask,
+          asks,
+          asked,
+          thank,
+          thanks,
+          thanked,
+          teach,
+          teaches,
+          taught,
+          pay,
+          pays,
+          paid,
+          bring,
+          brings,
+          brought,
+          buy,
+          buys,
+          bought,
+          owe,
+          owes,
+          owed,
+          lend,
+          lends,
+          lent,
+          sell,
+          sells,
+          sold,
+          write,
+          writes,
+          wrote,
+          written,
+          remind,
+          reminds,
+          reminded,
+          warn,
+          warns,
+          warned,
+          offer,
+          offers,
+          offered,
+          promise,
+          promises,
+          promised,
+          meet,
+          met,
+          love,
+          hate,
+          help,
+          call,
+          leave,
+          left,
+          hit,
+          hurt,
+          keep,
+          kept,
+          miss,
+          choose,
+          chose,
+          chosen,
+          lose,
+          lost,
+          beat,
+          catch,
+          caught,
+          bless,
+          blessed,
+          make,
+          made,
+          let,
+          want,
+          wanted,
+          need,
+          needed,
+          to,
+          for,
+          with,
+          of,
+          about,
+          from,
+          at,
+          by,
+          on,
+          upon,
+          onto,
+          into,
+          toward,
+          towards,
+          against,
+          without,
+          behind,
+          beside,
+          besides,
+          around,
+          near,
+          among,
+          between,
+          beyond,
+          under,
+          over,
+          through,
+          unto,
+          within,
+        ]
+      # Gerunds that can start a clause: "Knowing you was lying, I left".
+      CLAUSE_GERUNDS:
+        [
+          knowing,
+          hearing,
+          seeing,
+          finding,
+          thinking,
+          believing,
+          feeling,
+          noticing,
+          realizing,
+          realising,
+          hoping,
+          wishing,
+          saying,
+          guessing,
+          supposing,
+          assuming,
+          figuring,
+          imagining,
+          remembering,
+          forgetting,
+          understanding,
+          learning,
+          reading,
+          deciding,
+          suspecting,
+          fearing,
+          expecting,
+          pretending,
+          claiming,
+          admitting,
+          doubting,
+          trusting,
+        ]
+    defs:
+      AGREEMENT_REGEX: /\b(i\s+is|i\s+has|you\s+was|(he|she|it)\s+are)(\s+\S+)$/i
+      AGREEMENT_CORRECTIONS: >-
+        new Map([["i is", "i am"], ["i has", "i have"], ["you was", "you were"],
+        ["he are", "he is"], ["she are", "she is"], ["it are", "it is"]])
+      # "i is" and "i has" are a variable after a condition or an identifier word ("while i has
+      # items", "the i has"). "if i go" is still the pronoun, thus only these verbs are guarded.
+      # Review has the identifier words in a different order: the build finds that string to
+      # make sure that Review detection is not in a content script.
+      VARIABLE_CONTEXT_BEFORE: /\b(?:if|while|until|unless|whether|when|where|the|a|each|every|index|variable|counter|iterator|loop)\s+$/i
+      # True when the lowercase "i" at `start` is a variable: "if i is None", "the i has".
+      isVariableI:
+        args: "text: string, start: number"
+        return: VARIABLE_CONTEXT_BEFORE.test(text.slice(Math.max(0, start - 24), start))
+      # [pronoun, verb] of `corrected` ("i am") in the case of the typed `phrase`.
+      correctPronounVerb:
+        args: "phrase: string, corrected: string"
+        type: "[string, string]"
+        let:
+          inputPronoun: phrase.split(/\s+/)[0]
+          parts: corrected.split(" ")
+          pronounStyle: detectWordCase(inputPronoun || parts[0])
+          verbStyle: >-
+            pronounStyle === "upper" && (inputPronoun || "").toLowerCase() !== "i" ? "upper" :
+            "lower"
+        return: "[applyWordCase(parts[0], pronounStyle), applyWordCase(parts[1], verbStyle)]"
+      # The word right before a phrase, on the same line.
+      PREVIOUS_WORD: '/([A-Za-z]+)[ \t ]+$/'
+      # Words that end in "ing" and are not gerunds that take an object.
+      NOT_GERUNDS: '/^(?:\p{L}*thing|during|morning|evening|ceiling|king|spring|string)$/u'
+      # True when the "you" at `youStart` can only be the object of the word before it. A past
+      # tense or a gerund elsewhere can take "you" as its object ("the man calling you") or start
+      # a clause ("I assumed you was busy"), thus its ending alone does not decide. A gerund that
+      # opens its clause is the subject, and "you" its object: "Meeting you was great".
+      isObjectYou:
+        args: "text: string, youStart: number"
+        let:
+          lookback: Math.max(0, youStart - 32)
+          previous: PREVIOUS_WORD.exec(text.slice(lookback, youStart))
+          word: previous[1].toLowerCase()
+        when: "!!previous"
+        return: >-
+          OBJECT_YOU_BEFORE.has(word) || (word.length > 4 && word.endsWith("ing") &&
+          !NOT_GERUNDS.test(word) && !CLAUSE_GERUNDS.has(word) &&
+          opensClause(text, lookback + previous.index))
+        else: "false"
+    let:
+      matched: matchTrailingEnglishPhrase(context, AGREEMENT_REGEX)
+      phrase: matched.match[1]
+      corrected: AGREEMENT_CORRECTIONS.get(phrase.toLowerCase().replace(/\s+/, " "))!
+      fixed: correctPronounVerb(phrase, corrected)
+    when:
+      - "!!matched"
+      - >-
+        !(phrase.split(/\s+/)[0] === "i" && isVariableI(matched.boundary.core,
+        matched.phraseStart))
+      # "Getting away from you was the point": the same guard as Review.
+      - "!(/^you/i.test(phrase) && isObjectYou(matched.boundary.core, matched.phraseStart))"
+    return: >-
+      replaceFrom(matched.boundary, matched.phraseStart,
+      `${fixed[0]}${phrase.match(/\s+/)![0]}${fixed[1]}${matched.match[3]}`)
   - id: englishArticleAnCorrection.live
     checks: [englishArticleAnCorrection]
     modes: [live]
-    predicate: EnglishArticleAnCorrectionRule
+    triggers: [wordBoundary]
+    sets:
+      # The sound of a word does not make the "a" before it an article: "keep a independent of
+      # b", "option a early" and the SQL alias in "from users an group by" are identifiers. Thus
+      # the article must also come after a word that comes before an article in prose, or open
+      # a sentence.
+      ARTICLE_CONTEXT_WORDS:
+        [
+          is,
+          was,
+          are,
+          were,
+          am,
+          be,
+          been,
+          being,
+          "isn't",
+          "wasn't",
+          "it's",
+          "that's",
+          "there's",
+          "here's",
+          "what's",
+          "he's",
+          "she's",
+          have,
+          has,
+          had,
+          need,
+          needs,
+          needed,
+          want,
+          wants,
+          wanted,
+          get,
+          gets,
+          got,
+          take,
+          takes,
+          took,
+          buy,
+          bought,
+          wait,
+          for,
+          with,
+          in,
+          of,
+          to,
+          at,
+          on,
+          about,
+          like,
+          into,
+          after,
+          before,
+          without,
+          within,
+          during,
+          such,
+          what,
+          quite,
+          rather,
+          half,
+          not,
+          just,
+          only,
+          also,
+          and,
+          but,
+        ]
+      # "Is a important here?": a verb at the sentence start makes a question, and the word
+      # after it is the subject, which can be a variable.
+      ARTICLE_QUESTION_OPENERS: [is, was, are, were, "isn't", "wasn't"]
+      # A lowercase initialism is read letter by letter ("an sla", "an fyi", "a usb"). Such a
+      # word counts as a word when it is long and reads like one; these common words do not.
+      WORDS_NOT_INITIALISMS: [man, new, small, short, friend]
+      # "a information" needs no article, not a different one.
+      ARTICLE_MASS_NOUNS: [information, advice, equipment, evidence]
+    defs:
+      # Article, then a finished word. The article must start a token: after a space, or after
+      # an opening quote or bracket that starts a token. Thus the "an" in "Qur'an" or "Xi'an"
+      # is not an article.
+      ARTICLE_REGEX: /(?:^|(?<=\s)|(?<=(?:^|\s)["'([“‘]))(a|an|A|An)\s+([A-Za-z]+)$/
+      # A capital article is an article only at a sentence start: "grade A apples", "Plan A is"
+      # use the letter.
+      SENTENCE_START_REGEX: /(?:^|[.!?]\s+|\n\s*)["'([“‘]?$/
+      ARTICLE_PRECEDING_WORD: /(^|\s)([A-Za-z'’]+)\s+$/
+      isArticleContext:
+        args: "beforeArticle: string"
+        type: boolean
+        return: SENTENCE_START_REGEX.test(beforeArticle) || articleAfterWord(beforeArticle)
+      # True when the word before the article comes before an article in prose.
+      articleAfterWord:
+        args: "beforeArticle: string"
+        type: boolean
+        let:
+          match: beforeArticle.match(ARTICLE_PRECEDING_WORD)
+          preceding: >-
+            match[2].toLowerCase().replaceAll("’", "'")
+        when:
+          - "!!match && match.index !== undefined"
+          - >-
+            !(ARTICLE_QUESTION_OPENERS.has(preceding) &&
+            SENTENCE_START_REGEX.test(beforeArticle.slice(0, match.index + match[1].length)))
+        return: ARTICLE_CONTEXT_WORDS.has(preceding)
+        else: "false"
+      # A lowercase single letter is usually a variable or a list item ("vowels are a e i").
+      # Only letters whose name sounds unlike their words matter: F H L M N R S X ("ef",
+      # "aitch") and U ("you"). "sla", "html", "usb", "usps" are letters; "house", "ugly" and
+      # "unit" read as words.
+      mayBeLetters:
+        args: "word: string"
+        return: >-
+          word.length === 1 || (!WORDS_NOT_INITIALISMS.has(word) && /^[fhlmnrsxu]/.test(word) &&
+          (word.length < 4 || !(word[0] === "u" ? /[aeiouy]/.test(word.slice(1)) :
+          /^.[aeiouy]/.test(word))))
+      # The article `word` takes when it is not `article` ("a" before "hour" -> "an"), or null
+      # when it is the same or the sound is not sure. Words of `dictionary` (the user's own
+      # terms, often names or initialisms) stay as they are.
+      correctArticle:
+        args: "article: string, word: string, dictionary?: ReadonlySet<string>"
+        type: string | null
+        let:
+          lower: word.toLowerCase()
+          sound: englishInitialSound(word)
+          fix: 'sound === "vowel" ? "an" : sound === "consonant" ? "a" : null'
+        when:
+          - >-
+            !(dictionary?.has(lower) || ARTICLE_MASS_NOUNS.has(lower) || (word === lower &&
+            mayBeLetters(lower)))
+          - "!!fix && fix !== article.toLowerCase()"
+        return: 'article[0] === "A" ? `A${fix.slice(1)}` : fix'
+    let:
+      boundary: resolveEnglishBoundaryContext(context)
+      core: boundary.core
+      match: core.match(ARTICLE_REGEX)
+      article: match[1]
+      word: match[2]
+      articleStart: match.index
+      beforeArticle: core.slice(0, articleStart)
+      corrected: >-
+        correctArticle(article, word, normalizeWordSet(context.hints?.userDictionary ?? []))
+    when:
+      - "!!boundary"
+      # Typing fixes lowercase words only: names and initialisms are for Review.
+      - "!!match && match.index !== undefined && match[2] === match[2].toLowerCase()"
+      - '!(article[0] === "A" && !SENTENCE_START_REGEX.test(beforeArticle))'
+      - "isArticleContext(beforeArticle) && !isPartOfTechnicalToken(core, articleStart, core.length)"
+      - corrected !== null
+    return: >-
+      replaceFrom(boundary, articleStart, `${corrected}${core.slice(articleStart + article.length,
+      core.length - word.length)}${word}`)
   - id: englishOrdinalSuffix.live
     checks: [englishOrdinalSuffix]
     modes: [live]
-    predicate: EnglishOrdinalSuffixRule
+    triggers: [wordBoundary]
+    defs:
+      # Only a full token of digits and a lowercase "nd" or "th". It starts after a space, an
+      # opening bracket or the text start: "v1th", "1.1th", "x=2th" and a quoted token stay.
+      # The other suffixes have other meanings: "st" is also stone ("11st 4lb"), "rd" is also
+      # rod ("a 16rd chain"), and capitals are also an abbreviation ("42RD" for road).
+      ORDINAL_REGEX: /(?<=^|[\s([])(\d+)(nd|th)$/
+      # The ordinal suffix of a number: "1" -> "st", "12" -> "th", "22" -> "nd".
+      ordinalSuffix:
+        args: "digits: string"
+        let:
+          lastTwo: Number(digits.slice(-2))
+        return: 'lastTwo >= 11 && lastTwo <= 13 ? "th" : (["th", "st", "nd", "rd"][lastTwo % 10] ?? "th")'
+    let:
+      boundary: resolveEnglishBoundaryContext(context)
+      core: boundary.core
+      match: core.match(ORDINAL_REGEX)
+      digits: match[1]
+      expected: ordinalSuffix(digits)
+      tokenStart: match.index
+    when:
+      - "!!boundary"
+      - "!!match && match.index !== undefined"
+      - match[2] !== expected
+      # Quoted text is often an example on purpose ("never write "3th"").
+      - >-
+        !isInsideProtectedSpan(core.slice(0, tokenStart), { quotations: true }) &&
+        !isPartOfTechnicalToken(core, tokenStart, core.length)
+    return: replaceFrom(boundary, tokenStart, `${digits}${expected}`)
   - id: englishProperNounCapitalization.live
     checks: [englishProperNounCapitalization]
     modes: [live]
-    predicate: EnglishProperNounCapitalizationRule
+    triggers: [insertChar, wordBoundary]
+    sets:
+      MARCH_DATE_WORDS: [on, in, since, until, till, from, by, of, between, after, before]
+      # Before a month and not before the verb or the adjective: "in may", "until march".
+      MONTH_PREPOSITIONS: [in, during, since, until, till, by, from, before, through, throughout]
+      # "last march" is a month; "the last march" or "his early march" is a march.
+      MONTH_MODIFIERS: [last, next, every, early, late]
+      NOUN_DETERMINERS: [the, a, an, this, that, his, her, their, our, my, your, its, whose, one]
+      # "the end of may", "the 5th of march".
+      OF_MONTH_HEADS: [end, beginning, start, middle, ides, rest, month]
+    defs:
+      # Names that are never a common word: a lowercase one is always a slip. Seasons,
+      # directions, job titles and holidays that are also ordinary phrases ("memorial day",
+      # "mother's day", "good friday", "lent", "thanksgiving") are not in the list.
+      PROPER_PHRASES: >-
+        ["New Year's Day", "New Year's Eve", "Christmas Eve", "Christmas Day", "Valentine's Day",
+        "North America", "South America", "Latin America", "Monday", "Tuesday", "Wednesday",
+        "Thursday", "Friday", "Saturday", "Sunday", "January", "February", "April", "June",
+        "July", "September", "October", "November", "December", "Christmas", "Easter",
+        "Halloween", "Hanukkah", "Passover", "Ramadan", "Diwali", "Africa", "America",
+        "Antarctica", "Asia", "Australia", "Europe", "Oceania"]
+      # Not glued to a word, number, mention, hashtag, path, dotted name or key=value.
+      PROPER_NAME_START: >-
+        "(?<![\\p{L}\\p{N}_@#/\\\\.'’=:&?])"
+      properPhraseKey:
+        args: "phrase: string"
+        return: 'phrase.toLowerCase().replace(/[^\p{L}]/gu, "")'
+      # A plural or a possessive keeps its ending: "mondays", "easter's". The regexes with the
+      # g flag start at most 64 characters before the cursor (execFrom).
+      PROPER_PHRASE_REGEX: >-
+        new RegExp(`${PROPER_NAME_START}(${PROPER_PHRASES.map((phrase) =>
+        phrase.replace(/'/g, "['’]?").replace(/ /g, "[ \\t]+")).join("|")})(?:['’]?s)?$`, "giu")
+      PROPER_CANONICAL: >-
+        new Map(PROPER_PHRASES.map((phrase) => [properPhraseKey(phrase), phrase] as [string,
+        string]))
+      # "may", "march" and "august" are also a verb, a verb and an adjective ("it may rain", "we
+      # march on", "an august institution"). Only evidence that cannot be the verb or the
+      # adjective counts: "mid-may", or a day number or a year after it ("may 15", "august
+      # 2026"). "march" before a number is also the verb ("march 2 abreast"): it also needs a
+      # date word or a day number before it ("on march 10", "3 march 2026").
+      PROPER_CONTEXT_MONTH: >-
+        new RegExp(`${PROPER_NAME_START}(may|march|august)(?:[ \\t]+([\\p{L}\\p{N}]+))?$`, "giu")
+      DAY_NUMBER: /^(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?$/i
+      DAY_OR_YEAR: /^(?:(?:[1-9]|[12]\d|3[01])(?:st|nd|rd|th)?|(?:19|20)\d\d)$/i
+      PROPER_PREVIOUS_WORD: '/(?:^|\s)[(["“]?([\p{L}\p{N}''’]+)[ \t]+$/gu'
+      MID_PREFIX_REGEX: /(?<!\p{L})mid-$/giu
+      # `canonical` in the case of `typed`, or null when that changes nothing or the user
+      # dictionary has the typed word or the name.
+      properNameReplacement:
+        args: "typed: string, canonical: string, dictionary: ReadonlySet<string>"
+        type: string | null
+        let:
+          replaced: recaseProperName(typed, canonical)
+        return: >-
+          replaced === typed || dictionary.has(typed.toLowerCase()) ||
+          dictionary.has(canonical.toLowerCase()) ? null : replaced
+      # Gives each all-lowercase word of `typed` the canonical case, letter for letter.
+      recaseProperName:
+        args: "typed: string, canonical: string"
+        let:
+          letters: '[...canonical.replace(/[^\p{L}]/gu, "")]'
+        return: >-
+          typed.replace(/\S+/g, (word: string, offset: number) => word === word.toLowerCase() ?
+          word.replace(/\p{L}/gu, (ch: string, at: number) =>
+          letters[letterCount(typed.slice(0, offset + at))] ?? ch) : word)
+      letterCount:
+        args: "text: string"
+        return: '(text.match(/\p{L}/gu) ?? []).length'
+      # The name at the end of `core` (a word end), with its canonical form. `contextual` marks
+      # may, march and august, which needed date evidence to count.
+      findProperName:
+        args: "core: string"
+        type: "{ start: number; end: number; canonical: string; contextual: boolean } | null"
+        let:
+          phrase: execFrom(PROPER_PHRASE_REGEX, core, core.length - 64)
+        return: >-
+          phrase ? { start: phrase.index, end: core.length, canonical:
+          PROPER_CANONICAL.get(properPhraseKey(phrase[1]))!, contextual: false } :
+          findContextMonth(core)
+      findContextMonth:
+        args: "core: string"
+        type: "{ start: number; end: number; canonical: string; contextual: boolean } | null"
+        let:
+          month: execFrom(PROPER_CONTEXT_MONTH, core, core.length - 64)
+          word: month[1]
+          next: month[2]
+          before: core.slice(0, month.index)
+          previous: >-
+            execFrom(PROPER_PREVIOUS_WORD, before, before.length - 64)?.[1].toLowerCase() ?? ""
+          isMonth: >-
+            next ? DAY_OR_YEAR.test(next) && (word.toLowerCase() !== "march" ||
+            MARCH_DATE_WORDS.has(previous) || DAY_NUMBER.test(previous)) :
+            execFrom(MID_PREFIX_REGEX, before, before.length - 64) !== null
+        when:
+          - "!!month"
+          - isMonth
+        return: >-
+          ({ start: month.index, end: month.index + word.length, canonical:
+          word[0].toUpperCase() + word.slice(1).toLowerCase(), contextual: true })
+      # The letters-only last words of the names that findProperName can end on.
+      PROPER_LAST_WORDS: >-
+        new Set([...PROPER_PHRASES.map((phrase) => properPhraseKey(phrase.split(" ").at(-1)!)),
+        "may", "march", "august"])
+      # The month words whose date evidence is the number right after them.
+      MONTH_BEFORE_NUMBER: '/(?:may|march|august)[ \t]+$/i'
+      # A quick check for finished text: false when no name of findProperName can end with
+      # `word` (a full word, also possessive or plural, or a day or year right after a month
+      # word in `before`).
+      couldEndProperName:
+        args: "word: string, before: string"
+        let:
+          key: properPhraseKey(word)
+        return: >-
+          DAY_OR_YEAR.test(word) ? MONTH_BEFORE_NUMBER.test(before) : PROPER_LAST_WORDS.has(key)
+          || PROPER_LAST_WORDS.has(key.replace(/s$/, ""))
+      # The months that are only months, for "april or may" and "may to june".
+      PLAIN_MONTHS: '"january|february|april|june|july|september|october|november|december"'
+      # The word ends its clause: a sentence mark, a comma, a closing bracket or the line end
+      # (LF, CRLF or CR).
+      MONTH_CLAUSE_END: '/^(?:[.,;:!?)\]]|[ \t]*(?:[\r\n]|$))/u'
+      MONTH_YEAR_AFTER: '/^[ \t]+(?:19|20)\d\d(?![\p{L}\p{N}])/u'
+      MONTH_RANGE_AFTER: >-
+        new RegExp(`^[ \\t]*(?:to|through|until|till|and|or|[-–—])[ \\t]*(?:${PLAIN_MONTHS})(?![\\p{L}])`,
+        "iu")
+      MONTH_RANGE_BEFORE: >-
+        new RegExp(`(?<![\\p{L}])(?:${PLAIN_MONTHS})[ \\t]*(?:,|to|through|until|till|and|or|[-–—])[ \\t]*$`,
+        "iu")
+      MONTH_LAST_TWO_WORDS: '/(?:^|[^\p{L}\p{N}''’])([\p{L}\p{N}''’]+)[ \t]+([\p{L}\p{N}''’]+)[ \t]+$/u'
+      # Finished text only (Review): true when a lowercase "may", "march" or "august" is the
+      # month, by the text after it too, which typing does not have. `before` ends right before
+      # the word, `after` starts right after it. The verb and the adjective need a subject or a
+      # noun next to them, thus the month is what stays when neither fits:
+      # - a date preposition before it and its clause end after it: "in may.", "until march,";
+      # - "last", "next", "every", "early" or "late" before it, not after a determiner ("last
+      #   may," is a month; "the last march," is a march). "since last august we": the verb
+      #   "march" or the adjective "august" never comes after "last"; "may" can ("what happens
+      #   next may surprise you"), and "every march is" is the noun;
+      # - "the abbreviation of august for": the adjective needs a noun after it;
+      # - "the end of may", "the 5th of march", at its clause end or before a year;
+      # - a day number before it, at its clause end: "on 5 may.";
+      # - a range or a list with a month that is only a month: "april or may", "may to june".
+      isMonthInContext:
+        args: "word: string, before: string, after: string"
+        type: boolean
+        let:
+          words: MONTH_LAST_TWO_WORDS.exec(before)
+          previous: >-
+            (words?.[2] ?? execFrom(PROPER_PREVIOUS_WORD, before, before.length - 64)?.[1] ??
+            "").toLowerCase()
+          earlier: '(words?.[1] ?? "").toLowerCase()'
+          ends: MONTH_CLAUSE_END.test(after) || MONTH_YEAR_AFTER.test(after)
+        when: "/^(?:may|march|august)$/.test(word)"
+        return: >-
+          MONTH_RANGE_AFTER.test(after) || (word !== "may" && previous !== "every" &&
+          MONTH_MODIFIERS.has(previous) && !NOUN_DETERMINERS.has(earlier)) || (word === "august" &&
+          previous === "of" && /^[ \t]+(?:for|in|to|and|or|is|was)\b/.test(after)) || (ends &&
+          (MONTH_RANGE_BEFORE.test(before) || MONTH_PREPOSITIONS.has(previous) ||
+          (MONTH_MODIFIERS.has(previous) ? !NOUN_DETERMINERS.has(earlier) : previous === "of" ?
+          OF_MONTH_HEADS.has(earlier) || DAY_NUMBER.test(earlier) : DAY_NUMBER.test(previous) &&
+          (MARCH_DATE_WORDS.has(earlier) || /\D$/.test(previous)))))
+        else: "false"
+    let:
+      boundary: resolveEnglishBoundaryContext(context)
+      found: findProperName(boundary.core)
+      # The full word, with a plural or possessive ending: the case and the user dictionary
+      # apply to "mondays" and "easter's" as typed, and to their base.
+      typed: boundary.core.slice(found.start, found.end)
+      replaced: >-
+        properNameReplacement(typed, found.canonical,
+        normalizeWordSet(context.hints?.userDictionary ?? []))
+    when:
+      - "!!boundary"
+      # "monday." can still become "monday.com" or "june.pdf": wait for the next key.
+      - boundary.trailing !== "."
+      - "!!found"
+      - '!isTechnicalToken(boundary.core.slice(runStart(boundary.core, found.start, /\S/)))'
+      - replaced !== null
+    return: "replaceFrom(boundary, found.start, `${replaced}${boundary.core.slice(found.end)}`)"
   - id: commaPeriodSpacing.live
     checks: [commaPeriodSpacing]
     modes: [live]
-    predicate: CommaPeriodSpacingRule
+    triggers: [insertChar, wordBoundary]
+    defs:
+      # A number alone right before a comma: "2", "-1.5", "(١٫٥", "$4", "1,500,000". The deferral
+      # and the repair use the same test, else a deferred space does not come back.
+      COMMA_NUMERIC_PREFIX: '/(?:^|[\s([{\p{Sc}])[-+]?\p{Nd}+(?:[.,٫]\p{Nd}*)*$/u'
+      numericPrefixBefore:
+        args: "text: string, index: number"
+        return: COMMA_NUMERIC_PREFIX.test(text.slice(Math.max(0, index - 34), index))
+      # One step over the straight quotes of a paragraph: `opener` is the index of the open
+      # quote (-1: none, -2: the pairing is not sure). A quote after a digit is an inch mark
+      # (5"); inside an open quote it can also close it ("5"), thus the pairing is not sure. A
+      # quote at a word start opens, any other quote closes. A second opener or a closer
+      # without an opener makes the pairing not sure.
+      straightQuoteStep:
+        args: "opener: number, previous: string, at: number"
+        type: number
+        let:
+          opens: '/^[\s([{—–]?$/u.test(previous)'
+        return: >-
+          opener === -2 ? -2 : /\p{Nd}/u.test(previous) ? (opener >= 0 ? -2 : opener) :
+          opens === (opener >= 0) ? -2 : opens ? at : -1
+      # The start of the open quote that the quote typed at `index` closes, or -1 when that
+      # quote opens a new one (or the pairing is not sure). Only the paragraph counts. A
+      # closing quote is tight against the punctuation before it: "Hi," not "Hi, ". Only " and
+      # ” are closers here: straight and curly single quotes are also apostrophes, and » opens
+      # in German and Danish.
+      closedQuoteStart:
+        args: "text: string, index: number, ch: string"
+        type: number
+        let:
+          paragraphStart: 'text.lastIndexOf("\n", index - 1) + 1'
+          before: text.slice(paragraphStart, index)
+          straight: >-
+            [...before.matchAll(/"/g)].reduce((opener, m) => straightQuoteStep(opener,
+            before[m.index - 1] ?? "", m.index), -1)
+          curlyOpeners: before.match(/[“„]/g)?.length ?? 0
+          curlyClosers: before.match(/”/g)?.length ?? 0
+        return: >-
+          ch === '"' ? (straight < 0 ? -1 : paragraphStart + straight) : ch === "”" ?
+          (curlyOpeners <= curlyClosers ? -1 : paragraphStart + Math.max(before.lastIndexOf("“"),
+          before.lastIndexOf("„"))) : -1
+      # The quote from `openerIndex` to the "," or "." at `punctuationIndex` is dialogue when it
+      # holds a word ("Hi", not ". ").
+      isProseQuote:
+        args: "text: string, openerIndex: number, punctuationIndex: number"
+        let:
+          quoted: text.slice(openerIndex + 1, punctuationIndex)
+        return: '/^[\p{L}\p{N}]/u.test(quoted) && /\p{L}/u.test(quoted)'
+      # A space typed after "Hello ." confirms a sentence end: the space before the mark goes.
+      # The rule never adds a space after a period: "google.com", "node.js" and "user.save()"
+      # start as a word and a period. "?" and "!" close the same way ("Really ? " -> "Really? "),
+      # but not in French, which keeps a space before them. A closing bracket or quote ends a
+      # word too: closingBracketSpacing added the space of "(quietly) " before the "." came.
+      spaceAfterMark:
+        args: "context: GrammarContext, text: string, canDefer: boolean"
+        let:
+          markIndex: text.length - 2
+          mark: text[markIndex] ?? ""
+          lang: context.hints?.lang
+          closesSentence: >-
+            mark === "." || (["?", "!"].includes(PUNCTUATION_EQUIVALENTS[mark] ?? mark) &&
+            !usesFrenchPunctuationSpacing(lang)) || isGreekQuestionMark(mark, lang)
+          wordEndIndex: lastNonSpaceBefore(text, markIndex)
+          spacesBefore: markIndex - 1 - wordEndIndex
+        when:
+          - canDefer && closesSentence
+          - >-
+            spacesBefore !== 0 && /[\p{L}\p{N})\]}"”’»“‘›]/u.test(text[wordEndIndex] ?? "")
+        return: typingEdit(`${mark} `, spacesBefore + 2)
+      # A closing quote closes tight: the space between "," or "." and the quote goes. An
+      # opening quote keeps its space.
+      tightClosingQuote:
+        args: "text: string, quote: string"
+        let:
+          openerIndex: closedQuoteStart(text, text.length - 1, quote)
+          j: lastNonSpaceBefore(text, text.length - 1)
+          spaceRun: text.length - 2 - j
+          punctuation: 'j >= 0 ? text[j] : ""'
+        when:
+          - openerIndex >= 0
+          - >-
+            spaceRun > 0 && (punctuation === "," || punctuation === ".") &&
+            isProseQuote(text, openerIndex, j)
+        return: typingEdit(quote, spaceRun + 1)
+      # A digit and a comma are not sure until the next character: "1,5" stays, then a prose
+      # continuation ("2,a") gets its space. A lone "e" can still become an exponent ("2,e5");
+      # "2,ee" cannot.
+      numericCommaRepair:
+        args: "context: GrammarContext, options: LiveRuleOptions, text: string, last: string, canDefer: boolean"
+        let:
+          deferredExponent: '/[eE]/.test(text[text.length - 2] ?? "")'
+          continuation: "deferredExponent ? text.slice(-2) : last"
+          punctuationIndex: text.length - continuation.length - 1
+        when:
+          - >-
+            canDefer && options.insertSpaceAfterAutocomplete && text[punctuationIndex] === "," &&
+            /^\p{L}$/u.test(last) && (deferredExponent || !/^[eE]$/u.test(last))
+          - >-
+            context.hints?.measurementContext === "prose" &&
+            !!resolveMeasurementLocale(context.hints.lang) && numericPrefixBefore(text,
+            punctuationIndex)
+        return: typingEdit(`, ${continuation}`, 1 + continuation.length)
+      # The comma (or an equal comma, such as the Arabic "،"): no space before it, and a space
+      # after it. A digit and a comma are unfinished numeric input: the space waits only where
+      # the repair above can complete it. Repeated marks (",,,,", ", , ,") are for
+      # duplicatePunctuationCollapse: a spacing edit there makes comma-space ladders.
+      commaSpacing:
+        args: "context: GrammarContext, options: LiveRuleOptions, text: string, last: string, canDefer: boolean"
+        let:
+          i: lastNonSpaceBefore(text, text.length - 1, SPACING_OR_FILLER_CHARS)
+          previous: 'i >= 0 ? text[i] : ""'
+          spaceBeforeViolated: SPACE_CHARS.some((ch) => text.slice(i + 1, -1).includes(ch))
+          insertSpaceAfter: options.insertSpaceAfterAutocomplete
+        when:
+          - (PUNCTUATION_EQUIVALENTS[last] ?? last) === ","
+          - >-
+            !(!spaceBeforeViolated && last === "," && /^\p{Nd}$/u.test(previous) &&
+            numericPrefixBefore(text, text.length - 1) && canDefer &&
+            context.hints?.measurementContext === "prose" &&
+            resolveMeasurementLocale(context.hints.lang))
+          - previous !== last
+          - spaceBeforeViolated || insertSpaceAfter
+        # The run can also hold zero-width fillers: they go with the spaces.
+        return: >-
+          typingEdit(`${last}${insertSpaceAfter ? " " : ""}`, spaceBeforeViolated ? text.length -
+          1 - i : 1)
+    let:
+      text: context.beforeCursor
+      last: text[text.length - 1]
+      # Only where a deferred decision can still complete: else the space goes for good.
+      canDefer: >-
+        !context.afterCursor && !context.hints?.isPaste && context.hints?.inputAction ===
+        "insert"
+    when: text.length >= 2
+    return: >-
+      last === " " ? spaceAfterMark(context, text, canDefer) : last === '"' || last === "”" ?
+      tightClosingQuote(text, last) : numericCommaRepair(context, options, text, last, canDefer)
+      ?? commaSpacing(context, options, text, last, canDefer)
   - id: openingBracketSpacing.live
     checks: [openingBracketSpacing]
     modes: [live]
-    predicate: OpeningBracketSpacingRule
+    triggers: [insertChar, wordBoundary]
+    # "if (x){" -> "if (x) {". All other brackets stay where they were typed: against a word
+    # ("item(s)"), against a bracket ("foo()[0]") or after a space.
+    when: context.beforeCursor.endsWith("){")
+    return: typingEdit(" {", 1)
   - id: closingBracketSpacing.live
     checks: [closingBracketSpacing]
     modes: [live]
-    predicate: ClosingBracketSpacingRule
+    triggers: [insertChar, wordBoundary]
+    maps:
+      OPENING_BY_CLOSING_BRACKET: { ")": "(", "]": "[", "}": "{" }
+    defs:
+      # True when the bracket at `closingIndex` closes a bracketed aside in prose: its opener is
+      # at the text start or after a space. "1)" and "a)" without an opener are list markers.
+      proseLikeClosing:
+        args: "text: string, closing: string, closingIndex: number"
+        let:
+          openingIndex: >-
+            matchingOpenIndex(text, closingIndex, OPENING_BY_CLOSING_BRACKET[closing], closing)
+          previousChar: text[lastNonSpaceBefore(text, closingIndex)]
+        return: >-
+          openingIndex === null ? !previousChar || !/[A-Za-z0-9_$]/.test(previousChar) :
+          openingIndex === 0 || SPACE_CHARS.includes(text[openingIndex - 1])
+    let:
+      text: context.beforeCursor
+      closingIndex: text.length - 1
+      closing: text[closingIndex]
+      hasSpaceBefore: SPACE_CHARS.includes(text[closingIndex - 1])
+      # "[label](url)": a link target can come after "]", and with a space "see [1] (the paper)"
+      # looks the same. Thus "]" gets no space. A bracket typed right before the same closer
+      # (an auto-closed pair) gets no space: autoBracketClose types over that closer.
+      insertSpaceAfter: >-
+        options.insertSpaceAfterAutocomplete && closing !== "]" && context.afterCursor[0] !==
+        closing && proseLikeClosing(text, closing, closingIndex)
+    when:
+      - text.length >= 2
+      - Object.hasOwn(OPENING_BY_CLOSING_BRACKET, closing)
+      # "- [ ] todo": an empty pair is a markdown checkbox, not prose spacing.
+      - "!(hasSpaceBefore && text[closingIndex - 2] === OPENING_BY_CLOSING_BRACKET[closing])"
+      - hasSpaceBefore || insertSpaceAfter
+    return: 'typingEdit(`${closing}${insertSpaceAfter ? " " : ""}`, hasSpaceBefore ? 2 : 1)'
   - id: slashContextSpacing.live
     checks: [slashContextSpacing]
     modes: [live]
-    predicate: SlashContextSpacingRule
+    triggers: [insertChar, wordBoundary]
+    sets:
+      # "Path: /home/user" is a label, not a URL: only real schemes compact.
+      SLASH_SCHEMES: [http, https, ftp, ftps, file, ssh, git, ws, wss]
+    defs:
+      # "http: /" -> "http:/": a space typed between a URL scheme and its slash.
+      compactsProtocolSlash:
+        args: "text: string, slashIndex: number"
+        let:
+          colonIndex: slashIndex - 2
+          schemeStart: runStart(text, colonIndex, /[A-Za-z0-9+.-]/)
+        when:
+          - SPACE_CHARS.includes(text[slashIndex - 1])
+          - colonIndex >= 1 && text[colonIndex] === ":"
+          - schemeStart < colonIndex
+        return: SLASH_SCHEMES.has(text.slice(schemeStart, colonIndex).toLowerCase())
+        else: "false"
+      # Only a math operand before the slash: a number, a single letter or a closing bracket
+      # ("10 /", "x /", "(a+b) /"). After a word, "/" opens a path or a switch: "Open
+      # /etc/hosts", "Type /help".
+      isSlashOperator:
+        args: "text: string, slashIndex: number"
+        return: >-
+          SPACE_CHARS.includes(text[slashIndex - 1]) &&
+          /(?:^|\s)(?:[-+]?\p{N}+(?:[.,]\p{N}+)*|\p{L})[ \t ]+\/$|[)\]}][ \t ]+\/$/u.test(text.slice(Math.max(0,
+          slashIndex - 64), slashIndex + 1))
+    let:
+      text: context.beforeCursor
+      slashIndex: text.length - 1
+    when: text.length >= 2 && text[slashIndex] === "/"
+    return: >-
+      compactsProtocolSlash(text, slashIndex) ? typingEdit("/", 2) :
+      options.insertSpaceAfterAutocomplete && isSlashOperator(text, slashIndex) ? typingEdit("/ ",
+      1) : null
   - id: mathOperatorSpacing.live
     checks: [mathOperatorSpacing]
     modes: [live]
-    predicate: MathOperatorSpacingRule
+    triggers: [insertChar, wordBoundary]
+    sets:
+      MATH_OPERATORS: ["=", "+", "*"]
+      MATH_QUOTE_CHARS: ['"', "'", "`", "”", "’"]
+    defs:
+      # The operand that ends at the last character before the operator that is not a space.
+      readLeftOperand:
+        args: "text: string, operatorIndex: number"
+        type: >-
+          { start: number; text: string; kind: "identifier" | "number" | "closingBracket" } | null
+        let:
+          leftIndex: lastNonSpaceBefore(text, operatorIndex)
+          leftChar: text[leftIndex]
+          start: >-
+            /[0-9]/.test(leftChar) ? runStart(text, leftIndex, /[0-9.]/) : runStart(text,
+            leftIndex, /[A-Za-z0-9_$]/)
+        when: leftIndex >= 0
+        return: >-
+          /[)\]}]/.test(leftChar) ? { start: leftIndex, text: leftChar, kind: "closingBracket" } :
+          /[0-9]/.test(leftChar) ? { start, text: text.slice(start, leftIndex + 1), kind: "number" }
+          : /[A-Za-z0-9_$]/.test(leftChar) ? { start, text: text.slice(start, leftIndex + 1), kind:
+          "identifier" } : null
+      # After "=": a name, a number, a quote or an opening bracket.
+      equalsRightOperand:
+        args: "ch: string"
+        return: >-
+          !!ch && (/[A-Za-z_$]/.test(ch) || /[0-9]/.test(ch) || MATH_QUOTE_CHARS.has(ch) ||
+          /[([{]/.test(ch))
+      # "+" or "*" between operands. "18+," and "(8.0+)" are suffixes: punctuation is not a
+      # right operand. Two single-letter names are an operation: "a+b", "x*y".
+      arithmeticContext:
+        args: "left: { kind: string; text: string }, rightChar: string"
+        return: >-
+          /[0-9]/.test(rightChar) || (left.kind === "number" ? /[A-Za-z_$]/.test(rightChar) ||
+          /[([{]/.test(rightChar) : left.kind === "identifier" && left.text.length === 1 &&
+          /[A-Za-z_$]/.test(rightChar))
+    let:
+      input: context.beforeCursor
+      rightIndex: input.length - 1
+      rightChar: input[rightIndex]
+      operatorIndex: rightIndex - 1
+      operator: input[operatorIndex]
+      left: readLeftOperand(input, operatorIndex)
+      # A number at the end of a name ("FOO2", "var1") is part of that name.
+      standaloneNumber: 'left.kind === "number" && !/[A-Za-z0-9_$]/.test(input[left.start - 1] ?? "")'
+    when:
+      - rightIndex >= 2
+      - MATH_OPERATORS.has(operator)
+      - >-
+        !(context.hints?.measurementContext === "prose" &&
+        /(?:^|[^\p{L}\p{N}_.])[-+]?[0-9]+(?:[.,][0-9]*)?[eE][+-][0-9]$/u.test(input.slice(-128)))
+      # "100+ users", "Node 18+ to run": a space is not a right operand, thus the "+" is a
+      # suffix.
+      - '!/\s/.test(rightChar)'
+      - "!!left"
+      # "--port=8080", "?q=1&page=2", "<a href=": flag, query and markup syntax.
+      - >-
+        !(operator === "=" && /[-?&`<]/.test(input.slice(Math.max(0, left.start - 2),
+        left.start)))
+      # '<span title="x">': an attribute in an open HTML tag.
+      - >-
+        !(operator === "=" && /<[A-Za-z][\w:-]*\s[^<>]*$/.test(input.slice(Math.max(0, left.start
+        - 256), left.start)))
+      # "FOO=bar" and "FOO2=bar" are environment variables; "2=2" is arithmetic.
+      - '!(operator === "=" && !standaloneNumber && left.text === left.text.toUpperCase())'
+      # "SameSite=Lax", "maxAge=60": a camel-case setting name, not algebra.
+      - '!(operator === "=" && /\p{Ll}\p{Lu}/u.test(left.text))'
+      - 'operator === "=" ? equalsRightOperand(rightChar) : arithmeticContext(left, rightChar)'
+      # "Call +1 555", "i'm +1 on that": a sign apart from the word before it belongs to the
+      # number. "y+1" stays arithmetic.
+      - >-
+        !(operator === "+" && left.kind === "identifier" && /[0-9]/.test(rightChar) &&
+        /\s/.test(input[operatorIndex - 1] ?? ""))
+    return: typingEdit(`${left.text} ${operator} ${rightChar}`, input.length - left.start)
   - id: measurementUnitFormatting.live
     checks: [measurementUnitFormatting]
     modes: [live]
-    predicate: MeasurementUnitFormattingRule
+    triggers: [wordBoundary]
+    defs:
+      # True when the text before a measurement reads as prose. Nothing before it is not
+      # evidence against prose: "2Mbit 2Mbit" must not become "2Mbit 2 Mbit". "the mass (10kg)
+      # is" is prose in brackets, thus an opening bracket after a space is skipped; "f(10kg)"
+      # keeps its bracket attached and is refused.
+      isProsePrefix:
+        args: "prefix: string"
+        type: boolean
+        let:
+          line: 'prefix.slice(Math.max(prefix.lastIndexOf("\n"), prefix.lastIndexOf("\r")) + 1)'
+          unbracketed: '/(?<=^|\s)[([]$/u.test(line) ? line.slice(0, -1) : line'
+        return: >-
+          !/\p{Bidi_Control}/u.test(prefix) && (line.trim().length === 0 || (/\p{L}/u.test(line) &&
+          !/(?:https?:\/\/|www\.|[\\/]|[[\]])/iu.test(line) && (unbracketed.trim().length === 0 ||
+          /(?:[:：]\s*|\p{L}[\p{L}\p{M}'’.-]*\s+)$/u.test(unbracketed))))
+      # Adds the locale separator between the number and the unit that end the text before a
+      # typed space or newline, and changes nothing else. `units`: the units that count (null:
+      # the measurement units). `skipUnit`: the units that stay as typed. Only a plain prose
+      # insertion in a locale with a measurement policy counts. currencySpacing uses it too.
+      separateUnit:
+        args: "context: GrammarContext, units: ReadonlySet<string> | null, skipUnit: RegExp | null"
+        type: GrammarEdit | null
+        let:
+          hints: context.hints
+          locale: resolveMeasurementLocale(hints.lang)
+          trailing: context.beforeCursor.at(-1)
+          text: context.beforeCursor.slice(0, -1)
+          parsed: >-
+            parseMeasurementExpression(text, locale, units ? (value: string, start: number) =>
+            units.has(value.slice(start)) : undefined)
+        when:
+          - >-
+            hints?.measurementContext === "prose" && hints.inputAction === "insert" &&
+            !hints.isPaste && context.beforeCursor.length <= 512 && context.afterCursor.length === 0
+          - '!!locale && (trailing === " " || trailing === "\n")'
+          - >-
+            !!parsed && !(skipUnit?.test(text.slice(parsed.numberEnd)) ?? false) &&
+            isProsePrefix(text.slice(0, parsed.start))
+        return: >-
+          ({ replacement:
+          `${text.slice(parsed.start, parsed.numberEnd)}${locale.separator}${text.slice(parsed.numberEnd)}${trailing}`,
+          deleteBackwards: context.beforeCursor.length - parsed.start, deleteForwards: 0, strict:
+          true })
+    # A single capital also names a grade, a model, a resolution or a name; "3d" and "5g" are
+    # not a day and a gram either.
+    return: separateUnit(context, null, /^([A-Z]|[dg])$/)
   - id: currencySpacing.live
     checks: [currencySpacing]
     modes: [live]
-    predicate: CurrencySpacingRule
+    triggers: [wordBoundary]
+    sets:
+      # Exact, case-sensitive markers written after the amount. ISO codes that are also words
+      # or common acronyms (ALL, TOP, CUP, TRY, CAD, ARS) are not in the list. "$", "£" and "¥"
+      # usually come before the amount, and to move them is not spacing.
+      CURRENCY_MARKERS:
+        [
+          EUR,
+          USD,
+          GBP,
+          CHF,
+          PLN,
+          SEK,
+          NOK,
+          DKK,
+          CZK,
+          HUF,
+          RON,
+          BGN,
+          JPY,
+          CNY,
+          AUD,
+          NZD,
+          BRL,
+          MXN,
+          SAR,
+          AED,
+          INR,
+          UAH,
+          "€",
+          "zł",
+          kr,
+        ]
+    # "120zł " -> "120 zł ": adds the locale separator and changes nothing else.
+    return: separateUnit(context, CURRENCY_MARKERS, null)
   - id: technicalTokenCompaction.live
     checks: [technicalTokenCompaction]
     modes: [live]
-    predicate: TechnicalTokenCompactionRule
+    triggers: [insertChar, wordBoundary]
+    # "12: 3" -> "12:3". "We sold 12. 5 were returned" is a sentence end, not a decimal: only the
+    # clock form is sure. "Chapter 3: 5 tips" compacts to "3:5" too: the minute digit that shows
+    # a clock is not typed yet, and to wait would make each "12: 30" fix take two keystrokes.
+    let:
+      text: context.beforeCursor
+      last: text[text.length - 1]
+    when:
+      - text.length >= 4
+      - SPACE_CHARS.includes(text[text.length - 2])
+      - 'text[text.length - 3] === ":" && /[0-9]/.test(last) && /[0-9]/.test(text[text.length - 4])'
+    return: typingEdit(`:${last}`, 3)
   - id: collapseRepeatedSpaces.live
     checks: [collapseRepeatedSpaces]
     modes: [live]
-    predicate: CollapseRepeatedSpacesRule
+    triggers: [wordBoundary]
+    let:
+      text: context.beforeCursor
+      trailing: splitTrailingSpaces(text).trailingSpaces.length
+      indexBefore: text.length - trailing - 1
+      lineStart: 'text.lastIndexOf("\n", text.length - trailing) + 1'
+    when:
+      - trailing >= 2
+      # Spaces at the line start are indentation: they stay.
+      - indexBefore >= lineStart
+    # Keep the first space: a no-break space put there on purpose ("10 kg", "« ") stays one.
+    return: typingEdit(text[indexBefore + 1], trailing)
   - id: trimSpaceBeforeLineBreak.live
     checks: [trimSpaceBeforeLineBreak]
     modes: [live]
-    predicate: TrimSpaceBeforeLineBreakRule
+    triggers: [insertChar, wordBoundary]
+    let:
+      text: context.beforeCursor
+      spaces: text.length - 2 - lastNonSpaceBefore(text, text.length - 1)
+    when:
+      - 'text.endsWith("\n")'
+      - spaces > 0
+    return: 'typingEdit("\n", spaces + 1)'
   - id: ellipsisShortcut.live
     checks: [ellipsisShortcut]
     modes: [live]
-    predicate: EllipsisShortcutRule
+    triggers: [insertChar]
+    let:
+      input: context.beforeCursor
+      prefix: input.slice(0, -3)
+    when:
+      - input.endsWith("...")
+      - "!shouldSkipGenericReplacement(prefix)"
+      # "[...arr]", "f(...args)", "{...rest}": spread syntax, not an ellipsis.
+      - "!/[[({]$/.test(prefix)"
+    return: typingEdit("…", 3)
   - id: emdashShortcut.live
     checks: [emdashShortcut]
     modes: [live]
-    predicate: EmdashShortcutRule
+    triggers: [insertChar]
+    let:
+      input: context.beforeCursor
+      prefix: input.slice(0, -2)
+    when:
+      - input.endsWith("--") && !input.endsWith("---")
+      - '!!prefix && !/\s$/.test(prefix)'
+      - "!shouldSkipGenericReplacement(prefix)"
+    return: typingEdit("—", 2)
   - id: smartQuoteNormalization.live
     checks: [smartQuoteNormalization]
     modes: [live]
-    predicate: SmartQuoteNormalizationRule
+    # A typed space comes as a word boundary: see closeNestedQuote.
+    triggers: [insertChar, wordBoundary]
+    defs:
+      shouldOpenQuote:
+        args: "before: string"
+        return: '/(?:^|[\s([{<])$/.test(before)'
+      # One quote mark of quoteBalance: an apostrophe in a word is neither an opener nor a
+      # closer. Swedish ”…” and ’…’ (`symmetric`): the same glyph opens or closes by its place,
+      # as a straight quote does.
+      quoteBalanceStep:
+        args: >-
+          input: string, i: number, char: string, balance: number, straight: string, open:
+          string, symmetric: boolean
+        type: number | null
+        return: >-
+          straight === "'" && isWordChar(input.charAt(i - 1)) && isWordChar(input.charAt(i + 1)) ?
+          balance : char === open && !symmetric ? balance + 1 : (char === straight || symmetric) &&
+          shouldOpenQuote(input.slice(0, i)) ? balance + 1 : balance === 0 ? null : balance - 1
+      # The open quotes in `input`, with straight quotes counted by their place, or null when a
+      # closer has nothing to close.
+      quoteBalance:
+        args: "input: string, straight: string, open: string, close: string"
+        type: number | null
+        return: >-
+          [...input.matchAll(new RegExp(`[${open}${close}${straight}]`, "g"))].reduce((balance:
+          number | null, m) => balance === null ? null : quoteBalanceStep(input, m.index, m[0],
+          balance, straight, open, open === close), 0)
+      # "’" and "»" always close a quote in each profile that has them, thus they surely mark
+      # quoted content. "“" and "‘" do not ("“" also opens a nested French quote, "‘" is the
+      # English single opener): they count only as the profile's own closing marks.
+      endsWithLikelyQuoteContent:
+        args: "input: string, doubleClose: string, singleClose: string"
+        return: >-
+          /[\p{L}\p{N}\])}»’!?.,:;]$/u.test(input) || input.charAt(input.length - 1) ===
+          doubleClose || input.charAt(input.length - 1) === singleClose
+      # Where the nested closer is not the apostrophe (de, pl, fr), "’" after a word closes an
+      # open nested quote only when a character that is not part of a word comes after it:
+      # "'c'est bon'" is “c’est bon”. The typed character stays for the next pass of the engine.
+      closeNestedQuote:
+        args: "input: string, open: string, close: string"
+        when:
+          - close !== "’" && /[\p{L}\p{N}]’[^\p{L}\p{N}’]$/u.test(input)
+          - (quoteBalance(input.slice(0, -2), "'", open, close) ?? 0) !== 0
+        return: typingEdit(`${close}${input.slice(-1)}`, 2)
+      # A typed " opens or closes the profile's double quote. When only the opener's padding
+      # was typed after it (« ), it closes that quote. Spaces before a closer that ends quoted
+      # content go.
+      doubleQuoteFix:
+        args: >-
+          before: string, open: string, close: string, singleClose: string, pad: string
+        type: "{ replacement: string; deleteBackwards: number } | null"
+        let:
+          split: splitTrailingSpaces(before)
+          core: split.core
+          trailingSpaces: split.trailingSpaces
+          coreBalance: quoteBalance(core, '"', open, close) ?? 0
+          openedEmpty: >-
+            pad.length > 0 && trailingSpaces === pad && core.endsWith(open) && coreBalance > 0
+          forceClose: >-
+            !openedEmpty && trailingSpaces.length > 0 && coreBalance > 0 &&
+            endsWithLikelyQuoteContent(core, close, singleClose)
+        when: quoteBalance(before, '"', open, close) !== null
+        return: >-
+          openedEmpty ? { replacement: `${pad}${close}`, deleteBackwards: 1 } : forceClose ? {
+          replacement: `${pad}${close}`, deleteBackwards: 1 + trailingSpaces.length } : {
+          replacement: shouldOpenQuote(before) ? `${open}${pad}` : `${pad}${close}`,
+          deleteBackwards: 1 }
+      # A typed ' after a word is an apostrophe; where the nested closer differs,
+      # closeNestedQuote decides when the word ends. Else it opens or closes the nested quote.
+      singleQuoteFix:
+        args: "before: string, open: string, close: string"
+        type: "{ replacement: string; deleteBackwards: number } | null"
+        when: quoteBalance(before, "'", open, close) !== null
+        return: >-
+          ({ replacement: isWordChar(before.at(-1) ?? "") ? "’" : shouldOpenQuote(before) ? open :
+          close, deleteBackwards: 1 })
+      # The edit for a typed straight quote: the profile's opener, closer or apostrophe.
+      typedQuoteEdit:
+        args: >-
+          input: string, profile: { double: readonly [string, string]; single: readonly [string,
+          string]; quoteSpace: string }
+        type: GrammarEdit | null
+        let:
+          typed: input.charAt(input.length - 1)
+          before: input.slice(0, -1)
+          fix: >-
+            typed === '"' ? doubleQuoteFix(before, profile.double[0], profile.double[1],
+            profile.single[1], profile.quoteSpace) : singleQuoteFix(before, profile.single[0],
+            profile.single[1])
+        when:
+          - typed === '"' || typed === "'"
+          - "!shouldSkipGenericReplacement(before)"
+          - "!!fix && fix.replacement !== typed"
+        return: typingEdit(fix.replacement, fix.deleteBackwards)
+    let:
+      input: context.beforeCursor
+      profile: resolveTypographyProfile(context.hints?.lang)
+    return: >-
+      closeNestedQuote(input, profile.single[0], profile.single[1]) ?? typedQuoteEdit(input,
+      profile)
   - id: frenchPunctuationSpacing.live
     checks: [frenchPunctuationSpacing]
     modes: [live]
-    predicate: FrenchPunctuationSpacingRule
+    # ":" and ";" do not end a word: the rule waits for the space after them. "!" and "?" end a
+    # word, but a later character of the same word can undo their space.
+    triggers: [insertChar, wordBoundary]
+    defs:
+      # Per rule instance (its options object): the text right after the rule added a space
+      # before a "!" or "?" where no space was. Only that space can go again; a space that the
+      # writer typed stays. Other text ends the entry (readMemo).
+      FRENCH_EAGER_SPACES: new WeakMap<LiveRuleOptions, string>()
+      # Only after a word, a number or a closing mark: "?!" stays together and ":)" stays.
+      FRENCH_SPACED_AFTER: '/[\p{L}\p{N}»)\]’”]$/u'
+      # "https:" is a URL that is not complete, also as "(https:" or "[ici](https:". A fixed
+      # list of schemes: "localhost:3000" in prose still gets a space.
+      FRENCH_URL_SCHEME: '/(?:^|[^\p{L}\p{N}])(?:https?|ftps?|mailto|file|tel|data)$/iu'
+      # "&nbsp;", "&#160;", "&#xA0;": the semicolon ends an HTML character reference.
+      FRENCH_CHARACTER_REFERENCE: '/&(?:[a-z][a-z\d]*|#\d+|#x[\da-f]+)$/i'
+      # France-style spacing: a no-break space before ":" and a narrow no-break space before
+      # ";", "!" and "?". A plain space that the writer typed there is replaced. "!" and "?"
+      # get their space when they are typed; ":" and ";" when the space after them is typed,
+      # thus "C:\Users" and "localhost:3000" stay.
+      frenchMarkSpacing:
+        args: "input: string, options: LiveRuleOptions"
+        type: GrammarEdit | null
+        let:
+          last: input.charAt(input.length - 1)
+          previous: input.charAt(input.length - 2)
+          typed: >-
+            last === "!" || last === "?" ? last : last === " " && /[:;!?]/.test(previous) ?
+            previous : ""
+          split: 'splitTrailingSpaces(last === " " ? input.slice(0, -2) : input.slice(0, -1), [" ", NBSP, NNBSP])'
+          core: split.core
+          trailingSpaces: split.trailingSpaces
+          space: 'typed === ":" ? NBSP : NNBSP'
+        when:
+          - typed !== ""
+          - trailingSpaces !== space && FRENCH_SPACED_AFTER.test(core)
+          # "12:30" is a time; "Chapitre 2 :" with a typed space still gets the fix.
+          - '!(typed === ":" && !trailingSpaces && /\p{N}$/u.test(core))'
+          # ":smile:": the word right before already has a mark without a space, thus it is one
+          # token, not a sentence boundary.
+          - >-
+            !((typed === ":" && FRENCH_URL_SCHEME.test(core)) || (typed === ";" &&
+            FRENCH_CHARACTER_REFERENCE.test(core)) || shouldSkipGenericReplacement(core) ||
+            /[:;!?]/.test(getLastToken(core)))
+        return: >-
+          storeMemo(FRENCH_EAGER_SPACES, options, last !== " " && !trailingSpaces ?
+          `${core}${space}${typed}` : undefined, typingEdit(last === " " ? `${space}${typed} ` :
+          `${space}${typed}`, trailingSpaces.length + (last === " " ? 2 : 1)))
+    let:
+      input: context.beforeCursor
+      # The same text again (the engine runs the rules again on their result) keeps the entry.
+      eager: readMemo(FRENCH_EAGER_SPACES, options, input)
+    # The eager space goes when the next character shows that the mark was in a word: "x?y"
+    # stays "x?y", not "x ?y".
+    return: >-
+      !usesFrenchPunctuationSpacing(context.hints?.lang) ? null : eager !== undefined &&
+      input.slice(0, -1) === eager && isWordChar(input.at(-1)!) ? typingEdit(input.slice(-2), 3) :
+      frenchMarkSpacing(input, options)
   - id: duplicatePunctuationCollapse.live
     checks: [duplicatePunctuationCollapse]
     modes: [live]
-    predicate: DuplicatePunctuationCollapseRule
+    triggers: [insertChar, wordBoundary]
+    sets:
+      # ":" is not in the list: "std::vector" and "a::b" are scope operators, and nothing here
+      # tells them from a doubled colon in prose. The equal marks of PUNCTUATION_EQUIVALENTS
+      # (Arabic "،" and "؛") collapse as their ASCII forms do.
+      COLLAPSIBLE_PUNCTUATION: [",", ";", "،", "؛"]
+    defs:
+      # The spaces right before `index`.
+      leadingSpaceCount:
+        args: "input: string, index: number"
+        return: splitTrailingSpaces(input.slice(0, index)).trailingSpaces.length
+      # One space of a run: a plain space, else a no-break space, else its first character.
+      collapseSpacing:
+        args: "run: string"
+        return: 'run.includes(" ") ? " " : run.includes("\xA0") ? "\xA0" : run.charAt(0)'
+      # ",, ," or "; ;": a run of the mark, spaces, then the mark again -> one mark and one space.
+      spacedDuplicate:
+        args: "input: string"
+        let:
+          lastIndex: input.length - 1
+          last: input.charAt(lastIndex)
+          spaceRunStart: lastNonSpaceBefore(input, lastIndex, SPACING_OR_FILLER_CHARS)
+          spaceRunLength: lastIndex - 1 - spaceRunStart
+          duplicateRunLength: spaceRunStart - lastNonSpaceBefore(input, spaceRunStart + 1, [last])
+          duplicateStart: spaceRunStart - duplicateRunLength + 1
+          leading: leadingSpaceCount(input, duplicateStart)
+        when:
+          - COLLAPSIBLE_PUNCTUATION.has(last)
+          - spaceRunLength > 0
+          - duplicateRunLength > 0
+          - "!shouldSkipGenericReplacement(input.slice(0, duplicateStart - leading))"
+        return: >-
+          typingEdit(`${last}${collapseSpacing(input.slice(spaceRunStart + 1, lastIndex))}`,
+          leading + duplicateRunLength + spaceRunLength + 1)
+      # ",," and ";;" (with spaces after them): one mark.
+      trailingDuplicate:
+        args: "input: string"
+        let:
+          split: splitTrailingSpaces(input, SPACING_OR_FILLER_CHARS)
+          core: split.core
+          last: core.charAt(core.length - 1)
+          runLength: splitTrailingSpaces(core, [last]).trailingSpaces.length
+          duplicateStart: core.length - runLength
+          leading: leadingSpaceCount(core, duplicateStart)
+        when:
+          - COLLAPSIBLE_PUNCTUATION.has(last)
+          - runLength >= 2
+          - "!shouldSkipGenericReplacement(core.slice(0, duplicateStart - leading))"
+        return: >-
+          typingEdit(`${last}${split.trailingSpaces}`, leading + runLength +
+          split.trailingSpaces.length)
+      # ".. " -> ". " (an ellipsis "..." stays).
+      trailingDoublePeriod:
+        args: "input: string"
+        let:
+          core: input.slice(0, -1)
+        when:
+          - input.endsWith(" ")
+          - core.endsWith("..") && !core.endsWith("...")
+          - "!shouldSkipGenericReplacement(core.slice(0, -2))"
+        return: typingEdit(". ", 3)
+    return: >-
+      spacedDuplicate(context.beforeCursor) ?? trailingDuplicate(context.beforeCursor) ??
+      trailingDoublePeriod(context.beforeCursor)
   - id: autoBracketClose.live
     checks: [autoBracketClose]
     modes: [live]
-    predicate: AutoBracketCloseRule
+    # A space is a wordBoundary in the content script.
+    triggers: [insertChar, wordBoundary]
+    maps:
+      AUTO_PAIRS: { "(": ")", "[": "]", "{": "}", "'": "'", '"': '"', "`": "`", "<": ">", "«": "»" }
+    sets:
+      AUTO_CLOSERS: [")", "]", "}", "'", '"', "`", ">", "»"]
+      SYMMETRIC_QUOTES: ["'", '"', "`"]
+    defs:
+      # True when an odd number of `quote` come before it on the line, thus the next one closes.
+      # "'" is not counted: apostrophes ("it's") make its count of no use. A " right after a
+      # digit is an inch mark ("5\"") and is not counted.
+      closesOpenQuote:
+        args: "beforeQuote: string, quote: string"
+        return: >-
+          (quote === '"' || quote === "`") && (beforeQuote.slice(beforeQuote.lastIndexOf("\n") +
+          1).match(quote === '"' ? /(?<!\p{Nd})"/gu : /`/g) ?? []).length % 2 === 1
+      # A typed opener gets its closer after the cursor. Not a symmetric quote or "<" after a
+      # word character (an apostrophe in "it's", a closing quote, a comparison or an HTML tag),
+      # not a quote that closes an open quote ('"hi,"'), and not when the closer is already
+      # after the cursor.
+      autoCloseEdit:
+        args: "before: string, after: string, open: string, close: string"
+        type: GrammarEdit | null
+        let:
+          beforeOpener: before.slice(0, -1)
+        when:
+          - '!((SYMMETRIC_QUOTES.has(open) || open === "<") && isWordChar(beforeOpener.at(-1) ?? ""))'
+          - "!closesOpenQuote(beforeOpener, open)"
+          - after[0] !== close
+        return: "({ replacement: open + close, deleteBackwards: 1, deleteForwards: 0, cursorOffset: 1 })"
+      # A typed closer types over the same closer after the cursor. Not ">" after a word
+      # character ("a>", "1>": a comparison or a shift). A symmetric quote only when it closes
+      # one: after a word ("hello"|), or after an odd count of that quote on the line ("hi,"|
+      # or ""|). This tells a closing quote from the engine's next pass after an auto-close.
+      overtypeEdit:
+        args: "before: string, close: string"
+        type: GrammarEdit | null
+        let:
+          beforeTyped: before.slice(0, -1)
+        when:
+          - '!(close === ">" && isWordChar(beforeTyped.at(-1) ?? ""))'
+          - >-
+            !(SYMMETRIC_QUOTES.has(close) && !isWordChar(beforeTyped.at(-1) ?? "") &&
+            !closesOpenQuote(beforeTyped, close))
+        return: typingEdit(close, 1, 1)
+    let:
+      before: context.beforeCursor
+      after: context.afterCursor
+      typed: before[before.length - 1]
+      closeChar: "Object.hasOwn(AUTO_PAIRS, typed) ? AUTO_PAIRS[typed] : undefined"
+    # "3 < 4": a space right after "<" makes a comparison; no tag or generic opens with one, thus
+    # the ">" that came with it goes. A typed closer before the same closer types over it. An
+    # opener that another rule made (smart quotes change ' to « in Polish) gets no closer.
+    return: >-
+      before.endsWith("< ") && after[0] === ">" ? typingEdit(" ", 1, 1) : AUTO_CLOSERS.has(typed)
+      && after[0] === typed ? overtypeEdit(before, typed) : closeChar && (context.charTyped ??
+      typed) === typed ? autoCloseEdit(before, after, typed, closeChar) : null
 
   # Review rules: each names a shared detector (CORE_PREDICATES in review/reviewDetectors.ts).
   - id: styleFindings
