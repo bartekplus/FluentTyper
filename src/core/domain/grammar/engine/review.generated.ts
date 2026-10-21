@@ -24462,7 +24462,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[sS]eid)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|es|wir|man)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t]*(?:,|und(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|oder(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))))",
     literals: ["seid"],
-    fixer: "de:deSs",
+    fixer: "de:@de.confusions/5",
   }),
   frame({
     pattern:
@@ -24641,7 +24641,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "folge",
       "dessen",
     ],
-    fixer: "de:deDas",
+    fixer: "de:@de.confusions/14",
   }),
   frame({
     pattern:
@@ -24653,7 +24653,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Das)(?=[ \\t\\u00a0]{1,8}(?:dem|der|den|die|ein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|alle|alles|jemand|niemand|hier|so)[ \\t\\u00a0]{1,8}(?<clause>[^.!?\\n,]*\\p{Ll}),[ \\t\\u00a0]{1,8}(?:ist|war|wäre|freut|ärgert|stört|wundert|zeigt|bedeutet|macht|liegt|hat|gefällt|beweist|spricht|überrascht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["das"],
-    fixer: "de:deDas2",
+    fixer: "de:@de.confusions/16",
   }),
   frame({
     pattern:
@@ -24675,19 +24675,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "erstaunlich",
       "interessant",
     ],
-    fixer: "de:deAdj",
+    fixer: "de:@de.confusions/17",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<head>\\p{L}+)[ \\t\\u00a0]{1,8}das)(?=[ \\t\\u00a0]{1,8}(?<next>\\p{Lu}\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<rest>[^.!?\\n,;:]{0,80}\\p{Ll})[ \\t]*(?:[.!?,;:]|$)))",
     literals: ["das"],
-    fixer: "de:deHead",
+    fixer: "de:@de.confusions/18",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<![fF]ür[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8})(?<target>wider)(?=[ \\t\\u00a0]{1,8}(?!(?:den|die|das|dem|des|ein|eine|einen|einem|eines|einer|jede|jeden|jedes|jeder|alle|allen|alles|aller|besseres|besseren|bessere|kein\\p{Ll}*|mein\\p{Ll}*|dein\\p{Ll}*|sein\\p{Ll}*|ihr\\p{Ll}*|unser\\p{Ll}*|eur\\p{Ll}*|diese\\p{Ll}*|jegliche\\p{Ll}*|solche\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Lu})|[ \\t]*(?:[.!?,;]|$)))",
     literals: ["wider"],
-    fixer: "de:deWider",
+    fixer: "de:@de.confusions/19",
   }),
   frame({
     pattern:
@@ -24717,13 +24717,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<target>Den)(?=[ \\t\\u00a0]{1,8}(?:das|die|diese|dieser|dieses)[ \\t\\u00a0]{1,8}(?<verb>\\p{Ll}+(?:t|en))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Lu})))",
     literals: ["den"],
-    fixer: "de:deDen",
+    fixer: "de:@de.confusions/24",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[\\p{L}][ \\t\\u00a0]{1,8})(?<target>schon(?:e|en|er|es|em))(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+(?:e|en|er|es|em)[ \\t\\u00a0]{1,8})?\\p{Lu}))",
     literals: ["schon"],
-    fixer: "de:deSchon",
+    fixer: "de:@de.confusions/25",
   }),
   frame({
     pattern:
@@ -24735,7 +24735,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!und[ \\t\\u00a0]{1,8})(?<=zu[ \\t\\u00a0]{1,8})(?<target>seien)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:sie|wir|die|es|alle)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<noun>[ \\t\\u00a0]{1,8}\\p{Lu})?)",
     literals: ["seien"],
-    fixer: "de:deSeien",
+    fixer: "de:@de.confusions/27",
   }),
   frame({
     pattern:
@@ -24785,7 +24785,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "seychellen",
       "philippinen",
     ],
-    fixer: "de:dePrep",
+    fixer: "de:@de.confusions/32",
   }),
   frame({
     pattern:
@@ -24802,31 +24802,31 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "hätten",
       "habe",
     ],
-    fixer: "de:deHh",
+    fixer: "de:@de.confusions/33",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?:[dD]er|[dD]ie|[dD]as|[dD]en|[dD]em|[dD]es|[eE]in|[eE]ine|[eE]inen|[eE]inem|[eE]iner|[eE]ines|[kK]ein|[kK]eine|[kK]einen|[kK]einem|[kK]einer|[mM]ein|[mM]eine|[mM]einen|[mM]einem|[mM]einer|[sS]ein|[sS]eine|[sS]einen|[sS]einem|[sS]einer|[iI]hre|[iI]hren|[iI]hrem|[iI]hrer|[uU]nser|[uU]nsere|[uU]nseren|[uU]nserem|[dD]ein|[dD]eine|[dD]einen|[dD]einem|[eE]ure|[eE]uren|[zZ]wei|[dD]rei|[vV]ier|\\p{N}+)[ \\t\\u00a0]{1,8}(?<target>eign(?:e|en|er|es|em))(?=[ \\t\\u00a0]{1,8}\\p{Lu}))",
     literals: ["eign"],
-    fixer: "de:deEign",
+    fixer: "de:@de.confusions/34",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<noun>\\p{L}+)[ \\t\\u00a0]{1,8}(?<target>kamm)(?=[ \\t\\u00a0]{1,8}\\p{Ll}))",
     literals: ["kamm"],
-    fixer: "de:deKamm",
+    fixer: "de:@de.confusions/35",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<noun>\\p{Ll}+er|anders)[ \\t\\u00a0]{1,8}(?<target>wie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["wie"],
-    fixer: "de:deWie",
+    fixer: "de:@de.confusions/36",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?:und|oder)[ \\t\\u00a0]{1,8}auch)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["auch"],
-    fixer: "de:deUnd",
+    fixer: "de:@de.confusions/37",
   }),
   frame({
     pattern:
@@ -24838,7 +24838,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<noun>\\p{Ll}+)[ \\t\\u00a0]{1,8}(?<target>diene)(?=[ \\t\\u00a0]{1,8}\\p{Lu}))",
     literals: ["diene"],
-    fixer: "de:deDiene",
+    fixer: "de:@de.confusions/39",
   }),
   frame({
     pattern:
@@ -24850,31 +24850,31 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Öö]konomisch(?<end>e[mnrs]?)?)(?=[ \\t\\u00a0]{1,8}(?=\\p{Lu})\\p{L}{0,20}?(?:[Gg]ottesdienst|[Aa]ndacht|[Tt]rauerfeier|[Gg]ebet|[Kk]irchentag|[Ss]egnung)\\p{Ll}*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>[Öö]kologisch(?<end2>e[mnrs]?)?)(?=[ \\t\\u00a0]{1,8}(?=\\p{Lu})\\p{L}{0,20}?[Gg]ottesdienst\\p{Ll}*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["ökonomisch", "ökologisch"],
-    fixer: "de:deÖö",
+    fixer: "de:@de.confusions/41",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Tt]ür|[Tt]üren|[Ff]enster|[Ss]chublade|[Ss]chubladen|[Ss]chrank|[Kk]iste|[Dd]eckel|[Uu]mschlag|[Bb]riefumschlag|[Tt]resor|[Ss]afe|[Pp]forte|[Ff]ensterladen)(?:[ \\t\\u00a0]{1,8}(?:nicht|schon|noch|wieder|nie|gut|richtig|sofort|endlich|luftdicht|fest|ab|zu)){0,3}[ \\t\\u00a0]{1,8})(?<target>(?:ab|ver|zu)?geschossen|schießen|schoss|schossen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>[Vv]erschossene[mnrs]?)(?=[ \\t\\u00a0]{1,8}(?:Tür|Briefumschlag|Umschlag|Schublade|Kiste|Behälter|Raum|Schrank)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["geschossen", "schie", "schoss", "schossen", "verschossene"],
-    fixer: "de:deAb",
+    fixer: "de:@de.confusions/42",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=einweis|eingewiesen)(?<=[ \\t\\u00a0]{1,8}in[ \\t\\u00a0]{1,8}(?:\\p{L}{1,20}[ \\t\\u00a0]{1,8}){0,2}(?:Geheimnis|Geheimnisse|Plan|Pläne|Vorhaben|Mysterium|Mysterien)(?:[ \\t\\u00a0]{1,8}\\p{L}{1,20}){0,3}[ \\t\\u00a0]{1,8})(?<target>einweis(?:t|e|en|test|tet)|eingewiesen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["einweis", "eingewiesen"],
-    fixer: "de:deEinweis",
+    fixer: "de:@de.confusions/43",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>versengt(?:e|en)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["versengt"],
-    fixer: "de:deVersengt",
+    fixer: "de:@de.confusions/44",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:du|ihr|Sie|er|sie|es|man|wir|ich)[ \\t\\u00a0]{1,8})(?<target>den)(?=[ \\t]*\\?))",
     literals: ["den"],
-    fixer: "de:deDen2",
+    fixer: "de:@de.confusions/45",
   }),
   frame({
     pattern:
@@ -24886,19 +24886,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>gegen)(?<=(?:\\p{Lu}\\p{Ll}{1,30}|das|es|wenig|viel|alles|etwas)[ \\t\\u00a0]{1,8}gegen)(?=[ \\t]*\\?|[ \\t\\u00a0]{1,8}(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["gegen"],
-    fixer: "de:deGegen",
+    fixer: "de:@de.confusions/47",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ss]tehts)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["stehts"],
-    fixer: "de:deSs2",
+    fixer: "de:@de.confusions/48",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ss]tart(?:e|en|et|ete|eten))(?=(?:[ \\t\\u00a0]{1,8}\\p{L}+){1,4}[ \\t\\u00a0]{1,8}an[ \\t]*[.!?,;]))",
     literals: ["start"],
-    fixer: "de:deSs3",
+    fixer: "de:@de.confusions/49",
   }),
   frame({
     pattern:
@@ -24910,7 +24910,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>bewehr(?:t|en|te|ten|e|st))(?<=(?:sich|mich|dich|uns|euch)(?:[ \\t\\u00a0]{1,8}(?:nicht|immer|gut|sehr|schon|bereits|bestens|wieder|stets|auch)){0,3}[ \\t\\u00a0]{1,8}bewehr\\p{Ll}{0,3})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>bewehr(?:t|en|te|ten))(?=[ \\t\\u00a0]{1,8}sich(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["bewehr", "bewehr"],
-    fixer: "de:deBewehr",
+    fixer: "de:@de.confusions/51",
   }),
   frame({
     pattern:
@@ -24928,13 +24928,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Nn]achdem|[Ss]eitdem|[Aa]ußerdem)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,})(?:[ \\t\\u00a0]{1,8}\\p{Ll}+[ \\t\\u00a0]{1,8}\\p{L}|[ \\t]*\\?)))",
     literals: ["nachdem", "seitdem", "erdem"],
-    fixer: "de:deNn",
+    fixer: "de:@de.confusions/54",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Komma)(?<=(?:[Ii]ns|[Ii]m|[Aa]us[ \\t\\u00a0]{1,8}dem|[Ii]n[ \\t\\u00a0]{1,8}ein|[Ii]n[ \\t\\u00a0]{1,8}einem)[ \\t\\u00a0]{1,8}Komma)(?=[ \\t\\u00a0]{1,8}(?:fall|fiel|gefallen|lieg|lag|gelegen|versetz|gesunken|sank|erwach|geholt)\\p{Ll}*(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,;])|(?<t2>Koma)(?<=Punkt[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}Koma)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["komma", "koma"],
-    fixer: "de:deKomma",
+    fixer: "de:@de.confusions/55",
   }),
   frame({
     pattern:
@@ -24952,13 +24952,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Sichtweise)(?<=(?:in|außer|aus|auf)[ \\t\\u00a0]{1,8}Sichtweise)(?=[ \\t]*[.!?,;]|[ \\t\\u00a0]{1,8}(?:kommen|kam|gekommen|bleiben|blieb|geblieben|ist|war|sein)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>Sichtweite)(?<=(?:subjektive|persönliche|eigene|andere|einseitige)[ \\t\\u00a0]{1,8}Sichtweite)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["sichtweise", "sichtweite"],
-    fixer: "de:deSichtweise",
+    fixer: "de:@de.confusions/58",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>wurden|wurde|würden)(?<=(?:ge\\p{Ll}{2,30}(?:t|en)|\\p{Ll}{2,30}iert|(?:be|er|ver|ent|zer)\\p{Ll}{2,30}t)[ \\t\\u00a0]{1,8}w\\p{Ll}{3,5})(?=[ \\t]*[.!?,;]))",
     literals: ["wurden", "wurde", "würden"],
-    fixer: "de:deWurden",
+    fixer: "de:@de.confusions/59",
   }),
   frame({
     pattern:
@@ -24976,31 +24976,31 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>mir)(?<!(?:^|[^\\p{L}])(?:[Dd](?:er|ie|as|en|em|es|enen|eren|essen)|[Aa]ll(?:en|er|e)|[Ww]elche[mnrs]?|[Dd]iese[mnrs]?|[Jj]ene[mnrs]?|[Ss]olche[mnrs]?|mit|von|bei|zu|aus|nach|seit|in|an|auf|unter|vor|für|über|durch)[ \\t\\u00a0]{1,8}mir)(?=[ \\t\\u00a0]{1,8}(?<adj>\\p{Ll}{3,}(?:em|er|en))[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["mir"],
-    fixer: "de:deMir",
+    fixer: "de:@de.confusions/62",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Ss]ein|[Mm]ein|[Dd]ein|[Kk]ein|[Ee]uer|[Uu]nser|[Ee]in|[Dd]er[ \\t\\u00a0]{1,8}(?:erste|zweite|volle|richtige|eigene))[ \\t\\u00a0]{1,8})(?<target>(?:Vor|Nach|Ruf|Familien|Spitz|Mädchen)nahme)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=mit[ \\t\\u00a0]{1,8})(?<t2>(?:Vor|Nach|Ruf|Familien)nahmen)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+|[^.!?\\n]{0,40}heiß)|(?=(?:Vor|Nach)nahmen)(?<=heiß\\p{Ll}{0,6}[ \\t\\u00a0]{1,8}(?:\\p{L}{1,20}[ \\t\\u00a0]{1,8}){0,2}mit[ \\t\\u00a0]{1,8})(?<t3>(?:Vor|Nach)nahmen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["nahme", "nahmen", "nahmen"],
-    fixer: "de:deVor",
+    fixer: "de:@de.confusions/63",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=in[ \\t\\u00a0]{1,8}(?:\\d{1,3}|zwei|drei|vier|fünf|sechs|zehn|zwölf)(?:[ \\t\\u00a0]{1,8}(?:monatlichen|wöchentlichen|gleichen|kleinen))?[ \\t\\u00a0]{1,8})(?<target>Ratten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:Maus|Mäuse|Mäusen|Flöhe|Kakerlaken|Schaben|Milben|Tauben)[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8})(?<t2>Raten?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t3>Raten?)(?=[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8}(?:Maus|Mäuse|Flöhe|Kakerlaken|Schaben|Milben|Tauben)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["ratten", "rate", "rate"],
-    fixer: "de:deRatten",
+    fixer: "de:@de.confusions/64",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Dd]ass)(?=[ \\t\\u00a0]{1,8}(?:ist|sind|war|wäre|sei|hat|hast|hatte|hätte|kann|kannst|muss|musst|soll|sollte|wird|würde|scheint|scheinst|bleibt|klingt|stimmt|geht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=\\p{Lu}\\p{Ll}+,[ \\t\\u00a0]{1,8})(?<t2>dass)(?=[ \\t\\u00a0]{1,8}(?:(?:nicht|dort|hier|gerade|schon|noch|nie|immer|sehr|zu|auch|kaum|oft)[ \\t\\u00a0]{1,8}){0,3}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,2}\\p{Ll}+(?:t|te)[ \\t]*[.!?,;]))",
     literals: ["dass", "dass"],
-    fixer: "de:deDd",
+    fixer: "de:@de.confusions/65",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ss]oweit)(?=,[ \\t\\u00a0]{1,8}so[ \\t\\u00a0]{1,8}gut|[ \\t\\u00a0]{1,8}(?:gekommen|gegangen|gelaufen|gefahren|entfernt|weg|weggelaufen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?]))",
     literals: ["soweit"],
-    fixer: "de:deSs4",
+    fixer: "de:@de.confusions/66",
   }),
   frame({
     pattern:
@@ -25012,7 +25012,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Dd]ienen?)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:und|oder|sowie)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*,)))",
     literals: ["diene"],
-    fixer: "de:deDd2",
+    fixer: "de:@de.confusions/68",
   }),
   frame({
     pattern:
@@ -25030,25 +25030,25 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=,[ \\t\\u00a0]{1,8})(?<target>als[ \\t\\u00a0]{1,8}dass)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["dass"],
-    fixer: "de:deAls",
+    fixer: "de:@de.confusions/71",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<prep>[zZ]wischen|[sS]eit)[ \\t\\u00a0]{1,8}(?<a>\\d{1,4}(?:[.:]\\d{1,2})?|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember)[ \\t\\u00a0]{1,8}bis[ \\t\\u00a0]{1,8}(?<b>\\d{1,4}(?:[.:]\\d{1,2})?|Montag|Dienstag|Mittwoch|Donnerstag|Freitag|Samstag|Sonntag|Januar|Februar|März|April|Mai|Juni|Juli|August|September|Oktober|November|Dezember))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["zwischen", "seit"],
-    fixer: "de:dePrep2",
+    fixer: "de:@de.confusions/72",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[dD]a[ \\t\\u00a0]{1,8}(?<prep>durch|nach|für|mit|von|bei|gegen))(?=,[ \\t\\u00a0]{1,8}dass(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["durch", "nach", "für", "mit", "von", "bei", "gegen"],
-    fixer: "de:deDd3",
+    fixer: "de:@de.confusions/73",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}])(?:[Ii]ch|[Ee]r)[ \\t\\u00a0]{1,8})(?<target>wahr)(?=[ \\t\\u00a0]{1,8}\\p{Ll})|(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<t2>Wahr)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|ihr|der|die|das)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!?\\n,]*\\?))",
     literals: ["wahr", "wahr"],
-    fixer: "de:deWahr",
+    fixer: "de:@de.confusions/74",
   }),
   frame({
     pattern:
@@ -25066,13 +25066,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Aa]ll)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["all"],
-    fixer: "de:deAa",
+    fixer: "de:@de.confusions/77",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[zZ]um|[zZ]ur|[aA]m|[aA]ns|[iI]ns|[iI]m|[vV]om|[bB]eim|[aA]ufs|[fF]ürs|[üÜ]bers|[uU]ms|[dD]urchs)(?=[ \\t\\u00a0]{1,8}(?:d(?:er|ie|as|en|em|es)|(?:mein|dein|sein|ihr|unser|eur|dies|jen)(?:e|er|es|en|em)?|euer)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: [],
-    fixer: "de:deZz",
+    fixer: "de:@de.confusions/78",
   }),
   frame({
     pattern:
@@ -25084,19 +25084,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>bereist)(?=[ \\t\\u00a0]{1,8}(?!(?:und|oder|sowie|hat|habe|haben|hatte|hatten|ist|sind|war|waren|wird|werden|wurde|wurden)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[\\p{L}\\p{N}]))",
     literals: ["bereist"],
-    fixer: "de:deBereist",
+    fixer: "de:@de.confusions/80",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=\\p{Ll}(?:en|ern|eln)[ \\t\\u00a0]{1,8})(?<target>lies)(?=[ \\t]*[.,;!?]))",
     literals: ["lies"],
-    fixer: "de:deLies",
+    fixer: "de:@de.confusions/81",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:ge|be|ver|er|ent|zer)\\p{Ll}{2,}(?:t|en)[ \\t\\u00a0]{1,8})(?<target>erden|erde)(?=[ \\t]*[.,;!?])|(?<t2>erden|erde)(?=[ \\t\\u00a0]{1,8}(?:ge|be|ver|er|ent|zer)\\p{Ll}{2,}(?:t|en)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["erden", "erde", "erden", "erde"],
-    fixer: "de:deErden",
+    fixer: "de:@de.confusions/82",
   }),
   frame({
     pattern:
@@ -25120,19 +25120,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[nN]ur|[kK]eine|[dD]iese|[sS]eine|[iI]hre|[dD]eine|[mM]eine|[aA]lle)[ \\t\\u00a0]{1,8})(?<target>lehren?)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["lehre"],
-    fixer: "de:deLehren",
+    fixer: "de:@de.confusions/86",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=[Ii]ch[ \\t\\u00a0]{1,8}(?:[fF]reue|[bB]edanke|[bB]eeile|[eE]rinnere|[eE]ntschuldige|[kK]ümmere|[mM]elde|[wW]ürde|[wW]erde|[mM]öchte|[wW]ill|[mM]uss)[ \\t\\u00a0]{1,8})(?<target>ich)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?(?:freuen|bedanken|beeilen|erinnern|entschuldigen|kümmern|melden|auf|bei|für|um|sehr|schon|riesig|darauf|daran)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[Ww]ir[ \\t\\u00a0]{1,8}(?:freuen|bedanken|beeilen|erinnern|entschuldigen|kümmern|melden)[ \\t\\u00a0]{1,8})(?<t2>und)(?=[ \\t\\u00a0]{1,8}(?:auf|bei|für|um|sehr|schon|riesig|herzlich\\p{Ll}*)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["ich", "und"],
-    fixer: "de:deIch",
+    fixer: "de:@de.confusions/87",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>bedenke|bedenken|bedenkt)(?=[ \\t\\u00a0]{1,8}(?:mich|dich|uns|euch|sich)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?(?:herzlich\\p{Ll}*|für|bei)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:mich|dich|uns|euch|sich)[ \\t\\u00a0]{1,8}(?:noch[ \\t\\u00a0]{1,8})?)(?<t2>bedenken)(?=[ \\t\\u00a0]{1,8}für(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["bedenke", "bedenken", "bedenkt", "bedenken"],
-    fixer: "de:deBedenke",
+    fixer: "de:@de.confusions/88",
   }),
   frame({
     pattern:
@@ -25156,7 +25156,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[wW]äre|[iI]st|[wW]ar|[wW]ären)[ \\t\\u00a0]{1,8})(?<target>schon)(?=,[ \\t\\u00a0]{1,8}(?:wenn|dass)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>schön)(?=[ \\t\\u00a0]{1,8}sehr(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["schon", "schön"],
-    fixer: "de:deSchon2",
+    fixer: "de:@de.confusions/92",
   }),
   frame({
     pattern:
@@ -25174,7 +25174,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Ii]ch|ich)[ \\t\\u00a0]{1,8})(?<target>hohle)(?=[ \\t\\u00a0]{1,8}(?:dir|dich|mir|uns|euch|ihn|ihm|sie|es|das|die|den)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?]\\s{1,8}|\\n))(?<t2>Hohl)(?=[ \\t\\u00a0]{1,8}(?:mir|uns|ihm|ihr)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?]\\s{1,8}|\\n)[Dd]ann[ \\t\\u00a0]{1,8})(?<t3>hohle)(?=[ \\t\\u00a0]{1,8}ich(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["hohle", "hohl", "hohle"],
-    fixer: "de:deHohle",
+    fixer: "de:@de.confusions/95",
   }),
   frame({
     pattern:
@@ -25234,7 +25234,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>weißt)(?=[ \\t\\u00a0]{1,8}[^.!?,;\\n]{1,60}?[ \\t\\u00a0]{1,8}(?:auf|hin|zurück|ab|an|aus)[ \\t]*[.!?,;]))",
     literals: ["wei"],
-    fixer: "de:deWeißt",
+    fixer: "de:@de.confusions/105",
   }),
   frame({
     pattern:
@@ -25246,25 +25246,25 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<n>\\d+)(?:-?[Tt]ätig(?<end>e|en|er|es|em)?|[ \\t\\u00a0]{1,8}[Tt]ätig(?<e2>e|en|er|es|em)(?=[ \\t\\u00a0]{1,8}\\p{Lu})))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["tätig", "tätig"],
-    fixer: "de:deN",
+    fixer: "de:@de.confusions/107",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>Harz[ \\t\\u00a0]{1,8}(?:4|IV))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:im|dem)[ \\t\\u00a0]{1,8})(?<t2>Hartz)(?![ \\t\\u00a0]{1,8}(?:4|IV)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["harz", "hartz"],
-    fixer: "de:deHarz",
+    fixer: "de:@de.confusions/108",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=in[ \\t\\u00a0]{1,8})(?<target>Schacht)(?=[ \\t\\u00a0]{1,8}(?:zu[ \\t\\u00a0]{1,8})?(?:halten|hält|hielt|hielten|gehalten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,](?<=(?:halten|hält|hielt|hielten)[ \\t\\u00a0]{1,8}(?:\\p{L}+[ \\t\\u00a0]{1,8}){0,3}in[ \\t\\u00a0]{1,8}Schacht[ \\t]*[.!?,]))|(?<=auf[ \\t\\u00a0]{1,8})(?<t2>Trapp)(?=[ \\t\\u00a0]{1,8}(?:zu[ \\t\\u00a0]{1,8})?(?:halten|hält|hielt|hielten|gehalten|sein|ist|war|bringen|gebracht)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.!?,]))",
     literals: ["schacht", "trapp"],
-    fixer: "de:deSchacht",
+    fixer: "de:@de.confusions/109",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Vv]iele)(?=[ \\t\\u00a0]{1,8}(?:Erfolg|Spaß|Glück|Vergnügen|Geduld|Kraft)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>[Vv]iele[ \\t\\u00a0]{1,8}Danke?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["viele", "viele"],
-    fixer: "de:deVv",
+    fixer: "de:@de.confusions/110",
   }),
   frame({
     pattern:
@@ -25292,7 +25292,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "gesundheits",
       "spiel",
     ],
-    fixer: "de:deHead2",
+    fixer: "de:@de.confusions/112",
   }),
   frame({
     pattern:
@@ -25304,7 +25304,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>versanden)(?=[ \\t]*(?:[.,;:!?]|$)))",
     literals: ["versanden"],
-    fixer: "de:deVersanden",
+    fixer: "de:@de.confusions/114",
   }),
   frame({
     pattern:
@@ -25322,7 +25322,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:wurde|wurden|worden)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,2})(?<target>verendet|geendet)(?=[ \\t]*[.,;!?])|(?<t2>verendet|geendet)(?=[ \\t\\u00a0]{1,8}worden(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["verendet", "geendet", "verendet", "geendet"],
-    fixer: "de:deVerendet",
+    fixer: "de:@de.confusions/117",
   }),
   frame({
     pattern:
@@ -25352,19 +25352,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?=\\p{Ll}{4})(?<=(?<![\\p{L}])zu[ \\t\\u00a0]{1,8})(?<target>\\p{Ll}{4,}en)(?=[ \\t]*[.!?,;]))",
     literals: [],
-    fixer: "de:deP",
+    fixer: "de:@de.confusions/122",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>\\p{Ll}{3,}e)(?=[ \\t\\u00a0]{1,8}(?:müssen|können|sollen|dürfen|wollen)[ \\t]*[.!?,;])|(?<t2>\\p{Ll}{3,}ier)(?=[ \\t\\u00a0]{1,8}(?:haben|hat|habe|hatte|hätte|hast)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: [],
-    fixer: "de:deP2",
+    fixer: "de:@de.confusions/123",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Nn]iemanden|[Jj]emanden)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+[ \\t\\u00a0]{1,8}(?:gegeben|geben|gibt|gab|verlieh|verleiht|verliehen|geliehen|geschenkt|schenkt|schenkte)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["niemanden", "jemanden"],
-    fixer: "de:deNn2",
+    fixer: "de:@de.confusions/124",
   }),
   frame({
     pattern:
@@ -25418,19 +25418,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ww]eist)(?=[ \\t\\u00a0]{1,8}du,[ \\t\\u00a0]{1,8}(?:ob|dass|wie|wo|was|warum|wer|wann)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["weist"],
-    fixer: "de:deWw",
+    fixer: "de:@de.confusions/133",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<pre>\\p{L}+)-Chanel(?<s>s)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["chanel"],
-    fixer: "de:dePre",
+    fixer: "de:@de.confusions/134",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>überlasen)(?=[ \\t]*(?:[.,;:!?]|$)))",
     literals: ["überlasen"],
-    fixer: "de:deÜberlasen",
+    fixer: "de:@de.confusions/135",
   }),
   frame({
     pattern:
@@ -25457,7 +25457,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:Tor|Tore|Toren|Eigentor|Eigentore|Eigentoren|Elfmeter|Freistoß|Pilze[ \\t\\u00a0]{1,8}aus[ \\t\\u00a0]{1,8}dem[ \\t\\u00a0]{1,8}Boden)[ \\t\\u00a0]{1,8})(?<target>scheißen|scheißt|scheiße|geschissen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>scheißen|scheißt|scheiße)(?=[ \\t\\u00a0]{1,8}wie[ \\t\\u00a0]{1,8}Pilze[ \\t\\u00a0]{1,8}aus[ \\t\\u00a0]{1,8}dem[ \\t\\u00a0]{1,8}Boden(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:echt|totale|totaler|große|reine|einfach|ja|nur|alles|so[ \\t\\u00a0]{1,8}eine|eine)[ \\t\\u00a0]{1,8})(?<t3>Schieße)(?=[ \\t]*(?:[.!?,;]|$)))",
     literals: ["schei", "schei", "schei", "geschissen", "schei", "schei", "schei", "schie"],
-    fixer: "de:deScheißen",
+    fixer: "de:@de.confusions/138",
   }),
   frame({
     pattern:
@@ -25469,7 +25469,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Ii]ch|[Ee]r|[Ss]ie|[Mm]an|[Ee]s|[Dd]as)(?:[ \\t\\u00a0]{1,8}(?:doch|auch|ja|schon|halt|eben|selbst|genau|wirklich|ehrlich|leider))?[ \\t\\u00a0]{1,8})(?<target>weis)(?=[ \\t\\u00a0]{1,8}(?:nicht|nichts|es|das|ich|auch|doch|schon|ja|nur|genau|noch|wirklich|gar|überhaupt|eben|leider|selbst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t]*[.,!?])|(?<!(?:mir|dir|ihm|ihr|uns|euch|ihnen|Ihnen|etwas|nichts|was)[ \\t\\u00a0]{1,8})(?<t2>weis)(?=[ \\t\\u00a0]{1,8}ich(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?:„\"«»][ \\t\\u00a0]{1,8}?|\\n))(?<t3>Weis)(?=[ \\t\\u00a0]{1,8}(?:ich|nicht|auch|wirklich|es|leider)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?:„\"«»][ \\t\\u00a0]{1,8}?|\\n))(?<t4>Weiß)(?=[ \\t\\u00a0]{1,8}du(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[Ii]n[ \\t\\u00a0]{1,8})(?<t5>weis)(?=[ \\t]*[.,!?;]))",
     literals: ["weis", "weis", "weis", "wei", "weis"],
-    fixer: "de:deWeis",
+    fixer: "de:@de.confusions/140",
   }),
   frame({
     pattern:
@@ -25493,7 +25493,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!Made[ \\t\\u00a0]{1,8})(?<target>(?:in|nach|aus|von|In|Nach|Aus|Von)[ \\t\\u00a0]{1,8}Vereinigten?[ \\t\\u00a0]{1,8}(?:Staaten(?<noun>[ \\t\\u00a0]{1,8}von[ \\t\\u00a0]{1,8}Amerika)?|Arabischen?[ \\t\\u00a0]{1,8}Emiraten?))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["vereinigte"],
-    fixer: "de:deIn",
+    fixer: "de:@de.confusions/144",
   }),
   frame({
     pattern:
@@ -25511,19 +25511,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:Tür|Türen|Fenster|Tresor|Schrank|Kiste|Dose|Deckel|luftdicht|fest)[ \\t\\u00a0]{1,8})(?<target>verschossen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>schoss|schossen)(?=[ \\t\\u00a0]{1,8}(?:die|das|den|seine|ihre)[ \\t\\u00a0]{1,8}(?:Tür|Türen|Fenster|Augen|Laden)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}sich[ \\t\\u00a0]{1,8}zusammen(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["verschossen", "schoss", "schossen"],
-    fixer: "de:deVerschossen",
+    fixer: "de:@de.confusions/147",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?\\n„\"]|[Ee]rst|[Kk]urz|[Gg]leich|[Ll]ange|[Bb]ald|[Ss]chon|[Dd]irekt|[Uu]nmittelbar)[ \\t]*)(?<target>[Nn]ach[ \\t\\u00a0]{1,8}dem)(?=[ \\t\\u00a0]{1,8}(?:ich|du|er|sie|es|wir|ihr|man|der|die|das|dieser|diese|mein|meine|sein|seine|unser|unsere)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[^.!?;,\\n]{1,80}\\p{Ll}[ \\t]*,))",
     literals: ["nach"],
-    fixer: "de:deNn3",
+    fixer: "de:@de.confusions/148",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>soweit)(?=[ \\t\\u00a0]{1,8}(?:das[ \\t\\u00a0]{1,8}Auge|seine[ \\t\\u00a0]{1,8}Augen|ihre[ \\t\\u00a0]{1,8}Augen)[ \\t\\u00a0]{1,8}reicht)|(?<=(?:ist|sind|war|wäre|bin|bist)[ \\t\\u00a0]{1,8}(?:es[ \\t\\u00a0]{1,8})?)(?<t2>soweit)(?=[ \\t]*[.!?])|(?<t3>sobald)(?=[ \\t\\u00a0]{1,8}(?:wie|als)[ \\t\\u00a0]{1,8}möglich(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]{1,8}nicht[ \\t\\u00a0]{1,8}wieder(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=nicht[ \\t\\u00a0]{1,8})(?<t4>sobald)(?=[ \\t\\u00a0]{1,8}wieder(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["soweit", "soweit", "sobald", "sobald"],
-    fixer: "de:deSoweit",
+    fixer: "de:@de.confusions/149",
   }),
   frame({
     pattern:
@@ -25547,31 +25547,31 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>starte|starten)(?=[ \\t\\u00a0]{1,8}(?:ins[ \\t\\u00a0]{1,8}Leere|auf[ \\t\\u00a0]{1,8}(?:den|das|seinen|ihren)[ \\t\\u00a0]{1,8}(?:Monitor|Bildschirm|Boden|Fernseher|Display|Handy))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["starte", "starten"],
-    fixer: "de:deStarte",
+    fixer: "de:@de.confusions/153",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:bin|bist|ist|sind|seid|war|waren|wäre)[ \\t\\u00a0]{1,8}(?:(?:ich|du|er|sie|wir|ihr)[ \\t\\u00a0]{1,8})?(?:es|das|so)(?:[ \\t\\u00a0]{1,8}(?:so|nicht|schon|einfach|halt|eben|ja))*[ \\t\\u00a0]{1,8})(?<target>gewöhnt)(?=[ \\t]*[.!?,]))",
     literals: ["gewöhnt"],
-    fixer: "de:deGewöhnt",
+    fixer: "de:@de.confusions/154",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:[Dd]eine|[Mm]eine|[Ss]eine|[Ii]hre|[Uu]nsere|[Ee]ure|gute|tolle|neue|viele|keine)[ \\t\\u00a0]{1,8})(?<target>Iden)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t2>Ideen)(?=[ \\t\\u00a0]{1,8}des[ \\t\\u00a0]{1,8}März))",
     literals: ["iden", "ideen"],
-    fixer: "de:deIden",
+    fixer: "de:@de.confusions/155",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:Glas|Gläser|Flasche|Flaschen|trank|tranken|trinken|trinkt)[ \\t\\u00a0]{1,8})(?<target>Champagne)(?![\\p{L}-])|(?<=(?:versteinerter|ernster|finsterer|ausdrucksloser|betretener|mürrischer|unbewegter|säuerlicher|gute)[ \\t\\u00a0]{1,8})(?<t2>Mine)(?![\\p{L}-])|(?<t3>\\p{L}*(?:Kugelschreiber|Bleistift|Kuli|Stift)mienen?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["champagne", "mine", "miene"],
-    fixer: "de:deChampagne",
+    fixer: "de:@de.confusions/156",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Ee]thische[nmrs]?)(?=[ \\t\\u00a0]{1,8}(?:Minderheit|Minderheiten|Säuberung|Säuberungen|Herkunft|Gruppe|Gruppen|Zugehörigkeit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>[Ee]thnische[nmrs]?)(?=[ \\t\\u00a0]{1,8}(?:Bedenken|Grundsätze|Fragen|Werte|Verantwortung|Normen|Gründe|Prinzipien)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["ethische", "ethnische"],
-    fixer: "de:deEe",
+    fixer: "de:@de.confusions/157",
   }),
   frame({
     pattern:
@@ -25589,7 +25589,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n))(?<target>Bein)(?=[ \\t\\u00a0]{1,8}\\p{Ll}+en[ \\t\\u00a0]{1,8}\\p{L})|(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n))(?<t2>Nach)(?=[ \\t\\u00a0]{1,8}(?:am|im|in|an)[ \\t\\u00a0]{1,8}(?:selben|derselben|demselben|gleichen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:^|[.!?][ \\t\\u00a0]{1,8}|\\n))(?<t3>Sei)(?=[ \\t\\u00a0]{1,8}(?:ließ|hat|hatte|war|ist|kam|ging|sagte|wollte|konnte)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:weil|dass|ob|obwohl)[ \\t\\u00a0]{1,8})(?<t4>sei)(?=[ \\t\\u00a0]{1,8}(?:die|den|das|der|ein|eine|einen|ihn|ihm|ihr|mir|dir|uns)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["bein", "nach", "sei", "sei"],
-    fixer: "de:deBein",
+    fixer: "de:@de.confusions/160",
   }),
   frame({
     pattern:
@@ -25601,13 +25601,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>strickt)(?=[ \\t\\u00a0]{1,8}(?:einzuhalten|verboten|untersagt|abgelehnt|getrennt|vertraulich|limitiert)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=nicht[ \\t\\u00a0]{1,8})(?<t2>strickt)(?=[ \\t\\u00a0]{1,8}gegen(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t3>strickte[nmrs]?)(?=[ \\t\\u00a0]{1,8}(?:Bettruhe|Regel|Regeln|Vorgabe|Vorgaben|Trennung|Verbot|Diät|Ablehnung|Einhaltung|Neutralität)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["strickt", "strickt", "strickte"],
-    fixer: "de:deStrickt",
+    fixer: "de:@de.confusions/162",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:mich|dich|sich|uns|euch)(?:[ \\t\\u00a0]{1,8}(?:jetzt|aber|doch|mal|noch|ja|besser))*[ \\t\\u00a0]{1,8})(?<target>spurten)(?=[ \\t]*[.!?,])|(?<=(?:[Aa]nders|[Bb]esser|[Ee]infach|[Vv]orsichtig|[Ss]alopp|[Dd]rastisch|mich|dich|sich|uns|euch)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,3}[ \\t\\u00a0]{1,8})(?<t2>ausgerückt)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["spurten", "ausgerückt"],
-    fixer: "de:deSpurten",
+    fixer: "de:@de.confusions/163",
   }),
   frame({
     pattern:
@@ -25619,7 +25619,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:erkläre|erklärt|erklärst|erklärte|erklärten|erklären)[ \\t\\u00a0]{1,8}(?:mich|dich|sich|uns|euch)[ \\t\\u00a0]{1,8})(?<target>breit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?:mich|dich|sich|uns|euch)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,2}[ \\t\\u00a0]{1,8})(?<t2>breit)(?=[ \\t\\u00a0]{1,8}(?:erklärt|erkläre|erklärst|erklären|erklärte|erklärten)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=[Ww]eit[ \\t\\u00a0]{1,8}und[ \\t\\u00a0]{1,8})(?<t3>bereit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["breit", "breit", "bereit"],
-    fixer: "de:deBreit",
+    fixer: "de:@de.confusions/165",
   }),
   frame({
     pattern:
@@ -25631,52 +25631,52 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?:steil|wieder|es|geht|ging|nur|stetig)[ \\t\\u00a0]{1,8})(?<target>Berg[ \\t\\u00a0]{1,8}(?<noun>ab|auf))(?=[ \\t]*[.!?,]|[ \\t\\u00a0]{1,8}(?:mit|geht|ging|gehen|gegangen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["berg"],
-    fixer: "de:deBerg",
+    fixer: "de:@de.confusions/167",
     ownCase: true,
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<noun>\\d{2,3})(?:g|zig|ig)(?:ste[rnms]?|(?<t2>ern?)))(?![\\p{L}\\p{N}]))",
     literals: [],
-    fixer: "de:deNoun",
+    fixer: "de:@de.confusions/168",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!,[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?(?:[Dd]ie|der|den)[ \\t\\u00a0]{1,8})(?<=(?:[Dd]ie|der|den|[Dd]iese|dieser|[Mm]eine|[Dd]eine|[Ss]eine|[Ii]hre|[Uu]nsere|[Ee]ure)[ \\t\\u00a0]{1,8})(?<target>beide)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+en[ \\t\\u00a0]{1,8})?\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:auf|in|an|über|unter|für|durch|um|vor|hinter)[ \\t\\u00a0]{1,8})(?<t2>da)(?=[ \\t\\u00a0]{1,8}\\p{Lu}\\p{Ll}+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?:sich|mich|dich|uns|euch)[ \\t\\u00a0]{1,8}bei[ \\t\\u00a0]{1,8})(?<t3>im)(?=[ \\t\\u00a0]{1,8}\\p{Ll})|(?<t4>im)(?=[ \\t\\u00a0]{1,8}zu[ \\t]*[.!?,]))",
     literals: [],
-    fixer: "de:deBeide",
+    fixer: "de:@de.confusions/169",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>(?<noun>\\p{Lu}\\p{Ll}{2,})[ \\t\\u00a0]{1,8}Haft(?:e|en|er|es|em)?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["haft"],
-    fixer: "de:deNoun2",
+    fixer: "de:@de.confusions/170",
     ownCase: true,
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Aa]uf|[Uu]nter)[ \\t\\u00a0]{1,8})(?<target>dem)(?=[ \\t\\u00a0]{1,8}(?<noun>Punkt|Kopf|Plan|Teppich)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>[Aa]uf[ \\t\\u00a0]{1,8}dem)(?=[ \\t\\u00a0]{1,8}Leim(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t3>im)(?=[ \\t\\u00a0]{1,8}(?:Strömen|Schach)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?<![\\p{L}\\p{M}])an[ \\t\\u00a0]{1,8})(?<t4>einen)(?=[ \\t\\u00a0]{1,8}Strang(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<=(?<![\\p{L}\\p{M}])über[ \\t\\u00a0]{1,8}die[ \\t\\u00a0]{1,8})(?<t5>Strenge)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?<![\\p{L}\\p{M}])im[ \\t\\u00a0]{1,8})(?<t6>Zaun)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?<![\\p{L}\\p{M}])vom[ \\t\\u00a0]{1,8})(?<t7>Zaum)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t8>in[ \\t\\u00a0]{1,8}den[ \\t\\u00a0]{1,8}Angriff)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<t9>[Aa]uf[ \\t\\u00a0]{1,8}Plan)(?=[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8}){0,2}(?:ge)?ruf))",
     literals: [],
-    fixer: "de:deDem",
+    fixer: "de:@de.confusions/171",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!Auge[ \\t\\u00a0]{1,8})(?<target>in)(?=[ \\t\\u00a0]{1,8}Auge(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:in|und|um)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))))",
     literals: [],
-    fixer: "de:deIn2",
+    fixer: "de:@de.confusions/172",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])[Zz]u[ \\t\\u00a0]{1,8})(?<target>(?:mein|dein|sein|ihr|unser|eur|Ihr)en)(?=[ \\t\\u00a0]{1,8}(?:Bedauern|Erstaunen|Entsetzen|Leidwesen|Glück|Unglück|Vergnügen|Ärger|Verdruss|Missfallen|Wohl)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["mein", "dein", "sein", "ihr", "unser", "eur", "ihr"],
-    fixer: "de:deMein",
+    fixer: "de:@de.confusions/173",
     ownCase: true,
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Vv]om|[Zz]um|[Bb]eim)(?=[ \\t\\u00a0]{1,8}(?:mir|dir|ihm|uns|euch|ihnen|Ihnen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}\\p{Ll}+(?:e|en|em|er|es)[ \\t\\u00a0]{1,8}\\p{Lu})))",
     literals: ["vom", "zum", "beim"],
-    fixer: "de:deVv2",
+    fixer: "de:@de.confusions/174",
   }),
   frame({
     pattern:
@@ -25698,19 +25698,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "beid",
       "mehren",
     ],
-    fixer: "de:deMehrer",
+    fixer: "de:@de.confusions/176",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Ee]in|[Kk]ein)[ \\t\\u00a0]{1,8}(?:\\p{Ll}+[ \\t\\u00a0]{1,8})?)(?<target>anders)(?=[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["anders"],
-    fixer: "de:deAnders",
+    fixer: "de:@de.confusions/177",
   }),
   frame({
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])[Ii]n[ \\t\\u00a0]{1,8})(?<target>\\p{Ll}{2,}sche)(?=[ \\t\\u00a0]{1,8}Sprache(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["sche"],
-    fixer: "de:deP3",
+    fixer: "de:@de.confusions/178",
   }),
   frame({
     pattern:
@@ -25722,7 +25722,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?:[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser|[Dd]em|[Ii]m|[Vv]om|[Gg]anzem|[Gg]anzes|[Gg]roßes)[ \\t\\u00a0]{1,8})(?<target>Hertz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?<=(?<![\\p{L}\\p{M}])\\d[ \\t\\u00a0]{1,8})(?<t2>Herz)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["hertz", "herz"],
-    fixer: "de:deHertz",
+    fixer: "de:@de.confusions/180",
   }),
   frame({
     pattern:
@@ -25764,7 +25764,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<=(?<![\\p{L}\\p{M}])(?<noun>[hH]elfe|[hH]ilfst|[hH]ilft|[hH]elft|[hH]elfen|[hH]alf|[hH]alfen|[gG]eholfen|[dD]anke|[dD]ankst|[dD]ankt|[dD]anken|[dD]ankte|[dD]ankten|[gG]edankt|[vV]ertraue|[vV]ertraust|[vV]ertraut|[vV]ertrauen|[vV]ertraute|[vV]ertrauten|[gG]ratuliere|[gG]ratulierst|[gG]ratuliert|[gG]ratulieren|[gG]ratulierte|[gG]ratulierten|[bB]egegne|[bB]egegnest|[bB]egegnet|[bB]egegnen|[bB]egegnete|[bB]egegneten|[gG]efällt|[gG]efiel|[gG]efielen|[gG]ehören|[gG]ehörten|[wW]iderspreche|[wW]idersprichst|[wW]iderspricht|[wW]idersprechen|[wW]idersprach|[wW]idersprachen)[ \\t\\u00a0]{1,8})(?<target>ihn|mich|dich)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:zu|selbst)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["ihn", "mich", "dich"],
-    fixer: "de:deIhn",
+    fixer: "de:@de.confusions/187",
   }),
   frame({
     pattern:
@@ -25776,7 +25776,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<!(?<![\\p{L}\\p{M}])(?:[dD]ie|[dD]en|[dD]er|[aA]m|[zZ]um|[zZ]u|[aA]ufs)[ \\t\\u00a0]{1,8})(?<target>[Ww]enigsten|[Mm]indesten)(?=[ \\t\\u00a0]{1,8}(?:einen|eine|ein|einmal|mal|kurz|das|die|den|ich|du|er|sie|wir|ihr|so|noch|zwei|drei|vier|fünf|zehn|\\d+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["wenigsten", "mindesten"],
-    fixer: "de:deWw2",
+    fixer: "de:@de.confusions/189",
     ownCase: true,
   }),
   frame({
@@ -25789,7 +25789,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>[Hh]aute)(?=[ \\t\\u00a0]{1,8}(?:gehe|gehst|geht|gehen|ist|bin|bist|sind|kommt|komme|kommen|habe|hat|haben|war|waren|abend|morgen|früh|nacht|nicht|noch|schon|Abend|Morgen|Nacht|Mittag|Nachmittag)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|(?<t2>Ziegen)(?=[ \\t\\u00a0]{1,8}Sie[ \\t\\u00a0]{1,8}(?:mir|uns|ihm|ihr|ihnen|bitte|doch)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["haute", "ziegen"],
-    fixer: "de:deHh2",
+    fixer: "de:@de.confusions/191",
   }),
   frame({
     pattern:
@@ -25801,7 +25801,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<target>war)(?=[ \\t]*[.!?,;]))",
     literals: ["war"],
-    fixer: "de:deWar",
+    fixer: "de:@de.confusions/193",
   }),
   frame({
     pattern:

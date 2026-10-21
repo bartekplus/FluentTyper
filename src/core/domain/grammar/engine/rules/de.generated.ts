@@ -12,13 +12,184 @@ import {
   deumlaut,
   germanAdjective,
   germanAuxiliary,
+  germanDeterminerFits,
   germanGender,
   germanInfinitive,
+  germanInfinitiveOf,
   germanNounReading,
+  germanPastInfinitives,
   germanVerbLike,
   namedExampleBefore,
   remember,
 } from "../../library";
+
+export const VERB_GOVERNORS: ReadonlySet<string> = new Set([
+  "kann",
+  "kannst",
+  "können",
+  "könnt",
+  "konnte",
+  "konnten",
+  "könnte",
+  "könnten",
+  "muss",
+  "musst",
+  "müssen",
+  "müsst",
+  "musste",
+  "mussten",
+  "müsste",
+  "müssten",
+  "soll",
+  "sollst",
+  "sollen",
+  "sollt",
+  "sollte",
+  "sollten",
+  "will",
+  "willst",
+  "wollen",
+  "wollt",
+  "wollte",
+  "wollten",
+  "darf",
+  "darfst",
+  "dürfen",
+  "dürft",
+  "durfte",
+  "durften",
+  "dürfte",
+  "dürften",
+  "mag",
+  "möchte",
+  "möchtest",
+  "möchten",
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+  "würde",
+  "würdest",
+  "würden",
+  "wurde",
+  "wurden",
+  "worden",
+  "lass",
+  "lasse",
+  "lässt",
+  "lassen",
+  "ließ",
+  "tu",
+  "tue",
+  "tut",
+  "tun",
+  "brauchst",
+  "braucht",
+  "brauchen",
+  "habe",
+  "hast",
+  "hat",
+  "haben",
+  "habt",
+  "hatte",
+  "hatten",
+  "hätte",
+  "hätten",
+  "bin",
+  "bist",
+  "ist",
+  "sind",
+  "seid",
+  "war",
+  "waren",
+  "wäre",
+  "wären",
+  "sei",
+  "konntest",
+  "könntest",
+  "könntet",
+  "solltest",
+  "solltet",
+  "müsstest",
+  "müsstet",
+  "musstest",
+  "wolltest",
+  "wolltet",
+  "dürftest",
+  "dürftet",
+  "durftest",
+  "magst",
+  "mögt",
+  "mögen",
+  "mochte",
+  "mochten",
+  "möchtet",
+  "würdet",
+  "wurdest",
+]);
+
+export const PRONOUNS: ReadonlySet<string> = new Set([
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "ihr",
+  "man",
+  "sich",
+  "mich",
+  "dich",
+  "uns",
+  "euch",
+  "mir",
+  "dir",
+]);
+
+export const THAT_ADJECTIVES: ReadonlySet<string> = new Set([
+  "gut",
+  "schön",
+  "super",
+  "toll",
+  "schade",
+  "klasse",
+  "prima",
+  "wichtig",
+  "komisch",
+  "seltsam",
+  "klar",
+  "logisch",
+  "merkwürdig",
+  "erstaunlich",
+  "interessant",
+  "traurig",
+  "spannend",
+  "praktisch",
+  "blöd",
+  "ärgerlich",
+]);
+
+export const DA_ADVERBS: ReadonlySet<string> = new Set([
+  "nicht",
+  "auch",
+  "noch",
+  "schon",
+  "gar",
+  "kaum",
+  "nie",
+  "nur",
+  "immer",
+  "sofort",
+  "bitte",
+  "doch",
+  "ja",
+  "selbst",
+  "wohl",
+  "eben",
+  "erst",
+  "bald",
+]);
 
 export const JOINED_PAIRS: ReadonlySet<string> = new Set([
   "viel sagend",
@@ -54,6 +225,116 @@ export const PHRASAL_JOINED_WRONG: ReadonlySet<string> = new Set([
   "breakeven",
   "musthave",
 ]);
+
+export const SEIN_FOR: Readonly<Record<string, string>> = {
+  hat: "ist",
+  hast: "bist",
+  haben: "sind",
+  habt: "seid",
+  hatte: "war",
+  hatten: "waren",
+  hattest: "warst",
+  hätte: "wäre",
+  hätten: "wären",
+};
+
+export const DECONTRACTED: Readonly<Record<string, string>> = {
+  zum: "zu",
+  zur: "zu",
+  am: "an",
+  ans: "an",
+  ins: "in",
+  im: "in",
+  vom: "von",
+  beim: "bei",
+  aufs: "auf",
+  fürs: "für",
+  übers: "über",
+  ums: "um",
+  durchs: "durch",
+};
+
+export const COUNTRY_KINDS: Readonly<Record<string, string>> = {
+  Türkei: "f",
+  Schweiz: "f",
+  Ukraine: "f",
+  Slowakei: "f",
+  Mongolei: "f",
+  Tschechei: "f",
+  Vatikan: "m",
+  Jemen: "m",
+  Libanon: "m",
+  Sudan: "m",
+  Tschad: "m",
+  Kongo: "m",
+  Niederlande: "p",
+  USA: "p",
+  VAE: "p",
+  Bahamas: "i",
+  Malediven: "i",
+  Seychellen: "i",
+  Philippinen: "i",
+};
+
+export const COUNTRY_INTO: Readonly<Record<string, string>> = {
+  f: "in die",
+  m: "in den",
+  p: "in die",
+  i: "auf die",
+};
+
+export const COUNTRY_AT: Readonly<Record<string, string>> = {
+  f: "in der",
+  m: "im",
+  p: "in den",
+  i: "auf den",
+};
+
+export const COUNTRY_FROM: Readonly<Record<string, string>> = {
+  f: "aus der",
+  m: "aus dem",
+  p: "aus den",
+  i: "von den",
+};
+
+export const COUNTRY_OF: Readonly<Record<string, string>> = {
+  f: "von der",
+  m: "vom",
+  p: "von den",
+  i: "von den",
+};
+
+export const EINWEIHEN: Readonly<Record<string, string>> = {
+  einweist: "einweihst",
+  einweise: "einweihe",
+  einweisen: "einweihen",
+  einweistest: "einweihtest",
+  einweistet: "einweihtet",
+  eingewiesen: "eingeweiht",
+};
+
+export const STARRT: Readonly<Record<string, string>> = {
+  starte: "starrte",
+  starten: "starrten",
+  startet: "starrt",
+  startete: "starrte",
+  starteten: "starrten",
+};
+
+export const SHOOT: Readonly<Record<string, string>> = {
+  scheißen: "schießen",
+  scheißt: "schießt",
+  scheiße: "schieße",
+  geschissen: "geschossen",
+};
+
+export const IDIOM_DECONTRACTED: Readonly<Record<string, string>> = {
+  vom: "von",
+  zum: "zu",
+  beim: "bei",
+};
+
+export const DATIVE_OF: Readonly<Record<string, string>> = { ihn: "ihm", mich: "mir", dich: "dir" };
 
 export const REDUNDANT_NOUNS: Readonly<Record<string, readonly string[]>> = {
   rund: ["Kugel", "Kreis"],
@@ -247,6 +528,95 @@ export function ordinalAsNoun(m: RegExpExecArray, ctx: DetectContext) {
 // de.yaml def politeOpens
 export function politeOpens(token: string | undefined) {
   return token === undefined || /^(?:[.!?:,;„“"»«]|\n)$/.test(token);
+}
+
+// de.yaml rule de.confusions def DATIVE_ADJECTIVES
+export const DATIVE_ADJECTIVES =
+  /(?:bekannt|vertraut|fremd|lieb|wichtig|verfügbar|zugänglich|nah|ähnlich|treu|dankbar|egal|bewusst|verständlich|peinlich|unheimlich|angenehm|unangenehm|zugetan|gewogen|überlegen|unterlegen|gleich|teuer|wert|zugeteilt|zugewiesen|anvertraut|geschenkt|gegeben|empfohlen)$/;
+
+// de.yaml rule de.confusions def SHIP_BEFORE
+export const SHIP_BEFORE =
+  /(?:Schiff|Schiffe|Boot|Boote|U-Boot|Ölplattform|Armada|Flotte|Fregatte|Kreuzer|Tanker|Frachter|Zerstörer|Kriegsschiff)(?![\p{L}\p{M}\p{N}_'’@/#\\-])[^.!?;\n]{0,60}[ \t ]{1,8}$/u;
+
+// de.yaml rule de.confusions def STARTED_THINGS
+export const STARTED_THINGS =
+  /(?<!\p{L})(?:Motor|Motoren|Auto|Autos|Wagen|Maschine|Maschinen|Rechner|Computer|PC|Laptop|Server|Generator|Fahrzeug|Fahrzeuge|Motorrad|Roller|Traktor|Rasenmäher|Triebwerk|Triebwerke|Turbine|Anlage|Aggregat|Kettensäge|Programm|Gerät|Geräte|Boot|Lkw|Bus)(?!\p{L})/u;
+
+// de.yaml rule de.confusions def countryArticles
+export function countryArticles(prep: string, country: string) {
+  const kind = COUNTRY_KINDS[country];
+  const p = prep.toLowerCase();
+  return (
+    p === "aus"
+      ? [COUNTRY_FROM[kind]]
+      : p === "nach"
+        ? [COUNTRY_INTO[kind]]
+        : p === "von"
+          ? [COUNTRY_OF[kind]]
+          : [COUNTRY_AT[kind], COUNTRY_INTO[kind]]
+  ).map((f) => `${f} ${country}`);
+}
+
+// de.yaml rule de.confusions def subjectClauseDass
+export function subjectClauseDass(clause: string) {
+  const tokens = clause.trim().split(/\s+/);
+  if (tokens.slice(0, -1).some((t) => germanAuxiliary(t))) return false;
+  const last = tokens.at(-1) ?? "";
+  const stem = /^(\p{Ll}+?)(?:e|t|et|en|te|ten)$/u.exec(last)?.[1];
+  return germanAuxiliary(last) || (!!stem && germanInfinitive(`${stem}en`));
+}
+
+// de.yaml rule de.confusions def verbFormLike
+export function verbFormLike(word: string) {
+  const stem = /^(\p{Ll}{2,}?)(?:e|st|t|est|et|te|ten|test|tet)$/u.exec(word)?.[1];
+  return (
+    germanVerbLike(word) ||
+    germanAuxiliary(word) ||
+    !!germanInfinitiveOf(word) ||
+    germanPastInfinitives(word).length > 0 ||
+    (!!stem && (germanInfinitive(`${stem}en`) || germanInfinitive(`${stem}n`)))
+  );
+}
+
+// de.yaml rule de.confusions def idiomVerb
+export function idiomVerb(stems: string) {
+  return new RegExp(
+    `(?<!\\p{L})(?:ge)?(?:${stems})(?:e|st|t|te|test|ten|tet|en|est|et)?(?!\\p{L})`,
+    "iu",
+  );
+}
+
+// de.yaml rule de.confusions def IDIOM_VERBS
+export const IDIOM_VERBS = {
+  Punkt: [idiomVerb("bring|bracht|bräch"), "den"],
+  Kopf: [idiomVerb("stell"), "den"],
+  Plan: [idiomVerb("ruf|rief"), "den"],
+  PlanBare: [idiomVerb("ruf|rief"), "auf den Plan"],
+  Teppich: [idiomVerb("kehr"), "den"],
+  Leim: [idiomVerb("geh|ging|gangen"), ""],
+  Strömen: [idiomVerb("regn|gieß|goss|gossen|schütt"), "in"],
+  Schach: [idiomVerb("halt|hält|hielt"), "in"],
+  Strang: [idiomVerb("zieh|zog|zogen"), "einem"],
+  Strenge: [idiomVerb("schlag|schlug|schläg|schlagen"), "Stränge"],
+  Zaun: [idiomVerb("halt|hält|hielt"), "Zaum"],
+  Zaum: [idiomVerb("brech|brach|brich|brochen"), "Zaun"],
+  Angriff: [idiomVerb("nehm|nimm|nahm|nommen"), "in Angriff"],
+  Auge: [idiomVerb("behalt|behält|behielt|fass|fasst"), "im"],
+} as Readonly<Record<string, readonly [RegExp, string]>>;
+
+// de.yaml rule de.confusions def sentenceAround
+export function sentenceAround(m: RegExpExecArray) {
+  const head = m.input.slice(Math.max(0, m.index - 200), m.index);
+  const start =
+    Math.max(
+      head.lastIndexOf("."),
+      head.lastIndexOf("!"),
+      head.lastIndexOf("?"),
+      head.lastIndexOf("\n"),
+    ) + 1;
+  const tail = m.input.slice(m.index, m.index + 200);
+  const end = /[.!?\n]/.exec(tail.slice(1))?.index ?? tail.length;
+  return head.slice(start) + tail.slice(0, end + 2);
 }
 
 // de.yaml rule de.commaFrames def COMMA_COPULAS
@@ -841,6 +1211,822 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives: ["S"],
       context: { start: m.index, end: start + 3 },
     };
+  },
+  // de.yaml rule de.confusions frame 5
+  "@de.confusions/5": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target[0] === "S" ? "Seit" : "seit";
+  },
+  // de.yaml rule de.confusions frame 14
+  "@de.confusions/14": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    const verb = m.groups!.verb;
+    const clause = t2
+      ? m.input
+          .slice(m.index + m[0].length, m.index + m[0].length + 160)
+          .split(/[.,;:!?()\n]/)[0]
+          .trim()
+      : "";
+    return !t2 ? "dass" : /(?:^|\s)\p{Ll}\p{L}*$/u.test(clause) ? `${verb}, dass` : null;
+  },
+  // de.yaml rule de.confusions frame 16
+  "@de.confusions/16": (m: RegExpExecArray): string | readonly string[] | null => {
+    const clause = m.groups!.clause;
+    return subjectClauseDass(clause) ? "Dass" : null;
+  },
+  // de.yaml rule de.confusions frame 17
+  "@de.confusions/17": (m: RegExpExecArray): string | readonly string[] | null => {
+    const adj = m.groups!.adj;
+    return `${adj}, dass`;
+  },
+  // de.yaml rule de.confusions frame 18
+  "@de.confusions/18": (m: RegExpExecArray): string | readonly string[] | null => {
+    const head = m.groups!.head;
+    const next = m.groups!.next;
+    const rest = m.groups!.rest;
+    const noun = germanGender(next);
+    const pluralForm =
+      (!noun || noun.plural) &&
+      ["en", "n", "e", "er", "s"].some(
+        (end) =>
+          next.endsWith(end) &&
+          next.length - end.length >= 3 &&
+          germanGender(next.slice(0, -end.length)) !== null,
+      );
+    if (!(pluralForm || (!!noun && noun.gender !== "n" && noun.gender !== "x"))) return null;
+    const last = /\p{Ll}+$/u.exec(rest)![0];
+    if (!(
+      [germanVerbLike, germanInfinitive, germanAuxiliary].some((f) => f(last)) ||
+      /\p{Ll}{2}t$/u.test(last)
+    ))
+      return null;
+    const before = m.input.slice(Math.max(0, m.index - 40), m.index);
+    const own = germanGender(head);
+    return THAT_ADJECTIVES.has(head.toLowerCase())
+      ? (/^\p{Ll}/u.test(head) || /(?:^|[.!?\n])[ \t]*$/u.test(before)) &&
+        /(?:^|[.!?\n])[ \t]*(?:(?:sehr|wirklich|echt|ganz|so)[ \t]+)?$|(?:ist|war|wäre|finde|fand)[ \t]+(?:(?:sehr|wirklich|echt|ganz|so|doch|ja)[ \t]+)?$/iu.test(
+          before,
+        )
+        ? `${head}, dass`
+        : null
+      : !!own &&
+          own.gender !== "n" &&
+          own.gender !== "x" &&
+          !own.plural &&
+          /(?<!\p{L})(?:d(?:er|ie|en|em)|k?eine[mnr]?|(?:mein|dein|sein|ihr|unser)e[mnr]?)[ \t]+$/iu.test(
+            before,
+          )
+        ? `${head}, dass`
+        : null;
+  },
+  // de.yaml rule de.confusions frame 19
+  "@de.confusions/19": (m: RegExpExecArray): string | readonly string[] | null => {
+    return /(?<!\p{L})(?:spiegel|hall|kling|klang|schein|schien)\p{Ll}*[^.!?;\n]*$/u.test(
+      m.input.slice(Math.max(0, m.index - 80), m.index),
+    )
+      ? null
+      : "wieder";
+  },
+  // de.yaml rule de.confusions frame 24
+  "@de.confusions/24": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    return germanAdjective(verb.replace(/e?n$/, "")) ? null : "Denn";
+  },
+  // de.yaml rule de.confusions frame 25
+  "@de.confusions/25": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace("schon", "schön");
+  },
+  // de.yaml rule de.confusions frame 27
+  "@de.confusions/27": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    return noun ? "seinen" : "sein";
+  },
+  // de.yaml rule de.confusions frame 32
+  "@de.confusions/32": (m: RegExpExecArray): string | readonly string[] | null => {
+    const prep = m.groups!.prep;
+    const country = m.groups!.country;
+    return countryArticles(prep, country);
+  },
+  // de.yaml rule de.confusions frame 33
+  "@de.confusions/33": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const typed = target.toLowerCase();
+    const rest = m.input
+      .slice(m.index + m[0].length, m.index + m[0].length + 80)
+      .split(/[.,;:!?]/)[0];
+    if (
+      /(?<!\p{L})(?:zu|lassen|sehen|hören|worden|wird|werden|und|oder|aber|sondern|bin|bist|ist|sind|seid|war|waren|wäre|sei)(?!\p{L})/u.test(
+        rest,
+      )
+    )
+      return null;
+    if (/(?<!\p{L})zu\s+$/u.test(m.input.slice(Math.max(0, m.index - 4), m.index))) return null;
+    if (/(?<!\p{L})\p{Ll}{4,}(?:en|t)\s+$/u.test(m.input.slice(Math.max(0, m.index - 20), m.index)))
+      return null;
+    return typed !== "habe"
+      ? SEIN_FOR[typed]
+      : /(?<!\p{L})ich\s*$/iu.test(m.input.slice(Math.max(0, m.index - 6), m.index)) ||
+          /^\s+ich(?!\p{L})/iu.test(rest)
+        ? "bin"
+        : "sei";
+  },
+  // de.yaml rule de.confusions frame 34
+  "@de.confusions/34": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace(/^eign/, "eigen");
+  },
+  // de.yaml rule de.confusions frame 35
+  "@de.confusions/35": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    return /^(?:der|den|dem|des|einen|einem|eines|ein|kein|mein|dein|sein)$/i.test(noun)
+      ? null
+      : ["kann", "kam"];
+  },
+  // de.yaml rule de.confusions frame 36
+  "@de.confusions/36": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    const before = m.input.slice(Math.max(0, m.index - 12), m.index);
+    if (/(?:^|[^\p{L}])(?:so|ein|eine|einer)\s+$/u.test(before)) return null;
+    const clause = m.input
+      .slice(Math.max(0, m.index - 60), m.index)
+      .split(/[.!?;,]/)
+      .at(-1)!;
+    if (/(?:^|[^\p{L}])(?:genauso|ebenso|gleiche[mnrs]?|gleich|so)(?!\p{L})/u.test(clause))
+      return null;
+    if (
+      /^(?:weiter|später|früher|eher|öfter|immer|wieder|aber|oder|über|unter|hinter|wider)$/.test(
+        noun,
+      )
+    )
+      return null;
+    const stem = noun.slice(0, -2);
+    const plain = deumlaut(stem);
+    return /^(?:besser|lieber|mehr|weniger|anders)$/.test(noun) ||
+      (plain !== stem && germanAdjective(plain)) ||
+      (!germanAdjective(noun) &&
+        [stem, `${stem}e`].some((s) => s.length >= 2 && germanAdjective(s)))
+      ? "als"
+      : null;
+  },
+  // de.yaml rule de.confusions frame 37
+  "@de.confusions/37": (m: RegExpExecArray): string | readonly string[] | null => {
+    const before = m.input.slice(Math.max(0, m.index - 80), m.index);
+    const at = before.search(/(?<!\p{L})sowohl(?!\p{L})(?![^]*(?<!\p{L})als(?!\p{L}))/u);
+    return at >= 0 && !/[.!?;]/.test(before.slice(at)) ? "als auch" : null;
+  },
+  // de.yaml rule de.confusions frame 39
+  "@de.confusions/39": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    return /^(?:ich|und|oder|gern|gerne)$/.test(noun) ? null : "deine";
+  },
+  // de.yaml rule de.confusions frame 41
+  "@de.confusions/41": (m: RegExpExecArray): string | readonly string[] | null => {
+    const end = m.groups!.end;
+    const end2 = m.groups!.end2;
+    return `ökumenisch${end ?? end2 ?? ""}`;
+  },
+  // de.yaml rule de.confusions frame 42
+  "@de.confusions/42": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return /(?<!\p{L})(?:durch|durchs|aus|auf|aufs|gegen|in|ins|an|ans|über|unter|zwischen|hinter)\s+(?:\p{Ll}+\s+){0,3}\p{Lu}\p{Ll}+(?:\s+\p{Ll}+){0,3}\s*$/u.test(
+      m.input.slice(Math.max(0, m.index - 60), m.index),
+    )
+      ? null
+      : (target ?? t2)
+          .replace(/schossen/, "schlossen")
+          .replace(/schießen/, "schließen")
+          .replace(/^schoss$/, "schloss");
+  },
+  // de.yaml rule de.confusions frame 43
+  "@de.confusions/43": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return EINWEIHEN[target] ?? null;
+  },
+  // de.yaml rule de.confusions frame 44
+  "@de.confusions/44": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    if (!SHIP_BEFORE.test(m.input.slice(Math.max(0, m.index - 80), m.index))) return null;
+    if (
+      /(?:Feuer|Flamme|Hitze|Sonne|Glut|Brand|Blitz|Funken|Fackel|Lötlampe)/u.test(
+        m.input
+          .slice(Math.max(0, m.index - 80), m.index)
+          .split(/[.!?;\n]/)
+          .at(-1)! + m.input.slice(m.index, m.index + 40).split(/[.!?;\n]/)[0],
+      )
+    )
+      return null;
+    return target.replace("versengt", "versenkt");
+  },
+  // de.yaml rule de.confusions frame 45
+  "@de.confusions/45": (m: RegExpExecArray): string | readonly string[] | null => {
+    const question =
+      /(?:^|[.!?\n]\s*)(Was|Wer|Wen|Wie|Wo|Wann|Warum|Wieso|Weshalb|Woher|Wohin)\s+(\p{Ll}+)[^.!?\n]*$/u.exec(
+        m.input.slice(Math.max(0, m.index - 80), m.index),
+      );
+    if (!question) return null;
+    return /^(?:Was|Wer|Wen)$/.test(question[1]) ||
+      /^(?:bin|bist|ist|sind|seid|war|warst|wart|waren|wäre|wärst)$/.test(question[2])
+      ? "denn"
+      : null;
+  },
+  // de.yaml rule de.confusions frame 47
+  "@de.confusions/47": (m: RegExpExecArray): string | readonly string[] | null => {
+    return /(?<!\p{L})(?:hast|hat|habe|haben|habt|hatte|hatten|wurde|wurden|werden|worden|wird)(?!\p{L})/iu.test(
+      m.input.slice(Math.max(0, m.index - 80), m.index + 30),
+    )
+      ? "gegeben"
+      : null;
+  },
+  // de.yaml rule de.confusions frame 48
+  "@de.confusions/48": (m: RegExpExecArray): string | readonly string[] | null => {
+    const before = m.input.slice(Math.max(0, m.index - 12), m.index);
+    const after = m.input.slice(m.index + 6, m.index + 60);
+    if (/(?:^|[.!?:\n„"]|wie|so)[ \t]*$/iu.test(before) || /^[^.!?\n]*\?/.test(after)) return null;
+    return "stets";
+  },
+  // de.yaml rule de.confusions frame 49
+  "@de.confusions/49": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return STARTED_THINGS.test(m.input.slice(m.index, m.index + 80).split(/[.!?,;\n]/)[0])
+      ? null
+      : (STARRT[target.toLowerCase()] ?? null);
+  },
+  // de.yaml rule de.confusions frame 51
+  "@de.confusions/51": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return (target ?? t2).replace("bewehr", "bewähr");
+  },
+  // de.yaml rule de.confusions frame 54
+  "@de.confusions/54": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const reading = germanGender(noun);
+    if (!(!!reading && reading.gender !== "f" && !(reading.plural && /[^n]$/.test(noun))))
+      return null;
+    const verb = /^[ \t]+\p{Lu}\p{Ll}+[ \t]+(\p{Ll}+)/u.exec(
+      m.input.slice(m.index + target.length),
+    )?.[1];
+    if (
+      verb &&
+      !germanAuxiliary(verb) &&
+      !germanVerbLike(verb) &&
+      !germanPastInfinitives(verb).length &&
+      !/\p{Ll}{2,}t$/u.test(verb)
+    )
+      return null;
+    return `${target.slice(0, -3)} dem`;
+  },
+  // de.yaml rule de.confusions frame 55
+  "@de.confusions/55": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target ? "Koma" : "Komma";
+  },
+  // de.yaml rule de.confusions frame 58
+  "@de.confusions/58": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target ? "Sichtweite" : "Sichtweise";
+  },
+  // de.yaml rule de.confusions frame 59
+  "@de.confusions/59": (m: RegExpExecArray): string | readonly string[] | null => {
+    const clause = m.input
+      .slice(Math.max(0, m.index - 120), m.index)
+      .split(/[.!?;:,\n]/)
+      .at(-1)!;
+    const words = clause.match(/\p{L}+/gu) ?? [];
+    const sein = words.findIndex((w) =>
+      /^(?:ist|sind|war|waren|seid|bist|bin|sei|wäre|wären|gewesen)$/.test(w),
+    );
+    if (!(sein >= 0)) return null;
+    const relative = words
+      .slice(sein + 1)
+      .some(
+        (w, i, ws) =>
+          /^(?:als|wie|bis|dass|weil|wenn|ob|da|und|oder|kann|können|muss|müssen|soll|sollen|darf|dürfen|will|wollen)$/.test(
+            w,
+          ) ||
+          (/^(?:der|die|das|den|dem|denen|welche[mnrs]?)$/.test(w) &&
+            /^\p{Lu}/u.test(ws[i - 1] ?? words[sein])),
+      );
+    return relative ? null : "worden";
+  },
+  // de.yaml rule de.confusions frame 62
+  "@de.confusions/62": (m: RegExpExecArray): string | readonly string[] | null => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const stem = adj.slice(0, -2);
+    if (/^(?:k?ein|[dms]ein|ihr|unser|eur|dies|jen|jed|welch|solch|manch|all)$/.test(stem))
+      return null;
+    if (DATIVE_ADJECTIVES.test(stem)) return null;
+    const quantity = /^(?:einig|viel|wenig|mehrer|beid|zahlreich|verschieden|ander)$/.test(stem);
+    if (!(quantity || germanAdjective(stem))) return null;
+    const reading = germanGender(noun);
+    return adj.endsWith("em")
+      ? "mit"
+      : adj.endsWith("er")
+        ? reading?.gender === "f" && !reading.plural
+          ? "mit"
+          : null
+        : /e?n$/.test(noun) && reading?.gender !== "m" && reading?.gender !== "n"
+          ? "mit"
+          : null;
+  },
+  // de.yaml rule de.confusions frame 63
+  "@de.confusions/63": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    const t3 = m.groups!.t3;
+    return (target ?? t2 ?? t3).replace("nahme", "name");
+  },
+  // de.yaml rule de.confusions frame 64
+  "@de.confusions/64": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    const t3 = m.groups!.t3;
+    const before = m.input
+      .slice(Math.max(0, m.index - 60), m.index)
+      .split(/[.!?\n]/)
+      .at(-1)!;
+    const after = m.input.slice(m.index, m.index + 60).split(/[.!?\n]/)[0];
+    return target
+      ? /zahl|überweis|finanzier|stotter|kauf|tilg|monatlich|€|Euro/u.test(before + after)
+        ? "Raten"
+        : null
+      : (t2 ?? t3) === "Rate"
+        ? "Ratte"
+        : "Ratten";
+  },
+  // de.yaml rule de.confusions frame 65
+  "@de.confusions/65": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = target
+      ? ""
+      : /(\p{Lu}\p{Ll}+),[ \t]+$/u.exec(m.input.slice(Math.max(0, m.index - 40), m.index))![1];
+    const reading = target ? null : germanGender(noun);
+    const clause = target ? "" : /^[^.!?,;]*/.exec(m.input.slice(m.index + 4))![0];
+    return target ||
+      (!!reading &&
+        (reading.gender === "n" || reading.gender === "x") &&
+        !/(?<!\p{L})(?:ich|du|er|sie|es|wir|ihr|man|der|die|den|dem|ein|eine)(?!\p{L})/u.test(
+          clause,
+        ))
+      ? "das"
+      : null;
+  },
+  // de.yaml rule de.confusions frame 66
+  "@de.confusions/66": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target[0] === "S" ? "So weit" : "so weit";
+  },
+  // de.yaml rule de.confusions frame 68
+  "@de.confusions/68": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const reading = germanGender(noun);
+    if (!(!!reading && !reading.plural && !/^Gott(?:es)?$/.test(noun))) return null;
+    const possessive = target.replace(/ien/, "ein");
+    return germanDeterminerFits(possessive, noun) ? possessive : null;
+  },
+  // de.yaml rule de.confusions frame 71
+  "@de.confusions/71": (m: RegExpExecArray): string | readonly string[] | null => {
+    return /(?<!\p{L})[Ii]ns(?:ofern|oweit)(?!\p{L})/u.test(
+      m.input
+        .slice(Math.max(0, m.index - 120), m.index)
+        .split(/[.!?;\n]/)
+        .at(-1)!,
+    )
+      ? "als"
+      : null;
+  },
+  // de.yaml rule de.confusions frame 72
+  "@de.confusions/72": (m: RegExpExecArray): string | readonly string[] | null => {
+    const prep = m.groups!.prep;
+    const a = m.groups!.a;
+    const b = m.groups!.b;
+    const after = m.input.slice(m.index + m[0].length, m.index + m[0].length + 20);
+    if (
+      /^seit$/i.test(prep) &&
+      /^[ \t]+(?:Jahr|Monat|Woche|Tag|Stunde|Minute|Jahrzehnt|Jahrhundert)\p{Ll}*n(?!\p{L})/u.test(
+        after,
+      )
+    )
+      return null;
+    return [`zwischen ${a} und ${b}`, `von ${a} bis ${b}`];
+  },
+  // de.yaml rule de.confusions frame 73
+  "@de.confusions/73": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const prep = m.groups!.prep;
+    const next = /^[ \t]+(\p{Ll}+)/u.exec(m.input.slice(m.index + m[0].length))?.[1] ?? "";
+    if (!(
+      !next ||
+      (!germanInfinitive(prep + next) &&
+        !germanVerbLike(prep + next) &&
+        (verbFormLike(next) || DA_ADVERBS.has(next)))
+    ))
+      return null;
+    return `${target[0] === "D" ? "Da" : "da"}${prep}`;
+  },
+  // de.yaml rule de.confusions frame 74
+  "@de.confusions/74": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "War" : "war";
+  },
+  // de.yaml rule de.confusions frame 77
+  "@de.confusions/77": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    if (!(!!germanGender(noun) && !/^(?:Inclusive|Star|Stars|You)$/.test(noun))) return null;
+    return target[0] === "A" ? "Alle" : "alle";
+  },
+  // de.yaml rule de.confusions frame 78
+  "@de.confusions/78": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return DECONTRACTED[target.toLowerCase()];
+  },
+  // de.yaml rule de.confusions frame 80
+  "@de.confusions/80": (m: RegExpExecArray): string | readonly string[] | null => {
+    return (
+      m.input
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.,;:!?\n]/)
+        .at(-1)!
+        .match(/\p{L}+/gu) ?? []
+    ).some((w) => germanAuxiliary(w.toLowerCase()))
+      ? "bereits"
+      : null;
+  },
+  // de.yaml rule de.confusions frame 81
+  "@de.confusions/81": (m: RegExpExecArray): string | readonly string[] | null => {
+    const inf = /(\p{Ll}+)[ \t]+$/u.exec(m.input.slice(Math.max(0, m.index - 40), m.index))?.[1];
+    return inf && germanInfinitive(inf) ? "ließ" : null;
+  },
+  // de.yaml rule de.confusions frame 82
+  "@de.confusions/82": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return `w${target ?? t2}`;
+  },
+  // de.yaml rule de.confusions frame 86
+  "@de.confusions/86": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace("lehr", "leer");
+  },
+  // de.yaml rule de.confusions frame 87
+  "@de.confusions/87": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "uns" : "mich";
+  },
+  // de.yaml rule de.confusions frame 88
+  "@de.confusions/88": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return (target ?? t2).replace("denk", "dank");
+  },
+  // de.yaml rule de.confusions frame 92
+  "@de.confusions/92": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "schon" : "schön";
+  },
+  // de.yaml rule de.confusions frame 95
+  "@de.confusions/95": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "Hol" : "hole";
+  },
+  // de.yaml rule de.confusions frame 105
+  "@de.confusions/105": (m: RegExpExecArray): string | readonly string[] | null => {
+    return /(?<!\p{L})[Dd]u(?!\p{L})/u.test(m.input.slice(Math.max(0, m.index - 60), m.index + 60))
+      ? null
+      : "weist";
+  },
+  // de.yaml rule de.confusions frame 107
+  "@de.confusions/107": (m: RegExpExecArray): string | readonly string[] | null => {
+    const n = m.groups!.n;
+    const end = m.groups!.end;
+    const e2 = m.groups!.e2;
+    return `${n}-tägig${end ?? e2 ?? ""}`;
+  },
+  // de.yaml rule de.confusions frame 108
+  "@de.confusions/108": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "Harz" : "Hartz IV";
+  },
+  // de.yaml rule de.confusions frame 109
+  "@de.confusions/109": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "Trab" : "Schach";
+  },
+  // de.yaml rule de.confusions frame 110
+  "@de.confusions/110": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "vielen Dank" : "viel";
+  },
+  // de.yaml rule de.confusions frame 112
+  "@de.confusions/112": (m: RegExpExecArray): string | readonly string[] | null => {
+    const head = m.groups!.head;
+    const s = m.groups!.s;
+    return `${head}p${s ?? ""}`;
+  },
+  // de.yaml rule de.confusions frame 114
+  "@de.confusions/114": (m: RegExpExecArray): string | readonly string[] | null => {
+    return /(?<!\p{L})(?:hat|habe|haben|hatte|hatten|hast|habt)(?!\p{L})/u.test(
+      m.input
+        .slice(Math.max(0, m.index - 100), m.index)
+        .split(/[.,;:!?\n]/)
+        .at(-1)!,
+    )
+      ? "verstanden"
+      : null;
+  },
+  // de.yaml rule de.confusions frame 117
+  "@de.confusions/117": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return (target ?? t2) === "geendet" ? "gesendet" : ["versendet", "verwendet"];
+  },
+  // de.yaml rule de.confusions frame 122
+  "@de.confusions/122": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    if (!(!germanInfinitive(target) && target.includes("ie"))) return null;
+    const swapped = target.replace("ie", "ei");
+    return germanInfinitive(swapped) ? swapped : null;
+  },
+  // de.yaml rule de.confusions frame 123
+  "@de.confusions/123": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return t2
+      ? germanInfinitive(`${t2}en`)
+        ? `${t2}t`
+        : null
+      : germanInfinitive(`${target}n`) && !germanAdjective(target) && !germanGender(target)
+        ? `${target}n`
+        : null;
+  },
+  // de.yaml rule de.confusions frame 124
+  "@de.confusions/124": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace(/n$/, "m");
+  },
+  // de.yaml rule de.confusions frame 133
+  "@de.confusions/133": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target[0] === "W" ? "Weißt" : "weißt";
+  },
+  // de.yaml rule de.confusions frame 134
+  "@de.confusions/134": (m: RegExpExecArray): string | readonly string[] | null => {
+    const pre = m.groups!.pre;
+    const s = m.groups!.s;
+    return `${pre}-Channel${s ?? ""}`;
+  },
+  // de.yaml rule de.confusions frame 135
+  "@de.confusions/135": (m: RegExpExecArray): string | readonly string[] | null => {
+    return (
+      m.input
+        .slice(Math.max(0, m.index - 120), m.index)
+        .split(/[.,;:!?\n]/)
+        .at(-1)!
+        .match(/\p{L}+/gu) ?? []
+    ).some((w) => VERB_GOVERNORS.has(w.toLowerCase()))
+      ? "überlassen"
+      : null;
+  },
+  // de.yaml rule de.confusions frame 138
+  "@de.confusions/138": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    const t3 = m.groups!.t3;
+    return t3 ? "Scheiße" : SHOOT[target ?? t2];
+  },
+  // de.yaml rule de.confusions frame 140
+  "@de.confusions/140": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t4 = m.groups!.t4;
+    const t5 = m.groups!.t5;
+    return t4 ? "weißt" : t5 ? "Weiß" : "weiß";
+  },
+  // de.yaml rule de.confusions frame 144
+  "@de.confusions/144": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const prep = target.split(/[ \t ]/)[0].toLowerCase();
+    const states = /Staaten/.test(target);
+    const dative = states
+      ? `Vereinigten Staaten${noun ? " von Amerika" : ""}`
+      : "Vereinigten Arabischen Emiraten";
+    const accusative = states ? dative : "Vereinigten Arabischen Emirate";
+    return prep === "nach"
+      ? `in die ${accusative}`
+      : prep === "in"
+        ? [`in den ${dative}`, `in die ${accusative}`]
+        : `${prep} den ${dative}`;
+  },
+  // de.yaml rule de.confusions frame 147
+  "@de.confusions/147": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return target ? "verschlossen" : t2.replace("schoss", "schloss");
+  },
+  // de.yaml rule de.confusions frame 148
+  "@de.confusions/148": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target[0] === "N" ? "Nachdem" : "nachdem";
+  },
+  // de.yaml rule de.confusions frame 149
+  "@de.confusions/149": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t3 = m.groups!.t3;
+    const t4 = m.groups!.t4;
+    return (t3 ?? t4) ? "so bald" : "so weit";
+  },
+  // de.yaml rule de.confusions frame 153
+  "@de.confusions/153": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target.replace("start", "starrt");
+  },
+  // de.yaml rule de.confusions frame 154
+  "@de.confusions/154": (m: RegExpExecArray): string | readonly string[] | null => {
+    return /(?<!\p{L})(?:an|am|daran|dran)(?!\p{L})/u.test(
+      m.input
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?;\n]/)
+        .at(-1)!,
+    )
+      ? null
+      : "gewohnt";
+  },
+  // de.yaml rule de.confusions frame 155
+  "@de.confusions/155": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target ? "Ideen" : "Iden";
+  },
+  // de.yaml rule de.confusions frame 156
+  "@de.confusions/156": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    const t3 = m.groups!.t3;
+    return target ? "Champagner" : t2 ? "Miene" : t3.replace("miene", "mine");
+  },
+  // de.yaml rule de.confusions frame 157
+  "@de.confusions/157": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return target ? target.replace("thisch", "thnisch") : t2.replace("thnisch", "thisch");
+  },
+  // de.yaml rule de.confusions frame 160
+  "@de.confusions/160": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return target ? "Beim" : t2 ? "Noch" : "sie";
+  },
+  // de.yaml rule de.confusions frame 162
+  "@de.confusions/162": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    const t3 = m.groups!.t3;
+    return (target ?? t2 ?? t3).replace("strickt", "strikt");
+  },
+  // de.yaml rule de.confusions frame 163
+  "@de.confusions/163": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target ? "sputen" : "ausgedrückt";
+  },
+  // de.yaml rule de.confusions frame 165
+  "@de.confusions/165": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t3 = m.groups!.t3;
+    return t3 ? "breit" : "bereit";
+  },
+  // de.yaml rule de.confusions frame 167
+  "@de.confusions/167": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    return `berg${noun}`;
+  },
+  // de.yaml rule de.confusions frame 168
+  "@de.confusions/168": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    const t2 = m.groups!.t2;
+    return t2 ? `${noun}${t2}` : `${noun}.`;
+  },
+  // de.yaml rule de.confusions frame 169
+  "@de.confusions/169": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    return target ? "beiden" : t2 ? "das" : "ihm";
+  },
+  // de.yaml rule de.confusions frame 170
+  "@de.confusions/170": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    return germanAdjective(`${noun.toLowerCase()}haft`)
+      ? target.replace(/[ \t ]+Haft/, "haft").toLowerCase()
+      : null;
+  },
+  // de.yaml rule de.confusions frame 171
+  "@de.confusions/171": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    const t2 = m.groups!.t2;
+    const t3 = m.groups!.t3;
+    const t4 = m.groups!.t4;
+    const t5 = m.groups!.t5;
+    const t6 = m.groups!.t6;
+    const t7 = m.groups!.t7;
+    const t8 = m.groups!.t8;
+    const after = m.input.slice(m.index + m[0].length, m.index + m[0].length + 12);
+    const key =
+      noun ??
+      (t2
+        ? "Leim"
+        : t3
+          ? /^\s*Schach/.test(after)
+            ? "Schach"
+            : "Strömen"
+          : t4
+            ? "Strang"
+            : t5
+              ? "Strenge"
+              : t6
+                ? "Zaun"
+                : t7
+                  ? "Zaum"
+                  : t8
+                    ? "Angriff"
+                    : "PlanBare");
+    const verbs = IDIOM_VERBS[key][0];
+    if (!verbs.test(sentenceAround(m))) return null;
+    const fix = IDIOM_VERBS[key][1];
+    return key === "Leim" ? [`${t2.slice(0, 3)} den`, `${t2[0] === "A" ? "Aus" : "aus"} dem`] : fix;
+  },
+  // de.yaml rule de.confusions frame 172
+  "@de.confusions/172": (m: RegExpExecArray): string | readonly string[] | null => {
+    return IDIOM_VERBS.Auge[0].test(sentenceAround(m)) ? "im" : null;
+  },
+  // de.yaml rule de.confusions frame 173
+  "@de.confusions/173": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return `${target.slice(0, -1)}m`;
+  },
+  // de.yaml rule de.confusions frame 174
+  "@de.confusions/174": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return IDIOM_DECONTRACTED[target.toLowerCase()];
+  },
+  // de.yaml rule de.confusions frame 176
+  "@de.confusions/176": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    const t2 = m.groups!.t2;
+    return t2
+      ? "mehreren"
+      : germanGender(noun.toLowerCase())?.plural === false
+        ? null
+        : `${target}n`;
+  },
+  // de.yaml rule de.confusions frame 177
+  "@de.confusions/177": (m: RegExpExecArray): string | readonly string[] | null => {
+    const noun = m.groups!.noun;
+    const gender = germanGender(noun.toLowerCase());
+    if (!(!!gender && !gender.plural)) return null;
+    return gender.gender === "n" ? "anderes" : gender.gender === "m" ? "anderer" : null;
+  },
+  // de.yaml rule de.confusions frame 178
+  "@de.confusions/178": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /übersetz/.test(sentenceAround(m)) ? null : `${target}r`;
+  },
+  // de.yaml rule de.confusions frame 180
+  "@de.confusions/180": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "Hertz" : "Herz";
+  },
+  // de.yaml rule de.confusions frame 187
+  "@de.confusions/187": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return /(?<!\p{L})(?:an|zu|nach|vor|bei|mit|ab|aus|ein|hinterher)[ \t]*[.!?,;:]/u.test(
+      sentenceAround(m),
+    )
+      ? null
+      : DATIVE_OF[target];
+  },
+  // de.yaml rule de.confusions frame 189
+  "@de.confusions/189": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return `${target}s`;
+  },
+  // de.yaml rule de.confusions frame 191
+  "@de.confusions/191": (m: RegExpExecArray): string | readonly string[] | null => {
+    const t2 = m.groups!.t2;
+    return t2 ? "Zeigen" : "heute";
+  },
+  // de.yaml rule de.confusions frame 193
+  "@de.confusions/193": (m: RegExpExecArray): string | readonly string[] | null => {
+    return /(?<!\p{L})(?:nehme|nimmst|nimmt|nehmt|nahm|nahmst|nahmen)(?!\p{L})/u.test(
+      m.input
+        .slice(Math.max(0, m.index - 80), m.index)
+        .split(/[.!?,;:\n]/)
+        .at(-1)!,
+    )
+      ? "wahr"
+      : null;
   },
   // de.yaml rule de.adjectiveForms frame 4
   "@de.adjectiveForms/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

@@ -6,15 +6,12 @@ import {
   type Fixer,
   type FindingsFilter,
 } from "../../engine/reviewRules";
-import * as idiomFrames from "./idiomFrames";
-import * as lookalikes from "./lookalikes";
 import * as abbreviations from "./abbreviations";
 import * as adjectiveForms from "./adjectiveForms";
 import * as articleGender from "./articleGender";
 import * as colloquial from "./colloquial";
 import * as commas from "./commas";
 import * as compounds from "./compounds";
-import * as confusions from "./confusions";
 import * as dates from "./dates";
 import * as joinedVerbs from "./joinedVerbs";
 import * as nounCasing from "./nounCasing";
@@ -32,9 +29,6 @@ export const PREDICATES = mergePredicates<Detector>();
 
 /** The named frame fixes of grammar/rules/de.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
-  confusions.FIXERS,
-  lookalikes.FIXERS,
-  idiomFrames.FIXERS,
   abbreviations.FIXERS,
   suspendedHyphen.FIXERS,
   questions.FIXERS,
