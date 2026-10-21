@@ -30457,7 +30457,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "am[ \\t\\u00a0]+(?:(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag),?[ \\t\\u00a0]+(?:den[ \\t\\u00a0]+)?)?(?<date>(?<day>\\d{1,2})\\.(?:[ \\t\\u00a0]?(?<month>\\d{1,2})\\.[ \\t\\u00a0]?|[ \\t\\u00a0]*(?<name>januar|jänner|jan|jän|februar|feb|märz|mär|april|apr|mai|juni|jun|juli|jul|august|aug|september|sep|sept|oktober|okt|november|nov|dezember|dez)\\.?[ \\t\\u00a0]+)(?<year>\\d{4}))(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.de/1",
     owner: "date",
   }),
   frame({
@@ -30480,14 +30480,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "décembre",
       "decembre",
     ],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.fr/1",
     owner: "date",
   }),
   frame({
     pattern:
       "le[ \\t\\u00a0]+(?:(?:lundi|mardi|mercredi|jeudi|vendredi|samedi|dimanche)[ \\t\\u00a0]+)?(?<date>(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>\\d{4}))(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.fr/2",
     owner: "date",
   }),
   frame({
@@ -30508,14 +30508,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "noviembre",
       "diciembre",
     ],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.es/1",
     owner: "date",
   }),
   frame({
     pattern:
       "el[ \\t\\u00a0]+(?:día[ \\t\\u00a0]+)?(?:(?:lunes|martes|miércoles|jueves|viernes|sábado|domingo),?[ \\t\\u00a0]+)?(?<date>(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>\\d{4}))(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.es/2",
     owner: "date",
   }),
   frame({
@@ -30547,7 +30547,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "nov",
       "dez",
     ],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.pt/1",
     owner: "date",
   }),
   frame({
@@ -30579,14 +30579,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "nov",
       "dez",
     ],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.pt/2",
     owner: "date",
   }),
   frame({
     pattern:
       "(?:em|a|no[ \\t\\u00a0]+dia|dia)[ \\t\\u00a0]+(?:(?:(?:segunda|terça|quarta|quinta|sexta)(?:-feira)?|sábado|domingo),?[ \\t\\u00a0]+)?(?<date>(?<day>\\d{1,2})(?<sep>[/.-])(?<month>\\d{1,2})\\k<sep>(?<year>\\d{4}))(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.pt/3",
     owner: "date",
   }),
   frame({
@@ -30606,21 +30606,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "listopada",
       "grudnia",
     ],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.pl/1",
     owner: "date",
   }),
   frame({
     pattern:
       "(?<![\\p{L}\\p{N}.,/-])(?:(?:dnia|w[ \\t\\u00a0]+dniu)[ \\t\\u00a0]+)?(?<date>(?<day>\\d{1,2})\\.(?<month>\\d{1,2})\\.(?<year>\\d{4}))(?:[ \\t\\u00a0]+r\\.|[ \\t\\u00a0]+roku)?(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.pl/2",
     owner: "date",
   }),
   frame({
     pattern:
       "(?:(?:في|يوم|بتاريخ)[ \\t\\u00a0]+)?(?<date>(?<day>[0-9٠-٩۰-۹]{1,2})[ \\t\\u00a0]+(?<name>كانون الثاني|تشرين الثاني|تشرين الأول|كانون الأول|فبراير|حزيران|جويلية|سبتمبر|أكتوبر|اكتوبر|نوفمبر|ديسمبر|يناير|جانفي|فيفري|أبريل|ابريل|إبريل|نيسان|أفريل|يونيو|يونيه|يوليو|يوليه|أغسطس|اغسطس|أيلول|شباط|مارس|آذار|مايو|أيار|جوان|تموز|ماي|أوت|آب)[ \\t\\u00a0]+(?<year>[0-9٠-٩۰-۹]{4}))(?![\\p{L}\\p{N}])",
     literals: [],
-    fixer: "common:dateTense",
+    fixer: "common:@dateTense.ar/1",
     owner: "date",
   }),
 ];

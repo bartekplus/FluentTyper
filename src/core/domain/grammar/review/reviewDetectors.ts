@@ -56,7 +56,6 @@ import {
   FIXERS as FRENCH_FIXERS,
   PREDICATES as FRENCH,
 } from "./french/ruleDetectors";
-import { FIXERS as DATE_FIXERS } from "./dateTense";
 import {
   buildReviewDetectors,
   mergePredicates,
@@ -149,7 +148,6 @@ export const CORE_PREDICATES: Readonly<Record<string, Detector>> = {};
 
 /** The named frame fixes of grammar/rules/common.yaml (`fixer:`). */
 const CORE_FIXERS = mergePredicates<Fixer>(
-  DATE_FIXERS,
   // The other rule files still name the ISO date frame fixer "common:invalidIsoDate".
   { invalidIsoDate: isoDateWarning },
   QUOTE_FIXERS,

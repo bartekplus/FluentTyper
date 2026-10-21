@@ -37,7 +37,10 @@ import {
   atClauseStart,
   caseLike,
   closesAbbreviation,
+  dateSide,
+  dayCount,
   detectWordCase,
+  digitValue,
   englishInflect,
   englishInitialSound,
   englishLemma,
@@ -95,6 +98,7 @@ import {
   previousWord,
   quotedSpan,
   readMemo,
+  recentPast,
   replaceFrom,
   resolveEnglishBoundaryContext,
   resolveMeasurementLocale,
@@ -1730,6 +1734,637 @@ export const AGREEMENT_COLLECTIVE: ReadonlySet<string> = new Set([
   "belt",
 ]);
 
+export const DE_BOUNDARY: ReadonlySet<string> = new Set([
+  "dass",
+  "ob",
+  "wenn",
+  "falls",
+  "weil",
+  "als",
+  "bevor",
+  "nachdem",
+  "sobald",
+  "bis",
+  "und",
+  "aber",
+  "oder",
+  "sondern",
+  "denn",
+  "damit",
+  "obwohl",
+  "während",
+]);
+
+export const DE_CONDITIONAL: ReadonlySet<string> = new Set(["wenn", "falls", "ob"]);
+
+export const FR_BOUNDARY: ReadonlySet<string> = new Set([
+  "que",
+  "qu",
+  "si",
+  "quand",
+  "lorsque",
+  "lorsqu",
+  "et",
+  "mais",
+  "ou",
+  "car",
+  "donc",
+  "puis",
+  "dont",
+  "où",
+  "qui",
+  "comme",
+]);
+
+export const FR_CONDITIONAL: ReadonlySet<string> = new Set(["si"]);
+
+export const ES_BOUNDARY: ReadonlySet<string> = new Set([
+  "que",
+  "si",
+  "cuando",
+  "porque",
+  "aunque",
+  "y",
+  "e",
+  "pero",
+  "o",
+  "u",
+  "ni",
+  "mientras",
+  "donde",
+  "quien",
+  "como",
+]);
+
+export const ES_CONDITIONAL: ReadonlySet<string> = new Set(["si"]);
+
+export const PT_BOUNDARY: ReadonlySet<string> = new Set([
+  "que",
+  "se",
+  "quando",
+  "porque",
+  "embora",
+  "e",
+  "mas",
+  "ou",
+  "enquanto",
+  "onde",
+  "quem",
+  "como",
+]);
+
+export const PT_CONDITIONAL: ReadonlySet<string> = new Set(["se"]);
+
+export const PL_BOUNDARY: ReadonlySet<string> = new Set([
+  "że",
+  "czy",
+  "jeśli",
+  "jeżeli",
+  "gdy",
+  "gdyby",
+  "kiedy",
+  "bo",
+  "ponieważ",
+  "aby",
+  "żeby",
+  "i",
+  "ale",
+  "lub",
+  "albo",
+  "oraz",
+  "a",
+  "który",
+  "która",
+  "które",
+  "którzy",
+  "jak",
+]);
+
+export const PL_CONDITIONAL: ReadonlySet<string> = new Set(["jeśli", "jeżeli", "gdyby", "czy"]);
+
+export const AR_BOUNDARY: ReadonlySet<string> = new Set([
+  "أن",
+  "إن",
+  "إذا",
+  "لو",
+  "عندما",
+  "حتى",
+  "لأن",
+  "الذي",
+  "التي",
+  "الذين",
+  "لكن",
+  "ثم",
+  "بينما",
+]);
+
+export const AR_CONDITIONAL: ReadonlySet<string> = new Set(["إذا", "لو", "إن"]);
+
+export const DE_HABEN: ReadonlySet<string> = new Set([
+  "habe",
+  "hast",
+  "hat",
+  "haben",
+  "habt",
+  "hatte",
+  "hattest",
+  "hatten",
+  "hattet",
+]);
+
+export const DE_SEIN: ReadonlySet<string> = new Set([
+  "bin",
+  "bist",
+  "ist",
+  "sind",
+  "seid",
+  "war",
+  "warst",
+  "waren",
+  "wart",
+]);
+
+export const DE_WERDEN: ReadonlySet<string> = new Set([
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "werdet",
+]);
+
+export const DE_PRONOUNS: ReadonlySet<string> = new Set(["ich", "du", "er", "sie", "wir", "ihr"]);
+
+export const DE_NOT_PARTICIPLE: ReadonlySet<string> = new Set([
+  "gegen",
+  "gesamt",
+  "insgesamt",
+  "gerecht",
+]);
+
+export const FR_AVOIR: ReadonlySet<string> = new Set([
+  "ai",
+  "as",
+  "a",
+  "avons",
+  "avez",
+  "ont",
+  "avais",
+  "avait",
+  "avions",
+  "aviez",
+  "avaient",
+]);
+
+export const FR_ETRE: ReadonlySet<string> = new Set([
+  "suis",
+  "es",
+  "est",
+  "sommes",
+  "êtes",
+  "sont",
+  "étais",
+  "était",
+  "étions",
+  "étiez",
+  "étaient",
+]);
+
+export const FR_ADVERBS: ReadonlySet<string> = new Set([
+  "pas",
+  "jamais",
+  "déjà",
+  "bien",
+  "tout",
+  "tous",
+  "enfin",
+  "aussi",
+  "encore",
+  "beaucoup",
+  "rien",
+  "plus",
+  "toujours",
+  "vraiment",
+  "finalement",
+]);
+
+export const FR_NOT_PARTICIPLE: ReadonlySet<string> = new Set([
+  "plus",
+  "tous",
+  "nous",
+  "vous",
+  "sous",
+  "jus",
+  "dessus",
+  "ainsi",
+  "aussi",
+  "ici",
+  "parmi",
+  "lui",
+  "qui",
+  "si",
+  "ni",
+  "tu",
+  "du",
+  "lit",
+  "bien",
+  "tout",
+  "lundi",
+  "mardi",
+  "mercredi",
+  "jeudi",
+  "vendredi",
+  "samedi",
+  "midi",
+  "aujourd",
+]);
+
+export const FR_MOTION: ReadonlySet<string> = new Set([
+  "allé",
+  "venu",
+  "parti",
+  "arrivé",
+  "rentré",
+  "revenu",
+  "sorti",
+  "entré",
+  "monté",
+  "descendu",
+  "tombé",
+  "né",
+  "mort",
+  "resté",
+  "retourné",
+  "devenu",
+  "parvenu",
+]);
+
+export const FR_SUBJECTS: ReadonlySet<string> = new Set([
+  "je",
+  "j",
+  "tu",
+  "il",
+  "elle",
+  "on",
+  "nous",
+  "vous",
+  "ils",
+  "elles",
+]);
+
+export const FR_OBJECTS: ReadonlySet<string> = new Set([
+  "ne",
+  "n",
+  "y",
+  "en",
+  "le",
+  "la",
+  "les",
+  "l",
+  "lui",
+  "leur",
+  "me",
+  "m",
+  "te",
+  "t",
+  "se",
+  "s",
+  "nous",
+  "vous",
+]);
+
+export const FR_ALLER: ReadonlySet<string> = new Set([
+  "vais",
+  "vas",
+  "va",
+  "allons",
+  "allez",
+  "vont",
+]);
+
+export const ES_HABER: ReadonlySet<string> = new Set([
+  "he",
+  "has",
+  "ha",
+  "hemos",
+  "habéis",
+  "han",
+  "había",
+  "habías",
+  "habíamos",
+  "habíais",
+  "habían",
+]);
+
+export const ES_PAST_WORDS: ReadonlySet<string> = new Set([
+  "fui",
+  "fue",
+  "fuimos",
+  "fuiste",
+  "fueron",
+  "estuve",
+  "estuvo",
+  "estuvimos",
+  "estuvieron",
+  "tuve",
+  "tuvo",
+  "tuvimos",
+  "tuvieron",
+  "hice",
+  "hizo",
+  "hicimos",
+  "hicieron",
+  "dije",
+  "dijo",
+  "dijimos",
+  "dijeron",
+  "vinimos",
+  "vinieron",
+  "pude",
+  "pudo",
+  "pudimos",
+  "pudieron",
+  "puse",
+  "puso",
+  "pusimos",
+  "pusieron",
+  "quise",
+  "quiso",
+  "supe",
+  "supo",
+  "traje",
+  "trajo",
+  "trajimos",
+  "era",
+  "eras",
+  "éramos",
+  "eran",
+  "iba",
+  "ibas",
+  "íbamos",
+  "iban",
+  "vio",
+  "vimos",
+  "vieron",
+  "dio",
+  "dimos",
+  "dieron",
+]);
+
+export const ES_NOT_PAST: ReadonlySet<string> = new Set([
+  "esté",
+  "dé",
+  "sé",
+  "fe",
+  "café",
+  "bebé",
+  "josé",
+  "comité",
+  "puré",
+  "chalé",
+  "té",
+  "qué",
+  "porqué",
+  "dominó",
+  "buró",
+  "rococó",
+  "mamá",
+  "papá",
+]);
+
+export const ES_IR: ReadonlySet<string> = new Set(["voy", "vas", "va", "vamos", "vais", "van"]);
+
+export const PT_PAST_WORDS: ReadonlySet<string> = new Set([
+  "fui",
+  "foi",
+  "fomos",
+  "foram",
+  "foste",
+  "estive",
+  "esteve",
+  "estivemos",
+  "estiveram",
+  "tive",
+  "teve",
+  "tivemos",
+  "tiveram",
+  "fiz",
+  "fez",
+  "fizemos",
+  "fizeram",
+  "disse",
+  "dissemos",
+  "disseram",
+  "vi",
+  "viu",
+  "vimos",
+  "viram",
+  "pude",
+  "pôde",
+  "pudemos",
+  "puderam",
+  "era",
+  "eras",
+  "éramos",
+  "eram",
+  "vim",
+  "veio",
+  "viemos",
+  "vieram",
+  "quis",
+  "quisemos",
+  "soube",
+  "trouxe",
+  "pus",
+  "pôs",
+]);
+
+export const PT_NOT_PAST: ReadonlySet<string> = new Set([
+  "sei",
+  "lei",
+  "rei",
+  "grei",
+  "sou",
+  "estou",
+  "vou",
+  "dou",
+]);
+
+export const PT_PLUPERFECT: ReadonlySet<string> = new Set([
+  "tinha",
+  "tinhas",
+  "tínhamos",
+  "tinham",
+  "havia",
+  "havíamos",
+  "haviam",
+]);
+
+export const PT_IR: ReadonlySet<string> = new Set(["vou", "vais", "vai", "vamos", "ides", "vão"]);
+
+export const PL_FUTURE: ReadonlySet<string> = new Set([
+  "będę",
+  "będziesz",
+  "będzie",
+  "będziemy",
+  "będziecie",
+  "będą",
+]);
+
+export const PL_NOT_PAST: ReadonlySet<string> = new Set([
+  "kanał",
+  "upał",
+  "zapał",
+  "dział",
+  "udział",
+  "materiał",
+  "przedział",
+  "podział",
+  "rozdział",
+  "pył",
+  "wał",
+  "szał",
+  "skała",
+  "siła",
+  "mogiła",
+  "ciało",
+  "mało",
+  "działo",
+  "chwili",
+  "fali",
+  "sali",
+  "stali",
+  "cały",
+  "mały",
+  "biały",
+  "stały",
+  "trwały",
+  "doskonały",
+  "dojrzały",
+  "wspaniały",
+  "okazały",
+  "śmiały",
+  "siły",
+  "skały",
+  "mogiły",
+]);
+
+export const AR_PAST: ReadonlySet<string> = new Set([
+  "لقد",
+  "كان",
+  "كانت",
+  "كنا",
+  "كنت",
+  "كانوا",
+  "كنتم",
+  "قمنا",
+  "قمت",
+  "قام",
+  "قامت",
+]);
+
+export const AR_FUTURE: ReadonlySet<string> = new Set(["سوف", "لن"]);
+
+export const DE_PAST: ReadonlySet<string> = new Set([
+  "war",
+  "waren",
+  "ging",
+  "gingen",
+  "kam",
+  "kamen",
+  "sah",
+  "sahen",
+  "flog",
+  "flogen",
+  "fuhr",
+  "fuhren",
+  "schwamm",
+  "schwammen",
+  "lief",
+  "liefen",
+  "gab",
+  "gaben",
+  "nahm",
+  "nahmen",
+  "fand",
+  "fanden",
+  "blieb",
+  "blieben",
+  "schrieb",
+  "schrieben",
+  "sprach",
+  "sprachen",
+  "traf",
+  "trafen",
+  "aß",
+  "aßen",
+  "trank",
+  "tranken",
+  "saß",
+  "saßen",
+  "stand",
+  "standen",
+  "lag",
+  "lagen",
+  "rief",
+  "riefen",
+  "hielt",
+  "hielten",
+  "ließ",
+  "ließen",
+  "fiel",
+  "fielen",
+  "zog",
+  "zogen",
+  "bat",
+  "baten",
+  "schlief",
+  "schliefen",
+  "starb",
+  "starben",
+  "sang",
+  "sangen",
+  "sprang",
+  "sprangen",
+  "gewann",
+  "gewannen",
+  "begann",
+  "begannen",
+  "verlor",
+  "verloren",
+  "half",
+  "halfen",
+  "warf",
+  "warfen",
+  "wurde",
+  "wurden",
+  "brachte",
+  "brachten",
+  "dachte",
+  "dachten",
+  "kannte",
+  "kannten",
+  "nannte",
+  "nannten",
+  "rannte",
+  "rannten",
+  "wusste",
+  "wussten",
+  "ritt",
+  "ritten",
+  "stieg",
+  "stiegen",
+  "fing",
+  "fingen",
+  "bekam",
+  "bekamen",
+  "verließ",
+  "verließen",
+  "erhielt",
+  "erhielten",
+  "warst",
+  "wart",
+]);
+
 export const ENGLISH_CONTRACTIONS: Readonly<Record<string, string>> = {
   im: "i'm",
   ive: "i've",
@@ -2097,6 +2732,151 @@ export const UNIT_CASE: Readonly<Record<string, string>> = {
   Kg: "kg",
   KM: "km",
   Km: "km",
+};
+
+export const DE_MONTHS: Readonly<Record<string, number>> = {
+  januar: 1,
+  jänner: 1,
+  jan: 1,
+  jän: 1,
+  februar: 2,
+  feb: 2,
+  märz: 3,
+  mär: 3,
+  april: 4,
+  apr: 4,
+  mai: 5,
+  juni: 6,
+  jun: 6,
+  juli: 7,
+  jul: 7,
+  august: 8,
+  aug: 8,
+  september: 9,
+  sep: 9,
+  sept: 9,
+  oktober: 10,
+  okt: 10,
+  november: 11,
+  nov: 11,
+  dezember: 12,
+  dez: 12,
+};
+
+export const FR_MONTHS: Readonly<Record<string, number>> = {
+  janvier: 1,
+  février: 2,
+  fevrier: 2,
+  mars: 3,
+  avril: 4,
+  mai: 5,
+  juin: 6,
+  juillet: 7,
+  août: 8,
+  aout: 8,
+  septembre: 9,
+  octobre: 10,
+  novembre: 11,
+  décembre: 12,
+  decembre: 12,
+};
+
+export const ES_MONTHS: Readonly<Record<string, number>> = {
+  enero: 1,
+  febrero: 2,
+  marzo: 3,
+  abril: 4,
+  mayo: 5,
+  junio: 6,
+  julio: 7,
+  agosto: 8,
+  septiembre: 9,
+  octubre: 10,
+  noviembre: 11,
+  diciembre: 12,
+  setiembre: 9,
+};
+
+export const PT_MONTHS: Readonly<Record<string, number>> = {
+  janeiro: 1,
+  fevereiro: 2,
+  março: 3,
+  abril: 4,
+  maio: 5,
+  junho: 6,
+  julho: 7,
+  agosto: 8,
+  setembro: 9,
+  outubro: 10,
+  novembro: 11,
+  dezembro: 12,
+  jan: 1,
+  fev: 2,
+  mar: 3,
+  abr: 4,
+  mai: 5,
+  jun: 6,
+  jul: 7,
+  ago: 8,
+  set: 9,
+  out: 10,
+  nov: 11,
+  dez: 12,
+};
+
+export const PL_MONTHS: Readonly<Record<string, number>> = {
+  stycznia: 1,
+  lutego: 2,
+  marca: 3,
+  kwietnia: 4,
+  maja: 5,
+  czerwca: 6,
+  lipca: 7,
+  sierpnia: 8,
+  września: 9,
+  października: 10,
+  listopada: 11,
+  grudnia: 12,
+};
+
+export const AR_MONTHS: Readonly<Record<string, number>> = {
+  يناير: 1,
+  "كانون الثاني": 1,
+  جانفي: 1,
+  فبراير: 2,
+  شباط: 2,
+  فيفري: 2,
+  مارس: 3,
+  آذار: 3,
+  أبريل: 4,
+  ابريل: 4,
+  إبريل: 4,
+  نيسان: 4,
+  أفريل: 4,
+  مايو: 5,
+  أيار: 5,
+  ماي: 5,
+  يونيو: 6,
+  يونيه: 6,
+  حزيران: 6,
+  جوان: 6,
+  يوليو: 7,
+  يوليه: 7,
+  تموز: 7,
+  جويلية: 7,
+  أغسطس: 8,
+  اغسطس: 8,
+  آب: 8,
+  أوت: 8,
+  سبتمبر: 9,
+  أيلول: 9,
+  أكتوبر: 10,
+  اكتوبر: 10,
+  "تشرين الأول": 10,
+  نوفمبر: 11,
+  "تشرين الثاني": 11,
+  ديسمبر: 12,
+  "كانون الأول": 12,
 };
 
 // common.yaml def firstPerStart
@@ -5415,6 +6195,388 @@ export function germanGluedUnit(m: RegExpExecArray, ctx: DetectContext, frame: F
   );
 }
 
+// common.yaml rule dateTense.de def DATE_BREAK
+export const DATE_BREAK = /[!?;()\n"“”«»„،؛؟]|[.:](?=\s|$)|,/gu;
+
+// common.yaml rule dateTense.de def DATE_WORD
+export const DATE_WORD = /[\p{L}\p{M}]+(?:-[\p{L}\p{M}]+)*|\p{N}+(?:[.:]\p{N}+)*/gu;
+
+// common.yaml rule dateTense.de def clauseAround
+export function clauseAround(
+  text: string,
+  start: number,
+  end: number,
+  boundary: ReadonlySet<string>,
+) {
+  const head = text.slice(Math.max(0, start - 160), start);
+  const lastBreak = [...head.matchAll(DATE_BREAK)].at(-1);
+  const clauseHead = head.slice(lastBreak ? lastBreak.index + lastBreak[0].length : 0);
+  const headWords = clauseHead.match(DATE_WORD) ?? [];
+  const opens = headWords.map((w) => boundary.has(w.toLowerCase())).lastIndexOf(true);
+  const before = headWords.slice(opens + 1).slice(-6);
+  const fullTail = text.slice(end, end + 200);
+  const tail = before.length ? fullTail : fullTail.replace(/^[ \t ]*,/, "");
+  const stop = tail.search(DATE_BREAK);
+  const afterWords = (stop >= 0 ? tail.slice(0, stop) : tail).match(DATE_WORD) ?? [];
+  const ends = afterWords.findIndex((w) => boundary.has(w.toLowerCase()));
+  const after = ends >= 0 ? afterWords.slice(0, ends) : afterWords;
+  const closed = ends >= 0 || stop >= 0 || end + 200 >= text.length;
+  return {
+    before,
+    after: after.length > 10 ? after.slice(0, 10) : after,
+    closed: after.length > 10 ? false : closed,
+    opener: opens >= 0 ? headWords[opens].toLowerCase() : undefined,
+  };
+}
+
+// common.yaml rule dateTense.de def dateSideOf
+export function dateSideOf(
+  year: number,
+  month: number,
+  day: number,
+  swap: boolean,
+): "future" | "past" | null {
+  const readings = swap
+    ? [
+        [year, month, day],
+        [year, day, month],
+      ]
+    : [[year, month, day]];
+  const valid = readings.filter((r) => dayCount(r[0], r[1], r[2]) !== null);
+  return !valid.length
+    ? null
+    : valid.every((r) => dateSide(r[0], r[1], r[2]) === "future")
+      ? "future"
+      : valid.every((r) => recentPast(r[0], r[1], r[2]))
+        ? "past"
+        : null;
+}
+
+// common.yaml rule dateTense.de def dateTenseWarning
+export function dateTenseWarning(m: RegExpExecArray, side: "future" | "past"): RawFinding {
+  const span = m.indices!.groups!.date;
+  return {
+    ruleId: "dateTenseConsistency",
+    messageKey: side === "future" ? "review_msg_future_date_past" : "review_msg_past_date_future",
+    range: { start: span[0], end: span[1] },
+    alternatives: [],
+    warningOnly: true as const,
+  };
+}
+
+// common.yaml rule dateTense.de def dateTenseFinding
+export function dateTenseFinding(
+  m: RegExpExecArray,
+  ctx: DetectContext,
+  side: "future" | "past" | null,
+  conditional: ReadonlySet<string>,
+  boundary: ReadonlySet<string>,
+  lang: string,
+): RawFinding | null {
+  if (!side) return null;
+  const clause = clauseAround(ctx.text, m.index, m.index + m[0].length, boundary);
+  if (clause.opener && conditional.has(clause.opener)) return null;
+  const verdict =
+    lang === "de"
+      ? germanTense(clause)
+      : lang === "fr"
+        ? frenchTense(clause)
+        : lang === "es"
+          ? spanishTense(clause)
+          : lang === "pt"
+            ? portugueseTense(clause)
+            : lang === "pl"
+              ? polishTense(clause)
+              : arabicTense(clause);
+  if (!(!!verdict && verdict !== side)) return null;
+  return dateTenseWarning(m, side);
+}
+
+// common.yaml rule dateTense.de def lowerAll
+export function lowerAll(list: readonly string[]) {
+  return list.map((word) => word.toLowerCase());
+}
+
+// common.yaml rule dateTense.de def germanTense
+export function germanTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const all = lowerAll([...clause.before, ...clause.after]);
+  const last = clause.closed ? clause.after.at(-1) : undefined;
+  const prev = clause.after.at(-2);
+  const b = lowerAll(clause.before);
+  const a = lowerAll(clause.after).slice(0, 6);
+  return all.some((w) => w.startsWith("würd"))
+    ? null
+    : all.some((w) => DE_WERDEN.has(w))
+      ? !last ||
+        !/^\p{Ll}+(?:en|ern|eln)$/u.test(last) ||
+        DE_PARTICIPLE.test(last) ||
+        (/^(?:sein|haben)$/.test(last) && !!prev && DE_PARTICIPLE.test(prev))
+        ? null
+        : "future"
+      : last && DE_ARRANGING.test(last)
+        ? null
+        : last &&
+            DE_PARTICIPLE.test(last) &&
+            !DE_NOT_PARTICIPLE.has(last) &&
+            (all.some((w) => DE_HABEN.has(w)) ||
+              (all.some((w) => DE_SEIN.has(w)) && DE_SEIN_PARTICIPLE.test(last)))
+          ? "past"
+          : (b.length >= 2 && DE_PRONOUNS.has(b.at(-2)!) && DE_PAST.has(b.at(-1)!)) ||
+              a.some((w, i) => DE_PAST.has(w) && i + 1 < a.length && DE_PRONOUNS.has(a[i + 1]))
+            ? "past"
+            : null;
+}
+
+// common.yaml rule dateTense.de def frenchTense
+export function frenchTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const verdict =
+    wordScan(lowerAll(clause.before), 0, "fr") ?? wordScan(lowerAll(clause.after), 0, "fr");
+  return verdict === "past" || verdict === "future" ? verdict : null;
+}
+
+// common.yaml rule dateTense.de def frenchStep
+export function frenchStep(
+  list: readonly string[],
+  i: number,
+): "past" | "future" | "none" | undefined {
+  const w = list[i];
+  const auxiliary = (FR_AVOIR.has(w) && list[i - 1] !== "y") || FR_ETRE.has(w);
+  const part = auxiliary ? list.find((x, k) => k > i && !FR_ADVERBS.has(x)) : undefined;
+  const partOk = !!part && FR_PARTICIPLE.test(part) && !FR_NOT_PARTICIPLE.has(part);
+  return auxiliary && !partOk
+    ? undefined
+    : auxiliary && FR_ARRANGING.test(part!)
+      ? "none"
+      : auxiliary && (FR_AVOIR.has(w) || FR_MOTION.has(part!.replace(/(?<=[éiu])(?:e|s|es)$/u, "")))
+        ? "past"
+        : FR_SUBJECTS.has(w)
+          ? frenchSubject(list, i)
+          : undefined;
+}
+
+// common.yaml rule dateTense.de def frenchSubject
+export function frenchSubject(list: readonly string[], i: number): "future" | "none" | undefined {
+  const stop = list.findIndex((x, k) => k > i && (k > i + 3 || !FR_OBJECTS.has(x)));
+  const j = stop < 0 ? list.length : stop;
+  const verb = list[j];
+  const next = list[j + 1];
+  return verb && FR_FUTURE.test(verb)
+    ? /^(?:aur|ser)/.test(verb) && next && FR_PARTICIPLE.test(next)
+      ? "none"
+      : "future"
+    : verb && FR_ALLER.has(verb) && FR_INFINITIVE.test(next ?? "")
+      ? "future"
+      : undefined;
+}
+
+// common.yaml rule dateTense.de def spanishTense
+export function spanishTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const verdict =
+    wordScan(lowerAll(clause.before), 0, "es") ?? wordScan(lowerAll(clause.after), 0, "es");
+  return verdict === "past" || verdict === "future" ? verdict : null;
+}
+
+// common.yaml rule dateTense.de def spanishStep
+export function spanishStep(
+  list: readonly string[],
+  i: number,
+): "past" | "future" | "none" | undefined {
+  const w = list[i];
+  const next = list[i + 1] ?? "";
+  const part = next === "ya" ? list[i + 2] : next;
+  const past =
+    ES_PAST_WORDS.has(w) || (ES_PAST.test(w) && !ES_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w));
+  return (ES_FUTURE.test(w) && !/^(?:atrás|detrás)$/.test(w)) ||
+    (ES_IR.has(w) && next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
+    ? "future"
+    : ES_HABER.has(w)
+      ? part && ES_PARTICIPLE.test(part)
+        ? ES_ARRANGING.test(part)
+          ? "none"
+          : "past"
+        : undefined
+      : !past || ES_INFINITIVE.test(next) || (next === "a" && ES_INFINITIVE.test(list[i + 2] ?? ""))
+        ? undefined
+        : ES_ARRANGING.test(w)
+          ? "none"
+          : "past";
+}
+
+// common.yaml rule dateTense.de def portugueseTense
+export function portugueseTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const verdict =
+    wordScan(lowerAll(clause.before), 0, "pt") ?? wordScan(lowerAll(clause.after), 0, "pt");
+  return verdict === "past" || verdict === "future" ? verdict : null;
+}
+
+// common.yaml rule dateTense.de def portugueseStep
+export function portugueseStep(
+  list: readonly string[],
+  i: number,
+): "past" | "future" | "none" | undefined {
+  const w = list[i];
+  const next = list[i + 1] ?? "";
+  const past =
+    PT_PAST_WORDS.has(w) || (PT_PAST.test(w) && !PT_NOT_PAST.has(w) && !DATE_CONDITIONAL.test(w));
+  return (PT_FUTURE.test(w) && w !== "atrás") || (PT_IR.has(w) && PT_INFINITIVE.test(next))
+    ? "future"
+    : PT_PLUPERFECT.has(w)
+      ? PT_PARTICIPLE.test(next)
+        ? PT_ARRANGING.test(next)
+          ? "none"
+          : "past"
+        : undefined
+      : !past || PT_INFINITIVE.test(next)
+        ? undefined
+        : PT_ARRANGING.test(w)
+          ? "none"
+          : "past";
+}
+
+// common.yaml rule dateTense.de def wordScan
+export function wordScan(
+  list: readonly string[],
+  i: number,
+  lang: string,
+): "past" | "future" | "none" | undefined {
+  if (!(i < list.length)) return undefined;
+  const verdict =
+    lang === "fr"
+      ? frenchStep(list, i)
+      : lang === "es"
+        ? spanishStep(list, i)
+        : portugueseStep(list, i);
+  return verdict !== undefined ? verdict : wordScan(list, i + 1, lang);
+}
+
+// common.yaml rule dateTense.de def polishTense
+export function polishTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const list = lowerAll([...clause.before, ...clause.after]);
+  const past = list.find(
+    (w, i) =>
+      (PL_PAST_PERSON.test(w) || (PL_PAST.test(w) && !PL_NOT_PAST.has(w))) &&
+      !PL_INFINITIVE.test((list[i + 1] === "się" ? list[i + 2] : list[i + 1]) ?? ""),
+  );
+  return list.some((w) => PL_FUTURE.has(w))
+    ? "future"
+    : past === undefined || PL_ARRANGING.test(past)
+      ? null
+      : "past";
+}
+
+// common.yaml rule dateTense.de def arabicTense
+export function arabicTense(clause: {
+  before: string[];
+  after: string[];
+  closed: boolean;
+}): "past" | "future" | null {
+  const list = [...clause.before, ...clause.after];
+  return list.some((w) => AR_FUTURE.has(w))
+    ? "future"
+    : list.some((w, i) => AR_PAST.has(w) && list[i + 1] !== "من")
+      ? "past"
+      : null;
+}
+
+// common.yaml rule dateTense.de def DE_PARTICIPLE
+export const DE_PARTICIPLE =
+  /^(?:(?:ab|an|auf|aus|bei|ein|fest|fort|heim|her|hin|los|mit|nach|statt|teil|vor|weg|weiter|zu|zurück|zusammen|um|durch|über)?ge\p{Ll}{2,}(?:t|en)|(?:be|emp|ent|er|miss|ver|zer)\p{Ll}{2,}t|\p{Ll}{3,}iert)$/u;
+
+// common.yaml rule dateTense.de def DE_SEIN_PARTICIPLE
+export const DE_SEIN_PARTICIPLE =
+  /(?:gangen|fahren|flogen|kommen|laufen|schwommen|gereist|wesen|blieben|storben|fallen|zogen|sprungen|wandert|rannt|stiegen|folgt|passiert|schehen|wachsen|worden|ritten|segelt|wacht|kehrt)$/u;
+
+// common.yaml rule dateTense.de def DE_ARRANGING
+export const DE_ARRANGING =
+  /(?:plant|bucht|reserviert|bestellt|vereinbart|schoben|verlegt|gesetzt|festgelegt|beworben|gemeldet|terminiert|kündigt|geladen|vorgesehen|bestätigt|gesagt|organisiert|getragen|notiert|gemerkt|gelegt|beantragt|gefragt|genehmigt|versprochen|geboten|gewünscht|geöffnet|geschlossen|fixiert|datiert|befristet|begrenzt)$/u;
+
+// common.yaml rule dateTense.de def FR_PARTICIPLE
+export const FR_PARTICIPLE =
+  /^\p{Ll}{2,}(?:é|ée|és|ées|i|ie|is|ies|it|ite|u|ue|us|ues|ert|erte|ait|aite|eint|ainte)$/u;
+
+// common.yaml rule dateTense.de def FR_ARRANGING
+export const FR_ARRANGING =
+  /^(?:prévu|planifié|fixé|programmé|réservé|commandé|reporté|décalé|déplacé|annoncé|confirmé|convenu|organisé|inscrit|demandé|proposé|promis|annulé|invité|noté|calé|repoussé|avancé|retenu|bloqué|posé|pris)(?:e|s|es)?$/u;
+
+// common.yaml rule dateTense.de def FR_FUTURE
+export const FR_FUTURE =
+  /^(?:\p{Ll}+(?:er|ir|dr|ttr|aîtr)|ser|aur|fer|ir|pourr|verr|devr|saur|courr|mourr|enverr|recevr|vivr|suivr|écrir|lir|dir|boir|croir|plair)(?:ai|as|a|ons|ez|ont)$/u;
+
+// common.yaml rule dateTense.de def FR_INFINITIVE
+export const FR_INFINITIVE = /^\p{Ll}{2,}(?:er|ir|re|oir)$/u;
+
+// common.yaml rule dateTense.de def ES_PARTICIPLE
+export const ES_PARTICIPLE =
+  /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|hecho|dicho|puesto|escrito|abierto|vuelto|roto|muerto|cubierto|resuelto|devuelto|descubierto|impreso|satisfecho)$/u;
+
+// common.yaml rule dateTense.de def ES_PAST
+export const ES_PAST =
+  /^\p{Ll}{3,}(?:é|ó|aste|iste|aron|ieron|yeron|asteis|isteis|aba|abas|ábamos|abais|aban|íamos|íais|ían)$/u;
+
+// common.yaml rule dateTense.de def ES_ARRANGING
+export const ES_ARRANGING =
+  /^(?:re)?(?:program|previst|prev|plane|reserv|fij|pospu|aplaz|convoc|anunci|confirm|acord|organiz|cancel|ped|pid|solicit|promet|agend|cit|inscri|qued|traslad|cambi|mov|apunt)/u;
+
+// common.yaml rule dateTense.de def ES_FUTURE
+export const ES_FUTURE = /^(?:\p{Ll}{2,}(?:ré|rás|rá|réis|rán)|\p{Ll}+[ai]remos)$/u;
+
+// common.yaml rule dateTense.de def ES_INFINITIVE
+export const ES_INFINITIVE = /^\p{Ll}{2,}(?:ar|er|ir)$/u;
+
+// common.yaml rule dateTense.de def DATE_CONDITIONAL
+export const DATE_CONDITIONAL = /[aeií]r(?:íamos|íais|ían|íeis|iam)$/u;
+
+// common.yaml rule dateTense.de def PT_PAST
+export const PT_PAST =
+  /^\p{Ll}{2,}(?:ei|ou|aste|este|iste|aram|eram|iram|ava|avas|ávamos|áveis|avam|íamos|íeis|iam)$/u;
+
+// common.yaml rule dateTense.de def PT_PARTICIPLE
+export const PT_PARTICIPLE =
+  /^(?:\p{Ll}{2,}(?:ado|ada|ados|adas|ido|ida|idos|idas)|visto|feito|dito|posto|escrito|aberto|vindo|ganho|gasto|pago|entregue|morto|coberto)$/u;
+
+// common.yaml rule dateTense.de def PT_ARRANGING
+export const PT_ARRANGING =
+  /^(?:re|des)?(?:marc|agend|planej|plane|program|reserv|adi|confirm|anunci|combin|cancel|convid|promet|solicit|ped|previ|prev|fix|inscrev|inscri|transfer|mud)/u;
+
+// common.yaml rule dateTense.de def PT_FUTURE
+export const PT_FUTURE = /^(?:\p{Ll}{2,}(?:rá|rás|rão)|\p{Ll}+[aei]rei|\p{Ll}+[ai]remos)$/u;
+
+// common.yaml rule dateTense.de def PT_INFINITIVE
+export const PT_INFINITIVE = /^(?:\p{Ll}{2,}(?:ar|er|ir|or)|pôr)$/u;
+
+// common.yaml rule dateTense.de def PL_PAST_PERSON
+export const PL_PAST_PERSON = /^\p{Ll}{2,}(?:łem|łam|łeś|łaś|liśmy|łyśmy|liście|łyście)$/u;
+
+// common.yaml rule dateTense.de def PL_PAST
+export const PL_PAST = /^\p{Ll}{2,}(?:[aiyą]ł|[aiyę]ła|[aiyę]ło|[aiyę]li|[aiyę]ły)$/u;
+
+// common.yaml rule dateTense.de def PL_ARRANGING
+export const PL_ARRANGING =
+  /^(?:za)?(?:plan|rezerw|zarezerw|przełoż|przesun|umówi|umawia|ustal|zapisa|zaprosi|zamówi|ogłosi|potwierdzi|wyznaczy|zgłosi|zapowiedzi|odwoła|obieca|zaprogramowa|zaplanowa)/u;
+
+// common.yaml rule dateTense.de def PL_INFINITIVE
+export const PL_INFINITIVE = /^\p{Ll}{2,}(?:ć|c)$/u;
+
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // common.yaml rule phraseTables frame 1
@@ -8026,6 +9188,127 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       context: { start: lineStart, end: lineEnd },
       bulkBlock: "context-dependent",
     };
+  },
+  // common.yaml rule dateTense.de frame 1
+  "@dateTense.de/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (DE_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, DE_CONDITIONAL, DE_BOUNDARY, "de");
+  },
+  // common.yaml rule dateTense.fr frame 1
+  "@dateTense.fr/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, FR_CONDITIONAL, FR_BOUNDARY, "fr");
+  },
+  // common.yaml rule dateTense.fr frame 2
+  "@dateTense.fr/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (FR_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, FR_CONDITIONAL, FR_BOUNDARY, "fr");
+  },
+  // common.yaml rule dateTense.es frame 1
+  "@dateTense.es/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_BOUNDARY, "es");
+  },
+  // common.yaml rule dateTense.es frame 2
+  "@dateTense.es/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (ES_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, ES_CONDITIONAL, ES_BOUNDARY, "es");
+  },
+  // common.yaml rule dateTense.pt frame 1
+  "@dateTense.pt/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt");
+  },
+  // common.yaml rule dateTense.pt frame 2
+  "@dateTense.pt/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt");
+  },
+  // common.yaml rule dateTense.pt frame 3
+  "@dateTense.pt/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PT_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PT_CONDITIONAL, PT_BOUNDARY, "pt");
+  },
+  // common.yaml rule dateTense.pl frame 1
+  "@dateTense.pl/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PL_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PL_CONDITIONAL, PL_BOUNDARY, "pl");
+  },
+  // common.yaml rule dateTense.pl frame 2
+  "@dateTense.pl/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      Number(g.year),
+      g.name ? (PL_MONTHS[g.name.toLowerCase()] ?? 0) : Number(g.month),
+      Number(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, PL_CONDITIONAL, PL_BOUNDARY, "pl");
+  },
+  // common.yaml rule dateTense.ar frame 1
+  "@dateTense.ar/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const g = m.groups!;
+    const side = dateSideOf(
+      digitValue(g.year),
+      g.name ? (AR_MONTHS[g.name] ?? 0) : digitValue(g.month),
+      digitValue(g.day),
+      !g.name && g.sep === "/",
+    );
+    return dateTenseFinding(m, ctx, side, AR_CONDITIONAL, AR_BOUNDARY, "ar");
   },
 };
 
