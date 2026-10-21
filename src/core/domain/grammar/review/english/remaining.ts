@@ -11,20 +11,15 @@ import { canonicalCasing } from "../canonicalCasing";
 import { phraseCorrections } from "../englishPhraseCorrections";
 import { NOUN_LIKE_ING } from "../englishParticiples";
 import { namedExampleBefore } from "../exampleCues";
-import { caseLike, detectAll, found, group, hasUserOrCasedWord } from "../phraseTemplates";
+import { caseLike, found, group, hasUserOrCasedWord } from "../phraseTemplates";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
-import type { Detector, MatchFixer } from "../../engine/reviewRules";
+import type { TextRange } from "../types";
+import type { MatchFixer } from "../../engine/reviewRules";
 import { opensClause } from "./grammarStyle2";
 import { confusedWords } from "./confusions1";
 import { fixedPhrases } from "./fixedPhrases";
 import { FIXERS as IDIOM_FIXERS_1 } from "./idioms1";
 import { frameRuleDetector } from "../../engine/reviewRules";
-
-/** English text only; for detectors whose own patterns already read quotes. */
-const english =
-  (...detectors: ((ctx: DetectContext) => RawFinding[])[]) =>
-  (ctx: DetectContext): RawFinding[] =>
-    ctx.lang !== "en_US" ? [] : detectAll(ctx, detectors);
 
 // ---------------------------------------------------------------- frame fixes
 
@@ -162,39 +157,52 @@ function sentenceAround(ctx: DetectContext, start: number, end: number): string 
   return `${before.slice(open + 1)} ${close < 0 ? after : after.slice(0, close)}`;
 }
 
+// The quotation and example ranges by their first and by their last character, one map per
+// array: the frames match those characters and look the range up.
+const BY_START = new WeakMap<readonly TextRange[], Map<number, TextRange>>();
+const BY_LAST = new WeakMap<readonly TextRange[], Map<number, TextRange>>();
+const NO_RANGES: readonly TextRange[] = [];
+
+function rangeAt(
+  byKey: WeakMap<readonly TextRange[], Map<number, TextRange>>,
+  ranges: readonly TextRange[] = NO_RANGES,
+  at: number,
+): TextRange | undefined {
+  let map = byKey.get(ranges);
+  if (!map) {
+    const key = byKey === BY_START ? (r: TextRange) => r.start : (r: TextRange) => r.end - 1;
+    byKey.set(ranges, (map = new Map(ranges.map((r) => [key(r), r]))));
+  }
+  return map.get(at);
+}
+
 /**
  * Scare quotes ("tongue and cheek" jokes) and quoted speech are the writer's own words:
  * the tables' quotation guard is meant for mentions, which a cue word gives away.
  * Still necessary: phraseCorrections skips a phrase that a quotation wraps exactly (quotedSpan).
  */
-function quotedPhrases(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
-  const examples = new Set((ctx.exampleRanges ?? []).map((r) => r.start));
-  for (const { start, end } of ctx.quotationRanges ?? []) {
-    if (start < ctx.from - 1 || examples.has(start)) continue;
-    if (start >= ctx.to) break;
-    const inner = ctx.text.slice(start + 1, end - 1);
-    if (inner.length < 3 || inner.length > 48 || /[\n.!?]/.test(inner)) continue;
-    if (!/[\p{P}]/u.test(ctx.text[end - 1])) continue;
-    if (namedExampleBefore(ctx.text, start + 1) || MENTION.test(sentenceAround(ctx, start, end)))
-      continue;
-    // A list of quoted forms or a mapping ("x" → "y") names them.
-    if (
-      LISTED_BEFORE.test(ctx.text.slice(Math.max(0, start - 8), start)) ||
-      LISTED_AFTER.test(ctx.text.slice(end, end + 8))
-    )
-      continue;
-    const swaps: Swap[] = [
-      [start, " "],
-      [end - 1, " "],
-    ];
-    findings.push(
-      ...inView(ctx, start + 1, end - 1, swaps, phraseCorrections).filter((f) =>
-        inside(f, start + 1, end - 1),
-      ),
-    );
-  }
-  return findings;
+function quotedPhrase(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | null {
+  const range = rangeAt(BY_START, ctx.quotationRanges, m.index);
+  if (!range || rangeAt(BY_START, ctx.exampleRanges, range.start)) return null;
+  const { start, end } = range;
+  const inner = ctx.text.slice(start + 1, end - 1);
+  if (inner.length < 3 || inner.length > 48 || /[\n.!?]/.test(inner)) return null;
+  if (!/[\p{P}]/u.test(ctx.text[end - 1])) return null;
+  if (namedExampleBefore(ctx.text, start + 1) || MENTION.test(sentenceAround(ctx, start, end)))
+    return null;
+  // A list of quoted forms or a mapping ("x" → "y") names them.
+  if (
+    LISTED_BEFORE.test(ctx.text.slice(Math.max(0, start - 8), start)) ||
+    LISTED_AFTER.test(ctx.text.slice(end, end + 8))
+  )
+    return null;
+  const swaps: Swap[] = [
+    [start, " "],
+    [end - 1, " "],
+  ];
+  return inView(ctx, start + 1, end - 1, swaps, phraseCorrections).filter((f) =>
+    inside(f, start + 1, end - 1),
+  );
 }
 
 // The fixed-preposition frames ("inspired from") that a named example before them also hides.
@@ -209,23 +217,20 @@ const phrasesAndFrames = (view: DetectContext) => [
  * quotation closes ('The name "Forge" is inspired from'), the prose after it is checked.
  * Still necessary: namedExampleBefore also hides that prose from the shared tables.
  */
-function afterExamples(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
+function afterExample(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | null {
+  // The frame matches the punctuation mark that closes the example.
+  const range = rangeAt(BY_LAST, ctx.exampleRanges, m.index);
+  if (!range) return null;
+  const { start, end } = range;
+  if (end < ctx.from || end >= ctx.to) return null;
   const quotes = ctx.quotationRanges ?? [];
-  for (const { start, end } of ctx.exampleRanges ?? []) {
-    if (end < ctx.from || end >= ctx.to || !/[\p{P}]/u.test(ctx.text[end - 1])) continue;
-    const lineEnd = ctx.text.indexOf("\n", end);
-    const stop = Math.min(ctx.to, end + 80, lineEnd < 0 ? ctx.text.length : lineEnd);
-    if (stop - end < 4) continue;
-    findings.push(
-      ...inView(ctx, end, stop, [[start, " "]], phrasesAndFrames).filter(
-        (f) =>
-          f.range.start >= end &&
-          !quotes.some((q) => f.range.start < q.end && f.range.end > q.start),
-      ),
-    );
-  }
-  return findings;
+  const lineEnd = ctx.text.indexOf("\n", end);
+  const stop = Math.min(ctx.to, end + 80, lineEnd < 0 ? ctx.text.length : lineEnd);
+  if (stop - end < 4) return null;
+  return inView(ctx, end, stop, [[start, " "]], phrasesAndFrames).filter(
+    (f) =>
+      f.range.start >= end && !quotes.some((q) => f.range.start < q.end && f.range.end > q.start),
+  );
 }
 
 const CASING_ONLY: ReadonlySet<string> = new Set(["englishCanonicalCasing"]);
@@ -391,54 +396,57 @@ const QUOTED_RULES: ReadonlySet<string> = new Set([
 const quotedChecks = (view: DetectContext) => [...phrasesAndFrames(view), ...fixedPhrases(view)];
 
 // Still necessary: the default checks skip a named example; only this opt-in check reads it.
-function quotedMentions(ctx: DetectContext): RawFinding[] {
-  const findings: RawFinding[] = [];
+function quotedMention(m: RegExpExecArray, ctx: DetectContext): RawFinding[] | null {
+  const range = rangeAt(BY_START, ctx.quotationRanges, m.index);
+  if (!range) return null;
+  const { start, end } = range;
+  const innerEnd = QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end;
+  const inner = ctx.text.slice(start + 1, innerEnd);
+  // A letter or two ("a", "x") holds no phrase; skipping it spares a full frame pass.
+  if ((inner.match(/\p{L}/gu)?.length ?? 0) < 3) return null;
+  // The window inView reads: 256 characters around the quotation's inside.
+  const left = Math.max(0, start + 1 - 256);
+  const right = Math.min(ctx.text.length, innerEnd + 256);
   // Away from the text's edges, the view is 256 blanks, the inside and 256 blanks: the same
-  // inside gives the same findings at a shift. Each distinct inside is checked one time.
-  const checked = new Map<string, { at: number; found: RawFinding[] }>();
-  for (const { start, end } of ctx.quotationRanges ?? []) {
-    if (start < ctx.from) continue;
-    if (start >= ctx.to) break;
-    const innerEnd = QUOTE_MARKS.test(ctx.text[end - 1]) ? end - 1 : end;
-    const inner = ctx.text.slice(start + 1, innerEnd);
-    // A letter or two ("a", "x") holds no phrase; skipping it spares a full frame pass.
-    if ((inner.match(/\p{L}/gu)?.length ?? 0) < 3) continue;
-    // The window inView reads: 256 characters around the quotation's inside.
-    const left = Math.max(0, start + 1 - 256);
-    const right = Math.min(ctx.text.length, innerEnd + 256);
-    const same = left === start + 1 - 256 && right === innerEnd + 256;
-    const seen = same ? checked.get(inner) : undefined;
-    if (seen) {
-      const shift = start + 1 - seen.at;
-      for (const f of seen.found)
-        findings.push({
-          ...f,
-          range: { start: f.range.start + shift, end: f.range.end + shift },
-          context: f.context && { start: f.context.start + shift, end: f.context.end + shift },
-        });
-      continue;
-    }
-    // Only the quotation is read: everything around it is blanked.
-    const swaps: Swap[] = [
-      [left, " ".repeat(start + 1 - left)],
-      [innerEnd, " ".repeat(right - innerEnd)],
-    ];
-    const found = inView(ctx, start + 1, innerEnd, swaps, quotedChecks, QUOTED_RULES)
-      .filter((f) => inside(f, start + 1, innerEnd))
-      .map((f): RawFinding => ({
-        ...f,
-        ruleId: "englishPossibleErrors",
-        messageKey: "review_msg_quoted_mention",
-      }));
-    if (same) checked.set(inner, { at: start + 1, found });
-    findings.push(...found);
+  // inside gives the same findings at a shift. Each distinct inside is checked one time a chunk.
+  const same = left === start + 1 - 256 && right === innerEnd + 256;
+  let checked = CHECKED.get(ctx);
+  if (!checked) CHECKED.set(ctx, (checked = new Map<string, Checked>()));
+  const seen = same ? checked.get(inner) : undefined;
+  if (seen) {
+    const shift = start + 1 - seen.at;
+    return seen.found.map((f) => ({
+      ...f,
+      range: { start: f.range.start + shift, end: f.range.end + shift },
+      context: f.context && { start: f.context.start + shift, end: f.context.end + shift },
+    }));
   }
-  return findings;
+  // Only the quotation is read: everything around it is blanked.
+  const swaps: Swap[] = [
+    [left, " ".repeat(start + 1 - left)],
+    [innerEnd, " ".repeat(right - innerEnd)],
+  ];
+  const found = inView(ctx, start + 1, innerEnd, swaps, quotedChecks, QUOTED_RULES)
+    .filter((f) => inside(f, start + 1, innerEnd))
+    .map((f): RawFinding => ({
+      ...f,
+      ruleId: "englishPossibleErrors",
+      messageKey: "review_msg_quoted_mention",
+    }));
+  if (same) checked.set(inner, { at: start + 1, found });
+  return found;
 }
+
+// The distinct quotation insides each chunk checked, with their findings.
+type Checked = { at: number; found: RawFinding[] };
+const CHECKED = new WeakMap<DetectContext, Map<string, Checked>>();
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = {
   ...PHRASE_FIXERS,
+  quotedPhrase,
+  afterExample,
+  quotedMention,
   /** Fixed phrases broken across a soft wrap ("Double\nclick"). */
   wrappedPhrase: (m, ctx) => {
     const newline = m.index + m[0].indexOf("\n");
@@ -691,7 +699,3 @@ const chromeExtensionRule = frameRuleDetector("en.chromeExtension", { en: FIXERS
 const chromeExtension = (view: DetectContext) => chromeExtensionRule({ ...view, rules: undefined });
 
 /** The Review detectors by name; grammar/rules/en.yaml sets their checks and order. */
-export const PREDICATES = {
-  quotedPhrases: english(quotedPhrases, afterExamples),
-  quotedMentions: english(quotedMentions),
-} satisfies Record<string, Detector>;

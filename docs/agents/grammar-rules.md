@@ -239,7 +239,14 @@ More rule and frame fields:
 
 ### Named Predicates
 
-Use a predicate only when the rule does not scan the text with a regex: a walk over a token list, a pairing of quote marks with a stack, or findings that Review made before. Any rule that scans with a regex is a frame rule; put the logic in a fixer of a `style: match` rule. A predicate rule in a rule file has a `# predicate:` comment that says why it is not a frame rule.
+No Review rule is a predicate rule now. Before you add one, use a `style: match` frame:
+
+- Logic that a regex cannot state goes into the fixer of the frame.
+- Quote pairing: the frame matches one line or one paragraph (`regex: "[^\\n]+\\n?|\\n"`, `scan: text`), and the fixer pairs the marks in it.
+- A walk over ranges that Review made (quotation or example ranges): the frame matches the character where a range starts or ends, and the fixer looks the range up (see `quotedPhrase` in `review/english/remaining.ts`).
+- State across matches (for example the gender of the first participle in `keptGender`): keep it in a `WeakMap` on the chunk context. The frame gives the matches in order, so a match at or before the last one starts a new run.
+
+Use a predicate only when none of these fit. A predicate rule in a rule file has a `# predicate:` comment that says why it is not a frame rule.
 
 - **Token predicates** (`engine/predicates.ts`) test one token in a pattern, for example `enStartsWithVowelSound`, `isMeasurementUnit` or `isNotAbbreviation`. They must stay small: content scripts load them.
 - **Review detectors** are functions `(ctx) => RawFinding[]`. A language registers them in the `PREDICATES` record of `review/<lang>/ruleDetectors.ts`. The shared detectors are in `CORE_PREDICATES` of `review/reviewDetectors.ts`. A rule names one with `predicate: <name>`. Use `<file>:<name>` to name a detector of another file.

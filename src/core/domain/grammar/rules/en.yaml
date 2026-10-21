@@ -1789,9 +1789,43 @@ rules:
         styleWordChoice,
         englishCanonicalCasing,
       ]
-    # predicate: walks the quotation and example ranges of the chunk, not a regex scan; each
-    # range is checked in a view.
-    predicate: quotedPhrases
+    style: match
+    message: review_msg_phrase_correction
+    frames:
+      # Scare quotes and quoted speech: a mark that may open a quotation (review/proseQuotations.ts).
+      # The fixer reads the quotation that starts there and checks its inside in a view with the
+      # phrase tables.
+      - regex: '["''“‘«„‚»‹”]'
+        flags: g
+        scan: text
+        lookback: 1
+        lang: en
+        anyCheck: true
+        fixer: quotedPhrase
+  - id: en.afterExamples
+    checks:
+      [
+        englishPhraseCorrections,
+        englishClosedCompounds,
+        stylePhrasing,
+        englishAmericanSpelling,
+        englishBritishSpelling,
+        englishOxfordSpelling,
+        styleWordChoice,
+        englishCanonicalCasing,
+      ]
+    style: match
+    message: review_msg_phrase_correction
+    frames:
+      # 'The name "Forge" is inspired from': the punctuation mark that closes a named example.
+      # The fixer checks the prose after the example, up to 80 characters, in a view.
+      - regex: "\\p{P}"
+        flags: gu
+        scan: text
+        lookback: 1
+        lang: en
+        anyCheck: true
+        fixer: afterExample
   - id: en.wrappedPhrases
     checks:
       [
@@ -2035,8 +2069,16 @@ rules:
         fixer: mixedCase
   - id: en.quotedMentions
     checks: [englishPossibleErrors]
-    # predicate: reads the quotation ranges, not a regex; each quotation is checked in a view.
-    predicate: quotedMentions
+    style: match
+    message: review_msg_quoted_mention
+    frames:
+      # Quoted wording, when the opt-in check is on: a mark that may open a quotation. The fixer
+      # checks the inside of the quotation that starts there in a view.
+      - regex: '["''“‘«„‚»‹”]'
+        flags: g
+        scan: text
+        lang: en
+        fixer: quotedMention
   - id: en.chromeTitle
     checks: [styleAlternativePhrasing]
     style: match
