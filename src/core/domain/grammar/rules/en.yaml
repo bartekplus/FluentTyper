@@ -5248,64 +5248,94 @@ rules:
       # "Wed gone so far", "wed love to": we'd.
       - regex: "(?<target>wed){{S}}(?:love|like|rather|better|gone|been|have|never){{E}}"
         cue: ["wed"]
-        fixer: typoSlotsWed
+        return: >-
+          enAfterBreak(ctx, m.index) || /^(?:and|but|so|then|actually)$/.test(enWordBefore(ctx, m.index)) ? "we'd" : null
       # "Whose at the door?", "Whose the boss here?": who's.
       - regex: "(?<target>whose){{S}}(?:the|a|an|at|in|on|going|coming|there|here|this|that|ready|next|calling|responsible|available|your|my|our|his|her|in{{S}}charge){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
         cue: ["whose"]
-        fixer: typoSlotsWhose
+        return: >-
+          enAfterBreak(ctx, m.index) ? "who's" : null
       # "Hell be there": he'll.
       - regex: "(?<target>hell){{S}}be{{S}}(?:there|here|back|fine|ok|okay|home|late|able|happy|glad|right|ready|soon|in{{S}}touch){{E}}"
         cue: ["hell"]
-        fixer: typoSlotsHell
+        return: >-
+          enAfterBreak(ctx, m.index) || /^(?:and|but|so|then)$/.test(enWordBefore(ctx, m.index)) ? "he'll" : null
       # "Th water is hot": the.
       - regex: "(?<target>Th){{S}}(?<next>[a-z]+){{E}}"
         cue: ["th"]
-        fixer: typoSlotsTh
+        let:
+          info: englishWordInfo(next)
+        return: >-
+          enAfterBreak(ctx, m.index) &&
+          !!info?.noun &&
+          !info.adverb &&
+          !info.adjective &&
+          !info.verbs.some((v) => v.form !== "base") &&
+          !EN_FUNCTION_WORDS.has(next)
+            ? "the"
+            : null
       # "My life as gotten busier": has.
       - regex: "(?<![\\p{L}'’])(?<lead>[a-z]+){{S}}(?<target>as){{S}}(?:gotten|taken|been|done|grown|shown|written|eaten|chosen|broken|spoken|driven|forgotten|become){{S}}(?:a|the|this|that|my|his|her|our|their|its|me|him|us|them|it|lot|very|much){{E}}"
         cue: ["as"]
-        fixer: typoSlotsAs
+        return: 'EN_FUNCTION_WORDS.has(lead.toLowerCase()) ? null : "has"'
       # "A lot of vary happy people": very.
       - regex: "(?:a|an|the|of|is|are|was|were|be|so|not){{S}}(?<target>vary){{S}}(?<adj>[a-z]+){{E}}"
         cue: ["vary"]
-        fixer: typoSlotsVary
+        return: 'englishWordInfo(adj.toLowerCase())?.adjective ? "very" : null'
       # "The heart sill pumped", "I'm sill looking": still.
       - regex: "(?:I['’]m|am|is|are|was|were|I|we|you|they|he|she|it|heart){{S}}(?<target>sill){{S}}(?<next>[a-z]+){{E}}"
         cue: ["sill"]
-        fixer: typoSlotsSill
+        let:
+          info: englishWordInfo(next)
+        return: >-
+          /^(?:not|here|there|alive|working|waiting|looking|open)$/.test(next) ||
+          info?.verbs.some((v) => v.form === "ing" || v.form === "past")
+            ? "still"
+            : null
       # "Too twenty-three students", "increases too 1000's": to before a count.
       - regex: "(?<target>too){{S}}(?:[0-9]+(?:['’]s)?|(?:two|three|four|five|six|seven|eight|nine|ten|twenty|thirty|forty|fifty|hundred)(?:-[a-z]+)?{{S}}[a-z]+s){{E}}"
         check: englishToToo
         message: review_msg_to_too
         cue: ["too"]
-        fixer: typoSlotsToo
+        # "It's too 1990's for me": a decade as a predicate.
+        return: >-
+          /^(?:me|you|us|them|him|her|it|is|was|it['’]s|that['’]s|so|be)$/.test(enWordBefore(ctx, m.index)) ? null : "to"
       # "Ur a nice guy": you're.
       - regex: "(?<target>ur){{S}}(?:a|an|the|so|very|not|right|welcome|going|always|never|such|too){{E}}"
         cue: ["ur"]
-        fixer: typoSlotsUr
+        return: >-
+          enAfterBreak(ctx, m.index) ? "you're" : null
       # "You mus see it", "Mus you go?": must.
       - regex: "(?:(?<![\\p{L}'’])(?:I|you|we|they|he|she|it){{S}}(?<target>mus){{S}}(?<verb>[a-z]+)|(?<target2>mus){{S}}(?:I|you|we|they|he|she|it){{S}}[a-z]+){{E}}"
         cue: ["mus"]
-        fixer: typoSlotsMus
+        return: >-
+          target
+            ? typoVerbForm(verb, "base")
+              ? "must"
+              : null
+            : enAfterBreak(ctx, m.index)
+              ? { alternatives: ["must"], range: [m.index, m.index + 3] }
+              : null
       # "Look the door behind you": lock.
       - regex: "(?<target>look|looked|looking){{S}}(?:the|your|my|our|his|her|their){{S}}(?:door|doors|gate|car|safe|drawer|cabinet|bike|front{{S}}door|back{{S}}door){{E}}(?!{{S}}(?:is|was|are|were|has|had|will|won['’]t|isn['’]t|wasn['’]t|opened|closed|broke){{E}})"
         cue: ["door", "gate", "car", "safe", "drawer"]
-        fixer: typoSlotsLook
+        return: 'target.toLowerCase().replace("look", "lock")'
       # "How is your teacher like?": what … like.
       - regex: "(?<target>how){{S}}(?:is|was|are|were|['’]s){{S}}[^.!?\\n]{1,40}?{{S}}like(?=[ \\t\\u00a0]*\\?)"
         message: review_msg_contextual_grammar
         cue: ["like"]
-        fixer: typoSlotsHow
+        return: 'enAfterBreak(ctx, m.index) ? "what" : null'
       # "Cold her father hear him?", "This cold be true": could.
       - regex: "(?:(?<![\\p{L}'’])(?:this|that|it|he|she|I|you|we|they){{S}}(?<target>cold){{S}}(?:be|have|not|never|you|I|we|they|he|she|it)|(?<target2>cold){{S}}(?:I|you|we|they|he|she|it|her|his|my|your|the){{S}}(?:[a-z]+{{S}}){0,2}?(?:be|have|hear|see|help|do|get|go|come|make|take|give|tell|find|ask|try){{S}}[^.!?\\n]{0,40}\\?)"
         cue: ["cold"]
-        fixer: typoSlotsCold
+        return: >-
+          target ? "could" : enAfterBreak(ctx, m.index) ? { alternatives: ["could"], range: [m.index, m.index + 4] } : null
       # "What ca I do?", "You ca do it!": can.
       - regex: "(?<target>ca){{S}}(?:I|you|we|they|he|she|it|do|go|be|see|get|not|help|find|make){{E}}"
         cue: ["ca"]
-        fixer: typoSlotsCa
+        return: 'target === "CA" ? null : "can"'
       # "It is no possible": not.
       - regex: "(?:is|are|was|were|['’]s|['’]re){{S}}(?<target>no){{S}}(?:possible|impossible|necessary|available|allowed|required|needed|supported|true|sure|clear|ready|able|correct|right|working|finished|enough|related|valid){{E}}"
         check: englishConfusedWords
@@ -5320,7 +5350,10 @@ rules:
       # "Them it became clear", "Than it became clear": then.
       - regex: "(?<target>them|than){{S}}(?:it|I|we|they|he|she|you){{S}}(?<verb>[a-z]+){{E}}"
         cue: ["them", "than"]
-        fixer: typoSlotsThem
+        let:
+          info: englishWordInfo(verb)
+        when: "enAfterBreak(ctx, m.index) && target[0] === target[0].toUpperCase()"
+        return: 'info?.verbs.some((v) => v.form !== "base") || /^(?:will|would|can|could)$/.test(verb) ? "then" : null'
       # "I think is should be fine": it.
       - regex: "(?:think|hope|guess|believe|say|said|so|because|that|then){{S}}(?<target>is){{S}}(?:should|would|will|could|must|might|may){{S}}be{{E}}"
         cue: ["is"]
@@ -5357,6 +5390,19 @@ rules:
     checks: [englishPhraseCorrections, englishConfusedWords]
     style: slot
     message: review_msg_typo
+    defs:
+      # The lexicon reading of a word in lowercase; none for no word.
+      typoInfo:
+        args: "word: string | undefined"
+        return: "word ? englishWordInfo(word.toLowerCase()) : null"
+      # An adjective of the lexicon that is no function word.
+      typoAdjective:
+        args: "word: string"
+        return: "!!typoInfo(word)?.adjective && !EN_FUNCTION_WORDS.has(word)"
+      # The lexicon has the verb form `form` of the word.
+      typoVerbForm:
+        args: "word: string, form: string"
+        return: "!!typoInfo(word)?.verbs.some((v) => v.form === form)"
     frames:
       # "Of cause, I will be there": of course (not "the law of cause and effect").
       - regex: "(?<target>of{{S}}cause)(?=[ \\t\\u00a0]*[,!.]|{{S}}(?:I|we|you|it|not|they|he|she){{E}})"
@@ -5365,11 +5411,20 @@ rules:
       # "a rally good idea", "It rally hurts": really.
       - regex: "(?<target>rally){{S}}(?<next>[a-z]+){{E}}"
         cue: ["rally"]
-        fixer: neighbourSlotsRally
+        let:
+          info: typoInfo(next)
+          # "The rally drew a crowd": after a determiner the noun is meant.
+          determiner: /^(?:the|a|an|this|that|our|their|his|her|my|your)$/.test(enWordBefore(ctx, m.index))
+        return: >-
+          (typoAdjective(next) && !info?.noun) ||
+          (typoVerbForm(next, "third") && !info?.noun && !determiner) ||
+          /^(?:good|bad|nice|great|cool|like|want|need|appreciate|hope|is|was|hurts|helps)$/.test(next)
+            ? "really"
+            : null
       # "I tent to agree": tend.
       - regex: "(?:I|we|you|they|people|he|she|it|users|kids|children|most|many|some|often|usually|still|also|generally){{S}}(?<target>tents?){{S}}to{{S}}[a-z]+{{E}}"
         cue: ["tent", "tents"]
-        fixer: neighbourSlotsTents
+        return: 'target.toLowerCase() === "tents" ? "tends" : "tend"'
       # "That sounds god", "as god as me": good.
       - regex: "(?:sounds|sound|looks|look|feels|feel|seems|seem|very|so|as|pretty|really|quite|too){{S}}(?<target>god)(?=[ \\t\\u00a0]*[,.!]|{{S}}(?:thanks|as|to|idea|job|luck|enough){{E}})"
         cue: ["god"]
@@ -5393,7 +5448,7 @@ rules:
       # "Her you go!", "Her you can see it": here.
       - regex: "(?<target>her){{S}}(?:you|we|is|are|it){{S}}(?:go|can|is|are|will|have|see){{E}}"
         cue: ["her"]
-        fixer: neighbourSlotsHer
+        return: 'enAfterBreak(ctx, m.index) ? "here" : null'
       # "a really cheep car": cheap.
       - regex: "(?:really|very|so|too|pretty|quite|super|a|is|was){{S}}(?<target>cheep)(?={{S}}[a-z]+{{E}}|[ \\t\\u00a0]*[.!,])"
         cue: ["cheep"]
@@ -5401,7 +5456,7 @@ rules:
       # "a whit horse": white.
       - regex: "(?:a|the|of|lot{{S}}of){{S}}(?<target>whit){{S}}(?<noun>[a-z]+){{E}}"
         cue: ["whit"]
-        fixer: neighbourSlotsWhit
+        return: 'noun !== "of" && enNounOnly(noun) ? "white" : null'
       # "I asses the work": assess.
       - regex: "(?:I|we|you|they|to|didn['’]t|don['’]t|will|can|should|must|please){{S}}(?<target>asses){{S}}{{NEIGHBOURSLOTS_OBJECT}}{{E}}"
         cue: ["asses"]
@@ -5409,7 +5464,7 @@ rules:
       # "I well help you": will.
       - regex: "(?<![\\p{L}'’])(?:I|we|you|they|he|she|it){{S}}(?<target>well){{S}}(?:help|be|do|go|come|see|call|send|try|make|get|take|let|check|look|need|have){{E}}"
         cue: ["well"]
-        fixer: neighbourSlotsWell
+        return: '/^as$/.test(enWordBefore(ctx, m.index)) ? null : "will"'
       # "I'm looking tor the exit": for.
       - regex: "(?:looking|look|wait|waiting|search|searching|thanks|thank{{S}}you|ask|asking|apply|applied){{S}}(?<target>tor){{S}}{{DET}}{{E}}"
         cue: ["tor"]
@@ -5419,7 +5474,10 @@ rules:
         check: englishConfusedWords
         message: review_msg_confused_word
         cue: ["to"]
-        fixer: neighbourSlotsTo
+        let:
+          word: after?.trim()
+        when: 'enNounOnly(noun) === "plural"'
+        return: '!/^ha/i.test(lead) || adj || (word && typoVerbForm(word, "ing")) ? "two" : null'
       # "Apple shout not require it": should.
       - regex: "(?:I|we|you|they|he|she|it|[a-z]{2,}){{S}}(?<target>shout){{S}}(?:not|be|have|require|do|consider|try|make|use|know){{E}}"
         cue: ["shout"]
@@ -5427,15 +5485,15 @@ rules:
       # "Yes, we cab.", "Cab you confirm?": can.
       - regex: "(?:(?<![\\p{L}'’])(?:I|we|you|they){{S}}(?<target>cab)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:not|do|be|see|help|go){{E}})|(?<target2>cab){{S}}(?:you|I|we|they){{S}}[a-z]+)"
         cue: ["cab"]
-        fixer: neighbourSlotsCab
+        return: 'target || enAfterBreak(ctx, m.index) ? "can" : null'
       # "I have sen you a message", "I can't sen it": sent/send.
       - regex: "(?<lead>have|has|had|can|can['’]t|will|to|please|could|would){{S}}(?<target>sen){{S}}(?:you|him|her|them|us|me|it|{{DET}}){{E}}"
         cue: ["sen"]
-        fixer: neighbourSlotsSen
+        return: '/^ha/i.test(lead) ? "sent" : "send"'
       # "She posses a car", "will posses": possess.
       - regex: "(?<lead>will|to|must|should|does|do|I|we|they|he|she|it){{S}}(?<target>posses){{S}}(?:a|an|the|one|some|many|great|good|strong|excellent|{{DET}}){{E}}"
         cue: ["posses"]
-        fixer: neighbourSlotsPosses
+        return: '/^(?:he|she|it)$/i.test(lead) ? "possesses" : "possess"'
       # "Call me wen you are ready": when.
       - regex: "(?<target>wen){{S}}(?:you|I|we|they|he|she|it|the){{S}}[a-z]+{{E}}"
         cue: ["wen"]
@@ -5443,7 +5501,7 @@ rules:
       # "Would yo do it?", "What do yo think?": you.
       - regex: "(?:would|could|do|did|can|will|are|have|thank|should|if|when){{S}}(?<target>yo){{S}}(?<verb>[a-z]+){{E}}"
         cue: ["yo"]
-        fixer: neighbourSlotsYo
+        return: 'typoVerbForm(verb, "base") || typoVerbForm(verb, "ing") ? "you" : null'
       # "He as been busy": has.
       - regex: "(?<![\\p{L}'’])(?:he|she|it|this|that){{S}}(?<target>as){{S}}(?:been|had|got|gotten|done|seen|made|taken){{E}}"
         cue: ["as"]
@@ -5455,19 +5513,19 @@ rules:
       # "Turn of the TV", "The light was switched of": off.
       - regex: "(?:switch|switched|switching|shut|shutting|turned|turning|logged|log|dozed|doze){{S}}(?<target>of)(?=[ \\t\\u00a0]*[.!?,]|{{S}}(?:the|it|this|that|my|your|his|her|all|now){{E}})"
         cue: ["of"]
-        fixer: neighbourSlotsOf
+        return: '/^(?:the|a|an)$/.test(enWordBefore(ctx, m.index)) ? null : "off"'
       - regex: "(?<![\\p{L}'’])turn{{S}}(?<target>of){{S}}(?:the{{S}}(?:tv|light|lights|radio|music|engine|computer|phone|alarm|heater|water|power|oven|stove)|it|everything|all){{E}}"
         cue: ["of"]
-        fixer: neighbourSlotsOf2
+        return: 'enAfterBreak(ctx, m.index) || enWordBefore(ctx, m.index) === "please" ? "off" : null'
       # "I am all ready doing it": already.
       - regex: "(?<target>all{{S}}ready){{S}}(?<next>[a-z]+){{E}}"
         message: review_msg_contextual_grammar
         cue: ["ready"]
-        fixer: neighbourSlotsAll
+        return: 'typoVerbForm(next, "ing") && !typoInfo(next)?.noun ? "already" : null'
       # "Shell we dance?", "We shell overcome": shall.
       - regex: "(?:(?<target>shell){{S}}(?:we|I){{S}}[a-z]+|(?<![\\p{L}'’])(?:we|I){{S}}(?<target2>shell){{S}}(?<verb>[a-z]+)){{E}}"
         cue: ["shell"]
-        fixer: neighbourSlotsShell
+        return: 'target ? (enAfterBreak(ctx, m.index) ? "shall" : null) : typoVerbForm(verb, "base") ? "shall" : null'
       # "You can loose so much": lose.
       - regex: "(?:can|could|will|would|might|may|to|don['’]t|didn['’]t|not|never){{S}}(?<target>loose){{S}}(?:a|so|all|the|my|your|our|their|his|her|money|time|weight|it|them|everything|interest|track|sight|hope|control){{E}}"
         check: englishConfusedWords
@@ -5483,7 +5541,7 @@ rules:
       # "Do not chance these settings": change.
       - regex: "(?:do{{S}}not|don['’]t|please|to|can|will|should|must|never|always|he|she|it|we|you|they|I){{S}}(?<target>chances?){{S}}(?:the|these|this|that|those|my|your|its|his|her|our|their|settings|colors|colours){{E}}"
         cue: ["chance", "chances"]
-        fixer: neighbourSlotsChances
+        return: 'target.toLowerCase() === "chances" ? "changes" : "change"'
       # "She breaths fresh air": breathes.
       - regex: "(?:he|she|it|who|[a-z]{2,}){{S}}(?<target>breaths){{S}}(?:in|out|fresh|deeply|heavily|slowly|the|air){{E}}"
         cue: ["breaths"]
@@ -5513,7 +5571,7 @@ rules:
       # "Al other prices": all.
       - regex: "(?<target>Al){{S}}(?:other|of|the|my|our|your|these|those|right){{E}}"
         cue: ["al"]
-        fixer: neighbourSlotsAl
+        return: 'enAfterBreak(ctx, m.index) ? "all" : null'
       # "Such an exiting experience": exciting.
       - regex: "(?:an|so|very|really|such{{S}}an|most|more|quite|pretty|super){{S}}(?<target>exiting)(?={{S}}(?:experience|news|time|times|day|opportunity|game|trip|event|project|year|week){{E}}|[ \\t\\u00a0]*[!.])"
         cue: ["exiting"]
@@ -5570,7 +5628,7 @@ rules:
       # "I'd like to know hwy this fails": why.
       - regex: "(?:(?:know|wonder|ask|see|tell|me|understand|that['’]s|and|but|so){{S}}(?<target>hwy){{S}}(?:this|the|it|you|I|we|they|he|she|is|are|do|does|did|not)|(?<target2>Hwy){{S}}(?:are|is|do|does|did|would|can|not){{S}}[a-z]+){{E}}"
         cue: ["hwy"]
-        fixer: neighbourSlotsHwy
+        return: 'target || enAfterBreak(ctx, m.index) ? "why" : null'
       # "Please don't overdue it": overdo.
       - regex: "(?:don['’]t|do{{S}}not|not|never|might|may|could|will|would|to|easy{{S}}to){{S}}(?<target>overdue){{S}}it{{E}}"
         cue: ["overdue"]
@@ -5582,7 +5640,7 @@ rules:
       # "Tom is my college and friend", "My colleges and I": colleague.
       - regex: "(?:my|our|his|her|your|their){{S}}(?<target>colleges?){{S}}(?:and{{S}}(?:I|me|friend|friends)|at{{S}}work|from{{S}}work){{E}}"
         cue: ["college", "colleges"]
-        fixer: neighbourSlotsColleges
+        return: '/s$/i.test(target) ? "colleagues" : "colleague"'
       # "They as for permission": ask.
       - regex: "(?<![\\p{L}'’])(?:they|we|I|you|can|could|will|would|to|please|always|should){{S}}(?<target>as){{S}}for{{S}}(?:permission|help|advice|more|money|time|forgiveness|directions|feedback|patience|support|understanding|input|details|information|a|an|the){{E}}"
         cue: ["as"]
@@ -5603,7 +5661,7 @@ rules:
       # "It was really had to do": hard.
       - regex: "(?:is|was|be|been|it['’]s|isn['’]t|wasn['’]t){{S}}(?:(?:really|very|so|too|quite|pretty|not){{S}})?(?<target>had){{S}}to{{S}}(?<verb>[a-z]+){{E}}"
         cue: ["had"]
-        fixer: neighbourSlotsHad
+        return: 'typoVerbForm(verb, "base") ? "hard" : null'
       # "as they are want to do": wont.
       - regex: "(?:is|are|was|were|am){{S}}(?<target>want){{S}}to{{S}}(?:do|say|be|go){{E}}"
         cue: ["want"]
@@ -5615,13 +5673,13 @@ rules:
       # "almost ell editors": all.
       - regex: "(?:almost|with|of|for|at|in|and|to){{S}}(?<target>ell){{S}}(?<next>[a-z]+){{E}}"
         cue: ["ell"]
-        fixer: neighbourSlotsEll
+        return: 'enNounOnly(next) === "plural" || typoAdjective(next) ? "all" : null'
       # "Their elicit behavior": illicit.
       - regex: "(?:the|their|his|her|an|of|in|its|our|for){{S}}(?<target>elicit){{S}}(?<noun>[a-z]+){{E}}"
         check: englishConfusedWords
         message: review_msg_confused_word
         cue: ["elicit"]
-        fixer: neighbourSlotsElicit
+        return: 'enNounOnly(noun) || typoInfo(noun)?.noun ? "illicit" : null'
       # "It's also wort checking": worth.
       - regex: "(?<target>wort){{S}}(?:to|it|reading|checking|the|a|noting|mentioning|considering|trying|watching|every){{E}}"
         cue: ["wort"]

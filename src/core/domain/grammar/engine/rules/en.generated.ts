@@ -4,12 +4,16 @@ import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, FixResult, FrameRef, MatchResult } from "../../library";
 import {
+  EN_FUNCTION_WORDS,
   EN_PERMISSION_AFTER,
+  enAfterBreak,
   enBefore,
   enClauseAfter,
   enNextWord,
+  enNounOnly,
   enObjectGapBefore,
   enRecase,
+  enWordBefore,
   englishInitialSound,
   englishWordInfo,
   group,
@@ -363,6 +367,21 @@ export function ranksMiddle(mid: string) {
     .toLowerCase()
     .trim()
     .replace(/[ \t ]+/g, " ");
+}
+
+// en.yaml rule en.neighbourSlots def typoInfo
+export function typoInfo(word: string | undefined) {
+  return word ? englishWordInfo(word.toLowerCase()) : null;
+}
+
+// en.yaml rule en.neighbourSlots def typoAdjective
+export function typoAdjective(word: string) {
+  return !!typoInfo(word)?.adjective && !EN_FUNCTION_WORDS.has(word);
+}
+
+// en.yaml rule en.neighbourSlots def typoVerbForm
+export function typoVerbForm(word: string, form: string) {
+  return !!typoInfo(word)?.verbs.some((v) => v.form === form);
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -1120,6 +1139,232 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     return isoDateWarning(m, ctx, frame);
+  },
+  // en.yaml rule en.typoSlots frame 4
+  "@en.typoSlots/4": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ||
+      /^(?:and|but|so|then|actually)$/.test(enWordBefore(ctx, m.index))
+      ? "we'd"
+      : null;
+  },
+  // en.yaml rule en.typoSlots frame 5
+  "@en.typoSlots/5": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "who's" : null;
+  },
+  // en.yaml rule en.typoSlots frame 6
+  "@en.typoSlots/6": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) || /^(?:and|but|so|then)$/.test(enWordBefore(ctx, m.index))
+      ? "he'll"
+      : null;
+  },
+  // en.yaml rule en.typoSlots frame 7
+  "@en.typoSlots/7": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const next = m.groups!.next;
+    const info = englishWordInfo(next);
+    return enAfterBreak(ctx, m.index) &&
+      !!info?.noun &&
+      !info.adverb &&
+      !info.adjective &&
+      !info.verbs.some((v) => v.form !== "base") &&
+      !EN_FUNCTION_WORDS.has(next)
+      ? "the"
+      : null;
+  },
+  // en.yaml rule en.typoSlots frame 8
+  "@en.typoSlots/8": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    return EN_FUNCTION_WORDS.has(lead.toLowerCase()) ? null : "has";
+  },
+  // en.yaml rule en.typoSlots frame 9
+  "@en.typoSlots/9": (m: RegExpExecArray): FixResult => {
+    const adj = m.groups!.adj;
+    return englishWordInfo(adj.toLowerCase())?.adjective ? "very" : null;
+  },
+  // en.yaml rule en.typoSlots frame 10
+  "@en.typoSlots/10": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    const info = englishWordInfo(next);
+    return /^(?:not|here|there|alive|working|waiting|looking|open)$/.test(next) ||
+      info?.verbs.some((v) => v.form === "ing" || v.form === "past")
+      ? "still"
+      : null;
+  },
+  // en.yaml rule en.typoSlots frame 11
+  "@en.typoSlots/11": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /^(?:me|you|us|them|him|her|it|is|was|it['’]s|that['’]s|so|be)$/.test(
+      enWordBefore(ctx, m.index),
+    )
+      ? null
+      : "to";
+  },
+  // en.yaml rule en.typoSlots frame 12
+  "@en.typoSlots/12": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "you're" : null;
+  },
+  // en.yaml rule en.typoSlots frame 13
+  "@en.typoSlots/13": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    return target
+      ? typoVerbForm(verb, "base")
+        ? "must"
+        : null
+      : enAfterBreak(ctx, m.index)
+        ? { alternatives: ["must"], range: [m.index, m.index + 3] }
+        : null;
+  },
+  // en.yaml rule en.typoSlots frame 14
+  "@en.typoSlots/14": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.toLowerCase().replace("look", "lock");
+  },
+  // en.yaml rule en.typoSlots frame 15
+  "@en.typoSlots/15": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "what" : null;
+  },
+  // en.yaml rule en.typoSlots frame 16
+  "@en.typoSlots/16": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    return target
+      ? "could"
+      : enAfterBreak(ctx, m.index)
+        ? { alternatives: ["could"], range: [m.index, m.index + 4] }
+        : null;
+  },
+  // en.yaml rule en.typoSlots frame 17
+  "@en.typoSlots/17": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target === "CA" ? null : "can";
+  },
+  // en.yaml rule en.typoSlots frame 20
+  "@en.typoSlots/20": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    if (!(enAfterBreak(ctx, m.index) && target[0] === target[0].toUpperCase())) return null;
+    const info = englishWordInfo(verb);
+    return info?.verbs.some((v) => v.form !== "base") || /^(?:will|would|can|could)$/.test(verb)
+      ? "then"
+      : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 2
+  "@en.neighbourSlots/2": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const next = m.groups!.next;
+    const info = typoInfo(next);
+    const determiner = /^(?:the|a|an|this|that|our|their|his|her|my|your)$/.test(
+      enWordBefore(ctx, m.index),
+    );
+    return (typoAdjective(next) && !info?.noun) ||
+      (typoVerbForm(next, "third") && !info?.noun && !determiner) ||
+      /^(?:good|bad|nice|great|cool|like|want|need|appreciate|hope|is|was|hurts|helps)$/.test(next)
+      ? "really"
+      : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 3
+  "@en.neighbourSlots/3": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.toLowerCase() === "tents" ? "tends" : "tend";
+  },
+  // en.yaml rule en.neighbourSlots frame 9
+  "@en.neighbourSlots/9": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "here" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 11
+  "@en.neighbourSlots/11": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    return noun !== "of" && enNounOnly(noun) ? "white" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 13
+  "@en.neighbourSlots/13": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /^as$/.test(enWordBefore(ctx, m.index)) ? null : "will";
+  },
+  // en.yaml rule en.neighbourSlots frame 15
+  "@en.neighbourSlots/15": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const after = m.groups!.after;
+    if (!(enNounOnly(noun) === "plural")) return null;
+    const word = after?.trim();
+    return !/^ha/i.test(lead) || adj || (word && typoVerbForm(word, "ing")) ? "two" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 17
+  "@en.neighbourSlots/17": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    return target || enAfterBreak(ctx, m.index) ? "can" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 18
+  "@en.neighbourSlots/18": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    return /^ha/i.test(lead) ? "sent" : "send";
+  },
+  // en.yaml rule en.neighbourSlots frame 19
+  "@en.neighbourSlots/19": (m: RegExpExecArray): FixResult => {
+    const lead = m.groups!.lead;
+    return /^(?:he|she|it)$/i.test(lead) ? "possesses" : "possess";
+  },
+  // en.yaml rule en.neighbourSlots frame 21
+  "@en.neighbourSlots/21": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    return typoVerbForm(verb, "base") || typoVerbForm(verb, "ing") ? "you" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 24
+  "@en.neighbourSlots/24": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return /^(?:the|a|an)$/.test(enWordBefore(ctx, m.index)) ? null : "off";
+  },
+  // en.yaml rule en.neighbourSlots frame 25
+  "@en.neighbourSlots/25": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) || enWordBefore(ctx, m.index) === "please" ? "off" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 26
+  "@en.neighbourSlots/26": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    return typoVerbForm(next, "ing") && !typoInfo(next)?.noun ? "already" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 27
+  "@en.neighbourSlots/27": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    const verb = m.groups!.verb;
+    return target
+      ? enAfterBreak(ctx, m.index)
+        ? "shall"
+        : null
+      : typoVerbForm(verb, "base")
+        ? "shall"
+        : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 30
+  "@en.neighbourSlots/30": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return target.toLowerCase() === "chances" ? "changes" : "change";
+  },
+  // en.yaml rule en.neighbourSlots frame 36
+  "@en.neighbourSlots/36": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    return enAfterBreak(ctx, m.index) ? "all" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 49
+  "@en.neighbourSlots/49": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
+    const target = m.groups!.target;
+    return target || enAfterBreak(ctx, m.index) ? "why" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 52
+  "@en.neighbourSlots/52": (m: RegExpExecArray): FixResult => {
+    const target = m.groups!.target;
+    return /s$/i.test(target) ? "colleagues" : "colleague";
+  },
+  // en.yaml rule en.neighbourSlots frame 57
+  "@en.neighbourSlots/57": (m: RegExpExecArray): FixResult => {
+    const verb = m.groups!.verb;
+    return typoVerbForm(verb, "base") ? "hard" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 60
+  "@en.neighbourSlots/60": (m: RegExpExecArray): FixResult => {
+    const next = m.groups!.next;
+    return enNounOnly(next) === "plural" || typoAdjective(next) ? "all" : null;
+  },
+  // en.yaml rule en.neighbourSlots frame 61
+  "@en.neighbourSlots/61": (m: RegExpExecArray): FixResult => {
+    const noun = m.groups!.noun;
+    return enNounOnly(noun) || typoInfo(noun)?.noun ? "illicit" : null;
   },
 };
 

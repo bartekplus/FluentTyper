@@ -45,8 +45,6 @@ import * as idioms1 from "./idioms1";
 import * as clauseSlots from "./clauseSlots";
 import * as everydaySlots from "./everydaySlots";
 import * as wordFormSlots from "./wordFormSlots";
-import * as typoSlots from "./typoSlots";
-import * as neighbourSlots from "./neighbourSlots";
 import * as prepositionSlots from "./prepositionSlots";
 import * as clauseFrames from "./clauseFrames";
 import * as slipFrames from "./slipFrames";
@@ -74,11 +72,9 @@ export const FIXERS = mergePredicates<Fixer>(
   clauseFrames.FIXERS,
   britishUsage.FIXERS,
   misheardWords.FIXERS,
-  neighbourSlots.FIXERS,
   nounSlots.FIXERS,
   prepositionSlots.FIXERS,
   realWordFrames.FIXERS,
-  typoSlots.FIXERS,
   verbSlots.FIXERS,
   remaining.FIXERS,
   everydaySlots.FIXERS,
