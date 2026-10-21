@@ -4,7 +4,7 @@
 // type checker reads it against the signatures of the rule library.
 
 /** What the compiler learns from one expression. */
-export interface CheckedExpression {
+interface CheckedExpression {
   /** The free names: library functions, tables, defs, bindings and match groups. */
   readonly refs: ReadonlySet<string>;
   readonly errors: readonly string[];

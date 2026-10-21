@@ -26,7 +26,7 @@ export type PhraseEntry = {
 };
 
 // A word keeps its combining marks: Arabic harakat and shadda sit between its letters.
-export const WORD = /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
+const WORD = /[\p{L}\p{N}][\p{L}\p{M}\p{N}]*(?:['’][\p{L}\p{N}][\p{L}\p{M}\p{N}]*)*/gu;
 // Arabic harakat, shadda, sukun, the dagger alif and the tatweel: optional in writing.
 const HARAKAT = "[\\u064B-\\u065F\\u0670\\u0640]";
 // Compiled once: wordKey runs for each word of the text. replace() resets lastIndex.
@@ -35,7 +35,7 @@ const stripHarakat = (word: string) => word.replace(HARAKAT_CHARS, "");
 // The characters that plainWordKey or stripHarakat change after the lowercase step.
 const KEY_CHANGES = /[’ً-ٰٟـ]/;
 /** plainWordKey without harakat. Most words only need the lowercase step. */
-export const wordKey = (word: string) => {
+const wordKey = (word: string) => {
   const lower = word.toLowerCase();
   return KEY_CHANGES.test(lower) ? stripHarakat(plainWordKey(word)) : lower;
 };

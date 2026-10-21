@@ -2,7 +2,7 @@ import { tokenize } from "./tokenizer";
 import type { Token } from "./types";
 
 /** The part of a Review chunk context that the tokens of the chunk depend on. */
-export interface ChunkText {
+interface ChunkText {
   text: string;
   scanText: string;
   from: number;

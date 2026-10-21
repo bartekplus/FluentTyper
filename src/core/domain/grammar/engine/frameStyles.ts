@@ -24,7 +24,7 @@ import type { ReviewMessageKey } from "../review/types";
 import type { CompiledFrame, FrameStyle } from "./types";
 
 /** A frame of a rule file, ready to run: its scan, its fix and the check it reports. */
-export interface RunFrame {
+interface RunFrame {
   readonly pattern: string | RegExp;
   /** A fix, the alternatives, or a named fixer; each style passes the fixer its own arguments. */
   readonly fix: unknown;

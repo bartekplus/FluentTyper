@@ -43,7 +43,7 @@ export const nounForm = (word: string) => has(`f${word}`);
 /** A masculine entry with -o/-a gender forms: an adjective or a gendered noun ("lleno"). */
 export const isGenderedEntry = (masculine: string) => has(`a${masculine}`);
 
-export type Agreement = { feminine: boolean; plural: boolean };
+type Agreement = { feminine: boolean; plural: boolean };
 
 const IRREGULAR_PARTICIPLES = new Set(
   (

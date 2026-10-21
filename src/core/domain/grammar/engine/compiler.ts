@@ -198,7 +198,7 @@ const CHECK_KEYS = new Set<keyof CheckSpec>([
 ]);
 const UI_LANGUAGES = ["en", "fr", "hr", "es", "el", "sv", "de", "pl", "pr"];
 
-export interface CatalogEntryOut {
+interface CatalogEntryOut {
   id: string;
   typing?: false;
   titleI18nKey: string;
@@ -222,7 +222,7 @@ export type ReviewMetadataOut =
   | { review: "excluded"; category: string; reason: string };
 
 /** A live check: its named implementation, or the live patterns of its rules. */
-export interface LiveRuleOut {
+interface LiveRuleOut {
   check: string;
   predicate?: string;
   patterns: number[];
@@ -257,7 +257,7 @@ export interface CompiledRuleSet {
   code: Record<string, FileCode>;
 }
 
-export interface PatternSetOut {
+interface PatternSetOut {
   patterns: CompiledPattern[];
   anchors: Record<string, number[]>;
   structural: number[];

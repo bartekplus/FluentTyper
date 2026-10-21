@@ -39,7 +39,7 @@ export interface FunctionCode {
 }
 
 /** A def: a constant (no `args`) or a function. */
-export interface DefCode {
+interface DefCode {
   readonly name: string;
   readonly where: string;
   readonly args?: string;

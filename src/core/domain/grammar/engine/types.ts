@@ -92,7 +92,7 @@ export interface CheckSpec {
  * inserts a fragment (the file's `fragments`, or S, E, COMPLETE, COMPLETE_OR_PAREN, CLAUSE,
  * TOKEN_END), and `{{notAfter:a|b}}` a "not right after these words" guard.
  */
-export interface FrameSpec extends BodySpec {
+interface FrameSpec extends BodySpec {
   regex: string;
   /** The fix, or the fixes to choose from. */
   fix?: string | readonly string[];
@@ -228,7 +228,7 @@ export interface RuleSpec extends BodySpec, CodeSections {
 }
 
 /** A phrase table: "typed = fix" rows; "a | b = fix" for typed variants, "fix1; fix2" for choices. */
-export type PhraseTables = Partial<Record<"words" | "phrases" | "compounds" | "style", string>>;
+type PhraseTables = Partial<Record<"words" | "phrases" | "compounds" | "style", string>>;
 
 export interface RuleFile {
   /** The file's language: "*", or the locale ("en", "pt_BR", "ar_SA"). */
