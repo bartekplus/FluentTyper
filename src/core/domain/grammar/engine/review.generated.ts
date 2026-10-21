@@ -25874,7 +25874,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<det>[dD]er|[dD]ie|[dD]as|[dD]em|[dD]en|[dD]es|[eE]in|[eE]ine|[eE]inen|[eE]inem|[eE]iner|[eE]ines|[kK]ein|[kK]eine|[kK]einen|[kK]einem|[kK]einer|[kK]eines|[mM]ein|[mM]eine|[mM]einen|[mM]einem|[mM]einer|[mM]eines|[dD]ein|[dD]eine|[dD]einen|[dD]einem|[dD]einer|[dD]eines|[sS]ein|[sS]eine|[sS]einen|[sS]einem|[sS]einer|[sS]eines|[iI]hre|[iI]hren|[iI]hrem|[iI]hrer|[iI]hres|[uU]nser|[uU]nsere|[uU]nseren|[uU]nserem|[uU]nserer|[uU]nseres|[eE]uer|[eE]ure|[eE]uren|[eE]urem|[eE]urer|[eE]ures|[dD]ieser|[dD]iese|[dD]ieses|[dD]iesem|[dD]iesen|[jJ]eder|[jJ]ede|[jJ]edes|[jJ]edem|[jJ]eden|[zZ]um|[zZ]ur|[iI]m|[aA]m|[vV]om|[bB]eim|[iI]ns)(?<mods>(?:[ \\t\\u00a0]{1,8}(?:sehr|ganz|so|recht|ziemlich|besonders|wirklich|echt|total|äußerst|relativ|eher|zu|\\p{Ll}+(?:e|en|er|es|em))){0,3})[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:articlePhrase",
+    fixer: "de:@de.articleGender/1",
     flags: "dgu",
     owner: "det",
   }),
@@ -25882,7 +25882,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<adj>\\p{L}+(?:e|en|er|es|em))[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}[\\p{L}\\p{M}]*(?:-[\\p{L}\\p{M}]+)*)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "de:articleBareAdjective",
+    fixer: "de:@de.articleGender/2",
     message: "review_msg_german_adjective_ending",
     flags: "dgu",
     owner: "adj",
@@ -25891,7 +25891,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<det>[Dd](?:er|ie|as|en|em)|[Dd]ies(?:er|e|es|en|em)|(?:[Kk]?[Ee]in|[Mm]ein|[Dd]ein|[Ss]ein|[Ii]hr|[Uu]nser)(?:e|en|em|er)?)(?:[ \\t\\u00a0]{1,8}\\p{Ll}{2,30}(?:e|en|er|es|em))?[ \\t\\u00a0]{1,8}(?<noun>\\p{Lu}\\p{Ll}{2,})[ \\t\\u00a0]{1,8}als[ \\t\\u00a0]{1,8}(?<target>solch(?:e|er|es|em|en))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["solch"],
-    fixer: "de:alsSolch",
+    fixer: "de:@de.articleGender/3",
     message: "review_msg_german_als_solch",
     flags: "dgu",
   }),
@@ -25941,7 +25941,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "uns",
       "euch",
     ],
-    fixer: "de:genitiveObject",
+    fixer: "de:@de.articleGender/4",
     message: "review_msg_german_genitive_verb",
     flags: "dgu",
     owner: "target|t2",
@@ -25950,7 +25950,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:mich|dich|sich|uns|euch)(?:[ \\t\\u00a0]{1,8}\\p{Ll}+){0,2}[ \\t\\u00a0]{1,8}auf[ \\t\\u00a0]{1,8}(?<target>dem)[ \\t\\u00a0]{1,8}(?:\\p{Lu}\\p{Ll}*w|W)eg(?<after>[ \\t\\u00a0]{1,8}(?:gemacht|machen)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))?(?=[ \\t]*[.!?;,)\\n]|[ \\t]*$|[ \\t\\u00a0]{1,8}(?:nach|zur|zum|ins|in)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["mich", "dich", "sich", "uns", "euch"],
-    fixer: "de:onTheWay",
+    fixer: "de:@de.articleGender/5",
     message: "review_msg_german_preposition_case",
     flags: "dgu",
   }),
@@ -25958,7 +25958,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:^|(?=\\S))(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?<noun>\\p{Lu}\\p{Ll}+),[ \\t\\u00a0]{1,8}(?<target>der|die|das)(?=[ \\t\\u00a0]{1,8}(?<next>\\p{Ll}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["der", "die", "das"],
-    fixer: "de:relativePronoun",
+    fixer: "de:@de.articleGender/6",
     message: "review_msg_german_relative_pronoun",
     flags: "dgu",
   }),

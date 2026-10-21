@@ -6,7 +6,6 @@ import {
   type Fixer,
   type FindingsFilter,
 } from "../../engine/reviewRules";
-import * as articleGender from "./articleGender";
 import * as commas from "./commas";
 import * as numbers from "./numbers";
 import * as verbAgreement from "./verbAgreement";
@@ -18,7 +17,6 @@ export const FIXERS = mergePredicates<Fixer>(
   numbers.FIXERS,
   commas.FIXERS,
   verbAgreement.FIXERS,
-  articleGender.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */

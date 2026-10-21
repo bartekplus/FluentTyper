@@ -5,6 +5,9 @@ import type { LiveCode } from "../liveRules";
 import type {
   DetectContext,
   FrameRef,
+  GermanCase,
+  GermanCaseGender,
+  GermanDeterminer,
   GermanGenderReading,
   MatchResult,
   RawFinding,
@@ -24,9 +27,15 @@ import {
   deYearsFor,
   deumlaut,
   germanAdjective,
+  germanAdjectiveEnding,
   germanAdjectiveNoun,
   germanAuxiliary,
+  germanCaseFits,
+  germanContraction,
+  germanDeterminer,
   germanDeterminerFits,
+  germanDeterminerFor,
+  germanDeterminerReadings,
   germanGender,
   germanInfinitive,
   germanInfinitiveOf,
@@ -35,7 +44,9 @@ import {
   germanNounOverAdjective,
   germanNounReading,
   germanPastInfinitives,
+  germanTwoGenders,
   germanVerbLike,
+  germanVerbObjectCase,
   namedExampleBefore,
   remember,
 } from "../../library";
@@ -1558,6 +1569,194 @@ export const ADJ_EMPTY_SUBJECT: ReadonlySet<string> = new Set([
   "oft",
 ]);
 
+export const ART_SUBJECTS: ReadonlySet<string> = new Set(["ich", "du", "er", "wir", "man"]);
+
+export const ART_OBJECT_FOLLOWERS: ReadonlySet<string> = new Set([
+  "heute",
+  "morgen",
+  "gestern",
+  "allerdings",
+  "auch",
+  "noch",
+  "schon",
+  "nicht",
+  "gern",
+  "gerne",
+  "bereits",
+  "mal",
+  "wieder",
+  "jetzt",
+  "sofort",
+  "dort",
+  "hier",
+  "da",
+  "nie",
+  "immer",
+  "bitte",
+  "doch",
+  "endlich",
+  "erst",
+  "zu",
+]);
+
+export const ART_SUBJECT_PRONOUNS: ReadonlySet<string> = new Set([
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "ihr",
+  "man",
+]);
+
+export const ART_SUBORDINATORS: ReadonlySet<string> = new Set([
+  "dass",
+  "weil",
+  "wenn",
+  "ob",
+  "als",
+  "obwohl",
+  "damit",
+  "nachdem",
+  "bevor",
+  "falls",
+  "da",
+  "sobald",
+]);
+
+export const ART_MODALS: ReadonlySet<string> = new Set([
+  "kann",
+  "kannst",
+  "können",
+  "könnt",
+  "will",
+  "willst",
+  "wollen",
+  "wollt",
+  "muss",
+  "musst",
+  "müssen",
+  "müsst",
+  "soll",
+  "sollst",
+  "sollen",
+  "sollt",
+  "möchte",
+  "möchtest",
+  "möchten",
+  "darf",
+  "darfst",
+  "dürfen",
+  "werde",
+  "wirst",
+  "wird",
+  "werden",
+  "würde",
+  "würden",
+]);
+
+export const ART_POSTPOSITIONS: ReadonlySet<string> = new Set([
+  "nach",
+  "zufolge",
+  "gegenüber",
+  "entgegen",
+  "zuliebe",
+  "entsprechend",
+  "gemäß",
+  "nahe",
+  "halber",
+  "wegen",
+]);
+
+export const ART_MEASURES: ReadonlySet<string> = new Set([
+  "mal",
+  "stück",
+  "weile",
+  "jahr",
+  "tag",
+  "woche",
+  "monat",
+  "stunde",
+  "minute",
+  "sekunde",
+  "moment",
+  "augenblick",
+  "abend",
+  "morgen",
+  "nachmittag",
+  "nacht",
+  "wochenende",
+  "leben",
+  "zeit",
+  "ende",
+  "stockwerk",
+  "viertelstunde",
+  "halbjahr",
+]);
+
+export const ART_BARE_AFTER: ReadonlySet<string> = new Set([
+  "ist",
+  "sind",
+  "war",
+  "waren",
+  "gibt",
+  "gab",
+  "hat",
+  "habe",
+  "haben",
+  "hatte",
+  "hatten",
+  "wird",
+  "werden",
+  "bietet",
+  "bieten",
+  "braucht",
+  "brauchen",
+  "suche",
+  "suchen",
+  "wünsche",
+  "wünschen",
+  "wurde",
+  "wurden",
+  "kann",
+  "können",
+  "konnte",
+  "konnten",
+  "soll",
+  "sollen",
+  "sollte",
+  "sollten",
+  "muss",
+  "müssen",
+  "musste",
+  "mussten",
+  "will",
+  "wollen",
+  "wollte",
+  "wollten",
+  "darf",
+  "dürfen",
+  "wäre",
+  "wären",
+]);
+
+export const ART_TIME_SPANS: ReadonlySet<string> = new Set([
+  "Tag",
+  "Jahr",
+  "Woche",
+  "Monat",
+  "Sommer",
+  "Winter",
+  "Herbst",
+  "Frühling",
+  "Abend",
+  "Morgen",
+  "Nacht",
+  "Wochenende",
+  "Leben",
+]);
+
 export const SUSPENDED_PARTICLES: ReadonlySet<string> = new Set([
   "vor",
   "nach",
@@ -2098,6 +2297,14 @@ export const ADJ_PREPOSITION_CASES: Readonly<Record<string, readonly number[]>> 
   während: [3],
   statt: [3],
   anstatt: [3],
+};
+
+export const ART_RELATIVE_FOR: Readonly<Record<string, string>> = { m: "der", f: "die", n: "das" };
+
+export const ART_WRONG_RELATIVE: Readonly<Record<string, readonly string[]>> = {
+  m: ["die", "das"],
+  f: ["das"],
+  n: ["der", "die"],
 };
 
 export const QUOTE_PARTNERS: Readonly<Record<string, readonly string[]>> = {
@@ -4475,6 +4682,728 @@ export function adjOfficialEndings(det: string) {
     : /^(?:k?ein|mein|dein|sein|ihr|unser|euer)$/.test(d)
       ? ["er"]
       : ["en"];
+}
+
+// de.yaml rule de.articleGender def ART_NOMINATIVE
+export const ART_NOMINATIVE = ["nom"] as GermanCase[];
+
+// de.yaml rule de.articleGender def ART_DEGREE_WORD
+export const ART_DEGREE_WORD =
+  /^(?:sehr|ganz|so|recht|ziemlich|besonders|wirklich|echt|total|äußerst|relativ|eher|zu)$/u;
+
+// de.yaml rule de.articleGender def ART_DETERMINER_WORDS
+export const ART_DETERMINER_WORDS = new RegExp(
+  "^(?:" +
+    [
+      "der die das dem den des",
+      "ein eine einen einem einer eines kein keine keinen keinem keiner keines",
+      "mein meine meinen meinem meiner meines dein deine deinen deinem deiner deines",
+      "sein seine seinen seinem seiner seines ihre ihren ihrem ihrer ihres",
+      "unser unsere unseren unserem unserer unseres euer eure euren eurem eurer eures",
+      "dieser diese dieses diesem diesen jeder jede jedes jedem jeden",
+      "zum zur im am vom beim ins",
+    ]
+      .flatMap((group) =>
+        group.split(" ").map((w) => "[" + w[0] + w[0].toUpperCase() + "]" + w.slice(1)),
+      )
+      .join("|") +
+    ")$",
+  "u",
+);
+
+// de.yaml rule de.articleGender def ART_COPULAS
+export const ART_COPULAS =
+  /^(?:sein|bin|bist|ist|sind|seid|war|warst|waren|wart|wäre|wärst|wären|sei|gewesen|werden|werde|wirst|wird|werdet|wurde|wurdest|wurden|würde|würdest|würden|geworden|bleiben|bleibe|bleibst|bleibt|blieb|blieben|geblieben|heißen|heiße|heißt|hieß|scheinen|scheint|schien|nennen|nenne|nennt|nannte|als|wie)$/;
+
+// de.yaml rule de.articleGender def ART_DATIVE_VERBS
+export const ART_DATIVE_VERBS =
+  /^(?:hilf|helf|half|geholf|dank|folg|gehör|gefall|gefäll|gefiel|antwort|vertrau|begegn|gratulier|zuhör|widersprech|schad|nütz|fehl|pass|schmeck|gehorch|rat|rät|riet|dien|ähnel|droh|verzeih|glaub|zustimm|stimm|beisteh|gönn)/;
+
+// de.yaml rule de.articleGender def ART_PERCEPTION
+export const ART_PERCEPTION = /^(?:seh|sieh|sah|hör|lass|läss|ließ|fühl|spür|heiß|hieß)/;
+
+// de.yaml rule de.articleGender def ART_CLAUSE_END
+export const ART_CLAUSE_END = /[.!?;:,\n–—()"„“»«]/;
+
+// de.yaml rule de.articleGender def ART_GIVING
+export const ART_GIVING =
+  /^(?:gib|gibst|gibt|gebe|geben|gebt|gab|gabst|gaben|gäbe|schenk|zeig|bring|brachte|bracht|schick|send|erzähl|erklär|leih|lieh|verkauf|kauf|schreib|schrieb|empfehl|empfiehl|empfahl|reich|zeichn|backe|backt|backst|buk|koch|überreich|versprech|versprich|versprach|gönn|wünsch|liefer|borg)(?:e|st|est|t|et|en|te|test|ten|tet|n)?$/;
+
+// de.yaml rule de.articleGender def ART_PERSONS
+export const ART_PERSONS =
+  /(?:mann|freund|vater|bruder|sohn|onkel|opa|großvater|chef|lehrer|arzt|hund|kater|gast|partner|schüler|kellner|mitarbeiter|nutzer|leser|käufer|besucher|fahrer|bürger|könig|papa|enkel|cousin|schwager|pfarrer|trainer|spieler|nachbar|kunde|boss|verkäufer)$/;
+
+// de.yaml rule de.articleGender def ART_GENDER_SIGN
+export const ART_GENDER_SIGN = /^[*:_/](?:[Ii]n(?:nen)?(?!\p{L})|innen\p{Ll})/u;
+
+// de.yaml rule de.articleGender def ART_QUANTIFIER
+export const ART_QUANTIFIER =
+  /^(?:(?:dies|jen|jed|welch|manch|all|viel|wenig|einig|mehrer|beid|etlich|sämtlich|irgendwelch)\p{Ll}*|inklusive|exklusive)$/u;
+
+// de.yaml rule de.articleGender def ART_GOVERNED
+export const ART_GOVERNED = {
+  mit: ["dat"],
+  von: ["dat"],
+  bei: ["dat"],
+  aus: ["dat"],
+  nach: ["dat"],
+  zu: ["dat"],
+  seit: ["dat"],
+  samt: ["dat"],
+  nebst: ["dat"],
+  außer: ["dat"],
+  gemäß: ["dat"],
+  für: ["acc"],
+  gegen: ["acc"],
+  durch: ["acc"],
+  ohne: ["acc"],
+  um: ["acc"],
+  wider: ["acc"],
+  wegen: ["gen"],
+  trotz: ["gen"],
+  während: ["gen"],
+  statt: ["gen"],
+  anstatt: ["gen"],
+  aufgrund: ["gen"],
+  innerhalb: ["gen"],
+  außerhalb: ["gen"],
+  oberhalb: ["gen"],
+  unterhalb: ["gen"],
+  mittels: ["gen"],
+  in: ["dat", "acc"],
+  an: ["dat", "acc"],
+  auf: ["dat", "acc"],
+  über: ["dat", "acc"],
+  unter: ["dat", "acc"],
+  vor: ["dat", "acc"],
+  hinter: ["dat", "acc"],
+  neben: ["dat", "acc"],
+  zwischen: ["dat", "acc"],
+} as Readonly<Record<string, readonly GermanCase[]>>;
+
+// de.yaml rule de.articleGender def artSentenceStart
+export function artSentenceStart(before: string[]) {
+  const prior = before.at(-1) ?? "";
+  return prior === "" || /^[.!?:\n„"“»«]$/.test(prior);
+}
+
+// de.yaml rule de.articleGender def artIsAdjective
+export function artIsAdjective(word: string) {
+  const stem = word.replace(/(?:e|en|er|es|em)$/, "");
+  return (
+    !ART_DETERMINER_WORDS.test(word) &&
+    (germanAdjective(stem) ||
+      germanAdjective(`${stem}e`) ||
+      germanAdjective(stem.replace(/(.)([lr])$/, "$1e$2")) ||
+      (/\p{Ll}{3}er$/u.test(stem) && germanAdjective(stem.slice(0, -2))) ||
+      /^ge\p{Ll}{3,}t$|\p{Ll}{3,}end$/u.test(stem))
+  );
+}
+
+// de.yaml rule de.articleGender def artEndingOf
+export function artEndingOf(word: string) {
+  return /(?:e|en|er|es|em)$/.exec(word)?.[0] ?? "";
+}
+
+// de.yaml rule de.articleGender def artVerbCase
+export function artVerbCase(word: string | undefined, first: boolean) {
+  return word === undefined
+    ? null
+    : germanVerbObjectCase(first && /^\p{Lu}\p{Ll}+$/u.test(word) ? word.toLowerCase() : word);
+}
+
+// de.yaml rule de.articleGender def artPersonOrFeminine
+export function artPersonOrFeminine(noun: string) {
+  return (
+    ART_PERSONS.test(noun.toLowerCase()) ||
+    /(?:in|frau|mutter|schwester|tochter|tante|oma)$/.test(noun.toLowerCase())
+  );
+}
+
+// de.yaml rule de.articleGender def artObjectCase
+export function artObjectCase(
+  ctx: DetectContext,
+  index: number,
+  nounEnd: number,
+  det: GermanDeterminer,
+  typed: string,
+  reading: GermanGenderReading,
+  adjectives: string[],
+): string | null {
+  if (!(reading.gender === "m" && !det.prep)) return null;
+  if (!(det.kind === "ein" && det.ending === "") && !(det.kind === "d" && det.ending === "der"))
+    return null;
+  if (det.kind === "d" && reading.plural) return null;
+  if (det.kind === "ein" && (det.stem === "ihr" || det.stem === "sein")) return null;
+  const before = deTokensBefore(ctx.text, index, 12);
+  const clause = before.slice(boundaryBefore(before, before.length - 1) + 1);
+  if (!clause.some((t) => ART_SUBJECTS.has(t.toLowerCase()))) return null;
+  const prior = (clause.at(-1) ?? "").toLowerCase();
+  if (PREPOSITIONS.has(prior) || ART_DETERMINER_WORDS.test(prior)) return null;
+  if (/^(?:und|oder|noch|sowie|sondern|bzw)$/.test(prior)) return null;
+  const rest = ctx.text.slice(nounEnd, nounEnd + 120).split(/[.!?;:,\n–—]/)[0];
+  const restWords = rest.match(/\p{L}+/gu) ?? [];
+  const words = [...clause, ...restWords].filter((w) => /^\p{Ll}/u.test(w));
+  if (words.some((w) => ART_COPULAS.test(w) || ART_DATIVE_VERBS.test(w))) return null;
+  const second = restWords.some(
+    (w, i) =>
+      ART_DETERMINER_WORDS.test(w) &&
+      !germanContraction(w.toLowerCase()) &&
+      !PREPOSITIONS.has(restWords[i - 1]?.toLowerCase() ?? ""),
+  );
+  if (second) return null;
+  const subordinate = /^(?:wenn|weil|dass|ob|als|da|obwohl|falls|sobald|bevor|nachdem)$/.test(
+    (clause[0] ?? "").toLowerCase(),
+  );
+  const next = restWords[0]?.toLowerCase() ?? "";
+  const open =
+    !next ||
+    subordinate ||
+    ART_OBJECT_FOLLOWERS.has(next) ||
+    PREPOSITIONS.has(next) ||
+    germanContraction(next) ||
+    /^(?:\p{Ll}*ge\p{Ll}+(?:t|en)|\p{Ll}+iert)$/u.test(next) ||
+    germanInfinitive(next);
+  if (!open || /^\p{Lu}/u.test(restWords[0] ?? "")) return null;
+  const article = germanDeterminerFor(det, "m", "acc", typed);
+  if (!article) return null;
+  return [
+    article,
+    ...adjectives.map((a) => (ART_DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, "en"))),
+  ].join(" ");
+}
+
+// de.yaml rule de.articleGender def artVerbObjectCase
+export function artVerbObjectCase(
+  ctx: DetectContext,
+  index: number,
+  nounEnd: number,
+  det: GermanDeterminer,
+  typed: string,
+  head: string,
+  reading: GermanGenderReading,
+  adjectives: string[],
+): string[] | null {
+  if (!(!det.prep && reading.gender !== "f")) return null;
+  const before = deTokensBefore(ctx.text, index, 12);
+  const clause = before.slice(boundaryBefore(before, before.length - 1) + 1);
+  const rest0 =
+    ctx.text
+      .slice(nounEnd, nounEnd + 120)
+      .split(ART_CLAUSE_END)[0]
+      .match(/[\p{L}\p{M}]+/gu) ?? [];
+  const pronounAfter =
+    clause.length - 1 > 0 && ART_SUBJECT_PRONOUNS.has(clause[clause.length - 1].toLowerCase());
+  const i = pronounAfter ? clause.length - 2 : clause.length - 1;
+  const verbBefore = i >= 0 ? artVerbCase(clause[i], i === 0) : null;
+  const byBefore =
+    !!verbBefore && (pronounAfter || clause.slice(0, i).some((t) => /^\p{L}/u.test(t)));
+  const lowered = clause.map((t) => t.toLowerCase());
+  const verbAfter =
+    !byBefore && rest0.length > 0 && rest0.length <= 2 ? artVerbCase(rest0[0], false) : null;
+  const byAfter =
+    !!verbAfter &&
+    (rest0.length === 1 || ART_MODALS.has(rest0[1].toLowerCase())) &&
+    (ART_SUBORDINATORS.has((clause[0] ?? "").toLowerCase()) ||
+      lowered.some((t) => ART_MODALS.has(t))) &&
+    (lowered.some((t) => ART_SUBJECT_PRONOUNS.has(t)) || /^\p{Lu}/u.test(clause[1] ?? ""));
+  const governed = byBefore ? verbBefore : byAfter ? verbAfter : null;
+  if (!governed) return null;
+  if (clause.some((t) => ART_PERCEPTION.test(t.toLowerCase()))) return null;
+  const rest = byAfter ? [] : rest0;
+  const lowerRest = rest.map((w) => w.toLowerCase());
+  if (ART_POSTPOSITIONS.has(lowerRest[0] ?? "")) return null;
+  if (
+    rest.some(
+      (w, k) =>
+        ART_DETERMINER_WORDS.test(w) &&
+        !germanContraction(w.toLowerCase()) &&
+        !PREPOSITIONS.has(lowerRest[k - 1] ?? ""),
+    ) ||
+    lowerRest.includes("zu")
+  )
+    return null;
+  if (lowerRest.some((w, k) => k === rest.length - 1 && /^\p{Ll}/u.test(w) && germanInfinitive(w)))
+    return null;
+  const own = germanDeterminerReadings(det).filter(([g, c]) => germanCaseFits(head, reading, g, c));
+  const target = governed === "dative" ? "dat" : "acc";
+  if (own.some(([, c]) => c === target)) return null;
+  const other = governed === "dative" ? "acc" : "dat";
+  if (!own.length || own.some(([g, c]) => c !== other || g === "pl")) return null;
+  const genders = (reading.gender === "x" ? ["m", "n"] : [reading.gender]) as GermanCaseGender[];
+  const fixes = [
+    ...new Set(
+      genders
+        .map((g) => [g, germanDeterminerFor(det, g, target, typed)] as const)
+        .filter(([, article]) => article !== null)
+        .map(([g, article]) =>
+          [
+            article,
+            ...adjectives.map((a) =>
+              ART_DEGREE_WORD.test(a)
+                ? a
+                : a.replace(
+                    /(?:e|en|er|es|em)$/,
+                    germanAdjectiveEnding(det.kind === "ein" ? "mixed" : "weak", g, target),
+                  ),
+            ),
+          ].join(" "),
+        ),
+    ),
+  ];
+  if (!(fixes.length > 0)) return null;
+  return fixes;
+}
+
+// de.yaml rule de.articleGender def artIndirectObject
+export function artIndirectObject(
+  ctx: DetectContext,
+  index: number,
+  nounEnd: number,
+  det: GermanDeterminer,
+  typed: string,
+  head: string,
+  reading: GermanGenderReading,
+  adjectives: string[],
+): string | null {
+  const accusative =
+    det.kind === "d" ? det.ending === "den" : det.kind === "ein" && det.ending === "en";
+  if (!(!det.prep && accusative)) return null;
+  if (!(reading.gender === "m" && !/e[rl]?n$/.test(head) && ART_PERSONS.test(head.toLowerCase())))
+    return null;
+  const before = deTokensBefore(ctx.text, index, 3).map((t) => t.toLowerCase());
+  const verb = ART_SUBJECTS.has(before.at(-1) ?? "") ? before.at(-2) : before.at(-1);
+  if (!(!!verb && ART_GIVING.test(verb))) return null;
+  const after = deTokensAfter(ctx.text, nounEnd, 5);
+  if (!/^(?:ein|eine|einen|das|die|kein|keine|keinen)$/i.test(after[0] ?? "")) return null;
+  const k = /^\p{Ll}+(?:e|en|es|er)$/u.test(after[1] ?? "") ? 2 : 1;
+  const thing = after[k] ?? "";
+  if (
+    !/^\p{Lu}\p{Ll}+$/u.test(thing) ||
+    ART_MEASURES.has(thing.toLowerCase()) ||
+    artPersonOrFeminine(thing)
+  )
+    return null;
+  const next = after[k + 1] ?? "";
+  const closes =
+    BOUNDARY.test(next) ||
+    /^(?:und|oder|von|aus|mit|für|zum|zur)$/.test(next) ||
+    (/^\p{Ll}+$/u.test(next) && BOUNDARY.test(after[k + 2] ?? ""));
+  if (!closes) return null;
+  const article = germanDeterminerFor(det, "m", "dat", typed);
+  if (!article) return null;
+  return [article, ...adjectives].join(" ");
+}
+
+// de.yaml rule de.articleGender def artSplitCompound
+export function artSplitCompound(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  typed: string,
+  first: string,
+): RawFinding | null {
+  if (/-|er$/.test(first) || ctx.dictionary.has(first.toLowerCase())) return null;
+  const nounEnd = m.indices!.groups!.noun[1];
+  const gap = /^[ \t]{1,3}(\p{Lu}\p{Ll}{2,})(?![\p{L}\p{M}\p{N}_-])/u.exec(ctx.text.slice(nounEnd));
+  if (!gap) return null;
+  const second = gap[1];
+  const after = deTokensAfter(ctx.text, nounEnd + gap[0].length, 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(after) || ctx.dictionary.has(second.toLowerCase())) return null;
+  if (!(germanNounReading(second.toLowerCase()) !== null)) return null;
+  const low = first.toLowerCase();
+  const linked =
+    (/(?:s|es)$/.test(low) && germanNounReading(low.replace(/e?s$/, "")) !== null) ||
+    (/^ein(?:e[mnrs]?)?$/i.test(typed) &&
+      /n$/.test(low) &&
+      [low.slice(0, -1), low.slice(0, -2)].some((stem) => germanNounReading(stem) !== null));
+  if (!(linked || germanNounReading(low) !== null)) return null;
+  if (!(germanDeterminerFits(typed, second) === true)) return null;
+  if (
+    linked
+      ? /^(?:des|eines|keines|meines|deines|seines|ihres|unseres|eures|dieses|jedes)$/i.test(typed)
+      : germanDeterminerFits(typed, first) !== false
+  )
+    return null;
+  const modsText = (m.groups!.mods ?? "").trim();
+  if (
+    modsText &&
+    !modsText.split(/[ \t ]+/).every((a) => ART_DEGREE_WORD.test(a) || artIsAdjective(a))
+  )
+    return null;
+  const end = nounEnd + gap[0].length;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_closed_compound",
+    range: { start: m.indices!.groups!.noun[0], end },
+    alternatives: [first + second.toLowerCase()],
+    context: { start: m.index, end },
+  };
+}
+
+// de.yaml rule de.articleGender def artNominalizedAdjective
+export function artNominalizedAdjective(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  det: GermanDeterminer,
+  typed: string,
+  noun: string,
+): RawFinding | null {
+  const low = noun.toLowerCase();
+  if (det.prep || noun.includes("-") || germanNounReading(low) !== null) return null;
+  const parts = /^(\p{Ll}{3,}?)(e|en|er|es|em)$/u.exec(low);
+  if (!parts) return null;
+  const stem = parts[1];
+  const typedEnding = parts[2];
+  const bareEin = det.kind === "ein" && det.ending === "";
+  if (typedEnding !== (bareEin ? "e" : "er") || (!bareEin && det.kind === "ein")) return null;
+  const participle =
+    (/^\p{Ll}*ge\p{Ll}+t$/u.test(stem) &&
+      germanInfinitive(`${stem.replace(/^\p{Ll}*?ge/u, "").slice(0, -1)}en`)) ||
+    (/^(?:ver|be|er|zer|ent)\p{Ll}+t$/u.test(stem) && germanInfinitive(`${stem.slice(0, -1)}en`));
+  const present = /\p{Ll}{3,}end$/u.test(stem) && germanInfinitive(stem.slice(0, -1));
+  const personAdjective = present || (/(?:lich|ig|los|isch)$/.test(stem) && germanAdjective(stem));
+  if (!(participle || personAdjective)) return null;
+  const before = deTokensBefore(ctx.text, m.index, 2);
+  if (before.at(-1) === "," && det.kind === "d") return null;
+  const start = artSentenceStart(before);
+  const all = germanDeterminerReadings(det);
+  const pairs1 =
+    start && all.some(([, c]) => c === "nom") ? all.filter(([, c]) => c === "nom") : all;
+  const pairs = pairs1.some(([g]) => g === "m") ? pairs1.filter(([g]) => g !== "n") : pairs1;
+  const kind = det.kind === "ein" ? "mixed" : "weak";
+  const allowed = new Set(all.map(([g, c]) => germanAdjectiveEnding(kind, g, c)));
+  if (allowed.has(typedEnding)) return null;
+  const nounEnd = m.indices!.groups!.noun[1];
+  const next = deTokensAfter(ctx.text, nounEnd, 1)[0] ?? "";
+  if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(low)) return null;
+  if (next === "zu" || /^(?:\p{Ll}+nd|\p{Ll}*ge\p{Ll}+t)(?:e|en|er|es|em)$/u.test(next))
+    return null;
+  const head = noun.slice(0, stem.length);
+  const fixes = [
+    ...new Set([
+      ...pairs.map(([g, c]) => `${typed} ${head}${germanAdjectiveEnding(kind, g, c)}`),
+      ...(det.kind === "ein" && det.ending === "" && typedEnding === "e" && start
+        ? [`${germanDeterminerFor(det, "f", "nom", typed)} ${noun}`]
+        : []),
+    ]),
+  ];
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_german_adjective_ending",
+    range: { start: m.indices!.groups!.det[0], end: nounEnd },
+    alternatives: fixes,
+    context: { start: m.index, end: nounEnd },
+    ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// de.yaml rule de.articleGender def articleWithGender
+export function articleWithGender(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  parsed: GermanDeterminer,
+  typed: string,
+  noun: string,
+  head: string,
+  reading: GermanGenderReading,
+  modsText: string,
+): RawFinding | null {
+  const stem = /\p{Ll}{2}e$/u.test(head) ? head.slice(0, -1) : "";
+  const stemGender = stem ? germanGender(stem) : null;
+  const oldDative = stemGender ? stemGender.gender !== "f" : stem !== "" && germanTwoGenders(stem);
+  const typedReadings = germanDeterminerReadings(parsed);
+  if (oldDative && typedReadings.some(([g, c]) => c === "dat" && (g === "m" || g === "n")))
+    return null;
+  const end0 = m.index + m[0].length;
+  const verb = /^[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end0, end0 + 40))?.[1];
+  if (/^(?:zum|beim|vom)$/i.test(typed) && !modsText.trim() && verb && nominalVerb(verb))
+    return null;
+  const pair = /^[ \t]+(?:und|oder)[ \t]+(\p{Lu}\p{Ll}{4,})/u.exec(ctx.text.slice(end0, end0 + 40));
+  if (pair && germanDeterminerFits(typed, pair[1]) !== false) return null;
+  const adjectives = modsText.trim() ? modsText.trim().split(/[ \t ]+/) : [];
+  const inflected = adjectives.filter((a) => !ART_DEGREE_WORD.test(a));
+  if (!inflected.every((a) => artIsAdjective(a))) return null;
+  if (new Set(inflected.map((a) => artEndingOf(a))).size > 1) return null;
+  if (/^(?:im|am|vom|beim)$/i.test(typed) && inflected.length) return null;
+  return articleCaseFix(
+    ctx,
+    m,
+    parsed,
+    typed,
+    head,
+    reading,
+    modsText,
+    adjectives,
+    inflected,
+    typedReadings,
+  );
+}
+
+// de.yaml rule de.articleGender def articleCaseFix
+export function articleCaseFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  parsed: GermanDeterminer,
+  typed: string,
+  head: string,
+  reading: GermanGenderReading,
+  modsText: string,
+  adjectives: string[],
+  inflected: string[],
+  typedReadings: [GermanCaseGender, GermanCase][],
+): RawFinding | null {
+  const before = deTokensBefore(ctx.text, m.index, 2);
+  const prior = (before.at(-1) ?? "").toLowerCase();
+  const nounEnd = m.indices!.groups!.noun[1];
+  const detStart = m.indices!.groups!.det[0];
+  const end = adjectives.length ? m.indices!.groups!.mods[1] : m.indices!.groups!.det[1];
+  const bareEin =
+    parsed.kind === "ein" &&
+    parsed.ending === "" &&
+    inflected.length > 0 &&
+    reading.gender === "n" &&
+    !reading.plural &&
+    !(parsed.stem === "sein" && VERB_GOVERNORS.has(prior));
+  const restOfClause = /^[^.!?;,\n]*/.exec(ctx.text.slice(nounEnd, nounEnd + 200))![0];
+  const wrongCase =
+    parsed.kind === "ein" &&
+    parsed.ending === "" &&
+    reading.gender === "m" &&
+    !(parsed.stem === "kein" && prior === "ohne") &&
+    !(prior === "über" && ART_TIME_SPANS.has(before.at(-2) ?? "")) &&
+    !(parsed.stem === "mein" && /^[ \t]*[!,]/.test(ctx.text.slice(nounEnd, nounEnd + 4))) &&
+    /^(?:für|um|gegen|ohne|durch|über|auf|in|an|unter|vor|hinter|neben|zwischen|mit|von|zu|bei|aus)$/.test(
+      prior,
+    ) &&
+    !/(?<!\p{L})was(?!\p{L})/iu.test(ctx.text.slice(Math.max(0, m.index - 30), m.index)) &&
+    !/(?<!\p{L})(?:sein|werden|bleiben|nach)(?!\p{L})/u.test(restOfClause) &&
+    !/^[ \t]+\p{Ll}+(?:e|es|en|er|em)[ \t]+\p{Lu}/u.test(restOfClause) &&
+    !/(?<!\p{L})(?:nach|und)[ \t]+$/u.test(
+      ctx.text.slice(Math.max(0, m.index - 12), m.index - prior.length - 1),
+    );
+  return bareEin && inflected.every((a) => artEndingOf(a) === "er")
+    ? {
+        ruleId: "germanArticleGender",
+        messageKey: "review_msg_german_adjective_ending",
+        range: {
+          start: m.indices!.groups!.mods[0] + modsText.length - modsText.trimStart().length,
+          end,
+        },
+        alternatives: [
+          adjectives
+            .map((a) => (ART_DEGREE_WORD.test(a) ? a : a.replace(/(?:e|en|er|es|em)$/, "es")))
+            .join(" "),
+        ],
+        context: { start: m.index, end: nounEnd },
+      }
+    : !wrongCase && typedReadings.some(([g, c]) => germanCaseFits(head, reading, g, c))
+      ? articleObjectFix(ctx, m, parsed, typed, head, reading, adjectives, nounEnd, detStart, end)
+      : articleGenderFix(
+          ctx,
+          m,
+          parsed,
+          typed,
+          head,
+          reading,
+          adjectives,
+          typedReadings,
+          before,
+          prior,
+          nounEnd,
+          detStart,
+          end,
+        );
+}
+
+// de.yaml rule de.articleGender def articleObjectFix
+export function articleObjectFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  parsed: GermanDeterminer,
+  typed: string,
+  head: string,
+  reading: GermanGenderReading,
+  adjectives: string[],
+  nounEnd: number,
+  detStart: number,
+  end: number,
+): RawFinding | null {
+  const verbFix = artVerbObjectCase(
+    ctx,
+    m.index,
+    nounEnd,
+    parsed,
+    typed,
+    head,
+    reading,
+    adjectives,
+  );
+  const recipient = verbFix
+    ? null
+    : artIndirectObject(ctx, m.index, nounEnd, parsed, typed, head, reading, adjectives);
+  const object =
+    verbFix || recipient
+      ? null
+      : artObjectCase(ctx, m.index, nounEnd, parsed, typed, reading, adjectives);
+  return verbFix
+    ? {
+        ruleId: "germanArticleGender",
+        messageKey: "review_msg_german_verb_case",
+        range: { start: detStart, end },
+        alternatives: verbFix,
+        context: { start: m.index, end: nounEnd },
+        ...(verbFix.length > 1 ? { requiresChoice: true as const } : {}),
+      }
+    : recipient
+      ? {
+          ruleId: "germanArticleGender",
+          messageKey: "review_msg_german_verb_case",
+          range: { start: detStart, end },
+          alternatives: [recipient],
+          context: { start: m.index, end: nounEnd },
+        }
+      : object
+        ? {
+            ruleId: "germanArticleGender",
+            messageKey: "review_msg_german_object_case",
+            range: { start: detStart, end },
+            alternatives: [object],
+            context: { start: m.index, end: nounEnd },
+          }
+        : null;
+}
+
+// de.yaml rule de.articleGender def articleGenderFix
+export function articleGenderFix(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  parsed: GermanDeterminer,
+  typed: string,
+  head: string,
+  reading: GermanGenderReading,
+  adjectives: string[],
+  typedReadings: [GermanCaseGender, GermanCase][],
+  before: string[],
+  prior: string,
+  nounEnd: number,
+  detStart: number,
+  end: number,
+): RawFinding | null {
+  const start = artSentenceStart(before);
+  const afterPreposition = PREPOSITIONS.has(prior);
+  if (
+    (parsed.kind === "d" || parsed.kind === "dies") &&
+    !parsed.prep &&
+    !start &&
+    !afterPreposition
+  )
+    return null;
+  if (!(
+    parsed.kind !== "ein" ||
+    !(
+      ART_DETERMINER_WORDS.test(prior) ||
+      /^(?:ans|aufs|durchs|fürs|ums)$/.test(prior) ||
+      parsed.stem === "ihr" ||
+      (parsed.stem === "mein" && /^(?:ich|wir|sie)$/.test(prior)) ||
+      (parsed.stem === "sein" && parsed.ending === "" && !afterPreposition) ||
+      (parsed.ending === "er" && /^k?ein$/.test(parsed.stem) && !afterPreposition)
+    )
+  ))
+    return null;
+  const after = deTokensAfter(ctx.text, nounEnd, 2);
+  const next = after[0] ?? "";
+  if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) return null;
+  if (/^\p{N}+$/u.test(next) && /^\p{Lu}/u.test(after[1] ?? "")) return null;
+  if (parsed.kind !== "ein" && !parsed.prep && germanInfinitive(next)) return null;
+  if (/^(?:und|oder|sowie|bzw)$/.test(next) && germanDeterminerFits(typed, after[1] ?? ""))
+    return null;
+  const cases0 = [...new Set(typedReadings.map(([, c]) => c))];
+  const governed = parsed.prep
+    ? undefined
+    : afterPreposition && Object.hasOwn(ART_GOVERNED, prior)
+      ? ART_GOVERNED[prior]
+      : undefined;
+  const narrowed = governed ? cases0.filter((c) => governed.includes(c)) : cases0;
+  if (governed && !narrowed.length) return null;
+  const cases = governed
+    ? narrowed
+    : start
+      ? cases0.includes("nom")
+        ? ART_NOMINATIVE
+        : [...ART_NOMINATIVE, ...cases0]
+      : cases0;
+  const genders = [
+    ...(reading.gender === "x" ? ["m", "n"] : [reading.gender]),
+    ...(reading.plural && !(parsed.kind === "ein" && parsed.stem === "ein") ? ["pl"] : []),
+  ] as GermanCaseGender[];
+  const combos = cases.flatMap((c) => genders.map((g) => [c, g] as const));
+  if (
+    !combos.every(
+      ([c, g]) =>
+        germanCaseFits(head, reading, g, c) && germanDeterminerFor(parsed, g, c, typed) !== null,
+    )
+  )
+    return null;
+  const fixes = [
+    ...new Set(
+      combos.map(([c, g]) =>
+        [
+          germanDeterminerFor(parsed, g, c, typed),
+          ...adjectives.map((a) =>
+            ART_DEGREE_WORD.test(a)
+              ? a
+              : a.replace(
+                  /(?:e|en|er|es|em)$/,
+                  germanAdjectiveEnding(parsed.kind === "ein" ? "mixed" : "weak", g, c),
+                ),
+          ),
+        ].join(" "),
+      ),
+    ),
+  ];
+  if (!(fixes.length > 0 && fixes.length <= 3)) return null;
+  return {
+    ruleId: "germanArticleGender",
+    messageKey: "review_msg_german_article_gender",
+    range: { start: detStart, end },
+    alternatives: fixes,
+    context: { start: m.index, end: nounEnd },
+    ...(fixes.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// de.yaml rule de.articleGender def artSolchEnding
+export function artSolchEnding(det: string, noun: string) {
+  const low = det.toLowerCase();
+  const gender = germanGender(noun)?.gender;
+  return /^d(?:er|ieser)$/.test(low) || /^(?:k?ein|mein|dein|sein|ihr|unser)er$/.test(low)
+    ? "er"
+    : /^d(?:ie|iese)$/.test(low) || /^(?:k?ein|mein|dein|sein|ihr|unser)e$/.test(low)
+      ? "e"
+      : /^d(?:as|ieses)$/.test(low)
+        ? "es"
+        : /em$/.test(low)
+          ? "em"
+          : /en$/.test(low)
+            ? "en"
+            : gender === "m"
+              ? "er"
+              : gender === "n"
+                ? "es"
+                : null;
+}
+
+// de.yaml rule de.articleGender def artGenitiveOf
+export function artGenitiveOf(det: string, noun: string): string | null {
+  return det.endsWith("m")
+    ? `${det.slice(0, -1)}s`
+    : /n$/.test(noun) && noun.length > 3
+      ? det === "den"
+        ? "der"
+        : `${det.slice(0, -1)}r`
+      : det === "den" && germanGender(noun)?.gender === "m"
+        ? "des"
+        : null;
 }
 
 // de.yaml rule de.suspendedHyphen def SUSPENDED_SINGULAR_VERBS
@@ -7554,6 +8483,200 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       alternatives,
       context: { start: m.index, end: m.indices!.groups!.target[1] },
       ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    };
+  },
+  // de.yaml rule de.articleGender frame 1
+  "@de.articleGender/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const mods = m.groups!.mods;
+    const noun = m.groups!.noun;
+    const parsed = germanDeterminer(det);
+    if (!parsed) return null;
+    const head = noun.split("-").at(-1)!;
+    if (!(head.length >= 3 && /^\p{Lu}/u.test(head))) return null;
+    if (!(!ctx.dictionary.has(noun.toLowerCase()) && !ctx.dictionary.has(head.toLowerCase())))
+      return null;
+    if (ART_GENDER_SIGN.test(ctx.text.slice(m.indices!.groups!.noun[1]))) return null;
+    const compound = artSplitCompound(ctx, m, det, noun);
+    const reading = germanGender(head);
+    const modsText = mods ?? "";
+    return (
+      compound ??
+      (!reading && !modsText.trim()
+        ? artNominalizedAdjective(ctx, m, parsed, det, noun)
+        : !reading || /^die bild$/i.test(`${det} ${noun}`)
+          ? null
+          : articleWithGender(ctx, m, parsed, det, noun, head, reading, modsText))
+    );
+  },
+  // de.yaml rule de.articleGender frame 2
+  "@de.articleGender/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const adj = m.groups!.adj;
+    const noun = m.groups!.noun;
+    const low = adj.toLowerCase();
+    if (!/[^e]es$|[^e]e$/.test(low) || ART_DETERMINER_WORDS.test(low) || ART_QUANTIFIER.test(low))
+      return null;
+    const solch = low === "solche";
+    if (!(solch || artIsAdjective(low))) return null;
+    const head = noun.split("-").at(-1)!;
+    if (!(head.length >= 3 && /^\p{Lu}/u.test(head))) return null;
+    if (!(!ctx.dictionary.has(low) && !ctx.dictionary.has(head.toLowerCase()))) return null;
+    if (ART_GENDER_SIGN.test(ctx.text.slice(m.indices!.groups!.noun[1]))) return null;
+    const reading = germanGender(head);
+    if (!reading) return null;
+    const before = deTokensBefore(ctx.text, m.index, 1);
+    const prior = (before.at(-1) ?? "").toLowerCase();
+    const start = artSentenceStart(before);
+    const governed =
+      prior === "zu" || !Object.hasOwn(ART_GOVERNED, prior) ? undefined : ART_GOVERNED[prior];
+    const neuter = solch && reading.gender === "n" && !reading.plural;
+    if (
+      !start &&
+      !governed &&
+      !ART_BARE_AFTER.has(prior) &&
+      !(neuter && !ART_DETERMINER_WORDS.test(prior))
+    )
+      return null;
+    if (start && adj === low) return null;
+    const next = deTokensAfter(ctx.text, m.indices!.groups!.noun[1], 1)[0] ?? "";
+    if (/^\p{Lu}/u.test(next) && !BOUNDARY.test(next)) return null;
+    const copula = /^(?:ist|sind|war|waren|wird|werden|wäre|wären|bleibt|blieb)$/.test(prior);
+    const cases = governed ?? (copula ? ["nom"] : ["nom", "acc"]);
+    const genders = [
+      ...(reading.gender === "x" ? ["m", "n"] : [reading.gender]),
+      ...(reading.plural && !/^(?:ist|war|wird|wäre|bleibt|blieb)$/.test(prior) ? ["pl"] : []),
+    ] as GermanCaseGender[];
+    const typedEnding = artEndingOf(low);
+    const allowed = [
+      ...new Set(
+        genders.flatMap((g) =>
+          cases
+            .filter((c) => germanCaseFits(head, reading, g, c))
+            .map((c) => germanAdjectiveEnding("strong", g, c)),
+        ),
+      ),
+    ];
+    if (!(allowed.length > 0 && !allowed.includes(typedEnding))) return null;
+    const stem = adj.slice(0, adj.length - typedEnding.length);
+    return {
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_adjective_ending",
+      range: { start: m.indices!.groups!.adj[0], end: m.indices!.groups!.adj[1] },
+      alternatives: allowed.map((e) => stem + e),
+      context: { start: m.index, end: m.indices!.groups!.noun[1] },
+      ...(allowed.length > 1 ? { requiresChoice: true as const } : {}),
+    };
+  },
+  // de.yaml rule de.articleGender frame 3
+  "@de.articleGender/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const det = m.groups!.det;
+    const noun = m.groups!.noun;
+    const target = m.groups!.target;
+    const prior = (deTokensBefore(ctx.text, m.index, 1).at(-1) ?? "").toLowerCase();
+    if (PREPOSITIONS.has(prior)) return null;
+    if (germanNounReading(noun.toLowerCase()) === null && !germanGender(noun)) return null;
+    const span = m.indices!.groups!.target;
+    const next = deTokensAfter(ctx.text, span[1], 1)[0] ?? "";
+    if (/^\p{Lu}/u.test(next) || ctx.dictionary.has(target.toLowerCase())) return null;
+    const ending = artSolchEnding(det, noun);
+    if (!ending || target === `solch${ending}`) return null;
+    return {
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_als_solch",
+      range: { start: span[0], end: span[1] },
+      alternatives: [`solch${ending}`],
+      context: { start: m.index, end: span[1] },
+    };
+  },
+  // de.yaml rule de.articleGender frame 4
+  "@de.articleGender/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const rest = m.groups!.rest;
+    const rest2 = m.groups!.rest2;
+    const name = target ? "target" : "t2";
+    const typedDet = m.groups![name];
+    const noun = (rest ?? rest2).split(/[ \t]+/).at(-1)!;
+    const end = m.index + m[0].length;
+    if (
+      /^[^.!?;,\n]{0,60}(?<!\p{L})zu[ \t]+\p{Ll}|^[^.!?;,\n]{0,60}\p{Ll}zu\p{Ll}{3,}en(?!\p{L})/u.test(
+        ctx.text.slice(end, end + 80),
+      )
+    )
+      return null;
+    const fixed = artGenitiveOf(typedDet.toLowerCase(), noun);
+    if (!fixed || ctx.dictionary.has(typedDet.toLowerCase())) return null;
+    const span = m.indices!.groups![name];
+    const article = deLikeTyped(typedDet, fixed);
+    const between = ctx.text.slice(span[1], end - noun.length);
+    const singular = fixed.endsWith("s") && !/(?:en|n|s)$/.test(noun);
+    const genitive = singular ? noun + (/(?:ß|z|x|sch)$/.test(noun) ? "es" : "s") : null;
+    return {
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_genitive_verb",
+      range: { start: span[0], end: genitive ? end : span[1] },
+      alternatives: [genitive ? `${article}${between}${genitive}` : article],
+      context: { start: m.index, end },
+    };
+  },
+  // de.yaml rule de.articleGender frame 5
+  "@de.articleGender/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const after = m.groups!.after;
+    const clause = ctx.text
+      .slice(Math.max(0, m.index - 60), m.index)
+      .split(/[.!?;:\n]/)
+      .at(-1)!;
+    if (!after && !/(?<!\p{L})mach(?:e|st|t|en|te|test|ten|tet)?(?!\p{L})/iu.test(clause))
+      return null;
+    const span = m.indices!.groups!.target;
+    return {
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_preposition_case",
+      range: { start: span[0], end: span[1] },
+      alternatives: ["den"],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // de.yaml rule de.articleGender frame 6
+  "@de.articleGender/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    const reading = germanGender(noun);
+    if (!(!!reading && !reading.plural && reading.gender !== "x")) return null;
+    const before = deTokensBefore(ctx.text, m.index, 3);
+    const at =
+      germanDeterminerFits(before.at(-1) ?? "", noun) === null
+        ? before.length - 2
+        : before.length - 1;
+    const det = before[at] ?? "";
+    if (!(germanDeterminerFits(det, noun) === true)) return null;
+    const prior = (before[at - 1] ?? "").toLowerCase();
+    if (PREPOSITIONS.has(prior) || germanContraction(det.toLowerCase()) || /^des$/i.test(det))
+      return null;
+    if (
+      (target === "das" && next === "heißt") ||
+      /^(?:zwei|drei|vier|fünf|beiden|anderen)$/.test(next)
+    )
+      return null;
+    const stem = next.replace(/(?:e|en|er|es|em)$/, "");
+    const adjective = stem !== next && (germanAdjective(stem) || germanAdjective(`${stem}e`));
+    if (ART_SUBJECT_PRONOUNS.has(next) || adjective) return null;
+    if (!ART_WRONG_RELATIVE[reading.gender].includes(target)) return null;
+    const span = m.indices!.groups!.target;
+    const after = deTokensAfter(ctx.text, span[1], 2);
+    const verb =
+      VERB_GOVERNORS.has(next) ||
+      germanVerbLike(next) ||
+      germanInfinitive(next) ||
+      (/t$/.test(next) && germanInfinitive(`${next.replace(/e?t$/, "")}en`));
+    if (verb && !BOUNDARY.test(after[1] ?? "")) return null;
+    if (ctx.dictionary.has(noun.toLowerCase())) return null;
+    return {
+      ruleId: "germanArticleGender",
+      messageKey: "review_msg_german_relative_pronoun",
+      range: { start: span[0], end: span[1] },
+      alternatives: [ART_RELATIVE_FOR[reading.gender]],
+      context: { start: m.index, end: span[1] + next.length + 1 },
     };
   },
   // de.yaml rule de.suspendedHyphen frame 1
