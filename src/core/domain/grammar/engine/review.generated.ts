@@ -13610,56 +13610,56 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:hear|heard|hearing|come|comes|came|coming|away|aside|far|derived|received|receive|got|get|gets|bought|borrowed|took|taken|returned|return|arrived|arrive|moved|graduated|downloaded|copied|sent|fled|escaped|removed|deleted|resigned|retired|suffer|suffers|suffered|benefit|benefits|benefited|benefitted)(?:[ \\t\\u00a0]{1,8}(?:it|them|one|this|that))?[ \\t\\u00a0]{1,8}(?<target>form)(?:[ \\t\\u00a0]{1,8}(?:me|you|him|her|us|them|it|the|a|an|my|your|his|our|their|its|this|that|these|those|all|both)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?=[ \\t\\u00a0]*[?!.,;:)]))",
     literals: ["form"],
-    fixer: "en:clauseFormFrom",
+    fixer: "en:@en.clauseConfusions/1",
   }),
   frame({
     pattern:
       "(?<subject>[a-z]{2,})[ \\t\\u00a0]{1,8}(?<target>though)[ \\t\\u00a0]{1,8}(?:I|you|he|she|it|we|they|that)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["though"],
-    fixer: "en:clauseThoughThought",
+    fixer: "en:@en.clauseConfusions/2",
   }),
   frame({
     pattern:
       "to[ \\t\\u00a0]{1,8}(?<target>(?<stem>[a-z]{3,})ies)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["ies"],
-    fixer: "en:clauseToIesVerb",
+    fixer: "en:@en.clauseAuxiliaries/1",
   }),
   frame({
     pattern:
       "(?<lead>please)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)[ \\t\\u00a0]{1,8}(?<object>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["please"],
-    fixer: "en:clausePleasePast",
+    fixer: "en:@en.clauseAuxiliaries/2",
     message: "review_msg_please_base",
   }),
   frame({
     pattern:
       "(?<target>according(?:[ \\t\\u00a0]{1,8}(?<wrong>about|on|with|for|from|by|of|at))?)[ \\t\\u00a0]{1,8}(?!(?:to|as|ly)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=[A-Za-z])",
     literals: ["according"],
-    fixer: "en:clauseAccordingTo",
+    fixer: "en:@en.accordingTo/1",
   }),
   frame({
     pattern:
       "(?:at|to|for|with|of|from|about|by|into|onto|toward|towards|without|against|like)[ \\t\\u00a0]{1,8}(?<target>there)[ \\t\\u00a0]{1,8}(?<first>[a-z]+)(?:[ \\t\\u00a0]{1,8}(?<second>[a-z]+))?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["there"],
-    fixer: "en:clauseThereTheir",
+    fixer: "en:@en.thereTheir/1",
   }),
   frame({
     pattern:
       "(?<subject>that|this|it)[ \\t\\u00a0]{1,8}(?<target>sound|look|seem|feel|smell|taste)[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["sound", "look", "seem", "feel", "smell", "taste"],
-    fixer: "en:clauseLinkingSingular",
+    fixer: "en:@en.linkingSingular/1",
   }),
   frame({
     pattern:
       "(?<lead>all)[ \\t\\u00a0]{1,8}(?<target>[a-z]+)[ \\t\\u00a0]{1,8}(?:are|were|have|do|seem|look|need)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["all"],
-    fixer: "en:clauseAllSingular",
+    fixer: "en:@en.allSingular/1",
   }),
   frame({
     pattern:
       "(?<subject>I|you|we|they|he|she|it)[ \\t\\u00a0]{1,8}(?<target>no)[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:clauseNoAdjective",
+    fixer: "en:@en.noAdjective/1",
   }),
   frame({
     pattern:

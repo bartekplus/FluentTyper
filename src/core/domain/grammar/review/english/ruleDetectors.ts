@@ -38,7 +38,6 @@ import * as idioms2 from "./idioms2";
 import * as idioms3 from "./idioms3";
 import * as idioms4 from "./idioms4";
 import * as idioms5 from "./idioms5";
-import * as clauseSlots from "./clauseSlots";
 import * as everydaySlots from "./everydaySlots";
 import * as wordFormSlots from "./wordFormSlots";
 import * as typoSlots from "./typoSlots";
@@ -80,7 +79,6 @@ export const FIXERS = mergePredicates<Fixer>(
   agreementSlots.FIXERS,
   wordClassSlots.FIXERS,
   clauseAgreementSlots.FIXERS,
-  clauseSlots.FIXERS,
   collocationSlots.FIXERS,
   grammarStyle1.FIXERS,
   grammarStyle2.FIXERS,

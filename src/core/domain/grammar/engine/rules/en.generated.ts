@@ -23,6 +23,7 @@ import {
   enInfo,
   enLexiconInflect,
   enNounOnly,
+  enNounPair,
   enTokensAfter,
   enWordBefore,
   englishInflect,
@@ -232,6 +233,16 @@ export const BRITISH_UNITS: Readonly<Record<string, string>> = {
   meters: "metres",
   liter: "litre",
   liters: "litres",
+};
+
+export const CLAUSE_BE: Readonly<Record<string, string>> = {
+  i: "am",
+  you: "are",
+  we: "are",
+  they: "are",
+  he: "is",
+  she: "is",
+  it: "is",
 };
 
 export const CLASH_BE_I: Readonly<Record<string, string>> = {
@@ -645,6 +656,48 @@ export function britishBoot(m: RegExpExecArray, ctx: DetectContext) {
   if (/\bboots?\b/i.test(ctx.text.slice(Math.max(0, m.index - 120), m.index + m[0].length + 120)))
     return null;
   return m.groups!.target.toLowerCase() === "trunks" ? "boots" : "boot";
+}
+
+// en.yaml rule en.clauseConfusions def clauseFinding
+export function clauseFinding(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  ruleId: RawFinding["ruleId"],
+  messageKey: RawFinding["messageKey"],
+  alternatives: string[],
+) {
+  const start = m.indices!.groups!.target[0];
+  const end = m.indices!.groups!.target[1];
+  const typed = ctx.source.slice(start, end);
+  return {
+    ruleId,
+    messageKey,
+    range: { start, end },
+    alternatives: alternatives.map((a) => caseLike(typed, a)),
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+    context: enEvidence(ctx, m.index, end),
+  };
+}
+
+// en.yaml rule en.clauseConfusions def CLAUSE_INFINITIVE_HEADS
+export const CLAUSE_INFINITIVE_HEADS =
+  /^(?:want|wants|wanted|need|needs|needed|like|would|try|tries|tried|trying|have|has|had|going|able|decided|decide|plan|plans|planned|hope|hoped|forgot|remember|wish|wished|must|should|will|can|could)$/;
+
+// en.yaml rule en.clauseConfusions def CLAUSE_NOT_OWNED
+export const CLAUSE_NOT_OWNED =
+  /^(?:is|are|was|were|be|been|being|will|would|can|could|should|may|might|must|has|have|had|and|or|but|so|yet|too|again|now|then|today|tomorrow|yesterday|tonight|somewhere|anywhere|everywhere|nowhere|instead|either|though|first|already|once|ever|soon|also|alone|together|until|later|before|after|right|over)$/;
+
+// en.yaml rule en.clauseConfusions def CLAUSE_EVALUATIVE
+export const CLAUSE_EVALUATIVE =
+  /^(?:great|good|fine|right|wrong|cool|fun|perfect|better|worse|ok|okay)$/;
+
+// en.yaml rule en.clauseConfusions def clausePredicateAdjective
+export function clausePredicateAdjective(word: string) {
+  const read = englishWordInfo(word);
+  return (
+    CLAUSE_EVALUATIVE.test(word) ||
+    (!!read?.adjective && !read.noun && !read.verbs.length && !EN_FUNCTION_WORDS.has(word))
+  );
 }
 
 // en.yaml rule en.prepositionSlots def PREPOSITION_MONTHS
@@ -1222,6 +1275,182 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // en.yaml rule en.britishUsage frame 3
   "@en.britishUsage/3": (m: RegExpExecArray, ctx: DetectContext): FixResult => {
     return britishBoot(m, ctx);
+  },
+  // en.yaml rule en.clauseConfusions frame 1
+  "@en.clauseConfusions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(!ctx.dictionary.has("form") && target === "form")) return null;
+    return clauseFinding(ctx, m, "englishConfusedWords", "review_msg_confused_word", ["from"]);
+  },
+  // en.yaml rule en.clauseConfusions frame 2
+  "@en.clauseConfusions/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    if (!(enAfterBreak(ctx, m.index) && /^[A-Z][a-z]+$/.test(subject))) return null;
+    if (
+      /^(?:Even|As|And|But|So|Or|Yet|Although|Though|If|When|While|Because|Since|Then|This|That|It|There|Here|He|She|We|They|You)$/.test(
+        subject,
+      ) ||
+      /(?:ed|ing|ly)$/.test(subject)
+    )
+      return null;
+    const end = m.index + m[0].length;
+    if (
+      /^[ \t ]+(?:was|is|were|are|may[ \t ]+be|might[ \t ]+be)[ \t ]*[,;:—–-]/.test(
+        ctx.text.slice(end, end + 24),
+      )
+    )
+      return null;
+    return clauseFinding(ctx, m, "englishConfusedWords", "review_msg_confused_word", ["thought"]);
+  },
+  // en.yaml rule en.clauseAuxiliaries frame 1
+  "@en.clauseAuxiliaries/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const stem = m.groups!.stem;
+    if (!(!ctx.dictionary.has(target) && CLAUSE_INFINITIVE_HEADS.test(enWordBefore(ctx, m.index))))
+      return null;
+    const verb = `${stem}ize`;
+    if (!englishWordInfo(verb)?.verbs.some((v) => v.form === "base" && v.lemma === verb))
+      return null;
+    const next = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (next?.kind === "word" && !EN_FUNCTION_WORDS.has(next.lower)) return null;
+    return clauseFinding(ctx, m, "englishAuxiliaryBaseVerb", "review_msg_to_base", [verb]);
+  },
+  // en.yaml rule en.clauseAuxiliaries frame 2
+  "@en.clauseAuxiliaries/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const target = m.groups!.target;
+    const object = m.groups!.object;
+    if (!(lead === lead.toLowerCase() || enAfterBreak(ctx, m.index))) return null;
+    if (!(
+      lead !== lead.toLowerCase() ||
+      enAfterBreak(ctx, m.index) ||
+      /(?:,|\b(?:so|and|but|then))[ \t ]*$/i.test(ctx.text.slice(Math.max(0, m.index - 6), m.index))
+    ))
+      return null;
+    if (ctx.dictionary.has(target)) return null;
+    if (!(EN_DETERMINERS.has(object) || EN_OBJECT_PRONOUNS.has(object))) return null;
+    if (/^(?:did|was|were|had|could|would|should|might)$/.test(target)) return null;
+    const read = englishWordInfo(target);
+    if (!read || read.noun || (read.adjective && !read.verbs.some((v) => v.form === "past")))
+      return null;
+    const forms = englishVerbForms(target);
+    const base =
+      forms && forms.past === target && forms.lemma !== target && !forms.ambiguous.includes(target)
+        ? forms.lemma
+        : !forms && /ed$/.test(target)
+          ? (read.verbs
+              .filter((v) => v.form === "past")
+              .map((v) => v.lemma)
+              .sort((a, b) => a.length - b.length)[0] ?? null)
+          : null;
+    if (!(base && base !== target)) return null;
+    return clauseFinding(ctx, m, "englishAuxiliaryBaseVerb", "review_msg_please_base", [base]);
+  },
+  // en.yaml rule en.accordingTo frame 1
+  "@en.accordingTo/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(
+      enAfterBreak(ctx, m.index) ||
+      /,[ \t ]*$/.test(ctx.text.slice(Math.max(0, m.index - 3), m.index))
+    ))
+      return null;
+    const end = m.index + m[0].length;
+    if (/^[ \t ]*[A-Za-z]+[ \t ]+to\b/i.test(ctx.text.slice(end, end + 24))) return null;
+    return clauseFinding(ctx, m, "englishFixedPrepositions", "review_msg_fixed_prepositions", [
+      `${target.slice(0, "according".length)} to`,
+    ]);
+  },
+  // en.yaml rule en.thereTheir frame 1
+  "@en.thereTheir/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const first = m.groups!.first;
+    const second = m.groups!.second;
+    if (CLAUSE_NOT_OWNED.test(first)) return null;
+    const read = englishWordInfo(first);
+    const adjective = !!read?.adjective && !read.verbs.length && !!second;
+    const noun = adjective ? second : first;
+    if (!(!CLAUSE_NOT_OWNED.test(noun) && !EN_FUNCTION_WORDS.has(noun))) return null;
+    const nounRead = englishWordInfo(noun);
+    if (!(enNounOnly(noun) || (nounRead?.noun && !nounRead.adjective && !nounRead.adverb)))
+      return null;
+    if (!adjective && nounRead?.verbs.length && !enNounOnly(noun)) return null;
+    const nounEnd = m.index + m[0].length - (adjective || !second ? 0 : second.length + 1);
+    const after = enTokensAfter(ctx, adjective ? m.index + m[0].length : nounEnd, 1)[0];
+    if (
+      after?.kind === "word" &&
+      !EN_FUNCTION_WORDS.has(after.lower) &&
+      englishWordInfo(after.lower)?.noun
+    )
+      return null;
+    return clauseFinding(ctx, m, "englishTheirThereTheyAre", "review_msg_their_possessive", [
+      "their",
+    ]);
+  },
+  // en.yaml rule en.linkingSingular frame 1
+  "@en.linkingSingular/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const target = m.groups!.target;
+    const adjective = m.groups!.adjective;
+    if (!(subject === subject.toLowerCase() || enAfterBreak(ctx, m.index))) return null;
+    const before = enWordBefore(ctx, m.index);
+    if (
+      /^(?:do|does|did|don['’]t|doesn['’]t|didn['’]t|will|would|can|could|should|may|might|must|make|makes|made|let|lets|help|helps|to|not)$/.test(
+        before,
+      ) ||
+      /n['’]t$/.test(before)
+    )
+      return null;
+    if (!(
+      enAfterBreak(ctx, m.index) ||
+      /^(?:and|but|so|because|think|guess|hope|said|says|agree)$/.test(before)
+    ))
+      return null;
+    if (!clausePredicateAdjective(adjective)) return null;
+    const after = enTokensAfter(ctx, m.index + m[0].length, 1)[0];
+    if (
+      after?.kind === "word" &&
+      !/^(?:to|for|and|but|or|now|today|enough|too|again)$/.test(after.lower)
+    )
+      return null;
+    return clauseFinding(ctx, m, "englishSubjectVerbAgreement", "review_msg_subject_verb", [
+      `${target}s`,
+    ]);
+  },
+  // en.yaml rule en.allSingular frame 1
+  "@en.allSingular/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    if (!(!EN_FUNCTION_WORDS.has(target) && !ctx.dictionary.has(target))) return null;
+    if (
+      /^(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|twenty|thirty|forty|fifty|hundred|thousand|million|dozen)$/.test(
+        target,
+      )
+    )
+      return null;
+    const read = englishWordInfo(target);
+    if (
+      !read?.noun ||
+      read.plural ||
+      read.adjective ||
+      read.adverb ||
+      read.verbs.some((v) => v.form !== "base")
+    )
+      return null;
+    const plural = enNounPair(target)?.plural;
+    if (!plural) return null;
+    return clauseFinding(ctx, m, "englishNounNumber", "review_msg_noun_count", [plural]);
+  },
+  // en.yaml rule en.noAdjective frame 1
+  "@en.noAdjective/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const adjective = m.groups!.adjective;
+    if (!(
+      enAfterBreak(ctx, m.index) ||
+      /^(?:and|but|so|because|if|when|that)$/.test(enWordBefore(ctx, m.index))
+    ))
+      return null;
+    if (!clausePredicateAdjective(adjective)) return null;
+    return clauseFinding(ctx, m, "englishSentenceStructure", "review_msg_clause_be", [
+      `${CLAUSE_BE[subject.toLowerCase()]} not`,
+    ]);
   },
   // en.yaml rule en.prepositionSlots frame 3
   "@en.prepositionSlots/3": (m: RegExpExecArray): FixResult => {
