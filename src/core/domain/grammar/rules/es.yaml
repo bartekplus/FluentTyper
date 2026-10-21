@@ -2174,13 +2174,68 @@ rules:
     group: spanishAccents
     style: match
     message: review_msg_spanish_accent
+    # "continua" and "perpetua" as verbs, and the accented demonstratives before a noun. The first
+    # finding wins.
+    maps:
+      # Verbs in -uar whose stressed forms carry "ú": unaccented, they are adjectives. The
+      # es.frameAccents frame lists these words and those of ES_ACCENTED_DEMONSTRATIVE.
+      ES_UAR: { continua: continúa, continuas: continúas, continuan: continúan, perpetua: perpetúa, perpetuan: perpetúan }
+      # Accented demonstratives (pronouns in the old spelling) and their determiner forms.
+      ES_ACCENTED_DEMONSTRATIVE:
+        éste: este
+        ésta: esta
+        éstos: estos
+        éstas: estas
+        ése: ese
+        ésa: esa
+        ésos: esos
+        ésas: esas
+        aquél: aquel
+        aquélla: aquella
+        aquéllos: aquellos
+        aquéllas: aquellas
+    defs:
+      # "Continua recibiendo apoyos", "se perpetua": the verb before a gerund or after a pronoun.
+      esUarVerb:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          token: at.tokens[at.i]
+          verb: ES_UAR[token.lower]
+          next: at.next()
+        when:
+          - verb
+          - (/(?:ando|iendo|yendo)$/u.test(next) && esIsGerund(next)) || /^(?:se|me|te|le|les|nos|os|lo)$/u.test(at.prev())
+        return: 'esReplaceToken(ctx, token, [verb], "spanishAccents", "review_msg_spanish_accent", at.tokens[at.i + 1] ?? token)'
+      # "Éste señor" -> "Este señor": a demonstrative before its noun never takes an accent. The noun
+      # agrees with the demonstrative: "ésta casa", "éstos libros".
+      esAccentedDeterminer:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          token: at.tokens[at.i]
+          plain: ES_ACCENTED_DEMONSTRATIVE[token.lower]
+          nounToken: at.tokens[at.i + 1]
+          noun: esReadNoun(nounToken.lower)
+          nominal: esIsNoun(nounToken.lower) || noun?.paired
+        when:
+          - plain && nounToken?.word && !nounToken.broken && /^\p{Ll}/u.test(nounToken.text)
+          - '!(!noun || !nominal || (esFiniteVerb(nounToken.lower) && !esIsNoun(nounToken.lower)))'
+          - noun.plural === plain.endsWith("s")
+        return: 'esReplaceToken(ctx, token, [plain], "spanishAccents", "review_msg_spanish_accent_extra", nounToken)'
     frames:
       # "continua" and "perpetua" as verbs, and the accented demonstratives before a noun.
       # The fixer reads the words before and after the token (review/spanish/frames.ts).
       - regex: "(?:continua[sn]?|perpetuan?|ést(?:e|a|os|as)|és(?:e|a|os|as)|aquél(?:la|los|las)?){{WORD_TAIL}}"
         flags: giu
         scan: owned
-        fixer: frameAccents
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+          at: esAround(tokens, i)
+        when:
+          - i >= 0
+          - token.word && token.start >= ctx.from && token.start < ctx.to
+        return: "esUarVerb(ctx, at) ?? esAccentedDeterminer(ctx, at)"
   - id: es.confusions
     checks: [spanishConfusions]
     group: spanishConfusions
@@ -3800,6 +3855,98 @@ rules:
     group: spanishConfusions
     style: match
     message: review_msg_spanish_confusion
+    # Short closed-class frames: "de el" -> "del", "ala casa" -> "a la casa", "q" -> "que". The
+    # first finding wins.
+    sets:
+      # Words that take "ala" (wing) without an article: "ala delta", "ala derecha".
+      ES_WING: [delta, derecha, izquierda, norte, sur, este, oeste, oriental, occidental]
+      ES_WING_DETERMINERS:
+        [el, un, del, al, su, sus, mi, mis, tu, tus, este, ese, aquel, otra, otras, cada, las, unas, estas, esas, aquellas, nuestra, nuestras, vuestra, vuestras, sin, con, en, de, por]
+      # Short imperatives that take their pronouns at the end: "dame", "hazlo", "ponte".
+      ES_SHORT_IMPERATIVES: [da, di, haz, pon, sal, ten, ven, ve, sé]
+    defs:
+      # "la casa de el lago", "ve a el que quieras": the article joins "a" and "de". "y A el área": a
+      # capital mid-sentence is a variable or a name. "de el." and "de el viene" are the pronoun
+      # "él" missing its accent. "de el se hicieron copias": a clitic follows the pronoun, never the
+      # article.
+      esContraction:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          prep: at.tokens[at.i]
+          article: at.tokens[at.i + 1]
+          next: at.tokens[at.i + 2]
+        when:
+          - /^(?:de|a)$/u.test(prep.lower) && article?.text === "el" && !article.broken
+          - '!(/^\p{Lu}/u.test(prep.text) && !at.starts)'
+          - next?.word && !next.broken && /^\p{Ll}/u.test(next.text)
+          - '!ES_CLITICS.has(next.lower)'
+          - '!(esFiniteVerb(next.lower) && !esIsNoun(next.lower) && !esAttributeOf(next.lower))'
+        return: >-
+          esReplaceToken(ctx, esSpan(ctx, prep, article), [prep.lower === "de" ? "del" : "al"], "spanishConfusions",
+            "review_msg_spanish_contraction", next)
+      # "voy ala ciudad" -> "a la ciudad": "ala" (wing) before a bare noun is "a la".
+      esAlaPreposition:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          word: at.tokens[at.i].lower
+          prev: at.prev()
+          next: at.next()
+          noun: esReadNoun(next)
+        when:
+          - word === "ala" || word === "alas"
+          - '!(!prev || ES_WING_DETERMINERS.has(prev) || !next || ES_WING.has(next))'
+          - '!(!/^\p{Ll}/u.test(at.tokens[at.i + 1].text) || !esIsNoun(next) || esAttributeOf(next))'
+          - noun && noun.plural === (word === "alas")
+        return: >-
+          esReplaceToken(ctx, at.tokens[at.i], [word === "ala" ? "a la" : "a las"], "spanishConfusions",
+            "review_msg_spanish_confusion", at.tokens[at.i + 1])
+      # "Juan, Antonio y de más." -> "y demás": the rest closing a list. The list ends there: "y de
+      # más." ("y de más «peso»" compares).
+      esDeMas:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          after: at.tokens[at.i + 2]
+        when:
+          - at.tokens[at.i].lower === "de" && at.next() === "más" && /^(?:y|e)$/u.test(at.prev())
+          - '!(after && !after.broken && !/^[.,;:!…)]$/u.test(after.text))'
+        return: 'esReplaceToken(ctx, esSpan(ctx, at.tokens[at.i], at.tokens[at.i + 1]), ["demás"], "spanishConfusions", "review_msg_spanish_confusion")'
+      # "Con el calor q hace": the chat shorthand for "que" between two words.
+      esShorthandQue:
+        args: "ctx: DetectContext, at: SpanishAround"
+        when:
+          - at.tokens[at.i].text === "q" && at.prev() && at.next()
+          - '!(/^(?:la|una|letra|de|con|y)$/u.test(at.prev()) || at.tokens[at.i + 1].text === ".")'
+          - /^\p{Ll}/u.test(at.tokens[at.i + 1].text)
+        return: 'esReplaceToken(ctx, at.tokens[at.i], ["que"], "spanishConfusions", "review_msg_typo")'
+      # "Lo dame", "Le dale": a pronoun before an imperative that already carries one. "dale que te
+      # dale": the repeated imperative of the idiom.
+      esCliticTwice:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          clitic: at.tokens[at.i]
+          verb: at.tokens[at.i + 1]
+          m: /^(\p{L}+?)((?:me|te|le|les|lo|la|los|las|nos|os|se){1,2})$/u.exec(verb.lower)
+          stem: esPlain(m[1])
+          found: esReplaceToken(ctx, esSpan(ctx, clitic, verb), [], "spanishConfusions", "review_msg_spanish_clitic_twice")
+        when:
+          - ES_CLITICS.has(clitic.lower) && verb?.word && !verb.broken
+          - /^\p{Ll}+$/u.test(verb.text) && !esIsNoun(verb.lower)
+          - '!(at.prev() === "que" && at.prev(2) === verb.lower)'
+          - m
+          - >-
+            ES_SHORT_IMPERATIVES.has(stem) ||
+            (/[áéí]/u.test(m[1]) && /[ae]$/u.test(stem) && esFiniteVerb(stem) && !esIsInfinitive(verb.lower))
+        return: "found && { ...found, warningOnly: true as const }"
+      # "Les 20 primeros": a pronoun before a number stands where the article goes.
+      esLesNumber:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          token: at.tokens[at.i]
+          count: at.tokens[at.i + 1]
+        when:
+          - token.lower === "les" && count && !count.broken && /^\p{N}+$/u.test(count.text)
+          - count.text !== "1"
+        return: 'esReplaceToken(ctx, token, ["los", "las"], "spanishConfusions", "review_msg_spanish_pronoun_article", count)'
     frames:
       # "de el", "ala", "de más", "q", a clitic before an imperative and "les" before a
       # number. The fixer reads the words before and after the token
@@ -3807,7 +3954,15 @@ rules:
       - regex: "(?:de|a|alas?|q|me|te|se|les?|los?|las?|nos|os){{WORD_TAIL}}"
         flags: giu
         scan: owned
-        fixer: frameConfusions
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+          at: esAround(tokens, i)
+        when:
+          - i >= 0
+          - token.word && token.start >= ctx.from && token.start < ctx.to
+        return: "esContraction(ctx, at) ?? esAlaPreposition(ctx, at) ?? esDeMas(ctx, at) ?? esShorthandQue(ctx, at) ?? esCliticTwice(ctx, at) ?? esLesNumber(ctx, at)"
   - id: es.typography
     checks: [spanishTypography]
     group: spanishTypography
@@ -5059,13 +5214,237 @@ rules:
     group: spanishAgreement
     style: match
     message: review_msg_spanish_agreement
+    # Short closed-class frames of agreement: "miles de persona" -> "personas", "soy conscientes" ->
+    # "consciente". The first finding wins.
+    sets:
+      # Mass nouns an amount may still measure loosely ("millones de dinero" is clumsy, not plural).
+      ES_MASS:
+        [
+          dinero, gente, agua, tiempo, información, trabajo, comida, ropa, música, arena, leche, aire, basura,
+          energía, sangre, carne, madera, gasolina, petróleo, vino, cerveza, azúcar, sal, harina, público,
+          personal, ganado, polvo,
+        ]
+      # Nouns of amount that count a plural: "miles de personas", "decenas de veces".
+      ES_FR_AMOUNTS: [miles, millones, cientos, centenares, decenas, docenas, billones, millares]
+      ES_SINGULAR_COPULA_FORMS: [soy, eres, estoy, estás]
+      ES_FR_DEGREE: [muy, tan, bastante, demasiado, más, menos, tremendamente, realmente]
+      ES_FR_PLURAL_DETERMINERS: [los, las, estos, estas, esos, esas, aquellos, aquellas, mis, tus, sus]
+      ES_PREPOSITIONS_BEFORE_LO: [de, por, en, con, para, sin, desde, hasta, sobre, entre]
+      # Feminine nouns with a stressed first "a": "el área", but "la misma área".
+      ES_STRESSED_A: [área, agua, alma, arma, aula, águila, hambre, hacha, hada, ala, ancla, arca]
+      # Copulas whose participle agrees with a subject placed after it: "queda garantizada la
+      # entrega".
+      ES_FR_COPULAS:
+        [queda, quedan, quedó, quedaron, quedaba, quedaban, está, están, estaba, estaban, estuvo, estuvieron, resulta, resultan, resultó, resultaron]
+      # "tener" + participle + object: "tenía prevista la reunión" (the participle agrees with it).
+      ES_FR_TENER:
+        [tengo, tienes, tiene, tenemos, tienen, tenía, tenías, teníamos, tenían, tuve, tuvo, tuvimos, tuvieron, tendrá, tendrán, tendría, tendrían, tenga, tengan]
+    maps:
+      # The feminine article of a masculine one before a noun with a stressed first "a".
+      ES_FEMININE_ARTICLE: { el: la, un: una, del: de la, al: a la }
+    defs:
+      ES_COMPOUND_VERB: /^(?:corta|para|lava|saca|abre|guarda|limpia|porta|pasa|cuenta|rompe|mata|quita|salva|tapa|cubre|pica|lanza|toca|cumple|sujeta|chupa|espanta|trota|ciempiés)\p{L}{3,}s$/u
+      # Shortened adjectives and their full plural forms: "buen amigo" but "buenos amigos".
+      ES_APOCOPE: >-
+        new Map([
+          ["buen", ["buenos", "buenas"]], ["mal", ["malos", "malas"]], ["gran", ["grandes", "grandes"]],
+          ["primer", ["primeros", "primeras"]], ["tercer", ["terceros", "terceras"]],
+        ])
+      # Participles that name or rank: "está considerado la mejor obra" (the subject is before).
+      ES_NAMING: /^(?:considerad|llamad|conocid|nombrad|elegid|declarad|proclamad|reconocid|catalogad|calificad|denominad|tenid|situad|ubicad)[oa]s?$/u
+      # "decenas de personalidad" -> "personalidades". "miles de millones", "cientos de miles":
+      # amounts of amounts are plural already.
+      esAmountOf:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          token: at.tokens[at.i + 2]
+          word: token.lower
+          noun: esReadNoun(word)
+          plural: esPluralOf(word)
+        when:
+          - ES_FR_AMOUNTS.has(at.tokens[at.i].lower) && at.next() === "de"
+          - token?.word && !token.broken && /^\p{Ll}+$/u.test(token.text)
+          - '!(!noun || noun.plural || noun.invariant || !esIsNoun(word) || esAttributeOf(word))'
+          - '!ES_MASS.has(word)'
+          - '!(ES_FR_AMOUNTS.has(word) || esFiniteVerb(word))'
+          - plural
+        return: 'esReplaceToken(ctx, token, [plural], "spanishAgreement", "review_msg_spanish_agreement", at.tokens[at.i])'
+      # "Soy conscientes", "Estoy cansados": a first or second person singular takes no plural. "Tú y
+      # yo estamos" is plural; "yo soy" with a subject before keeps its person. The attribute
+      # closes its phrase: "soy conscientes de", "estoy cansados.".
+      esSingularAttribute:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          k: 'ES_FR_DEGREE.has(at.next()) ? 2 : 1'
+          token: at.tokens[at.i + k]
+          word: token.lower
+          reading: esAttributeOf(word)
+          singular: >-
+            reading?.plural && /[oa]s$/u.test(word) && !esIsNoun(word)
+              ? word.slice(0, -1)
+              : word.endsWith("ces") && ES_INVARIANT.has(`${word.slice(0, -3)}z`)
+                ? `${word.slice(0, -3)}z`
+                : ES_INVARIANT.has(word.slice(0, -1))
+                  ? word.slice(0, -1)
+                  : ES_INVARIANT.has(word.slice(0, -2)) ? word.slice(0, -2) : null
+          after: esAround(at.tokens, at.i + k)
+        when:
+          - ES_SINGULAR_COPULA_FORMS.has(at.tokens[at.i].lower)
+          - '!/^(?:y|e|ni)$/u.test(at.prev(2))'
+          - token?.word && !at.tokens[at.i + 1].broken && /^\p{Ll}+$/u.test(token.text)
+          - word.endsWith("s")
+          - singular
+          - after.endsAfter() || /^(?:de|del|con|para|por|en|a|y|e|pero)$/u.test(after.next())
+        return: 'esReplaceToken(ctx, token, [singular], "spanishAgreement", "review_msg_spanish_agreement", at.tokens[at.i])'
+      # "buen amigos" -> "buenos amigos": the shortened form goes only before a singular noun. "gran
+      # cortafuegos", "un buen paraguas": a verb-and-noun compound is singular too. "Gran Bretaña"
+      # and other names are capitalized; "el mal menor" is no plural.
+      esApocopePlural:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          token: at.tokens[at.i]
+          forms: ES_APOCOPE.get(token.lower)
+          nounToken: at.tokens[at.i + 1]
+          noun: esReadNoun(nounToken.lower)
+        when:
+          - forms && nounToken?.word && !nounToken.broken && /^\p{Ll}+$/u.test(nounToken.text)
+          - noun?.plural && noun.gender
+          - '!ES_COMPOUND_VERB.test(nounToken.lower)'
+        return: 'esReplaceToken(ctx, token, [forms[noun.gender === "f" ? 1 : 0]], "spanishAgreement", "review_msg_spanish_agreement", nounToken)'
+      # "las consecuencias directas e indirectos" -> "indirectas": the second of two adjectives joined
+      # after a noun agrees with the noun the first one already agrees with. The first adjective
+      # agreeing with the noun shows the phrase is "noun adjective y …"; a second word that is a noun
+      # too may start a phrase of its own ("faldas rojas y blanco").
+      esCoordinatedAdjective:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          noun: esReadNoun(at.tokens[at.i].lower)
+          first: at.next()
+          second: at.tokens[at.i + 3]
+          a: esGenderedForm(first)
+          b: esGenderedForm(second.lower)
+          feminine: noun.gender === "f"
+          stem: /^(\p{L}+?)(?:o|a|os|as)$/u.exec(second.lower)?.[1]
+        when:
+          - noun?.gender && !noun.paired && /^\p{Ll}/u.test(at.tokens[at.i].text)
+          - /^(?:y|e|o|u|ni)$/u.test(at.next(2)) && second?.word && !second.broken
+          - '!(!a || !b || esIsNoun(second.lower) || esFiniteVerb(second.lower))'
+          - '!(a.feminine !== feminine || a.plural !== noun.plural)'
+          - '!(b.feminine === feminine && b.plural === noun.plural)'
+          - stem && esAround(at.tokens, at.i + 3).endsAfter()
+        return: >-
+          esReplaceToken(ctx, second, [`${stem}${feminine ? "a" : "o"}${noun.plural ? "s" : ""}`], "spanishAgreement",
+            "review_msg_spanish_agreement", at.tokens[at.i])
+      # "Toda las frases" -> "Todas", "todos el día" -> "todo": "todo" takes its noun's number. Only
+      # "toda las": "tienen todos el mismo precio" floats the quantifier after its verb. "sobre todo
+      # las charlas", "del todo las diferencias", "habla de todo las tardes": "todo" stands alone
+      # there. "todos el mismo día"? The noun after the determiner settles the number.
+      esTodoNumber:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          m: /^(tod)(o|a)(s?)$/u.exec(at.tokens[at.i].lower)
+          plural: ES_FR_PLURAL_DETERMINERS.has(at.next())
+          noun: esReadNoun(at.next(2))
+        when:
+          - m && !at.tokens[at.i + 1]?.broken
+          - plural && m[3] !== "s"
+          - '!/^(?:sobre|del|ante|de|con|en|por|para|lo)$/u.test(at.prev())'
+          - noun && noun.plural === plural
+        return: >-
+          esReplaceToken(ctx, at.tokens[at.i], [`tod${m[2]}${plural ? "s" : ""}`], "spanishAgreement",
+            "review_msg_spanish_agreement", at.tokens[at.i + 2])
+      # "por lo noche" -> "la noche": the neuter "lo" takes no feminine noun.
+      esLoFeminine:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          word: at.next()
+          noun: esReadNoun(word)
+        when:
+          - at.tokens[at.i].text === "lo" && ES_PREPOSITIONS_BEFORE_LO.has(at.prev())
+          - '!(!noun || noun.plural || noun.gender !== "f" || noun.paired)'
+          - '!(!esIsNoun(word) || esAttributeOf(word) || esFiniteVerb(word) || esIsInfinitive(word))'
+        return: 'esReplaceToken(ctx, at.tokens[at.i], ["la"], "spanishAgreement", "review_msg_spanish_agreement", at.tokens[at.i + 1])'
+      # "El mismo área" -> "La misma área": "el" serves the noun, not the adjective before it.
+      esStressedAdjective:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          det: at.tokens[at.i]
+          article: ES_FEMININE_ARTICLE[det.lower]
+          adjective: at.next()
+          m: /^(\p{L}+)o$/u.exec(adjective)
+          form: esGenderedForm(adjective)
+        when:
+          - article && ES_STRESSED_A.has(at.next(2))
+          - '!(!m || !form || form.feminine || form.plural || at.tokens[at.i + 2].broken)'
+        return: >-
+          esReplaceToken(ctx, esSpan(ctx, det, at.tokens[at.i + 1]), [`${article} ${m[1]}a`], "spanishAgreement",
+            "review_msg_spanish_agreement", at.tokens[at.i + 2])
+      # "Queda garantizado la entrega" -> "garantizada": the participle agrees with the subject after
+      # it; "Tenía prevista el resultado" -> "previsto": or with the object of "tener" after it. Only
+      # a clause start, a subordinator or a fronted "de esta forma" / "por tanto" before: "Ya está
+      # pagada la cuenta", "que quede…". "Lo tiene agotado la enfermedad": the participle agrees
+      # with the clitic; "tiene sentido la idea": a noun. "su reunión": with no known gender, only a
+      # determiner that shows one decides.
+      esPostposedSubject:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          verb: at.tokens[at.i].lower
+          token: at.tokens[at.i + 1]
+          prev: at.prev()
+          fronted: >-
+            (/^(?:forma|modo|manera)$/u.test(prev) && at.prev(3) === "de") ||
+            (/^(?:tanto|ello|esto|eso|consiguiente)$/u.test(prev) && /^(?:por|con)$/u.test(at.prev(2)))
+          form: esParticiple(token.lower)
+          m: /^(\p{L}+?)(o|a|os|as)$/u.exec(token.lower)
+          det: ES_DETERMINER.get(at.next(2))
+          noun: esReadNoun(at.next(3))
+          plural: det.slot >= 2
+          feminine: 'noun.gender ? noun.gender === "f" : det.slot % 2 === 1'
+        when:
+          - token?.word && !token.broken && !ES_NAMING.test(token.lower)
+          - >-
+            ES_FR_COPULAS.has(verb)
+              ? at.starts || fronted || /^(?:ya|que|no|así|también|ahora|hoy|y)$/u.test(prev)
+              : ES_FR_TENER.has(verb) && !ES_CLITICS.has(prev) && !esIsNoun(token.lower)
+          - form && m
+          - '!(!det || !noun || /^(?:del|al)$/u.test(at.next(2)) || at.next(3) === "verdad")'
+          - '!(!noun.gender && det.forms[0] === det.forms[1])'
+          - '!(noun.plural !== plural && !noun.invariant)'
+          - '!(form.feminine === feminine && form.plural === plural)'
+        return: >-
+          esReplaceToken(ctx, token, [`${m[1]}${feminine ? "a" : "o"}${plural ? "s" : ""}`], "spanishAgreement",
+            "review_msg_spanish_agreement", at.tokens[at.i + 3])
+      # "a favor de uno acreedores" -> "unos": the plural noun takes the plural article. "cada uno
+      # sus cosas", "uno mismos"? Only a noun or adjective plural after it. With no known gender,
+      # "unas" can be correct too: "de uno opiniones" (unas).
+      esUnoPlural:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          next: at.tokens[at.i + 1]
+          noun: esReadNoun(next.lower)
+        when:
+          - at.tokens[at.i].lower === "uno"
+          - next?.word && !next.broken && /^\p{Ll}+s$/u.test(next.text)
+          - '!(!noun?.plural || noun.gender === "f" || esFiniteVerb(next.lower))'
+          - '!(ES_DETERMINER.has(next.lower) || /^(?:más|menos|tras|cuantos)$/u.test(next.lower))'
+        return: >-
+          esReplaceToken(ctx, at.tokens[at.i], noun.gender === "m" ? ["unos"] : ["unos", "unas"], "spanishAgreement",
+            "review_msg_spanish_agreement", next)
     frames:
       # Every word: one frame keys on any noun before two joined adjectives. The fixer reads
       # the gender and number of the words around the token (review/spanish/frames.ts).
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
-        fixer: frameAgreement
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+          at: esAround(tokens, i)
+        when:
+          - i >= 0
+          - token.word && token.start >= ctx.from && token.start < ctx.to
+        return: "esAmountOf(ctx, at) ?? esSingularAttribute(ctx, at) ?? esApocopePlural(ctx, at) ?? esCoordinatedAdjective(ctx, at) ?? esTodoNumber(ctx, at) ?? esLoFeminine(ctx, at) ?? esStressedAdjective(ctx, at) ?? esPostposedSubject(ctx, at) ?? esUnoPlural(ctx, at)"
   - id: es.clauseStyle
     checks: [stylePhrasing]
     style: match
@@ -5181,13 +5560,40 @@ rules:
     checks: [englishRepeatedWords]
     style: match
     message: review_msg_repeated_words
+    defs:
+      # "a casa a casa" -> "a casa": two words typed twice in a row. "paso a paso a la cima", "de dos
+      # en dos en", "los de los pájaros", "sea quien sea quien": distributive pairs and set phrases
+      # repeat their words.
+      esRepeatedPair:
+        args: "ctx: DetectContext, at: SpanishAround"
+        let:
+          t: at.tokens
+          a: t[at.i]
+          b: t[at.i + 1]
+        when:
+          - '!(!b?.word || a.lower === b.lower || /^(?:y|e|o|u|ni|que)$/u.test(b.lower))'
+          - '!(/^(?:y|e|o|u|ni|de|sea|quien)$/u.test(a.lower) || ES_PREPOSITIONS.has(b.lower))'
+          - '!(t[at.i + 2]?.lower !== a.lower || t[at.i + 3]?.lower !== b.lower)'
+          - '![1, 2, 3].some((k) => t[at.i + k].broken || !t[at.i + k].word)'
+          - t[at.i + 4]?.lower !== a.lower
+        return: >-
+          esReplaceToken(ctx, esSpan(ctx, a, t[at.i + 3]), [ctx.text.slice(a.start, b.end)], "englishRepeatedWords",
+            "review_msg_repeated_words")
     frames:
       # Every word: the fixer compares the word pair at the token with the pair after it
       # (review/spanish/frames.ts).
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
-        fixer: repeatedPair
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+          at: esAround(tokens, i)
+        when:
+          - i >= 0
+          - token.word && token.start >= ctx.from && token.start < ctx.to
+        return: "esRepeatedPair(ctx, at)"
 
 # Phrase tables: "typed = fix", "a | b = fix" for typed variants, "fix1; fix2" for choices.
 phrases:

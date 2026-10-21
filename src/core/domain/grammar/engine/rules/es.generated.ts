@@ -47,6 +47,7 @@ import {
   esNounForm,
   esParticiple,
   esPlain,
+  esPluralOf,
   esPresentInfinitive,
   esReadNoun,
   esReplaceToken,
@@ -2093,6 +2094,63 @@ export const ES_AUXILIARY_ONLY: ReadonlySet<string> = new Set([
   "hubieran",
 ]);
 
+export const ES_WING: ReadonlySet<string> = new Set([
+  "delta",
+  "derecha",
+  "izquierda",
+  "norte",
+  "sur",
+  "este",
+  "oeste",
+  "oriental",
+  "occidental",
+]);
+
+export const ES_WING_DETERMINERS: ReadonlySet<string> = new Set([
+  "el",
+  "un",
+  "del",
+  "al",
+  "su",
+  "sus",
+  "mi",
+  "mis",
+  "tu",
+  "tus",
+  "este",
+  "ese",
+  "aquel",
+  "otra",
+  "otras",
+  "cada",
+  "las",
+  "unas",
+  "estas",
+  "esas",
+  "aquellas",
+  "nuestra",
+  "nuestras",
+  "vuestra",
+  "vuestras",
+  "sin",
+  "con",
+  "en",
+  "de",
+  "por",
+]);
+
+export const ES_SHORT_IMPERATIVES: ReadonlySet<string> = new Set([
+  "da",
+  "di",
+  "haz",
+  "pon",
+  "sal",
+  "ten",
+  "ven",
+  "ve",
+  "sé",
+]);
+
 export const ES_MONTHS: ReadonlySet<string> = new Set([
   "enero",
   "febrero",
@@ -2398,6 +2456,149 @@ export const ES_HABER_QUANTITY: ReadonlySet<string> = new Set([
 
 export const ES_DATIVE: ReadonlySet<string> = new Set(["me", "te", "le", "les", "nos", "os"]);
 
+export const ES_MASS: ReadonlySet<string> = new Set([
+  "dinero",
+  "gente",
+  "agua",
+  "tiempo",
+  "información",
+  "trabajo",
+  "comida",
+  "ropa",
+  "música",
+  "arena",
+  "leche",
+  "aire",
+  "basura",
+  "energía",
+  "sangre",
+  "carne",
+  "madera",
+  "gasolina",
+  "petróleo",
+  "vino",
+  "cerveza",
+  "azúcar",
+  "sal",
+  "harina",
+  "público",
+  "personal",
+  "ganado",
+  "polvo",
+]);
+
+export const ES_FR_AMOUNTS: ReadonlySet<string> = new Set([
+  "miles",
+  "millones",
+  "cientos",
+  "centenares",
+  "decenas",
+  "docenas",
+  "billones",
+  "millares",
+]);
+
+export const ES_SINGULAR_COPULA_FORMS: ReadonlySet<string> = new Set([
+  "soy",
+  "eres",
+  "estoy",
+  "estás",
+]);
+
+export const ES_FR_DEGREE: ReadonlySet<string> = new Set([
+  "muy",
+  "tan",
+  "bastante",
+  "demasiado",
+  "más",
+  "menos",
+  "tremendamente",
+  "realmente",
+]);
+
+export const ES_FR_PLURAL_DETERMINERS: ReadonlySet<string> = new Set([
+  "los",
+  "las",
+  "estos",
+  "estas",
+  "esos",
+  "esas",
+  "aquellos",
+  "aquellas",
+  "mis",
+  "tus",
+  "sus",
+]);
+
+export const ES_PREPOSITIONS_BEFORE_LO: ReadonlySet<string> = new Set([
+  "de",
+  "por",
+  "en",
+  "con",
+  "para",
+  "sin",
+  "desde",
+  "hasta",
+  "sobre",
+  "entre",
+]);
+
+export const ES_STRESSED_A: ReadonlySet<string> = new Set([
+  "área",
+  "agua",
+  "alma",
+  "arma",
+  "aula",
+  "águila",
+  "hambre",
+  "hacha",
+  "hada",
+  "ala",
+  "ancla",
+  "arca",
+]);
+
+export const ES_FR_COPULAS: ReadonlySet<string> = new Set([
+  "queda",
+  "quedan",
+  "quedó",
+  "quedaron",
+  "quedaba",
+  "quedaban",
+  "está",
+  "están",
+  "estaba",
+  "estaban",
+  "estuvo",
+  "estuvieron",
+  "resulta",
+  "resultan",
+  "resultó",
+  "resultaron",
+]);
+
+export const ES_FR_TENER: ReadonlySet<string> = new Set([
+  "tengo",
+  "tienes",
+  "tiene",
+  "tenemos",
+  "tienen",
+  "tenía",
+  "tenías",
+  "teníamos",
+  "tenían",
+  "tuve",
+  "tuvo",
+  "tuvimos",
+  "tuvieron",
+  "tendrá",
+  "tendrán",
+  "tendría",
+  "tendrían",
+  "tenga",
+  "tengan",
+]);
+
 export const ES_REPEATABLE_ADVERBS: ReadonlySet<string> = new Set([
   "también",
   "tampoco",
@@ -2447,6 +2648,29 @@ export const ES_FUTURE_ACCENTS: Readonly<Record<string, string>> = {
   as: "ás",
   an: "án",
   e: "é",
+};
+
+export const ES_UAR: Readonly<Record<string, string>> = {
+  continua: "continúa",
+  continuas: "continúas",
+  continuan: "continúan",
+  perpetua: "perpetúa",
+  perpetuan: "perpetúan",
+};
+
+export const ES_ACCENTED_DEMONSTRATIVE: Readonly<Record<string, string>> = {
+  éste: "este",
+  ésta: "esta",
+  éstos: "estos",
+  éstas: "estas",
+  ése: "ese",
+  ésa: "esa",
+  ésos: "esos",
+  ésas: "esas",
+  aquél: "aquel",
+  aquélla: "aquella",
+  aquéllos: "aquellos",
+  aquéllas: "aquellas",
 };
 
 export const ES_PLURAL_HABER: Readonly<Record<string, string>> = {
@@ -2499,6 +2723,13 @@ export const ES_PLURAL_MODAL: Readonly<Record<string, string>> = {
   tenían: "tenía",
   tendrán: "tendrá",
   tendrían: "tendría",
+};
+
+export const ES_FEMININE_ARTICLE: Readonly<Record<string, string>> = {
+  el: "la",
+  un: "una",
+  del: "de la",
+  al: "a la",
 };
 
 // es.yaml def esFinding
@@ -4659,6 +4890,49 @@ export function esFramedAccent(ctx: DetectContext, tokens: SpanishTokens, i: num
   );
 }
 
+// es.yaml rule es.frameAccents def esUarVerb
+export function esUarVerb(ctx: DetectContext, at: SpanishAround) {
+  const token = at.tokens[at.i];
+  const verb = ES_UAR[token.lower];
+  if (!verb) return null;
+  const next = at.next();
+  if (!(
+    (/(?:ando|iendo|yendo)$/u.test(next) && esIsGerund(next)) ||
+    /^(?:se|me|te|le|les|nos|os|lo)$/u.test(at.prev())
+  ))
+    return null;
+  return esReplaceToken(
+    ctx,
+    token,
+    [verb],
+    "spanishAccents",
+    "review_msg_spanish_accent",
+    at.tokens[at.i + 1] ?? token,
+  );
+}
+
+// es.yaml rule es.frameAccents def esAccentedDeterminer
+export function esAccentedDeterminer(ctx: DetectContext, at: SpanishAround) {
+  const token = at.tokens[at.i];
+  const plain = ES_ACCENTED_DEMONSTRATIVE[token.lower];
+  const nounToken = at.tokens[at.i + 1];
+  if (!(plain && nounToken?.word && !nounToken.broken && /^\p{Ll}/u.test(nounToken.text)))
+    return null;
+  const noun = esReadNoun(nounToken.lower);
+  const nominal = esIsNoun(nounToken.lower) || noun?.paired;
+  if (!noun || !nominal || (esFiniteVerb(nounToken.lower) && !esIsNoun(nounToken.lower)))
+    return null;
+  if (!(noun.plural === plain.endsWith("s"))) return null;
+  return esReplaceToken(
+    ctx,
+    token,
+    [plain],
+    "spanishAccents",
+    "review_msg_spanish_accent_extra",
+    nounToken,
+  );
+}
+
 // es.yaml rule es.confusions def ES_PERFECT_BEFORE
 export const ES_PERFECT_BEFORE =
   /^(?:pod\p{L}*|deb\p{L}*|pued\p{L}*|pud\p{L}*|tenía|tendría|que|sin|de|por|para|parece|parecía|habría)$/u;
@@ -6105,6 +6379,116 @@ export function esDadoQue(ctx: DetectContext, tokens: SpanishTokens, i: number) 
   );
 }
 
+// es.yaml rule es.frameConfusions def esContraction
+export function esContraction(ctx: DetectContext, at: SpanishAround) {
+  const prep = at.tokens[at.i];
+  const article = at.tokens[at.i + 1];
+  if (!(/^(?:de|a)$/u.test(prep.lower) && article?.text === "el" && !article.broken)) return null;
+  if (/^\p{Lu}/u.test(prep.text) && !at.starts) return null;
+  const next = at.tokens[at.i + 2];
+  if (!(next?.word && !next.broken && /^\p{Ll}/u.test(next.text))) return null;
+  if (ES_CLITICS.has(next.lower)) return null;
+  if (esFiniteVerb(next.lower) && !esIsNoun(next.lower) && !esAttributeOf(next.lower)) return null;
+  return esReplaceToken(
+    ctx,
+    esSpan(ctx, prep, article),
+    [prep.lower === "de" ? "del" : "al"],
+    "spanishConfusions",
+    "review_msg_spanish_contraction",
+    next,
+  );
+}
+
+// es.yaml rule es.frameConfusions def esAlaPreposition
+export function esAlaPreposition(ctx: DetectContext, at: SpanishAround) {
+  const word = at.tokens[at.i].lower;
+  if (!(word === "ala" || word === "alas")) return null;
+  const prev = at.prev();
+  const next = at.next();
+  if (!prev || ES_WING_DETERMINERS.has(prev) || !next || ES_WING.has(next)) return null;
+  if (!/^\p{Ll}/u.test(at.tokens[at.i + 1].text) || !esIsNoun(next) || esAttributeOf(next))
+    return null;
+  const noun = esReadNoun(next);
+  if (!(noun && noun.plural === (word === "alas"))) return null;
+  return esReplaceToken(
+    ctx,
+    at.tokens[at.i],
+    [word === "ala" ? "a la" : "a las"],
+    "spanishConfusions",
+    "review_msg_spanish_confusion",
+    at.tokens[at.i + 1],
+  );
+}
+
+// es.yaml rule es.frameConfusions def esDeMas
+export function esDeMas(ctx: DetectContext, at: SpanishAround) {
+  if (!(at.tokens[at.i].lower === "de" && at.next() === "más" && /^(?:y|e)$/u.test(at.prev())))
+    return null;
+  const after = at.tokens[at.i + 2];
+  if (after && !after.broken && !/^[.,;:!…)]$/u.test(after.text)) return null;
+  return esReplaceToken(
+    ctx,
+    esSpan(ctx, at.tokens[at.i], at.tokens[at.i + 1]),
+    ["demás"],
+    "spanishConfusions",
+    "review_msg_spanish_confusion",
+  );
+}
+
+// es.yaml rule es.frameConfusions def esShorthandQue
+export function esShorthandQue(ctx: DetectContext, at: SpanishAround) {
+  if (!(at.tokens[at.i].text === "q" && at.prev() && at.next())) return null;
+  if (/^(?:la|una|letra|de|con|y)$/u.test(at.prev()) || at.tokens[at.i + 1].text === ".")
+    return null;
+  if (!/^\p{Ll}/u.test(at.tokens[at.i + 1].text)) return null;
+  return esReplaceToken(ctx, at.tokens[at.i], ["que"], "spanishConfusions", "review_msg_typo");
+}
+
+// es.yaml rule es.frameConfusions def esCliticTwice
+export function esCliticTwice(ctx: DetectContext, at: SpanishAround) {
+  const clitic = at.tokens[at.i];
+  const verb = at.tokens[at.i + 1];
+  if (!(ES_CLITICS.has(clitic.lower) && verb?.word && !verb.broken)) return null;
+  if (!(/^\p{Ll}+$/u.test(verb.text) && !esIsNoun(verb.lower))) return null;
+  if (at.prev() === "que" && at.prev(2) === verb.lower) return null;
+  const m = /^(\p{L}+?)((?:me|te|le|les|lo|la|los|las|nos|os|se){1,2})$/u.exec(verb.lower);
+  if (!m) return null;
+  const stem = esPlain(m[1]);
+  if (!(
+    ES_SHORT_IMPERATIVES.has(stem) ||
+    (/[áéí]/u.test(m[1]) &&
+      /[ae]$/u.test(stem) &&
+      esFiniteVerb(stem) &&
+      !esIsInfinitive(verb.lower))
+  ))
+    return null;
+  const found = esReplaceToken(
+    ctx,
+    esSpan(ctx, clitic, verb),
+    [],
+    "spanishConfusions",
+    "review_msg_spanish_clitic_twice",
+  );
+  return found && { ...found, warningOnly: true as const };
+}
+
+// es.yaml rule es.frameConfusions def esLesNumber
+export function esLesNumber(ctx: DetectContext, at: SpanishAround) {
+  const token = at.tokens[at.i];
+  const count = at.tokens[at.i + 1];
+  if (!(token.lower === "les" && count && !count.broken && /^\p{N}+$/u.test(count.text)))
+    return null;
+  if (!(count.text !== "1")) return null;
+  return esReplaceToken(
+    ctx,
+    token,
+    ["los", "las"],
+    "spanishConfusions",
+    "review_msg_spanish_pronoun_article",
+    count,
+  );
+}
+
 // es.yaml rule es.typography def esKnown
 export function esKnown(word: string) {
   return esIsNoun(word) || !!esAttributeOf(word) || esIsGenderedEntry(word) || esVerbLike(word);
@@ -6704,6 +7088,235 @@ export function esDoubledPronoun(ctx: DetectContext, tokens: SpanishTokens, i: n
   );
 }
 
+// es.yaml rule es.frameAgreement def ES_COMPOUND_VERB
+export const ES_COMPOUND_VERB =
+  /^(?:corta|para|lava|saca|abre|guarda|limpia|porta|pasa|cuenta|rompe|mata|quita|salva|tapa|cubre|pica|lanza|toca|cumple|sujeta|chupa|espanta|trota|ciempiés)\p{L}{3,}s$/u;
+
+// es.yaml rule es.frameAgreement def ES_APOCOPE
+export const ES_APOCOPE = new Map([
+  ["buen", ["buenos", "buenas"]],
+  ["mal", ["malos", "malas"]],
+  ["gran", ["grandes", "grandes"]],
+  ["primer", ["primeros", "primeras"]],
+  ["tercer", ["terceros", "terceras"]],
+]);
+
+// es.yaml rule es.frameAgreement def ES_NAMING
+export const ES_NAMING =
+  /^(?:considerad|llamad|conocid|nombrad|elegid|declarad|proclamad|reconocid|catalogad|calificad|denominad|tenid|situad|ubicad)[oa]s?$/u;
+
+// es.yaml rule es.frameAgreement def esAmountOf
+export function esAmountOf(ctx: DetectContext, at: SpanishAround) {
+  if (!(ES_FR_AMOUNTS.has(at.tokens[at.i].lower) && at.next() === "de")) return null;
+  const token = at.tokens[at.i + 2];
+  if (!(token?.word && !token.broken && /^\p{Ll}+$/u.test(token.text))) return null;
+  const word = token.lower;
+  const noun = esReadNoun(word);
+  if (!noun || noun.plural || noun.invariant || !esIsNoun(word) || esAttributeOf(word)) return null;
+  if (ES_MASS.has(word)) return null;
+  if (ES_FR_AMOUNTS.has(word) || esFiniteVerb(word)) return null;
+  const plural = esPluralOf(word);
+  if (!plural) return null;
+  return esReplaceToken(
+    ctx,
+    token,
+    [plural],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i],
+  );
+}
+
+// es.yaml rule es.frameAgreement def esSingularAttribute
+export function esSingularAttribute(ctx: DetectContext, at: SpanishAround) {
+  if (!ES_SINGULAR_COPULA_FORMS.has(at.tokens[at.i].lower)) return null;
+  if (/^(?:y|e|ni)$/u.test(at.prev(2))) return null;
+  const k = ES_FR_DEGREE.has(at.next()) ? 2 : 1;
+  const token = at.tokens[at.i + k];
+  if (!(token?.word && !at.tokens[at.i + 1].broken && /^\p{Ll}+$/u.test(token.text))) return null;
+  const word = token.lower;
+  if (!word.endsWith("s")) return null;
+  const reading = esAttributeOf(word);
+  const singular =
+    reading?.plural && /[oa]s$/u.test(word) && !esIsNoun(word)
+      ? word.slice(0, -1)
+      : word.endsWith("ces") && ES_INVARIANT.has(`${word.slice(0, -3)}z`)
+        ? `${word.slice(0, -3)}z`
+        : ES_INVARIANT.has(word.slice(0, -1))
+          ? word.slice(0, -1)
+          : ES_INVARIANT.has(word.slice(0, -2))
+            ? word.slice(0, -2)
+            : null;
+  if (!singular) return null;
+  const after = esAround(at.tokens, at.i + k);
+  if (!(after.endsAfter() || /^(?:de|del|con|para|por|en|a|y|e|pero)$/u.test(after.next())))
+    return null;
+  return esReplaceToken(
+    ctx,
+    token,
+    [singular],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i],
+  );
+}
+
+// es.yaml rule es.frameAgreement def esApocopePlural
+export function esApocopePlural(ctx: DetectContext, at: SpanishAround) {
+  const token = at.tokens[at.i];
+  const forms = ES_APOCOPE.get(token.lower);
+  const nounToken = at.tokens[at.i + 1];
+  if (!(forms && nounToken?.word && !nounToken.broken && /^\p{Ll}+$/u.test(nounToken.text)))
+    return null;
+  const noun = esReadNoun(nounToken.lower);
+  if (!(noun?.plural && noun.gender)) return null;
+  if (ES_COMPOUND_VERB.test(nounToken.lower)) return null;
+  return esReplaceToken(
+    ctx,
+    token,
+    [forms[noun.gender === "f" ? 1 : 0]],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    nounToken,
+  );
+}
+
+// es.yaml rule es.frameAgreement def esCoordinatedAdjective
+export function esCoordinatedAdjective(ctx: DetectContext, at: SpanishAround) {
+  const noun = esReadNoun(at.tokens[at.i].lower);
+  if (!(noun?.gender && !noun.paired && /^\p{Ll}/u.test(at.tokens[at.i].text))) return null;
+  const first = at.next();
+  const second = at.tokens[at.i + 3];
+  if (!(/^(?:y|e|o|u|ni)$/u.test(at.next(2)) && second?.word && !second.broken)) return null;
+  const a = esGenderedForm(first);
+  const b = esGenderedForm(second.lower);
+  if (!a || !b || esIsNoun(second.lower) || esFiniteVerb(second.lower)) return null;
+  const feminine = noun.gender === "f";
+  if (a.feminine !== feminine || a.plural !== noun.plural) return null;
+  if (b.feminine === feminine && b.plural === noun.plural) return null;
+  const stem = /^(\p{L}+?)(?:o|a|os|as)$/u.exec(second.lower)?.[1];
+  if (!(stem && esAround(at.tokens, at.i + 3).endsAfter())) return null;
+  return esReplaceToken(
+    ctx,
+    second,
+    [`${stem}${feminine ? "a" : "o"}${noun.plural ? "s" : ""}`],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i],
+  );
+}
+
+// es.yaml rule es.frameAgreement def esTodoNumber
+export function esTodoNumber(ctx: DetectContext, at: SpanishAround) {
+  const m = /^(tod)(o|a)(s?)$/u.exec(at.tokens[at.i].lower);
+  if (!(m && !at.tokens[at.i + 1]?.broken)) return null;
+  const plural = ES_FR_PLURAL_DETERMINERS.has(at.next());
+  if (!(plural && m[3] !== "s")) return null;
+  if (/^(?:sobre|del|ante|de|con|en|por|para|lo)$/u.test(at.prev())) return null;
+  const noun = esReadNoun(at.next(2));
+  if (!(noun && noun.plural === plural)) return null;
+  return esReplaceToken(
+    ctx,
+    at.tokens[at.i],
+    [`tod${m[2]}${plural ? "s" : ""}`],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i + 2],
+  );
+}
+
+// es.yaml rule es.frameAgreement def esLoFeminine
+export function esLoFeminine(ctx: DetectContext, at: SpanishAround) {
+  if (!(at.tokens[at.i].text === "lo" && ES_PREPOSITIONS_BEFORE_LO.has(at.prev()))) return null;
+  const word = at.next();
+  const noun = esReadNoun(word);
+  if (!noun || noun.plural || noun.gender !== "f" || noun.paired) return null;
+  if (!esIsNoun(word) || esAttributeOf(word) || esFiniteVerb(word) || esIsInfinitive(word))
+    return null;
+  return esReplaceToken(
+    ctx,
+    at.tokens[at.i],
+    ["la"],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i + 1],
+  );
+}
+
+// es.yaml rule es.frameAgreement def esStressedAdjective
+export function esStressedAdjective(ctx: DetectContext, at: SpanishAround) {
+  const det = at.tokens[at.i];
+  const article = ES_FEMININE_ARTICLE[det.lower];
+  if (!(article && ES_STRESSED_A.has(at.next(2)))) return null;
+  const adjective = at.next();
+  const m = /^(\p{L}+)o$/u.exec(adjective);
+  const form = esGenderedForm(adjective);
+  if (!m || !form || form.feminine || form.plural || at.tokens[at.i + 2].broken) return null;
+  return esReplaceToken(
+    ctx,
+    esSpan(ctx, det, at.tokens[at.i + 1]),
+    [`${article} ${m[1]}a`],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i + 2],
+  );
+}
+
+// es.yaml rule es.frameAgreement def esPostposedSubject
+export function esPostposedSubject(ctx: DetectContext, at: SpanishAround) {
+  const verb = at.tokens[at.i].lower;
+  const token = at.tokens[at.i + 1];
+  if (!(token?.word && !token.broken && !ES_NAMING.test(token.lower))) return null;
+  const prev = at.prev();
+  const fronted =
+    (/^(?:forma|modo|manera)$/u.test(prev) && at.prev(3) === "de") ||
+    (/^(?:tanto|ello|esto|eso|consiguiente)$/u.test(prev) && /^(?:por|con)$/u.test(at.prev(2)));
+  if (
+    !(ES_FR_COPULAS.has(verb)
+      ? at.starts || fronted || /^(?:ya|que|no|así|también|ahora|hoy|y)$/u.test(prev)
+      : ES_FR_TENER.has(verb) && !ES_CLITICS.has(prev) && !esIsNoun(token.lower))
+  )
+    return null;
+  const form = esParticiple(token.lower);
+  const m = /^(\p{L}+?)(o|a|os|as)$/u.exec(token.lower);
+  if (!(form && m)) return null;
+  const det = ES_DETERMINER.get(at.next(2));
+  const noun = esReadNoun(at.next(3));
+  if (!det || !noun || /^(?:del|al)$/u.test(at.next(2)) || at.next(3) === "verdad") return null;
+  if (!noun.gender && det.forms[0] === det.forms[1]) return null;
+  const plural = det.slot >= 2;
+  if (noun.plural !== plural && !noun.invariant) return null;
+  const feminine = noun.gender ? noun.gender === "f" : det.slot % 2 === 1;
+  if (form.feminine === feminine && form.plural === plural) return null;
+  return esReplaceToken(
+    ctx,
+    token,
+    [`${m[1]}${feminine ? "a" : "o"}${plural ? "s" : ""}`],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    at.tokens[at.i + 3],
+  );
+}
+
+// es.yaml rule es.frameAgreement def esUnoPlural
+export function esUnoPlural(ctx: DetectContext, at: SpanishAround) {
+  if (!(at.tokens[at.i].lower === "uno")) return null;
+  const next = at.tokens[at.i + 1];
+  if (!(next?.word && !next.broken && /^\p{Ll}+s$/u.test(next.text))) return null;
+  const noun = esReadNoun(next.lower);
+  if (!noun?.plural || noun.gender === "f" || esFiniteVerb(next.lower)) return null;
+  if (ES_DETERMINER.has(next.lower) || /^(?:más|menos|tras|cuantos)$/u.test(next.lower))
+    return null;
+  return esReplaceToken(
+    ctx,
+    at.tokens[at.i],
+    noun.gender === "m" ? ["unos"] : ["unos", "unas"],
+    "spanishAgreement",
+    "review_msg_spanish_agreement",
+    next,
+  );
+}
+
 // es.yaml rule es.clauseStyle def ES_TIME_UNITS
 export const ES_TIME_UNITS =
   /^(?:segundo|minuto|hora|día|semana|mes|año|siglo|década|lustro|rato|tiempo)(?:s|es)?$/u;
@@ -6779,6 +7392,25 @@ export function esQuotePair(m: RegExpExecArray, ctx: DetectContext, open: string
   if (ctx.text.slice(m.index, end).includes("￼") || namedExampleBefore(ctx.text, m.index))
     return null;
   return [esQuoteMark(m.index, open, end), esQuoteMark(end - 1, close, end)];
+}
+
+// es.yaml rule es.repeatedPair def esRepeatedPair
+export function esRepeatedPair(ctx: DetectContext, at: SpanishAround) {
+  const t = at.tokens;
+  const a = t[at.i];
+  const b = t[at.i + 1];
+  if (!b?.word || a.lower === b.lower || /^(?:y|e|o|u|ni|que)$/u.test(b.lower)) return null;
+  if (/^(?:y|e|o|u|ni|de|sea|quien)$/u.test(a.lower) || ES_PREPOSITIONS.has(b.lower)) return null;
+  if (t[at.i + 2]?.lower !== a.lower || t[at.i + 3]?.lower !== b.lower) return null;
+  if ([1, 2, 3].some((k) => t[at.i + k].broken || !t[at.i + k].word)) return null;
+  if (!(t[at.i + 4]?.lower !== a.lower)) return null;
+  return esReplaceToken(
+    ctx,
+    esSpan(ctx, a, t[at.i + 3]),
+    [ctx.text.slice(a.start, b.end)],
+    "englishRepeatedWords",
+    "review_msg_repeated_words",
+  );
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -6890,6 +7522,16 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     return [esParaQue(ctx, tokens, i), esFramedAccent(ctx, tokens, i)].filter(
       (finding) => finding !== null,
     );
+  },
+  // es.yaml rule es.frameAccents frame 1
+  "@es.frameAccents/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    const token = tokens[i];
+    if (!(token.word && token.start >= ctx.from && token.start < ctx.to)) return null;
+    const at = esAround(tokens, i);
+    return esUarVerb(ctx, at) ?? esAccentedDeterminer(ctx, at);
   },
   // es.yaml rule es.confusions frame 1
   "@es.confusions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -7264,6 +7906,23 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       esDoubledSuperlative(ctx, tokens, i),
       esDadoQue(ctx, tokens, i),
     ].filter((finding) => finding !== null);
+  },
+  // es.yaml rule es.frameConfusions frame 1
+  "@es.frameConfusions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    const token = tokens[i];
+    if (!(token.word && token.start >= ctx.from && token.start < ctx.to)) return null;
+    const at = esAround(tokens, i);
+    return (
+      esContraction(ctx, at) ??
+      esAlaPreposition(ctx, at) ??
+      esDeMas(ctx, at) ??
+      esShorthandQue(ctx, at) ??
+      esCliticTwice(ctx, at) ??
+      esLesNumber(ctx, at)
+    );
   },
   // es.yaml rule es.typography frame 1
   "@es.typography/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
@@ -7898,6 +8557,26 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       (finding) => finding !== null,
     );
   },
+  // es.yaml rule es.frameAgreement frame 1
+  "@es.frameAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    const token = tokens[i];
+    if (!(token.word && token.start >= ctx.from && token.start < ctx.to)) return null;
+    const at = esAround(tokens, i);
+    return (
+      esAmountOf(ctx, at) ??
+      esSingularAttribute(ctx, at) ??
+      esApocopePlural(ctx, at) ??
+      esCoordinatedAdjective(ctx, at) ??
+      esTodoNumber(ctx, at) ??
+      esLoFeminine(ctx, at) ??
+      esStressedAdjective(ctx, at) ??
+      esPostposedSubject(ctx, at) ??
+      esUnoPlural(ctx, at)
+    );
+  },
   // es.yaml rule es.clauseStyle frame 1
   "@es.clauseStyle/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     const tokens = esTokens(ctx);
@@ -7915,6 +8594,16 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // es.yaml rule es.quotes frame 2
   "@es.quotes/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
     return esQuotePair(m, ctx, "‘", "’");
+  },
+  // es.yaml rule es.repeatedPair frame 1
+  "@es.repeatedPair/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const tokens = esTokens(ctx);
+    const i = esTokenAt(tokens, m.index);
+    if (!(i >= 0)) return null;
+    const token = tokens[i];
+    if (!(token.word && token.start >= ctx.from && token.start < ctx.to)) return null;
+    const at = esAround(tokens, i);
+    return esRepeatedPair(ctx, at);
   },
 };
 

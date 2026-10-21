@@ -17580,7 +17580,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:continua[sn]?|perpetuan?|ést(?:e|a|os|as)|és(?:e|a|os|as)|aquél(?:la|los|las)?)(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "es:frameAccents",
+    fixer: "es:@es.frameAccents/1",
     flags: "giu",
     scan: "owned",
   }),
@@ -17662,7 +17662,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?:de|a|alas?|q|me|te|se|les?|los?|las?|nos|os)(?![\\p{L}\\p{M}])",
     literals: [],
-    fixer: "es:frameConfusions",
+    fixer: "es:@es.frameConfusions/1",
     flags: "giu",
     scan: "owned",
   }),
@@ -18068,7 +18068,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{L}[\\p{L}\\p{M}]*",
     literals: [],
-    fixer: "es:frameAgreement",
+    fixer: "es:@es.frameAgreement/1",
     flags: "gu",
     scan: "owned",
   }),
@@ -18101,7 +18101,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "\\p{L}[\\p{L}\\p{M}]*",
     literals: [],
-    fixer: "es:repeatedPair",
+    fixer: "es:@es.repeatedPair/1",
     flags: "gu",
     scan: "owned",
   }),
