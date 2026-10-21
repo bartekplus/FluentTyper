@@ -237,7 +237,7 @@ function windowStart(text: string, q: number, spaces: number, low: number): numb
 }
 
 /** The start positions of a frame with a literal anchor: the windows before its occurrences. */
-function anchoredStarts(ctx: DetectContext, anchor: LiteralAnchor): Int32Array {
+function anchoredStarts(ctx: DetectContext, anchor: LiteralAnchor, framed: boolean): Int32Array {
   const { lower } = scannedText(ctx);
   const base = Math.max(0, ctx.from - 256);
   const text = ctx.scanText;
@@ -256,7 +256,7 @@ function anchoredStarts(ctx: DetectContext, anchor: LiteralAnchor): Int32Array {
   let count = 0;
   for (let w = 0; w < windows.length; w += 2)
     for (let p = windows[w]; p <= windows[w + 1]; p++)
-      if (marks[p - base] === 0) {
+      if (marks[p - base] === 0 && (!framed || mayStartWord(text, p))) {
         marks[p - base] = 1;
         count++;
       }
@@ -398,35 +398,63 @@ function scannedText(ctx: DetectContext) {
   return scanned;
 }
 
-/** The positions in [from - 256, to) where `prefix` stands (lowercased). */
-function prefixStarts(ctx: DetectContext, prefix: string): number[] {
+/**
+ * The positions in [from - 256, to) where `prefix` stands (lowercased); with `framed`, only
+ * those where WORD_START may hold.
+ */
+function prefixStarts(ctx: DetectContext, prefix: string, framed: boolean): number[] {
   const scanned = scannedText(ctx);
-  let starts = scanned.starts.get(prefix);
+  const key = framed ? `\u0001${prefix}` : prefix;
+  let starts = scanned.starts.get(key);
   if (starts === undefined) {
     starts = [];
     const base = Math.max(0, ctx.from - 256);
     const limit = ctx.to - base;
     for (let i = scanned.lower!.indexOf(prefix); i !== -1 && i < limit;) {
-      starts.push(base + i);
+      if (!framed || mayStartWord(ctx.scanText, base + i)) starts.push(base + i);
       i = scanned.lower!.indexOf(prefix, i + 1);
     }
-    scanned.starts.set(prefix, starts);
+    scanned.starts.set(key, starts);
   }
   return starts;
 }
 
-/** Where a match of a frame may start in the chunk's scan, ascending; null: anywhere. */
-function frameStarts(ctx: DetectContext, source: string | null): ArrayLike<number> | null {
+/**
+ * False where WORD_START cannot hold at `at`: after a digit or one of . _ ' ’ @ / # \ -, or
+ * after an ASCII letter unless a contraction ('m, 're, 'll, 've, n't) may start there. Other
+ * characters before `at` are left to the regex.
+ */
+function mayStartWord(text: string, at: number): boolean {
+  if (at === 0) return true;
+  const before = text.charCodeAt(at - 1);
+  if (before >= 128) return before !== 0x2019;
+  if ((before >= 65 && before <= 90) || (before >= 97 && before <= 122)) {
+    const next = text[at];
+    return next === "'" || next === "’" || next === "n" || next === "N";
+  }
+  return !((before >= 48 && before <= 57) || NO_WORD_START.includes(text[at - 1]));
+}
+const NO_WORD_START = ".-_'@/#\\";
+
+/**
+ * Where a match of a frame may start, ascending; null: anywhere. A string frame (`framed`)
+ * runs behind WORD_START, so only positions where it may hold are kept.
+ */
+function frameStarts(
+  ctx: DetectContext,
+  source: string | null,
+  framed: boolean,
+): ArrayLike<number> | null {
   if (source === null) return null;
   if (!scannedText(ctx).aligned) return null;
   const prefixes = framePrefixes(source);
   if (prefixes === null) {
     const anchor = frameAnchor(source);
-    return anchor === null ? null : anchoredStarts(ctx, anchor);
+    return anchor === null ? null : anchoredStarts(ctx, anchor, framed);
   }
-  if (prefixes.length === 1) return prefixStarts(ctx, prefixes[0]);
+  if (prefixes.length === 1) return prefixStarts(ctx, prefixes[0], framed);
   // No prefix starts another one, so two prefixes never stand at one position.
-  const lists = prefixes.map((prefix) => prefixStarts(ctx, prefix));
+  const lists = prefixes.map((prefix) => prefixStarts(ctx, prefix, framed));
   let size = 0;
   for (const list of lists) size += list.length;
   const starts = new Int32Array(size);
@@ -507,7 +535,7 @@ export function frameScan(
     regex = pattern;
     source = read;
   }
-  const starts = frameStarts(ctx, source);
+  const starts = frameStarts(ctx, source, typeof pattern === "string");
   return starts === null
     ? globalMatches(ctx, regex, owner)
     : stickyMatches(ctx, regex, starts, owner);
