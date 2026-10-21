@@ -5599,16 +5599,49 @@ rules:
         fixer: markedApostrophe_pt
   - id: modalOf
     checks: [englishModalOfCorrection]
-    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
-    predicate: modalOf
+    style: match
+    message: review_msg_modal_of
+    frames:
+      # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
+      # runs the typing rule's end-anchored pattern on the tokens that end at the word.
+      - regex: "[A-Za-z]+"
+        scan: owned
+        flags: g
+        lookback: 96
+        lookahead: 96
+        # A finding starts in the chunk. Its first words gate the frame.
+        gate: "(?:could|would|should|must|might)(?:n['’]t)?\\s+of"
+        fixer: modalOf
   - id: yourWelcome
     checks: [englishYourWelcomeCorrection]
-    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
-    predicate: yourWelcome
+    style: match
+    message: review_msg_your_welcome
+    frames:
+      # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
+      # runs the typing rule's end-anchored pattern on the tokens that end at the word.
+      - regex: "[A-Za-z]+"
+        scan: owned
+        flags: g
+        lookback: 96
+        lookahead: 96
+        # A finding starts in the chunk. Its first words gate the frame.
+        gate: "your\\s+welcome"
+        fixer: yourWelcome
   - id: theirThere
     checks: [englishTheirThereBeVerb]
-    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
-    predicate: theirThere
+    style: match
+    message: review_msg_their_there
+    frames:
+      # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
+      # runs the typing rule's end-anchored pattern on the tokens that end at the word.
+      - regex: "[A-Za-z]+"
+        scan: owned
+        flags: g
+        lookback: 96
+        lookahead: 96
+        # A finding starts in the chunk. Its first words gate the frame.
+        gate: "their\\s+(?:is|are|was|were)"
+        fixer: theirThere
   # Additional finished-text coverage under the existing agreement identity.
   - id: pronounVerbFrames
     checks: [englishPronounVerbWhitelistAgreement]
@@ -5623,8 +5656,19 @@ rules:
         fixer: pronounAgreement
   - id: pronounVerb
     checks: [englishPronounVerbWhitelistAgreement]
-    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
-    predicate: pronounVerb
+    style: match
+    message: review_msg_pronoun_verb
+    frames:
+      # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
+      # runs the typing rule's end-anchored pattern on the tokens that end at the word.
+      - regex: "[A-Za-z]+"
+        scan: owned
+        flags: g
+        lookback: 96
+        lookahead: 96
+        # A finding starts in the chunk. Its first words gate the frame.
+        gate: "(?:i\\s+is|i\\s+has|you\\s+was|(?:he|she|it)\\s+are)"
+        fixer: pronounVerb
   # Audited noun heads and predicates; no suffix or collective-number inference.
   - id: subjectAgreement
     checks: [englishSubjectVerbAgreement]
@@ -5756,8 +5800,17 @@ rules:
         fixer: bareExistential
   - id: articleAn
     checks: [englishArticleAnCorrection]
-    # predicate: runs the typing rule's end-anchored pattern on the tokens before each word end.
-    predicate: articleAn
+    style: match
+    message: review_msg_article
+    frames:
+      # Each ASCII-letter word from 96 characters before the chunk to 96 after it. The fixer
+      # runs the typing rule's end-anchored pattern on the tokens that end at the word.
+      - regex: "[A-Za-z]+"
+        scan: owned
+        flags: g
+        lookback: 96
+        lookahead: 96
+        fixer: articleAn
   - id: ordinal
     checks: [englishOrdinalSuffix]
     style: match
