@@ -53,3 +53,7 @@ export {
 
 // The casing of a fix like the typed words (library/english/words.ts).
 export { recase as enRecase } from "./english/words";
+
+// Group idioms5 (idioms2-5, slot confusions, contraction, neighbour and typo slots, misheard
+// words): the text before an index and the word after it (review/phraseTemplates).
+export { before as enBefore, nextWord as enNextWord } from "../review/phraseTemplates";

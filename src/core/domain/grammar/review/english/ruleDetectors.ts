@@ -42,7 +42,6 @@ import * as fixedPhrases from "./fixedPhrases";
 import * as grammarStyle1 from "./grammarStyle1";
 import * as grammarStyle2 from "./grammarStyle2";
 import * as idioms1 from "./idioms1";
-import * as idioms3 from "./idioms3";
 import * as idioms4 from "./idioms4";
 import * as idioms5 from "./idioms5";
 import * as clauseSlots from "./clauseSlots";
@@ -66,7 +65,6 @@ export const PREDICATES = mergePredicates();
 
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = mergePredicates<Fixer>(
-  idioms3.FIXERS,
   articles.FIXERS,
   idioms5.FIXERS,
   slotConfusions.FIXERS,

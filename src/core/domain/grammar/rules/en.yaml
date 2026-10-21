@@ -504,32 +504,90 @@ rules:
     checks: [englishPhraseCorrections, englishFixedPrepositions, stylePhrasing]
     style: carry
     message: review_msg_phrase_correction
+    maps:
+      REFLEXIVE_OF:
+        {
+          my: myself,
+          your: yourself,
+          his: himself,
+          her: herself,
+          its: itself,
+          our: ourselves,
+          their: themselves,
+        }
+    defs:
+      # Programming languages; the capitalized ones are ordinary words in lower case.
+      PROGRAMMING_LANGUAGES: '/^(?:python|javascript|typescript|php|haskell|kotlin|golang|fortran|pascal|cpp|csharp|objc|objective-c|assembler|assembly|asm|lisp|cobol|scala|elixir|erlang|clojure|lua|matlab|html|css|java|perl|c\+\+|c#|ocaml|f#|zig|nim|groovy|delphi|prolog|bash|powershell|sql|vba|solidity|dart|fsharp|racket|smalltalk|verilog|vhdl)$/i'
+      CASED_PROGRAMMING_LANGUAGES: /^(?:Go|C|Swift|Rust|Ruby|Julia|Ada|BASIC|R|Elm|Crystal|Scheme|Haxe)$/
+      # Adjectives whose "of" takes a complement ("too proud of a son", "true of a dog").
+      OF_COMPLEMENT: /^(?:much|many|more|most|less|least|little|few|full|sure|aware|unaware|afraid|proud|fond|capable|incapable|worthy|unworthy|free|clear|devoid|tired|sick|ashamed|jealous|envious|guilty|certain|conscious|ahead|wary|weary|scared|careful|critical|supportive|appreciative|indicative|reminiscent|typical|characteristic|representative|respectful|mindful|unsure|suspicious|tolerant|true|false|part|kind|sort|bit|lot|one|out|independent|deserving|east|west|north|south|outside|inside|instead|because|enough)$/i
+      ADDICTING_OBJECT: '/^(?:me|you|him|her|us|them|it|people|the|a|an|my|your|his|our|their|this|that|these|those|millions|thousands|users|players|kids|children|teens|teenagers|\p{L}+self|\p{L}+selves)$/iu'
+      ACQUIRE_BEFORE: "/^(?:need|needs|needed|order|orders|ordered|use|uses|used|is|was|are|were|be|been|it['’]s|that['’]s|just|only|one|single|spare|another|the|this|that|got|get|buy|bought|received|borrowed|took|take|pulled|salvaged|replaced|requested|have|has|had)$/i"
+      MANNER_BEFORE: /^(?:it|everything|all|play|plays|played|playing|go|goes|went|going|done|did|do|does|doing|things|stuff|run|runs|ran|running)$/i
+      SUPERLATIVE_BEFORE: '/(?<!\p{L})(?:best|worst|top|favou?rite|most|least|\p{L}{2,}est)(?:[ \t ]+[^\s.!?,;:]+){0,3}[ \t ]+$/iu'
+      CONFIDANT_STOP: /^(?:who|whom|whose|that|which|and|or|but|to|of|for|in|on|with|at|from|by|as|is|was|are|were|has|had|have|will|would|can|could|may|might|should|must)$/i
+      NOUN_STOP: /^(?:if|in|on|at|to|for|with|by|of|and|or|but|so|as|when|after|before|until|then|again|too|the|a|an|this|that|just|now|here|there)$/i
+      CONVENIENT_DEGREE: /^(?:more|most|less|least|very|so|too|quite|really|pretty|same|and|or|but|also|extremely|super|particularly|especially|fairly|safe)$/i
+      # "be" or a verb's base form.
+      beOrBaseVerb:
+        args: "word: string"
+        return: '/^be$/i.test(word) || hasVerbForm(word, "base")'
+      # The word right before `index`, or "" when punctuation comes first.
+      spacedWordBefore:
+        args: "ctx: DetectContext, index: number"
+        return: '/(\p{L}[\p{L}''’]*)[ \t ]{1,8}$/u.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? ""'
+      # Only spaces and opening marks between `index` and a sentence stop, a line break or the start.
+      atSentenceOpening:
+        args: "ctx: DetectContext, index: number"
+        return: '/(?:^|[.!?\n])[ \t "“''‘(]*$/.test(ctx.text.slice(Math.max(0, index - 64), index))'
+      # A noun of the lexicon; an unknown word when it is longer than six letters.
+      nounOrLongWord:
+        args: "word: string"
+        let:
+          info: englishWordInfo(word)
+        when: "!!word && !NOUN_STOP.test(word)"
+        return: "info ? info.noun || info.plural : word.length > 6"
+        else: "false"
     frames:
       # "after 2 years later": one of the two time words goes.
       - regex: "(?<target>after{{S}}(?:(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another){{S}})?(?:an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|fifty|a{{S}}few|a{{S}}couple{{S}}(?:of{{S}})?|few|several|many|[0-9]{1,4}){{S}}(?:more{{S}})?(?:seconds?|minutes?|hours?|days?|weeks?|months?|years?|decades?|moments?|century|centuries){{S}}later){{E}}"
         verbatim: true
-        fixer: idioms3After
+        let:
+          withoutLater: 'target.replace(/[ \t ]+\S+$/, "")'
+          rest: 'target.replace(/^\S+[ \t ]+/, "")'
+          withoutAfter: '/^AFTER/.test(target) ? rest.toUpperCase() : /^A/.test(target) ? rest.replace(/^\p{L}/u, (c) => c.toUpperCase()) : rest'
+          # With a qualifier ("after about a year later") the phrase reads as "about a year later".
+          qualified: '/^\S+[ \t ]+(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another|an?)[ \t ]/iu.test(target)'
+        return: "qualified ? [withoutAfter, withoutLater] : [withoutLater, withoutAfter]"
       - regex: "(?<target>a{{S}}part{{S}}from){{E}}"
-        fixer: idioms3A
+        let:
+          prev: spacedWordBefore(ctx, m.index)
+          info: "prev ? englishWordInfo(prev) : null"
+        when: "!(ACQUIRE_BEFORE.test(prev) || (info && info.verbs.length && !info.noun && !info.adverb))"
+        return: '["apart from", "a part of"]'
       - regex: "(?<!(?<![\\p{L}'’])(?:a|an|one|two|three|few|several|[0-9]+){{S}}\\p{L}+{{S}})apart(?:{{S}}|[ \\t\\u00a0]*\\r?\\n[ \\t\\u00a0]*)(?<target>form){{E}}"
         fix: "from"
       # "amounts for the total" → "amounts to"; "accounts for" when it explains a share.
       - regex: "(?:that|which|this|it|they|would|will|should|can|could|may|might|must|does|do|did|not){{S}}(?<target>(?<verb>amount|amounts|amounted|amounting){{S}}for){{E}}(?!{{S}}(?:each|every|all|both|any){{E}})"
-        fixer: idioms3Verb
+        let:
+          typed: verb.toLowerCase()
+        return: '[`${typed} to`, `${typed.replace("amount", "account")} for`]'
       - regex: "(?:arrive|arrives|arriving|arrived(?!{{S}}to{{S}}the{{S}}(?:office|station|airport|hotel){{E}})){{S}}(?<target>to){{E}}"
         check: englishFixedPrepositions
         message: review_msg_contextual_grammar
-        fixer: idioms3To
+        return: 'beOrBaseVerb(enNextWord(ctx, group(m, "target")[1])) ? null : ["at", "in"]'
       # "accused them for lying" → "of"; "the accused for a murder case" is a noun.
       - regex: "(?<!(?<![\\p{L}'’])the{{S}})(?:accuse|accuses|accused|accusing)(?:{{S}}(?:me|you|him|her|us|them|it|someone|everyone|people))?{{S}}(?<target>for){{E}}"
         check: englishFixedPrepositions
         message: review_msg_contextual_grammar
-        fixer: idioms3For
+        let:
+          next: enNextWord(ctx, group(m, "target")[1])
+        return: '!next || /ing$|^(?:it|this|that|something|anything|nothing|everything)$/i.test(next) ? "of" : null'
       # "Aspire" mid-sentence names a product.
       - regex: "(?<verb>aspire|aspires|aspired|aspiring){{S}}(?<target>for){{E}}"
         check: englishFixedPrepositions
         message: review_msg_contextual_grammar
-        fixer: idioms3For2
+        return: '/^[a-z]/.test(verb) || atSentenceOpening(ctx, m.index) ? "to" : null'
       # Progressive "ask/tell to him": no "to" before the person told.
       - regex: "(?:ask|asks|asking|tell|tells|telling)(?<target>{{S}}to){{S}}(?:me|you|him|her|us|them|it|one){{E}}(?!{{S}}(?:of|side|another){{E}})(?={{S}}[\\p{L}\"“'‘~])"
         check: englishFixedPrepositions
@@ -550,64 +608,84 @@ rules:
       - regex: "(?<plural>claims?){{S}}(?<target>for){{S}}fame{{E}}"
         check: englishFixedPrepositions
         message: review_msg_contextual_grammar
-        fixer: idioms3For3
+        return: '/(?<!\p{L})(?:make|makes|made|making)(?:[ \t ]+\S+){0,2}[ \t ]+$/iu.test(ctx.text.slice(Math.max(0, m.index - 48), m.index)) ? null : "to"'
       - regex: "(?:code|codes|coded|coding|write|writes|wrote|written|writing|program|programmed|programming){{S}}(?<target>on){{S}}(?<lang>\\p{L}[\\p{L}+#-]*)(?<language>{{S}}language)?(?![\\p{L}\\p{N}_'’@/\\\\])"
         check: englishFixedPrepositions
         message: review_msg_contextual_grammar
         targetOnly: true
-        fixer: idioms3On
+        return: 'language || PROGRAMMING_LANGUAGES.test(lang) || CASED_PROGRAMMING_LANGUAGES.test(lang) ? "in" : null'
       - regex: "(?<target>(?:seiz|siez)(?<ending>e|es|ed|ing)){{S}}to{{S}}(?<verb>\\p{L}+){{E}}"
-        fixer: idioms3Seiz
+        return: "beOrBaseVerb(verb) ? `ceas${ending.toLowerCase()}` : null"
       - regex: "(?:a|the|my|your|his|our|their|any|another|each|every){{S}}(?<target>complain){{E}}"
-        fixer: idioms3Complain
+        return: 'nounOrLongWord(enNextWord(ctx, group(m, "target")[1])) ? null : "complaint"'
       - regex: "(?:the|many|some|several|these|those|my|your|his|her|our|their|no|any|few|multiple){{S}}(?<target>complains){{E}}"
         fix: "complaints"
       - regex: "(?:feel|feels|felt|feeling|am|is|are|was|were|be|been|being|sound|sounds|sounded|seem|seems|seemed|look|looks|looked|very|so|too|quite|more|most|less|really|extremely|fully|pretty|remain|remains|remained|stay|stays|stayed|i['’]m|you['’]re|we['’]re|they['’]re|he['’]s|she['’]s){{S}}(?<target>confidant){{E}}(?!{{S}}(?:of|to){{E}})"
         fix: "confident"
       - regex: "(?:a|an){{S}}(?<target>confidant){{E}}"
-        fixer: idioms3Confidant
+        let:
+          end: group(m, "target")[1]
+          next: '/^,?[ \t ]{1,8}(\p{L}+)/u.exec(ctx.text.slice(end, end + 40))?.[1] ?? ""'
+          info: englishWordInfo(next)
+        when: '!!next && !CONFIDANT_STOP.test(next) && !/^\p{Lu}/u.test(next)'
+        return: 'info && (info.adjective || info.noun) ? "confident" : null'
       - regex: "(?<target>(?<conjunction>and|an|or){{S}}(?:the{{S}}likes|the{{S}}alikes?|alikes)){{E}}(?!{{S}}of{{E}})(?!['’])"
-        fixer: idioms3Conjunction
+        return: '`${/^or$/i.test(conjunction) ? "or" : "and"} the like`'
       - regex: '(?:and|or){{S}}(?<target>alike)(?:{{COMPLETE}}|(?=["”)]))'
         fix: "the like"
       - regex: "of{{S}}all{{S}}(?<target>times){{E}}"
-        fixer: idioms3Times
+        return: 'SUPERLATIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)) ? "time" : null'
       - regex: "(?<target>on){{S}}(?:(?:complete|happy|literal|mere|pure|sheer|total){{S}})?accident{{E}}"
-        fixer: idioms3On2
+        return: 'nounOrLongWord(enNextWord(ctx, m.index + m[0].length)) ? null : "by"'
       - regex: "back{{S}}in{{S}}the{{S}}(?<target>days){{E}}(?!{{S}}(?:of|when|where|that|before|after|I|we|you|he|she|they){{E}})(?![ \\t]*['’])"
         fix: "day"
       - regex: "(?<target>by{{S}}(?<owner>my|your|his|her|its|our|their){{S}}own)(?=[\"”'’]?[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))"
-        fixer: idioms3By
+        let:
+          typed: owner.toLowerCase()
+        return: "[`on ${typed} own`, `by ${REFLEXIVE_OF[typed]}`]"
       - regex: "by{{S}}the{{S}}(?<target>books){{E}}(?!['’])"
-        fixer: idioms3Books
+        return: 'MANNER_BEFORE.test(spacedWordBefore(ctx, m.index)) ? "book" : null'
       # "call it Quit", "call it quit()" name something.
       - regex: "(?:call|calls|called|calling){{S}}it{{S}}(?<target>quit){{E}}(?![(\\[])"
-        fixer: idioms3Quit
+        # "call it Quit", "call it quit()" name something.
+        return: 'target === "quit" ? "quits" : null'
       - regex: "(?:call|calls|called|calling){{S}}(?:them|it|this|that|her|him|you|me|us|everyone|everybody|these|those)(?<target>{{S}}as){{E}}(?!{{S}}(?:I|you|he|she|it|we|they|it['’]s|is|are|was|were|needed|appropriate|necessary|required|such|well|follows|soon|long|much|many|if|though|usual|usually|expected|before|normal|normally|shown|described|documented|intended|below|above|planned|agreed|promised|scheduled|root|admin|sudo|async|part|a{{S}}(?:function|method|command|script|callback|module|subroutine|program|library|service|user|parameter|constructor|class|decorator|hook|task|job|process|thread|coroutine)|an{{S}}(?:argument|admin|administrator|async|object|instance|action|event|endpoint)|the{{S}}(?:same|first|last|user|root|admin|owner|main|default)){{E}})"
         fix: ""
       - regex: "(?:has|have|had|having){{S}}(?<target>ways){{S}}to{{S}}go{{E}}(?!{{S}}(?:about|back|around|through|forward|up|down|out|over|into|beyond|from|ahead|home|there|online|offline){{E}})"
         fix: ["a long way", "a ways"]
       # "better off served": "better served", or "better off" before what would be better.
       - regex: "(?<target>better{{S}}off{{S}}served){{E}}"
-        fixer: idioms3Better
+        let:
+          # "better off served cold": the dish is served cold.
+          next: enNextWord(ctx, group(m, "target")[1])
+          info: englishWordInfo(next)
+        return: 'info?.adjective && !info.adverb && !info.verbs.length && !/^(?:just|only)$/i.test(next) ? null : ["better served", "better off"]'
       # A store that is convenient ("a convenient store for messages") is ordinary English.
       - regex: "(?<target>convenient){{S}}(?<store>stores?){{E}}(?!{{S}}(?:for|than|that|which|whose){{E}})"
-        fixer: idioms3Convenient
+        # A store that is convenient ("a convenient store for messages") is ordinary English.
+        return: >-
+          (/^Convenient$/.test(target) && /^Store/.test(store)) ||
+          !(CONVENIENT_DEGREE.test(spacedWordBefore(ctx, m.index)) || nounOrLongWord(enNextWord(ctx, m.index + m[0].length)))
+            ? "convenience"
+            : null
       # ---- Style advice (off by default). ----
       - regex: "(?:a|an|is|are|was|were|be|been|being|so|very|highly|extremely|super|quite|really|too|incredibly|insanely|pretty|and|of|most|more|less|least|seriously|surprisingly|strangely|oddly|ridiculously|dangerously|kinda){{S}}(?<target>addicting){{E}}"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        fixer: idioms3Addicting
+        return: 'ADDICTING_OBJECT.test(enNextWord(ctx, group(m, "target")[1])) ? null : "addictive"'
       # "too big of a deal" → "too big a deal".
       - regex: "(?:too|that|as|so|how){{S}}(?<adjective>\\p{L}+){{S}}(?<target>of{{S}})(?=an?{{E}})"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        fixer: idioms3Of
+        return: '!OF_COMPLEMENT.test(adjective) && englishWordInfo(adjective)?.adjective ? "" : null'
       # "barely unconscious" says the opposite of the "barely conscious" it means.
       - regex: "barely{{S}}(?<target>un)(?<stem>\\p{L}{3,}){{E}}"
         check: stylePhrasing
         message: review_msg_style_phrasing
-        fixer: idioms3Un
+        let:
+          info: englishWordInfo(stem)
+        when: "info !== null && !/^(?:til|der|less|to)$/i.test(stem)"
+        return: 'info.adjective || (!info.noun && !info.plural && !info.adverb && !info.verbs.length) || info.verbs.some((v) => v.form === "participle") ? "" : null'
       - regex: "(?:am|is|are|was|were|be|been|i['’]m|you['’]re|we['’]re|they['’]re|he['’]s|she['’]s)(?:{{S}}(?:really|still|always|just|so|now|also))?{{S}}craving(?<target>{{S}}for){{E}}"
         check: stylePhrasing
         message: review_msg_style_phrasing

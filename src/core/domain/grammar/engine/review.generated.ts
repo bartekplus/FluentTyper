@@ -6890,14 +6890,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>after[ \\t\\u00a0]{1,8}(?:(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another)[ \\t\\u00a0]{1,8})?(?:an?|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty|thirty|fifty|a[ \\t\\u00a0]{1,8}few|a[ \\t\\u00a0]{1,8}couple[ \\t\\u00a0]{1,8}(?:of[ \\t\\u00a0]{1,8})?|few|several|many|[0-9]{1,4})[ \\t\\u00a0]{1,8}(?:more[ \\t\\u00a0]{1,8})?(?:seconds?|minutes?|hours?|days?|weeks?|months?|years?|decades?|moments?|century|centuries)[ \\t\\u00a0]{1,8}later)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["after"],
-    fixer: "en:idioms3After",
+    fixer: "en:@en.idiomFrames3/1",
     verbatim: true,
   }),
   frame({
     pattern:
       "(?<target>a[ \\t\\u00a0]{1,8}part[ \\t\\u00a0]{1,8}from)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["part"],
-    fixer: "en:idioms3A",
+    fixer: "en:@en.idiomFrames3/2",
   }),
   frame({
     pattern:
@@ -6909,13 +6909,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:that|which|this|it|they|would|will|should|can|could|may|might|must|does|do|did|not)[ \\t\\u00a0]{1,8}(?<target>(?<verb>amount|amounts|amounted|amounting)[ \\t\\u00a0]{1,8}for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:each|every|all|both|any)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["amount", "amounts", "amounted", "amounting"],
-    fixer: "en:idioms3Verb",
+    fixer: "en:@en.idiomFrames3/4",
   }),
   frame({
     pattern:
       "(?:arrive|arrives|arriving|arrived(?![ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?:office|station|airport|hotel)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))[ \\t\\u00a0]{1,8}(?<target>to)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["arrive", "arrives", "arriving", "arrived"],
-    fixer: "en:idioms3To",
+    fixer: "en:@en.idiomFrames3/5",
     message: "review_msg_contextual_grammar",
     check: "englishFixedPrepositions",
   }),
@@ -6923,7 +6923,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<!(?<![\\p{L}'’])the[ \\t\\u00a0]{1,8})(?:accuse|accuses|accused|accusing)(?:[ \\t\\u00a0]{1,8}(?:me|you|him|her|us|them|it|someone|everyone|people))?[ \\t\\u00a0]{1,8}(?<target>for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["accuse", "accuses", "accused", "accusing"],
-    fixer: "en:idioms3For",
+    fixer: "en:@en.idiomFrames3/6",
     message: "review_msg_contextual_grammar",
     check: "englishFixedPrepositions",
   }),
@@ -6931,7 +6931,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<verb>aspire|aspires|aspired|aspiring)[ \\t\\u00a0]{1,8}(?<target>for)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["aspire", "aspires", "aspired", "aspiring"],
-    fixer: "en:idioms3For2",
+    fixer: "en:@en.idiomFrames3/7",
     message: "review_msg_contextual_grammar",
     check: "englishFixedPrepositions",
   }),
@@ -6971,7 +6971,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<plural>claims?)[ \\t\\u00a0]{1,8}(?<target>for)[ \\t\\u00a0]{1,8}fame(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["claim"],
-    fixer: "en:idioms3For3",
+    fixer: "en:@en.idiomFrames3/12",
     message: "review_msg_contextual_grammar",
     check: "englishFixedPrepositions",
   }),
@@ -6992,7 +6992,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "programmed",
       "programming",
     ],
-    fixer: "en:idioms3On",
+    fixer: "en:@en.idiomFrames3/13",
     message: "review_msg_contextual_grammar",
     check: "englishFixedPrepositions",
     targetOnly: true,
@@ -7001,13 +7001,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>(?:seiz|siez)(?<ending>e|es|ed|ing))[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?<verb>\\p{L}+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["seiz", "siez"],
-    fixer: "en:idioms3Seiz",
+    fixer: "en:@en.idiomFrames3/14",
   }),
   frame({
     pattern:
       "(?:a|the|my|your|his|our|their|any|another|each|every)[ \\t\\u00a0]{1,8}(?<target>complain)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["complain"],
-    fixer: "en:idioms3Complain",
+    fixer: "en:@en.idiomFrames3/15",
   }),
   frame({
     pattern:
@@ -7024,13 +7024,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?:a|an)[ \\t\\u00a0]{1,8}(?<target>confidant)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["confidant"],
-    fixer: "en:idioms3Confidant",
+    fixer: "en:@en.idiomFrames3/18",
   }),
   frame({
     pattern:
       "(?<target>(?<conjunction>and|an|or)[ \\t\\u00a0]{1,8}(?:the[ \\t\\u00a0]{1,8}likes|the[ \\t\\u00a0]{1,8}alikes?|alikes))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}of(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?!['’])",
     literals: ["likes", "alike", "alikes"],
-    fixer: "en:idioms3Conjunction",
+    fixer: "en:@en.idiomFrames3/19",
   }),
   frame({
     pattern:
@@ -7042,13 +7042,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "of[ \\t\\u00a0]{1,8}all[ \\t\\u00a0]{1,8}(?<target>times)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["times"],
-    fixer: "en:idioms3Times",
+    fixer: "en:@en.idiomFrames3/21",
   }),
   frame({
     pattern:
       "(?<target>on)[ \\t\\u00a0]{1,8}(?:(?:complete|happy|literal|mere|pure|sheer|total)[ \\t\\u00a0]{1,8})?accident(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["accident"],
-    fixer: "en:idioms3On2",
+    fixer: "en:@en.idiomFrames3/22",
   }),
   frame({
     pattern:
@@ -7060,19 +7060,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>by[ \\t\\u00a0]{1,8}(?<owner>my|your|his|her|its|our|their)[ \\t\\u00a0]{1,8}own)(?=[\"”'’]?[ \\t\\u00a0]{0,8}(?:[.!?,;:)]|$))",
     literals: ["own"],
-    fixer: "en:idioms3By",
+    fixer: "en:@en.idiomFrames3/24",
   }),
   frame({
     pattern:
       "by[ \\t\\u00a0]{1,8}the[ \\t\\u00a0]{1,8}(?<target>books)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!['’])",
     literals: ["books"],
-    fixer: "en:idioms3Books",
+    fixer: "en:@en.idiomFrames3/25",
   }),
   frame({
     pattern:
       "(?:call|calls|called|calling)[ \\t\\u00a0]{1,8}it[ \\t\\u00a0]{1,8}(?<target>quit)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![(\\[])",
     literals: ["call", "calls", "called", "calling"],
-    fixer: "en:idioms3Quit",
+    fixer: "en:@en.idiomFrames3/26",
   }),
   frame({
     pattern:
@@ -7090,19 +7090,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>better[ \\t\\u00a0]{1,8}off[ \\t\\u00a0]{1,8}served)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["better"],
-    fixer: "en:idioms3Better",
+    fixer: "en:@en.idiomFrames3/29",
   }),
   frame({
     pattern:
       "(?<target>convenient)[ \\t\\u00a0]{1,8}(?<store>stores?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:for|than|that|which|whose)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["convenient"],
-    fixer: "en:idioms3Convenient",
+    fixer: "en:@en.idiomFrames3/30",
   }),
   frame({
     pattern:
       "(?:a|an|is|are|was|were|be|been|being|so|very|highly|extremely|super|quite|really|too|incredibly|insanely|pretty|and|of|most|more|less|least|seriously|surprisingly|strangely|oddly|ridiculously|dangerously|kinda)[ \\t\\u00a0]{1,8}(?<target>addicting)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["addicting"],
-    fixer: "en:idioms3Addicting",
+    fixer: "en:@en.idiomFrames3/31",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
   }),
@@ -7110,7 +7110,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:too|that|as|so|how)[ \\t\\u00a0]{1,8}(?<adjective>\\p{L}+)[ \\t\\u00a0]{1,8}(?<target>of[ \\t\\u00a0]{1,8})(?=an?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "en:idioms3Of",
+    fixer: "en:@en.idiomFrames3/32",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
   }),
@@ -7118,7 +7118,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "barely[ \\t\\u00a0]{1,8}(?<target>un)(?<stem>\\p{L}{3,})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["barely"],
-    fixer: "en:idioms3Un",
+    fixer: "en:@en.idiomFrames3/33",
     message: "review_msg_style_phrasing",
     check: "stylePhrasing",
   }),

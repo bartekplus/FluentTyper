@@ -3,7 +3,13 @@
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult } from "../../library";
-import { englishInitialSound, englishWordInfo } from "../../library";
+import {
+  enNextWord,
+  englishInitialSound,
+  englishWordInfo,
+  group,
+  hasVerbForm,
+} from "../../library";
 import { isoDateWarning } from "./common.generated";
 
 export const NOT_BASIS_ADJECTIVE: ReadonlySet<string> = new Set([
@@ -46,6 +52,16 @@ export const EMAIL_VERB: Readonly<Record<string, string>> = {
   sending: "emailing",
 };
 
+export const REFLEXIVE_OF: Readonly<Record<string, string>> = {
+  my: "myself",
+  your: "yourself",
+  his: "himself",
+  her: "herself",
+  its: "itself",
+  our: "ourselves",
+  their: "themselves",
+};
+
 // en.yaml rule en.idiomPhrases2 def IDIOM_OBJECT
 export const IDIOM_OBJECT = /^(?:him|her|them|us|me|you|it|my|your|his|their|our|its)$/i;
 
@@ -62,6 +78,70 @@ export function afterClauseMark(text: string, index: number): boolean {
 // en.yaml rule en.idiomPhrases2 def wordEndingAt
 export function wordEndingAt(text: string, at: number) {
   return /(\p{L}[\p{L}'’]*)[ \t ]*$/u.exec(text.slice(Math.max(0, at - 32), at))?.[1] ?? "";
+}
+
+// en.yaml rule en.idiomFrames3 def PROGRAMMING_LANGUAGES
+export const PROGRAMMING_LANGUAGES =
+  /^(?:python|javascript|typescript|php|haskell|kotlin|golang|fortran|pascal|cpp|csharp|objc|objective-c|assembler|assembly|asm|lisp|cobol|scala|elixir|erlang|clojure|lua|matlab|html|css|java|perl|c\+\+|c#|ocaml|f#|zig|nim|groovy|delphi|prolog|bash|powershell|sql|vba|solidity|dart|fsharp|racket|smalltalk|verilog|vhdl)$/i;
+
+// en.yaml rule en.idiomFrames3 def CASED_PROGRAMMING_LANGUAGES
+export const CASED_PROGRAMMING_LANGUAGES =
+  /^(?:Go|C|Swift|Rust|Ruby|Julia|Ada|BASIC|R|Elm|Crystal|Scheme|Haxe)$/;
+
+// en.yaml rule en.idiomFrames3 def OF_COMPLEMENT
+export const OF_COMPLEMENT =
+  /^(?:much|many|more|most|less|least|little|few|full|sure|aware|unaware|afraid|proud|fond|capable|incapable|worthy|unworthy|free|clear|devoid|tired|sick|ashamed|jealous|envious|guilty|certain|conscious|ahead|wary|weary|scared|careful|critical|supportive|appreciative|indicative|reminiscent|typical|characteristic|representative|respectful|mindful|unsure|suspicious|tolerant|true|false|part|kind|sort|bit|lot|one|out|independent|deserving|east|west|north|south|outside|inside|instead|because|enough)$/i;
+
+// en.yaml rule en.idiomFrames3 def ADDICTING_OBJECT
+export const ADDICTING_OBJECT =
+  /^(?:me|you|him|her|us|them|it|people|the|a|an|my|your|his|our|their|this|that|these|those|millions|thousands|users|players|kids|children|teens|teenagers|\p{L}+self|\p{L}+selves)$/iu;
+
+// en.yaml rule en.idiomFrames3 def ACQUIRE_BEFORE
+export const ACQUIRE_BEFORE =
+  /^(?:need|needs|needed|order|orders|ordered|use|uses|used|is|was|are|were|be|been|it['’]s|that['’]s|just|only|one|single|spare|another|the|this|that|got|get|buy|bought|received|borrowed|took|take|pulled|salvaged|replaced|requested|have|has|had)$/i;
+
+// en.yaml rule en.idiomFrames3 def MANNER_BEFORE
+export const MANNER_BEFORE =
+  /^(?:it|everything|all|play|plays|played|playing|go|goes|went|going|done|did|do|does|doing|things|stuff|run|runs|ran|running)$/i;
+
+// en.yaml rule en.idiomFrames3 def SUPERLATIVE_BEFORE
+export const SUPERLATIVE_BEFORE =
+  /(?<!\p{L})(?:best|worst|top|favou?rite|most|least|\p{L}{2,}est)(?:[ \t ]+[^\s.!?,;:]+){0,3}[ \t ]+$/iu;
+
+// en.yaml rule en.idiomFrames3 def CONFIDANT_STOP
+export const CONFIDANT_STOP =
+  /^(?:who|whom|whose|that|which|and|or|but|to|of|for|in|on|with|at|from|by|as|is|was|are|were|has|had|have|will|would|can|could|may|might|should|must)$/i;
+
+// en.yaml rule en.idiomFrames3 def NOUN_STOP
+export const NOUN_STOP =
+  /^(?:if|in|on|at|to|for|with|by|of|and|or|but|so|as|when|after|before|until|then|again|too|the|a|an|this|that|just|now|here|there)$/i;
+
+// en.yaml rule en.idiomFrames3 def CONVENIENT_DEGREE
+export const CONVENIENT_DEGREE =
+  /^(?:more|most|less|least|very|so|too|quite|really|pretty|same|and|or|but|also|extremely|super|particularly|especially|fairly|safe)$/i;
+
+// en.yaml rule en.idiomFrames3 def beOrBaseVerb
+export function beOrBaseVerb(word: string) {
+  return /^be$/i.test(word) || hasVerbForm(word, "base");
+}
+
+// en.yaml rule en.idiomFrames3 def spacedWordBefore
+export function spacedWordBefore(ctx: DetectContext, index: number) {
+  return (
+    /(\p{L}[\p{L}'’]*)[ \t ]{1,8}$/u.exec(ctx.text.slice(Math.max(0, index - 40), index))?.[1] ?? ""
+  );
+}
+
+// en.yaml rule en.idiomFrames3 def atSentenceOpening
+export function atSentenceOpening(ctx: DetectContext, index: number) {
+  return /(?:^|[.!?\n])[ \t "“'‘(]*$/.test(ctx.text.slice(Math.max(0, index - 64), index));
+}
+
+// en.yaml rule en.idiomFrames3 def nounOrLongWord
+export function nounOrLongWord(word: string) {
+  if (!(!!word && !NOUN_STOP.test(word))) return false;
+  const info = englishWordInfo(word);
+  return info ? info.noun || info.plural : word.length > 6;
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
@@ -121,6 +201,195 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (!IDIOM_OBJECT.test(word) && !recipient && info?.verbs.some((v) => v.form === "base"))
       return null;
     return EMAIL_VERB[verb.toLowerCase()];
+  },
+  // en.yaml rule en.idiomFrames3 frame 1
+  "@en.idiomFrames3/1": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const withoutLater = target.replace(/[ \t ]+\S+$/, "");
+    const rest = target.replace(/^\S+[ \t ]+/, "");
+    const withoutAfter = /^AFTER/.test(target)
+      ? rest.toUpperCase()
+      : /^A/.test(target)
+        ? rest.replace(/^\p{L}/u, (c) => c.toUpperCase())
+        : rest;
+    const qualified =
+      /^\S+[ \t ]+(?:about|exactly|almost|nearly|roughly|around|approximately|just|over|only|another|an?)[ \t ]/iu.test(
+        target,
+      );
+    return qualified ? [withoutAfter, withoutLater] : [withoutLater, withoutAfter];
+  },
+  // en.yaml rule en.idiomFrames3 frame 2
+  "@en.idiomFrames3/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    const prev = spacedWordBefore(ctx, m.index);
+    const info = prev ? englishWordInfo(prev) : null;
+    if (ACQUIRE_BEFORE.test(prev) || (info && info.verbs.length && !info.noun && !info.adverb))
+      return null;
+    return ["apart from", "a part of"];
+  },
+  // en.yaml rule en.idiomFrames3 frame 4
+  "@en.idiomFrames3/4": (m: RegExpExecArray): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    const typed = verb.toLowerCase();
+    return [`${typed} to`, `${typed.replace("amount", "account")} for`];
+  },
+  // en.yaml rule en.idiomFrames3 frame 5
+  "@en.idiomFrames3/5": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    return beOrBaseVerb(enNextWord(ctx, group(m, "target")[1])) ? null : ["at", "in"];
+  },
+  // en.yaml rule en.idiomFrames3 frame 6
+  "@en.idiomFrames3/6": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    const next = enNextWord(ctx, group(m, "target")[1]);
+    return !next || /ing$|^(?:it|this|that|something|anything|nothing|everything)$/i.test(next)
+      ? "of"
+      : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 7
+  "@en.idiomFrames3/7": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    const verb = m.groups!.verb;
+    return /^[a-z]/.test(verb) || atSentenceOpening(ctx, m.index) ? "to" : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 12
+  "@en.idiomFrames3/12": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    return /(?<!\p{L})(?:make|makes|made|making)(?:[ \t ]+\S+){0,2}[ \t ]+$/iu.test(
+      ctx.text.slice(Math.max(0, m.index - 48), m.index),
+    )
+      ? null
+      : "to";
+  },
+  // en.yaml rule en.idiomFrames3 frame 13
+  "@en.idiomFrames3/13": (m: RegExpExecArray): string | readonly string[] | null => {
+    const lang = m.groups!.lang;
+    const language = m.groups!.language;
+    return language || PROGRAMMING_LANGUAGES.test(lang) || CASED_PROGRAMMING_LANGUAGES.test(lang)
+      ? "in"
+      : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 14
+  "@en.idiomFrames3/14": (m: RegExpExecArray): string | readonly string[] | null => {
+    const ending = m.groups!.ending;
+    const verb = m.groups!.verb;
+    return beOrBaseVerb(verb) ? `ceas${ending.toLowerCase()}` : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 15
+  "@en.idiomFrames3/15": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    return nounOrLongWord(enNextWord(ctx, group(m, "target")[1])) ? null : "complaint";
+  },
+  // en.yaml rule en.idiomFrames3 frame 18
+  "@en.idiomFrames3/18": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    const end = group(m, "target")[1];
+    const next = /^,?[ \t ]{1,8}(\p{L}+)/u.exec(ctx.text.slice(end, end + 40))?.[1] ?? "";
+    if (!(!!next && !CONFIDANT_STOP.test(next) && !/^\p{Lu}/u.test(next))) return null;
+    const info = englishWordInfo(next);
+    return info && (info.adjective || info.noun) ? "confident" : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 19
+  "@en.idiomFrames3/19": (m: RegExpExecArray): string | readonly string[] | null => {
+    const conjunction = m.groups!.conjunction;
+    return `${/^or$/i.test(conjunction) ? "or" : "and"} the like`;
+  },
+  // en.yaml rule en.idiomFrames3 frame 21
+  "@en.idiomFrames3/21": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    return SUPERLATIVE_BEFORE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index))
+      ? "time"
+      : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 22
+  "@en.idiomFrames3/22": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    return nounOrLongWord(enNextWord(ctx, m.index + m[0].length)) ? null : "by";
+  },
+  // en.yaml rule en.idiomFrames3 frame 24
+  "@en.idiomFrames3/24": (m: RegExpExecArray): string | readonly string[] | null => {
+    const owner = m.groups!.owner;
+    const typed = owner.toLowerCase();
+    return [`on ${typed} own`, `by ${REFLEXIVE_OF[typed]}`];
+  },
+  // en.yaml rule en.idiomFrames3 frame 25
+  "@en.idiomFrames3/25": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    return MANNER_BEFORE.test(spacedWordBefore(ctx, m.index)) ? "book" : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 26
+  "@en.idiomFrames3/26": (m: RegExpExecArray): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    return target === "quit" ? "quits" : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 29
+  "@en.idiomFrames3/29": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    const next = enNextWord(ctx, group(m, "target")[1]);
+    const info = englishWordInfo(next);
+    return info?.adjective && !info.adverb && !info.verbs.length && !/^(?:just|only)$/i.test(next)
+      ? null
+      : ["better served", "better off"];
+  },
+  // en.yaml rule en.idiomFrames3 frame 30
+  "@en.idiomFrames3/30": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    const target = m.groups!.target;
+    const store = m.groups!.store;
+    return (/^Convenient$/.test(target) && /^Store/.test(store)) ||
+      !(
+        CONVENIENT_DEGREE.test(spacedWordBefore(ctx, m.index)) ||
+        nounOrLongWord(enNextWord(ctx, m.index + m[0].length))
+      )
+      ? "convenience"
+      : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 31
+  "@en.idiomFrames3/31": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+  ): string | readonly string[] | null => {
+    return ADDICTING_OBJECT.test(enNextWord(ctx, group(m, "target")[1])) ? null : "addictive";
+  },
+  // en.yaml rule en.idiomFrames3 frame 32
+  "@en.idiomFrames3/32": (m: RegExpExecArray): string | readonly string[] | null => {
+    const adjective = m.groups!.adjective;
+    return !OF_COMPLEMENT.test(adjective) && englishWordInfo(adjective)?.adjective ? "" : null;
+  },
+  // en.yaml rule en.idiomFrames3 frame 33
+  "@en.idiomFrames3/33": (m: RegExpExecArray): string | readonly string[] | null => {
+    const stem = m.groups!.stem;
+    const info = englishWordInfo(stem);
+    if (!(info !== null && !/^(?:til|der|less|to)$/i.test(stem))) return null;
+    return info.adjective ||
+      (!info.noun && !info.plural && !info.adverb && !info.verbs.length) ||
+      info.verbs.some((v) => v.form === "participle")
+      ? ""
+      : null;
   },
   // en.yaml rule en.isoDates frame 1
   "@en.isoDates/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
