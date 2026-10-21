@@ -118,9 +118,10 @@ fragments:
   DATES_MONTH: "(?:January|February|March|April|May|June|July|August|September|October|November|December|(?:Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sept|Sep|Oct|Nov|Dec)(?:\\.(?=[ \\t\\u00a0,]))?)"
   # A full weekday name takes no stop ("We met on Monday. 7 October was…" is two sentences).
   DATES_WEEKDAY: "(?<weekday>Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|(?:Sun|Mon|Tues|Tue|Wed|Thurs|Thur|Thu|Fri|Sat)\\.?|(?:Mo|Tu|We|Th|Fr|Sa|Su)(?=,))"
-  # Frequent words of FUNCTION_WORDS (review/english/slotWords.ts), for a frame whose fixer
-  # rejects all of FUNCTION_WORDS. Each word must be in FUNCTION_WORDS.
-  CLAUSE_GAPS_FUNCTION: "the|to|of|and|in|is|it|for|that|on|with|as|be|this|are|was|you|we|by|or|at|from|have|has|an|not|can|will|if|they|he|she|but|all|so|do|your|our|their|my|his|her"
+  # The words of FUNCTION_WORDS (review/english/slotWords.ts) with two letters or more, grouped
+  # by their first letter, for a frame whose fixer rejects all of FUNCTION_WORDS. Each word must
+  # be in FUNCTION_WORDS (tests/grammar/ReviewFrameSkipLists.test.ts).
+  CLAUSE_GAPS_FUNCTION: "a(?:bout|bsolutely|cross|ctually|gain|gainst|ll|lmost|long|lready|lso|lthough|lways|m|mong|n|nd|nother|ny|pparently|re|round|s|t)|b(?:arely|asically|e|ecause|een|ehind|eing|etween|eyond|oth|ut|y)|c(?:an|ertainly|learly|ompletely|ould)|d(?:efinitely|espite|id|o|oes|own|uring)|e(?:ach|ither|ven|ver|very)|f(?:ar|ew|inally|or|rom)|h(?:ad|ardly|as|ave|e|er|ere|im|is|ow)|i(?:f|n|nside|nto|s|t)|just|l(?:east|ess|ike|iterally)|m(?:any|ay|aybe|e|ight|ore|ost|uch|ust|y)|n(?:ear|early|either|ever|o|or|ot|ow)|o(?:bviously|f|ff|ften|n|nce|nly|nto|r|ther|thers|ur|ut|utside|ver|wn)|p(?:ast|er|erhaps|retty|robably)|quite|r(?:ather|eally)|s(?:ame|eriously|everal|hall|he|hould|imply|ince|o|ome|ometimes|oon|till|uch|urely)|t(?:han|hat|he|heir|hem|hen|here|hese|hey|his|hose|hough|hrough|hroughout|o|oo|otally|oward|owards|ruly)|u(?:nder|nless|ntil|p|pon|s|sually)|v(?:ery|ia)|w(?:as|ay|e|ere|hat|hatever|hen|here|hether|hich|hile|ho|hy|ill|ith|ithin|ithout|ould)|y(?:et|ou|our)"
 
 rules:
   - id: en.fixedPhrases
