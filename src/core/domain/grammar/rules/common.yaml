@@ -4813,7 +4813,10 @@ rules:
     message: review_msg_perfect_participle
     frames:
       # have/be in every spelling, clitics on their owner ("I'd", "it's") and dropped apostrophes.
-      - regex: "(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its)){{PARTICIPLE_TAIL}}"
+      # A complete regex: WORD_START is one lookbehind here. Its "n't" test cannot start a match
+      # (no branch starts with "n"), and the global scan runs the regex at each character.
+      - regex: "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its)){{PARTICIPLE_TAIL}}"
+        wordStart: false
         owner: verb
         fixer: participleAfterAuxiliary
       # "Have you ate?", "Was it took?": the auxiliary opens the clause, a subject follows.

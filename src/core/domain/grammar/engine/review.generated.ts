@@ -4313,9 +4313,10 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its))(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|often|sometimes|seldom|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?!(?:be|been|being|have|having)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<verb>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?<![.\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:(?<lead>[A-Za-z]+)(?<clitic>['’](?:ve|d|s|re|m))|(?<aux>have|has|had|having|be|being|been|am|is|are|was|were|(?:have|has|had|is|are|was|were)n['’]?t|(?:i|you|we|they|could|would|should|must|might)ve|its))(?<adverbs>(?:[ \\t\\u00a0]{1,8}(?:not|never|already|just|ever|really|still|also|even|only|all|both|since|then|now|always|often|sometimes|seldom|[a-z]+ly)){0,2})[ \\t\\u00a0]{1,8}(?!(?:be|been|being|have|having)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?<verb>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "common:participleAfterAuxiliary",
+    wordStart: false,
     owner: "verb",
   }),
   frame({
