@@ -8,7 +8,6 @@ import {
 } from "../../engine/reviewRules";
 import * as commas from "./commas";
 import * as numbers from "./numbers";
-import * as verbAgreement from "./verbAgreement";
 
 export const PREDICATES = mergePredicates<Detector>();
 
@@ -16,7 +15,6 @@ export const PREDICATES = mergePredicates<Detector>();
 export const FIXERS = mergePredicates<Fixer>(
   numbers.FIXERS,
   commas.FIXERS,
-  verbAgreement.FIXERS,
 );
 
 /** The named findings filters of grammar/rules/de.yaml (`filter:`). */

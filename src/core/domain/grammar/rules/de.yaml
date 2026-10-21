@@ -5043,13 +5043,162 @@ rules:
     checks: [germanVerbAgreement]
     style: match
     message: review_msg_german_verb_agreement
+    sets:
+      # Imperatives that a "du" may follow: "Sei du still", "Lies du vor".
+      VERB_IMPERATIVES: [
+          sei, hab, habe, werd, werde, tu, tue, lauf, laufe, fahr, fahre, gib, nimm, sieh, lies, sprich, hilf, iss,
+          schlaf, schlafe, trag, trage, halt, halte, lass, lasse, geh, gehe, komm, komme, wisse,
+        ]
+      # "sie", "es" and "ihr" may also be objects ("Ihr habe ich …").
+      VERB_OBJECT_TOO: [sie, es, ihr]
+      VERB_SUBJECTS: [ich, du, er, sie, es, man, wir, ihr, Sie]
+      # Words that open a sentence before its verb: "Was macht du?", "Dann sagt du es".
+      VERB_OPENERS: [
+          was, wie, wo, wann, warum, wieso, weshalb, wohin, woher, womit, wozu, worüber, dann, da, jetzt, nun, so,
+          also, heute, morgen, gestern, damals, danach, trotzdem, deshalb,
+        ]
+      # Words that open a new clause or link two: the repeat may belong to it ("Es ist, wie es ist").
+      VERB_CLAUSE_LINKS: [
+          und, oder, aber, sondern, denn, sowie, bzw, wie, was, wer, wo, wann, warum, wieso, weshalb, dass, ob, weil,
+          wenn, falls, obwohl, je, desto, umso, der, die, das, dem, den, denen, dessen, deren, welche, welcher,
+        ]
+      VERB_SUBORDINATORS: [dass, ob, weil, wenn, falls, obwohl, warum, wieso, weshalb, wie, was, wer, wo, wann, nachdem, bevor, sobald]
+      # Infinitives that follow their own finite form: "Sie werden Ärzte werden", "das kann sein".
+      VERB_SELF_GOVERNED: [sein, haben, werden, können, müssen, wollen, sollen, dürfen, mögen, lassen, wissen]
+      VERB_LINKS: [
+          und, oder, aber, sondern, denn, sowie, bzw, wie, was, wer, wo, wann, warum, wieso, weshalb, dass, ob, weil,
+          wenn, falls, obwohl, je, desto, umso, nachdem, bevor, sobald, damit, als,
+        ]
+      VERB_NOT_BETWEEN: [ich, du, er, sie, es, wir, ihr, man, und, oder]
+      # Bare stems that are no ich-form with its "-e" dropped often enough to doubt ("Seh ich auch
+      # so", "Geb dir recht"), so they count as imperatives at a sentence start.
+      VERB_BARE_ONLY: [sprech, les, ess, vergess, werf, brech, mess, stehl, fress, sterb]
+      # Words that follow an imperative but no dropped "ich" form at once: "Les dir das durch".
+      VERB_AFTER_BARE: [
+          dir, mir, dich, mich, uns, euch, doch, bitte, endlich, weniger, mehr, lieber, ruhig, einfach, schnell,
+          langsam, leiser, lauter,
+        ]
+      # Words that open a sentence before an imperative: "Bitte gib …", "Dann bewirb dich".
+      VERB_IMPERATIVE_OPENERS: [bitte, dann, nun, jetzt, also, und, einfach]
+    maps:
+      # Strong verbs that change "e" to "i" or "ie" in the "du" imperative: "Sprich leiser!",
+      # "Lies das!", "Bewirb dich!".
+      VERB_E_TO_I:
+        {
+          geb: gib, nehm: nimm, sprech: sprich, les: lies, seh: sieh, ess: iss, helf: hilf, werf: wirf, treff: triff,
+          gess: giss, mess: miss, brech: brich, stech: stich, sterb: stirb, werb: wirb, derb: dirb, fehl: fiehl,
+          stehl: stiehl, fress: friss, tret: tritt,
+        }
+    defs:
+      # Pronoun subjects and the persons they take. "sie" is she or they; "es" also takes a plural
+      # ("es sind viele").
+      VERB_SUBJECT_SLOTS: >-
+        ({ ich: [0], du: [1], er: [2], es: [2, 5], man: [2], sie: [2, 5], wir: [3], ihr: [4] }) as Readonly<Record<string, readonly GermanSlot[]>>
+      # "Ich denke, wir habe …": a main clause after an opinion verb and its comma.
+      VERB_OPINION: /^(?:glaube|denke|hoffe|finde|meine|weiß|schätze|vermute|befürchte|wette)$/
+      VERB_TOKEN_END: '/^(?:[.!?:;]|\n)$/'
+      VERB_DOUBLE_BOUNDARY: '/^(?:[.!?,;:()"„“”»«–—]|\n)$/'
+      VERB_MODAL_BOUNDARY: '/^(?:[.!?,;:()"„“”»«–—…]|\n)$/'
+      # A participle with an adjective's "-e" before the auxiliary that closes its clause: "was sie
+      # gesagte hatte" (gesagt).
+      VERB_DETERMINER: >-
+        /^(?:der|die|das|dem|den|des|k?ein\p{Ll}*|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|eu\p{Ll}*|dies\p{Ll}*|jed\p{Ll}*)$/u
+      # The slots of a subject word; an Object member name ("constructor") is no subject.
+      verbSubjectSlots:
+        args: "word: string"
+        return: "Object.hasOwn(VERB_SUBJECT_SLOTS, word) ? VERB_SUBJECT_SLOTS[word] : undefined"
+      # The forms of the verb of `typed` that fit the person slots. "ich wart hier" (warte), "seid
+      # du nicht da bist" (seit): another word. "er weißt auf … hin": "weist" (weisen) as much as
+      # "weiß". "er lies den Boden machen": "ließ", not the imperative of "lesen".
+      fittingForms:
+        args: "typed: string, slots: readonly GermanSlot[]"
+        type: string[] | null
+        let:
+          low: typed.toLowerCase()
+        when: low !== "wart" && low !== "seid"
+        return: >-
+          low === "weißt" && slots.includes(2) ? ["weiß", "weist"]
+          : low === "lies" && (slots.includes(0) || slots.includes(2)) ? ["ließ"]
+          : germanFittingForms(typed, slots)
+      verbFinding:
+        args: "start: number, typed: string, fits: string[], context: [number, number]"
+        type: RawFinding
+        let:
+          cased: fits.map((f) => deLikeTyped(typed, f))
+        return: >-
+          ({ ruleId: "germanVerbAgreement", messageKey: "review_msg_german_verb_agreement", range: { start, end: start + typed.length },
+          alternatives: cased, context: { start: context[0], end: context[1] }, ...(cased.length > 1 ? { requiresChoice: true as const } : {}) })
+      # Whether the token at i opens the sentence (no token, a stop or a quote mark).
+      verbOpensAt:
+        args: "before: string[], i: number"
+        return: 'i < 0 || VERB_TOKEN_END.test(before[i]) || /^[„“"»«]$/.test(before[i])'
+      # The start of the clause that ends at `from`: after the last token that `stop` matches.
+      verbClauseFrom:
+        args: "before: string[], from: number, stop: RegExp"
+        type: number
+        return: "from > 0 && !stop.test(before[from - 1]) ? verbClauseFrom(before, from - 1, stop) : from"
+      # The position of the clause's token `first`, found back from `pos` token by token.
+      verbRepeatStart:
+        args: "text: string, clause: string[], i: number, first: number, pos: number"
+        type: number
+        return: "i < first ? pos : verbRepeatStart(text, clause, i - 1, first, text.lastIndexOf(clause[i], pos - 1))"
+      # "Sollte wir uns kümmern?", "Bei Jan habe wir": the verb before its subject. "Wünscht du
+      # …?", "Was macht du?": a regular verb's third-person ending before "du", at the sentence's
+      # start or after one opening w-word or adverb; else listed verbs only. "Ich weiß du magst
+      # …": the verb has its own subject; a new clause starts at "du".
+      verbBeforeSubject:
+        args: >-
+          ctx: DetectContext, typed: string, low: string, slots: readonly GermanSlot[], before: string[], prior: string | undefined,
+          sentenceStart: boolean, at: number, end: number
+        type: RawFinding | null
+        let:
+          opener: before.length - 2
+          fits: fittingForms(prior, slots)
+          start: ctx.text.lastIndexOf(prior, at)
+        when:
+          - '!(VERB_OBJECT_TOO.has(low) || !prior || !/^\p{L}+$/u.test(prior))'
+          - "!(typed !== low && !sentenceStart)"
+          - >-
+            !!germanVerbForms(prior.toLowerCase()) || (low === "du" && (verbOpensAt(before, opener) ||
+            (VERB_OPENERS.has(before[opener].toLowerCase()) && verbOpensAt(before, opener - 1))))
+          - '!(low === "du" && VERB_IMPERATIVES.has(prior.toLowerCase()))'
+          - '!(VERB_SUBJECTS.has(before.at(-2) ?? "") || VERB_SUBJECTS.has(before.at(-2)?.toLowerCase() ?? ""))'
+          - "!!fits"
+        return: verbFinding(start, prior, fits, [start, end])
     frames:
       # A subject pronoun and its verb in the wrong person: "Wir sollte heute gehen", "Sollte
       # wir uns kümmern?". Each word whose start the chunk owns.
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
         scan: owned
         flags: gu
-        fixer: subjectVerb
+        let:
+          typed: m[0]
+          low: typed.toLowerCase()
+          slots: verbSubjectSlots(low)
+          at: m.index
+          end: at + typed.length
+          before: deTokensBefore(ctx.text, at, 4)
+          after: deTokensAfter(ctx.text, end, 3)
+          prior: before.at(-1)
+          sentenceStart: 'prior === undefined || VERB_TOKEN_END.test(prior) || /^[„“"»«]$/.test(prior)'
+          afterOpinion: 'prior === "," && VERB_OPINION.test(before.at(-2) ?? "")'
+          verb: after[0]
+          # "Wir sollte heute gehen": the subject opens the sentence, the verb follows; "Sie hast du
+          # gesehen": an object before the verb and its subject. "Ihr wurde die Vorfahrt genommen": the
+          # dative "ihr" before a noun subject. "es läuft": the plural fits "es" only before a plural
+          # subject ("es kamen viele").
+          fitsAfter: >-
+            (sentenceStart || afterOpinion) && verb && /^\p{Ll}/u.test(verb) && !(VERB_OBJECT_TOO.has(low) && VERB_SUBJECTS.has(after[1] ?? "")) &&
+            !(low === "ihr" && /^(?:der|die|das|ein|eine|kein|keine)$/i.test(after[1] ?? "")) && !/^['’]$/.test(after[1] ?? "")
+            ? fittingForms(verb, slots)?.slice(0, low === "es" ? 1 : undefined) : undefined
+        when:
+          - slots
+          # "du und ich sind", "ich, der …": a coordinated subject or an apposition.
+          - '!/^(?:und|oder|sowie|bzw|,|&|\/|-)$/.test(after[0] ?? "")'
+          - "!deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, at)"
+        return: >-
+          fitsAfter ? verbFinding(ctx.text.indexOf(verb, end), verb, fitsAfter, [at, ctx.text.indexOf(verb, end) + verb.length])
+          : verbBeforeSubject(ctx, typed, low, slots, before, prior, sentenceStart, at, end)
       # The finite verb written twice in one clause: "Max wird Wirt wird." (the second goes),
       # "dass er hat Hunger hat" (the first goes, a subordinate clause ends in its verb). The
       # scan reads each word that ends a clause.
@@ -5057,21 +5206,67 @@ rules:
         scan: owned
         flags: gu
         message: review_msg_german_double_verb
-        fixer: doubledVerb
+        let:
+          verb: m[1]
+          before: deTokensBefore(ctx.text, m.index, 16)
+          clause: before.slice(verbClauseFrom(before, before.length, VERB_DOUBLE_BOUNDARY))
+          first: clause.indexOf(verb)
+          subordinate: VERB_SUBORDINATORS.has(clause[0]?.toLowerCase() ?? "")
+          # The repeat's position: the clause's tokens joined back as typed.
+          firstStart: verbRepeatStart(ctx.text, clause, clause.length - 1, first, m.index)
+          range: "subordinate ? { start: firstStart, end: firstStart + verb.length + 1 } : { start: m.index - 1, end: m.index + verb.length }"
+        when:
+          - "!(VERB_SELF_GOVERNED.has(verb) || germanNotVerb(verb))"
+          - "!!germanVerbForms(verb) || (germanVerbLike(verb) && germanNounReading(verb) === null)"
+          # Adjacent ("ist ist") is a doubled word; "zu kaufen" a zu-infinitive.
+          - '!(first < 0 || first === clause.length - 1 || clause.at(-1) === "zu")'
+          - "!clause.slice(first + 1).some((t) => VERB_CLAUSE_LINKS.has(t.toLowerCase()))"
+          - "!clause.slice(first + 1).includes(verb)"
+          - "!deEnglishLine(ctx.text, m.index) && !namedExampleBefore(ctx.text, m.index)"
+          - firstStart >= 0
+          - '/^[ \t]/.test(ctx.text.slice(subordinate ? range.end - 1 : range.start))'
+        return: >-
+          ({ ruleId: "germanVerbAgreement", messageKey: "review_msg_german_double_verb", range, alternatives: [""],
+          context: { start: firstStart, end: m.index + verb.length } })
       # A plural noun subject opening the sentence and a singular verb right after it: "Die
       # Schüler soll" (sollen), "Die Frauen wurde" (wurden). The noun is plural when "die"
       # stands before a masculine or neuter noun, or before a feminine noun's -en/-n form.
       - regex: "(?<=(?:^|[.!?:\\n\\u201E\"][ \\t]{0,4}))(?:Die|Diese|Alle|Meine|Deine|Seine|Ihre|Unsere|Eure|Viele|Manche|Einige|Beide)(?:[ \\t]+\\p{Ll}+(?:e|en))?[ \\t]+(?<noun>\\p{Lu}\\p{Ll}{2,})[ \\t]+(?<verb>\\p{Ll}+)(?![\\p{L}\\p{M}])"
         scan: owned
         flags: gu
-        fixer: pluralSubject
+        let:
+          fits: fittingForms(verb, [5])
+          start: m.index + m[0].length - verb.length
+        when:
+          - germanVerbForms(verb)?.some((f) => f.slot === 2) === true && germanPluralNoun(noun)
+          - "!ctx.dictionary.has(noun.toLowerCase()) && !deEnglishLine(ctx.text, m.index)"
+          - "!!fits"
+        return: verbFinding(start, verb, fits, [m.index, start + verb.length])
       # After a modal or "werden" in the same main clause, the verb that ends it is an
       # infinitive: "Ich will ein Auto kaufe" (kaufen), "Ich möchte Lehrer werde" (werden).
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_'\\u2019-])(\\p{Ll}{3,})(?=[ \\t]*[.!?,;:])"
         scan: owned
         flags: gu
         message: review_msg_german_modal_infinitive
-        fixer: modalInfinitive
+        let:
+          verb: m[1]
+          infinitive: germanFiniteInfinitive(verb)
+          before: deTokensBefore(ctx.text, m.index, 12)
+          clause: before.slice(verbClauseFrom(before, before.length, VERB_MODAL_BOUNDARY))
+          modal: clause.findIndex((t) => germanModal(t.toLowerCase()) && t.toLowerCase() !== verb)
+        when:
+          # "werde" may end a clause after a modal ("Ich möchte Lehrer werde"); the modals may not.
+          - '!((germanModal(verb) && germanInfinitiveOf(verb) !== "werden") || VERB_SELF_GOVERNED.has(verb))'
+          - "!!infinitive && infinitive !== verb"
+          - "!(modal < 0 || modal === clause.length - 1)"
+          # "… die Arbeit lenken kann als auch …": an infinitive before the modal ends a subordinate clause.
+          - "!(modal > 0 && germanInfinitive(clause[modal - 1].toLowerCase()))"
+          - '!clause.slice(modal + 1).some((t) => VERB_LINKS.has(t.toLowerCase()) || t === "zu")'
+          - "!ctx.dictionary.has(verb) && !deEnglishLine(ctx.text, m.index)"
+          - "!namedExampleBefore(ctx.text, m.index)"
+        return: >-
+          ({ ruleId: "germanVerbAgreement", messageKey: "review_msg_german_modal_infinitive", range: { start: m.index, end: m.index + verb.length },
+          alternatives: [infinitive], context: { start: Math.max(0, m.index - 40), end: m.index + verb.length } })
       # A subordinate clause with a pronoun subject and an auxiliary at its end: "weil du
       # gelogen hat" (hast), "als wir gekündigt wurde" (wurden). Only lowercase words that are
       # no subject pronoun or finite verb between them, so no other clause or subject
@@ -5080,13 +5275,56 @@ rules:
         scan: owned
         lookback: 120
         flags: gu
-        fixer: finalAuxiliary
+        let:
+          between: middle.trim().split(/[ \t]+/)
+          fits: fittingForms(verb, verbSubjectSlots(subject)!)
+          start: m.index + m[0].length - verb.length
+        when:
+          - germanAuxiliary(verb)
+          # A capitalized word only after its article ("das Buch"), so no noun or name subject.
+          - >-
+            between.every((w, i) => !/^\p{Lu}/u.test(w) ||
+            /^(?:der|die|das|dem|den|des|k?ein\p{Ll}*|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|eu\p{Ll}*|dies\p{Ll}*)$/u.test(between[i - 1] ?? ""))
+          - '!between.some((w) => VERB_NOT_BETWEEN.has(w) || (germanAuxiliary(w) && !/^(?:sein|haben|werden)$/.test(w)))'
+          # A finite verb in between ("weil ich glaube es ist") starts another clause.
+          - '!between.some((w) => !/^ge\p{Ll}+(?:t|en)$|en$|iert$/u.test(w) && germanVerbLike(w))'
+          - "!!fits"
+          - "!(start < ctx.from || start >= ctx.to)"
+          - "!deEnglishLine(ctx.text, m.index) && !namedExampleBefore(ctx.text, m.index)"
+        return: verbFinding(start, verb, fits, [m.index, start + verb.length])
       # The "du" imperative of an e→i verb written with its "e": "Sprech nicht so laut"
       # (Sprich), "Ess weniger!" (Iss), "Dann bewerbe dich" (bewirb).
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_'’-])(?<prefix>(?:be|emp|er|ent|ver|zer|über|unter|wider|miss)?)(?<stem>geb|nehm|sprech|les|seh|ess|helf|werf|treff|gess|mess|brech|stech|sterb|werb|derb|fehl|stehl|fress|tret)(?<e>e?)(?![\\p{L}\\p{M}\\p{N}_'’-])"
         scan: owned
         flags: giu
-        fixer: imperative
+        let:
+          typed: m[0]
+          at: m.index
+          low: stem.toLowerCase()
+          lowPrefix: prefix.toLowerCase()
+          # "empfehl", "befehl": "fehl" takes a prefix; "gess" and "derb" only with "ver".
+          prefixFits: 'low === "fehl" ? /^(?:be|emp)$/.test(lowPrefix) : /^(?:gess|derb)$/.test(low) ? lowPrefix === "ver" : lowPrefix !== "emp"'
+          bare: "!e && !lowPrefix && VERB_BARE_ONLY.has(low)"
+          before: deTokensBefore(ctx.text, at, 2)
+          after: deTokensAfter(ctx.text, at + typed.length, 2)
+          prior: before.at(-1)
+          opens: 'prior === undefined || VERB_TOKEN_END.test(prior) || /^[„“"»«]$/.test(prior)'
+          next: after[0] ?? ""
+          sentence: '/^[^.!?\n]*[.!?]?/.exec(ctx.text.slice(at))![0]'
+          afterOpener: >-
+            prior !== undefined && VERB_IMPERATIVE_OPENERS.has(prior.toLowerCase()) &&
+            (before.length < 2 || VERB_TOKEN_END.test(before[0]) || /^[„“"»«,]$/.test(before[0]))
+          sure: >-
+            afterOpener || (opens && after.some((t) => /^(?:bitte|doch)$/.test(t))) ||
+            (opens && sentence.endsWith("!") && !(low === "seh" && /^(?:dich|euch|uns)$/.test(next))) || (opens && bare && VERB_AFTER_BARE.has(next))
+        when:
+          - prefixFits && typed === deLikeTyped(typed, typed.toLowerCase())
+          # "Messe", "Lese", "Treff": a noun at the sentence's start ("Sprech-" only opens compounds).
+          - '!(/^\p{Lu}/u.test(typed) && !bare && germanNounReading(typed.toLowerCase()) !== null)'
+          - '!(VERB_SUBJECTS.has(next) || /^\p{Lu}/u.test(next) || next === "")'
+          - "sure && !deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, at)"
+          - "!ctx.dictionary.has(typed.toLowerCase())"
+        return: "verbFinding(at, typed, [deLikeTyped(typed, `${lowPrefix}${VERB_E_TO_I[low]}`)], [at, at + typed.length + 1 + next.length])"
       # The passive's participle "worden" written as a form of "werden": "nachdem er besiegt
       # wurden war" (worden), and the reverse, "Die Sachen worden gegessen" (wurden). The scan
       # starts 40 characters before the chunk; the typed form must be in it.
@@ -5094,13 +5332,28 @@ rules:
         scan: owned
         lookback: 40
         flags: gu
-        fixer: worden
+        let:
+          typed: target ?? t2
+          start: "target ? m.index + m[0].length - typed.length : m.index"
+        when:
+          - "!(start < ctx.from || start >= ctx.to)"
+          - "!(participle && (germanAuxiliary(participle) || germanNotVerb(participle)))"
+          - "!deEnglishLine(ctx.text, start) && !namedExampleBefore(ctx.text, start)"
+        return: 'verbFinding(start, typed, [target ? "worden" : "wurden"], [m.index, start + typed.length])'
       # A participle with an adjective's "-e" before the auxiliary that closes its clause: "was
       # sie gesagte hatte" (gesagt).
       - regex: "(?<![\\p{L}\\p{M}])(?<target>ge\\p{Ll}{2,}te)(?=[ \\t]+(?:hatte|hatten|hattest|hat|habe|haben|hast|h\\u00E4tte|h\\u00E4tten)[ \\t]*[.!?,;:])"
         scan: owned
         flags: gu
-        fixer: participleE
+        let:
+          # "gesagte" → "sagen", "gewartete" → "warten": a weak verb's participle.
+          stem: 'target.slice(2, target.endsWith("ete") ? -3 : -2)'
+        when:
+          - "germanInfinitive(`${stem}en`) && !ctx.dictionary.has(target)"
+          # "was der gesuchte hat": a nominalized participle after its article.
+          - '!VERB_DETERMINER.test(deTokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() ?? "")'
+          - "!deEnglishLine(ctx.text, m.index) && !namedExampleBefore(ctx.text, m.index)"
+        return: verbFinding(m.index, target, [target.slice(0, -1)], [m.index, m.index + m[0].length])
   - id: de.questionMarks
     checks: [germanQuestionMarks]
     style: match

@@ -9,6 +9,7 @@ import type {
   GermanCaseGender,
   GermanDeterminer,
   GermanGenderReading,
+  GermanSlot,
   MatchResult,
   RawFinding,
 } from "../../library";
@@ -36,15 +37,21 @@ import {
   germanDeterminerFits,
   germanDeterminerFor,
   germanDeterminerReadings,
+  germanFiniteInfinitive,
+  germanFittingForms,
   germanGender,
   germanInfinitive,
   germanInfinitiveOf,
   germanListedNoun,
   germanMayBeNoun,
+  germanModal,
+  germanNotVerb,
   germanNounOverAdjective,
   germanNounReading,
   germanPastInfinitives,
+  germanPluralNoun,
   germanTwoGenders,
+  germanVerbForms,
   germanVerbLike,
   germanVerbObjectCase,
   namedExampleBefore,
@@ -1787,6 +1794,242 @@ export const SUSPENDED_PARTICLES: ReadonlySet<string> = new Set([
   "tief",
 ]);
 
+export const VERB_IMPERATIVES: ReadonlySet<string> = new Set([
+  "sei",
+  "hab",
+  "habe",
+  "werd",
+  "werde",
+  "tu",
+  "tue",
+  "lauf",
+  "laufe",
+  "fahr",
+  "fahre",
+  "gib",
+  "nimm",
+  "sieh",
+  "lies",
+  "sprich",
+  "hilf",
+  "iss",
+  "schlaf",
+  "schlafe",
+  "trag",
+  "trage",
+  "halt",
+  "halte",
+  "lass",
+  "lasse",
+  "geh",
+  "gehe",
+  "komm",
+  "komme",
+  "wisse",
+]);
+
+export const VERB_OBJECT_TOO: ReadonlySet<string> = new Set(["sie", "es", "ihr"]);
+
+export const VERB_SUBJECTS: ReadonlySet<string> = new Set([
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "man",
+  "wir",
+  "ihr",
+  "Sie",
+]);
+
+export const VERB_OPENERS: ReadonlySet<string> = new Set([
+  "was",
+  "wie",
+  "wo",
+  "wann",
+  "warum",
+  "wieso",
+  "weshalb",
+  "wohin",
+  "woher",
+  "womit",
+  "wozu",
+  "worüber",
+  "dann",
+  "da",
+  "jetzt",
+  "nun",
+  "so",
+  "also",
+  "heute",
+  "morgen",
+  "gestern",
+  "damals",
+  "danach",
+  "trotzdem",
+  "deshalb",
+]);
+
+export const VERB_CLAUSE_LINKS: ReadonlySet<string> = new Set([
+  "und",
+  "oder",
+  "aber",
+  "sondern",
+  "denn",
+  "sowie",
+  "bzw",
+  "wie",
+  "was",
+  "wer",
+  "wo",
+  "wann",
+  "warum",
+  "wieso",
+  "weshalb",
+  "dass",
+  "ob",
+  "weil",
+  "wenn",
+  "falls",
+  "obwohl",
+  "je",
+  "desto",
+  "umso",
+  "der",
+  "die",
+  "das",
+  "dem",
+  "den",
+  "denen",
+  "dessen",
+  "deren",
+  "welche",
+  "welcher",
+]);
+
+export const VERB_SUBORDINATORS: ReadonlySet<string> = new Set([
+  "dass",
+  "ob",
+  "weil",
+  "wenn",
+  "falls",
+  "obwohl",
+  "warum",
+  "wieso",
+  "weshalb",
+  "wie",
+  "was",
+  "wer",
+  "wo",
+  "wann",
+  "nachdem",
+  "bevor",
+  "sobald",
+]);
+
+export const VERB_SELF_GOVERNED: ReadonlySet<string> = new Set([
+  "sein",
+  "haben",
+  "werden",
+  "können",
+  "müssen",
+  "wollen",
+  "sollen",
+  "dürfen",
+  "mögen",
+  "lassen",
+  "wissen",
+]);
+
+export const VERB_LINKS: ReadonlySet<string> = new Set([
+  "und",
+  "oder",
+  "aber",
+  "sondern",
+  "denn",
+  "sowie",
+  "bzw",
+  "wie",
+  "was",
+  "wer",
+  "wo",
+  "wann",
+  "warum",
+  "wieso",
+  "weshalb",
+  "dass",
+  "ob",
+  "weil",
+  "wenn",
+  "falls",
+  "obwohl",
+  "je",
+  "desto",
+  "umso",
+  "nachdem",
+  "bevor",
+  "sobald",
+  "damit",
+  "als",
+]);
+
+export const VERB_NOT_BETWEEN: ReadonlySet<string> = new Set([
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "ihr",
+  "man",
+  "und",
+  "oder",
+]);
+
+export const VERB_BARE_ONLY: ReadonlySet<string> = new Set([
+  "sprech",
+  "les",
+  "ess",
+  "vergess",
+  "werf",
+  "brech",
+  "mess",
+  "stehl",
+  "fress",
+  "sterb",
+]);
+
+export const VERB_AFTER_BARE: ReadonlySet<string> = new Set([
+  "dir",
+  "mir",
+  "dich",
+  "mich",
+  "uns",
+  "euch",
+  "doch",
+  "bitte",
+  "endlich",
+  "weniger",
+  "mehr",
+  "lieber",
+  "ruhig",
+  "einfach",
+  "schnell",
+  "langsam",
+  "leiser",
+  "lauter",
+]);
+
+export const VERB_IMPERATIVE_OPENERS: ReadonlySet<string> = new Set([
+  "bitte",
+  "dann",
+  "nun",
+  "jetzt",
+  "also",
+  "und",
+  "einfach",
+]);
+
 export const Q_W_WORDS: ReadonlySet<string> = new Set([
   "wer",
   "wen",
@@ -2314,6 +2557,29 @@ export const QUOTE_PARTNERS: Readonly<Record<string, readonly string[]>> = {
   "“": ["„", "“"],
   "«": ["»", "«"],
   ")": ["(", ")"],
+};
+
+export const VERB_E_TO_I: Readonly<Record<string, string>> = {
+  geb: "gib",
+  nehm: "nimm",
+  sprech: "sprich",
+  les: "lies",
+  seh: "sieh",
+  ess: "iss",
+  helf: "hilf",
+  werf: "wirf",
+  treff: "triff",
+  gess: "giss",
+  mess: "miss",
+  brech: "brich",
+  stech: "stich",
+  sterb: "stirb",
+  werb: "wirb",
+  derb: "dirb",
+  fehl: "fiehl",
+  stehl: "stiehl",
+  fress: "friss",
+  tret: "tritt",
 };
 
 export const ONE_OF: Readonly<Record<string, string>> = {
@@ -5761,6 +6027,126 @@ export function commaAfter(
   };
 }
 
+// de.yaml rule de.verbAgreement def VERB_SUBJECT_SLOTS
+export const VERB_SUBJECT_SLOTS = {
+  ich: [0],
+  du: [1],
+  er: [2],
+  es: [2, 5],
+  man: [2],
+  sie: [2, 5],
+  wir: [3],
+  ihr: [4],
+} as Readonly<Record<string, readonly GermanSlot[]>>;
+
+// de.yaml rule de.verbAgreement def VERB_OPINION
+export const VERB_OPINION =
+  /^(?:glaube|denke|hoffe|finde|meine|weiß|schätze|vermute|befürchte|wette)$/;
+
+// de.yaml rule de.verbAgreement def VERB_TOKEN_END
+export const VERB_TOKEN_END = /^(?:[.!?:;]|\n)$/;
+
+// de.yaml rule de.verbAgreement def VERB_DOUBLE_BOUNDARY
+export const VERB_DOUBLE_BOUNDARY = /^(?:[.!?,;:()"„“”»«–—]|\n)$/;
+
+// de.yaml rule de.verbAgreement def VERB_MODAL_BOUNDARY
+export const VERB_MODAL_BOUNDARY = /^(?:[.!?,;:()"„“”»«–—…]|\n)$/;
+
+// de.yaml rule de.verbAgreement def VERB_DETERMINER
+export const VERB_DETERMINER =
+  /^(?:der|die|das|dem|den|des|k?ein\p{Ll}*|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|eu\p{Ll}*|dies\p{Ll}*|jed\p{Ll}*)$/u;
+
+// de.yaml rule de.verbAgreement def verbSubjectSlots
+export function verbSubjectSlots(word: string) {
+  return Object.hasOwn(VERB_SUBJECT_SLOTS, word) ? VERB_SUBJECT_SLOTS[word] : undefined;
+}
+
+// de.yaml rule de.verbAgreement def fittingForms
+export function fittingForms(typed: string, slots: readonly GermanSlot[]): string[] | null {
+  const low = typed.toLowerCase();
+  if (!(low !== "wart" && low !== "seid")) return null;
+  return low === "weißt" && slots.includes(2)
+    ? ["weiß", "weist"]
+    : low === "lies" && (slots.includes(0) || slots.includes(2))
+      ? ["ließ"]
+      : germanFittingForms(typed, slots);
+}
+
+// de.yaml rule de.verbAgreement def verbFinding
+export function verbFinding(
+  start: number,
+  typed: string,
+  fits: string[],
+  context: [number, number],
+): RawFinding {
+  const cased = fits.map((f) => deLikeTyped(typed, f));
+  return {
+    ruleId: "germanVerbAgreement",
+    messageKey: "review_msg_german_verb_agreement",
+    range: { start, end: start + typed.length },
+    alternatives: cased,
+    context: { start: context[0], end: context[1] },
+    ...(cased.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
+
+// de.yaml rule de.verbAgreement def verbOpensAt
+export function verbOpensAt(before: string[], i: number) {
+  return i < 0 || VERB_TOKEN_END.test(before[i]) || /^[„“"»«]$/.test(before[i]);
+}
+
+// de.yaml rule de.verbAgreement def verbClauseFrom
+export function verbClauseFrom(before: string[], from: number, stop: RegExp): number {
+  return from > 0 && !stop.test(before[from - 1]) ? verbClauseFrom(before, from - 1, stop) : from;
+}
+
+// de.yaml rule de.verbAgreement def verbRepeatStart
+export function verbRepeatStart(
+  text: string,
+  clause: string[],
+  i: number,
+  first: number,
+  pos: number,
+): number {
+  return i < first
+    ? pos
+    : verbRepeatStart(text, clause, i - 1, first, text.lastIndexOf(clause[i], pos - 1));
+}
+
+// de.yaml rule de.verbAgreement def verbBeforeSubject
+export function verbBeforeSubject(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  slots: readonly GermanSlot[],
+  before: string[],
+  prior: string | undefined,
+  sentenceStart: boolean,
+  at: number,
+  end: number,
+): RawFinding | null {
+  if (VERB_OBJECT_TOO.has(low) || !prior || !/^\p{L}+$/u.test(prior)) return null;
+  if (typed !== low && !sentenceStart) return null;
+  const opener = before.length - 2;
+  if (!(
+    !!germanVerbForms(prior.toLowerCase()) ||
+    (low === "du" &&
+      (verbOpensAt(before, opener) ||
+        (VERB_OPENERS.has(before[opener].toLowerCase()) && verbOpensAt(before, opener - 1))))
+  ))
+    return null;
+  if (low === "du" && VERB_IMPERATIVES.has(prior.toLowerCase())) return null;
+  if (
+    VERB_SUBJECTS.has(before.at(-2) ?? "") ||
+    VERB_SUBJECTS.has(before.at(-2)?.toLowerCase() ?? "")
+  )
+    return null;
+  const fits = fittingForms(prior, slots);
+  if (!fits) return null;
+  const start = ctx.text.lastIndexOf(prior, at);
+  return verbFinding(start, prior, fits, [start, end]);
+}
+
 // de.yaml rule de.questionMarks def Q_DETERMINERS
 export const Q_DETERMINERS =
   /^(?:der|die|das|den|dem|des|ein|eine|einen|einem|einer|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|euer|eure\p{Ll}*|dies\p{Ll}*|jemand|man)$/u;
@@ -8947,6 +9333,211 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
       m.indices!.groups!.target[1],
       `, ${target.replace(/[ \t ]+/g, " ")},`,
     );
+  },
+  // de.yaml rule de.verbAgreement frame 1
+  "@de.verbAgreement/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const typed = m[0];
+    const low = typed.toLowerCase();
+    const slots = verbSubjectSlots(low);
+    if (!slots) return null;
+    const at = m.index;
+    const end = at + typed.length;
+    const before = deTokensBefore(ctx.text, at, 4);
+    const after = deTokensAfter(ctx.text, end, 3);
+    if (/^(?:und|oder|sowie|bzw|,|&|\/|-)$/.test(after[0] ?? "")) return null;
+    if (!(!deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, at))) return null;
+    const prior = before.at(-1);
+    const sentenceStart =
+      prior === undefined || VERB_TOKEN_END.test(prior) || /^[„“"»«]$/.test(prior);
+    const afterOpinion = prior === "," && VERB_OPINION.test(before.at(-2) ?? "");
+    const verb = after[0];
+    const fitsAfter =
+      (sentenceStart || afterOpinion) &&
+      verb &&
+      /^\p{Ll}/u.test(verb) &&
+      !(VERB_OBJECT_TOO.has(low) && VERB_SUBJECTS.has(after[1] ?? "")) &&
+      !(low === "ihr" && /^(?:der|die|das|ein|eine|kein|keine)$/i.test(after[1] ?? "")) &&
+      !/^['’]$/.test(after[1] ?? "")
+        ? fittingForms(verb, slots)?.slice(0, low === "es" ? 1 : undefined)
+        : undefined;
+    return fitsAfter
+      ? verbFinding(ctx.text.indexOf(verb, end), verb, fitsAfter, [
+          at,
+          ctx.text.indexOf(verb, end) + verb.length,
+        ])
+      : verbBeforeSubject(ctx, typed, low, slots, before, prior, sentenceStart, at, end);
+  },
+  // de.yaml rule de.verbAgreement frame 2
+  "@de.verbAgreement/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m[1];
+    if (VERB_SELF_GOVERNED.has(verb) || germanNotVerb(verb)) return null;
+    if (!(!!germanVerbForms(verb) || (germanVerbLike(verb) && germanNounReading(verb) === null)))
+      return null;
+    const before = deTokensBefore(ctx.text, m.index, 16);
+    const clause = before.slice(verbClauseFrom(before, before.length, VERB_DOUBLE_BOUNDARY));
+    const first = clause.indexOf(verb);
+    if (first < 0 || first === clause.length - 1 || clause.at(-1) === "zu") return null;
+    if (clause.slice(first + 1).some((t) => VERB_CLAUSE_LINKS.has(t.toLowerCase()))) return null;
+    if (clause.slice(first + 1).includes(verb)) return null;
+    if (!(!deEnglishLine(ctx.text, m.index) && !namedExampleBefore(ctx.text, m.index))) return null;
+    const subordinate = VERB_SUBORDINATORS.has(clause[0]?.toLowerCase() ?? "");
+    const firstStart = verbRepeatStart(ctx.text, clause, clause.length - 1, first, m.index);
+    if (!(firstStart >= 0)) return null;
+    const range = subordinate
+      ? { start: firstStart, end: firstStart + verb.length + 1 }
+      : { start: m.index - 1, end: m.index + verb.length };
+    if (!/^[ \t]/.test(ctx.text.slice(subordinate ? range.end - 1 : range.start))) return null;
+    return {
+      ruleId: "germanVerbAgreement",
+      messageKey: "review_msg_german_double_verb",
+      range,
+      alternatives: [""],
+      context: { start: firstStart, end: m.index + verb.length },
+    };
+  },
+  // de.yaml rule de.verbAgreement frame 3
+  "@de.verbAgreement/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const noun = m.groups!.noun;
+    const verb = m.groups!.verb;
+    if (!(germanVerbForms(verb)?.some((f) => f.slot === 2) === true && germanPluralNoun(noun)))
+      return null;
+    if (!(!ctx.dictionary.has(noun.toLowerCase()) && !deEnglishLine(ctx.text, m.index)))
+      return null;
+    const fits = fittingForms(verb, [5]);
+    if (!fits) return null;
+    const start = m.index + m[0].length - verb.length;
+    return verbFinding(start, verb, fits, [m.index, start + verb.length]);
+  },
+  // de.yaml rule de.verbAgreement frame 4
+  "@de.verbAgreement/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m[1];
+    if (
+      (germanModal(verb) && germanInfinitiveOf(verb) !== "werden") ||
+      VERB_SELF_GOVERNED.has(verb)
+    )
+      return null;
+    const infinitive = germanFiniteInfinitive(verb);
+    if (!(!!infinitive && infinitive !== verb)) return null;
+    const before = deTokensBefore(ctx.text, m.index, 12);
+    const clause = before.slice(verbClauseFrom(before, before.length, VERB_MODAL_BOUNDARY));
+    const modal = clause.findIndex((t) => germanModal(t.toLowerCase()) && t.toLowerCase() !== verb);
+    if (modal < 0 || modal === clause.length - 1) return null;
+    if (modal > 0 && germanInfinitive(clause[modal - 1].toLowerCase())) return null;
+    if (clause.slice(modal + 1).some((t) => VERB_LINKS.has(t.toLowerCase()) || t === "zu"))
+      return null;
+    if (!(!ctx.dictionary.has(verb) && !deEnglishLine(ctx.text, m.index))) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: "germanVerbAgreement",
+      messageKey: "review_msg_german_modal_infinitive",
+      range: { start: m.index, end: m.index + verb.length },
+      alternatives: [infinitive],
+      context: { start: Math.max(0, m.index - 40), end: m.index + verb.length },
+    };
+  },
+  // de.yaml rule de.verbAgreement frame 5
+  "@de.verbAgreement/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const subject = m.groups!.subject;
+    const middle = m.groups!.middle;
+    const verb = m.groups!.verb;
+    if (!germanAuxiliary(verb)) return null;
+    const between = middle.trim().split(/[ \t]+/);
+    if (
+      !between.every(
+        (w, i) =>
+          !/^\p{Lu}/u.test(w) ||
+          /^(?:der|die|das|dem|den|des|k?ein\p{Ll}*|mein\p{Ll}*|dein\p{Ll}*|sein\p{Ll}*|ihr\p{Ll}*|unser\p{Ll}*|eu\p{Ll}*|dies\p{Ll}*)$/u.test(
+            between[i - 1] ?? "",
+          ),
+      )
+    )
+      return null;
+    if (
+      between.some(
+        (w) =>
+          VERB_NOT_BETWEEN.has(w) || (germanAuxiliary(w) && !/^(?:sein|haben|werden)$/.test(w)),
+      )
+    )
+      return null;
+    if (between.some((w) => !/^ge\p{Ll}+(?:t|en)$|en$|iert$/u.test(w) && germanVerbLike(w)))
+      return null;
+    const fits = fittingForms(verb, verbSubjectSlots(subject)!);
+    if (!fits) return null;
+    const start = m.index + m[0].length - verb.length;
+    if (start < ctx.from || start >= ctx.to) return null;
+    if (!(!deEnglishLine(ctx.text, m.index) && !namedExampleBefore(ctx.text, m.index))) return null;
+    return verbFinding(start, verb, fits, [m.index, start + verb.length]);
+  },
+  // de.yaml rule de.verbAgreement frame 6
+  "@de.verbAgreement/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const prefix = m.groups!.prefix;
+    const stem = m.groups!.stem;
+    const e = m.groups!.e;
+    const typed = m[0];
+    const at = m.index;
+    const low = stem.toLowerCase();
+    const lowPrefix = prefix.toLowerCase();
+    const prefixFits =
+      low === "fehl"
+        ? /^(?:be|emp)$/.test(lowPrefix)
+        : /^(?:gess|derb)$/.test(low)
+          ? lowPrefix === "ver"
+          : lowPrefix !== "emp";
+    if (!(prefixFits && typed === deLikeTyped(typed, typed.toLowerCase()))) return null;
+    const bare = !e && !lowPrefix && VERB_BARE_ONLY.has(low);
+    if (/^\p{Lu}/u.test(typed) && !bare && germanNounReading(typed.toLowerCase()) !== null)
+      return null;
+    const before = deTokensBefore(ctx.text, at, 2);
+    const after = deTokensAfter(ctx.text, at + typed.length, 2);
+    const prior = before.at(-1);
+    const opens = prior === undefined || VERB_TOKEN_END.test(prior) || /^[„“"»«]$/.test(prior);
+    const next = after[0] ?? "";
+    if (VERB_SUBJECTS.has(next) || /^\p{Lu}/u.test(next) || next === "") return null;
+    const sentence = /^[^.!?\n]*[.!?]?/.exec(ctx.text.slice(at))![0];
+    const afterOpener =
+      prior !== undefined &&
+      VERB_IMPERATIVE_OPENERS.has(prior.toLowerCase()) &&
+      (before.length < 2 || VERB_TOKEN_END.test(before[0]) || /^[„“"»«,]$/.test(before[0]));
+    const sure =
+      afterOpener ||
+      (opens && after.some((t) => /^(?:bitte|doch)$/.test(t))) ||
+      (opens && sentence.endsWith("!") && !(low === "seh" && /^(?:dich|euch|uns)$/.test(next))) ||
+      (opens && bare && VERB_AFTER_BARE.has(next));
+    if (!(sure && !deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, at))) return null;
+    if (ctx.dictionary.has(typed.toLowerCase())) return null;
+    return verbFinding(
+      at,
+      typed,
+      [deLikeTyped(typed, `${lowPrefix}${VERB_E_TO_I[low]}`)],
+      [at, at + typed.length + 1 + next.length],
+    );
+  },
+  // de.yaml rule de.verbAgreement frame 7
+  "@de.verbAgreement/7": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const participle = m.groups!.participle;
+    const target = m.groups!.target;
+    const t2 = m.groups!.t2;
+    const typed = target ?? t2;
+    const start = target ? m.index + m[0].length - typed.length : m.index;
+    if (start < ctx.from || start >= ctx.to) return null;
+    if (participle && (germanAuxiliary(participle) || germanNotVerb(participle))) return null;
+    if (!(!deEnglishLine(ctx.text, start) && !namedExampleBefore(ctx.text, start))) return null;
+    return verbFinding(
+      start,
+      typed,
+      [target ? "worden" : "wurden"],
+      [m.index, start + typed.length],
+    );
+  },
+  // de.yaml rule de.verbAgreement frame 8
+  "@de.verbAgreement/8": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    const stem = target.slice(2, target.endsWith("ete") ? -3 : -2);
+    if (!(germanInfinitive(`${stem}en`) && !ctx.dictionary.has(target))) return null;
+    if (VERB_DETERMINER.test(deTokensBefore(ctx.text, m.index, 1)[0]?.toLowerCase() ?? ""))
+      return null;
+    if (!(!deEnglishLine(ctx.text, m.index) && !namedExampleBefore(ctx.text, m.index))) return null;
+    return verbFinding(m.index, target, [target.slice(0, -1)], [m.index, m.index + m[0].length]);
   },
   // de.yaml rule de.questionMarks frame 1
   "@de.questionMarks/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {

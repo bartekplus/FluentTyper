@@ -4,7 +4,7 @@ import type { DetectContext, RawFinding } from "../reviewDetectors";
 import { germanAdjective, germanGender, germanInfinitive, germanVerbLike } from "./germanLexicon";
 import { ARTICLES, DEMONSTRATIVES, PREPOSITIONS } from "../../engine/rules/de.generated";
 import { englishLine, tokensAfter, tokensBefore, VERB_GOVERNORS, wordSet } from "./shared";
-import { germanInfinitiveOf, isAuxiliary } from "./verbAgreement";
+import { germanAuxiliary as isAuxiliary, germanInfinitiveOf } from "../../library/german/verbs";
 
 // The comma German sets before a clause or an infinitive group: "Er bleibt, weil es regnet",
 // "Ich weiß nicht, ob er kommt", "Sie ging, um zu lesen", "Um zu lesen, ging sie", "Ich glaube,
