@@ -5082,13 +5082,764 @@ rules:
     group: spanishAgreement
     style: match
     message: review_msg_spanish_agreement
+    # Noun-phrase agreement: a determiner and the noun right after it ("la sillas", "el bicicleta",
+    # "unos coche"), "uno de las", "la primer vez" and "dos perro". Number comes from the es_ES
+    # dictionary's plural flag; gender from the dictionary's -o/-a pairs or from the noun's ending
+    # where the ending decides it ("-ción", "-dad", "-aje"), with the nouns that break their
+    # ending's gender listed apart (the noun lexicon of the rule library).
+    sets:
+      # Determiners that may stand alone as a subject before a verb ("este cuenta", "otros dicen"),
+      # the clitic pronouns ("la cuentas"), and "el"/"tu" for an unaccented "él"/"tú".
+      ES_CLITIC_ARTICLES: [la, las, los]
+      ES_STANDALONE:
+        [
+          el, tu, este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas, otro, otra,
+          otros, otras, mucho, mucha, muchos, muchas, poco, poca, pocos, pocas, demasiado, demasiada,
+          demasiados, demasiadas, tanto, tanta, tantos, tantas, cuanto, cuanta, cuantos, cuantas, cuánto,
+          cuánta, cuántos, cuántas,
+        ]
+      # Plural pronouns that drop a repeated verb: "unos piden problemas y otros oportunidades".
+      ES_ELLIPTIC: [unos, unas, otros, otras, algunos, algunas, muchos, muchas, pocos, pocas]
+      ES_ADJECTIVE_BLOCKERS:
+        [este, esta, estos, estas, ese, esa, esos, esas, aquel, aquella, aquellos, aquellas, otros, otras, algunos, algunas, muchos, muchas, pocos, pocas, mucho, poco, demasiado]
+      # "el agua", "un hacha", "algún arma": a stressed a- feminine noun takes these.
+      ES_BEFORE_STRESSED_A: [el, un, algún, ningún, del, al]
+      ES_AG_QUANTIFIERS: [todos, todas, ambos, ambas]
+      # Words before a clitic that are no verb: "uno las mira", "si no las ve".
+      ES_SUBJECT_WORDS:
+        [yo, tú, él, ella, usted, nosotros, nosotras, vosotros, vosotras, ellos, ellas, ustedes, "no", ya, nunca, también, tampoco, siempre, que, quien, si, como, cuando, donde]
+      ES_DEFINITE_GROUP: [los, las, estos, estas, esos, esas, aquellos, aquellas, sus, mis, tus, nuestros, nuestras, vuestros, vuestras]
+      ES_FEMININE_BEFORE: [la, una, esta, esa, aquella, nuestra, vuestra, otra]
+      ES_MASCULINE_BEFORE: [el, un, este, ese, aquel, nuestro, vuestro, otro, del, al]
+      # Adjectives that also work as adverbs: "tomó la curva más rápido", "lo dijo más claro".
+      ES_ADVERBIAL:
+        [rápido, lento, claro, alto, bajo, fuerte, duro, directo, fijo, seguro, barato, caro, recto, derecho, limpio, justo, hondo, ligero, despacio, temprano, tarde, pronto, mismo]
+      # Words between a noun and its adjective: "una torre bien alta", "una casa muy bonita".
+      ES_ADJECTIVE_DEGREE: [muy, tan, bien, bastante, demasiado, más, menos, poco]
+      # -o/-a words that work as adverbs or prepositions after a noun: "la casa junto al río", "las
+      # chicas solo quieren", "la mesa medio rota", "la reunión debido a la lluvia".
+      ES_NOT_POSTPONED:
+        [junto, debido, dado, puesto, solo, mismo, medio, todo, tanto, cuanto, demasiado, poco, mucho, bastante, recién, contrario, relativo, tocante, referente, rumbo, comparado, visto]
+      # Nouns in -ble that are no adjectives.
+      ES_NOUNS_IN_BLE: [mueble, muebles, inmueble, inmuebles, cable, cables, roble, robles, sable]
+      # Nouns a bare noun or an adverbial may follow: "la mayoría niños", "una vez dormida".
+      ES_NOT_HEADS:
+        [vez, rato, momento, mayoría, minoría, mitad, resto, parte, grupo, montón, multitud, cantidad, número, serie, conjunto, totalidad, tanto, poco]
+      # "dar por hecho", "dar por sentado": the participle agrees with the object after it.
+      ES_DAR_POR_FORMS:
+        [
+          doy, das, da, damos, dais, dan, di, diste, dio, dimos, disteis, dieron, daba, dabas, dábamos, daban, daré,
+          darás, dará, daremos, darán, daría, darías, daríamos, darían, dé, des, demos, den, diera, dieran,
+          dado, dando, dar, darlo,
+        ]
+      # Nouns that also work as adverbs of time: "Haz eso mañana", "Termina esto hoy".
+      ES_TIME_ADVERBS: [mañana, tarde, noche, hoy, ayer, anoche, siempre, ahora]
+      # Adjectives with one form for both genders that often stand before the noun.
+      ES_GENDERLESS_BEFORE:
+        [
+          gran, grandes, principal, principales, mejor, mejores, peor, peores, mayor, mayores, menor, menores,
+          suave, suaves, fuerte, fuertes, breve, breves, enorme, enormes, simple, simples, importante,
+          importantes, excelente, excelentes, interesante, interesantes, increíble, increíbles, posible,
+          posibles, útil, útiles, difícil, difíciles, fácil, fáciles, feliz, felices, triste, tristes,
+        ]
+      # Masculine singulars shortened before the noun: "buen día", "primer paso".
+      ES_SHORTENED: [buen, mal, primer, tercer]
+      ES_DEGREE_WORDS: [mucho, poco, demasiado, tanto, cuanto, cuánto]
+      # Determiners that never stand alone before a number: "las tres reglas", "estos dos libros".
+      ES_NUMBERED: [el, este, ese, aquel, nuestro, vuestro, del, al]
+    defs:
+      # "uno de las casas", "muchos de ellas": a pronoun takes the gender of the group it picks from.
+      # A feminine one may pick a woman from a mixed group ("una de nosotros"), so only the
+      # masculine is read.
+      ES_PICKER: >-
+        new Map(
+          [
+            "uno una unos unas", "alguno alguna algunos algunas", "ninguno ninguna ningunos ningunas",
+            "muchos muchas muchos muchas", "pocos pocas pocos pocas", "varios varias varios varias",
+            "cuántos cuántas cuántos cuántas", "doscientos doscientas doscientos doscientas",
+            "trescientos trescientas trescientos trescientas", "cuatrocientos cuatrocientas cuatrocientos cuatrocientas",
+            "quinientos quinientas quinientos quinientas", "seiscientos seiscientas seiscientos seiscientas",
+            "setecientos setecientas setecientos setecientas", "ochocientos ochocientas ochocientos ochocientas",
+            "novecientos novecientas novecientos novecientas",
+          ]
+            .map((line) => line.split(" "))
+            .flatMap((forms) => forms.map((form, slot) => [form, { forms, slot }] as const)),
+        )
+      ES_GROUP_GENDER: >-
+        new Map([
+          ...["los", "estos", "esos", "aquellos", "ellos", "nosotros", "vosotros", "nuestros", "vuestros"].map((word) => [word, "m"] as const),
+          ...["las", "estas", "esas", "aquellas", "ellas", "nosotras", "vosotras", "nuestras", "vuestras"].map((word) => [word, "f"] as const),
+        ])
+      # "la primer vez" -> "primera"; "el primero ministro" -> "primer".
+      ES_ORDINALS: >-
+        new Map([
+          ["primer", ["primer", "primera"]], ["tercer", ["tercer", "tercera"]], ["primero", ["primer", "primera"]],
+          ["tercero", ["tercer", "tercera"]], ["bueno", ["buen", "buena"]], ["malo", ["mal", "mala"]],
+        ])
+      # "dos perro", "cincuenta casa": a cardinal above one before a singular noun.
+      ES_CARDINALS: new Set([...ES_NUMBER_WORDS].filter((word) => !/^(?:cero|uno|mil|ciento)$/u.test(word)))
+      # Time nouns and their gender: "el domingo pasado", "la semana próxima".
+      ES_TIME_GENDER: >-
+        new Map([
+          ...["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo", "día", "mes", "año", "siglo", "verano",
+            "invierno", "otoño", "trimestre", "semestre", "curso", "periodo", "período", "fin", "lustro", "milenio"].map((word) => [word, "m"] as const),
+          ...["semana", "primavera", "noche", "tarde", "mañana", "década", "temporada", "vez", "jornada"].map((word) => [word, "f"] as const),
+        ])
+      ES_TIME_ADJECTIVE: /^(pasad|próxim|venider)(o|a|os|as)$/u
+      ES_DAR_POR: /^(?:hech|supuest|sentad|terminad|concluid|perdid|cerrad|zanjad)(?:o|a|os|as)$/u
+      # "esto"/"eso"/"aquello" stand alone; before a noun the determiner is este/ese/aquel.
+      ES_NEUTER: >-
+        new Map([
+          ["esto", ["este", "esta", "estos", "estas"]], ["eso", ["ese", "esa", "esos", "esas"]],
+          ["aquello", ["aquel", "aquella", "aquellos", "aquellas"]],
+        ])
+      # Paired adjectives that often stand before the noun.
+      ES_PAIRED_BEFORE: /^(buen|mal|otr|poc|much|mism|nuev|viej|únic|últim|primer|tercer|propi|verdader|antigu|pequeñ|querid|hermos|bell|larg)(?:o|a|os|as)$/u
+      # Prenominal words that agree with the noun after them: "otras cosas", "pocas semanas".
+      ES_AGREEING_BEFORE: /^(?:otr|poc|much|mism|nuev|viej|únic|últim|propi|verdader|antigu|pequeñ)(?:o|a|os|as)$/u
+      # Words before a noun that are determiners or adverbs rather than adjectives: "solo hombres",
+      # "todo hombre", "medio día".
+      ES_NOT_PRENOMINAL: /^(?:tod|much|poc|otr|mism|tant|cuant|vari|cierto|ciert|demasiad|medi|sol|ambos|ambas|cual|dich|propi|semejant)/u
+      ES_APOCOPE_BASE: 'new Map([["buen", "bueno"], ["mal", "malo"], ["primer", "primero"], ["tercer", "tercero"]])'
+      # The word may be a verb the determiner is the subject or object of: "este cuenta", "la
+      # cuentas". "La relaciones entre…": a subjunctive needs its trigger, so a clitic opening the
+      # sentence before one is the article ("Lo sepas o no" is concessive). The subject's own
+      # person: "estos cuentan", "este cuenta", "estas son".
+      esVerbReading:
+        args: "det: string, word: string, opens: boolean"
+        return: >-
+          opens && ES_CLITIC_ARTICLES.has(det) && esSubjunctiveLike(word)
+            ? false
+            : ES_CLITIC_ARTICLES.has(det) || det === "tu"
+              ? esFiniteVerb(word) || esSecondPersonVerb(word)
+              : !ES_STANDALONE.has(det)
+                ? false
+                : (ES_DETERMINER.get(det)!.slot >= 2 ? /n$/u.test(word) : /[aeéó]$/u.test(word) || word === "es") &&
+                  (esFiniteVerb(word) || esSubjunctiveLike(word))
+      # Around "la casa", what rules the verb reading out: a preposition or a verb before ("de la
+      # casa", "ordenamos las silla"), or a finite verb right after ("la cosas mejoran"); "si no las
+      # rechazo pierdo" starts a clause.
+      esNounFrame:
+        args: "tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          prev: at.prev()
+          verbBefore: >-
+            !!prev && !ES_CLITICS.has(prev) && !ES_SUBJECT_WORDS.has(prev) && !ES_NUMBER_WORDS.has(prev) &&
+            (esIsInfinitive(prev) || esIsGerund(prev) || esFiniteVerb(prev))
+          next: at.next(2)
+        return: >-
+          ES_PREPOSITIONS.has(prev) || ES_AG_QUANTIFIERS.has(prev)
+            ? true
+            : verbBefore
+              ? !/^\p{Lu}/u.test(tokens[i - 1].text) || esAround(tokens, i - 1).starts
+              : !!next && (/(?:[aeéó]|n)$/u.test(next) || next === "es") && esFiniteVerb(next) && !esReadNoun(next) &&
+                !ES_CLITICS.has(next) && !ES_PREPOSITIONS.has(next) && !ES_CONJUNCTIONS.has(next)
+      # The determiner of a gender and number.
+      esDetFor:
+        args: "det: SpanishDeterminer, gender: string, stressedA: boolean, plural: boolean"
+        return: 'det.forms[(gender === "f" && (plural || !stressedA) ? 1 : 0) + (plural ? 2 : 0)]'
+      # Determiner + noun: the two forms that agree, the determiner's first. "sean estos montañas":
+      # a pronoun before its predicate; "son demasiadas niñas" counts. "tanto hombres como
+      # mujeres": the correlative, not a determiner. "un tanto apretados", "un poco cansadas": the
+      # adverb "somewhat". "altera tanto una nimiedad": an article after the word starts the noun
+      # phrase itself. "treinta y un años", "ciento un días": the numeral "un" counts. "la
+      # ex-ministra", "los e-mails": a compound. An adjective after a word that also stands alone:
+      # "salir de esta vivos" (pronoun), "otras nostálgica" (otras veces), "demasiado pequeña"
+      # (adverb), "las hechas" (clitic); "vivos" is a noun too, but its gender forms make it an
+      # adjective here. "aquellos médicas", "esos enfermeras": these stand alone only before a word
+      # that agrees with them ("aquellos interesados"); "esta"/"estas" may still be "está"/"estás".
+      # "Esta situado": "está" before a participle. "de unos recompensa", "otras cultural": a
+      # pronoun before a verb or an adjective; "unos recepcionista": a person noun of either gender
+      # still has a number. "el mano a mano", "el boca a boca": a fixed pair. "un foto reportaje",
+      # "la auto regulación", "un pasa tiempo": the determiner agrees with the next noun, so the
+      # word between is a split prefix or a misplaced adjective. "un saca leches", "un lanza
+      # misiles": a verb and its object written apart. "la médico", "la modelo": a feminine
+      # determiner before a masculine form names a woman; in the plural the feminine form is used
+      # ("las españoles" is "las españolas"). "el agua", "un hacha": a feminine noun starting with a
+      # stressed a- takes "el"/"un". "Los sorprendente es…": the neuter article before a masculine
+      # singular adjective. "las españoles", "la profesor": the feminine of a consonant -a pair
+      # fits the determiner.
+      esDeterminerNoun:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          detToken: tokens[i]
+          lower: detToken.lower
+          nounToken: tokens[i + 1]
+          det: ES_DETERMINER.get(lower)
+          at: esAround(tokens, i)
+          prev: at.prev()
+          word: nounToken.lower
+          noun: esReadNoun(word)
+          opens: at.starts && !/^(?:o|u)$/u.test(esAround(tokens, i + 1).next())
+          detPlural: det.slot >= 2
+          detGender: 'esGenderless(det) ? null : det.slot % 2 ? "f" : "m"'
+          after: esAround(tokens, i + 1).next()
+          afterNoun: 'after ? esReadNoun(after) : null'
+          numberClash: '!noun.invariant && detPlural !== noun.plural'
+          genderClash: >-
+            !!detGender && !!noun.gender && detGender !== noun.gender && !(noun.paired && detGender === "f" && !noun.plural) &&
+            !(ES_BEFORE_STRESSED_A.has(lower) && /^h?[aá]/u.test(word)) && !ES_ELLIPTIC.has(lower)
+          gender: noun.gender ?? detGender ?? "m"
+          stressedA: ES_BEFORE_STRESSED_A.has(det.forms[0]) && /^h?[aá]/u.test(word)
+          nounForm: 'noun.plural ? noun.singular : esPluralOf(word)'
+          masculine: 'noun.paired ? esOtherGender(noun, word) : null'
+          alternatives: >-
+            numberClash
+              ? [
+                  `${esDetFor(det, gender, stressedA, noun.plural)} ${word}`,
+                  ...(nounForm ? [`${esDetFor(det, gender, stressedA, !noun.plural)} ${nounForm}`] : []),
+                  ...(lower === "los" && !noun.plural && noun.gender !== "f" &&
+                  (/(?:nte|ble)$/u.test(word) || esGenderedForm(word)?.feminine === false)
+                    ? [`lo ${word}`]
+                    : []),
+                ]
+              : [
+                  `${esDetFor(det, gender, stressedA, noun.plural)} ${word}`,
+                  ...(masculine ? [`${lower} ${masculine}`] : []),
+                  ...(detGender === "f" && noun.gender === "m" && /[lnrs]$/u.test(noun.singular) &&
+                  esIsGenderedEntry(noun.singular)
+                    ? [`${lower} ${esPlain(noun.singular)}a${noun.plural ? "s" : ""}`]
+                    : []),
+                ]
+        when:
+          - nounToken?.word && !nounToken.broken
+          - det
+          - '!(ES_SER.has(prev) && !/^(?:much|poc|demasiad)/u.test(lower))'
+          - '!(/^(?:tant|cuant|cuánt)/u.test(lower) && ([2, 3, 4].some((k) => at.next(k) === "como") || prev === "en" || prev === "por"))'
+          - '!(prev === "un" && /^(?:tanto|poco)$/u.test(lower))'
+          - '!(/^un(?:a|os|as)?$/u.test(nounToken.lower) && !/^las?$/u.test(lower))'
+          - '!(lower === "un" && (prev === "y" || ES_NUMBER_WORDS.has(prev)))'
+          - tokens[i + 2]?.text !== "-"
+          - '!ctx.dictionary.has(word)'
+          - '!(!noun || (esVerbReading(lower, word, opens) && !esNounFrame(tokens, i)))'
+          - >-
+            !((noun.paired || esIsGenderedEntry(noun.singular)) && ES_ADJECTIVE_BLOCKERS.has(lower) &&
+              (!((det.slot >= 2) !== noun.plural || (det.slot % 2 === 1) !== (noun.gender === "f")) ||
+                !/^(?:aquel|aquell|esos|esas)/u.test(lower)))
+          - '!(noun.paired && ES_CLITIC_ARTICLES.has(lower) && esParticiple(word))'
+          - '!(/^(?:esta|estas|este)$/u.test(lower) && esParticiple(word))'
+          - >-
+            !(ES_ELLIPTIC.has(lower) &&
+              (esFiniteVerb(word) || (!noun.gender && !(!noun.gender && !noun.plural && ES_EITHER_ENDING.test(word)))))
+          - '!(tokens[i + 3]?.lower === word && /^(?:a|con|por)$/u.test(tokens[i + 2]?.lower ?? ""))'
+          - '!(afterNoun && !afterNoun.paired && afterNoun.plural === detPlural && (!detGender || afterNoun.gender === detGender))'
+          - '!(afterNoun && /[ae]$/u.test(word) && esFiniteVerb(word))'
+          - numberClash || genderClash
+        return: 'esReplaceToken(ctx, esSpan(ctx, detToken, nounToken), alternatives, "spanishAgreement", "review_msg_spanish_agreement")'
+      # "la una de la tarde", "los unos de los otros": not a pick from a group. "número uno de las
+      # listas": a numeral. The group's noun, past one adjective: "de sus casas", "de sus mayores
+      # riquezas". A partitive group is definite: "uno de sus casas", but "un año de muchas
+      # novedades". "una de nosotros", "una de mis hermanos": a woman picked from a mixed group of
+      # people.
+      esPickerGroup:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          picker: ES_PICKER.get(tokens[i].lower)
+          at: esAround(tokens, i)
+          prev: at.prev()
+          word: at.next(2)
+          det: ES_DETERMINER.get(word)
+          nounAt: 'esReadNoun(at.next(3)) ? 3 : esReadNoun(at.next(4)) ? 4 : 0'
+          noun: 'nounAt ? esReadNoun(at.next(nounAt)) : null'
+          definite: det && ES_DEFINITE_GROUP.has(word) && noun?.plural
+          detGender: 'det ? (esGenderless(det) ? null : det.slot % 2 ? "f" : "m") : null'
+          group: 'definite ? (detGender ?? noun.gender) : (ES_GROUP_GENDER.get(word) ?? null)'
+          feminine: picker.slot % 2 === 1
+        when:
+          - picker
+          - at.next() === "de"
+          - '!(/^(?:la|las|los|el|lo)$/u.test(prev) || (prev && esReadNoun(prev)))'
+          - >-
+            definite
+              ? !ES_EITHER_GENDER.has(noun.singular) && !(detGender && noun.gender && detGender !== noun.gender)
+              : !(!ES_GROUP_GENDER.get(word) || (noun && !noun.plural))
+          - group
+          - feminine !== (group === "f")
+          - '!(feminine && (!noun || noun.paired || esIsGenderedEntry(noun.singular) || noun.gender !== "m"))'
+        return: >-
+          esReplaceToken(ctx, tokens[i], [picker.forms[(feminine ? 0 : 1) + (picker.slot >= 2 ? 2 : 0)]], "spanishAgreement",
+            "review_msg_spanish_agreement", tokens[i + 2])
+      # "El primero paso de decirlo": the first one passes on saying it. "el bueno negro" (the good
+      # black one), "El bueno vino a verme": after the definite article the adjective is the head. A
+      # first person ("amigo") cannot follow it either way.
+      esOrdinalForm:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          forms: ES_ORDINALS.get(tokens[i].lower)
+          at: esAround(tokens, i)
+          prev: at.prev()
+          next: at.next()
+          noun: 'next ? esReadNoun(next) : null'
+        when: forms
+        return: >-
+          !tokens[i].lower.endsWith("o")
+            ? ES_FEMININE_BEFORE.has(prev) || (!noun?.paired && noun?.gender === "f" && !noun.plural && !ES_MASCULINE_BEFORE.has(prev))
+              ? esReplaceToken(ctx, tokens[i], [forms[1]], "spanishAgreement", "review_msg_spanish_agreement")
+              : null
+            : !(ES_MASCULINE_BEFORE.has(prev) || /^(?:mi|tu|su)$/u.test(prev)) || !noun || noun.plural || noun.gender !== "m"
+              ? null
+              : at.next(2) === "de" && esIsInfinitive(at.next(3))
+                ? null
+                : /^(?:bueno|malo)$/u.test(tokens[i].lower) && (/^(?:el|del|al)$/u.test(prev) || (!/o$/u.test(next) && esFiniteVerb(next)))
+                  ? null
+                  : /^(?:vino|fue|hizo|dijo|tuvo|puso|quiso|pudo|supo|trajo|estuvo|anduvo)$/u.test(next)
+                    ? null
+                    : esReplaceToken(ctx, tokens[i], [forms[0]], "spanishAgreement", "review_msg_spanish_agreement", tokens[i + 1])
+      esCountBack:
+        args: "at: SpanishAround, k: number"
+        type: number
+        return: 'ES_NUMBER_WORDS.has(at.prev(k)) || at.prev(k) === "y" ? esCountBack(at, k + 1) : k'
+      # "capítulo dos página tres", "el veinte aniversario", "el puesto cincuenta y siete": a numeral
+      # used as a label. "cien por cien seguro": a percentage grading the word after. "dos punto
+      # cero", "tres coma cinco". "a las tres llamo": a time before a verb; "compré tres libro"
+      # counts the verb's object. "siete debido a su limitada": a participle starting a phrase of
+      # its own.
+      esCardinalNoun:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          nounToken: tokens[i + 1]
+          k: esCountBack(at, 1)
+          prev: at.prev(k)
+          det: ES_DETERMINER.get(prev)
+          after: at.next(2)
+          word: nounToken.lower
+          noun: esReadNoun(word)
+          counted: '!!prev && esFiniteVerb(prev) && !ES_SER.has(prev) && !esReadNoun(prev) && esIsNoun(word) && k === 1'
+          plural: esPluralOf(word)
+        when:
+          - ES_CARDINALS.has(tokens[i].lower)
+          - nounToken?.word && !nounToken.broken
+          - '!((prev && esReadNoun(prev) && !esVerbLike(prev)) || (det && det.slot < 2))'
+          - '!(prev === "por" && ES_CARDINALS.has(at.prev(k + 1)))'
+          - '!(after && (ES_NUMBER_WORDS.has(after) || /^\p{N}/u.test(tokens[i + 2]?.text ?? "")))'
+          - '!ctx.dictionary.has(word)'
+          - '!(!noun || noun.plural || ((esVerbLike(word) || esSubjunctiveLike(word)) && !counted))'
+          - '!(esParticiple(word) && ES_PREPOSITIONS.has(at.next(2)))'
+          - plural
+        return: 'esReplaceToken(ctx, nounToken, [plural], "spanishAgreement", "review_msg_spanish_agreement", tokens[i])'
+      # "unos 200 citaciones" -> "unas 200", "las 3 libros" -> "los 3": a plural determiner agrees
+      # with the counted noun past the number ("unas 200 mil personas" counts thousands of them).
+      esCountedDeterminer:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          det: ES_DETERMINER.get(tokens[i].lower)
+          count: tokens[i + 1]
+          n: 'tokens[i + 2]?.lower === "mil" && !tokens[i + 2].broken ? i + 3 : i + 2'
+          nounToken: tokens[n]
+          noun: esReadNoun(nounToken.lower)
+        when:
+          - '!(!det || det.slot < 2 || esGenderless(det) || /^(?:del|al)$/u.test(tokens[i].lower))'
+          - '!(!count || count.broken || !/^\p{N}+(?:[.,]\p{N}+)*$/u.test(count.text))'
+          - '!(!nounToken?.word || nounToken.broken || ctx.dictionary.has(nounToken.lower))'
+          - '!(!noun?.plural || !noun.gender || ES_EITHER_GENDER.has(noun.singular))'
+          - '(det.slot % 2 ? "f" : "m") !== noun.gender'
+        return: >-
+          esReplaceToken(ctx, tokens[i], [det.forms[noun.gender === "f" ? 3 : 2]], "spanishAgreement",
+            "review_msg_spanish_agreement", nounToken)
+      # "el domingo pasada" -> "pasado", "los tres trimestres próximo" -> "próximos". "una vez pasados
+      # los nervios": an absolute participle agreeing with the noun after it. "lunes" and "martes"
+      # are both numbers: the determiner tells.
+      esTimeAdjective:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          noun: tokens[i].lower
+          singular: 'noun.endsWith("es") && ES_TIME_GENDER.get(noun.slice(0, -2)) ? noun.slice(0, -2) : noun'
+          base: 'ES_TIME_GENDER.get(singular) ? singular : noun.endsWith("s") ? noun.slice(0, -1) : noun'
+          gender: ES_TIME_GENDER.get(base)
+          m: ES_TIME_ADJECTIVE.exec(at.next())
+          det: ES_DETERMINER.get(at.prev()) ?? ES_DETERMINER.get(at.prev(2))
+          plural: '/^(?:lunes|martes|miércoles|jueves|viernes)$/u.test(noun) ? (det ? det.slot >= 2 : null) : base !== noun'
+          want: '`${gender === "f" ? "a" : "o"}${plural ? "s" : ""}`'
+        when:
+          - '!(!gender || !m || tokens[i + 1].broken)'
+          - '!ES_DETERMINER.has(at.next(2))'
+          - plural !== null
+          - m[2] !== want
+        return: 'esReplaceToken(ctx, tokens[i + 1], [`${m[1]}${want}`], "spanishAgreement", "review_msg_spanish_agreement", tokens[i])'
+      # "la serie más seguido" -> "seguida": a determiner, its noun, "más"/"menos" and an adjective
+      # that must agree with both. Only where the noun phrase is no preposition's object, since
+      # "volvió de las vacaciones más relajado" describes the subject. After a verb, "terminó la
+      # carrera más cansado" may describe the subject; only a passive agent ("la serie más seguido
+      # por el público") ties the adjective to the noun there.
+      esSuperlativeAdjective:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          det: ES_DETERMINER.get(tokens[i].lower)
+          at: esAround(tokens, i)
+          prev: at.prev()
+          subject: at.starts || prev === "que"
+          adjective: at.next(3)
+          noun: esReadNoun(at.next())
+          form: esParticiple(adjective) ?? esGenderedForm(adjective)
+          plural: det.slot >= 2
+          feminine: det.slot % 2 === 1
+          masculine: adjective.replace(/(?:o|a|os|as)$/u, "o")
+        when:
+          - '!(!det || esGenderless(det) || /^(?:del|al)$/u.test(tokens[i].lower))'
+          - '!(ES_PREPOSITIONS.has(prev) || (ES_CONJUNCTIONS.has(prev) && !subject) || ES_SER.has(prev))'
+          - '!(!subject && at.next(4) !== "por")'
+          - /^(?:más|menos)$/u.test(at.next(2)) && adjective && !tokens[i + 3].broken
+          - '!(!noun || !form || ES_ADVERBIAL.has(adjective))'
+          - '!(noun.plural !== plural || (noun.gender && (noun.gender === "f") !== feminine))'
+          - '!ES_EITHER_GENDER.has(noun.singular)'
+          - '!(form.plural === plural && form.feminine === feminine)'
+          - esIsGenderedEntry(masculine) || esParticiple(masculine)
+        return: >-
+          esReplaceToken(ctx, tokens[i + 3], [`${masculine.slice(0, -1)}${feminine ? "a" : "o"}${plural ? "s" : ""}`],
+            "spanishAgreement", "review_msg_spanish_agreement", tokens[i + 1])
+      # An adjective's forms: "rojas" -> feminine plural of rojo/roja; "posible" by number only. "la
+      # mujer piloto", "el testigo": a noun of either gender in apposition. "el pez espada" puts a
+      # noun after a noun; only -o/-a pairs and participles agree. "-ble" adjectives have one form
+      # per number: "posible", "increíbles".
+      esAdjectiveForms:
+        args: "word: string"
+        let:
+          m: /^(\p{L}+?)(o|a|os|as)$/u.exec(word)
+          read: >-
+            m && !(ES_EITHER_GENDER.has(`${m[1]}o`) || ES_EITHER_GENDER.has(`${m[1]}a`))
+              ? esIsGenderedEntry(`${m[1]}o`) ? esGenderedForm(word) : esParticiple(word)
+              : null
+          ble: /^(\p{L}+ble)(s?)$/u.exec(word)
+        when: '!(ES_NOT_POSTPONED.has(word) || ES_NOT_NOUNS.has(word))'
+        return: >-
+          m
+            ? read
+              ? {
+                  feminine: read.feminine as boolean | null,
+                  plural: read.plural,
+                  form: (f: boolean, pl: boolean) => `${m[1]}${f ? "a" : "o"}${pl ? "s" : ""}`,
+                }
+              : null
+            : ble && !ES_NOUNS_IN_BLE.has(word)
+              ? { feminine: null as boolean | null, plural: ble[2] === "s", form: (_f: boolean, pl: boolean) => `${ble[1]}${pl ? "s" : ""}` }
+              : null
+      # "Son casas rojos" -> "rojas", "Las sillas blancos son…" -> "blancas": an adjective right
+      # after the noun of a subject opening its clause, or of an attribute after "ser". Elsewhere the
+      # adjective may describe the subject ("Juan dejó la casa cansado"), so it is left alone. "la
+      # mayoría niños", "el domingo corrida de toros": a collective or a time before a noun. "un
+      # cabeza rapada", "el guía": a noun of either gender keeps its own reading. "El sistema valida
+      # la zona": a verb, not an adjective. The adjective closes the noun phrase: "una camisa blanco
+      # y negro" names a colour pair. "económico-sociales": the first part of a compound stays
+      # masculine singular. "física, emocional y cognitivamente": adverbs sharing one "-mente".
+      esPostponedNounAdjective:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          afterSer: ES_SER.has(at.prev())
+          det: ES_DETERMINER.get(tokens[i].lower)
+          n: 'det ? i + 1 : i'
+          nounToken: tokens[n]
+          noun: esReadNoun(nounToken.lower)
+          detPlural: 'det ? det.slot >= 2 : false'
+          detGender: 'det ? (esGenderless(det) ? null : det.slot % 2 ? "f" : "m") : null'
+          stressedA: ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower)
+          ownGender: '!noun.gender && !stressedA && !ES_EITHER_GENDER.has(noun.singular)'
+          plural: 'det && noun.invariant ? detPlural : noun.plural'
+          gender: 'det && ownGender ? detGender : noun.gender'
+          between: tokens[n + 1]?.lower ?? ""
+          k: 'ES_ADJECTIVE_DEGREE.has(between) || /mente$/u.test(between) ? n + 2 : n + 1'
+          adjToken: tokens[k]
+          forms: esAdjectiveForms(adjToken.lower)
+          close: esAround(tokens, k)
+          after: close.next()
+        when:
+          - at.starts || afterSer
+          - '!(det && /^(?:del|al)$/u.test(tokens[i].lower))'
+          - det || afterSer
+          - nounToken?.word && !nounToken.broken && !ctx.dictionary.has(nounToken.lower)
+          - '!(!noun || (!det && noun.paired) || ES_NOT_HEADS.has(noun.singular) || ES_TIME_GENDER.get(noun.singular))'
+          - '!(det && !noun.invariant && detPlural !== noun.plural)'
+          - '!(det && !ownGender && noun.gender && detGender && noun.gender !== detGender && !stressedA)'
+          - '!(!adjToken?.word || adjToken.broken || tokens[n + 1]?.broken)'
+          - /^\p{Ll}/u.test(adjToken.text) && !ctx.dictionary.has(adjToken.lower)
+          - forms && !esFiniteVerb(adjToken.lower)
+          - '!(!close.endsAfter() && /^(?:y|e|o|u|ni)$/u.test(after))'
+          - tokens[k + 1]?.text !== "-"
+          - '!(tokens[k + 1]?.text === "," && [2, 3, 4].some((j) => /\p{L}{3,}mente$/u.test(close.next(j))))'
+          - '!(after && esReadNoun(after) && !esFiniteVerb(after) && !ES_PREPOSITIONS.has(after))'
+          - >-
+            (!!gender && forms.feminine !== null && forms.feminine !== (gender === "f")) || forms.plural !== plural
+        return: >-
+          esReplaceToken(ctx, adjToken, [forms.form(gender ? gender === "f" : !!forms.feminine, plural)], "spanishAgreement",
+            "review_msg_spanish_agreement", nounToken)
+      # "La casa del pueblo blancas" -> "blanca"/"blanco": a plural adjective closing a phrase of two
+      # singular nouns joined by "de" agrees with neither. The adjective closes the phrase: "La casa
+      # del pueblo blancas." or before its verb.
+      esAdjectiveAfterOf:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          det: ES_DETERMINER.get(tokens[i].lower)
+          first: esReadNoun(tokens[i + 1]?.lower ?? "")
+          inner: ES_DETERMINER.get(tokens[i + 3]?.lower ?? "")
+          k: 'inner ? i + 4 : i + 3'
+          second: esReadNoun(tokens[k]?.lower ?? "")
+          adjToken: tokens[k + 1]
+          forms: esAdjectiveForms(adjToken.lower)
+          firstFeminine: '(first.gender ?? (det.slot === 1 ? "f" : "m")) === "f"'
+        when:
+          - at.starts || ES_SER.has(at.prev())
+          - det && det.slot < 2
+          - first && !first.plural && !first.invariant && tokens[i + 1].word
+          - /^(?:de|del)$/u.test(tokens[i + 2]?.lower ?? "")
+          - '!(inner && inner.slot >= 2)'
+          - second && !second.plural && !second.invariant && tokens[k].word
+          - adjToken?.word && !adjToken.broken && /^\p{Ll}+$/u.test(adjToken.text)
+          - '!(tokens.slice(i, k + 2).some((t) => t.broken) || ctx.dictionary.has(adjToken.lower))'
+          - forms?.plural && !esFiniteVerb(adjToken.lower)
+          - esAround(tokens, k + 1).endsAfter()
+        return: >-
+          esReplaceToken(ctx, adjToken, [...new Set([forms.form(firstFeminine, false), forms.form(!firstFeminine, false)])],
+            "spanishAgreement", "review_msg_spanish_agreement", tokens[i])
+      # "la más rojo" -> "roja": an article, "más" or "menos" and the adjective standing for its
+      # noun. "el más allá", "las más de las veces": no adjective; "la más rojo de todas" closes
+      # after it.
+      esArticleSuperlative:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          det: ES_DETERMINER.get(tokens[i].lower)
+          at: esAround(tokens, i)
+          adjToken: tokens[i + 2]
+          forms: esAdjectiveForms(adjToken.lower)
+          close: esAround(tokens, i + 2)
+          plural: det.slot >= 2
+          feminine: det.slot % 2 === 1
+        when:
+          - det && /^(?:el|la|los|las|del|al)$/u.test(tokens[i].lower)
+          - /^(?:más|menos)$/u.test(at.next()) && at.next(2)
+          - /^\p{Ll}/u.test(adjToken.text) && !ctx.dictionary.has(adjToken.lower)
+          - forms && forms.feminine !== null
+          - close.endsAfter() || /^(?:de|del|que|en|entre|para)$/u.test(close.next())
+          - '!(forms.plural === plural && forms.feminine === feminine)'
+        return: 'esReplaceToken(ctx, adjToken, [forms.form(feminine, plural)], "spanishAgreement", "review_msg_spanish_agreement", tokens[i])'
+      # "Se da por hecho la reforma" -> "hecha": "dar por" + participle + the object it describes.
+      # "Eso lo da por hecho el ministro": the clitic is the object and the noun phrase the subject.
+      esDarPorParticiple:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          det: ES_DETERMINER.get(at.next(3))
+          nounWord: at.next(4)
+          noun: esReadNoun(nounWord)
+          plural: det.slot >= 2
+          feminine: det.slot % 2 === 1
+          participleToken: tokens[i + 2]
+          fix: '`${participleToken.lower.replace(/(?:o|a|os|as)$/u, "")}${feminine ? "a" : "o"}${plural ? "s" : ""}`'
+        when:
+          - ES_DAR_POR_FORMS.has(tokens[i].lower) && at.next() === "por" && ES_DAR_POR.test(at.next(2))
+          - '!/^(?:lo|la|los|las)$/u.test(at.prev())'
+          - '!(!det || esGenderless(det) || det.forms[0].includes(" ") || !nounWord)'
+          - '!(!noun || (!noun.invariant && noun.plural !== plural))'
+          - '!(noun.gender && (noun.gender === "f") !== feminine)'
+          - fix !== participleToken.lower
+        return: 'esReplaceToken(ctx, participleToken, [fix], "spanishAgreement", "review_msg_spanish_agreement", tokens[i + 4])'
+      # "en esto momento" -> "este momento", "por eso motivo" -> "ese motivo". "Por eso médicos y
+      # enfermeras protestan": a bare plural may be the next clause's subject. "Esto cuenta mucho",
+      # "Por eso trabajo", "Por eso vino Jesús": a verb after the pronoun. "¿Es eso intrusismo?":
+      # the pronoun is the subject of "ser" and the noun its attribute.
+      esNeuterDemonstrative:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          forms: ES_NEUTER.get(tokens[i].lower)
+          nounToken: tokens[i + 1]
+          word: nounToken.lower
+          noun: esReadNoun(word)
+        when:
+          - forms && nounToken?.word && !nounToken.broken && /^\p{Ll}/u.test(nounToken.text)
+          - '!(ctx.dictionary.has(word) || ES_TIME_ADVERBS.has(word))'
+          - '!(!noun || noun.paired || !noun.gender || noun.plural)'
+          - '!(esFiniteVerb(word) || /^(?:vino|fue|dio|hizo|puso|tuvo|cuanto|cuanta)$/u.test(word))'
+          - '!ES_SER.has(esAround(tokens, i).prev())'
+        return: >-
+          esReplaceToken(ctx, tokens[i], [forms[(noun.gender === "f" ? 1 : 0) + (noun.plural ? 2 : 0)]], "spanishAgreement",
+            "review_msg_spanish_agreement", nounToken)
+      # "el suave corriente" -> "la suave corriente", "los principales impresiones" -> "las": an
+      # adjective of either gender between the determiner and the noun leaves the noun's gender to
+      # the determiner. "las principales senadores": only a masculine plural of a pair names no
+      # woman. "el gran hacha", "un gran águila": a stressed a- noun takes the masculine article.
+      # "la mejor parte", but "lo mejor": only nouns the gender lexicon reads surely. The pair's
+      # feminine fits the determiner too: "las principales senadoras".
+      esDeterminerAdjectiveNoun:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          det: ES_DETERMINER.get(tokens[i].lower)
+          adjective: tokens[i + 1]
+          nounToken: tokens[i + 2]
+          noun: esReadNoun(nounToken.lower)
+          plural: det.slot >= 2
+          fix: 'det.forms[(noun.gender === "f" ? 1 : 0) + (plural ? 2 : 0)]'
+        when:
+          - '!(!det || esGenderless(det) || !adjective || !ES_GENDERLESS_BEFORE.has(adjective.lower))'
+          - '!(!nounToken?.word || nounToken.broken || adjective.broken || det.forms[0].includes(" "))'
+          - '!(ctx.dictionary.has(nounToken.lower) || /^\p{Lu}/u.test(nounToken.text))'
+          - '!(!noun || !noun.gender || ES_EITHER_GENDER.has(noun.singular))'
+          - '!(noun.paired && !(noun.plural && noun.gender === "m"))'
+          - '!(noun.plural !== plural || /s$/u.test(adjective.lower) !== plural)'
+          - '(det.slot % 2 ? "f" : "m") !== noun.gender'
+          - '!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower))'
+        return: >-
+          !noun.paired
+            ? esReplaceToken(ctx, tokens[i], [fix], "spanishAgreement", "review_msg_spanish_agreement", nounToken)
+            : esReplaceToken(ctx, esSpan(ctx, tokens[i], nounToken),
+                [`${fix} ${adjective.lower} ${nounToken.lower}`, `${tokens[i].lower} ${adjective.lower} ${noun.singular.replace(/o$/u, "")}as`],
+                "spanishAgreement", "review_msg_spanish_agreement")
+      # "un buena guiso" -> "un buen guiso", "la primero vez" -> "la primera": the determiner and the
+      # noun agree, so the paired adjective between them is the odd one out. "el agua", "un hacha":
+      # the masculine article before a stressed a- noun.
+      esAdjectiveBetween:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          det: ES_DETERMINER.get(tokens[i].lower)
+          middle: tokens[i + 1]
+          nounToken: tokens[i + 2]
+          stem: ES_PAIRED_BEFORE.exec(middle.lower)?.[1]
+          noun: esReadNoun(nounToken.lower)
+          plural: det.slot >= 2
+          feminine: det.slot % 2 === 1
+          typed: middle.lower
+          fix: '!feminine && !plural && ES_SHORTENED.has(stem) ? stem : `${stem}${feminine ? "a" : "o"}${plural ? "s" : ""}`'
+        when:
+          - '!(!det || esGenderless(det) || det.forms[0].includes(" ") || !middle?.word || middle.broken)'
+          - '!(!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text))'
+          - '!(!stem || ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower))'
+          - '!(!noun?.gender || noun.invariant || noun.paired || ES_EITHER_GENDER.has(noun.singular))'
+          - '!(noun.plural !== plural || (noun.gender === "f") !== feminine)'
+          - '!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(nounToken.lower))'
+          - '!(fix === typed || (!feminine && !plural && typed === `${stem}o`))'
+        return: 'esReplaceToken(ctx, middle, [fix], "spanishAgreement", "review_msg_spanish_agreement", nounToken)'
+      # "muchos otras cosas" -> "muchas", "una pocas semanas" -> "unas", "la tres reglas" -> "las":
+      # the word between agrees with the noun, so the determiner is the odd one out. "demasiado pocas
+      # respuestas", "mucho mejores notas": the adverb, not the determiner. "la tres veces
+      # campeona": a count of times, not of the noun. "una tres meses y otra cuatro" are pronouns,
+      # and "con el cuatro películas" may be "él". "la tres reglas": the noun's gender is surer only
+      # when the determiner's is wrong too. "el agua", "un hacha": a stressed a- noun right after the
+      # article.
+      esDeterminerAcross:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          det: ES_DETERMINER.get(tokens[i].lower)
+          middle: tokens[i + 1]
+          nounToken: tokens[i + 2]
+          noun: esReadNoun(nounToken.lower)
+          adjective: 'ES_AGREEING_BEFORE.test(middle.lower) ? esGenderedForm(middle.lower) : null'
+          fix: 'det.forms[(noun.gender === "f" ? 1 : 0) + (noun.plural ? 2 : 0)]'
+        when:
+          - '!(!det || esGenderless(det) || !middle?.word || middle.broken)'
+          - '!(!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text))'
+          - '!(ctx.dictionary.has(nounToken.lower) || ctx.dictionary.has(middle.lower))'
+          - '!(!noun?.gender || noun.invariant || ES_EITHER_GENDER.has(noun.singular))'
+          - '!(det.slot === 0 && ES_DEGREE_WORDS.has(tokens[i].lower))'
+          - >-
+            ES_CARDINALS.has(middle.lower)
+              ? !(!noun.plural || nounToken.lower === "veces" || !ES_NUMBERED.has(det.forms[0])) && tokens[i].lower !== "el" &&
+                !(det.slot >= 2 && ((det.slot % 2 ? "f" : "m") === noun.gender || noun.paired))
+              : !(!adjective || adjective.plural !== noun.plural) && (adjective.feminine ? "f" : "m") === noun.gender
+          - fix !== tokens[i].lower
+          - '!(ES_BEFORE_STRESSED_A.has(tokens[i].lower) && /^h?[aá]/u.test(middle.lower))'
+        return: 'esReplaceToken(ctx, tokens[i], [fix], "spanishAgreement", "review_msg_spanish_agreement", nounToken)'
+      # "a favor de lo acreedores", "Lo pequeños roedores" -> "los": the neuter "lo" takes a singular
+      # adjective and the clitic a verb; a plural in -os after it wants the article. "lo hacemos",
+      # "lo vimos", "lo comes": verbs end in -os and -es too. "Lo pequeños que son": how small they
+      # are. The noun's gender picks "los" or "las"; with none known, both are offered.
+      esNeuterBeforePlural:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          next: tokens[i + 1]
+          word: next.lower
+          read: esReadNoun(word)
+          gender: read?.gender ?? null
+        when:
+          - tokens[i].lower === "lo"
+          - '!(!next?.word || next.broken || !/^\p{Ll}/u.test(next.text) || ctx.dictionary.has(next.lower))'
+          - '!(!/[oe]s$/u.test(word) || /mos$/u.test(word) || esFiniteVerb(word))'
+          - '!esSecondPersonVerb(word)'
+          - '!(!(read?.plural || esAttribute(word)?.plural) || ES_NUMBER_WORDS.has(word))'
+          - esAround(tokens, i + 1).next() !== "que"
+        return: >-
+          esReplaceToken(ctx, tokens[i], gender === "f" ? ["las"] : gender === "m" ? ["los"] : ["los", "las"], "spanishAgreement",
+            "review_msg_spanish_agreement", next)
+      # "lo más rápidos posibles" -> "posible", "Los más seguro es…" -> "Lo", "lo más seguros es…" ->
+      # "seguro": "lo" + "más"/"menos" + an adjective is a neuter phrase. "posible" after it does not
+      # agree with anything, and before a singular copula the phrase is the subject. "probable",
+      # "difíciles", "capaces": one form for both genders.
+      esNeuterDegree:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          det: tokens[i].lower
+          at: esAround(tokens, i)
+          adjective: at.next(2)
+          last: tokens[i + 3]
+          invariant: '[adjective, ...esSingulars(adjective)].find((w) => esIsInvariantEntry(w))'
+          form: 'invariant ? null : esAttribute(adjective)'
+          plural: 'invariant ? invariant !== adjective : form?.plural'
+          gendered: /^(\p{L}+)[oa]s$/u.exec(adjective)
+          singular: 'invariant ?? (form && gendered ? `${gendered[1]}o` : null)'
+        when:
+          - det === "lo" || det === "los"
+          - at.next() === "más" || at.next() === "menos"
+        return: >-
+          det === "lo" && adjective && at.next(3) === "posibles"
+            ? esReplaceToken(ctx, last, ["posible"], "spanishAgreement", "review_msg_spanish_agreement", tokens[i])
+            : !adjective || ctx.dictionary.has(adjective)
+              ? null
+              : !/^(?:es|era|fue|será|sería)$/u.test(at.next(3))
+                ? null
+                : det === "los" && plural === false && !form?.feminine
+                  ? esReplaceToken(ctx, tokens[i], ["lo"], "spanishAgreement", "review_msg_spanish_agreement", last)
+                  : det === "lo" && plural && singular
+                    ? esReplaceToken(ctx, tokens[i + 2], [singular], "spanishAgreement", "review_msg_spanish_agreement", tokens[i])
+                    : null
+      # "Con magníficos cucharas", "Buen amigos." -> "magníficas", "Buenos": an adjective opening a
+      # noun phrase with no determiner, after a preposition or at the sentence start, agrees with the
+      # noun right after it. "…, llevado ciudades a la ruina": after a comma a participle goes on a
+      # perfect and takes the noun as its object. The phrase closes after the noun or goes on with a
+      # preposition or a verb. "entroncados étnica y culturalmente": adverbs sharing one "-mente",
+      # no noun.
+      esBareAdjectiveNoun:
+        args: "ctx: DetectContext, tokens: SpanishTokens, i: number"
+        let:
+          at: esAround(tokens, i)
+          adjToken: tokens[i]
+          nounToken: tokens[i + 1]
+          typed: adjToken.lower
+          base: ES_APOCOPE_BASE.get(typed)
+          forms: esAdjectiveForms(base ?? typed)
+          noun: esReadNoun(nounToken.lower)
+          after: esAround(tokens, i + 1)
+          feminine: noun.gender === "f"
+          plural: 'base ? false : forms.plural'
+        when:
+          - at.starts || ES_PREPOSITIONS.has(at.prev())
+          - '!(!nounToken?.word || nounToken.broken || /^\p{Lu}/u.test(nounToken.text))'
+          - '!(ctx.dictionary.has(adjToken.lower) || ctx.dictionary.has(nounToken.lower))'
+          - '!(ES_NOT_PRENOMINAL.test(typed) || ES_DETERMINER.has(typed))'
+          - '!(!forms || forms.feminine === null || esIsNoun(typed) || esVerbLike(typed))'
+          - '!(esFiniteVerb(typed) || ES_SER.has(typed))'
+          - '!(!noun?.gender || noun.invariant || ES_EITHER_GENDER.has(noun.singular))'
+          - '!(esVerbLike(nounToken.lower) || esParticiple(nounToken.lower))'
+          - '!(tokens[i - 1]?.text === "," && esParticiple(typed))'
+          - '!(!after.endsAfter() && !ES_PREPOSITIONS.has(after.next()) && !ES_CONJUNCTIONS.has(after.next()))'
+          - '!(ES_CONJUNCTIONS.has(after.next()) && /\p{L}{3,}mente$/u.test(after.next(2)))'
+          - '!(feminine === forms.feminine && plural === noun.plural)'
+        return: 'esReplaceToken(ctx, adjToken, [forms.form(feminine, noun.plural)], "spanishAgreement", "review_msg_spanish_agreement", nounToken)'
     frames:
       # Every word: the checks key on nouns, adjectives and determiners. The fixer reads the
       # gender and number of the noun phrase at the token (review/spanish/agreement.ts).
       - regex: "{{TOKEN_WORD}}"
         flags: gu
         scan: owned
-        fixer: agreement
+        # The gender and number checks of the noun phrase at the token.
+        let:
+          tokens: esTokens(ctx)
+          i: esTokenAt(tokens, m.index)
+          token: tokens[i]
+        when:
+          - i >= 0
+          - token.word && token.start >= ctx.from && token.start < ctx.to
+        return: "esTimeAdjective(ctx, tokens, i) ?? esNeuterDegree(ctx, tokens, i) ?? esSuperlativeAdjective(ctx, tokens, i) ?? esDeterminerNoun(ctx, tokens, i) ?? esDeterminerAdjectiveNoun(ctx, tokens, i) ?? esDeterminerAcross(ctx, tokens, i) ?? esAdjectiveBetween(ctx, tokens, i) ?? esNeuterBeforePlural(ctx, tokens, i) ?? esBareAdjectiveNoun(ctx, tokens, i) ?? esPostponedNounAdjective(ctx, tokens, i) ?? esAdjectiveAfterOf(ctx, tokens, i) ?? esArticleSuperlative(ctx, tokens, i) ?? esDarPorParticiple(ctx, tokens, i) ?? esNeuterDemonstrative(ctx, tokens, i) ?? esPickerGroup(ctx, tokens, i) ?? esOrdinalForm(ctx, tokens, i) ?? esCardinalNoun(ctx, tokens, i) ?? esCountedDeterminer(ctx, tokens, i)"
   - id: es.verbAgreement
     checks: [spanishAgreement]
     group: spanishAgreement
