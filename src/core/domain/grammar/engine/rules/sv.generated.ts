@@ -2,9 +2,416 @@
 // The code of grammar/rules/sv.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
+import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import { adjectiveForm, namedExampleBefore, nounGender } from "../../library";
+
+export const SV_ORDINAL_BEFORE: ReadonlySet<string> = new Set([
+  "den",
+  "det",
+  "på",
+  "i",
+  "för",
+  "till",
+  "sin",
+  "sitt",
+  "sina",
+  "min",
+  "mitt",
+  "din",
+  "ditt",
+  "hans",
+  "hennes",
+  "deras",
+  "dess",
+  "vår",
+  "vårt",
+  "er",
+  "ert",
+  "varje",
+  "kom",
+  "slutade",
+  "hamnade",
+]);
+
+export const SV_PLURAL_BEFORE: ReadonlySet<string> = new Set([
+  "två",
+  "tre",
+  "fyra",
+  "fem",
+  "sex",
+  "flera",
+  "många",
+  "alla",
+  "några",
+  "olika",
+  "dessa",
+  "de",
+  "inga",
+  "få",
+  "fler",
+  "våra",
+  "era",
+  "deras",
+]);
+
+export const SV_NOT_NOUNS: ReadonlySet<string> = new Set([
+  "för",
+  "och",
+  "som",
+  "i",
+  "på",
+  "med",
+  "till",
+  "av",
+  "är",
+  "var",
+  "har",
+  "hade",
+  "kan",
+  "ska",
+  "skulle",
+  "eller",
+  "men",
+  "från",
+  "att",
+  "om",
+  "under",
+  "efter",
+  "inte",
+  "blir",
+  "blev",
+  "finns",
+  "kommer",
+  "måste",
+  "vid",
+  "mot",
+  "utan",
+  "så",
+  "när",
+  "då",
+  "där",
+  "hos",
+  "än",
+  "samt",
+]);
+
+export const SV_CLAUSE_OPENERS: ReadonlySet<string> = new Set([
+  "att",
+  "och",
+  "men",
+  "när",
+  "om",
+  "eftersom",
+  "då",
+  "så",
+  "medan",
+  "innan",
+  "tills",
+  "fast",
+  "fastän",
+  "ifall",
+  "därför",
+  "hur",
+  "varför",
+  "var",
+  "vad",
+  "sedan",
+]);
+
+export const SV_PERSONS: ReadonlySet<string> = new Set([
+  "mamma",
+  "pappa",
+  "mormor",
+  "morfar",
+  "farmor",
+  "farfar",
+  "bror",
+  "syster",
+  "kompis",
+  "vän",
+  "chef",
+  "granne",
+  "kollega",
+  "lärare",
+  "barn",
+  "honom",
+  "henne",
+  "dem",
+  "dom",
+  "oss",
+  "er",
+  "mig",
+  "dig",
+  "sig",
+  "varje",
+  "alla",
+  "var",
+  "varandra",
+]);
+
+// sv.yaml def SV_ORDINAL_NOUNS
+export const SV_ORDINAL_NOUNS =
+  /^[ \t\u00a0]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u;
+
+// sv.yaml def SV_DATE_ONLY
+export const SV_DATE_ONLY = /^(?:Mars|Maj)$/;
+
+// sv.yaml def SV_DATE_BEFORE
+export const SV_DATE_BEFORE =
+  /(?:\d\.?|(?<!\p{L})(?:i|av|sedan|från|till|under|början|slutet|mitten))[ \t\u00a0]+$/u;
+
+// sv.yaml def SV_HAS_FINITE
+export const SV_HAS_FINITE =
+  /(?<![\p{L}\p{M}\p{N}_'’@/#\\-])(?:är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde|finns|fanns)(?![\p{L}\p{M}\p{N}_'’@/#\\-])/iu;
+
+// sv.yaml def svWordBefore
+export function svWordBefore(text: string, at: number) {
+  return (
+    /(\p{L}[\p{L}\p{N}:]*)[ \t\u00a0]+$/u.exec(text.slice(Math.max(0, at - 32), at))?.[1] ?? ""
+  );
+}
+
+// sv.yaml def svAtSentenceStart
+export function svAtSentenceStart(text: string, at: number) {
+  const before = text.slice(Math.max(0, at - 8), at);
+  return (
+    /[.!?:…\n][ \t\u00a0"”»'(–-]*$/u.test(before) ||
+    (at <= 8 && /^[ \t\u00a0"”»'(–-]*$/u.test(before))
+  );
+}
+
+// sv.yaml def svCapitalized
+export function svCapitalized(word: string) {
+  return /^\p{Lu}\p{Ll}/u.test(word);
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // sv.yaml rule sv.typography frame 1
+  "@sv.typography/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const n = Number(m[1]);
+    const expected = n % 100 !== 11 && n % 100 !== 12 && (n % 10 === 1 || n % 10 === 2) ? "a" : "e";
+    if (!(m[2] === expected)) return null;
+    const before = svWordBefore(ctx.text, m.index);
+    if (svCapitalized(before) && !svAtSentenceStart(ctx.text, m.index - before.length - 1))
+      return null;
+    const end = m.index + m[0].length;
+    if (!(
+      SV_ORDINAL_BEFORE.has(before.toLowerCase()) ||
+      SV_ORDINAL_NOUNS.test(ctx.text.slice(end, end + 24))
+    ))
+      return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end },
+      alternatives: [`${m[1]}:${m[2]}`],
+      context: { start: m.index, end },
+    };
+  },
+  // sv.yaml rule sv.typography frame 2
+  "@sv.typography/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const end = m.index + m[0].length;
+    const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 32))?.[1];
+    if (!(next && !SV_NOT_NOUNS.has(next))) return null;
+    const before = svWordBefore(ctx.text, m.index).toLowerCase();
+    if (
+      SV_PLURAL_BEFORE.has(before) ||
+      /\d[ \t\u00a0]+$/u.test(ctx.text.slice(m.index - 4, m.index))
+    )
+      return null;
+    if (ctx.dictionary.has(m[0].toLowerCase())) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end },
+      alternatives: [`${m[1]}:s`],
+      context: { start: m.index, end: end + 1 + next.length },
+    };
+  },
+  // sv.yaml rule sv.typography frame 3
+  "@sv.typography/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    if (svAtSentenceStart(ctx.text, m.index)) return null;
+    const word = m[0];
+    const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
+    if (SV_DATE_ONLY.test(word) && !SV_DATE_BEFORE.test(before)) return null;
+    const end = m.index + word.length;
+    if (
+      /\p{Lu}\p{Ll}*[ \t\u00a0]+$/u.test(before) ||
+      /^[ \t\u00a0]+\p{Lu}/u.test(ctx.text.slice(end, end + 3))
+    )
+      return null;
+    if (ctx.dictionary.has(word.toLowerCase())) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + 1 },
+      alternatives: [word[0].toLowerCase()],
+      context: { start: m.index, end },
+    };
+  },
+  // sv.yaml rule sv.agreement frame 1
+  "@sv.agreement/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const gap1 = m.groups!.gap1;
+    const adjective = m.groups!.adjective;
+    const gap2 = m.groups!.gap2;
+    const noun = m.groups!.noun;
+    const form = adjectiveForm(adjective);
+    if (!(form && form.form !== "both" && !adjectiveForm(noun))) return null;
+    const gender = nounGender(noun);
+    if (!gender) return null;
+    const end =
+      m.index + target.length + gap1.length + adjective.length + gap2.length + noun.length;
+    const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 40))?.[1];
+    if (next && (adjectiveForm(next) || (next.length > 3 && nounGender(next)))) return null;
+    if ([adjective, noun].some((word) => ctx.dictionary.has(word))) return null;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const articleGender = target.toLowerCase() as "en" | "ett";
+    const adjectiveGender = form.form === "common" ? "en" : "ett";
+    if (!(articleGender !== adjectiveGender)) return null;
+    const fixed = gender === "ett" ? "ett" : "en";
+    return gender === articleGender
+      ? {
+          ruleId: frame.ruleId,
+          messageKey: frame.messageKey,
+          range: {
+            start: m.index + target.length + gap1.length,
+            end: m.index + target.length + gap1.length + adjective.length,
+          },
+          alternatives: [form.other],
+          context: { start: m.index, end },
+        }
+      : {
+          ruleId: frame.ruleId,
+          messageKey: frame.messageKey,
+          range: { start: m.index, end: m.index + target.length },
+          alternatives: [
+            target === target.toUpperCase() && target.length > 1
+              ? fixed.toUpperCase()
+              : target[0] === "E"
+                ? "E" + fixed.slice(1)
+                : fixed,
+          ],
+          context: { start: m.index, end },
+        };
+  },
+  // sv.yaml rule sv.mellanTillDeDem frame 1
+  "@sv.mellanTillDeDem/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const target = m.groups!.target;
+    const till = m.groups!.till;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const span = m.indices!.groups!.till;
+    const between = ctx.text.slice(m.index + target.length, span[0]);
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: span[1] },
+      alternatives: [
+        target + between + (till === till.toUpperCase() ? "OCH" : "och"),
+        (target[0] === "M" ? "Från" : "från") + between + till,
+      ],
+      requiresChoice: true,
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // sv.yaml rule sv.mellanTillDeDem frame 2
+  "@sv.mellanTillDeDem/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const target = m.groups!.target;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    if (!(
+      svAtSentenceStart(ctx.text, m.index) ||
+      /,[ \t\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index)) ||
+      SV_CLAUSE_OPENERS.has(svWordBefore(ctx.text, m.index).toLowerCase())
+    ))
+      return null;
+    if (ctx.dictionary.has(target.toLowerCase())) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + target.length },
+      alternatives: [target === "DEM" ? "DE" : target[0] + "e"],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // sv.yaml rule sv.mellanTillDeDem frame 3
+  "@sv.mellanTillDeDem/3": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const target = m.groups!.target;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const start = m.index + m[0].length - target.length;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start, end: start + target.length },
+      alternatives: [target === "DE" ? "DEM" : "dem"],
+      context: { start: m.index, end: start + target.length },
+    };
+  },
+  // sv.yaml rule sv.enTillSpeechComma frame 1
+  "@sv.enTillSpeechComma/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const target = m.groups!.target;
+    const gap1 = m.groups!.gap1;
+    const noun = m.groups!.noun;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    if (SV_PERSONS.has(noun) || adjectiveForm(noun)) return null;
+    const gender = nounGender(noun);
+    if (gender ? gender !== target.toLowerCase() : !/a$/u.test(noun) || target !== "en")
+      return null;
+    if (ctx.dictionary.has(noun)) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [`${target}${gap1}${noun} till`],
+      context: { start: m.index, end: m.index + m[0].length },
+    };
+  },
+  // sv.yaml rule sv.enTillSpeechComma frame 2
+  "@sv.enTillSpeechComma/2": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const target = m.groups!.target;
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    const sentence = ctx.text.slice(Math.max(0, m.index - 200), m.index);
+    const clause = sentence.slice(sentence.search(/[^.!?:\n]*$/u));
+    if (clause.trim().split(/\s+/u).length < 3 || !SV_HAS_FINITE.test(clause)) return null;
+    if (/(?<!\p{L})(?:som|vad|vilket|vilken|vilka)(?!\p{L})/iu.test(clause)) return null;
+    if (
+      /^[\s"”»'(–-]*(?:när|om|eftersom|innan|medan|sedan|då|fast|fastän|ifall|tills|därför|för att)(?!\p{L})/iu.test(
+        clause,
+      )
+    )
+      return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + target.length },
+      alternatives: [", "],
+      context: { start: m.index - Math.min(clause.length, 24), end: m.index + m[0].length },
+    };
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};

@@ -2,9 +2,434 @@
 // The code of grammar/rules/el.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
+import type { DetectContext, FrameRef, MatchResult } from "../../library";
+import { bareGreek, isGreek, keepsFinalNu, namedExampleBefore } from "../../library";
+
+export const EL_ARTICLES: ReadonlySet<string> = new Set([
+  "ο",
+  "η",
+  "οι",
+  "το",
+  "τα",
+  "τον",
+  "την",
+  "τη",
+  "του",
+  "της",
+  "των",
+  "τους",
+  "τις",
+]);
+
+export const EL_CONJUNCTIONS: ReadonlySet<string> = new Set([
+  "οταν",
+  "οτι",
+  "αν",
+  "εαν",
+  "η",
+  "ενω",
+  "επειδη",
+  "αφου",
+  "οπως",
+  "ωστε",
+  "οποτε",
+  "αλλα",
+  "ομως",
+  "ουτε",
+  "ειτε",
+  "οσο",
+  "ως",
+]);
+
+export const EL_MASCULINE: ReadonlySet<string> = new Set([
+  "λογο",
+  "χρονο",
+  "δρομο",
+  "κοσμο",
+  "νομο",
+  "ρολο",
+  "στοχο",
+  "τροπο",
+  "τοπο",
+  "φοβο",
+  "πονο",
+  "ουρανο",
+  "καιρο",
+  "σκοπο",
+  "κινδυνο",
+  "ανθρωπο",
+  "ανεμο",
+  "υπνο",
+  "θανατο",
+  "πολεμο",
+  "λαο",
+  "θεο",
+  "γαμο",
+  "κηπο",
+  "τοιχο",
+  "δημο",
+  "οροφο",
+  "μισθο",
+  "χωρο",
+  "ποταμο",
+  "φορο",
+  "ογκο",
+  "κυκλο",
+  "τυπο",
+  "ορο",
+  "κλαδο",
+  "θορυβο",
+  "στρατο",
+  "δασκαλο",
+  "καταλογο",
+  "διαλογο",
+  "ελεγχο",
+  "συλλογο",
+  "γιο",
+  "ανιψιο",
+  "εχθρο",
+  "στιχο",
+  "ηχο",
+  "λοφο",
+  "βραχο",
+  "καμπο",
+  "λυκο",
+  "ταυρο",
+  "σκυλο",
+  "χορο",
+  "γυρο",
+  "ναο",
+  "ταφο",
+  "θρονο",
+  "στολο",
+  "φακελο",
+  "νου",
+  "βασιλια",
+  "παππου",
+  "αιωνα",
+  "αγωνα",
+  "αντρα",
+  "πατερα",
+  "μηνα",
+  "αερα",
+  "κανονα",
+  "χαρακτηρα",
+  "τομεα",
+  "χειμωνα",
+  "γειτονα",
+  "ηρωα",
+  "πινακα",
+  "αξονα",
+  "πυρηνα",
+  "μαθητη",
+  "καθηγητη",
+  "πελατη",
+  "επιβατη",
+  "εργατη",
+  "χαρτη",
+  "πολιτη",
+  "αθλητη",
+  "ιδιοκτητη",
+  "δεικτη",
+  "υπολογιστη",
+  "διακοπτη",
+  "ανταγωνιστη",
+]);
+
+export const EL_AMBIGUOUS: ReadonlySet<string> = new Set([
+  "αντιθετα",
+  "τελος",
+  "ναι",
+  "οχι",
+  "επιπλεον",
+]);
+
+export const EL_CLAUSE_OPENERS: ReadonlySet<string> = new Set([
+  "ο",
+  "η",
+  "οι",
+  "το",
+  "τα",
+  "τον",
+  "την",
+  "τη",
+  "του",
+  "της",
+  "των",
+  "τους",
+  "τις",
+  "θα",
+  "να",
+  "δεν",
+  "δε",
+  "μην",
+  "μη",
+  "ας",
+  "εγω",
+  "εσυ",
+  "αυτος",
+  "αυτη",
+  "αυτο",
+  "εμεις",
+  "εσεις",
+  "αυτοι",
+  "αυτες",
+  "αυτα",
+  "καθε",
+  "ολοι",
+  "ολα",
+  "ολες",
+]);
+
+export const EL_NOT_VERBS: ReadonlySet<string> = new Set([
+  "εδω",
+  "πισω",
+  "πανω",
+  "κατω",
+  "εξω",
+  "μεσω",
+  "ανω",
+  "οκτω",
+  "οχτω",
+  "εγω",
+  "λογω",
+  "ηχω",
+]);
+
+// el.yaml def EL_CONSONANT
+export const EL_CONSONANT = /^[βγδζθκλμνξπρστφχψ]/;
+
+// el.yaml def EL_MASCULINE_SUFFIX
+export const EL_MASCULINE_SUFFIX = /(?:σμ|γμ|χμ|θμ)ο$/;
+
+// el.yaml def EL_PREPOSITION
+export const EL_PREPOSITION =
+  /(?<!\p{L})(?:(?:γι|σ|μ|απ|κατ|μετ|παρ)['’][ \t\u00a0]*|(?:για|σε|με|από|προς|χωρίς|κατά|μετά|παρά|ως|μέχρι|έως)[ \t\u00a0]+)$/iu;
+
+// el.yaml def EL_LEAD
+export const EL_LEAD = /(?:(?:από|απ['’]|για|ως|μέχρι|και|κι)[ \t\u00a0]+)?$/iu;
+
+// el.yaml def EL_SENTENCE_START
+export const EL_SENTENCE_START = /[.!;;?…\n][ \t\u00a0"«“‘'(]*$/u;
+
+// el.yaml def EL_AT_START
+export const EL_AT_START = /^[ \t\u00a0"«“‘'(]*$/u;
+
+// el.yaml def elTyped
+export function elTyped(m: RegExpExecArray, ctx: DetectContext) {
+  return (
+    !namedExampleBefore(ctx.text, m.index) && !ctx.dictionary.has(m.groups!.target.toLowerCase())
+  );
+}
+
+// el.yaml def elWordBefore
+export function elWordBefore(text: string, at: number) {
+  return /(\p{L}+['’]?)[ \t\u00a0]+$/u.exec(text.slice(Math.max(0, at - 24), at))?.[1] ?? "";
+}
+
+// el.yaml def elWithNu
+export function elWithNu(word: string) {
+  return word + (word.length > 1 && word === word.toUpperCase() ? "Ν" : "ν");
+}
+
+// el.yaml def elKai
+export function elKai(word: string) {
+  return word === word.toUpperCase() ? "ΚΑΙ" : word[0] + "αι";
+}
+
+// el.yaml def elNextFinding
+export function elNextFinding(
+  m: RegExpExecArray,
+  frame: FrameRef,
+  start: number,
+  alternative: string,
+) {
+  const end = m.index + m.groups!.target.length;
+  return {
+    ruleId: frame.ruleId,
+    messageKey: frame.messageKey,
+    range: { start, end },
+    alternatives: [alternative],
+    context: { start, end: end + m.groups!.gap.length + m.groups!.next.length },
+  };
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // el.yaml rule el.finalNu frame 1
+  "@el.finalNu/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    if (!elTyped(m, ctx)) return null;
+    if (!keepsFinalNu(next)) return null;
+    const lower = bareGreek(target);
+    const before = bareGreek(elWordBefore(ctx.text, m.index));
+    if (!(lower !== "μη" || before === "να" || before === "ας")) return null;
+    if (lower.endsWith("τη") && before === "εν") return null;
+    if (!(
+      lower !== "δε" ||
+      !(
+        EL_ARTICLES.has(before) ||
+        EL_CONJUNCTIONS.has(bareGreek(next)) ||
+        /(?<!\p{L})μεν(?!\p{L})/iu.test(
+          ctx.text
+            .slice(Math.max(0, m.index - 120), m.index)
+            .split(/[.;!\n]/)
+            .at(-1)!,
+        )
+      )
+    ))
+      return null;
+    return lower === "δε"
+      ? {
+          ...elNextFinding(m, frame, m.index, elWithNu(target)),
+          bulkBlock: "context-dependent" as const,
+        }
+      : elNextFinding(m, frame, m.index, elWithNu(target));
+  },
+  // el.yaml rule el.finalNu frame 2
+  "@el.finalNu/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    if (!elTyped(m, ctx)) return null;
+    if (!(isGreek(next) && EL_CONSONANT.test(bareGreek(next)))) return null;
+    return elNextFinding(m, frame, m.index, elKai(target));
+  },
+  // el.yaml rule el.strictFinalNu frame 1
+  "@el.strictFinalNu/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    if (!elTyped(m, ctx)) return null;
+    if (!(keepsFinalNu(next) === false)) return null;
+    if (
+      /^(?:δεν|μην)$/iu.test(target) &&
+      EL_ARTICLES.has(bareGreek(elWordBefore(ctx.text, m.index)))
+    )
+      return null;
+    return elNextFinding(m, frame, m.index, target.slice(0, -1));
+  },
+  // el.yaml rule el.strictFinalNu frame 2
+  "@el.strictFinalNu/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    if (!elTyped(m, ctx)) return null;
+    const noun = bareGreek(next);
+    if (!(isGreek(next) && (EL_MASCULINE.has(noun) || EL_MASCULINE_SUFFIX.test(noun)))) return null;
+    const lead = /(?<!\p{L})(αυτό|εκείνο)([ \t\u00a0]+)$/iu.exec(
+      ctx.text.slice(Math.max(0, m.index - 12), m.index),
+    );
+    return lead
+      ? elNextFinding(
+          m,
+          frame,
+          m.index - lead[0].length,
+          elWithNu(lead[1]) + lead[2] + elWithNu(target),
+        )
+      : elNextFinding(m, frame, m.index, elWithNu(target));
+  },
+  // el.yaml rule el.strictFinalNu frame 3
+  "@el.strictFinalNu/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    if (!elTyped(m, ctx)) return null;
+    if (!(keepsFinalNu(next) && !EL_ARTICLES.has(bareGreek(next)))) return null;
+    if (!EL_PREPOSITION.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))) return null;
+    return elNextFinding(m, frame, m.index, elWithNu(target));
+  },
+  // el.yaml rule el.perfectForm frame 1
+  "@el.perfectForm/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const start = m.index + m[0].length - target.length;
+    if (!(start >= ctx.from && start < ctx.to && !EL_NOT_VERBS.has(bareGreek(target)))) return null;
+    if (!(!ctx.dictionary.has(target.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)))
+      return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: start + target.length - 1, end: start + target.length },
+      alternatives: [target.endsWith("ώ") ? "εί" : "ει"],
+      context: { start: m.index, end: start + target.length },
+    };
+  },
+  // el.yaml rule el.questionAccent frame 1
+  "@el.questionAccent/1": (
+    m: RegExpExecArray,
+    ctx: DetectContext,
+    frame: FrameRef,
+  ): MatchResult => {
+    const word = m[0];
+    if (word.length > 1 && word === word.toUpperCase()) return null;
+    if (!(!ctx.dictionary.has(word.toLowerCase()) && !namedExampleBefore(ctx.text, m.index)))
+      return null;
+    const from = Math.max(0, m.index - 40);
+    const before = ctx.text.slice(from, m.index).replace(EL_LEAD, "");
+    if (!(EL_SENTENCE_START.test(before) || (from === 0 && EL_AT_START.test(before)))) return null;
+    const end = m.index + word.length;
+    const rest = /[.!;;?…\n]/u.exec(ctx.text.slice(end, end + 300));
+    if (!(rest && ";;?".includes(rest[0]))) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end },
+      alternatives: [word.replace(/υ$/u, "ύ").replace(/ω(?=ς$)/u, "ώ")],
+      context: { start: m.index, end: end + rest.index + 1 },
+    };
+  },
+  // el.yaml rule el.formalKai frame 1
+  "@el.formalKai/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    if (!elTyped(m, ctx)) return null;
+    if (!(
+      isGreek(next) &&
+      !EL_CONSONANT.test(bareGreek(next)) &&
+      !/^(?:ομως|ως|αν)$/u.test(bareGreek(next))
+    ))
+      return null;
+    return elNextFinding(m, frame, m.index, elKai(target));
+  },
+  // el.yaml rule el.punctuation frame 1
+  "@el.punctuation/1": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    const target = m.groups!.target;
+    const next = m.groups!.next;
+    if (!elTyped(m, ctx)) return null;
+    const from = Math.max(0, m.index - 8);
+    const before = ctx.text.slice(from, m.index);
+    if (!(EL_SENTENCE_START.test(before) || (from === 0 && EL_AT_START.test(before)))) return null;
+    const bare = bareGreek(target);
+    if (EL_AMBIGUOUS.has(bare) && !EL_CLAUSE_OPENERS.has(bareGreek(next))) return null;
+    if (!(
+      bare !== "οχι" ||
+      /(?<!\p{L})(?:δεν|δε|μην|ούτε)(?!\p{L})/iu.test(
+        ctx.text
+          .slice(m.index + target.length, m.index + target.length + 200)
+          .split(/[.;;!?\n]/)[0],
+      )
+    ))
+      return null;
+    return elNextFinding(m, frame, m.index, `${target},`);
+  },
+  // el.yaml rule el.punctuation frame 2
+  "@el.punctuation/2": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [m[0][0]],
+    };
+  },
+  // el.yaml rule el.punctuation frame 3
+  "@el.punctuation/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
+    if (namedExampleBefore(ctx.text, m.index)) return null;
+    return {
+      ruleId: frame.ruleId,
+      messageKey: frame.messageKey,
+      range: { start: m.index, end: m.index + m[0].length },
+      alternatives: [m[0][0]],
+    };
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};

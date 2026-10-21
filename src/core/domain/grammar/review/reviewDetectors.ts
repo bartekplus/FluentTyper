@@ -98,25 +98,10 @@ import {
   PREDICATES as GERMAN,
 } from "./german/ruleDetectors";
 import {
-  FILTERS as GREEK_FILTERS,
-  FIXERS as GREEK_FIXERS,
-  PREDICATES as GREEK,
-} from "./greek/ruleDetectors";
-import {
-  FILTERS as SWEDISH_FILTERS,
-  FIXERS as SWEDISH_FIXERS,
-  PREDICATES as SWEDISH,
-} from "./swedish/ruleDetectors";
-import {
   FILTERS as PORTUGUESE_FILTERS,
   FIXERS as PORTUGUESE_FIXERS,
   PREDICATES as PORTUGUESE,
 } from "./portuguese/ruleDetectors";
-import {
-  FILTERS as SPANISH_FILTERS,
-  FIXERS as SPANISH_FIXERS,
-  PREDICATES as SPANISH,
-} from "./spanish/ruleDetectors";
 import {
   FILTERS as FRENCH_FILTERS,
   FIXERS as FRENCH_FIXERS,
@@ -1736,30 +1721,21 @@ export const REVIEW_DETECTORS: ReviewDetectorEntry[] = buildReviewDetectors(
     common: CORE_PREDICATES,
     en: ENGLISH,
     de: GERMAN,
-    el: GREEK,
-    sv: SWEDISH,
     pt_BR: PORTUGUESE,
-    es: SPANISH,
     fr: FRENCH,
   },
   {
     common: CORE_FIXERS,
     en: ENGLISH_FIXERS,
     de: GERMAN_FIXERS,
-    el: GREEK_FIXERS,
-    sv: SWEDISH_FIXERS,
     pt_BR: PORTUGUESE_FIXERS,
-    es: SPANISH_FIXERS,
     fr: FRENCH_FIXERS,
   },
   {
     common: CORE_FILTERS,
     en: ENGLISH_FILTERS,
     de: GERMAN_FILTERS,
-    el: GREEK_FILTERS,
-    sv: SWEDISH_FILTERS,
     pt_BR: PORTUGUESE_FILTERS,
-    es: SPANISH_FILTERS,
     fr: FRENCH_FILTERS,
   },
 );
