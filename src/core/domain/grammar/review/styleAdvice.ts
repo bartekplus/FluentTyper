@@ -2,6 +2,7 @@ import type { RawFinding } from "./reviewDetectors";
 import type { ProtectedRange, ReviewSourceSnapshot } from "./types";
 import { MAX_REVIEW_CHARS } from "./types";
 import { TOKEN_END, WORD_START } from "./phraseTemplates";
+import { QUOTE_CLOSERS } from "./proseQuotations";
 
 // Acronyms whose last letter already names the noun after them.
 const PAIRS = [
@@ -36,16 +37,6 @@ export function redundantAcronyms(
   const quoted = new Uint8Array(text.length);
   for (const range of protectedRanges)
     quoted.fill(1, Math.max(0, range.start), Math.min(text.length, range.end));
-  const closers: Record<string, string> = {
-    '"': '"',
-    "'": "'",
-    "“": "”",
-    "‘": "’",
-    "«": "»",
-    "‹": "›",
-    "„": "”“",
-    "‚": "’‘",
-  };
   const stack: string[] = [];
   for (let i = 0; i < text.length; i++) {
     if (quoted[i]) continue;
@@ -61,10 +52,10 @@ export function redundantAcronyms(
     if (stack.at(-1)?.includes(char)) {
       quoted[i] = 1;
       stack.pop();
-    } else if (char in closers) {
-      stack.push(closers[char]);
+    } else if (char in QUOTE_CLOSERS) {
+      stack.push(QUOTE_CLOSERS[char]);
       quoted[i] = 1;
-    } else if (/[”’»›]/u.test(char)) {
+    } else if (/[’›]/u.test(char)) {
       return [];
     } else quoted[i] = stack.length > 0 ? 1 : 0;
   }

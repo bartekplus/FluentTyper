@@ -9,24 +9,27 @@ const LIST_CONTINUATION = new RegExp(
   "u",
 );
 
+/**
+ * Each opening quotation mark with the marks that may close it, across the supported conventions:
+ * „…“ (de) and „…” (pl, hr), »…« (de, hr) and »…» (sv), ”…” (sv).
+ */
+export const QUOTE_CLOSERS: Readonly<Record<string, string>> = {
+  '"': '"',
+  "'": "'",
+  "“": "”",
+  "‘": "’",
+  "«": "»",
+  "„": "“”",
+  "‚": "‘’",
+  "»": "«»",
+  "‹": "›",
+  "”": "”",
+};
+
 /** One pass over masked prose; code punctuation cannot open or close a quotation. */
 export function proseQuotations(text: string): { ranges: TextRange[]; examples: TextRange[] } {
   const ranges: TextRange[] = [];
   const examples: TextRange[] = [];
-  // Each opener with the marks that may close it, across the supported conventions:
-  // „…“ (de) and „…” (pl, hr), »…« (de, hr) and »…» (sv), ”…” (sv).
-  const closers: Record<string, string> = {
-    '"': '"',
-    "'": "'",
-    "“": "”",
-    "‘": "’",
-    "«": "»",
-    "„": "“”",
-    "‚": "‘’",
-    "»": "«»",
-    "‹": "›",
-    "”": "”",
-  };
   let start = -1;
   let closer = "";
   let example = false;
@@ -55,9 +58,9 @@ export function proseQuotations(text: string): { ranges: TextRange[]; examples: 
         previousExampleEnd = range.end;
       }
       closer = "";
-    } else if (text[i] in closers && /^[\s([–—]?$/.test(text[i - 1] ?? "")) {
+    } else if (text[i] in QUOTE_CLOSERS && /^[\s([–—]?$/.test(text[i - 1] ?? "")) {
       start = i;
-      closer = closers[text[i]];
+      closer = QUOTE_CLOSERS[text[i]];
       const before = text.slice(Math.max(0, i - 160), i);
       example =
         CUE_BEFORE_QUOTE.test(before) ||
