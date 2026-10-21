@@ -5551,36 +5551,70 @@ rules:
       # Templates at a clause start: a singular subject with the base form or a plural subject
       # with the third person form.
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>look){{S}}(?:(?:quite{{S}})?promising|good){{E}}"
+        # The gate of a template whose prefilter word is common: the target and the words
+        # after it. Without them in the text, the frame does not run.
+        gate: "look[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>looks){{S}}(?:(?:quite{{S}})?promising|good){{E}}"
+        gate: "looks[ \\t\\u00a0]{1,8}(?:(?:quite[ \\t\\u00a0]{1,8})?promising|good)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>accept){{S}}(?:words){{E}}"
+        gate: "accept[ \\t\\u00a0]{1,8}(?:words)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>accepts){{S}}(?:words){{E}}"
+        gate: "accepts[ \\t\\u00a0]{1,8}(?:words)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>struggle){{S}}(?:with{{S}}constructions){{E}}"
+        gate: "struggle[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>struggles){{S}}(?:with{{S}}constructions){{E}}"
+        gate: "struggles[ \\t\\u00a0]{1,8}(?:with[ \\t\\u00a0]{1,8}constructions)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>make){{S}}(?:many{{S}}mistakes){{E}}"
+        gate: "make[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>makes){{S}}(?:many{{S}}mistakes){{E}}"
+        gate: "makes[ \\t\\u00a0]{1,8}(?:many[ \\t\\u00a0]{1,8}mistakes)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>work){{S}}(?:(?:correctly|well|reliably)){{E}}"
+        gate: "work[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>works){{S}}(?:(?:correctly|well|reliably)){{E}}"
+        gate: "works[ \\t\\u00a0]{1,8}(?:(?:correctly|well|reliably))"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>suggest){{S}}(?:(?:a|an|the){{S}}(?:change|solution|correction)){{E}}"
+        gate: "suggest[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>suggests){{S}}(?:(?:a|an|the){{S}}(?:change|solution|correction)){{E}}"
+        gate: "suggests[ \\t\\u00a0]{1,8}(?:(?:a|an|the)[ \\t\\u00a0]{1,8}(?:change|solution|correction))"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>forget){{S}}(?:an{{S}}article){{E}}"
+        gate: "forget[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>forgets){{S}}(?:an{{S}}article){{E}}"
+        gate: "forgets[ \\t\\u00a0]{1,8}(?:an[ \\t\\u00a0]{1,8}article)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>have){{S}}(?:other{{S}}tasks|checked|finished|completed|passed|been){{E}}"
+        gate: "have[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>has){{S}}(?:other{{S}}tasks|checked|finished|completed|passed|been){{E}}"
+        gate: "has[ \\t\\u00a0]{1,8}(?:other[ \\t\\u00a0]{1,8}tasks|checked|finished|completed|passed|been)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>need){{S}}(?:improvements){{E}}"
         fixer: agreementTemplate
@@ -5599,8 +5633,12 @@ rules:
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>was){{S}}(?:(?:consuming|running|working)){{E}}"
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>aren't){{S}}(?:detected){{E}}"
+        gate: "aren't[ \\t\\u00a0]{1,8}(?:detected)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_PLURAL}}{{AGREE_ADVERBS}}(?<target>isn't){{S}}(?:detected){{E}}"
+        gate: "isn't[ \\t\\u00a0]{1,8}(?:detected)"
+        gateFlags: giu
         fixer: agreementTemplate
       - regex: "{{AGREE_SINGULAR}}{{AGREE_ADVERBS}}(?<target>solve){{S}}(?:the{{S}}(?:original{{S}})?issue){{E}}"
         fixer: agreementTemplate
