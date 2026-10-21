@@ -46,9 +46,8 @@ rules:
     message: review_msg_spanish_accent
     frames:
       # The question words, the relatives and the stressed monosyllables. The fixer reads the
-      # words around the token (review/spanish/diacritics.ts). "constructor" reaches the plain
-      # word tables too, as the word walk before the port did: it reads an Object member there.
-      - regex: "(?:constructor|qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas){{WORD_TAIL}}"
+      # words around the token (review/spanish/diacritics.ts).
+      - regex: "(?:qu[eé]|qui[eé]n(?:es)?|c[oó]mo|a?d[oó]nde|cu[aá]ndo|cu[aá]l(?:es)?|cuan(?:t[oa]s?)?|m[ií]|t[uú]|[eé]l|se|de|t[eé]|si|a[uú]n|mas){{WORD_TAIL}}"
         flags: giu
         scan: owned
         fixer: diacritics
@@ -96,9 +95,8 @@ rules:
     message: review_msg_spanish_confusion
     frames:
       # "aun que", "han habido", "el menos", "a ver" and the words of CHECKS. The fixer reads
-      # the words around the token (review/spanish/confusions.ts). "constructor" reaches the
-      # plain word tables too, as the word walk before the port did: it reads an Object member.
-      - regex: "(?:constructor|a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy){{WORD_TAIL}}"
+      # the words around the token (review/spanish/confusions.ts).
+      - regex: "(?:a|ah|anos?|apunto|ara|a[uú]n|ay|ayan?|bastantes|caso|cuidad|desech[ao]s?|e|echo|eh|el|entorno|haber|hab[ií]an|habr[aá]n|habr[ií]an|hallas?|hallan|han|hay|hayan?|haz|hech(?:os?|as?|an|amos)|hola|hubieran|hubiesen|[ií]ba|[ií]bais|[ií]ban|[ií]bas|[ií]bamos|lamas?|lamamos|lamo|mama|ola|ora|papa|pod(?:o|es|en)|se|sobretodo|tal|trav[eé]s|va|vais|vallas?|vallamos|vallan|vamos|van|vas|ven|voy){{WORD_TAIL}}"
         flags: giu
         scan: owned
         fixer: confusions
