@@ -171,36 +171,155 @@ rules:
     checks: [portugueseConfusions]
     style: portuguese
     message: review_msg_pt_homophone
+    maps:
+      # Verb forms typed for the noun that sounds the same: after a determiner only the noun fits.
+      NOUN_TWIN:
+        viajem: viagem
+        viajens: viagens
+        extirpe: estirpe
+        extirpes: estirpes
+        profetiza: profetisa
+        profetizas: profetisas
+        poetiza: poetisa
+        poetizas: poetisas
+        sinto: cinto
+        sintos: cintos
+        sinta: cinta
+        sintas: cintas
+        asso: aço
+        assos: aços
+        cerra: serra
+        cerras: serras
+      # "a" fused with the article that follows it.
+      WITH_A: { o: ao, a: à, os: aos, as: às }
+      # Elapsed-time "fazer" and its auxiliaries have no subject: the singular.
+      IMPERSONAL:
+        fazem: faz
+        faziam: fazia
+        fizeram: fez
+        farão: fará
+        fariam: faria
+        vão: vai
+        iam: ia
+        irão: irá
+        podem: pode
+        deviam: devia
+        devem: deve
+        costumam: costuma
+      HAVER_SINGULAR:
+        haviam: havia
+        haverão: haverá
+        haveriam: haveria
+        houvessem: houvesse
+        houverem: houver
+        hajam: haja
+        haverem: haver
+      # Long participle stem -> short participle stem (gender and number follow).
+      SHORT_PARTICIPLE:
+        gast: gast
+        pag: pag
+        ganh: ganh
+        aceit: aceit
+        eleg: eleit
+        prend: pres
+        acend: aces
+        suspend: suspens
+        expuls: expuls
+        imprim: impress
+        limp: limp
+        salv: salv
+        solt: solt
+        morr: mort
+        benz: bent
+        enxug: enxut
+        extingu: extint
+      MODAL_SINGULAR:
+        devem: deve
+        deviam: devia
+        deveriam: deveria
+        deverão: deverá
+        podem: pode
+        podiam: podia
+        poderiam: poderia
+        poderão: poderá
+        vão: vai
+        iam: ia
+        irão: irá
+        costumam: costuma
+        começam: começa
+        continuam: continua
+      COPULA_PLURAL: { foi: foram, é: são, era: eram, está: estão, estava: estavam }
+      ESTAR_FOR_TER:
+        tive: estive
+        teve: esteve
+        tivemos: estivemos
+        tiveram: estiveram
+        tinha: estava
+        tínhamos: estávamos
+        tinham: estavam
+      ACCENTED_PREFIX: { pos: pós, recem: recém, alem: além, aquem: aquém }
+      FUTURE_ACCENT: { sera: será, tera: terá }
+      # "comer os remédios" -> "tomar".
+      EAT_TO_TAKE:
+        comer: tomar
+        como: tomo
+        come: toma
+        comemos: tomamos
+        comem: tomam
+        comi: tomei
+        comeu: tomou
+        comeram: tomaram
+        comia: tomava
+        comiam: tomavam
+        comendo: tomando
+        comido: tomado
+      # "o evento toma lugar" -> "tem lugar".
+      TAKE_PLACE:
+        toma: tem
+        tomam: têm
+        tomou: teve
+        tomaram: tiveram
+        tomará: terá
+        tomarão: terão
+        tomaria: teria
+        tomariam: teriam
+        tomava: tinha
+        tomavam: tinham
+        tomasse: tivesse
+        tomassem: tivessem
+      HAD_TO: { estive: tive, esteve: teve, estivemos: tivemos, estiveram: tiveram }
     frames:
       # "uma viajem longa" -> "viagem", "do asso" -> "aço".
       - regex: "{{NOUN_LEAD}}{{S}}(?<target>viajem|viajens|extirpe|extirpes|profetiza|profetizas|poetiza|poetizas|sinto|sintos|sinta|sintas|asso|assos|cerra|cerras){{E}}(?!-)"
-        fixer: ptViajem
+        return: "[NOUN_TWIN[target.toLowerCase()]]"
       - regex: "(?<![\\p{L}][ \\t\\u00a0]{0,8})[oa]s?{{S}}(?<target>viajem|viajens|extirpe|extirpes|profetiza|profetizas|poetiza|poetizas|sinto|sintos|sinta|sintas|asso|assos|cerra|cerras){{E}}(?!-)"
-        fixer: ptViajem2
+        return: "[NOUN_TWIN[target.toLowerCase()]]"
         clauseStart: true
       # "que eles viagem" -> "viajem", "Não viagem sem seguro": the subjunctive is spelled with j.
       - regex: "(?:(?:que|embora|caso){{S}}(?:eles|elas|vocês)|(?<!uma{{S}})não){{S}}(?<target>viagem){{E}}(?!{{S}}(?:é|foi|era|será){{E}})"
         fix: ["viajem"]
       # "assistir ao filme" (to watch); "assistir o paciente" (to help) keeps its object.
       - regex: "{{ASSISTIR}}{{S}}(?<target>os?|as?(?={{S}}{{NOT_ARTICLE_NEXT}})){{S}}(?=(?:\\p{L}+{{S}})?(?:{{SHOWS}}){{E}})"
-        fixer: ptOs
+        return: "[WITH_A[target.toLowerCase()]]"
         message: review_msg_pt_regency
       # "obedecer aos pais", "desobedecer à lei".
       - regex: "(?:{{OBEDECER}}){{S}}(?<target>os?|as?(?={{S}}{{NOT_ARTICLE_NEXT}})){{S}}(?=\\p{L}{2,})"
-        fixer: ptOs2
+        return: "[WITH_A[target.toLowerCase()]]"
         message: review_msg_pt_regency
       # "prefiro chá a café", not "do que café".
       - regex: "(?:{{PREFERIR}}){{S}}(?:[^\\s.,;:!?]+{{S}}){1,5}(?<!(?:mais|menos|melhor|pior|maior|menor|antes|tanto){{S}})(?<target>do{{S}}que(?:{{S}}(?:o|a|os|as)(?={{S}}))?){{E}}"
-        fixer: ptDo
+        let:
+          article: '/\s(o|a|os|as)$/i.exec(target)?.[1].toLowerCase()'
+        return: '[article ? WITH_A[article] : "a"]'
         message: review_msg_pt_regency
       # "eles tem" -> "eles têm", "elas contém" -> "elas contêm".
       - regex: "{{PLURAL_SUBJECT}}{{S}}(?:(?:não|já|também|ainda|nunca|sempre|só|apenas|realmente){{E}}{{S}}){0,2}(?<target>{{TER_VIR}}){{E}}"
-        fixer: ptCon
+        return: '[target.replace(/[eé]m$/i, "êm")]'
       # "Faz dez anos que", "fazia meses que": "fazer" for elapsed time has no subject.
       - regex: "(?<target>fazem|faziam|fizeram|farão|fariam){{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}})?(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante{{S}}tempo|muito{{S}}tempo){{S}}(?:que|desde){{E}}"
-        fixer: ptFazem
+        return: "[IMPERSONAL[target.toLowerCase()]]"
       - regex: "(?<target>vão|iam|irão|podem|deviam|devem|costumam){{S}}fazer{{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}})?(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante{{S}}tempo|muito{{S}}tempo){{S}}(?:que|desde){{E}}"
-        fixer: ptVão
+        return: "[IMPERSONAL[target.toLowerCase()]]"
       # "está noite" -> "esta noite": the demonstrative before a part of the day.
       - regex: "(?<!(?:já|ainda|lá|aqui|fora){{S}})(?<target>está){{S}}(?=(?:noite|semana|manhã|tarde|madrugada){{E}})"
         fix: ["esta"]
@@ -222,18 +341,18 @@ rules:
         fix: ["até"]
       # A preposition takes "mim" and "ti" when no infinitive follows: "para mim", "entre mim e ti".
       - regex: "(?:para|sem|contra|perante|a){{S}}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|$)"
-        fixer: ptEu
+        return: '[target.toLowerCase() === "eu" ? "mim" : "ti"]'
         message: review_msg_pt_pronoun_case
       - regex: "entre{{S}}(?<target>eu|tu){{S}}(?=e{{E}})"
-        fixer: ptEu2
+        return: '[target.toLowerCase() === "eu" ? "mim" : "ti"]'
         message: review_msg_pt_pronoun_case
       # "Esse livro é para mim ler": the subject of the infinitive is "eu". Opening a clause,
       # "Para mim estudar é difícil" may also mean "for me, studying is hard".
       - regex: "(?:é|era|foi|será|seria|são|eram){{S}}para{{S}}(?<target>mim|ti){{S}}(?=\\p{L}*[aeiô]r(?:em|mos|es)?{{E}})"
-        fixer: ptMim
+        return: '[target.toLowerCase() === "mim" ? "eu" : "tu"]'
         message: review_msg_pt_pronoun_case
       - regex: "(?<=(?:^|[.!?;:][ \\t\\u00a0]{0,8}|\\n[ \\t\\u00a0]{0,8}))(?:para|pra){{S}}(?<target>mim|ti){{S}}(?=\\p{L}*[aeiô]r(?:em|mos|es)?{{E}})"
-        fixer: ptMim2
+        return: 'target.toLowerCase() === "mim" ? ["eu", "mim,"] : ["tu", "ti,"]'
         message: review_msg_pt_pronoun_case
       # Crase: "à" before a span of time is "há" (it existed), after "daqui" plain "a".
       - regex: "(?<!daqui{{S}})(?<target>à){{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}}){0,2}(?:anos|meses|semanas|dias|séculos|décadas|minutos|segundos){{E}}"
@@ -254,7 +373,9 @@ rules:
       - regex: "(?<!(?:me|te|lhe|nos|lhes|tu|que|não){{S}})(?<target>dês){{S}}(?=que{{E}})"
         fix: ["desde"]
       - regex: "(?<!(?:me|te|lhe|nos|lhes|tu|que|não){{S}})(?<target>dês{{S}}d(?<article>[oa]s?|e)){{E}}"
-        fixer: ptDês
+        let:
+          article: "/d([oa]s?|e)$/.exec(target.toLowerCase())![1]"
+        return: '[article === "e" ? "desde" : `desde ${article}`]'
       # "pôr termo a", "vou pôr em prática": the verb "pôr" keeps its accent.
       - regex: "(?<target>por){{S}}(?=termo{{S}}(?:a|ao|à|aos|às){{E}})"
         fix: ["pôr"]
@@ -374,19 +495,21 @@ rules:
         message: review_msg_pt_pronoun_case
       # "Já fazem dois anos": elapsed-time "fazer" has no subject.
       - regex: "já{{S}}(?<target>fazem|faziam|fizeram|farão|fariam){{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}})(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante{{S}}tempo|muito{{S}}tempo){{E}}"
-        fixer: ptFazem2
+        return: "[IMPERSONAL[target.toLowerCase()]]"
       - regex: "(?<target>fazem|faziam|fizeram|farão|fariam){{S}}já{{S}}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca{{S}}de|mais{{S}}de|menos{{S}}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem){{E}}{{S}})(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante{{S}}tempo|muito{{S}}tempo){{S}}(?:que|desde){{E}}"
-        fixer: ptFazem3
+        return: "[IMPERSONAL[target.toLowerCase()]]"
       # Existential "haver" stays singular before a bare plural: "Enquanto houverem erros".
       - regex: "(?<target>haviam|haverão|haveriam|houvessem|houverem|hajam|haverem){{S}}(?=(?!(?:todos|todas|ambos|ambas|mesmos|mesmas|próprios|próprias|nos|vos|os|as|los|las|já|sido|estado|ele|elas|eles){{E}})\\p{L}{3,}s{{E}})"
-        fixer: ptHaviam
+        return: "[HAVER_SINGULAR[target.toLowerCase()]]"
       # "Caso" (in case) opening a conditional; "Case" is a form of "casar".
       - regex: "(?<target>case){{S}}(?=(?:eles|elas|ele|ela|você|vocês|eu|nós|alguém|algo|ninguém|nada|tudo|não|os|as|boas|bons|muitos|muitas|haja|seja|tenha|queira|precise|precisem){{E}})"
         fix: ["caso"]
         clauseStart: true
       # Verbs whose short participle goes with "ser" and "estar": "foi gastado" -> "foi gasto".
       - regex: "(?:é|são|foi|foram|era|eram|será|serão|seria|seriam|seja|sejam|fosse|fossem|sido|ser|está|estão|estava|estavam|estar|esteja|estejam|ficou|ficaram|fica|ficam){{S}}(?:(?:já|não|todo|toda|todos|todas|bem){{S}})?(?<target>(?:gast|pag|ganh|aceit|eleg|prend|acend|suspend|expuls|imprim|limp|salv|solt|morr|benz|enxug|extingu)[ai]d[oa]s?){{E}}"
-        fixer: ptGast
+        let:
+          parts: '/^(\p{Ll}+?)[ai]d([oa]s?)$/u.exec(target.toLowerCase())!'
+        return: "[`${SHORT_PARTICIPLE[parts[1]]}${parts[2]}`]"
         message: review_msg_pt_participle
       # "às" before a clock time; "ás" is the card.
       - regex: "(?<target>ás){{S}}(?=(?:\\d{1,2}(?:h|:\\d\\d|{{S}}horas)|(?:duas|três|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|catorze|quatorze|quinze|dezesseis|dezessete|dezoito|dezenove|vinte(?:{{S}}e{{S}}(?:uma|duas|três))?){{S}}horas|meia-noite|uma{{S}}hora){{E}})"
@@ -403,14 +526,14 @@ rules:
         fix: ["está"]
       # "ir à praia", "ir ao cinema": going somewhere takes "a", not "em".
       - regex: "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir){{S}}(?<target>na|nas){{S}}(?=(?:{{DESTINATIONS}})s?{{E}})"
-        fixer: ptNa
+        return: '[target.toLowerCase() === "nas" ? "às" : "à"]'
         message: review_msg_pt_regency
       - regex: "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir){{S}}(?<target>no|nos){{S}}(?=(?:{{MALE_DESTINATIONS}}){{E}})"
-        fixer: ptNo
+        return: '[target.toLowerCase() === "nos" ? "aos" : "ao"]'
         message: review_msg_pt_regency
       # Existential "haver" after a modal keeps the modal singular: "Devem haver baratas".
       - regex: "(?<target>devem|deviam|deveriam|deverão|podem|podiam|poderiam|poderão|vão|iam|irão|costumam|começam|continuam){{S}}haver{{S}}(?!\\p{L}+[ai]d[oa]{{E}})(?=\\p{L})"
-        fixer: ptDevem
+        return: "[MODAL_SINGULAR[target.toLowerCase()]]"
       # "evitar comer", not "evitar de comer".
       - regex: "(?:evito|evita|evitam|evitamos|evitar|evitou|evitei|evitava|evitem|evite){{S}}(?<target>de{{S}})(?=\\p{L}*[aeiô]r(?:em|mos|es)?{{E}})"
         fix: [""]
@@ -426,7 +549,9 @@ rules:
         fix: ["houve"]
       # "Eu saí" (past) or "eu saio" (present): "sai" is "he leaves".
       - regex: "eu{{S}}(?:(?:não|já|também|nunca|quase){{S}})?(?<target>sai|cai|trai|atrai|distrai|contribui|possui|destrui|inclui|conclui|constrói|construi|influi|substitui|distribui|atribui|diminui){{E}}(?!-)"
-        fixer: ptSai
+        let:
+          plain: 'target.toLowerCase().replace("ó", "o")'
+        return: '[`${plain.slice(0, -1)}í`, plain.replace(/i$/, /ai$/.test(plain) ? "io" : "o")]'
         message: review_msg_pt_agreement
       # "tão" (so) before an adjective or adverb; "tao" is no Portuguese word outside "o Tao".
       - regex: "(?<!(?:o|do|no|ao){{S}})(?<target>tao){{S}}(?=\\p{L}{3,}{{E}})"
@@ -467,7 +592,7 @@ rules:
       # "na minha ora de almoço" -> "hora": after a determiner "ora" is the noun ("de ora em diante",
       # "por ora" stay).
       - regex: "(?:uma|da|na|nessa|nesta|naquela|dessa|desta|daquela|essa|esta|aquela|minha|sua|nossa|tua|cada|toda|qualquer|boa|última|primeira|mesma|pela|às|das|nas|duas|três|quatro|cinco|seis|oito|dez|doze|24|algumas|muitas|poucas){{S}}(?<target>ora|oras){{E}}(?!-)"
-        fixer: ptOra
+        return: '[target.toLowerCase() === "oras" ? "horas" : "hora"]'
       # "Quero ser tanto rico como ela" -> "tão": before an adjective and "como/quanto", after a
       # copula, the intensifier is "tão" ("tanto dinheiro quanto" counts a noun).
       - regex: "(?:ser|é|era|foi|sou|está|estar|estava|ficar|ficou|fica|parece|parecia|andar|andares|anda|andava){{S}}(?<target>tanto|tanta){{S}}(?=\\p{L}{3,}(?:ad|id)[oa]{{S}}(?:como|quanto){{E}}|(?:ric[oa]|pobre|alt[oa]|baix[oa]|bonit[oa]|fei[oa]|forte|frac[oa]|inteligente|rápid[oa]|lent[oa]|grande|pequen[oa]|bom|boa|feliz|triste|car[oa]|barat[oa]|fácil|difícil|velh[oa]|nov[oa]|gord[oa]|magr[oa]|brav[oa]|calm[oa]|famos[oa]|bel[oa]|doente){{S}}(?:como|quanto){{E}})"
@@ -477,7 +602,10 @@ rules:
         fix: ["está"]
       # "mais bom" -> "melhor", "mais grande" -> "maior"; "mais bom do que mau" compares qualities.
       - regex: "(?<target>mais{{S}}(?:bom|boa|bons|boas|mau|má|maus|más|grande|grandes))(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|{{S}}(?:d[oa]s?|de{{S}}tod[oa]s){{E}}|(?:{{S}}do)?{{S}}que{{S}}(?:(?:o|a|os|as|um|uma|eu|ele|ela|eles|elas|você|vocês|nós|isso|isto|aquilo|est[ea]s?|ess[ea]s?|aquel[ea]s?|seu|sua|seus|suas|meu|minha|nosso|nossa|antes|ontem|hoje|nunca|sempre|qualquer|todos?|todas?){{E}}))"
-        fixer: ptMais
+        let:
+          word: 'target.toLowerCase().split(/\s+/).pop()!'
+          base: '/^b/.test(word) ? "melhor" : /^m/.test(word) ? "pior" : "maior"'
+        return: "[/s$/.test(word) ? `${base}es` : base]"
         message: review_msg_pt_comparative
       # "o apoio de que tem direito" -> "a que": "ter direito a" keeps its "a" before "que".
       - regex: "(?<!(?:certeza|ideia|fato|facto|medo|receio|notícia|esperança|prova|sinal|dúvida|convicção|impressão|garantia|consciência|aviso|indício|suposição|hipótese|tese|alegação|afirmação|crença|argumento|opinião){{S}})(?<target>de{{S}}que){{S}}(?=(?:\\p{L}+{{S}}){0,3}(?:tem|têm|tinha|tinham|teve|tiveram|terá|terão|teria|teriam|tenho|temos|tens|tenha|tenham){{S}}direito(?!{{S}}(?:a|à|ao|às|aos|de|\\p{L}+(?:al|ais|iv[oa]s?|ic[oa]s?|ári[oa]s?)){{E}}))"
@@ -485,7 +613,7 @@ rules:
         message: review_msg_pt_regency
       # "entre você e eu" -> "e mim": both pronouns after "entre" take the prepositional form.
       - regex: "entre{{S}}(?:(?:o|a){{S}})?\\p{L}+{{S}}e{{S}}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))"
-        fixer: ptEu3
+        return: '[target.toLowerCase() === "eu" ? "mim" : "ti"]'
         message: review_msg_pt_pronoun_case
       - regex: "de{{S}}(?<target>eu){{S}}(?=para{{S}}(?:o|a|ti|você|ele|ela|vocês|eles|elas){{E}})"
         fix: ["mim"]
@@ -500,7 +628,7 @@ rules:
         message: review_msg_pt_por_que
       # "Eu cinto muito" -> "sinto": "sentir" after its subject or a pronoun.
       - regex: "(?:eu|não|me|te|se|também|já|ainda|ele|ela|você){{S}}(?<target>cinto|cinta|cintas|cintam){{E}}(?!-)"
-        fixer: ptCinto
+        return: "[`s${target.slice(1).toLowerCase()}`]"
       - regex: "(?<target>Cinto){{S}}(?=muito{{E}})"
         fix: ["Sinto"]
         clauseStart: true
@@ -510,7 +638,7 @@ rules:
         message: review_msg_pt_crase
       # "Está casa é linda" -> "Esta": the demonstrative opening a subject before its verb.
       - regex: "(?<target>Está|Estás){{S}}(?!(?:tudo|nada|bem|mal|certo|claro|ótimo|bom|tranquilo|difícil|fácil|aqui|ali|lá|longe|perto|tarde|cedo|frio|quente|escuro|calor|chato|feito|visto|provado|dito){{E}})(?=\\p{L}{3,}(?<!ndo|[ai]do){{S}}(?:é|são|foi|foram|era|eram|será|serão|tem|têm|ficou|ficaram|parece|parecem){{E}})"
-        fixer: ptEstá
+        return: '[target.replace(/á/i, "a")]'
         clauseStart: true
         capitalized: true
       # ", mais não o bastante" -> "mas": after a comma, before a negation, "but".
@@ -526,7 +654,7 @@ rules:
         fix: ["só"]
       # "Como foi suas férias?" -> "foram": a plural subject after the verb of the question.
       - regex: "(?:como|onde|quando|quanto){{S}}(?<target>foi|é|era|está|estava){{S}}(?=(?:as|os|suas|seus|minhas|meus|tuas|teus|nossas|nossos){{S}}\\p{L}{3,}s[ \\t\\u00a0]{0,2}\\?)"
-        fixer: ptFoi
+        return: "[COPULA_PLURAL[target.toLowerCase()]]"
       # "É fácil de que", "Alegra-me de que": an adjective of "ser" or a verb with a dative pronoun
       # takes the clause directly; "insistir" governs "em".
       - regex: "(?:é|era|foi|será|seria|parece){{S}}(?:fácil|difícil|possível|impossível|provável|improvável|importante|necessário|preciso|claro|óbvio|evidente|natural|normal|justo|bom|melhor){{S}}(?<target>de{{S}})(?=que{{E}})"
@@ -551,7 +679,7 @@ rules:
         fix: ["vós"]
       # "Em maio tive de férias" -> "estive": one is ("estar") on holiday, not has to.
       - regex: "(?<target>tive|teve|tivemos|tiveram|tinha|tínhamos|tinham){{S}}(?=de{{S}}(?:férias|folga|licença)(?:[ \\t\\u00a0]{0,2}(?:[.,;!?]|$)|{{S}}(?:em|no|na|até|desde|durante|com|por|e){{E}}))"
-        fixer: ptTive
+        return: "[ESTAR_FOR_TER[target.toLowerCase()]]"
         message: review_msg_contextual_grammar
       # "Apôs 1990" -> "Após": "apôs" is the verb "apor"; a year or a span follows the preposition.
       - regex: "(?<target>apôs){{S}}(?=\\d{4}{{E}}|\\d{1,3}{{S}}(?:anos|meses|semanas|dias|séculos|décadas|minutos|segundos){{E}})"
@@ -567,47 +695,47 @@ rules:
         fix: ["a gente"]
       # "pos-graduação" -> "pós-": these prefixes are stressed and take their accent.
       - regex: "(?<target>pos|recem|alem|aquem)-(?=\\p{L})"
-        fixer: ptPos
+        return: "[ACCENTED_PREFIX[target.toLowerCase()]]"
       # "ela sera chamada", "você tera tempo" -> "será", "terá": the future of ser and ter has an
       # accent; "sera" and "tera" are other words.
       - regex: "(?:{{SUBJECT}}|qual|quando|o{{S}}que){{S}}(?<target>sera|tera){{S}}(?=\\p{L})"
-        fixer: ptSera
+        return: "[FUTURE_ACCENT[target.toLowerCase()]]"
       - regex: "(?<target>sera){{S}}(?=\\p{L}{2,}(?:ad|id)[oa]s?{{E}})"
-        fixer: ptSera2
+        return: "[FUTURE_ACCENT[target.toLowerCase()]]"
       # "afear a faca" (make ugly) -> "afiar" (sharpen).
       - regex: "(?<target>afe(?:ar|ia|iam|ei|ou|aram|ando|ado|ados|ada|adas)){{S}}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?){{S}}){0,2}(?:facas?|facões|facão|lâminas?|tesouras?|machados?|navalhas?|serrotes?|foices?|enxadas?|serras?){{E}}"
-        fixer: ptAfe
+        return: '[target.replace(/^afe/iu, "afi")]'
       # "arrear a bandeira" (harness) -> "arriar" (lower).
       - regex: "(?<target>arre(?:ar|ia|iam|ei|ou|aram|ando|ado|ados|ada|adas)){{S}}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?){{S}}){0,2}(?:velas?|bandeiras?|âncoras?|calças){{E}}"
-        fixer: ptArre
+        return: '[target.replace(/^arre/iu, "arri")]'
       # "comer os remédios" -> "tomar": medicine is taken.
       - regex: "(?<target>comer|como|come|comemos|comem|comi|comeu|comeram|comia|comiam|comendo|comido){{S}}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?){{S}}){0,2}(?:remédios?|medicamentos?|comprimidos?|pílulas?|antibióticos?|cápsulas?|analgésicos?|calmantes?){{E}}"
-        fixer: ptComer
+        return: "[EAT_TO_TAKE[target.toLowerCase()]]"
         message: review_msg_pt_word_choice
       # "O evento tomará lugar em" -> "terá lugar": an event takes place with "ter lugar"; a
       # person "toma lugar" (takes a seat).
       - regex: "(?<!(?:d[eoa]s?|n[oa]s?|aos?|às?|pel[oa]s?|para|com|sem){{S}})(?:{{EVENT}}){{E}}(?:{{S}}(?!(?:d[eoa]s?|com|para|por|que|e){{E}})[\\p{L}-]+){0,3}?{{S}}(?<target>toma|tomam|tomou|tomaram|tomará|tomarão|tomaria|tomariam|tomava|tomavam|tomasse|tomassem){{S}}lugar{{S}}(?=(?:{{PLACE_NEXT}}){{E}})"
-        fixer: ptToma
+        return: "[TAKE_PLACE[target.toLowerCase()]]"
         message: review_msg_pt_word_choice
       # "pedir um concelho" -> "conselho": a "concelho" is a council area.
       - regex: "(?:{{GIVE_ADVICE}}){{S}}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?){{S}}){0,2}(?:(?:bons?|bom|algum|alguns|outro|outros){{S}})?(?<target>concelhos?){{E}}"
-        fixer: ptConcelhos
+        return: '[target.replace(/nc/i, "ns")]'
       # "assistir a um conserto", "vou a um conserto" -> "concerto": a "conserto" is a repair
       # ("levou o carro ao conserto").
       - regex: "(?:{{ASSIST}}{{S}}(?:(?:a|ao|aos){{S}})?(?:(?:um|uns|o|os|esse|este|aquele){{S}})?|(?:{{GO}}){{S}}a{{S}}(?:um|uns){{S}})(?<target>consertos?){{E}}(?!{{S}}(?:d[eoa]s?|no|na){{S}}(?!(?:rock|jazz|música|orquestra|banda|samba|forró|pagode){{E}}))"
-        fixer: ptConsertos
+        return: '[target.replace(/ns/i, "nc")]'
       - regex: "(?<target>consertos?){{S}}(?=(?:de{{S}}(?:rock|jazz|música|samba|forró|pagode)|da{{S}}(?:orquestra|banda)|sinfônicos?|ao{{S}}vivo){{E}})"
-        fixer: ptConsertos2
+        return: '[target.replace(/ns/i, "nc")]'
       # "a amostra de arte" -> "mostra": an exhibition is a "mostra"; an "amostra" is a sample.
       - regex: "(?<target>amostras?){{S}}(?=(?:de|d[eoa]s?){{S}}(?:{{SHOW}}){{E}})"
-        fixer: ptAmostras
+        return: "[target.slice(1)]"
         message: review_msg_pt_word_choice
       # "contanto com" -> "contando com": "contanto" only opens "contanto que".
       - regex: "(?<target>contanto){{S}}(?=com{{E}})"
         fix: ["contando"]
       # "estivemos de sair" -> "tivemos de sair": obligation is "ter de".
       - regex: "(?<target>estive|esteve|estivemos|estiveram){{S}}de{{S}}(?!(?:{{NOT_INFINITIVE}}){{E}})(?=\\p{L}{2,}[aeiô]r{{E}})"
-        fixer: ptEstive
+        return: "[HAD_TO[target.toLowerCase()]]"
         message: review_msg_pt_word_choice
       # "tenho muito a preço por ele" -> "apreço" (esteem).
       - regex: "(?:muito|grande|enorme|profundo|especial|imenso|sincero|meu|nosso|seu|todo{{S}}o){{S}}(?<target>a{{S}}preço){{S}}(?=(?:por|pel[oa]s?|a|ao|à){{E}})"
@@ -617,7 +745,7 @@ rules:
         fix: ["mais"]
       # "teve percas de 5%" -> "perdas": "perca" is the fish or a form of "perder".
       - regex: "(?<target>percas?){{S}}(?=(?:de|d[eoa]s?){{S}}(?:{{LOSS}}){{E}})"
-        fixer: ptPercas
+        return: '[target.replace(/c/i, "d")]'
       - regex: "(?:grandes|pequenas|muitas|enormes|várias|evitar|reduzir|sofreu|sofrer|sofreram|houve|haverá){{S}}(?:as{{S}})?(?<target>percas){{E}}"
         fix: ["perdas"]
       # "O Rui trás o material" -> "traz": "trás" (behind) follows "para", "de", "por" or "lá".
@@ -625,7 +753,7 @@ rules:
         fix: ["traz"]
       # "o último senso" -> "censo": a count, not a sense of something.
       - regex: "(?:último|próximo|penúltimo|novo|primeiro){{S}}(?<target>sensos?){{E}}(?!{{S}}(?:de|comum|crítico|estético|moral|prático|ético|artístico){{E}})"
-        fixer: ptSensos
+        return: '[target.replace(/^s/i, "c")]'
       # "não te peco nada" -> "peço": "pecar" (to sin) takes no object pronoun.
       - regex: "(?:te|lhe|lhes|vos){{S}}(?<target>peco){{E}}"
         fix: ["peço"]
@@ -651,27 +779,87 @@ rules:
     checks: [portugueseConfusions]
     style: match
     message: review_msg_pt_crase
+    sets:
+      # Infinitives look like these nouns and adjectives, which can follow a crase ("à mulher").
+      FEMININE_R:
+        [
+          mulher,
+          colher,
+          militar,
+          titular,
+          auxiliar,
+          familiar,
+          circular,
+          similar,
+          celular,
+          escolar,
+          popular,
+          particular,
+          exemplar,
+          singular,
+          regular,
+          preliminar,
+          complementar,
+          lunar,
+          solar,
+          polar,
+          nuclear,
+          secular,
+          vulgar,
+          peculiar,
+          hospitalar,
+          curricular,
+          disciplinar,
+        ]
+    defs:
+      # The text before a clause start: a sentence mark or a line break, then spaces or quotes.
+      CLAUSE_START: '/(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/'
+      # The crase finding for the `target` group, in the typed casing; a user word stays.
+      crase:
+        args: "ctx: DetectContext, m: RegExpExecArray, alternatives: string[]"
+        type: RawFinding | null
+        let:
+          span: m.indices!.groups!.target
+          typed: ctx.text.slice(span[0], span[1])
+        when: "!ctx.dictionary.has(typed.toLowerCase())"
+        return: >-
+          ({
+            ruleId: "portugueseConfusions",
+            messageKey: "review_msg_pt_crase",
+            range: { start: span[0], end: span[1] },
+            alternatives: alternatives.map((alt) => applyWordCase(alt, detectWordCase(typed))),
+            context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
+            ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+          })
     frames:
       # {{GOVERNS_A}}: words that govern "a": locutions, nouns, adjectives and verbs. Before a
       # feminine noun the article fuses with it: "devido a falta" -> "à falta", "acesso as armas"
       # -> "às armas". "quanto a" only opening a clause ("tanto quanto a irmã" compares).
       - regex: "(?<lead>{{GOVERNS_A}}|quanto){{S}}(?:\\p{L}{3,16}mente{{S}})?(?<target>as?){{S}}(?<noun>\\p{L}{3,}){{E}}(?!-)"
-        fixer: craseGoverned
+        let:
+          analysis: "ptNoun(noun)"
+        when:
+          - "!(/^quanto$/i.test(lead) && !CLAUSE_START.test(ctx.text.slice(Math.max(0, m.index - 12), m.index)))"
+          - "noun === noun.toLowerCase()"
+          - "analysis?.feminine === true && analysis.plural === (target.length === 2)"
+        return: 'crase(ctx, m, [target.length === 2 ? "às" : "à"])'
       # Places one goes to: "vou a escola" -> "à escola". "foi" and "fui" also mean "was".
       - regex: "(?:{{GOES}}){{S}}(?<target>as?){{S}}(?=(?:{{DESTINATIONS}})s?{{E}})"
-        fixer: craseGoesTo
+        return: 'crase(ctx, m, [target.toLowerCase() === "as" ? "às" : "à"])'
       # "à Sua Excelência": forms of address take no article.
       - regex: "(?<target>às?){{S}}(?=(?:sua|vossa|suas|vossas){{S}}(?:excelência|majestade|santidade|senhoria|alteza|eminência|magnificência|reverendíssima|excelências|majestades|santidades|senhorias|altezas|eminências|beatitudes?){{E}})"
-        fixer: craseNone
+        return: 'crase(ctx, m, ["a"])'
       # "à uma corrida", but "à uma hora", "à uma e meia".
       - regex: "(?<target>à){{S}}(?=uma{{E}}(?!{{S}}(?:hora|e|da|em{{S}}ponto){{E}}|[ \\t\\u00a0]*h))"
-        fixer: craseNone
+        return: 'crase(ctx, m, ["a"])'
       # A sum of money has no article: "equivale à R$ 35".
       - regex: "(?<target>à){{S}}(?=(?:R\\$|US\\$|€|\\$))"
-        fixer: craseNone
+        return: 'crase(ctx, m, ["a"])'
       # "à" before an infinitive; some nouns and adjectives look like infinitives ("à mulher").
       - regex: "(?<target>à){{S}}(?<verb>\\p{L}+(?:ar|er|ir)){{E}}"
-        fixer: craseInfinitive
+        when:
+          - "!(FEMININE_R.has(verb) || ctx.dictionary.has(verb))"
+        return: 'crase(ctx, m, ["a"])'
   - id: pt_BR.contractions
     checks: [portugueseContractions]
     style: match

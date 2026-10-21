@@ -2,9 +2,423 @@
 // The code of grammar/rules/pt_BR.yaml: its sets, maps, defs and functions.
 import type { AnyFixer, Detector, FindingsFilter } from "../reviewRules";
 import type { LiveCode } from "../liveRules";
+import type { DetectContext, MatchResult, RawFinding } from "../../library";
+import { applyWordCase, detectWordCase, ptNoun } from "../../library";
+
+export const FEMININE_R: ReadonlySet<string> = new Set([
+  "mulher",
+  "colher",
+  "militar",
+  "titular",
+  "auxiliar",
+  "familiar",
+  "circular",
+  "similar",
+  "celular",
+  "escolar",
+  "popular",
+  "particular",
+  "exemplar",
+  "singular",
+  "regular",
+  "preliminar",
+  "complementar",
+  "lunar",
+  "solar",
+  "polar",
+  "nuclear",
+  "secular",
+  "vulgar",
+  "peculiar",
+  "hospitalar",
+  "curricular",
+  "disciplinar",
+]);
+
+export const NOUN_TWIN: Readonly<Record<string, string>> = {
+  viajem: "viagem",
+  viajens: "viagens",
+  extirpe: "estirpe",
+  extirpes: "estirpes",
+  profetiza: "profetisa",
+  profetizas: "profetisas",
+  poetiza: "poetisa",
+  poetizas: "poetisas",
+  sinto: "cinto",
+  sintos: "cintos",
+  sinta: "cinta",
+  sintas: "cintas",
+  asso: "aço",
+  assos: "aços",
+  cerra: "serra",
+  cerras: "serras",
+};
+
+export const WITH_A: Readonly<Record<string, string>> = { o: "ao", a: "à", os: "aos", as: "às" };
+
+export const IMPERSONAL: Readonly<Record<string, string>> = {
+  fazem: "faz",
+  faziam: "fazia",
+  fizeram: "fez",
+  farão: "fará",
+  fariam: "faria",
+  vão: "vai",
+  iam: "ia",
+  irão: "irá",
+  podem: "pode",
+  deviam: "devia",
+  devem: "deve",
+  costumam: "costuma",
+};
+
+export const HAVER_SINGULAR: Readonly<Record<string, string>> = {
+  haviam: "havia",
+  haverão: "haverá",
+  haveriam: "haveria",
+  houvessem: "houvesse",
+  houverem: "houver",
+  hajam: "haja",
+  haverem: "haver",
+};
+
+export const SHORT_PARTICIPLE: Readonly<Record<string, string>> = {
+  gast: "gast",
+  pag: "pag",
+  ganh: "ganh",
+  aceit: "aceit",
+  eleg: "eleit",
+  prend: "pres",
+  acend: "aces",
+  suspend: "suspens",
+  expuls: "expuls",
+  imprim: "impress",
+  limp: "limp",
+  salv: "salv",
+  solt: "solt",
+  morr: "mort",
+  benz: "bent",
+  enxug: "enxut",
+  extingu: "extint",
+};
+
+export const MODAL_SINGULAR: Readonly<Record<string, string>> = {
+  devem: "deve",
+  deviam: "devia",
+  deveriam: "deveria",
+  deverão: "deverá",
+  podem: "pode",
+  podiam: "podia",
+  poderiam: "poderia",
+  poderão: "poderá",
+  vão: "vai",
+  iam: "ia",
+  irão: "irá",
+  costumam: "costuma",
+  começam: "começa",
+  continuam: "continua",
+};
+
+export const COPULA_PLURAL: Readonly<Record<string, string>> = {
+  foi: "foram",
+  é: "são",
+  era: "eram",
+  está: "estão",
+  estava: "estavam",
+};
+
+export const ESTAR_FOR_TER: Readonly<Record<string, string>> = {
+  tive: "estive",
+  teve: "esteve",
+  tivemos: "estivemos",
+  tiveram: "estiveram",
+  tinha: "estava",
+  tínhamos: "estávamos",
+  tinham: "estavam",
+};
+
+export const ACCENTED_PREFIX: Readonly<Record<string, string>> = {
+  pos: "pós",
+  recem: "recém",
+  alem: "além",
+  aquem: "aquém",
+};
+
+export const FUTURE_ACCENT: Readonly<Record<string, string>> = { sera: "será", tera: "terá" };
+
+export const EAT_TO_TAKE: Readonly<Record<string, string>> = {
+  comer: "tomar",
+  como: "tomo",
+  come: "toma",
+  comemos: "tomamos",
+  comem: "tomam",
+  comi: "tomei",
+  comeu: "tomou",
+  comeram: "tomaram",
+  comia: "tomava",
+  comiam: "tomavam",
+  comendo: "tomando",
+  comido: "tomado",
+};
+
+export const TAKE_PLACE: Readonly<Record<string, string>> = {
+  toma: "tem",
+  tomam: "têm",
+  tomou: "teve",
+  tomaram: "tiveram",
+  tomará: "terá",
+  tomarão: "terão",
+  tomaria: "teria",
+  tomariam: "teriam",
+  tomava: "tinha",
+  tomavam: "tinham",
+  tomasse: "tivesse",
+  tomassem: "tivessem",
+};
+
+export const HAD_TO: Readonly<Record<string, string>> = {
+  estive: "tive",
+  esteve: "teve",
+  estivemos: "tivemos",
+  estiveram: "tiveram",
+};
+
+// pt_BR.yaml rule pt_BR.confusions def CLAUSE_START
+export const CLAUSE_START = /(?:^|[.!?:;][ \t\r\n "”»)]{0,8}|\n[ \t ]{0,8})$/;
+
+// pt_BR.yaml rule pt_BR.confusions def crase
+export function crase(
+  ctx: DetectContext,
+  m: RegExpExecArray,
+  alternatives: string[],
+): RawFinding | null {
+  const span = m.indices!.groups!.target;
+  const typed = ctx.text.slice(span[0], span[1]);
+  if (ctx.dictionary.has(typed.toLowerCase())) return null;
+  return {
+    ruleId: "portugueseConfusions",
+    messageKey: "review_msg_pt_crase",
+    range: { start: span[0], end: span[1] },
+    alternatives: alternatives.map((alt) => applyWordCase(alt, detectWordCase(typed))),
+    context: { start: m.index, end: Math.max(span[1], m.index + m[0].length) },
+    ...(alternatives.length > 1 ? { requiresChoice: true as const } : {}),
+  };
+}
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
-export const FIXERS: Readonly<Record<string, AnyFixer>> = {};
+export const FIXERS: Readonly<Record<string, AnyFixer>> = {
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 1
+  "@pt_BR.confusionFrames/1": (target: string): readonly string[] => {
+    return [NOUN_TWIN[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 2
+  "@pt_BR.confusionFrames/2": (target: string): readonly string[] => {
+    return [NOUN_TWIN[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 4
+  "@pt_BR.confusionFrames/4": (target: string): readonly string[] => {
+    return [WITH_A[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 5
+  "@pt_BR.confusionFrames/5": (target: string): readonly string[] => {
+    return [WITH_A[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 6
+  "@pt_BR.confusionFrames/6": (target: string): readonly string[] => {
+    const article = /\s(o|a|os|as)$/i.exec(target)?.[1].toLowerCase();
+    return [article ? WITH_A[article] : "a"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 7
+  "@pt_BR.confusionFrames/7": (target: string): readonly string[] => {
+    return [target.replace(/[eé]m$/i, "êm")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 8
+  "@pt_BR.confusionFrames/8": (target: string): readonly string[] => {
+    return [IMPERSONAL[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 9
+  "@pt_BR.confusionFrames/9": (target: string): readonly string[] => {
+    return [IMPERSONAL[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 16
+  "@pt_BR.confusionFrames/16": (target: string): readonly string[] => {
+    return [target.toLowerCase() === "eu" ? "mim" : "ti"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 17
+  "@pt_BR.confusionFrames/17": (target: string): readonly string[] => {
+    return [target.toLowerCase() === "eu" ? "mim" : "ti"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 18
+  "@pt_BR.confusionFrames/18": (target: string): readonly string[] => {
+    return [target.toLowerCase() === "mim" ? "eu" : "tu"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 19
+  "@pt_BR.confusionFrames/19": (target: string): readonly string[] => {
+    return target.toLowerCase() === "mim" ? ["eu", "mim,"] : ["tu", "ti,"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 25
+  "@pt_BR.confusionFrames/25": (target: string): readonly string[] => {
+    const article = /d([oa]s?|e)$/.exec(target.toLowerCase())![1];
+    return [article === "e" ? "desde" : `desde ${article}`];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 65
+  "@pt_BR.confusionFrames/65": (target: string): readonly string[] => {
+    return [IMPERSONAL[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 66
+  "@pt_BR.confusionFrames/66": (target: string): readonly string[] => {
+    return [IMPERSONAL[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 67
+  "@pt_BR.confusionFrames/67": (target: string): readonly string[] => {
+    return [HAVER_SINGULAR[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 69
+  "@pt_BR.confusionFrames/69": (target: string): readonly string[] => {
+    const parts = /^(\p{Ll}+?)[ai]d([oa]s?)$/u.exec(target.toLowerCase())!;
+    return [`${SHORT_PARTICIPLE[parts[1]]}${parts[2]}`];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 74
+  "@pt_BR.confusionFrames/74": (target: string): readonly string[] => {
+    return [target.toLowerCase() === "nas" ? "às" : "à"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 75
+  "@pt_BR.confusionFrames/75": (target: string): readonly string[] => {
+    return [target.toLowerCase() === "nos" ? "aos" : "ao"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 76
+  "@pt_BR.confusionFrames/76": (target: string): readonly string[] => {
+    return [MODAL_SINGULAR[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 81
+  "@pt_BR.confusionFrames/81": (target: string): readonly string[] => {
+    const plain = target.toLowerCase().replace("ó", "o");
+    return [`${plain.slice(0, -1)}í`, plain.replace(/i$/, /ai$/.test(plain) ? "io" : "o")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 93
+  "@pt_BR.confusionFrames/93": (target: string): readonly string[] => {
+    return [target.toLowerCase() === "oras" ? "horas" : "hora"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 96
+  "@pt_BR.confusionFrames/96": (target: string): readonly string[] => {
+    const word = target.toLowerCase().split(/\s+/).pop()!;
+    const base = /^b/.test(word) ? "melhor" : /^m/.test(word) ? "pior" : "maior";
+    return [/s$/.test(word) ? `${base}es` : base];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 98
+  "@pt_BR.confusionFrames/98": (target: string): readonly string[] => {
+    return [target.toLowerCase() === "eu" ? "mim" : "ti"];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 102
+  "@pt_BR.confusionFrames/102": (target: string): readonly string[] => {
+    return [`s${target.slice(1).toLowerCase()}`];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 105
+  "@pt_BR.confusionFrames/105": (target: string): readonly string[] => {
+    return [target.replace(/á/i, "a")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 110
+  "@pt_BR.confusionFrames/110": (target: string): readonly string[] => {
+    return [COPULA_PLURAL[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 117
+  "@pt_BR.confusionFrames/117": (target: string): readonly string[] => {
+    return [ESTAR_FOR_TER[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 122
+  "@pt_BR.confusionFrames/122": (target: string): readonly string[] => {
+    return [ACCENTED_PREFIX[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 123
+  "@pt_BR.confusionFrames/123": (target: string): readonly string[] => {
+    return [FUTURE_ACCENT[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 124
+  "@pt_BR.confusionFrames/124": (target: string): readonly string[] => {
+    return [FUTURE_ACCENT[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 125
+  "@pt_BR.confusionFrames/125": (target: string): readonly string[] => {
+    return [target.replace(/^afe/iu, "afi")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 126
+  "@pt_BR.confusionFrames/126": (target: string): readonly string[] => {
+    return [target.replace(/^arre/iu, "arri")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 127
+  "@pt_BR.confusionFrames/127": (target: string): readonly string[] => {
+    return [EAT_TO_TAKE[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 128
+  "@pt_BR.confusionFrames/128": (target: string): readonly string[] => {
+    return [TAKE_PLACE[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 129
+  "@pt_BR.confusionFrames/129": (target: string): readonly string[] => {
+    return [target.replace(/nc/i, "ns")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 130
+  "@pt_BR.confusionFrames/130": (target: string): readonly string[] => {
+    return [target.replace(/ns/i, "nc")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 131
+  "@pt_BR.confusionFrames/131": (target: string): readonly string[] => {
+    return [target.replace(/ns/i, "nc")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 132
+  "@pt_BR.confusionFrames/132": (target: string): readonly string[] => {
+    return [target.slice(1)];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 134
+  "@pt_BR.confusionFrames/134": (target: string): readonly string[] => {
+    return [HAD_TO[target.toLowerCase()]];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 137
+  "@pt_BR.confusionFrames/137": (target: string): readonly string[] => {
+    return [target.replace(/c/i, "d")];
+  },
+  // pt_BR.yaml rule pt_BR.confusionFrames frame 140
+  "@pt_BR.confusionFrames/140": (target: string): readonly string[] => {
+    return [target.replace(/^s/i, "c")];
+  },
+  // pt_BR.yaml rule pt_BR.confusions frame 1
+  "@pt_BR.confusions/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const lead = m.groups!.lead;
+    const target = m.groups!.target;
+    const noun = m.groups!.noun;
+    if (
+      /^quanto$/i.test(lead) &&
+      !CLAUSE_START.test(ctx.text.slice(Math.max(0, m.index - 12), m.index))
+    )
+      return null;
+    if (!(noun === noun.toLowerCase())) return null;
+    const analysis = ptNoun(noun);
+    if (!(analysis?.feminine === true && analysis.plural === (target.length === 2))) return null;
+    return crase(ctx, m, [target.length === 2 ? "às" : "à"]);
+  },
+  // pt_BR.yaml rule pt_BR.confusions frame 2
+  "@pt_BR.confusions/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const target = m.groups!.target;
+    return crase(ctx, m, [target.toLowerCase() === "as" ? "às" : "à"]);
+  },
+  // pt_BR.yaml rule pt_BR.confusions frame 3
+  "@pt_BR.confusions/3": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return crase(ctx, m, ["a"]);
+  },
+  // pt_BR.yaml rule pt_BR.confusions frame 4
+  "@pt_BR.confusions/4": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return crase(ctx, m, ["a"]);
+  },
+  // pt_BR.yaml rule pt_BR.confusions frame 5
+  "@pt_BR.confusions/5": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    return crase(ctx, m, ["a"]);
+  },
+  // pt_BR.yaml rule pt_BR.confusions frame 6
+  "@pt_BR.confusions/6": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const verb = m.groups!.verb;
+    if (FEMININE_R.has(verb) || ctx.dictionary.has(verb)) return null;
+    return crase(ctx, m, ["a"]);
+  },
+};
 
 /** The findings filters, by rule ("@<rule id>/filter"). */
 export const FILTERS: Readonly<Record<string, FindingsFilter>> = {};

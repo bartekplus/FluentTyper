@@ -26878,7 +26878,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "cerra",
       "cerras",
     ],
-    fixer: "pt_BR:ptViajem",
+    fixer: "pt_BR:@pt_BR.confusionFrames/1",
   }),
   frame({
     pattern:
@@ -26901,7 +26901,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "cerra",
       "cerras",
     ],
-    fixer: "pt_BR:ptViajem2",
+    fixer: "pt_BR:@pt_BR.confusionFrames/2",
     clauseStart: true,
   }),
   frame({
@@ -26914,14 +26914,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "assist(?:o|e|es|imos|em|i|iu|iram|ia|iam|ir|indo|irei|irá|iremos|irão|iria|iriam|a|am)[ \\t\\u00a0]{1,8}(?<target>os?|as?(?=[ \\t\\u00a0]{1,8}(?!\\p{L}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))))[ \\t\\u00a0]{1,8}(?=(?:\\p{L}+[ \\t\\u00a0]{1,8})?(?:filmes?|jogos?|programas?|shows?|espetáculos?|aulas?|novelas?|séries?|vídeos?|partidas?|apresentaç(?:ão|ões)|peças?|concertos?|palestras?|missas?|desfiles?|televisão|tv|telejornal|final|finais|corrida|luta|treino|ensaio)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["assist"],
-    fixer: "pt_BR:ptOs",
+    fixer: "pt_BR:@pt_BR.confusionFrames/4",
     message: "review_msg_pt_regency",
   }),
   frame({
     pattern:
       "(?:(?:des)?obedec(?:e|em|emos|i|eu|eram|ia|iam|er|endo|erei|erá|eremos|erão|eria|eriam)|(?:des)?obedeço|(?:des)?obedeça|(?:des)?obedeçam)[ \\t\\u00a0]{1,8}(?<target>os?|as?(?=[ \\t\\u00a0]{1,8}(?!\\p{L}+s(?![\\p{L}]))(?!(?:um|uma|uns|umas|est[ea]s?|ess[ea]s?|aquel[ea]s?|tod[oa]s?|cada|qualquer|nenhum|nenhuma|cert[oa]s?|vári[oa]s|muit[oa]s?|pouc[oa]s?|dois|duas|três|seus?|suas?|meus?|minhas?|teus?|tuas?|nossos?|nossas?)(?![\\p{L}]))))[ \\t\\u00a0]{1,8}(?=\\p{L}{2,})",
     literals: ["obedec", "obedeço", "obedeça", "obedeçam"],
-    fixer: "pt_BR:ptOs2",
+    fixer: "pt_BR:@pt_BR.confusionFrames/5",
     message: "review_msg_pt_regency",
   }),
   frame({
@@ -26943,7 +26943,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "preferir",
       "preferível",
     ],
-    fixer: "pt_BR:ptDo",
+    fixer: "pt_BR:@pt_BR.confusionFrames/6",
     message: "review_msg_pt_regency",
   }),
   frame({
@@ -26965,19 +26965,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "poucos",
       "poucas",
     ],
-    fixer: "pt_BR:ptCon",
+    fixer: "pt_BR:@pt_BR.confusionFrames/7",
   }),
   frame({
     pattern:
       "(?<target>fazem|faziam|fizeram|farão|fariam)[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8})?(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante[ \\t\\u00a0]{1,8}tempo|muito[ \\t\\u00a0]{1,8}tempo)[ \\t\\u00a0]{1,8}(?:que|desde)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["fazem", "faziam", "fizeram", "farão", "fariam"],
-    fixer: "pt_BR:ptFazem",
+    fixer: "pt_BR:@pt_BR.confusionFrames/8",
   }),
   frame({
     pattern:
       "(?<target>vão|iam|irão|podem|deviam|devem|costumam)[ \\t\\u00a0]{1,8}fazer[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8})?(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante[ \\t\\u00a0]{1,8}tempo|muito[ \\t\\u00a0]{1,8}tempo)[ \\t\\u00a0]{1,8}(?:que|desde)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["fazer"],
-    fixer: "pt_BR:ptVão",
+    fixer: "pt_BR:@pt_BR.confusionFrames/9",
   }),
   frame({
     pattern:
@@ -27019,28 +27019,28 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:para|sem|contra|perante|a)[ \\t\\u00a0]{1,8}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}[.,;:!?)]|$)",
     literals: [],
-    fixer: "pt_BR:ptEu",
+    fixer: "pt_BR:@pt_BR.confusionFrames/16",
     message: "review_msg_pt_pronoun_case",
   }),
   frame({
     pattern:
       "entre[ \\t\\u00a0]{1,8}(?<target>eu|tu)[ \\t\\u00a0]{1,8}(?=e(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["entre"],
-    fixer: "pt_BR:ptEu2",
+    fixer: "pt_BR:@pt_BR.confusionFrames/17",
     message: "review_msg_pt_pronoun_case",
   }),
   frame({
     pattern:
       "(?:é|era|foi|será|seria|são|eram)[ \\t\\u00a0]{1,8}para[ \\t\\u00a0]{1,8}(?<target>mim|ti)[ \\t\\u00a0]{1,8}(?=\\p{L}*[aeiô]r(?:em|mos|es)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["para"],
-    fixer: "pt_BR:ptMim",
+    fixer: "pt_BR:@pt_BR.confusionFrames/18",
     message: "review_msg_pt_pronoun_case",
   }),
   frame({
     pattern:
       "(?<=(?:^|[.!?;:][ \\t\\u00a0]{0,8}|\\n[ \\t\\u00a0]{0,8}))(?:para|pra)[ \\t\\u00a0]{1,8}(?<target>mim|ti)[ \\t\\u00a0]{1,8}(?=\\p{L}*[aeiô]r(?:em|mos|es)?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["para", "pra"],
-    fixer: "pt_BR:ptMim2",
+    fixer: "pt_BR:@pt_BR.confusionFrames/19",
     message: "review_msg_pt_pronoun_case",
   }),
   frame({
@@ -27081,7 +27081,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<!(?:me|te|lhe|nos|lhes|tu|que|não)[ \\t\\u00a0]{1,8})(?<target>dês[ \\t\\u00a0]{1,8}d(?<article>[oa]s?|e))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["dês"],
-    fixer: "pt_BR:ptDês",
+    fixer: "pt_BR:@pt_BR.confusionFrames/25",
   }),
   frame({
     pattern:
@@ -27377,19 +27377,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "já[ \\t\\u00a0]{1,8}(?<target>fazem|faziam|fizeram|farão|fariam)[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8})(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante[ \\t\\u00a0]{1,8}tempo|muito[ \\t\\u00a0]{1,8}tempo)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["fazem", "faziam", "fizeram", "farão", "fariam"],
-    fixer: "pt_BR:ptFazem2",
+    fixer: "pt_BR:@pt_BR.confusionFrames/65",
   }),
   frame({
     pattern:
       "(?<target>fazem|faziam|fizeram|farão|fariam)[ \\t\\u00a0]{1,8}já[ \\t\\u00a0]{1,8}(?:(?:quase|aproximadamente|uns|umas|alguns|algumas|muitos|muitas|poucos|poucas|vários|várias|cerca[ \\t\\u00a0]{1,8}de|mais[ \\t\\u00a0]{1,8}de|menos[ \\t\\u00a0]{1,8}de|\\d+|dois|duas|três|quatro|cinco|seis|sete|oito|nove|dez|vinte|trinta|cem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])[ \\t\\u00a0]{1,8})(?:anos|meses|semanas|dias|horas|minutos|séculos|décadas|tempo|bastante[ \\t\\u00a0]{1,8}tempo|muito[ \\t\\u00a0]{1,8}tempo)[ \\t\\u00a0]{1,8}(?:que|desde)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["fazem", "faziam", "fizeram", "farão", "fariam"],
-    fixer: "pt_BR:ptFazem3",
+    fixer: "pt_BR:@pt_BR.confusionFrames/66",
   }),
   frame({
     pattern:
       "(?<target>haviam|haverão|haveriam|houvessem|houverem|hajam|haverem)[ \\t\\u00a0]{1,8}(?=(?!(?:todos|todas|ambos|ambas|mesmos|mesmas|próprios|próprias|nos|vos|os|as|los|las|já|sido|estado|ele|elas|eles)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))\\p{L}{3,}s(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["haviam", "haverão", "haveriam", "houvessem", "houverem", "hajam", "haverem"],
-    fixer: "pt_BR:ptHaviam",
+    fixer: "pt_BR:@pt_BR.confusionFrames/67",
   }),
   frame({
     pattern:
@@ -27420,7 +27420,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "enxug",
       "extingu",
     ],
-    fixer: "pt_BR:ptGast",
+    fixer: "pt_BR:@pt_BR.confusionFrames/69",
     message: "review_msg_pt_participle",
   }),
   frame({
@@ -27453,21 +27453,21 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir)[ \\t\\u00a0]{1,8}(?<target>na|nas)[ \\t\\u00a0]{1,8}(?=(?:escola|praia|festa|igreja|missa|feira|academia|farmácia|padaria|faculdade|universidade|reunião|aula|piscina|fazenda|praça|loja|biblioteca|delegacia|prefeitura|cidade|capital|cozinha|sala|janela|rodoviária|lavanderia|oficina|creche|cerimônia|consulta|sessão|exposição)s?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "pt_BR:ptNa",
+    fixer: "pt_BR:@pt_BR.confusionFrames/74",
     message: "review_msg_pt_regency",
   }),
   frame({
     pattern:
       "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir)[ \\t\\u00a0]{1,8}(?<target>no|nos)[ \\t\\u00a0]{1,8}(?=(?:cinema|teatro|shopping|mercado|supermercado|médico|dentista|banco|hospital|parque|clube|estádio|restaurante|escritório|museu|zoológico|show|jogo|aeroporto|centro|correio|cartório)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "pt_BR:ptNo",
+    fixer: "pt_BR:@pt_BR.confusionFrames/75",
     message: "review_msg_pt_regency",
   }),
   frame({
     pattern:
       "(?<target>devem|deviam|deveriam|deverão|podem|podiam|poderiam|poderão|vão|iam|irão|costumam|começam|continuam)[ \\t\\u00a0]{1,8}haver[ \\t\\u00a0]{1,8}(?!\\p{L}+[ai]d[oa](?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=\\p{L})",
     literals: ["haver"],
-    fixer: "pt_BR:ptDevem",
+    fixer: "pt_BR:@pt_BR.confusionFrames/76",
   }),
   frame({
     pattern:
@@ -27553,7 +27553,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "atribui",
       "diminui",
     ],
-    fixer: "pt_BR:ptSai",
+    fixer: "pt_BR:@pt_BR.confusionFrames/81",
     message: "review_msg_pt_agreement",
   }),
   frame({
@@ -27641,7 +27641,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:uma|da|na|nessa|nesta|naquela|dessa|desta|daquela|essa|esta|aquela|minha|sua|nossa|tua|cada|toda|qualquer|boa|última|primeira|mesma|pela|às|das|nas|duas|três|quatro|cinco|seis|oito|dez|doze|24|algumas|muitas|poucas)[ \\t\\u00a0]{1,8}(?<target>ora|oras)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-)",
     literals: ["ora", "oras"],
-    fixer: "pt_BR:ptOra",
+    fixer: "pt_BR:@pt_BR.confusionFrames/93",
   }),
   frame({
     pattern:
@@ -27659,7 +27659,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>mais[ \\t\\u00a0]{1,8}(?:bom|boa|bons|boas|mau|má|maus|más|grande|grandes))(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?]|$)|[ \\t\\u00a0]{1,8}(?:d[oa]s?|de[ \\t\\u00a0]{1,8}tod[oa]s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|(?:[ \\t\\u00a0]{1,8}do)?[ \\t\\u00a0]{1,8}que[ \\t\\u00a0]{1,8}(?:(?:o|a|os|as|um|uma|eu|ele|ela|eles|elas|você|vocês|nós|isso|isto|aquilo|est[ea]s?|ess[ea]s?|aquel[ea]s?|seu|sua|seus|suas|meu|minha|nosso|nossa|antes|ontem|hoje|nunca|sempre|qualquer|todos?|todas?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["mais"],
-    fixer: "pt_BR:ptMais",
+    fixer: "pt_BR:@pt_BR.confusionFrames/96",
     message: "review_msg_pt_comparative",
   }),
   frame({
@@ -27673,7 +27673,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "entre[ \\t\\u00a0]{1,8}(?:(?:o|a)[ \\t\\u00a0]{1,8})?\\p{L}+[ \\t\\u00a0]{1,8}e[ \\t\\u00a0]{1,8}(?<target>eu|tu)(?=[ \\t\\u00a0]{0,2}(?:[.,;:!?)]|$))",
     literals: ["entre"],
-    fixer: "pt_BR:ptEu3",
+    fixer: "pt_BR:@pt_BR.confusionFrames/98",
     message: "review_msg_pt_pronoun_case",
   }),
   frame({
@@ -27702,7 +27702,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:eu|não|me|te|se|também|já|ainda|ele|ela|você)[ \\t\\u00a0]{1,8}(?<target>cinto|cinta|cintas|cintam)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?!-)",
     literals: ["cinto", "cinta", "cintas", "cintam"],
-    fixer: "pt_BR:ptCinto",
+    fixer: "pt_BR:@pt_BR.confusionFrames/102",
   }),
   frame({
     pattern: "(?<target>Cinto)[ \\t\\u00a0]{1,8}(?=muito(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
@@ -27721,7 +27721,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>Está|Estás)[ \\t\\u00a0]{1,8}(?!(?:tudo|nada|bem|mal|certo|claro|ótimo|bom|tranquilo|difícil|fácil|aqui|ali|lá|longe|perto|tarde|cedo|frio|quente|escuro|calor|chato|feito|visto|provado|dito)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=\\p{L}{3,}(?<!ndo|[ai]do)[ \\t\\u00a0]{1,8}(?:é|são|foi|foram|era|eram|será|serão|tem|têm|ficou|ficaram|parece|parecem)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["está", "estás"],
-    fixer: "pt_BR:ptEstá",
+    fixer: "pt_BR:@pt_BR.confusionFrames/105",
     clauseStart: true,
     capitalized: true,
   }),
@@ -27753,7 +27753,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:como|onde|quando|quanto)[ \\t\\u00a0]{1,8}(?<target>foi|é|era|está|estava)[ \\t\\u00a0]{1,8}(?=(?:as|os|suas|seus|minhas|meus|tuas|teus|nossas|nossos)[ \\t\\u00a0]{1,8}\\p{L}{3,}s[ \\t\\u00a0]{0,2}\\?)",
     literals: ["como", "onde", "quando", "quanto"],
-    fixer: "pt_BR:ptFoi",
+    fixer: "pt_BR:@pt_BR.confusionFrames/110",
   }),
   frame({
     pattern:
@@ -27817,7 +27817,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>tive|teve|tivemos|tiveram|tinha|tínhamos|tinham)[ \\t\\u00a0]{1,8}(?=de[ \\t\\u00a0]{1,8}(?:férias|folga|licença)(?:[ \\t\\u00a0]{0,2}(?:[.,;!?]|$)|[ \\t\\u00a0]{1,8}(?:em|no|na|até|desde|durante|com|por|e)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["tive", "teve", "tivemos", "tiveram", "tinha", "tínhamos", "tinham"],
-    fixer: "pt_BR:ptTive",
+    fixer: "pt_BR:@pt_BR.confusionFrames/117",
     message: "review_msg_contextual_grammar",
   }),
   frame({
@@ -27848,19 +27848,19 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   frame({
     pattern: "(?<target>pos|recem|alem|aquem)-(?=\\p{L})",
     literals: ["pos", "recem", "alem", "aquem"],
-    fixer: "pt_BR:ptPos",
+    fixer: "pt_BR:@pt_BR.confusionFrames/122",
   }),
   frame({
     pattern:
       "(?:(?:ele|ela|você|eles|elas|vocês|isso|isto|tudo|não|nunca|já|ainda|quem|onde|como|ninguém|alguém|também|sempre|assim)|qual|quando|o[ \\t\\u00a0]{1,8}que)[ \\t\\u00a0]{1,8}(?<target>sera|tera)[ \\t\\u00a0]{1,8}(?=\\p{L})",
     literals: ["sera", "tera"],
-    fixer: "pt_BR:ptSera",
+    fixer: "pt_BR:@pt_BR.confusionFrames/123",
   }),
   frame({
     pattern:
       "(?<target>sera)[ \\t\\u00a0]{1,8}(?=\\p{L}{2,}(?:ad|id)[oa]s?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["sera"],
-    fixer: "pt_BR:ptSera2",
+    fixer: "pt_BR:@pt_BR.confusionFrames/124",
   }),
   frame({
     pattern:
@@ -27878,13 +27878,13 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "enxada",
       "serra",
     ],
-    fixer: "pt_BR:ptAfe",
+    fixer: "pt_BR:@pt_BR.confusionFrames/125",
   }),
   frame({
     pattern:
       "(?<target>arre(?:ar|ia|iam|ei|ou|aram|ando|ado|ados|ada|adas))[ \\t\\u00a0]{1,8}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?)[ \\t\\u00a0]{1,8}){0,2}(?:velas?|bandeiras?|âncoras?|calças)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["arre"],
-    fixer: "pt_BR:ptArre",
+    fixer: "pt_BR:@pt_BR.confusionFrames/126",
   }),
   frame({
     pattern:
@@ -27899,39 +27899,39 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "analgésico",
       "calmante",
     ],
-    fixer: "pt_BR:ptComer",
+    fixer: "pt_BR:@pt_BR.confusionFrames/127",
     message: "review_msg_pt_word_choice",
   }),
   frame({
     pattern:
       "(?<!(?:d[eoa]s?|n[oa]s?|aos?|às?|pel[oa]s?|para|com|sem)[ \\t\\u00a0]{1,8})(?:eventos?|reuni(?:ão|ões)|encontros?|cerimônias?|festas?|conferências?|congressos?|jogos?|partidas?|shows?|concertos?|casamentos?|julgamentos?|eleiç(?:ão|ões)|votaç(?:ão|ões)|debates?|exposiç(?:ão|ões)|feiras?|competiç(?:ão|ões)|torneios?|batalhas?|ataques?|acidentes?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?:[ \\t\\u00a0]{1,8}(?!(?:d[eoa]s?|com|para|por|que|e)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))[\\p{L}-]+){0,3}?[ \\t\\u00a0]{1,8}(?<target>toma|tomam|tomou|tomaram|tomará|tomarão|tomaria|tomariam|tomava|tomavam|tomasse|tomassem)[ \\t\\u00a0]{1,8}lugar[ \\t\\u00a0]{1,8}(?=(?:em|no|na|nos|nas|entre|durante|amanhã|hoje|ontem|às|neste|nesta|nesse|nessa|naquele|naquela)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["lugar"],
-    fixer: "pt_BR:ptToma",
+    fixer: "pt_BR:@pt_BR.confusionFrames/128",
     message: "review_msg_pt_word_choice",
   }),
   frame({
     pattern:
       "(?:pedir|peço|pede|pedem|pediu|pedi|pediram|dar|dou|dá|dão|deu|dei|deram|seguir|sigo|segue|seguem|seguiu|segui|ouvir|ouço|ouve|ouviu|ouvi|aceitar|aceito|aceita|aceitou|aceitei)[ \\t\\u00a0]{1,8}(?:(?:[oa]s?|um|uma|uns|umas|meus?|minhas?|seus?|suas?|nossos?|nossas?|esses?|essas?|estes?|estas?)[ \\t\\u00a0]{1,8}){0,2}(?:(?:bons?|bom|algum|alguns|outro|outros)[ \\t\\u00a0]{1,8})?(?<target>concelhos?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["concelho"],
-    fixer: "pt_BR:ptConcelhos",
+    fixer: "pt_BR:@pt_BR.confusionFrames/129",
   }),
   frame({
     pattern:
       "(?:assistir|assisto|assiste|assistimos|assistem|assisti|assistiu|assistiram|assistia|assistiam[ \\t\\u00a0]{1,8}(?:(?:a|ao|aos)[ \\t\\u00a0]{1,8})?(?:(?:um|uns|o|os|esse|este|aquele)[ \\t\\u00a0]{1,8})?|(?:vou|vai|vamos|vão|fui|foi|fomos|foram|ir|ia|iam)[ \\t\\u00a0]{1,8}a[ \\t\\u00a0]{1,8}(?:um|uns)[ \\t\\u00a0]{1,8})(?<target>consertos?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:d[eoa]s?|no|na)[ \\t\\u00a0]{1,8}(?!(?:rock|jazz|música|orquestra|banda|samba|forró|pagode)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])))",
     literals: ["conserto"],
-    fixer: "pt_BR:ptConsertos",
+    fixer: "pt_BR:@pt_BR.confusionFrames/130",
   }),
   frame({
     pattern:
       "(?<target>consertos?)[ \\t\\u00a0]{1,8}(?=(?:de[ \\t\\u00a0]{1,8}(?:rock|jazz|música|samba|forró|pagode)|da[ \\t\\u00a0]{1,8}(?:orquestra|banda)|sinfônicos?|ao[ \\t\\u00a0]{1,8}vivo)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["conserto"],
-    fixer: "pt_BR:ptConsertos2",
+    fixer: "pt_BR:@pt_BR.confusionFrames/131",
   }),
   frame({
     pattern:
       "(?<target>amostras?)[ \\t\\u00a0]{1,8}(?=(?:de|d[eoa]s?)[ \\t\\u00a0]{1,8}(?:arte|artes|cinema|filmes|fotografia|fotografias|teatro|dança|design|pintura|escultura)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["amostra"],
-    fixer: "pt_BR:ptAmostras",
+    fixer: "pt_BR:@pt_BR.confusionFrames/132",
     message: "review_msg_pt_word_choice",
   }),
   frame({
@@ -27943,7 +27943,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>estive|esteve|estivemos|estiveram)[ \\t\\u00a0]{1,8}de[ \\t\\u00a0]{1,8}(?!(?:azar|mar|lugar|par|bar|amor|calor|favor|humor|cor|dor|pior|melhor|maior|menor)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))(?=\\p{L}{2,}[aeiô]r(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["estive", "esteve", "estivemos", "estiveram"],
-    fixer: "pt_BR:ptEstive",
+    fixer: "pt_BR:@pt_BR.confusionFrames/134",
     message: "review_msg_pt_word_choice",
   }),
   frame({
@@ -27962,7 +27962,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<target>percas?)[ \\t\\u00a0]{1,8}(?=(?:de|d[eoa]s?)[ \\t\\u00a0]{1,8}(?:\\d|tempo|dinheiro|energia|peso|sangue|memória|vidas?|receitas?|produção|calor|carga|água|dados|qualidade|valor|empregos?|clientes)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["perca"],
-    fixer: "pt_BR:ptPercas",
+    fixer: "pt_BR:@pt_BR.confusionFrames/137",
   }),
   frame({
     pattern:
@@ -27980,7 +27980,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:último|próximo|penúltimo|novo|primeiro)[ \\t\\u00a0]{1,8}(?<target>sensos?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:de|comum|crítico|estético|moral|prático|ético|artístico)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: ["senso"],
-    fixer: "pt_BR:ptSensos",
+    fixer: "pt_BR:@pt_BR.confusionFrames/140",
   }),
   frame({
     pattern:
@@ -28103,36 +28103,36 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "candidataram",
       "quanto",
     ],
-    fixer: "pt_BR:craseGoverned",
+    fixer: "pt_BR:@pt_BR.confusions/1",
   }),
   frame({
     pattern:
       "(?:vou|vais|vai|vamos|vão|ia|iam|irei|irás|irá|iremos|irão|iria|iríamos|iriam|ir|indo)[ \\t\\u00a0]{1,8}(?<target>as?)[ \\t\\u00a0]{1,8}(?=(?:escola|praia|festa|igreja|missa|feira|academia|farmácia|padaria|faculdade|universidade|reunião|aula|piscina|fazenda|praça|loja|biblioteca|delegacia|prefeitura|cidade|capital|cozinha|sala|janela|rodoviária|lavanderia|oficina|creche|cerimônia|consulta|sessão|exposição)s?(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "pt_BR:craseGoesTo",
+    fixer: "pt_BR:@pt_BR.confusions/2",
   }),
   frame({
     pattern:
       "(?<target>às?)[ \\t\\u00a0]{1,8}(?=(?:sua|vossa|suas|vossas)[ \\t\\u00a0]{1,8}(?:excelência|majestade|santidade|senhoria|alteza|eminência|magnificência|reverendíssima|excelências|majestades|santidades|senhorias|altezas|eminências|beatitudes?)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))",
     literals: [],
-    fixer: "pt_BR:craseNone",
+    fixer: "pt_BR:@pt_BR.confusions/3",
   }),
   frame({
     pattern:
       "(?<target>à)[ \\t\\u00a0]{1,8}(?=uma(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])(?![ \\t\\u00a0]{1,8}(?:hora|e|da|em[ \\t\\u00a0]{1,8}ponto)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])|[ \\t\\u00a0]*h))",
     literals: [],
-    fixer: "pt_BR:craseNone",
+    fixer: "pt_BR:@pt_BR.confusions/4",
   }),
   frame({
     pattern: "(?<target>à)[ \\t\\u00a0]{1,8}(?=(?:R\\$|US\\$|€|\\$))",
     literals: [],
-    fixer: "pt_BR:craseNone",
+    fixer: "pt_BR:@pt_BR.confusions/5",
   }),
   frame({
     pattern:
       "(?<target>à)[ \\t\\u00a0]{1,8}(?<verb>\\p{L}+(?:ar|er|ir))(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "pt_BR:craseInfinitive",
+    fixer: "pt_BR:@pt_BR.confusions/6",
   }),
   frame({
     pattern:
