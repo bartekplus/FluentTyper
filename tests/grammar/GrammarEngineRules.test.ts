@@ -8,6 +8,8 @@ import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDet
 import { REVIEW_RULE_METADATA } from "../../src/core/domain/grammar/review/reviewCatalog";
 import { TYPING_RULE_CATALOG } from "../../src/core/domain/grammar/ruleCatalog";
 import { createGrammarRuleCatalogRuntime } from "../../src/core/domain/grammar/ruleFactory";
+import { reviewRuleIds } from "../../src/core/domain/grammar/review/reviewCatalog";
+import { review } from "./grammarTestUtils";
 
 test("the generated modules are current with grammar/rules/*.yaml", async () => {
   for (const [file, content] of Object.entries(await generateGrammarRuleModules()))
@@ -60,4 +62,45 @@ test("a Review check has a rule; an excluded check has none", () => {
   const served = new Set(REVIEW_RULES.flatMap((rule) => rule.checks));
   for (const [id, metadata] of Object.entries(REVIEW_RULE_METADATA))
     expect([id, served.has(id)]).toEqual([id, metadata.review === "supported"]);
+});
+
+// The ellipsis rule was a token pattern before it was a frame: the frame keeps its findings.
+test.each([
+  ["Hold on... I found it.", [7]],
+  ["(...)", [1]],
+  ["(... args)", [1]],
+  ["{...rest}", []],
+  ["(...$x)", []],
+  ["a...1", []],
+  ["1...a", []],
+  ["....", []],
+  ["x ... y", [2]],
+  ["wait\n...next", [5]],
+  ["a...b...c", [1, 5]],
+  ["see http://example.com/a...b now", []],
+  ["code `a...b` here", []],
+  ["x/... ok", [2]],
+  ["a/b... ok", [3]],
+  ["/usr/bin/... ok", []],
+  ["~/a/b... ok", []],
+  ["/a...b/c", []],
+  ["a/b/c d/e... ok", [9]],
+  ["/a//b/c... ok", []],
+  ["a.../b", []],
+  ["a...\\b", []],
+  ["foo.bar...baz", []],
+  ["مرحبا... كيف", [5]],
+] as const)("the ellipsis rule offers … in %p at %p", (text, starts) => {
+  const enabledRules = [...reviewRuleIds({ codeMode: false }), "ellipsisShortcut" as const];
+  const found = review(text, {}, { enabledRules }).diagnostics.filter(
+    (d) => d.ruleId === "ellipsisShortcut",
+  );
+  expect(
+    found.map((d) => [d.range, d.context, d.alternatives.map((a) => a.preview), d.bulk.eligible]),
+  ).toEqual(
+    starts.map((start) => {
+      const range = { start, end: start + 3 };
+      return [range, range, ["…"], false];
+    }),
+  );
 });
