@@ -5,8 +5,8 @@ import type { LiveCode } from "../liveRules";
 import type { DetectContext, MatchResult } from "../../library";
 import { namedExampleBefore } from "../../library";
 
-// es.yaml rule es.quotes def quoteMark
-export function quoteMark(start: number, replacement: string, pairEnd: number) {
+// es.yaml rule es.quotes def esQuoteMark
+export function esQuoteMark(start: number, replacement: string, pairEnd: number) {
   return {
     ruleId: "spanishQuotes" as const,
     messageKey: "review_msg_spanish_quotes" as const,
@@ -16,24 +16,24 @@ export function quoteMark(start: number, replacement: string, pairEnd: number) {
   };
 }
 
-// es.yaml rule es.quotes def quotePair
-export function quotePair(m: RegExpExecArray, ctx: DetectContext, open: string, close: string) {
+// es.yaml rule es.quotes def esQuotePair
+export function esQuotePair(m: RegExpExecArray, ctx: DetectContext, open: string, close: string) {
   if (!(m.index >= ctx.from)) return null;
   const end = m.index + m[0].length;
   if (ctx.text.slice(m.index, end).includes("￼") || namedExampleBefore(ctx.text, m.index))
     return null;
-  return [quoteMark(m.index, open, end), quoteMark(end - 1, close, end)];
+  return [esQuoteMark(m.index, open, end), esQuoteMark(end - 1, close, end)];
 }
 
 /** The frame fixes, by the name their frames give ("@<rule id>/<frame>"). */
 export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // es.yaml rule es.quotes frame 1
   "@es.quotes/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
-    return quotePair(m, ctx, "«", "»");
+    return esQuotePair(m, ctx, "«", "»");
   },
   // es.yaml rule es.quotes frame 2
   "@es.quotes/2": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
-    return quotePair(m, ctx, "‘", "’");
+    return esQuotePair(m, ctx, "‘", "’");
   },
 };
 

@@ -5,7 +5,7 @@ import type { LiveCode } from "../liveRules";
 import type { DetectContext, FrameRef, MatchResult } from "../../library";
 import { adjectiveForm, namedExampleBefore, nounGender } from "../../library";
 
-export const ORDINAL_BEFORE: ReadonlySet<string> = new Set([
+export const SV_ORDINAL_BEFORE: ReadonlySet<string> = new Set([
   "den",
   "det",
   "på",
@@ -33,7 +33,7 @@ export const ORDINAL_BEFORE: ReadonlySet<string> = new Set([
   "hamnade",
 ]);
 
-export const PLURAL_BEFORE: ReadonlySet<string> = new Set([
+export const SV_PLURAL_BEFORE: ReadonlySet<string> = new Set([
   "två",
   "tre",
   "fyra",
@@ -54,7 +54,7 @@ export const PLURAL_BEFORE: ReadonlySet<string> = new Set([
   "deras",
 ]);
 
-export const NOT_NOUNS: ReadonlySet<string> = new Set([
+export const SV_NOT_NOUNS: ReadonlySet<string> = new Set([
   "för",
   "och",
   "som",
@@ -95,7 +95,7 @@ export const NOT_NOUNS: ReadonlySet<string> = new Set([
   "samt",
 ]);
 
-export const CLAUSE_OPENERS: ReadonlySet<string> = new Set([
+export const SV_CLAUSE_OPENERS: ReadonlySet<string> = new Set([
   "att",
   "och",
   "men",
@@ -118,7 +118,7 @@ export const CLAUSE_OPENERS: ReadonlySet<string> = new Set([
   "sedan",
 ]);
 
-export const PERSONS: ReadonlySet<string> = new Set([
+export const SV_PERSONS: ReadonlySet<string> = new Set([
   "mamma",
   "pappa",
   "mormor",
@@ -149,30 +149,30 @@ export const PERSONS: ReadonlySet<string> = new Set([
   "varandra",
 ]);
 
-// sv.yaml def ORDINAL_NOUNS
-export const ORDINAL_NOUNS =
+// sv.yaml def SV_ORDINAL_NOUNS
+export const SV_ORDINAL_NOUNS =
   /^[ \t\u00a0]+(?:plats(?:en)?|gången|klass(?:en)?|våning(?:en)?|upplaga(?:n)?|århundradet|kvartalet|omgången|försöket|priset|raden|sidan|stycket|hand|januari|februari|mars|april|maj|juni|juli|augusti|september|oktober|november|december)(?![\p{L}])/u;
 
-// sv.yaml def DATE_ONLY
-export const DATE_ONLY = /^(?:Mars|Maj)$/;
+// sv.yaml def SV_DATE_ONLY
+export const SV_DATE_ONLY = /^(?:Mars|Maj)$/;
 
-// sv.yaml def DATE_BEFORE
-export const DATE_BEFORE =
+// sv.yaml def SV_DATE_BEFORE
+export const SV_DATE_BEFORE =
   /(?:\d\.?|(?<!\p{L})(?:i|av|sedan|från|till|under|början|slutet|mitten))[ \t\u00a0]+$/u;
 
-// sv.yaml def HAS_FINITE
-export const HAS_FINITE =
+// sv.yaml def SV_HAS_FINITE
+export const SV_HAS_FINITE =
   /(?<![\p{L}\p{M}\p{N}_'’@/#\\-])(?:är|var|har|hade|blir|blev|kan|kunde|ska|skall|skulle|vill|ville|måste|får|fick|kommer|kom|gör|gjorde|går|gick|säger|sa|sade|tycker|tyckte|vet|visste|brukar|bor|bodde|verkar|borde|finns|fanns)(?![\p{L}\p{M}\p{N}_'’@/#\\-])/iu;
 
-// sv.yaml def wordBefore
-export function wordBefore(text: string, at: number) {
+// sv.yaml def svWordBefore
+export function svWordBefore(text: string, at: number) {
   return (
     /(\p{L}[\p{L}\p{N}:]*)[ \t\u00a0]+$/u.exec(text.slice(Math.max(0, at - 32), at))?.[1] ?? ""
   );
 }
 
-// sv.yaml def atSentenceStart
-export function atSentenceStart(text: string, at: number) {
+// sv.yaml def svAtSentenceStart
+export function svAtSentenceStart(text: string, at: number) {
   const before = text.slice(Math.max(0, at - 8), at);
   return (
     /[.!?:…\n][ \t\u00a0"”»'(–-]*$/u.test(before) ||
@@ -180,8 +180,8 @@ export function atSentenceStart(text: string, at: number) {
   );
 }
 
-// sv.yaml def capitalized
-export function capitalized(word: string) {
+// sv.yaml def svCapitalized
+export function svCapitalized(word: string) {
   return /^\p{Lu}\p{Ll}/u.test(word);
 }
 
@@ -193,11 +193,13 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const n = Number(m[1]);
     const expected = n % 100 !== 11 && n % 100 !== 12 && (n % 10 === 1 || n % 10 === 2) ? "a" : "e";
     if (!(m[2] === expected)) return null;
-    const before = wordBefore(ctx.text, m.index);
-    if (capitalized(before) && !atSentenceStart(ctx.text, m.index - before.length - 1)) return null;
+    const before = svWordBefore(ctx.text, m.index);
+    if (svCapitalized(before) && !svAtSentenceStart(ctx.text, m.index - before.length - 1))
+      return null;
     const end = m.index + m[0].length;
     if (!(
-      ORDINAL_BEFORE.has(before.toLowerCase()) || ORDINAL_NOUNS.test(ctx.text.slice(end, end + 24))
+      SV_ORDINAL_BEFORE.has(before.toLowerCase()) ||
+      SV_ORDINAL_NOUNS.test(ctx.text.slice(end, end + 24))
     ))
       return null;
     return {
@@ -213,9 +215,12 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (namedExampleBefore(ctx.text, m.index)) return null;
     const end = m.index + m[0].length;
     const next = /^[ \t\u00a0]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 32))?.[1];
-    if (!(next && !NOT_NOUNS.has(next))) return null;
-    const before = wordBefore(ctx.text, m.index).toLowerCase();
-    if (PLURAL_BEFORE.has(before) || /\d[ \t\u00a0]+$/u.test(ctx.text.slice(m.index - 4, m.index)))
+    if (!(next && !SV_NOT_NOUNS.has(next))) return null;
+    const before = svWordBefore(ctx.text, m.index).toLowerCase();
+    if (
+      SV_PLURAL_BEFORE.has(before) ||
+      /\d[ \t\u00a0]+$/u.test(ctx.text.slice(m.index - 4, m.index))
+    )
       return null;
     if (ctx.dictionary.has(m[0].toLowerCase())) return null;
     return {
@@ -229,10 +234,10 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
   // sv.yaml rule sv.typography frame 3
   "@sv.typography/3": (m: RegExpExecArray, ctx: DetectContext, frame: FrameRef): MatchResult => {
     if (namedExampleBefore(ctx.text, m.index)) return null;
-    if (atSentenceStart(ctx.text, m.index)) return null;
+    if (svAtSentenceStart(ctx.text, m.index)) return null;
     const word = m[0];
     const before = ctx.text.slice(Math.max(0, m.index - 24), m.index);
-    if (DATE_ONLY.test(word) && !DATE_BEFORE.test(before)) return null;
+    if (SV_DATE_ONLY.test(word) && !SV_DATE_BEFORE.test(before)) return null;
     const end = m.index + word.length;
     if (
       /\p{Lu}\p{Ll}*[ \t\u00a0]+$/u.test(before) ||
@@ -326,9 +331,9 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const target = m.groups!.target;
     if (namedExampleBefore(ctx.text, m.index)) return null;
     if (!(
-      atSentenceStart(ctx.text, m.index) ||
+      svAtSentenceStart(ctx.text, m.index) ||
       /,[ \t\u00a0]*$/u.test(ctx.text.slice(Math.max(0, m.index - 3), m.index)) ||
-      CLAUSE_OPENERS.has(wordBefore(ctx.text, m.index).toLowerCase())
+      SV_CLAUSE_OPENERS.has(svWordBefore(ctx.text, m.index).toLowerCase())
     ))
       return null;
     if (ctx.dictionary.has(target.toLowerCase())) return null;
@@ -367,7 +372,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     const gap1 = m.groups!.gap1;
     const noun = m.groups!.noun;
     if (namedExampleBefore(ctx.text, m.index)) return null;
-    if (PERSONS.has(noun) || adjectiveForm(noun)) return null;
+    if (SV_PERSONS.has(noun) || adjectiveForm(noun)) return null;
     const gender = nounGender(noun);
     if (gender ? gender !== target.toLowerCase() : !/a$/u.test(noun) || target !== "en")
       return null;
@@ -390,7 +395,7 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (namedExampleBefore(ctx.text, m.index)) return null;
     const sentence = ctx.text.slice(Math.max(0, m.index - 200), m.index);
     const clause = sentence.slice(sentence.search(/[^.!?:\n]*$/u));
-    if (clause.trim().split(/\s+/u).length < 3 || !HAS_FINITE.test(clause)) return null;
+    if (clause.trim().split(/\s+/u).length < 3 || !SV_HAS_FINITE.test(clause)) return null;
     if (/(?<!\p{L})(?:som|vad|vilket|vilken|vilka)(?!\p{L})/iu.test(clause)) return null;
     if (
       /^[\s"”»'(–-]*(?:när|om|eftersom|innan|medan|sedan|då|fast|fastän|ifall|tills|därför|för att)(?!\p{L})/iu.test(

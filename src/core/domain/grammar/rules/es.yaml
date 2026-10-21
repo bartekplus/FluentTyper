@@ -611,7 +611,7 @@ rules:
     # quotes are common and accepted in informal text.
     defs:
       # The finding that replaces one straight mark of a pair.
-      quoteMark:
+      esQuoteMark:
         args: "start: number, replacement: string, pairEnd: number"
         return: >-
           ({
@@ -622,7 +622,7 @@ rules:
             context: { start: Math.max(0, start - 1), end: pairEnd },
           })
       # The straight pair of match `m` gets the marks `open` and `close`.
-      quotePair:
+      esQuotePair:
         args: "m: RegExpExecArray, ctx: DetectContext, open: string, close: string"
         let:
           end: m.index + m[0].length
@@ -630,7 +630,7 @@ rules:
           - m.index >= ctx.from
           # Protected text, code and quoted examples keep their marks.
           - '!(ctx.text.slice(m.index, end).includes("￼") || namedExampleBefore(ctx.text, m.index))'
-        return: "[quoteMark(m.index, open, end), quoteMark(end - 1, close, end)]"
+        return: "[esQuoteMark(m.index, open, end), esQuoteMark(end - 1, close, end)]"
     frames:
       # A straight pair around a phrase on one line: opening after a space, a bracket or a dash
       # and before a letter, closing after a letter, digit or sentence mark.
@@ -638,12 +638,12 @@ rules:
         flags: gu
         scan: owned
         lookback: 256
-        return: quotePair(m, ctx, "«", "»")
+        return: esQuotePair(m, ctx, "«", "»")
       - regex: "(?<=^|[\\s([{\\u00BF\\u00A1\\u2014\\u2013-])'(?=[\\p{L}\\p{N}\\u00BF\\u00A1])([^'\\n]{1,200}?)(?<=[\\p{L}\\p{N}.!?\\u2026])'(?![\\p{L}\\p{N}])"
         flags: gu
         scan: owned
         lookback: 256
-        return: quotePair(m, ctx, "‘", "’")
+        return: esQuotePair(m, ctx, "‘", "’")
   - id: es.repeatedPair
     checks: [englishRepeatedWords]
     style: match
