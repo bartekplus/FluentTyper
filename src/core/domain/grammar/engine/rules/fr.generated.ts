@@ -12554,16 +12554,7 @@ export function beforeNoun(
 }
 
 // fr.yaml rule fr.adjectives def keptRead
-export function keptRead(
-  m: RegExpExecArray,
-): {
-  person: string;
-  gender: string;
-  slot: Inflection;
-  word: string;
-  start: number;
-  end: number;
-} | null {
+export function keptRead(m: RegExpExecArray) {
   const lead = /^(?:je|j['’]|tu|nous)(?![\p{L}])/iu.exec(m[0])?.[0].toLowerCase().replace("’", "'");
   const aux = /(?:suis|es|sommes|étais|étions)(?=[ \t])/iu.exec(m[0].slice(lead?.length ?? 0))?.[0];
   const person = lead ? KEPT_PERSONS[lead] : aux && aux !== "étais" ? KEPT_PERSONS[aux] : undefined;

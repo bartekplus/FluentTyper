@@ -8984,7 +8984,6 @@ rules:
       # pronoun and être the word is the participle, also where a noun spells it.
       keptRead:
         args: "m: RegExpExecArray"
-        type: "{ person: string; gender: string; slot: Inflection; word: string; start: number; end: number } | null"
         let:
           lead: '/^(?:je|j[''’]|tu|nous)(?![\p{L}])/iu.exec(m[0])?.[0].toLowerCase().replace("’", "''")'
           aux: '/(?:suis|es|sommes|étais|étions)(?=[ \t])/iu.exec(m[0].slice(lead?.length ?? 0))?.[0]'
