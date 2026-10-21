@@ -4899,14 +4899,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?:(?:I|you|he|she|it|we|they)(?:[ \\t\\u00a0]{1,8}(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)?|could(?:n['’]t)?|will|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|may|might|must(?:n['’]t)?)|(?<contraction>['’](?:ll|d)))|(?:(?:what|when|where|why|how|who)[ \\t\\u00a0]{1,8})?(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)?|could(?:n['’]t)?|will|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|may|might|must(?:n['’]t)?)[ \\t\\u00a0]{1,8}(?:(?:I|you|he|she|it|we|they)|this|that)(?:[ \\t\\u00a0]{1,8}please)?|(?:the|this|that|my|your|our|his|her|their|its|a|an)[ \\t\\u00a0]{1,8}(?<noun>[a-z]+)[ \\t\\u00a0]{1,8}(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)|could(?:n['’]t)?|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|might|mustn['’]t))(?:[ \\t\\u00a0]{1,8}(?:not|really|just|ever|even|always|still|actually|never|definitely|certainly|probably|greatly|surely|also|usually|often|sometimes|truly|simply|necessarily|exactly|completely|fully|totally|honestly|seriously)){0,2}[ \\t\\u00a0]{1,8}(?<verb>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:afterAuxiliary",
+    fixer: "common:@auxiliaryForms/1",
     owner: "none",
   }),
   frame({
     pattern:
       "(?:(?:what|when|where|why|how|who)[ \\t\\u00a0]{1,8})?(?:did(?:n['’]t)?|does(?:n['’]t)?|do(?:n['’]t)?|can(?:not|['’]t)?|could(?:n['’]t)?|will|won['’]t|would(?:n['’]t)?|shall|should(?:n['’]t)?|may|might|must(?:n['’]t)?)[ \\t\\u00a0]{1,8}(?:the|this|that|my|your|our|his|her|their|its|a|an)(?<words>(?:[ \\t\\u00a0]{1,8}[A-Za-z]+){2,4})(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:invertedNounQuestion",
+    fixer: "common:@auxiliaryForms/2",
     owner: "none",
   }),
   frame({
@@ -4935,14 +4935,14 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "don",
       "didn",
     ],
-    fixer: "common:afterSubjectWord",
+    fixer: "common:@auxiliaryForms/3",
     owner: "none",
   }),
   frame({
     pattern:
       "to(?<adverb>[ \\t\\u00a0]{1,8}[a-z]+ly)?[ \\t\\u00a0]{1,8}(?<verb>[A-Za-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "common:afterInfinitiveTo",
+    fixer: "common:@auxiliaryForms/4",
     owner: "none",
   }),
   frame({
@@ -4962,7 +4962,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "tried",
       "trying",
     ],
-    fixer: "common:needToNoun",
+    fixer: "common:@auxiliaryForms/5",
   }),
   frame({
     pattern:

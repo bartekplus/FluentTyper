@@ -32,7 +32,7 @@ export { lastNonBlankBefore, opensClause } from "../implementations/helpers/Engl
 export { MASK_CHAR } from "../review/types";
 export { digitValue, invalidIsoDate } from "../review/isoDates";
 export { phraseRows } from "./common/engine";
-export { atClauseStart } from "./common/text";
+export { atClauseStart, previousWord } from "./common/text";
 export { isUniquePast, pluralNoun, simplePastOnly } from "./common/english";
 export {
   englishNounForms,
