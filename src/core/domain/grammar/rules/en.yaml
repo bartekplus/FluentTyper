@@ -5351,7 +5351,8 @@ rules:
         cue: ["other"]
         fix: "others"
       # "The fox' tail": an -x noun takes 's.
-      - regex: "(?<target>(?<noun>[a-z]+x)['’]){{S}}(?<next>[a-z]+){{E}}"
+      # The lookahead shows the scan its fixed "x'": it runs only on the word before one.
+      - regex: "(?=[a-z]+(?:x'|x’))(?<target>(?<noun>[a-z]+x)['’]){{S}}(?<next>[a-z]+){{E}}"
         check: englishApostrophes
         message: review_msg_noun_possessive
         fixer: clauseFramesNoun2
@@ -5401,7 +5402,8 @@ rules:
         cue: ["as", "once", "when", "if", "because", "since", "until", "after", "before"]
         fixer: clauseFramesA3
       # "David and I's cat": David's and my.
-      - regex: "(?<target>(?<who>[a-z]{2,}|my{{S}}[a-z]+){{S}}and{{S}}I['’]s){{E}}"
+      # The lookahead shows the scan its fixed word "and": it runs only before an "and".
+      - regex: "(?=(?:[a-z]{2,}|my{{S}}[a-z]+){{S}}and{{S}})(?<target>(?<who>[a-z]{2,}|my{{S}}[a-z]+){{S}}and{{S}}I['’]s){{E}}"
         check: englishPhraseCorrections
         fixer: clauseFramesWho
   - id: en.slipFrames

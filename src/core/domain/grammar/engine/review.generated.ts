@@ -14990,7 +14990,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<target>(?<noun>[a-z]+x)['’])[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?=[a-z]+(?:x'|x’))(?<target>(?<noun>[a-z]+x)['’])[ \\t\\u00a0]{1,8}(?<next>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "en:clauseFramesNoun2",
     message: "review_msg_noun_possessive",
@@ -15067,7 +15067,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<target>(?<who>[a-z]{2,}|my[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}I['’]s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+      "(?=(?:[a-z]{2,}|my[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8})(?<target>(?<who>[a-z]{2,}|my[ \\t\\u00a0]{1,8}[a-z]+)[ \\t\\u00a0]{1,8}and[ \\t\\u00a0]{1,8}I['’]s)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["and"],
     fixer: "en:clauseFramesWho",
     check: "englishPhraseCorrections",
