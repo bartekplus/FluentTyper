@@ -2480,35 +2480,232 @@ rules:
     style: match
     message: review_msg_verb_complements
     filter: slotFindingsOncePerStart
+    maps:
+      # The object form of a subject pronoun: "He wants that I send…" -> "wants me to".
+      COMP_WANT_OBJECTS: { i: me, you: you, he: him, she: her, we: us, they: them }
+    defs:
+      COMP_OBJECT: /^(?:me|you|him|her|us|it|them)$/
+      COMP_PARTICLE: /^(?:out|up|down|off|in|on|back|over|away)$/
+      # Words before want/need/like/try that make it a noun or a preposition: "for want of", "the
+      # need arises", "a try", "looks like rain".
+      COMP_NOT_VERB_BEFORE: /^(?:the|a|an|for|of|no|any|every|each|my|your|his|her|its|our|their|this|that|these|those|looks?|looked|feels?|felt|seems?|seemed|sounds?|sounded|just|much|more|most|nothing|something|anything|is|are|was|were|be|been)$/
+      COMP_SUBJECT: /^(?:i|you|we|they|he|she|it|who)$/
+      # Before a subject pronoun these make the clause a relative one with an object gap: "the
+      # woman he loves go…", "what you want using…".
+      COMP_GAP_HEADS: /^(?:that|which|what|whatever|ones|things|all|everything|anything)$/
+      # Adjectives and participles that take a to-infinitive.
+      COMP_INFINITIVE_ADJECTIVES: /^(?:easy|easier|hard|harder|difficult|possible|impossible|happy|glad|ready|able|unable|willing|eager|necessary|important|better|best|cool|nice|safe|forced|allowed|supposed|expected|required|pleased|proud|expensive|cheap|fun|tough|simple|recommendable|advisable|reluctant|keen|free|determined|obliged|meant)$/
+      # The head verb has a subject that is no subject of a relative clause: "I want go" but not
+      # "the ones you love walk out", "the products you want using".
+      compPlainSubject:
+        args: "ctx: DetectContext, headStart: number"
+        let:
+          subject: enWordBefore(ctx, headStart)
+        return: "!COMP_SUBJECT.test(subject) || compPlainBefore(enWordBefore(ctx, headStart - subject.length - 1))"
+      compPlainBefore:
+        args: "before: string"
+        return: >-
+          !before || (EN_FUNCTION_WORDS.has(before) && !COMP_GAP_HEADS.test(before)) ||
+          (!COMP_GAP_HEADS.test(before) && compNoNoun(before))
+      compNoNoun:
+        args: "word: string"
+        let:
+          read: englishWordInfo(word)
+        return: "!(read ? read.noun || read.plural : true)"
+      # A base verb with no form of another verb; `verbOnly` when the lexicon reads it as
+      # nothing else.
+      compBase:
+        args: "word: string"
+        type: "{ lemma: string; verbOnly: boolean } | null"
+        return: >-
+          word === "be" || word === "do" || word === "have" || word === "get" || word === "go"
+          ? { lemma: word, verbOnly: true } : compLexiconBase(word)
+      compLexiconBase:
+        args: "word: string"
+        type: "{ lemma: string; verbOnly: boolean } | null"
+        let:
+          forms: englishVerbForms(word)
+          read: englishWordInfo(word)
+        when:
+          - "!EN_FUNCTION_WORDS.has(word)"
+          - "!(forms && forms.lemma !== word)"
+          - 'read?.verbs.some((v) => v.form === "base" && v.lemma === word)'
+          - "!read.verbs.some((v) => v.lemma !== word)"
+        return: "({ lemma: word, verbOnly: !read.noun && !read.adjective && !read.adverb && !read.plural })"
+      # The verb's own object or particle follows: an object pronoun, a particle or a
+      # determiner.
+      compVerbEvidence:
+        args: "ctx: DetectContext, end: number, determiner: boolean"
+        let:
+          tokens: enTokensAfter(ctx, end, 2)
+          next: tokens[0]
+          after: tokens[1]
+        when: 'next?.kind === "word"'
+        return: >-
+          COMP_OBJECT.test(next.lower) || COMP_PARTICLE.test(next.lower) || (determiner &&
+          /^(?:the|a|an|my|your|his|her|our|their|some|any|another|this|these|those|every|each)$/.test(next.lower) &&
+          !(after?.kind === "word" &&
+          /^(?:day|week|morning|night|time|weekend|month|year|hour|minute|moment|second|while|few|next|following|same|rest|most|best|least|lot|bit|little|more|whole|great|good)$/.test(after.lower)))
+        else: "false"
+      compFinding:
+        args: 'ctx: DetectContext, messageKey: RawFinding["messageKey"], start: number, end: number, alternatives: string[], from: number'
+        return: 'finding("englishVerbComplements", messageKey, start, end, alternatives, { context: enEvidence(ctx, from, end) })'
     frames:
       # "I want go", "try get", "would like see", "needs be there": an infinitive without "to".
       - regex: "(?<head>want|wants|wanted|need|needs|needed|like|likes|love|loves|hope|hopes|hoped|try|tries|tried|decide|decided|decides){{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: complementMissingTo
+        # "need further details", "want better tools": comparatives that the dictionary lists as verbs.
+        # "Which seat do you want please?": please is the adverb, or opens the next clause. "the
+        # documents that the managers need include…": a relative clause with a noun subject. "the
+        # contracts we need include…", "anything you need let me know": an object gap. "if you need help
+        # you should ask": a noun object, then a new clause. "What needs do you have?", "needs do not":
+        # do as an auxiliary. An -s head needs a singular subject: "Our needs become…", "Men's wants…"
+        # are nouns. An adverb may stand between: "She really needs…". "The technician needs bring…": a
+        # singular noun after a determiner is a subject too. "Why would love make us happy", "Don't let
+        # hope become": a noun love/hope. "like" is a verb after a subject, would/'d/do or to; in other
+        # positions a preposition.
+        let:
+          headLower: head.toLowerCase()
+          before: enWordBefore(ctx, m.index)
+          end: m.index + m[0].length
+          tail: enTokensAfter(ctx, end, 1)[0]
+          nextLower: tail?.lower ?? ""
+          adverbial: /^(?:really|just|also|still|always|never|only|often|usually|probably)$/.test(before)
+          subjectAt: "adverbial ? m.index - before.length - 1 : m.index"
+          subjectWord: "adverbial ? enWordBefore(ctx, subjectAt) : before"
+          b: compBase(verb)
+          # "need talk to them", "love listen to music": verbs whose noun reading never comes bare after
+          # need/want, before a preposition or the end.
+          intransitive: >-
+            /^(?:talk|listen|stay|wait|speak|think|reply|look|complain|apologize|come)$/.test(verb) &&
+            /^(?:to|with|about|for|at|on|in|of|here|there|home|now|longer)?$/.test(nextLower)
+          # Nouns that a person needs or wants bare before a determiner: "need help the most".
+          massNoun: /^(?:help|work|time|rest|sleep|money|space|room|food|water|love|care|practice|support|advice|change|power|fun|access|peace|fish|cash)$/.test(verb)
+          # Verbs whose noun reading never stands bare after want/need/try ("try use", "want say"), or
+          # a manner adverb or quantifier after the verb ("want try badly", "like test all").
+          plainVerb: >-
+            /^(?:use|make|get|take|give|find|keep|put|see|add|say|buy|bring|send|check|try|ask|tell)$/.test(verb) ||
+            (tail?.kind === "word" && (/^(?:all|both|each|every|some|any|more|badly|again|properly|quickly)$/.test(tail.lower) ||
+            (/ly$/.test(tail.lower) && !!englishWordInfo(tail.lower)?.adverb)))
+          span: m.indices!.groups!.verb
+        when:
+          - "!(ctx.dictionary.has(verb) || /^(?:further|farther|better|worse|lower|less|please)$/.test(verb))"
+          - >-
+            !((COMP_NOT_VERB_BEFORE.test(before) && !(before === "just" && !/^like/.test(headLower))) ||
+            (/^(?:if|there|must|let|all|would|will)$/.test(before) && /^need|^hope|^love/.test(headLower) && before !== "would"))
+          - compPlainSubject(ctx, m.index)
+          - >-
+            !/\b(?:that|which|whom)[ \t ]+(?:(?:the|a|an|my|our|your|their|his|her)[ \t ]+)?[a-z]+[ \t ]+$/i.test(ctx.text.slice(Math.max(0,
+            m.index - 40), m.index))
+          - "!enObjectGapBefore(ctx.text.slice(Math.max(0, m.index - 48), m.index))"
+          - "!enClauseAfter(ctx, m.index + m[0].length)"
+          - "!(verb === \"do\" && /^(?:not|you|we|they|i|he|she|it|it['’]s)$/.test(nextLower))"
+          - >-
+            !(/s$/.test(headLower) && !/^(?:he|she|it|who|that|which|one|someone|everyone|nobody)$/.test(subjectWord) &&
+            !/^[A-Z][a-z]+$/.test(ctx.text.slice(subjectAt - subjectWord.length - 1, subjectAt - 1)) &&
+            !((enNounNumber(subjectWord)?.number === "singular" || enNounOnly(subjectWord) === "singular") &&
+            /^(?:the|a|an|my|your|his|her|our|their|this|that|each|every)$/.test(enWordBefore(ctx, subjectAt - subjectWord.length - 1))))
+          - "!(/^(?:love|hope|loves|hopes)$/.test(headLower) && !/^(?:i|you|we|they|he|she|really|also|would|['’]d)$|['’]d$/.test(before))"
+          - >-
+            !(/^(?:like|likes|love|loves)$/.test(headLower) && /^(?:like|love)$/.test(headLower) &&
+            !/^(?:i|you|we|they|would|should|could|do|don['’]t|didn['’]t|doesn['’]t|not|never|to|really|also|just|['’]d)$|['’]d$/.test(before))
+          - b
+          # "I want work in Paris": a mass noun before a preposition.
+          - "!(massNoun && /^(?:in|on|at|for|with)$/.test(nextLower))"
+          # "Want see the results" with no subject is a note: only a subject makes it a clause. "We like
+          # make it", but "I like fish a lot": a verb that is also a noun needs its object. need/want: a
+          # subject before and an article or possessive after ("needs buy a car").
+          - >-
+            !(!b.verbOnly && !intransitive && !(plainVerb && !massNoun && !!before && !/^(?:hope|hopes|love|loves)$/.test(headLower)) &&
+            (/^(?:hope|hopes|love|loves)$/.test(headLower) || !compVerbEvidence(ctx, end, /^(?:try|tries|tried|like|likes)$/.test(headLower) ||
+            (!massNoun && !!before && /^(?:a|an|the|another|my|your|his|her|our|their)$/.test(nextLower)))))
+          # "need write access", "want read rights": the verb names a kind of permission.
+          - "!EN_PERMISSION_AFTER.test(ctx.text.slice(end, end + 32))"
+          # "need not", "Need I say more": a modal need.
+          - "!(/^need/.test(headLower) && /^(?:not|i|we|you|they|he|she)$/.test(verb))"
+        return: 'compFinding(ctx, "review_msg_missing_to", span[0], span[1], [`to ${verb}`], m.index)'
       # "can't afford buying", "you want creating": an -ing form where an infinitive belongs.
       - regex: "(?<head>afford|want|wants|wanted|struggling|refuse|refused|refuses|manage|managed|manages|decide|decided|decides|promise|promised|promises|(?:advise|advised|advises|remind|reminds|reminded|encourage|encouraged|encourages|help|helps|helped|tell|told|ask|asked|allow|allowed){{S}}(?:me|you|him|her|us|them))(?:{{S}}(?<not>not))?{{S}}(?<verb>[a-z]+ing){{E}}"
         owner: verb
-        fixer: complementGerundForInfinitive
+        # Prepositions in -ing: "the changes you want including…", "…you wanted using our agent". "The
+        # belt wants replacing.": want + -ing means "needs" before a clause end. "He reminded them
+        # staying calm was…": the -ing clause is a subject.
+        let:
+          headLower: head.toLowerCase()
+          tail: enTokensAfter(ctx, m.index + m[0].length, 6)
+          read: englishWordInfo(verb)
+          lemma: englishLemma(verb, "ing")
+          span: m.indices!.groups!.verb
+        when:
+          - "!(ctx.dictionary.has(verb) || NOUN_LIKE_ING.test(verb))"
+          - "!/^(?:using|including|following|regarding|concerning|according|considering)$/.test(verb)"
+          - compPlainSubject(ctx, m.index)
+          - '!(/^want/.test(headLower) && (tail[0]?.kind !== "word" || /ly$|^(?:also|too|now|soon)$/.test(tail[0].lower)))'
+          - '!tail.some((t) => t.kind === "word" && /^(?:is|was|are|were|would|will|helps?|helped)$/.test(t.lower))'
+          - "!(!read || read.noun || read.adjective)"
+          - lemma
+          - "!COMP_NOT_VERB_BEFORE.test(enWordBefore(ctx, m.index))"
+        return: 'compFinding(ctx, "review_msg_verb_complements", span[0], span[1], [`to ${lemma}`], m.index)'
       # "I enjoy to swim", "We avoided to go": verbs that take a gerund.
       - regex: "(?<head>enjoy|enjoys|enjoyed|avoid|avoids|avoided|consider|considers|considered|suggest|suggests|suggested|finish|finishes|finished|admit|admits|admitted|recommend|recommends|recommended|quit|quits|keep|keeps|kept|risk|risks|risked|postpone|postponed|imagine|imagined|deny|denied){{S}}(?<target>to{{S}}(?<verb>[a-z]+)){{E}}"
-        fixer: complementInfinitiveForGerund
+        # "is considered to be", "is recommended to use": a passive takes the infinitive. "the app you
+        # recommended to track sleep": the object comes first, so "to" opens a purpose clause.
+        let:
+          before: ctx.text.slice(Math.max(0, m.index - 24), m.index)
+          b: compBase(verb)
+          ing: englishInflect(verb, "ing")
+          span: m.indices!.groups!.target
+        when:
+          - '!/\b(?:is|are|was|were|be|been|being|[''’]s|[''’]re|get|got)[ \t ]+(?:\w+ly[ \t ]+)?$/i.test(before)'
+          - "!COMP_NOT_VERB_BEFORE.test(enWordBefore(ctx, m.index))"
+          - "!enFrontedObjectBefore(ctx.text.slice(Math.max(0, m.index - 64), m.index))"
+          - '!(!b?.verbOnly || verb === "be")'
+          - ing
+        return: 'compFinding(ctx, "review_msg_gerund_complement", span[0], span[1], [ing], m.index)'
       # "I'm used to run", "We are accustomed to work late": "to" there is a preposition. Not
       # "they": "they are used to define the genre" is a passive of things.
       - regex: "(?:I|you|we|he|she)(?:{{S}}(?:am|are|is|was|were|get|got|became)|['’](?:m|re|s))(?:{{S}}(?:so|very|really|quite|not|already|well))?{{S}}(?:used|accustomed){{S}}to{{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: complementUsedTo
+        # "I am used to work as…" may mean "I am used (employed) to work as…".
+        let:
+          b: compBase(verb)
+          next: enTokensAfter(ctx, m.index + m[0].length, 1)[0]
+          ing: englishInflect(verb, "ing")
+          span: m.indices!.groups!.verb
+        when:
+          - '!(!b?.verbOnly || verb === "be" || next?.lower === "as")'
+          - ing
+        return: 'compFinding(ctx, "review_msg_gerund_complement", span[0], span[1], [ing], m.index)'
       # "It's easy get feedback", "I'd be happy help": an adjective or participle before a bare
       # verb.
       - regex: "(?:is|are|was|were|be|been|[a-z]+['’](?:s|re|m)|am)(?:{{S}}(?:very|really|so|too|quite|perfectly|not|more|most|always|also|still|extremely))?{{S}}(?<adjective>[a-z]+){{S}}(?<verb>[a-z]+){{E}}"
         owner: verb
-        fixer: complementAdjectiveBareVerb
+        let:
+          b: compBase(verb)
+          span: m.indices!.groups!.verb
+        when:
+          - "!(EN_FUNCTION_WORDS.has(adjective) || ctx.dictionary.has(verb))"
+          - COMP_INFINITIVE_ADJECTIVES.test(adjective)
+          - "!(!b || /^(?:please|thank|except)$/.test(verb))"
+          - "!(!b.verbOnly && !compVerbEvidence(ctx, m.index + m[0].length, false))"
+        return: 'compFinding(ctx, "review_msg_missing_to", span[0], span[1], [`to ${verb}`], m.index)'
       # "He wants that I send…": want takes an object and an infinitive.
       - regex: "(?<target>(?<head>want|wants|wanted){{S}}that{{S}}(?<subject>I|you|he|she|we|they)){{S}}[a-z]+{{E}}"
-        fixer: complementWantThat
+        let:
+          span: m.indices!.groups!.target
+        return: >-
+          compFinding(ctx, "review_msg_verb_complements", span[0], span[1], [`${head} ${COMP_WANT_OBJECTS[subject.toLowerCase()]} to`],
+          m.index)
       # "I look forward hearing from you", "looking forward too": look forward takes "to".
       - regex: "(?:look|looks|looked|looking){{S}}forward(?<gap>{{S}})(?<next>too|(?:from|of)(?={{S}}(?:you|him|her|them|hearing|seeing){{E}})|[a-z]+ing){{E}}"
         owner: next
-        fixer: complementLookForward
+        let:
+          nextLower: next.toLowerCase()
+          span: m.indices!.groups!.next
+        when: '!nextLower.endsWith("ing") || !!englishWordInfo(nextLower)?.verbs.some((v) => v.form === "ing")'
+        return: >-
+          compFinding(ctx, "review_msg_forward_gerund", span[0], span[1], [nextLower.endsWith("ing") ? `to ${next}` : caseLike(nextLower, "to")],
+          m.index)
   - id: en.missingVerbs
     checks: [englishSentenceStructure, englishConfusedWords]
     style: match

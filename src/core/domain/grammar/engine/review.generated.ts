@@ -10220,7 +10220,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "decided",
       "decides",
     ],
-    fixer: "en:complementMissingTo",
+    fixer: "en:@en.verbComplementSlots/1",
     owner: "verb",
   }),
   frame({
@@ -10263,7 +10263,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "allow",
       "allowed",
     ],
-    fixer: "en:complementGerundForInfinitive",
+    fixer: "en:@en.verbComplementSlots/2",
     owner: "verb",
   }),
   frame({
@@ -10306,33 +10306,33 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
       "deny",
       "denied",
     ],
-    fixer: "en:complementInfinitiveForGerund",
+    fixer: "en:@en.verbComplementSlots/3",
   }),
   frame({
     pattern:
       "(?:I|you|we|he|she)(?:[ \\t\\u00a0]{1,8}(?:am|are|is|was|were|get|got|became)|['’](?:m|re|s))(?:[ \\t\\u00a0]{1,8}(?:so|very|really|quite|not|already|well))?[ \\t\\u00a0]{1,8}(?:used|accustomed)[ \\t\\u00a0]{1,8}to[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["used", "accustomed"],
-    fixer: "en:complementUsedTo",
+    fixer: "en:@en.verbComplementSlots/4",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?:is|are|was|were|be|been|[a-z]+['’](?:s|re|m)|am)(?:[ \\t\\u00a0]{1,8}(?:very|really|so|too|quite|perfectly|not|more|most|always|also|still|extremely))?[ \\t\\u00a0]{1,8}(?<adjective>[a-z]+)[ \\t\\u00a0]{1,8}(?<verb>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
-    fixer: "en:complementAdjectiveBareVerb",
+    fixer: "en:@en.verbComplementSlots/5",
     owner: "verb",
   }),
   frame({
     pattern:
       "(?<target>(?<head>want|wants|wanted)[ \\t\\u00a0]{1,8}that[ \\t\\u00a0]{1,8}(?<subject>I|you|he|she|we|they))[ \\t\\u00a0]{1,8}[a-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["want", "wants", "wanted"],
-    fixer: "en:complementWantThat",
+    fixer: "en:@en.verbComplementSlots/6",
   }),
   frame({
     pattern:
       "(?:look|looks|looked|looking)[ \\t\\u00a0]{1,8}forward(?<gap>[ \\t\\u00a0]{1,8})(?<next>too|(?:from|of)(?=[ \\t\\u00a0]{1,8}(?:you|him|her|them|hearing|seeing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]))|[a-z]+ing)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: ["forward"],
-    fixer: "en:complementLookForward",
+    fixer: "en:@en.verbComplementSlots/7",
     owner: "next",
   }),
   frame({

@@ -17,7 +17,6 @@ import * as contractionSlots from "./contractionSlots";
 import * as degreeSlots from "./degreeSlots";
 import * as nounNumberSlots from "./nounNumberSlots";
 import * as verbGroupSlots from "./verbGroupSlots";
-import * as complementSlots from "./complementSlots";
 import * as missingVerbSlots from "./missingVerbSlots";
 import * as agreementSlots from "./agreementSlots";
 import * as adverbSlots from "./adverbSlots";
@@ -113,7 +112,6 @@ export const FIXERS = mergePredicates<Fixer>(
   plainStyle.FIXERS,
   properNames.FIXERS,
   questionSlots.FIXERS,
-  complementSlots.FIXERS,
   contractionSlots.FIXERS,
   nounNumberSlots.FIXERS,
   negationSlots.FIXERS,
