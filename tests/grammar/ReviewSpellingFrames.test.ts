@@ -1,17 +1,19 @@
 import { expect, test } from "bun:test";
 import { REVIEW_FRAMES, REVIEW_RULES } from "../../src/core/domain/grammar/engine/review.generated";
-import { CASING_WORDS } from "../../src/core/domain/grammar/review/canonicalCasing";
-import { SPELLING_FRAME_REGEXES } from "../../src/core/domain/grammar/review/multilingualLexicon";
+import {
+  CASING_WORDS,
+  spellingFrameRegexes,
+} from "../../src/core/domain/grammar/review/rules/common.generated";
 
-test("the spelling frames of common.yaml are the word tables of multilingualLexicon.ts", () => {
+test("the spelling frames of common.yaml are the word tables of its rule code", () => {
   const rule = REVIEW_RULES.find((entry) => entry.id === "spelling")!;
   const frames = rule.frames!.map((index) => REVIEW_FRAMES[index]);
   expect(frames.map((frame) => [frame.pattern, frame.flags])).toEqual(
-    SPELLING_FRAME_REGEXES.map((regex) => [regex.source, regex.flags]),
+    spellingFrameRegexes().map((regex) => [regex.source, regex.flags]),
   );
 });
 
-test("the casing frame of phraseTables is the word regex of canonicalCasing.ts", () => {
+test("the casing frame of phraseTables is the word regex CASING_WORDS", () => {
   const rule = REVIEW_RULES.find((entry) => entry.id === "phraseTables")!;
   const frame = REVIEW_FRAMES[rule.frames![0]];
   // The source may write a character as a \\u escape: compare the characters.

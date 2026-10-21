@@ -11,7 +11,6 @@ import {
   reviewRuleIds,
 } from "../../src/core/domain/grammar/review/reviewCatalog";
 import {
-  LANGUAGE_DETECTORS,
   REVIEW_DETECTORS,
   type ReviewDetectorEntry,
 } from "../../src/core/domain/grammar/review/reviewDetectors";
@@ -64,7 +63,7 @@ function fixOne(text: string, diagnostic: ReviewDiagnostic): string {
 }
 
 test("the English extension tables load first without an import-order error", () => {
-  const entry = new URL("../../src/core/domain/grammar/review/english/index.ts", import.meta.url);
+  const entry = new URL("../../src/core/domain/grammar/review/english/tables.ts", import.meta.url);
   const { exitCode, stderr } = Bun.spawnSync([
     process.execPath,
     "-e",
@@ -105,7 +104,7 @@ describe("review rule coverage map", () => {
     // to those rules or serve rules of their own.
     // Language module entries carry their language.
     const core = REVIEW_DETECTORS.filter(
-      (detector) => !detector.lang && !LANGUAGE_DETECTORS.includes(detector),
+      (detector) => !detector.lang && (detector.source === "common" || detector.source === "en"),
     );
     const coreRules = core.flatMap((detector) => detector.rules);
     expect(new Set(coreRules).size).toBe(coreRules.length);

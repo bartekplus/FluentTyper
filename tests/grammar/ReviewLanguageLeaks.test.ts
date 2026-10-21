@@ -2,15 +2,6 @@ import { afterAll, expect, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { REVIEW_DETECTORS } from "../../src/core/domain/grammar/review/reviewDetectors";
 import { runsInReviewLanguage } from "../../src/core/domain/grammar/review/reviewCatalog";
-import { EXTENSION_DETECTORS } from "../../src/core/domain/grammar/review/english";
-import { GERMAN_DETECTORS } from "../../src/core/domain/grammar/review/german";
-import { DETECTORS as GREEK } from "../../src/core/domain/grammar/review/greek/detectors";
-import { DETECTORS as SWEDISH } from "../../src/core/domain/grammar/review/swedish/detectors";
-import { DETECTORS as ARABIC } from "../../src/core/domain/grammar/review/arabic/detectors";
-import { PORTUGUESE_DETECTORS } from "../../src/core/domain/grammar/review/portuguese";
-import { POLISH_DETECTORS } from "../../src/core/domain/grammar/review/polish";
-import { SPANISH_DETECTORS } from "../../src/core/domain/grammar/review/spanish";
-import { FRENCH_DETECTORS } from "../../src/core/domain/grammar/review/french";
 import type { CatalogRuleId } from "../../src/core/domain/grammar/ruleCatalog";
 import { ALL_RULES, scan } from "./reviewHarness";
 
@@ -65,18 +56,21 @@ const corpus = (name: string) =>
 
 // Every language module's entry, by its detect function (the dispatcher holds tagged copies).
 const MODULE_LANGUAGE = new Map<unknown, string>();
-for (const [lang, entries] of Object.entries({
-  en: EXTENSION_DETECTORS,
-  de: GERMAN_DETECTORS,
-  el: GREEK,
-  sv: SWEDISH,
-  ar: ARABIC,
-  pt: PORTUGUESE_DETECTORS,
-  pl: POLISH_DETECTORS,
-  es: SPANISH_DETECTORS,
-  fr: FRENCH_DETECTORS,
-}))
-  for (const entry of entries) MODULE_LANGUAGE.set(entry.detect, entry.lang ?? lang);
+const SOURCE_LANGUAGE: Record<string, string> = {
+  en: "en",
+  de: "de",
+  el: "el",
+  sv: "sv",
+  ar_SA: "ar",
+  pt_BR: "pt",
+  pl: "pl",
+  es: "es",
+  fr: "fr",
+};
+for (const entry of REVIEW_DETECTORS) {
+  const lang = entry.source && SOURCE_LANGUAGE[entry.source];
+  if (lang) MODULE_LANGUAGE.set(entry.detect, entry.lang ?? lang);
+}
 
 // A spy on each language entry: Review must not call it for text in another language.
 const calls: string[] = [];

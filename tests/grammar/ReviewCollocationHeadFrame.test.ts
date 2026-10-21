@@ -1,6 +1,6 @@
 import { expect, test } from "bun:test";
 import { REVIEW_FRAMES, REVIEW_RULES } from "../../src/core/domain/grammar/engine/review.generated";
-import { ROWS } from "../../src/core/domain/grammar/review/english/collocationSlots";
+import { COLLOCATION_ROWS as ROWS } from "../../src/core/domain/grammar/review/rules/en.generated";
 
 // The head frame of en.collocations runs only before a typed preposition of the head table.
 // When a row adds a preposition, the frame must list it too.

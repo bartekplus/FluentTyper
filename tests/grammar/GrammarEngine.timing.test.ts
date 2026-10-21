@@ -5,7 +5,7 @@ import { findMatches, type PatternSet } from "../../src/core/domain/grammar/engi
 import { PatternLiveRule } from "../../src/core/domain/grammar/engine/liveRules";
 import { TABLES } from "../../src/core/domain/grammar/engine/review.generated";
 import { LANGUAGE_PHRASE_TABLES } from "../../src/core/domain/grammar/review/languagePhraseTables";
-import { EXTENSION_PHRASES } from "../../src/core/domain/grammar/review/english";
+import { EXTENSION_PHRASES } from "../../src/core/domain/grammar/review/english/tables";
 import { tokenize } from "../../src/core/domain/grammar/engine/tokenizer";
 import type { PhraseRow } from "../../src/core/domain/grammar/engine/rows";
 import type { RuleSpec } from "../../src/core/domain/grammar/engine/types";

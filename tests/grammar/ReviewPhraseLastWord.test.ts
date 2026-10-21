@@ -5,17 +5,23 @@ import {
   MODAL_OF_REGEX,
   THEIR_THERE_BE_REGEX,
   YOUR_WELCOME_REGEX,
+  articleAnLastWord,
+  modalOfLastWord,
+  pronounVerbLastWord,
+  theirThereLastWord,
+  yourWelcomeLastWord,
 } from "../../src/core/domain/grammar/review/rules/common.generated";
-import { PHRASE_LAST_WORD } from "../../src/core/domain/grammar/review/reviewDetectors";
 
-// Fuzz: when a pattern matches a window that ends at a word end, the last-word test of its
-// predicate is true. Then the test never skips a window that gives a match.
-const CASES: [keyof typeof PHRASE_LAST_WORD, RegExp][] = [
-  ["modalOf", MODAL_OF_REGEX],
-  ["yourWelcome", YOUR_WELCOME_REGEX],
-  ["theirThere", THEIR_THERE_BE_REGEX],
-  ["pronounVerb", AGREEMENT_REGEX],
-  ["articleAn", ARTICLE_REGEX],
+// Fuzz: for each phrase frame of common.yaml, when its pattern matches a window that ends at a
+// word end, the quick last-word test of the frame is true. Then the test never skips a window
+// that gives a match.
+type LastWord = (text: string, start: number, end: number) => boolean;
+const CASES: [string, RegExp, LastWord][] = [
+  ["modalOf", MODAL_OF_REGEX, modalOfLastWord],
+  ["yourWelcome", YOUR_WELCOME_REGEX, yourWelcomeLastWord],
+  ["theirThere", THEIR_THERE_BE_REGEX, theirThereLastWord],
+  ["pronounVerb", AGREEMENT_REGEX, pronounVerbLastWord],
+  ["articleAn", ARTICLE_REGEX, articleAnLastWord],
 ];
 const TOKENS = [
   ...["i", "I", "is", "IS", "has", "was", "Was", "you", "he", "She", "it", "are", "ARE", "were"],
@@ -41,7 +47,7 @@ test("each last-word test is true where its pattern matches", () => {
     for (const word of text.matchAll(/[A-Za-z]+/g)) {
       const start = word.index;
       const end = start + word[0].length;
-      for (const [name, pattern] of CASES) {
+      for (const [name, pattern, lastWord] of CASES) {
         const regex = new RegExp(pattern.source, pattern.flags.replace(/[gy]/g, ""));
         let matched = false;
         for (let from = 0; from <= start && !matched; from += 1) {
@@ -49,7 +55,7 @@ test("each last-word test is true where its pattern matches", () => {
         }
         if (!matched) continue;
         matches.set(name, (matches.get(name) ?? 0) + 1);
-        if (!PHRASE_LAST_WORD[name](text, start, end)) {
+        if (!lastWord(text, start, end)) {
           throw new Error(`${name} skips ${JSON.stringify(text)} at ${end}`);
         }
       }
