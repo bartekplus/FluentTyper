@@ -4954,7 +4954,587 @@ rules:
     checks: [germanCommas]
     style: match
     message: review_msg_german_comma
-    filter: firstCommaPerEnd
+    # A position gets one comma: the first frame match that gives it.
+    filter:
+      let:
+        seen: new Set<number>()
+      return: "findings.filter((f) => !seen.has(f.range.end) && !!seen.add(f.range.end))"
+    sets:
+      # Conjunctions that always open a subordinate clause.
+      COMMA_SUBORDINATORS: [dass, weil, obwohl, obgleich, obschon, wenngleich, nachdem, sobald, sofern, falls, indem, sodass, bevor, wohingegen, ob, wenn, sondern]
+      # Words that join with the conjunction after them, or set it off before themselves.
+      COMMA_JOINED: [
+          und, oder, sowie, bzw, beziehungsweise, aber, sondern, denn, doch, jedoch, als, so, ohne, statt, anstatt,
+          außer, kaum, bis, auf, je, nur, auch, selbst, sogar, gerade, eben, schon, besonders, insbesondere, allem,
+          zwar, zumal, nicht, einfach, allein, bloß, lediglich, umso, desto, erst, egal, gleich, dann, immer, jedes,
+          halt, also, wie, ja, etwa, vielleicht, teils, ob, weil, dass, wenn, außer, nämlich, speziell, vornehmlich,
+          hauptsächlich, vermutlich, wahrscheinlich, sonst, zum, rund, recht, noch, kurz, lang, lange, gleich, bald,
+          unmittelbar, direkt, knapp, beispiel, spätestens, frühestens, sofort, nachdem,
+        ]
+      # "wenn möglich", "falls nötig": a shortened clause, set off or not.
+      COMMA_ELLIPTICAL: [möglich, nötig, notwendig, erforderlich, gewünscht, ja, nein, nicht, überhaupt]
+      # Infinitive groups after these take a comma in either order.
+      COMMA_INFINITIVE_LEADS: [um, ohne, statt, anstatt]
+      # Verbs that take "um" as their preposition: "es geht um", "er bat um", "sich um etwas
+      # kümmern"; and "um" for an amount: "um zwei Tage verschieben".
+      COMMA_UM_VERBS: [
+          geht, ging, gehen, ginge, handelt, handelte, handeln, handle, bitte, bittet, bat, baten, bitten, kämpfen,
+          kämpft, kämpfte, sorgen, sorgt, sorgte, kümmern, kümmert, kümmerte, streiten, streitet, bewerben, bewirbt,
+          bewarb, werben, wirbt, warb, drehte, dreht, drehen, bemühen, bemüht, bemühte, beneiden, beneidet, verzögern,
+          verschieben, erhöhen, senken, verlängern, verkürzen, steigern, reduzieren, verringern, vergrößern,
+          verkleinern, anheben,
+        ]
+      COMMA_IMPERSONAL_UM: [geht, ging, gehen, ginge, handelt, handelte, handeln, handle]
+      # Verbs that report an opinion or knowledge before a clause without "dass": "ich glaube, …".
+      COMMA_OPINIONS: [
+          glaube, glaub, glauben, glaubt, denke, denk, denken, denkt, dachte, dachten, hoffe, hoff, hoffen, hofft,
+          finde, find, finden, findet, befürchte, befürchten, befürchtet, fürchte, fürchten, vermute, vermuten,
+          vermutet, schätze, schätzen, wette, wetten, weiß, wissen, wisst, behauptet, behaupten, meine, meinen, meint,
+        ]
+      COMMA_SUBJECTS: [ich, wir, ihr, sie, er, man, du]
+      COMMA_SINGULAR_SUBJECTS: [ich, du, er, es, man]
+      # Asking for an opinion: "Meinst du, das klappt?"
+      COMMA_OPINION_QUESTIONS: [glaubst, glaubt, glauben, meinst, meint, meinen, denkst, denkt, denken, findest, findet, finden]
+      COMMA_QUESTION_SUBJECTS: [du, ihr, Sie]
+      # Fillers between the verb and its clause: "ich glaube übrigens, …", "ich denke mal, …".
+      COMMA_FILLERS: [mal, übrigens, ja, schon, auch, eher, persönlich, halt, eigentlich, doch]
+      # Finite verbs that show a main clause has begun.
+      COMMA_FINITE: [
+          ist, sind, war, waren, wird, werden, wurde, wurden, hat, haben, hatte, hatten, kann, können, konnte,
+          konnten, muss, müssen, musste, mussten, soll, sollen, sollte, sollten, will, wollen, wollte, wollten, darf,
+          dürfen, durfte, mag, möchte, möchten, würde, würden, wäre, wären, sei, seien, gibt, gab, geht, ging, gehen,
+          kommt, kam, kommen, gefällt, gefallen, braucht, brauchen, macht, steht, liegt, läuft, funktioniert, klappt,
+          bleibt, passt, stimmt, reicht, hilft, fehlt, fehlen,
+        ]
+      # Verbs of asking and knowing before an indirect w-question: "er fragt, wie …".
+      COMMA_ASKING: [
+          weiß, weißt, wisst, wissen, wusste, wussten, fragt, fragte, fragten, frage, fragen, erkundigte, erkundigt,
+          verstehe, verstehst, versteht, verstanden, überlege, überlegt, überlegen,
+        ]
+      COMMA_W_WORDS: [was, wer, wen, wem, wie, wo, wann, warum, wieso, weshalb, weswegen, woran, wohin, woher, womit, wofür, worüber, wovon, wozu]
+      # Words that may stand between the asking verb and the question: "weiß nicht mehr, wie".
+      COMMA_ASK_FILLERS: [
+          nicht, noch, auch, gar, genau, schon, mal, selbst, mehr, nie, ich, du, er, sie, es, wir, ihr, man, mich, dich,
+          sich, uns, euch, mir, dir, ihm, ihnen, jetzt, nun, ja, leider, wirklich, überhaupt,
+        ]
+      COMMA_OBJECT_PRONOUNS: [mich, dich, sich, uns, euch, mir, dir, ihm, ihn, es]
+      # Prepositions that open an indirect question with "was", "wem" or "wen": "an was", "mit wem".
+      COMMA_QUESTION_PREPOSITIONS: [an, auf, für, mit, von, über, um, zu, bei, aus, nach, gegen, durch]
+      # Verbs an adjective before an indirect question or "wie" clause is the predicate of.
+      COMMA_PREDICATE_VERBS: [ist, war, wäre, sei, sind, waren, bleibt, finde, findet, fand, finden]
+      # Words that make "Adjektiv wie …" a comparison.
+      COMMA_COMPARING: [so, genauso, ebenso, zu, doppelt, halb, fast, gleich]
+      # Capitalized words that open a clause without being its subject.
+      COMMA_NOT_SUBJECTS: [
+          wenn, was, wer, wie, wo, wann, warum, als, dass, weil, ob, und, aber, doch, denn, so, da, dann, dort, hier,
+          heute, jetzt, nun, auch, nur, noch, schon, bitte, danke, ja, nein, vielleicht, leider, außerdem, alle, daher,
+          deshalb, deswegen, damals, trotzdem, gestern, morgen, also, zuerst, später, viele, einige, manche, beide,
+          jeder, jede, jedes, keiner, niemand, jemand,
+        ]
+      COMMA_IRREGULAR: [sein, tun, haben, werden, wissen]
+      # Words that announce an infinitive group the clause's verb governs: "Es geht darum, …", "Es
+      # kommt darauf an, …", "Ich denke nicht daran, …".
+      COMMA_CORRELATES: [darum, daran, darauf, dazu, davon, darüber, darin, davor]
+      # Particles that close the main clause after the correlate ("kommt darauf an"), when they
+      # make a verb with one of the clause's verbs.
+      COMMA_CORRELATE_PARTICLES: [an, ab, hin, aus, auf, ein, vor, nach, mit, zu, fest, hinaus, zurück]
+      # Verbs before an adjective or participle that an infinitive group the "es" stands for
+      # completes: "Er ist es gewohnt, …", "Es macht mich traurig, …", "Es fällt mir schwer, …".
+      COMMA_ES_LINKS: [ist, war, wäre, sei, sind, waren, bin, bist, seid, wird, wurde, würde, macht, machte, fällt, fiel, habe, hast, hat, haben, hatte, hatten]
+      # Verbs whose object "es" is the infinitive group: "Er liebt es, lange zu schlafen".
+      COMMA_ES_OBJECT_VERBS: [
+          liebe, liebst, liebt, lieben, liebte, hasse, hasst, hassen, hasste, genieße, genießt, genießen, genoss,
+          vermeide, vermeidet, vermeiden, vermied, bevorzuge, bevorzugt, bevorzugen,
+        ]
+      # A copula after "es" ("Es ist schwer(,) das zu sagen") leaves the comma optional.
+      COMMA_CLAUSE_COPULAS: [ist, war, wäre, sei, sind, waren, bin, bist, seid, wird, wurde, würde]
+      # Words between the verb and the adjective: "Es war Frauen damals nicht möglich".
+      COMMA_ES_FILLERS: [
+          es, mich, dich, ihn, ihm, ihr, uns, euch, ihnen, mir, dir, sich, nicht, nie, immer, noch, schon, auch,
+          damals, heute, jetzt, oft, wirklich, gar, so, sehr, ganz, echt, ziemlich, recht, doch, ja, eben, eigentlich,
+          wohl, einfach,
+        ]
+      # Degree words that modify the next adjective, which would be the group's ("gut möglich").
+      COMMA_ES_DEGREE: [gut, ganz, sehr, so, recht, ziemlich, echt, viel, wenig, zu]
+      # What may open a relative clause right after its pronoun, but no article's noun phrase: a
+      # preposition, a personal pronoun or an adverb ("der im Keller steht", "die ich kenne").
+      COMMA_RELATIVE_OPENERS: [
+          im, in, am, an, auf, aus, bei, beim, mit, nach, von, vom, zu, zum, zur, für, über, unter, vor, hinter, neben,
+          seit, gegen, durch, ohne, ich, du, er, sie, es, wir, ihr, man, mich, dich, ihn, uns, euch, mir, dir, ihm,
+          ihnen, sich, nicht, schon, gestern, heute, morgen, immer, oft, nie, gerade, jetzt, hier, dort, damals, noch,
+          auch, bereits, wirklich, kaum, selten, da, nebenan, drüben, oben, unten,
+        ]
+    maps:
+      # Pairs that take the comma before their first word: "…, auch wenn", "…, ohne dass".
+      COMMA_PAIRS:
+        { auch: [wenn], selbst: [wenn], ohne: [dass], außer: [dass, wenn], kaum: [dass], als: [ob, wenn, dass], anstatt: [dass], statt: [dass] }
+      # Relative pronouns and the noun genders they refer back to ("p": a plural).
+      COMMA_RELATIVES:
+        { der: [m], die: [f, p], das: [n], den: [m], dem: [m, n], denen: [p], welcher: [m], welche: [f, p], welches: [n] }
+    defs:
+      # "drei Tage nachdem", "eine Woche bevor": the time span belongs to the clause.
+      COMMA_TIME_SPANS: >-
+        /^(?:Tag|Tage|Tagen|Woche|Wochen|Monat|Monate|Monaten|Jahr|Jahre|Jahren|Stunde|Stunden|Minute|Minuten|Sekunde|Sekunden|Augenblick|Moment|Nacht|Nächte)$/
+      # Verbs that take the infinitive themselves, so the pronominal adverb is an adverb ("Er
+      # versuchte darauf das Fenster zu öffnen": then).
+      COMMA_OWN_INFINITIVE: >-
+        /^(?:gibt$|gab$|geben$|gäbe$|find|fand|ist$|war$|sind$|waren$|bleibt$|blieb$|steht$|stand$|versuch|begann|beginn|fing|hörte|vergaß|vergess|vergiss|plan|beschloss|beschließ|hoff|schein|wagt|droht|versprach|versprich|versprech|entschied|entschließ|vermocht|pflegt|lernt|lernte|half|hilf|bat|bitt|erlaub|empfahl|empfehl|riet|rät)/
+      COMMA_DETERMINER: '/^(?:k?ein|mein|dein|sein|ihr|unser|euer|d(?:er|ie|as|en|em|es))\p{Ll}*$/u'
+      # Verbs that close a verb-final clause after a participle or an infinitive.
+      COMMA_PERFECT_AUX: /^(?:hat|haben|hatte|hatten|hätte|hätten|ist|sind|war|waren|wäre|wären|wird|werden|wurde|wurden)$/
+      COMMA_MODAL_AUX: >-
+        /^(?:kann|können|konnte|konnten|könnte|könnten|muss|müssen|musste|mussten|müsste|soll|sollen|sollte|sollten|will|wollen|wollte|darf|dürfen|durfte|möchte|möchten|wird|werden|würde|würden)$/
+      # Determiners before the noun a relative clause follows.
+      COMMA_NOUN_DETERMINER: >-
+        /^(?:d(?:er|ie|as|en|em|es)|k?ein(?:e[mnrs]?)?|(?:mein|dein|sein|ihr|unser|eur)(?:e[mnrs]?)?|dies(?:e[mnrs]?)|jede[mnrs]?|im|am|zum|zur|vom|beim)$/i
+      COMMA_OPINION_VERBS: /^(?:dachte|dachten|dachtest|denke|glaube|glaubte|hoffe|hoffte|meine|fand|finde)$/
+      commaClauseEnd:
+        args: "token: string | undefined"
+        return: '!token || /^(?:[.!?:;,()[\]"“”„«»‚‘’–—\n-])/.test(token)'
+      commaFinding:
+        args: "ctx: DetectContext, wordStart: number, word: string, at: number"
+        type: RawFinding
+        return: >-
+          ({ ruleId: "germanCommas", messageKey: "review_msg_german_comma", range: { start: wordStart, end: wordStart + word.length },
+          alternatives: [`${word},`], context: { start: Math.max(0, wordStart - 40), end: Math.min(ctx.text.length, at + 40) } })
+      # The word right before `index`, and where it starts, when only spaces come between (read
+      # in the 64 characters before `index`).
+      commaWordBefore:
+        args: "text: string, index: number"
+        type: "{ word: string; start: number } | null"
+        let:
+          low: Math.max(0, index - 64)
+          hit: '/([\p{L}\p{N}]+)[ \t ]+$/u.exec(text.slice(low, index))'
+        return: "hit ? { word: hit[1], start: low + hit.index } : null"
+      # A finite verb form: listed, or a regular third person ("lernt") of a known verb; not a
+      # participle ("übereilt", "garantiert").
+      commaFiniteWord:
+        args: "t: string"
+        return: >-
+          COMMA_FINITE.has(t) || germanAuxiliary(t) || (/^\p{Ll}{3,}t$/u.test(t) &&
+          !/^(?:ge|be|ver|er|ent|zer|miss|über|unter|hinter|wider)|iert$/u.test(t) && germanInfinitive(`${t.replace(/e?t$/, "")}en`))
+      commaClauseFrom:
+        args: "tokens: string[], from: number"
+        type: number
+        return: "from > 0 && !commaClauseEnd(tokens[from - 1]) ? commaClauseFrom(tokens, from - 1) : from"
+      # The tokens after the last clause end among `tokens`.
+      commaLastClause:
+        args: "tokens: string[]"
+        return: tokens.slice(commaClauseFrom(tokens, tokens.length))
+      # The tokens of the clause after `index`, up to its end (at most `n`).
+      commaClauseAfter:
+        args: "text: string, index: number, n: number"
+        let:
+          tokens: deTokensAfter(text, index, n)
+          end: tokens.findIndex((t) => commaClauseEnd(t))
+        return: "end < 0 ? tokens : tokens.slice(0, end)"
+      # Whether the clause after `index` ends in a lowercase word, as a subordinate clause ends in
+      # its verb ("weil es regnet"); "ob deiner Antwort" ends in a noun. Unknown past 24 tokens.
+      commaVerbFinal:
+        args: "text: string, index: number"
+        let:
+          tokens: deTokensAfter(text, index, 24)
+          end: tokens.findIndex((t) => commaClauseEnd(t))
+        return: 'end < 0 || (end > 0 && /^\p{Ll}/u.test(tokens[end - 1]))'
+      # Whether the clause before `index` starts right at `at` tokens back: a sentence start.
+      commaClauseStartBefore:
+        args: "before: string[], at: number"
+        return: at === 0 || commaClauseEnd(before[at - 1]) || /^(?:und|aber|doch|denn)$/i.test(before[at - 1])
+      # A zu-infinitive in the clause: "zu lesen", "anzurufen". The index of the infinitive, or -1.
+      commaZuInfinitive:
+        args: "clause: string[]"
+        let:
+          k: >-
+            clause.findIndex((t, i) => (t === "zu" && i + 1 < clause.length && /^\p{Ll}+$/u.test(clause[i + 1]) &&
+            (germanInfinitive(clause[i + 1]) || COMMA_IRREGULAR.has(clause[i + 1]))) ||
+            (/^\p{Ll}{2,}zu\p{Ll}+(?:en|ln|rn)$/u.test(t) && germanInfinitive(t.replace("zu", ""))))
+        return: 'k >= 0 && clause[k] === "zu" ? k + 1 : k'
+      # The tokens after `index` up to the clause end, when they form an infinitive group of at
+      # least one word before its zu-infinitive, which ends the clause: "ihn so zu sehen". A verb
+      # form inside would close another clause ("darauf gewartet ihn zu sehen", "schwer sein das
+      # zu erklären"); so would another clause or group ("darum und …", "daran dass …"). "Es gibt
+      # daran nichts zu tun": the object of the infinitive.
+      commaInfinitiveGroup:
+        args: "text: string, index: number"
+        type: string[] | null
+        let:
+          clause: commaClauseAfter(text, index, 12)
+          verb: commaZuInfinitive(clause)
+          words: 'clause.slice(0, clause[verb - 1] === "zu" ? verb - 1 : verb)'
+        when:
+          - "!(verb < 0 || verb !== clause.length - 1)"
+          - '!(words.length === 0 || words.some((w) => !/^\p{L}+$/u.test(w)))'
+          - >-
+            !words.some((w) => (w === w.toLowerCase() && (commaFiniteWord(w) || /^ge\p{Ll}{3,}(?:t|en)$/u.test(w) ||
+            VERB_GOVERNORS.has(w) || COMMA_IRREGULAR.has(w))) ||
+            /^(?:und|oder|aber|sondern|denn|doch|dass|weil|wenn|ob|ohne|um|statt|anstatt)$/.test(w))
+        return: "/^(?:nichts|etwas|viel|vieles|wenig|einiges|genug|mehr|was)$/.test(words[0]) ? null : words"
+      # Whether a particle and a verb of the clause make one verb ("kommt … an": ankommen).
+      commaParticleJoins:
+        args: "word: string, t: string"
+        let:
+          low: t.toLowerCase()
+          stem: low.replace(/(?:e?test|e?tet|e?ten|e?te|e?st|e?t|en|e)$/, "")
+        return: "[germanInfinitiveOf(low), `${stem}en`, `${stem}n`].some((inf) => !!inf && germanInfinitive(word + inf))"
+      # "Es geht darum euch …", "Es kommt darauf an ihn …": the word the comma follows. "kurz
+      # darauf", "noch dazu": an adverb of time or addition. "kommt darauf an", "denken darüber
+      # nach": a particle of the clause's verb; "nicht daran gedacht": the participle that closes
+      # the clause.
+      commaCorrelate:
+        args: "ctx: DetectContext, typed: string, at: number, before: string[]"
+        type: "{ word: string; start: number } | null"
+        let:
+          end: at + typed.length
+          sentence: commaLastClause(before)
+          next: '/^[ \t]+(\p{Ll}+)(?=[ \t])/u.exec(ctx.text.slice(end, end + 24))'
+          word: next?.[1] ?? ""
+          particle: COMMA_CORRELATE_PARTICLES.has(word) && sentence.some((t) => commaParticleJoins(word, t))
+          participle: '/^ge\p{Ll}{3,}(?:t|en)$/u.test(word) && !germanAuxiliary(word)'
+          last: "next && (particle || participle) ? { word, start: end + next[0].length - word.length } : { word: typed, start: at }"
+        when:
+          - "!(sentence.length === 0 || sentence.some((t) => COMMA_OWN_INFINITIVE.test(t.toLowerCase())))"
+          - '!/^(?:kurz|gleich|bald|noch|bis|und|oder|aber)$/i.test(before.at(-1) ?? "")'
+        return: "commaInfinitiveGroup(ctx.text, last.start + last.word.length) ? last : null"
+      commaEsSkip:
+        args: "tokens: string[], i: number"
+        type: number
+        return: 'i < tokens.length && (COMMA_ES_FILLERS.has(tokens[i]) || /^\p{Lu}\p{Ll}+$/u.test(tokens[i])) ? (i > 3 ? -1 : commaEsSkip(tokens, i + 1)) : i'
+      # "Er ist es gewohnt hart …", "Es macht mich traurig ihn …": the word the comma follows, for
+      # an "es" at `at` that stands for the infinitive group. "Es macht …" opens the clause; "…
+      # ist es …" follows the verb. Only a dative noun or two ("Frauen") between, never a whole
+      # phrase. "Es ist gut möglich zu …": a degree word, not a group.
+      commaEsAdjective:
+        args: "ctx: DetectContext, at: number, back: string[], prior: string"
+        type: "{ word: string; start: number } | null"
+        let:
+          tokens0: deTokensAfter(ctx.text, at + 2, 9)
+          linked: COMMA_ES_LINKS.has(prior)
+          verb: tokens0[0] ?? ""
+          from: "linked ? at + 2 : ctx.text.indexOf(tokens0[0], at + 2) + tokens0[0].length"
+          tokens: "linked ? tokens0 : tokens0.slice(1)"
+          i: commaEsSkip(tokens, 0)
+          word: tokens[i]
+          participle: '/^(?:ge\p{Ll}{3,}t|\p{Ll}{3,}iert)$/u.test(word)'
+          start: ctx.text.indexOf(word, from)
+          group: commaInfinitiveGroup(ctx.text, start + word.length)
+        when:
+          - linked || (commaClauseEnd(back.at(-1)) && COMMA_ES_LINKS.has(verb) && !COMMA_CLAUSE_COPULAS.has(verb))
+          - i >= 0
+          - '!(!word || !/^\p{Ll}+$/u.test(word) || COMMA_ES_DEGREE.has(word) || COMMA_DETERMINER.test(word))'
+          - germanAdjective(word) || participle
+        return: "group && !(group.length === 1 && COMMA_ES_DEGREE.has(group[0])) ? { word, start } : null"
+      commaEs:
+        args: "ctx: DetectContext, at: number"
+        type: "{ word: string; start: number } | null"
+        let:
+          back: deTokensBefore(ctx.text, at, 2)
+          prior: (back.at(-1) ?? "").toLowerCase()
+        return: >-
+          COMMA_ES_OBJECT_VERBS.has(prior) ? (commaInfinitiveGroup(ctx.text, at + 2) ? { word: ctx.text.slice(at, at + 2), start: at } : null)
+          : commaEsAdjective(ctx, at, back, prior)
+      # The noun's determiner, past its adjectives: "der erste Schritt", "das neue Bild".
+      commaDeterminerAt:
+        args: "before: string[], k: number"
+        type: number
+        return: 'k > 0 && /^\p{Ll}+e[mnrs]?$/u.test(before[k]) && !COMMA_NOUN_DETERMINER.test(before[k]) ? commaDeterminerAt(before, k - 1) : k'
+      # A finite verb of a relative clause. "die im Park spielen", "das wir lesen": a plural verb
+      # after a plural subject. "die ich kenne", "den du suchst": the first or second person.
+      # "bellt", "zählt", "fehlschlägt", "malte": a regular or umlauted third person or past.
+      commaRelativeFinite:
+        args: "w: string, i: number, tokens: string[], plural: boolean"
+        let:
+          stem: '/^(\p{Ll}{2,}?)(?:e?t|e?te)$/u.exec(w)?.[1]'
+        return: >-
+          w !== w.toLowerCase() ? false
+          : COMMA_FINITE.has(w) || germanAuxiliary(w) || VERB_GOVERNORS.has(w) || !!germanInfinitiveOf(w) ? true
+          : (plural || tokens.slice(0, i).some((t) => /^(?:wir|sie|Sie)$/.test(t))) && germanInfinitive(w) ? true
+          : /^\p{Ll}{3,}(?:e|e?st)$/u.test(w) && tokens.slice(0, i).some((t) => /^(?:ich|du)$/.test(t))
+          ? germanVerbLike(w.replace(/e?st$/, "en")) || germanVerbLike(w)
+          : !stem || /^ge\p{Ll}+t$/u.test(w) ? false
+          : [stem, stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u")].some((s) => germanInfinitive(`${s}en`))
+      # "der das bezahlt hat", "die man sehen kann", "das er gemacht haben muss": a participle or
+      # infinitive before the finite verb that closes the clause.
+      commaVerbChain:
+        args: "tokens: string[], verb: number"
+        type: number
+        let:
+          current: tokens[verb]
+          next: tokens[verb + 1] ?? ""
+          perfect: 'COMMA_PERFECT_AUX.test(next) && /^(?:ge|be|ver|er|ent|zer|über|unter)\p{Ll}{2,}(?:t|en)$|^\p{Ll}{3,}iert$/u.test(current)'
+          modal: COMMA_MODAL_AUX.test(next) && /(?:en|ern|eln)$/.test(current)
+        return: "perfect || modal ? commaVerbChain(tokens, verb + 1) : verb"
+      # "Ist der Test der im Firefox fehlschlägt problematisch?": a relative clause after its
+      # noun, set off before its pronoun and, when the sentence goes on, after its last verb. The
+      # pronoun must fit the noun's gender ("die Kinder die …" is a plural, "die Frau die …" a
+      # feminine) and open the clause with a word no article goes before ("die sehr schöne Frau"
+      # is an adverb before an adjective), and the clause must end in a finite verb. "der mir
+      # bisher unbekannten Autorin": an article before an extended attribute and its noun. "der
+      # zählt ist …": a verb right after the pronoun may also be a main clause's.
+      commaRelative:
+        args: "ctx: DetectContext, typed: string, at: number"
+        type: RawFinding[]
+        let:
+          fits: COMMA_RELATIVES[typed]
+          before: deTokensBefore(ctx.text, at, 5)
+          noun: before.at(-1) ?? ""
+          k: commaDeterminerAt(before, before.length - 2)
+          nounStart: at - noun.length - 1
+          reading: germanGender(noun)
+          genders: 'reading.plural ? [reading.gender, "p"] : [reading.gender]'
+          agrees: 'genders.some((g) => fits.includes(g) || (g === "x" && (fits.includes("m") || fits.includes("n"))))'
+          tokens: deTokensAfter(ctx.text, at + typed.length, 10)
+          opener: tokens[0] ?? ""
+          plural: fits.includes("p") && genders.includes("p")
+          stopAt: 'tokens.findIndex((t) => commaClauseEnd(t) || /^(?:und|oder|aber|dass|weil|wenn|ob)$/.test(t))'
+          first: "tokens.slice(0, stopAt < 0 ? tokens.length : stopAt).findIndex((w, i) => commaRelativeFinite(w, i, tokens, plural))"
+          verb: "first < 0 ? -1 : commaVerbChain(tokens, first)"
+          after: tokens[verb + 1]
+          verbStart: ctx.text.indexOf(tokens[verb], at + typed.length)
+        when:
+          - '/^\p{Lu}\p{Ll}{2,}$/u.test(noun) && COMMA_NOUN_DETERMINER.test(before[k] ?? "")'
+          - "ctx.text.slice(nounStart, at) === `${noun} `"
+          - reading
+          - agrees
+          - COMMA_RELATIVE_OPENERS.has(opener) || (opener === opener.toLowerCase() && commaFiniteWord(opener))
+          - '!(/^\p{Ll}+e[mnrs]?$/u.test(tokens[1] ?? "") && germanAdjective(tokens[1].replace(/e[mnrs]?$/, "")))'
+          - verb >= 0
+          - >-
+            !tokens.slice(0, verb).some((t, i) => /^\p{Ll}{2,}e[mnrs]?$/u.test(t) && !COMMA_NOUN_DETERMINER.test(t) && /^\p{Lu}/u.test(tokens[i + 1] ?? ""))
+        return: >-
+          [commaFinding(ctx, nounStart, noun, at), ...(after && !commaClauseEnd(after) && verb > 0 && /^\p{L}/u.test(after)
+          ? [commaFinding(ctx, verbStart, tokens[verb], verbStart)] : [])]
+        else: "[]"
+      commaSubordinatorBack:
+        args: "before: string[], i: number"
+        type: number
+        return: "i >= 0 && !COMMA_SUBORDINATORS.has(before[i].toLowerCase()) ? commaSubordinatorBack(before, i - 1) : i"
+      commaSentenceOpens:
+        args: "before: string[], k: number"
+        return: 'k < 0 || (/^[.!?\n]$/.test(before[k]) && (k === 0 || (before[k - 1] ?? "").length > 1))'
+      commaSkipFillers:
+        args: "clause: string[], i: number"
+        type: number
+        return: "i < clause.length && COMMA_FILLERS.has(clause[i]) ? commaSkipFillers(clause, i + 1) : i"
+      # The last of the first n tokens of the clause, found one after the other from `word`.
+      commaTaken:
+        args: "ctx: DetectContext, clause: string[], j: number, n: number, word: string, start: number"
+        type: "{ word: string; start: number }"
+        return: >-
+          j >= n ? { word, start } : commaTaken(ctx, clause, j + 1, n, clause[j], ctx.text.indexOf(clause[j], start + word.length))
+      commaSkipAskFillers:
+        args: "chain: string[], k: number"
+        type: number
+        return: "k >= 0 && COMMA_ASK_FILLERS.has(chain[k].toLowerCase()) ? commaSkipAskFillers(chain, k - 1) : k"
+      # The branches of the comma check: each gives its commas, or null when it does not apply.
+      # "Es geht darum euch …", "Es ist wichtig gesund zu essen": an infinitive group that a
+      # correlate or "es" announces.
+      commaCorrelateBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number, before: string[]"
+        type: RawFinding[] | null
+        let:
+          last: commaCorrelate(ctx, typed, at, before)
+        when: typed === low && COMMA_CORRELATES.has(low)
+        return: "last ? [commaFinding(ctx, last.start, last.word, last.start)] : []"
+      commaEsBranch:
+        args: "ctx: DetectContext, low: string, at: number"
+        type: RawFinding[] | null
+        let:
+          last: commaEs(ctx, at)
+        when: low === "es"
+        return: "last ? [commaFinding(ctx, last.start, last.word, last.start)] : []"
+      commaRelativeBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number"
+        type: RawFinding[] | null
+        when: typed === low && Object.hasOwn(COMMA_RELATIVES, low)
+        return: commaRelative(ctx, typed, at)
+      # A conjunction inside a sentence: "Er bleibt weil es regnet". "sondern" joins any phrase:
+      # "kein Zufall, sondern Absicht". "sobald wie möglich" is "so bald", an adverb. "Insekten
+      # sondern Duftstoffe ab": the verb "absondern".
+      commaSubordinateBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number, end: number, prior: { word: string; start: number } | null"
+        type: RawFinding[] | null
+        let:
+          clause: commaClauseAfter(ctx.text, end, 12)
+        when: >-
+          typed === low && COMMA_SUBORDINATORS.has(low) && !!prior &&
+          !(COMMA_JOINED.has(prior.word.toLowerCase()) && !(prior.word === "nicht" && (low === "ob" || low === "dass")))
+        return: >-
+          clause.length >= (low === "sondern" ? 1 : 2) && (low === "sondern" || commaVerbFinal(ctx.text, end)) && !COMMA_TIME_SPANS.test(prior.word) &&
+          !(low === "sobald" && /^[ \t]+(?:wie|als)[ \t]+möglich/.test(ctx.text.slice(end, end + 20))) &&
+          !(/^(?:wenn|falls|sofern)$/.test(low) && COMMA_ELLIPTICAL.has(clause[0])) && !(low === "sondern" && clause.at(-1) === "ab") &&
+          !(low === "nachdem" && prior.word.toLowerCase() === "je") ? [commaFinding(ctx, prior.start, prior.word, at)] : []
+      # "Sie ging um zu lesen": an infinitive group inside the sentence. "ohne Schlüssel zu
+      # öffnen", "um 8 Uhr an zu fangen": a preposition before a noun or a time; "es geht um das
+      # Recht zu leben", "sich um etwas zu kümmern": "um" the verb's. "gehen" and "handeln" take
+      # "um" only with "es" ("es geht um", "es handelt sich um").
+      commaInfinitiveBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number, end: number, prior: { word: string; start: number } | null, before: string[]"
+        type: RawFinding[] | null
+        let:
+          clause: commaClauseAfter(ctx.text, end, 12)
+          verb: commaZuInfinitive(clause)
+          impersonal: before.some((t) => /^es$/i.test(t))
+        when: typed === low && COMMA_INFINITIVE_LEADS.has(low) && !!prior
+        return: >-
+          COMMA_JOINED.has(prior.word.toLowerCase()) || verb < 0 || /^(?:\p{Lu}|\p{N}|halb$|viertel$)/u.test(clause[0]) ||
+          clause.slice(0, 3).includes("Uhr") || (low === "um" && [...before, clause[verb]].some((t) =>
+          COMMA_UM_VERBS.has(t.toLowerCase()) && (impersonal || !COMMA_IMPERSONAL_UM.has(t.toLowerCase()))))
+          ? [] : [commaFinding(ctx, prior.start, prior.word, at)]
+      # "Um zu lesen ging sie": an infinitive group that opens the sentence.
+      commaOpeningInfinitiveBranch:
+        args: "ctx: DetectContext, typed: string, low: string, end: number, before: string[]"
+        type: RawFinding[] | null
+        let:
+          clause: commaClauseAfter(ctx.text, end, 12)
+          verb: commaZuInfinitive(clause)
+          next: clause[verb + 1]
+        when: COMMA_INFINITIVE_LEADS.has(low) && typed !== low && commaClauseStartBefore(before, before.length)
+        return: >-
+          verb >= 0 && next && /^\p{Ll}+$/u.test(next) && !COMMA_JOINED.has(next)
+          ? [commaFinding(ctx, ctx.text.indexOf(clause[verb], end), clause[verb], ctx.text.indexOf(clause[verb], end))] : []
+      # "Als ich es gesagt hatte bin ich gegangen": a clause's last verb right before the next
+      # clause's verb; not a verb chain ("gesehen werden kann"). "Nachdem er besiegt wurden war": a
+      # plural auxiliary after the clause's singular pronoun is a slip for a participle
+      # ("worden"), not the clause's last verb.
+      commaAuxBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number, end: number, before: string[]"
+        type: RawFinding[] | null
+        let:
+          next: '/^[ \t]+(\p{Ll}+)(?!\p{L})/u.exec(ctx.text.slice(end, end + 24))?.[1]'
+          chain: germanInfinitiveOf(low) === low || germanInfinitiveOf(next ?? "") === next
+          lead: commaSubordinatorBack(before, before.length - 1)
+          slip: 'low.endsWith("en") && lead >= 0 && COMMA_SINGULAR_SUBJECTS.has((before[lead + 1] ?? "").toLowerCase())'
+        when:
+          - typed === low && germanAuxiliary(low)
+          - "!!next && next !== low && germanAuxiliary(next) && !chain && !slip"
+        return: "[commaFinding(ctx, at, typed, end)]"
+      # "Sag mal hast du Zeit?": the request before the question.
+      commaSagBranch:
+        args: "ctx: DetectContext, typed: string, end: number"
+        type: RawFinding[] | null
+        let:
+          verb: '/^[ \t]+mal[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 24))?.[1]'
+        when: /^[Ss]agt?$/.test(typed) && !!verb
+        return: 'germanAuxiliary(verb) ? [commaFinding(ctx, ctx.text.indexOf("mal", end), "mal", ctx.text.indexOf("mal", end))] : []'
+      # "Er kommt auch wenn es regnet": the comma goes before the pair.
+      commaPairBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number, end: number, prior: { word: string; start: number } | null"
+        type: RawFinding[] | null
+        let:
+          after: '/^[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 16))?.[1] ?? ""'
+        when:
+          - typed === low && Object.hasOwn(COMMA_PAIRS, low) && !!prior && !COMMA_JOINED.has(prior.word.toLowerCase())
+          - COMMA_PAIRS[low].includes(after) && commaVerbFinal(ctx.text, end + 1 + after.length)
+        return: "[commaFinding(ctx, prior.start, prior.word, at)]"
+      # "Ich glaube das stimmt", "Meinst du das klappt?", "Peter behauptet seine Mutter …": a main
+      # clause after an opinion verb. "Peter behauptet …", "Die Menschen glauben …" at a sentence
+      # start; not "Für meinen Bruder", "Wenn behauptet wird", "Was glauben Sie", "John F.
+      # Kennedy wissen".
+      commaOpinionBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number, end: number, before: string[]"
+        type: RawFinding[] | null
+        let:
+          last: before.length - 1
+          subjectWord: before[last] ?? ""
+          subjectLow: subjectWord.toLowerCase()
+          pronounSubject: COMMA_SUBJECTS.has(subjectLow) && commaClauseStartBefore(before, last)
+          nounSubject: >-
+            /^\p{Lu}\p{Ll}+$/u.test(subjectWord) && !COMMA_SUBJECTS.has(subjectLow) && !COMMA_NOT_SUBJECTS.has(subjectLow) &&
+            !ARTICLES.has(subjectLow) && !DEMONSTRATIVES.has(subjectLow) && !PREPOSITIONS.has(subjectLow) &&
+            (commaSentenceOpens(before, last - 1) || (/^(?:der|die|das)$/i.test(before[last - 1] ?? "") && commaSentenceOpens(before, last - 2)))
+          subjectFirst: typed === low && COMMA_OPINIONS.has(low) && (pronounSubject || nounSubject)
+          asked: COMMA_OPINION_QUESTIONS.has(low) && commaClauseStartBefore(before, before.length)
+        when: subjectFirst || asked
+        return: commaOpinionComma(ctx, typed, at, end, subjectFirst)
+      # The word the comma follows: the verb, its subject in a question, then fillers ("Ich denke
+      # mal, …"). The clause's own finite verb within four words, something before it. "Ich finde
+      # es seltsam, wie er redet": the verb closes a clause of its own. "Ich glaube an Gott", "ich
+      # finde nicht, …": no clause of its own begins here; "Man hofft und träumt": a second verb.
+      commaOpinionComma:
+        args: "ctx: DetectContext, typed: string, at: number, end: number, subjectFirst: boolean"
+        type: RawFinding[]
+        let:
+          clause: commaClauseAfter(ctx.text, end, 9)
+          i: "commaSkipFillers(clause, subjectFirst ? 0 : 1)"
+          rest: clause.slice(i)
+          verbAt: rest.findIndex((t, k) => k > 0 && k <= 4 && commaFiniteWord(t))
+          last: commaTaken(ctx, clause, 0, i, typed, at)
+        when:
+          - 'subjectFirst || COMMA_QUESTION_SUBJECTS.has(clause[0] ?? "")'
+          - verbAt >= 1
+          - "!rest.slice(0, verbAt).some((t) => COMMA_W_WORDS.has(t) || COMMA_SUBORDINATORS.has(t))"
+          - '!/^(?:an|auf|daran|darauf|nicht|nichts|kein|keine|so|auch|zu|sehr|und|oder|aber|sowie|sondern|bzw)$/i.test(rest[0])'
+        return: "[commaFinding(ctx, last.start, last.word, last.start)]"
+        else: "[]"
+      # "Stell dir vor du gewinnst": the clause the imagining introduces.
+      commaVorBranch:
+        args: "ctx: DetectContext, typed: string, at: number, end: number"
+        type: RawFinding[] | null
+        when: >-
+          typed === "vor" && /^[ \t]+(?:ich|du|er|sie|es|wir|ihr|man|der|die|das|ein|eine|\p{Lu}\p{Ll}+)[ \t]+\p{Ll}/u.test(ctx.text.slice(end, end + 30))
+        return: >-
+          /(?:^|[.!?:\n„"])[ \t]*(?:Stell|Stelle|Stellt|Stellen)[ \t]+(?:dir|euch|Sie[ \t]+sich|sich|mir)(?:[ \t]+(?:doch|mal|nur|einfach|bitte|jetzt|einmal))*[ \t]+$/u.test(ctx.text.slice(Math.max(0, at - 50), at))
+          ? [commaFinding(ctx, at, typed, at)] : []
+      # "Daher dachte ich mir ich frage …": an inverted opinion verb and its subject before a
+      # second clause with its own subject.
+      commaInvertedBranch:
+        args: "ctx: DetectContext, typed: string, low: string, end: number, before: string[]"
+        type: RawFinding[] | null
+        let:
+          next: deTokensAfter(ctx.text, end, 4)
+          reflexive: '/^(?:mir|dir|sich|uns|euch)$/.test(next[1] ?? "") ? 1 : 0'
+          second: next[1 + reflexive] ?? ""
+          word: next[reflexive]
+        when: typed === low && COMMA_OPINION_VERBS.test(low) && !commaClauseStartBefore(before, before.length)
+        return: >-
+          /^(?:ich|du|er|sie|wir|ihr|man)$/.test(next[0] ?? "") && /^(?:ich|du|er|sie|es|wir|ihr|man)$/.test(second) &&
+          (commaFiniteWord(next[2 + reflexive] ?? "") || germanVerbLike(next[2 + reflexive] ?? ""))
+          ? [commaFinding(ctx, ctx.text.indexOf(` ${word}`, reflexive ? ctx.text.indexOf(next[0], end) + next[0].length : end) + 1, word,
+          ctx.text.indexOf(` ${word}`, reflexive ? ctx.text.indexOf(next[0], end) + next[0].length : end) + 1)] : []
+      # "Das ist soweit ich weiß erledigt": a short inserted clause takes a comma on both sides.
+      # "wofür Sie soweit ich weiß keine Lizenz haben": inside a subordinate clause the formula
+      # may stand without commas.
+      commaSoweitBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number, end: number, prior: { word: string; start: number } | null, before: string[]"
+        type: RawFinding[] | null
+        let:
+          inserted: >-
+            /^[ \t]+(?:ich|wir|man)(?:[ \t]+(?:das|es))?[ \t]+(?:weiß|wissen|sehe|sehen|beurteilen[ \t]+kann|beurteilen[ \t]+können|verstehe|verstanden[ \t]+habe|informiert[ \t]+bin)(?=[ \t]+\p{L})/u.exec(ctx.text.slice(end, end + 50))
+          nested: commaLastClause(before).some((t) => COMMA_W_WORDS.has(t.toLowerCase()) || COMMA_SUBORDINATORS.has(t))
+        when: typed === low && /^(?:soweit|sofern)$/.test(low) && !!prior && !COMMA_JOINED.has(prior.word.toLowerCase())
+        return: >-
+          inserted && !nested ? [commaFinding(ctx, prior.start, prior.word, at),
+          commaFinding(ctx, end + inserted[0].length - /\p{L}+$/u.exec(inserted[0])![0].length, /\p{L}+$/u.exec(inserted[0])![0], end + inserted[0].length)] : []
+      # "Er fragt wie das geht": an indirect question. "Sie wissen nicht an was sie glauben": a
+      # preposition opens the question. "Weiß die Abteilung warum …": a question opens with the
+      # asking verb and its subject. "Es ist richtig wie du das machst", "Mir ist klar woran es
+      # liegt": a predicative adjective before the clause; "so groß wie", "genauso schnell wie"
+      # compare. "weiß schon, warum": a filler after the verb; "so wie" compares.
+      commaQuestionBranch:
+        args: "ctx: DetectContext, typed: string, low: string, at: number, end: number, prior: { word: string; start: number } | null, before: string[]"
+        type: RawFinding[] | null
+        let:
+          prep: COMMA_QUESTION_PREPOSITIONS.has(prior.word) && /^(?:was|wem|wen)$/.test(low)
+          lead: "prep ? commaWordBefore(ctx.text, prior.start) : prior"
+          chain: "prep ? before.slice(0, -1) : before"
+          k0: commaSkipAskFillers(chain, chain.length - 1)
+          subject: >-
+            [k0 - 1, k0 - 2, k0 - 3].find((i) => i >= 0 && COMMA_ASKING.has(chain[i].toLowerCase()) && /^\p{Lu}/u.test(chain[i]) &&
+            commaClauseEnd(chain[i - 1]) && chain.slice(i + 1, k0 + 1).every((t) => /^\p{Lu}/u.test(t) ||
+            /^(?:der|die|das|ein|eine|(?:mein|dein|sein|ihr|unser|eur)e?|euer)$/.test(t)))
+          k: subject ?? k0
+          predicate: >-
+            k > 0 && /^\p{Ll}+$/u.test(chain[k]) && germanAdjective(chain[k]) && chain.slice(0, k).some((t) => COMMA_PREDICATE_VERBS.has(t.toLowerCase())) &&
+            !chain.slice(Math.max(0, k - 2), k).some((t) => COMMA_COMPARING.has(t.toLowerCase()))
+          lw: lead.word.toLowerCase()
+          clause: commaClauseAfter(ctx.text, end, 12)
+          last: clause.at(-1) ?? ""
+        when:
+          - typed === low && COMMA_W_WORDS.has(low) && !!prior
+          - lead
+          - "!(k < 0 || (!COMMA_ASKING.has(chain[k].toLowerCase()) && !predicate))"
+          - "!(COMMA_JOINED.has(lw) && !COMMA_ASK_FILLERS.has(lw))"
+        return: 'clause.length >= 2 && /^\p{Ll}+$/u.test(last) && !COMMA_OBJECT_PRONOUNS.has(last) ? [commaFinding(ctx, lead.start, lead.word, at)] : []'
     frames:
       # The comma German sets before a clause or an infinitive group: "Er bleibt, weil es
       # regnet", "Sie ging, um zu lesen", "Ich glaube, das stimmt". Each word whose start the
@@ -4962,7 +5542,30 @@ rules:
       - regex: "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})"
         scan: owned
         flags: gu
-        fixer: clauseComma
+        let:
+          typed: m[0]
+          low: typed.toLowerCase()
+          at: m.index
+          end: at + typed.length
+          prior: commaWordBefore(ctx.text, at)
+          before: deTokensBefore(ctx.text, at, 8)
+        when:
+          # Only the words a check below starts at; the reads after this cost more than the test.
+          - >-
+            COMMA_CORRELATES.has(low) || low === "es" || Object.hasOwn(COMMA_RELATIVES, low) || COMMA_SUBORDINATORS.has(low) ||
+            COMMA_INFINITIVE_LEADS.has(low) || germanAuxiliary(low) || low === "sag" || low === "sagt" || Object.hasOwn(COMMA_PAIRS, low) ||
+            COMMA_OPINIONS.has(low) || COMMA_OPINION_QUESTIONS.has(low) || typed === "vor" || COMMA_OPINION_VERBS.test(low) ||
+            low === "soweit" || low === "sofern" || COMMA_W_WORDS.has(low)
+          - "!deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, at)"
+        # The first check that applies gives the commas; the writer's own words keep theirs.
+        return: >-
+          (commaCorrelateBranch(ctx, typed, low, at, before) ?? commaEsBranch(ctx, low, at) ?? commaRelativeBranch(ctx, typed, low, at) ??
+          commaSubordinateBranch(ctx, typed, low, at, end, prior) ?? commaInfinitiveBranch(ctx, typed, low, at, end, prior, before) ??
+          commaOpeningInfinitiveBranch(ctx, typed, low, end, before) ?? commaAuxBranch(ctx, typed, low, at, end, before) ??
+          commaSagBranch(ctx, typed, end) ?? commaPairBranch(ctx, typed, low, at, end, prior) ?? commaOpinionBranch(ctx, typed, low, at, end, before) ??
+          commaVorBranch(ctx, typed, at, end) ?? commaInvertedBranch(ctx, typed, low, end, before) ??
+          commaSoweitBranch(ctx, typed, low, at, end, prior, before) ?? commaQuestionBranch(ctx, typed, low, at, end, prior, before) ?? [])
+          .filter((f) => !ctx.dictionary.has(ctx.text.slice(f.range.start, f.range.end).toLowerCase()))
   - id: de.commaFrames
     checks: [germanCommas]
     style: match

@@ -1794,6 +1794,763 @@ export const SUSPENDED_PARTICLES: ReadonlySet<string> = new Set([
   "tief",
 ]);
 
+export const COMMA_SUBORDINATORS: ReadonlySet<string> = new Set([
+  "dass",
+  "weil",
+  "obwohl",
+  "obgleich",
+  "obschon",
+  "wenngleich",
+  "nachdem",
+  "sobald",
+  "sofern",
+  "falls",
+  "indem",
+  "sodass",
+  "bevor",
+  "wohingegen",
+  "ob",
+  "wenn",
+  "sondern",
+]);
+
+export const COMMA_JOINED: ReadonlySet<string> = new Set([
+  "und",
+  "oder",
+  "sowie",
+  "bzw",
+  "beziehungsweise",
+  "aber",
+  "sondern",
+  "denn",
+  "doch",
+  "jedoch",
+  "als",
+  "so",
+  "ohne",
+  "statt",
+  "anstatt",
+  "außer",
+  "kaum",
+  "bis",
+  "auf",
+  "je",
+  "nur",
+  "auch",
+  "selbst",
+  "sogar",
+  "gerade",
+  "eben",
+  "schon",
+  "besonders",
+  "insbesondere",
+  "allem",
+  "zwar",
+  "zumal",
+  "nicht",
+  "einfach",
+  "allein",
+  "bloß",
+  "lediglich",
+  "umso",
+  "desto",
+  "erst",
+  "egal",
+  "gleich",
+  "dann",
+  "immer",
+  "jedes",
+  "halt",
+  "also",
+  "wie",
+  "ja",
+  "etwa",
+  "vielleicht",
+  "teils",
+  "ob",
+  "weil",
+  "dass",
+  "wenn",
+  "außer",
+  "nämlich",
+  "speziell",
+  "vornehmlich",
+  "hauptsächlich",
+  "vermutlich",
+  "wahrscheinlich",
+  "sonst",
+  "zum",
+  "rund",
+  "recht",
+  "noch",
+  "kurz",
+  "lang",
+  "lange",
+  "gleich",
+  "bald",
+  "unmittelbar",
+  "direkt",
+  "knapp",
+  "beispiel",
+  "spätestens",
+  "frühestens",
+  "sofort",
+  "nachdem",
+]);
+
+export const COMMA_ELLIPTICAL: ReadonlySet<string> = new Set([
+  "möglich",
+  "nötig",
+  "notwendig",
+  "erforderlich",
+  "gewünscht",
+  "ja",
+  "nein",
+  "nicht",
+  "überhaupt",
+]);
+
+export const COMMA_INFINITIVE_LEADS: ReadonlySet<string> = new Set([
+  "um",
+  "ohne",
+  "statt",
+  "anstatt",
+]);
+
+export const COMMA_UM_VERBS: ReadonlySet<string> = new Set([
+  "geht",
+  "ging",
+  "gehen",
+  "ginge",
+  "handelt",
+  "handelte",
+  "handeln",
+  "handle",
+  "bitte",
+  "bittet",
+  "bat",
+  "baten",
+  "bitten",
+  "kämpfen",
+  "kämpft",
+  "kämpfte",
+  "sorgen",
+  "sorgt",
+  "sorgte",
+  "kümmern",
+  "kümmert",
+  "kümmerte",
+  "streiten",
+  "streitet",
+  "bewerben",
+  "bewirbt",
+  "bewarb",
+  "werben",
+  "wirbt",
+  "warb",
+  "drehte",
+  "dreht",
+  "drehen",
+  "bemühen",
+  "bemüht",
+  "bemühte",
+  "beneiden",
+  "beneidet",
+  "verzögern",
+  "verschieben",
+  "erhöhen",
+  "senken",
+  "verlängern",
+  "verkürzen",
+  "steigern",
+  "reduzieren",
+  "verringern",
+  "vergrößern",
+  "verkleinern",
+  "anheben",
+]);
+
+export const COMMA_IMPERSONAL_UM: ReadonlySet<string> = new Set([
+  "geht",
+  "ging",
+  "gehen",
+  "ginge",
+  "handelt",
+  "handelte",
+  "handeln",
+  "handle",
+]);
+
+export const COMMA_OPINIONS: ReadonlySet<string> = new Set([
+  "glaube",
+  "glaub",
+  "glauben",
+  "glaubt",
+  "denke",
+  "denk",
+  "denken",
+  "denkt",
+  "dachte",
+  "dachten",
+  "hoffe",
+  "hoff",
+  "hoffen",
+  "hofft",
+  "finde",
+  "find",
+  "finden",
+  "findet",
+  "befürchte",
+  "befürchten",
+  "befürchtet",
+  "fürchte",
+  "fürchten",
+  "vermute",
+  "vermuten",
+  "vermutet",
+  "schätze",
+  "schätzen",
+  "wette",
+  "wetten",
+  "weiß",
+  "wissen",
+  "wisst",
+  "behauptet",
+  "behaupten",
+  "meine",
+  "meinen",
+  "meint",
+]);
+
+export const COMMA_SUBJECTS: ReadonlySet<string> = new Set([
+  "ich",
+  "wir",
+  "ihr",
+  "sie",
+  "er",
+  "man",
+  "du",
+]);
+
+export const COMMA_SINGULAR_SUBJECTS: ReadonlySet<string> = new Set([
+  "ich",
+  "du",
+  "er",
+  "es",
+  "man",
+]);
+
+export const COMMA_OPINION_QUESTIONS: ReadonlySet<string> = new Set([
+  "glaubst",
+  "glaubt",
+  "glauben",
+  "meinst",
+  "meint",
+  "meinen",
+  "denkst",
+  "denkt",
+  "denken",
+  "findest",
+  "findet",
+  "finden",
+]);
+
+export const COMMA_QUESTION_SUBJECTS: ReadonlySet<string> = new Set(["du", "ihr", "Sie"]);
+
+export const COMMA_FILLERS: ReadonlySet<string> = new Set([
+  "mal",
+  "übrigens",
+  "ja",
+  "schon",
+  "auch",
+  "eher",
+  "persönlich",
+  "halt",
+  "eigentlich",
+  "doch",
+]);
+
+export const COMMA_FINITE: ReadonlySet<string> = new Set([
+  "ist",
+  "sind",
+  "war",
+  "waren",
+  "wird",
+  "werden",
+  "wurde",
+  "wurden",
+  "hat",
+  "haben",
+  "hatte",
+  "hatten",
+  "kann",
+  "können",
+  "konnte",
+  "konnten",
+  "muss",
+  "müssen",
+  "musste",
+  "mussten",
+  "soll",
+  "sollen",
+  "sollte",
+  "sollten",
+  "will",
+  "wollen",
+  "wollte",
+  "wollten",
+  "darf",
+  "dürfen",
+  "durfte",
+  "mag",
+  "möchte",
+  "möchten",
+  "würde",
+  "würden",
+  "wäre",
+  "wären",
+  "sei",
+  "seien",
+  "gibt",
+  "gab",
+  "geht",
+  "ging",
+  "gehen",
+  "kommt",
+  "kam",
+  "kommen",
+  "gefällt",
+  "gefallen",
+  "braucht",
+  "brauchen",
+  "macht",
+  "steht",
+  "liegt",
+  "läuft",
+  "funktioniert",
+  "klappt",
+  "bleibt",
+  "passt",
+  "stimmt",
+  "reicht",
+  "hilft",
+  "fehlt",
+  "fehlen",
+]);
+
+export const COMMA_ASKING: ReadonlySet<string> = new Set([
+  "weiß",
+  "weißt",
+  "wisst",
+  "wissen",
+  "wusste",
+  "wussten",
+  "fragt",
+  "fragte",
+  "fragten",
+  "frage",
+  "fragen",
+  "erkundigte",
+  "erkundigt",
+  "verstehe",
+  "verstehst",
+  "versteht",
+  "verstanden",
+  "überlege",
+  "überlegt",
+  "überlegen",
+]);
+
+export const COMMA_W_WORDS: ReadonlySet<string> = new Set([
+  "was",
+  "wer",
+  "wen",
+  "wem",
+  "wie",
+  "wo",
+  "wann",
+  "warum",
+  "wieso",
+  "weshalb",
+  "weswegen",
+  "woran",
+  "wohin",
+  "woher",
+  "womit",
+  "wofür",
+  "worüber",
+  "wovon",
+  "wozu",
+]);
+
+export const COMMA_ASK_FILLERS: ReadonlySet<string> = new Set([
+  "nicht",
+  "noch",
+  "auch",
+  "gar",
+  "genau",
+  "schon",
+  "mal",
+  "selbst",
+  "mehr",
+  "nie",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "ihr",
+  "man",
+  "mich",
+  "dich",
+  "sich",
+  "uns",
+  "euch",
+  "mir",
+  "dir",
+  "ihm",
+  "ihnen",
+  "jetzt",
+  "nun",
+  "ja",
+  "leider",
+  "wirklich",
+  "überhaupt",
+]);
+
+export const COMMA_OBJECT_PRONOUNS: ReadonlySet<string> = new Set([
+  "mich",
+  "dich",
+  "sich",
+  "uns",
+  "euch",
+  "mir",
+  "dir",
+  "ihm",
+  "ihn",
+  "es",
+]);
+
+export const COMMA_QUESTION_PREPOSITIONS: ReadonlySet<string> = new Set([
+  "an",
+  "auf",
+  "für",
+  "mit",
+  "von",
+  "über",
+  "um",
+  "zu",
+  "bei",
+  "aus",
+  "nach",
+  "gegen",
+  "durch",
+]);
+
+export const COMMA_PREDICATE_VERBS: ReadonlySet<string> = new Set([
+  "ist",
+  "war",
+  "wäre",
+  "sei",
+  "sind",
+  "waren",
+  "bleibt",
+  "finde",
+  "findet",
+  "fand",
+  "finden",
+]);
+
+export const COMMA_COMPARING: ReadonlySet<string> = new Set([
+  "so",
+  "genauso",
+  "ebenso",
+  "zu",
+  "doppelt",
+  "halb",
+  "fast",
+  "gleich",
+]);
+
+export const COMMA_NOT_SUBJECTS: ReadonlySet<string> = new Set([
+  "wenn",
+  "was",
+  "wer",
+  "wie",
+  "wo",
+  "wann",
+  "warum",
+  "als",
+  "dass",
+  "weil",
+  "ob",
+  "und",
+  "aber",
+  "doch",
+  "denn",
+  "so",
+  "da",
+  "dann",
+  "dort",
+  "hier",
+  "heute",
+  "jetzt",
+  "nun",
+  "auch",
+  "nur",
+  "noch",
+  "schon",
+  "bitte",
+  "danke",
+  "ja",
+  "nein",
+  "vielleicht",
+  "leider",
+  "außerdem",
+  "alle",
+  "daher",
+  "deshalb",
+  "deswegen",
+  "damals",
+  "trotzdem",
+  "gestern",
+  "morgen",
+  "also",
+  "zuerst",
+  "später",
+  "viele",
+  "einige",
+  "manche",
+  "beide",
+  "jeder",
+  "jede",
+  "jedes",
+  "keiner",
+  "niemand",
+  "jemand",
+]);
+
+export const COMMA_IRREGULAR: ReadonlySet<string> = new Set([
+  "sein",
+  "tun",
+  "haben",
+  "werden",
+  "wissen",
+]);
+
+export const COMMA_CORRELATES: ReadonlySet<string> = new Set([
+  "darum",
+  "daran",
+  "darauf",
+  "dazu",
+  "davon",
+  "darüber",
+  "darin",
+  "davor",
+]);
+
+export const COMMA_CORRELATE_PARTICLES: ReadonlySet<string> = new Set([
+  "an",
+  "ab",
+  "hin",
+  "aus",
+  "auf",
+  "ein",
+  "vor",
+  "nach",
+  "mit",
+  "zu",
+  "fest",
+  "hinaus",
+  "zurück",
+]);
+
+export const COMMA_ES_LINKS: ReadonlySet<string> = new Set([
+  "ist",
+  "war",
+  "wäre",
+  "sei",
+  "sind",
+  "waren",
+  "bin",
+  "bist",
+  "seid",
+  "wird",
+  "wurde",
+  "würde",
+  "macht",
+  "machte",
+  "fällt",
+  "fiel",
+  "habe",
+  "hast",
+  "hat",
+  "haben",
+  "hatte",
+  "hatten",
+]);
+
+export const COMMA_ES_OBJECT_VERBS: ReadonlySet<string> = new Set([
+  "liebe",
+  "liebst",
+  "liebt",
+  "lieben",
+  "liebte",
+  "hasse",
+  "hasst",
+  "hassen",
+  "hasste",
+  "genieße",
+  "genießt",
+  "genießen",
+  "genoss",
+  "vermeide",
+  "vermeidet",
+  "vermeiden",
+  "vermied",
+  "bevorzuge",
+  "bevorzugt",
+  "bevorzugen",
+]);
+
+export const COMMA_CLAUSE_COPULAS: ReadonlySet<string> = new Set([
+  "ist",
+  "war",
+  "wäre",
+  "sei",
+  "sind",
+  "waren",
+  "bin",
+  "bist",
+  "seid",
+  "wird",
+  "wurde",
+  "würde",
+]);
+
+export const COMMA_ES_FILLERS: ReadonlySet<string> = new Set([
+  "es",
+  "mich",
+  "dich",
+  "ihn",
+  "ihm",
+  "ihr",
+  "uns",
+  "euch",
+  "ihnen",
+  "mir",
+  "dir",
+  "sich",
+  "nicht",
+  "nie",
+  "immer",
+  "noch",
+  "schon",
+  "auch",
+  "damals",
+  "heute",
+  "jetzt",
+  "oft",
+  "wirklich",
+  "gar",
+  "so",
+  "sehr",
+  "ganz",
+  "echt",
+  "ziemlich",
+  "recht",
+  "doch",
+  "ja",
+  "eben",
+  "eigentlich",
+  "wohl",
+  "einfach",
+]);
+
+export const COMMA_ES_DEGREE: ReadonlySet<string> = new Set([
+  "gut",
+  "ganz",
+  "sehr",
+  "so",
+  "recht",
+  "ziemlich",
+  "echt",
+  "viel",
+  "wenig",
+  "zu",
+]);
+
+export const COMMA_RELATIVE_OPENERS: ReadonlySet<string> = new Set([
+  "im",
+  "in",
+  "am",
+  "an",
+  "auf",
+  "aus",
+  "bei",
+  "beim",
+  "mit",
+  "nach",
+  "von",
+  "vom",
+  "zu",
+  "zum",
+  "zur",
+  "für",
+  "über",
+  "unter",
+  "vor",
+  "hinter",
+  "neben",
+  "seit",
+  "gegen",
+  "durch",
+  "ohne",
+  "ich",
+  "du",
+  "er",
+  "sie",
+  "es",
+  "wir",
+  "ihr",
+  "man",
+  "mich",
+  "dich",
+  "ihn",
+  "uns",
+  "euch",
+  "mir",
+  "dir",
+  "ihm",
+  "ihnen",
+  "sich",
+  "nicht",
+  "schon",
+  "gestern",
+  "heute",
+  "morgen",
+  "immer",
+  "oft",
+  "nie",
+  "gerade",
+  "jetzt",
+  "hier",
+  "dort",
+  "damals",
+  "noch",
+  "auch",
+  "bereits",
+  "wirklich",
+  "kaum",
+  "selten",
+  "da",
+  "nebenan",
+  "drüben",
+  "oben",
+  "unten",
+]);
+
 export const VERB_IMPERATIVES: ReadonlySet<string> = new Set([
   "sei",
   "hab",
@@ -2557,6 +3314,29 @@ export const QUOTE_PARTNERS: Readonly<Record<string, readonly string[]>> = {
   "“": ["„", "“"],
   "«": ["»", "«"],
   ")": ["(", ")"],
+};
+
+export const COMMA_PAIRS: Readonly<Record<string, readonly string[]>> = {
+  auch: ["wenn"],
+  selbst: ["wenn"],
+  ohne: ["dass"],
+  außer: ["dass", "wenn"],
+  kaum: ["dass"],
+  als: ["ob", "wenn", "dass"],
+  anstatt: ["dass"],
+  statt: ["dass"],
+};
+
+export const COMMA_RELATIVES: Readonly<Record<string, readonly string[]>> = {
+  der: ["m"],
+  die: ["f", "p"],
+  das: ["n"],
+  den: ["m"],
+  dem: ["m", "n"],
+  denen: ["p"],
+  welcher: ["m"],
+  welche: ["f", "p"],
+  welches: ["n"],
 };
 
 export const VERB_E_TO_I: Readonly<Record<string, string>> = {
@@ -6004,6 +6784,740 @@ export function straightPair(ctx: DetectContext, a: number, b: number): RawFindi
   ];
 }
 
+// de.yaml rule de.commas def COMMA_TIME_SPANS
+export const COMMA_TIME_SPANS =
+  /^(?:Tag|Tage|Tagen|Woche|Wochen|Monat|Monate|Monaten|Jahr|Jahre|Jahren|Stunde|Stunden|Minute|Minuten|Sekunde|Sekunden|Augenblick|Moment|Nacht|Nächte)$/;
+
+// de.yaml rule de.commas def COMMA_OWN_INFINITIVE
+export const COMMA_OWN_INFINITIVE =
+  /^(?:gibt$|gab$|geben$|gäbe$|find|fand|ist$|war$|sind$|waren$|bleibt$|blieb$|steht$|stand$|versuch|begann|beginn|fing|hörte|vergaß|vergess|vergiss|plan|beschloss|beschließ|hoff|schein|wagt|droht|versprach|versprich|versprech|entschied|entschließ|vermocht|pflegt|lernt|lernte|half|hilf|bat|bitt|erlaub|empfahl|empfehl|riet|rät)/;
+
+// de.yaml rule de.commas def COMMA_DETERMINER
+export const COMMA_DETERMINER =
+  /^(?:k?ein|mein|dein|sein|ihr|unser|euer|d(?:er|ie|as|en|em|es))\p{Ll}*$/u;
+
+// de.yaml rule de.commas def COMMA_PERFECT_AUX
+export const COMMA_PERFECT_AUX =
+  /^(?:hat|haben|hatte|hatten|hätte|hätten|ist|sind|war|waren|wäre|wären|wird|werden|wurde|wurden)$/;
+
+// de.yaml rule de.commas def COMMA_MODAL_AUX
+export const COMMA_MODAL_AUX =
+  /^(?:kann|können|konnte|konnten|könnte|könnten|muss|müssen|musste|mussten|müsste|soll|sollen|sollte|sollten|will|wollen|wollte|darf|dürfen|durfte|möchte|möchten|wird|werden|würde|würden)$/;
+
+// de.yaml rule de.commas def COMMA_NOUN_DETERMINER
+export const COMMA_NOUN_DETERMINER =
+  /^(?:d(?:er|ie|as|en|em|es)|k?ein(?:e[mnrs]?)?|(?:mein|dein|sein|ihr|unser|eur)(?:e[mnrs]?)?|dies(?:e[mnrs]?)|jede[mnrs]?|im|am|zum|zur|vom|beim)$/i;
+
+// de.yaml rule de.commas def COMMA_OPINION_VERBS
+export const COMMA_OPINION_VERBS =
+  /^(?:dachte|dachten|dachtest|denke|glaube|glaubte|hoffe|hoffte|meine|fand|finde)$/;
+
+// de.yaml rule de.commas def commaClauseEnd
+export function commaClauseEnd(token: string | undefined) {
+  return !token || /^(?:[.!?:;,()[\]"“”„«»‚‘’–—\n-])/.test(token);
+}
+
+// de.yaml rule de.commas def commaFinding
+export function commaFinding(
+  ctx: DetectContext,
+  wordStart: number,
+  word: string,
+  at: number,
+): RawFinding {
+  return {
+    ruleId: "germanCommas",
+    messageKey: "review_msg_german_comma",
+    range: { start: wordStart, end: wordStart + word.length },
+    alternatives: [`${word},`],
+    context: { start: Math.max(0, wordStart - 40), end: Math.min(ctx.text.length, at + 40) },
+  };
+}
+
+// de.yaml rule de.commas def commaWordBefore
+export function commaWordBefore(
+  text: string,
+  index: number,
+): { word: string; start: number } | null {
+  const low = Math.max(0, index - 64);
+  const hit = /([\p{L}\p{N}]+)[ \t ]+$/u.exec(text.slice(low, index));
+  return hit ? { word: hit[1], start: low + hit.index } : null;
+}
+
+// de.yaml rule de.commas def commaFiniteWord
+export function commaFiniteWord(t: string) {
+  return (
+    COMMA_FINITE.has(t) ||
+    germanAuxiliary(t) ||
+    (/^\p{Ll}{3,}t$/u.test(t) &&
+      !/^(?:ge|be|ver|er|ent|zer|miss|über|unter|hinter|wider)|iert$/u.test(t) &&
+      germanInfinitive(`${t.replace(/e?t$/, "")}en`))
+  );
+}
+
+// de.yaml rule de.commas def commaClauseFrom
+export function commaClauseFrom(tokens: string[], from: number): number {
+  return from > 0 && !commaClauseEnd(tokens[from - 1]) ? commaClauseFrom(tokens, from - 1) : from;
+}
+
+// de.yaml rule de.commas def commaLastClause
+export function commaLastClause(tokens: string[]) {
+  return tokens.slice(commaClauseFrom(tokens, tokens.length));
+}
+
+// de.yaml rule de.commas def commaClauseAfter
+export function commaClauseAfter(text: string, index: number, n: number) {
+  const tokens = deTokensAfter(text, index, n);
+  const end = tokens.findIndex((t) => commaClauseEnd(t));
+  return end < 0 ? tokens : tokens.slice(0, end);
+}
+
+// de.yaml rule de.commas def commaVerbFinal
+export function commaVerbFinal(text: string, index: number) {
+  const tokens = deTokensAfter(text, index, 24);
+  const end = tokens.findIndex((t) => commaClauseEnd(t));
+  return end < 0 || (end > 0 && /^\p{Ll}/u.test(tokens[end - 1]));
+}
+
+// de.yaml rule de.commas def commaClauseStartBefore
+export function commaClauseStartBefore(before: string[], at: number) {
+  return (
+    at === 0 || commaClauseEnd(before[at - 1]) || /^(?:und|aber|doch|denn)$/i.test(before[at - 1])
+  );
+}
+
+// de.yaml rule de.commas def commaZuInfinitive
+export function commaZuInfinitive(clause: string[]) {
+  const k = clause.findIndex(
+    (t, i) =>
+      (t === "zu" &&
+        i + 1 < clause.length &&
+        /^\p{Ll}+$/u.test(clause[i + 1]) &&
+        (germanInfinitive(clause[i + 1]) || COMMA_IRREGULAR.has(clause[i + 1]))) ||
+      (/^\p{Ll}{2,}zu\p{Ll}+(?:en|ln|rn)$/u.test(t) && germanInfinitive(t.replace("zu", ""))),
+  );
+  return k >= 0 && clause[k] === "zu" ? k + 1 : k;
+}
+
+// de.yaml rule de.commas def commaInfinitiveGroup
+export function commaInfinitiveGroup(text: string, index: number): string[] | null {
+  const clause = commaClauseAfter(text, index, 12);
+  const verb = commaZuInfinitive(clause);
+  if (verb < 0 || verb !== clause.length - 1) return null;
+  const words = clause.slice(0, clause[verb - 1] === "zu" ? verb - 1 : verb);
+  if (words.length === 0 || words.some((w) => !/^\p{L}+$/u.test(w))) return null;
+  if (
+    words.some(
+      (w) =>
+        (w === w.toLowerCase() &&
+          (commaFiniteWord(w) ||
+            /^ge\p{Ll}{3,}(?:t|en)$/u.test(w) ||
+            VERB_GOVERNORS.has(w) ||
+            COMMA_IRREGULAR.has(w))) ||
+        /^(?:und|oder|aber|sondern|denn|doch|dass|weil|wenn|ob|ohne|um|statt|anstatt)$/.test(w),
+    )
+  )
+    return null;
+  return /^(?:nichts|etwas|viel|vieles|wenig|einiges|genug|mehr|was)$/.test(words[0])
+    ? null
+    : words;
+}
+
+// de.yaml rule de.commas def commaParticleJoins
+export function commaParticleJoins(word: string, t: string) {
+  const low = t.toLowerCase();
+  const stem = low.replace(/(?:e?test|e?tet|e?ten|e?te|e?st|e?t|en|e)$/, "");
+  return [germanInfinitiveOf(low), `${stem}en`, `${stem}n`].some(
+    (inf) => !!inf && germanInfinitive(word + inf),
+  );
+}
+
+// de.yaml rule de.commas def commaCorrelate
+export function commaCorrelate(
+  ctx: DetectContext,
+  typed: string,
+  at: number,
+  before: string[],
+): { word: string; start: number } | null {
+  const end = at + typed.length;
+  const sentence = commaLastClause(before);
+  if (sentence.length === 0 || sentence.some((t) => COMMA_OWN_INFINITIVE.test(t.toLowerCase())))
+    return null;
+  if (/^(?:kurz|gleich|bald|noch|bis|und|oder|aber)$/i.test(before.at(-1) ?? "")) return null;
+  const next = /^[ \t]+(\p{Ll}+)(?=[ \t])/u.exec(ctx.text.slice(end, end + 24));
+  const word = next?.[1] ?? "";
+  const particle =
+    COMMA_CORRELATE_PARTICLES.has(word) && sentence.some((t) => commaParticleJoins(word, t));
+  const participle = /^ge\p{Ll}{3,}(?:t|en)$/u.test(word) && !germanAuxiliary(word);
+  const last =
+    next && (particle || participle)
+      ? { word, start: end + next[0].length - word.length }
+      : { word: typed, start: at };
+  return commaInfinitiveGroup(ctx.text, last.start + last.word.length) ? last : null;
+}
+
+// de.yaml rule de.commas def commaEsSkip
+export function commaEsSkip(tokens: string[], i: number): number {
+  return i < tokens.length &&
+    (COMMA_ES_FILLERS.has(tokens[i]) || /^\p{Lu}\p{Ll}+$/u.test(tokens[i]))
+    ? i > 3
+      ? -1
+      : commaEsSkip(tokens, i + 1)
+    : i;
+}
+
+// de.yaml rule de.commas def commaEsAdjective
+export function commaEsAdjective(
+  ctx: DetectContext,
+  at: number,
+  back: string[],
+  prior: string,
+): { word: string; start: number } | null {
+  const tokens0 = deTokensAfter(ctx.text, at + 2, 9);
+  const linked = COMMA_ES_LINKS.has(prior);
+  const verb = tokens0[0] ?? "";
+  if (!(
+    linked ||
+    (commaClauseEnd(back.at(-1)) && COMMA_ES_LINKS.has(verb) && !COMMA_CLAUSE_COPULAS.has(verb))
+  ))
+    return null;
+  const from = linked ? at + 2 : ctx.text.indexOf(tokens0[0], at + 2) + tokens0[0].length;
+  const tokens = linked ? tokens0 : tokens0.slice(1);
+  const i = commaEsSkip(tokens, 0);
+  if (!(i >= 0)) return null;
+  const word = tokens[i];
+  if (!word || !/^\p{Ll}+$/u.test(word) || COMMA_ES_DEGREE.has(word) || COMMA_DETERMINER.test(word))
+    return null;
+  const participle = /^(?:ge\p{Ll}{3,}t|\p{Ll}{3,}iert)$/u.test(word);
+  if (!(germanAdjective(word) || participle)) return null;
+  const start = ctx.text.indexOf(word, from);
+  const group = commaInfinitiveGroup(ctx.text, start + word.length);
+  return group && !(group.length === 1 && COMMA_ES_DEGREE.has(group[0])) ? { word, start } : null;
+}
+
+// de.yaml rule de.commas def commaEs
+export function commaEs(ctx: DetectContext, at: number): { word: string; start: number } | null {
+  const back = deTokensBefore(ctx.text, at, 2);
+  const prior = (back.at(-1) ?? "").toLowerCase();
+  return COMMA_ES_OBJECT_VERBS.has(prior)
+    ? commaInfinitiveGroup(ctx.text, at + 2)
+      ? { word: ctx.text.slice(at, at + 2), start: at }
+      : null
+    : commaEsAdjective(ctx, at, back, prior);
+}
+
+// de.yaml rule de.commas def commaDeterminerAt
+export function commaDeterminerAt(before: string[], k: number): number {
+  return k > 0 && /^\p{Ll}+e[mnrs]?$/u.test(before[k]) && !COMMA_NOUN_DETERMINER.test(before[k])
+    ? commaDeterminerAt(before, k - 1)
+    : k;
+}
+
+// de.yaml rule de.commas def commaRelativeFinite
+export function commaRelativeFinite(w: string, i: number, tokens: string[], plural: boolean) {
+  const stem = /^(\p{Ll}{2,}?)(?:e?t|e?te)$/u.exec(w)?.[1];
+  return w !== w.toLowerCase()
+    ? false
+    : COMMA_FINITE.has(w) || germanAuxiliary(w) || VERB_GOVERNORS.has(w) || !!germanInfinitiveOf(w)
+      ? true
+      : (plural || tokens.slice(0, i).some((t) => /^(?:wir|sie|Sie)$/.test(t))) &&
+          germanInfinitive(w)
+        ? true
+        : /^\p{Ll}{3,}(?:e|e?st)$/u.test(w) &&
+            tokens.slice(0, i).some((t) => /^(?:ich|du)$/.test(t))
+          ? germanVerbLike(w.replace(/e?st$/, "en")) || germanVerbLike(w)
+          : !stem || /^ge\p{Ll}+t$/u.test(w)
+            ? false
+            : [stem, stem.replace(/ä/g, "a").replace(/ö/g, "o").replace(/ü/g, "u")].some((s) =>
+                germanInfinitive(`${s}en`),
+              );
+}
+
+// de.yaml rule de.commas def commaVerbChain
+export function commaVerbChain(tokens: string[], verb: number): number {
+  const current = tokens[verb];
+  const next = tokens[verb + 1] ?? "";
+  const perfect =
+    COMMA_PERFECT_AUX.test(next) &&
+    /^(?:ge|be|ver|er|ent|zer|über|unter)\p{Ll}{2,}(?:t|en)$|^\p{Ll}{3,}iert$/u.test(current);
+  const modal = COMMA_MODAL_AUX.test(next) && /(?:en|ern|eln)$/.test(current);
+  return perfect || modal ? commaVerbChain(tokens, verb + 1) : verb;
+}
+
+// de.yaml rule de.commas def commaRelative
+export function commaRelative(ctx: DetectContext, typed: string, at: number): RawFinding[] {
+  const fits = COMMA_RELATIVES[typed];
+  const before = deTokensBefore(ctx.text, at, 5);
+  const noun = before.at(-1) ?? "";
+  const k = commaDeterminerAt(before, before.length - 2);
+  if (!(/^\p{Lu}\p{Ll}{2,}$/u.test(noun) && COMMA_NOUN_DETERMINER.test(before[k] ?? ""))) return [];
+  const nounStart = at - noun.length - 1;
+  if (!(ctx.text.slice(nounStart, at) === `${noun} `)) return [];
+  const reading = germanGender(noun);
+  if (!reading) return [];
+  const genders = reading.plural ? [reading.gender, "p"] : [reading.gender];
+  const agrees = genders.some(
+    (g) => fits.includes(g) || (g === "x" && (fits.includes("m") || fits.includes("n"))),
+  );
+  if (!agrees) return [];
+  const tokens = deTokensAfter(ctx.text, at + typed.length, 10);
+  const opener = tokens[0] ?? "";
+  if (!(
+    COMMA_RELATIVE_OPENERS.has(opener) ||
+    (opener === opener.toLowerCase() && commaFiniteWord(opener))
+  ))
+    return [];
+  if (
+    /^\p{Ll}+e[mnrs]?$/u.test(tokens[1] ?? "") &&
+    germanAdjective(tokens[1].replace(/e[mnrs]?$/, ""))
+  )
+    return [];
+  const plural = fits.includes("p") && genders.includes("p");
+  const stopAt = tokens.findIndex(
+    (t) => commaClauseEnd(t) || /^(?:und|oder|aber|dass|weil|wenn|ob)$/.test(t),
+  );
+  const first = tokens
+    .slice(0, stopAt < 0 ? tokens.length : stopAt)
+    .findIndex((w, i) => commaRelativeFinite(w, i, tokens, plural));
+  const verb = first < 0 ? -1 : commaVerbChain(tokens, first);
+  if (!(verb >= 0)) return [];
+  if (
+    tokens
+      .slice(0, verb)
+      .some(
+        (t, i) =>
+          /^\p{Ll}{2,}e[mnrs]?$/u.test(t) &&
+          !COMMA_NOUN_DETERMINER.test(t) &&
+          /^\p{Lu}/u.test(tokens[i + 1] ?? ""),
+      )
+  )
+    return [];
+  const after = tokens[verb + 1];
+  const verbStart = ctx.text.indexOf(tokens[verb], at + typed.length);
+  return [
+    commaFinding(ctx, nounStart, noun, at),
+    ...(after && !commaClauseEnd(after) && verb > 0 && /^\p{L}/u.test(after)
+      ? [commaFinding(ctx, verbStart, tokens[verb], verbStart)]
+      : []),
+  ];
+}
+
+// de.yaml rule de.commas def commaSubordinatorBack
+export function commaSubordinatorBack(before: string[], i: number): number {
+  return i >= 0 && !COMMA_SUBORDINATORS.has(before[i].toLowerCase())
+    ? commaSubordinatorBack(before, i - 1)
+    : i;
+}
+
+// de.yaml rule de.commas def commaSentenceOpens
+export function commaSentenceOpens(before: string[], k: number) {
+  return k < 0 || (/^[.!?\n]$/.test(before[k]) && (k === 0 || (before[k - 1] ?? "").length > 1));
+}
+
+// de.yaml rule de.commas def commaSkipFillers
+export function commaSkipFillers(clause: string[], i: number): number {
+  return i < clause.length && COMMA_FILLERS.has(clause[i]) ? commaSkipFillers(clause, i + 1) : i;
+}
+
+// de.yaml rule de.commas def commaTaken
+export function commaTaken(
+  ctx: DetectContext,
+  clause: string[],
+  j: number,
+  n: number,
+  word: string,
+  start: number,
+): { word: string; start: number } {
+  return j >= n
+    ? { word, start }
+    : commaTaken(
+        ctx,
+        clause,
+        j + 1,
+        n,
+        clause[j],
+        ctx.text.indexOf(clause[j], start + word.length),
+      );
+}
+
+// de.yaml rule de.commas def commaSkipAskFillers
+export function commaSkipAskFillers(chain: string[], k: number): number {
+  return k >= 0 && COMMA_ASK_FILLERS.has(chain[k].toLowerCase())
+    ? commaSkipAskFillers(chain, k - 1)
+    : k;
+}
+
+// de.yaml rule de.commas def commaCorrelateBranch
+export function commaCorrelateBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+  before: string[],
+): RawFinding[] | null {
+  if (!(typed === low && COMMA_CORRELATES.has(low))) return null;
+  const last = commaCorrelate(ctx, typed, at, before);
+  return last ? [commaFinding(ctx, last.start, last.word, last.start)] : [];
+}
+
+// de.yaml rule de.commas def commaEsBranch
+export function commaEsBranch(ctx: DetectContext, low: string, at: number): RawFinding[] | null {
+  if (!(low === "es")) return null;
+  const last = commaEs(ctx, at);
+  return last ? [commaFinding(ctx, last.start, last.word, last.start)] : [];
+}
+
+// de.yaml rule de.commas def commaRelativeBranch
+export function commaRelativeBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+): RawFinding[] | null {
+  if (!(typed === low && Object.hasOwn(COMMA_RELATIVES, low))) return null;
+  return commaRelative(ctx, typed, at);
+}
+
+// de.yaml rule de.commas def commaSubordinateBranch
+export function commaSubordinateBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+  end: number,
+  prior: { word: string; start: number } | null,
+): RawFinding[] | null {
+  if (!(
+    typed === low &&
+    COMMA_SUBORDINATORS.has(low) &&
+    !!prior &&
+    !(
+      COMMA_JOINED.has(prior.word.toLowerCase()) &&
+      !(prior.word === "nicht" && (low === "ob" || low === "dass"))
+    )
+  ))
+    return null;
+  const clause = commaClauseAfter(ctx.text, end, 12);
+  return clause.length >= (low === "sondern" ? 1 : 2) &&
+    (low === "sondern" || commaVerbFinal(ctx.text, end)) &&
+    !COMMA_TIME_SPANS.test(prior.word) &&
+    !(low === "sobald" && /^[ \t]+(?:wie|als)[ \t]+möglich/.test(ctx.text.slice(end, end + 20))) &&
+    !(/^(?:wenn|falls|sofern)$/.test(low) && COMMA_ELLIPTICAL.has(clause[0])) &&
+    !(low === "sondern" && clause.at(-1) === "ab") &&
+    !(low === "nachdem" && prior.word.toLowerCase() === "je")
+    ? [commaFinding(ctx, prior.start, prior.word, at)]
+    : [];
+}
+
+// de.yaml rule de.commas def commaInfinitiveBranch
+export function commaInfinitiveBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+  end: number,
+  prior: { word: string; start: number } | null,
+  before: string[],
+): RawFinding[] | null {
+  if (!(typed === low && COMMA_INFINITIVE_LEADS.has(low) && !!prior)) return null;
+  const clause = commaClauseAfter(ctx.text, end, 12);
+  const verb = commaZuInfinitive(clause);
+  const impersonal = before.some((t) => /^es$/i.test(t));
+  return COMMA_JOINED.has(prior.word.toLowerCase()) ||
+    verb < 0 ||
+    /^(?:\p{Lu}|\p{N}|halb$|viertel$)/u.test(clause[0]) ||
+    clause.slice(0, 3).includes("Uhr") ||
+    (low === "um" &&
+      [...before, clause[verb]].some(
+        (t) =>
+          COMMA_UM_VERBS.has(t.toLowerCase()) &&
+          (impersonal || !COMMA_IMPERSONAL_UM.has(t.toLowerCase())),
+      ))
+    ? []
+    : [commaFinding(ctx, prior.start, prior.word, at)];
+}
+
+// de.yaml rule de.commas def commaOpeningInfinitiveBranch
+export function commaOpeningInfinitiveBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  end: number,
+  before: string[],
+): RawFinding[] | null {
+  if (!(
+    COMMA_INFINITIVE_LEADS.has(low) &&
+    typed !== low &&
+    commaClauseStartBefore(before, before.length)
+  ))
+    return null;
+  const clause = commaClauseAfter(ctx.text, end, 12);
+  const verb = commaZuInfinitive(clause);
+  const next = clause[verb + 1];
+  return verb >= 0 && next && /^\p{Ll}+$/u.test(next) && !COMMA_JOINED.has(next)
+    ? [
+        commaFinding(
+          ctx,
+          ctx.text.indexOf(clause[verb], end),
+          clause[verb],
+          ctx.text.indexOf(clause[verb], end),
+        ),
+      ]
+    : [];
+}
+
+// de.yaml rule de.commas def commaAuxBranch
+export function commaAuxBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+  end: number,
+  before: string[],
+): RawFinding[] | null {
+  if (!(typed === low && germanAuxiliary(low))) return null;
+  const next = /^[ \t]+(\p{Ll}+)(?!\p{L})/u.exec(ctx.text.slice(end, end + 24))?.[1];
+  const chain = germanInfinitiveOf(low) === low || germanInfinitiveOf(next ?? "") === next;
+  const lead = commaSubordinatorBack(before, before.length - 1);
+  const slip =
+    low.endsWith("en") &&
+    lead >= 0 &&
+    COMMA_SINGULAR_SUBJECTS.has((before[lead + 1] ?? "").toLowerCase());
+  if (!(!!next && next !== low && germanAuxiliary(next) && !chain && !slip)) return null;
+  return [commaFinding(ctx, at, typed, end)];
+}
+
+// de.yaml rule de.commas def commaSagBranch
+export function commaSagBranch(
+  ctx: DetectContext,
+  typed: string,
+  end: number,
+): RawFinding[] | null {
+  const verb = /^[ \t]+mal[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 24))?.[1];
+  if (!(/^[Ss]agt?$/.test(typed) && !!verb)) return null;
+  return germanAuxiliary(verb)
+    ? [commaFinding(ctx, ctx.text.indexOf("mal", end), "mal", ctx.text.indexOf("mal", end))]
+    : [];
+}
+
+// de.yaml rule de.commas def commaPairBranch
+export function commaPairBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+  end: number,
+  prior: { word: string; start: number } | null,
+): RawFinding[] | null {
+  if (!(
+    typed === low &&
+    Object.hasOwn(COMMA_PAIRS, low) &&
+    !!prior &&
+    !COMMA_JOINED.has(prior.word.toLowerCase())
+  ))
+    return null;
+  const after = /^[ \t]+(\p{Ll}+)/u.exec(ctx.text.slice(end, end + 16))?.[1] ?? "";
+  if (!(COMMA_PAIRS[low].includes(after) && commaVerbFinal(ctx.text, end + 1 + after.length)))
+    return null;
+  return [commaFinding(ctx, prior.start, prior.word, at)];
+}
+
+// de.yaml rule de.commas def commaOpinionBranch
+export function commaOpinionBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+  end: number,
+  before: string[],
+): RawFinding[] | null {
+  const last = before.length - 1;
+  const subjectWord = before[last] ?? "";
+  const subjectLow = subjectWord.toLowerCase();
+  const pronounSubject = COMMA_SUBJECTS.has(subjectLow) && commaClauseStartBefore(before, last);
+  const nounSubject =
+    /^\p{Lu}\p{Ll}+$/u.test(subjectWord) &&
+    !COMMA_SUBJECTS.has(subjectLow) &&
+    !COMMA_NOT_SUBJECTS.has(subjectLow) &&
+    !ARTICLES.has(subjectLow) &&
+    !DEMONSTRATIVES.has(subjectLow) &&
+    !PREPOSITIONS.has(subjectLow) &&
+    (commaSentenceOpens(before, last - 1) ||
+      (/^(?:der|die|das)$/i.test(before[last - 1] ?? "") && commaSentenceOpens(before, last - 2)));
+  const subjectFirst = typed === low && COMMA_OPINIONS.has(low) && (pronounSubject || nounSubject);
+  const asked = COMMA_OPINION_QUESTIONS.has(low) && commaClauseStartBefore(before, before.length);
+  if (!(subjectFirst || asked)) return null;
+  return commaOpinionComma(ctx, typed, at, end, subjectFirst);
+}
+
+// de.yaml rule de.commas def commaOpinionComma
+export function commaOpinionComma(
+  ctx: DetectContext,
+  typed: string,
+  at: number,
+  end: number,
+  subjectFirst: boolean,
+): RawFinding[] {
+  const clause = commaClauseAfter(ctx.text, end, 9);
+  if (!(subjectFirst || COMMA_QUESTION_SUBJECTS.has(clause[0] ?? ""))) return [];
+  const i = commaSkipFillers(clause, subjectFirst ? 0 : 1);
+  const rest = clause.slice(i);
+  const verbAt = rest.findIndex((t, k) => k > 0 && k <= 4 && commaFiniteWord(t));
+  if (!(verbAt >= 1)) return [];
+  if (rest.slice(0, verbAt).some((t) => COMMA_W_WORDS.has(t) || COMMA_SUBORDINATORS.has(t)))
+    return [];
+  if (
+    /^(?:an|auf|daran|darauf|nicht|nichts|kein|keine|so|auch|zu|sehr|und|oder|aber|sowie|sondern|bzw)$/i.test(
+      rest[0],
+    )
+  )
+    return [];
+  const last = commaTaken(ctx, clause, 0, i, typed, at);
+  return [commaFinding(ctx, last.start, last.word, last.start)];
+}
+
+// de.yaml rule de.commas def commaVorBranch
+export function commaVorBranch(
+  ctx: DetectContext,
+  typed: string,
+  at: number,
+  end: number,
+): RawFinding[] | null {
+  if (!(
+    typed === "vor" &&
+    /^[ \t]+(?:ich|du|er|sie|es|wir|ihr|man|der|die|das|ein|eine|\p{Lu}\p{Ll}+)[ \t]+\p{Ll}/u.test(
+      ctx.text.slice(end, end + 30),
+    )
+  ))
+    return null;
+  return /(?:^|[.!?:\n„"])[ \t]*(?:Stell|Stelle|Stellt|Stellen)[ \t]+(?:dir|euch|Sie[ \t]+sich|sich|mir)(?:[ \t]+(?:doch|mal|nur|einfach|bitte|jetzt|einmal))*[ \t]+$/u.test(
+    ctx.text.slice(Math.max(0, at - 50), at),
+  )
+    ? [commaFinding(ctx, at, typed, at)]
+    : [];
+}
+
+// de.yaml rule de.commas def commaInvertedBranch
+export function commaInvertedBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  end: number,
+  before: string[],
+): RawFinding[] | null {
+  if (!(
+    typed === low &&
+    COMMA_OPINION_VERBS.test(low) &&
+    !commaClauseStartBefore(before, before.length)
+  ))
+    return null;
+  const next = deTokensAfter(ctx.text, end, 4);
+  const reflexive = /^(?:mir|dir|sich|uns|euch)$/.test(next[1] ?? "") ? 1 : 0;
+  const second = next[1 + reflexive] ?? "";
+  const word = next[reflexive];
+  return /^(?:ich|du|er|sie|wir|ihr|man)$/.test(next[0] ?? "") &&
+    /^(?:ich|du|er|sie|es|wir|ihr|man)$/.test(second) &&
+    (commaFiniteWord(next[2 + reflexive] ?? "") || germanVerbLike(next[2 + reflexive] ?? ""))
+    ? [
+        commaFinding(
+          ctx,
+          ctx.text.indexOf(
+            ` ${word}`,
+            reflexive ? ctx.text.indexOf(next[0], end) + next[0].length : end,
+          ) + 1,
+          word,
+          ctx.text.indexOf(
+            ` ${word}`,
+            reflexive ? ctx.text.indexOf(next[0], end) + next[0].length : end,
+          ) + 1,
+        ),
+      ]
+    : [];
+}
+
+// de.yaml rule de.commas def commaSoweitBranch
+export function commaSoweitBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+  end: number,
+  prior: { word: string; start: number } | null,
+  before: string[],
+): RawFinding[] | null {
+  if (!(
+    typed === low &&
+    /^(?:soweit|sofern)$/.test(low) &&
+    !!prior &&
+    !COMMA_JOINED.has(prior.word.toLowerCase())
+  ))
+    return null;
+  const inserted =
+    /^[ \t]+(?:ich|wir|man)(?:[ \t]+(?:das|es))?[ \t]+(?:weiß|wissen|sehe|sehen|beurteilen[ \t]+kann|beurteilen[ \t]+können|verstehe|verstanden[ \t]+habe|informiert[ \t]+bin)(?=[ \t]+\p{L})/u.exec(
+      ctx.text.slice(end, end + 50),
+    );
+  const nested = commaLastClause(before).some(
+    (t) => COMMA_W_WORDS.has(t.toLowerCase()) || COMMA_SUBORDINATORS.has(t),
+  );
+  return inserted && !nested
+    ? [
+        commaFinding(ctx, prior.start, prior.word, at),
+        commaFinding(
+          ctx,
+          end + inserted[0].length - /\p{L}+$/u.exec(inserted[0])![0].length,
+          /\p{L}+$/u.exec(inserted[0])![0],
+          end + inserted[0].length,
+        ),
+      ]
+    : [];
+}
+
+// de.yaml rule de.commas def commaQuestionBranch
+export function commaQuestionBranch(
+  ctx: DetectContext,
+  typed: string,
+  low: string,
+  at: number,
+  end: number,
+  prior: { word: string; start: number } | null,
+  before: string[],
+): RawFinding[] | null {
+  if (!(typed === low && COMMA_W_WORDS.has(low) && !!prior)) return null;
+  const prep = COMMA_QUESTION_PREPOSITIONS.has(prior.word) && /^(?:was|wem|wen)$/.test(low);
+  const lead = prep ? commaWordBefore(ctx.text, prior.start) : prior;
+  if (!lead) return null;
+  const chain = prep ? before.slice(0, -1) : before;
+  const k0 = commaSkipAskFillers(chain, chain.length - 1);
+  const subject = [k0 - 1, k0 - 2, k0 - 3].find(
+    (i) =>
+      i >= 0 &&
+      COMMA_ASKING.has(chain[i].toLowerCase()) &&
+      /^\p{Lu}/u.test(chain[i]) &&
+      commaClauseEnd(chain[i - 1]) &&
+      chain
+        .slice(i + 1, k0 + 1)
+        .every(
+          (t) =>
+            /^\p{Lu}/u.test(t) ||
+            /^(?:der|die|das|ein|eine|(?:mein|dein|sein|ihr|unser|eur)e?|euer)$/.test(t),
+        ),
+  );
+  const k = subject ?? k0;
+  const predicate =
+    k > 0 &&
+    /^\p{Ll}+$/u.test(chain[k]) &&
+    germanAdjective(chain[k]) &&
+    chain.slice(0, k).some((t) => COMMA_PREDICATE_VERBS.has(t.toLowerCase())) &&
+    !chain.slice(Math.max(0, k - 2), k).some((t) => COMMA_COMPARING.has(t.toLowerCase()));
+  if (k < 0 || (!COMMA_ASKING.has(chain[k].toLowerCase()) && !predicate)) return null;
+  const lw = lead.word.toLowerCase();
+  if (COMMA_JOINED.has(lw) && !COMMA_ASK_FILLERS.has(lw)) return null;
+  const clause = commaClauseAfter(ctx.text, end, 12);
+  const last = clause.at(-1) ?? "";
+  return clause.length >= 2 && /^\p{Ll}+$/u.test(last) && !COMMA_OBJECT_PRONOUNS.has(last)
+    ? [commaFinding(ctx, lead.start, lead.word, at)]
+    : [];
+}
+
 // de.yaml rule de.commaFrames def COMMA_COPULAS
 export const COMMA_COPULAS =
   /^(?:ist|sind|war|waren|wäre|wären|sei|scheint|klingt|wird|wurde|bin|bist|seid)$/;
@@ -9265,6 +10779,52 @@ export const FIXERS: Readonly<Record<string, AnyFixer>> = {
     if (!(marks.length % 2 === 0)) return null;
     return marks.flatMap((a, k) => (k % 2 === 1 ? [] : straightPair(ctx, a, marks[k + 1])));
   },
+  // de.yaml rule de.commas frame 1
+  "@de.commas/1": (m: RegExpExecArray, ctx: DetectContext): MatchResult => {
+    const typed = m[0];
+    const low = typed.toLowerCase();
+    if (!(
+      COMMA_CORRELATES.has(low) ||
+      low === "es" ||
+      Object.hasOwn(COMMA_RELATIVES, low) ||
+      COMMA_SUBORDINATORS.has(low) ||
+      COMMA_INFINITIVE_LEADS.has(low) ||
+      germanAuxiliary(low) ||
+      low === "sag" ||
+      low === "sagt" ||
+      Object.hasOwn(COMMA_PAIRS, low) ||
+      COMMA_OPINIONS.has(low) ||
+      COMMA_OPINION_QUESTIONS.has(low) ||
+      typed === "vor" ||
+      COMMA_OPINION_VERBS.test(low) ||
+      low === "soweit" ||
+      low === "sofern" ||
+      COMMA_W_WORDS.has(low)
+    ))
+      return null;
+    const at = m.index;
+    if (!(!deEnglishLine(ctx.text, at) && !namedExampleBefore(ctx.text, at))) return null;
+    const end = at + typed.length;
+    const prior = commaWordBefore(ctx.text, at);
+    const before = deTokensBefore(ctx.text, at, 8);
+    return (
+      commaCorrelateBranch(ctx, typed, low, at, before) ??
+      commaEsBranch(ctx, low, at) ??
+      commaRelativeBranch(ctx, typed, low, at) ??
+      commaSubordinateBranch(ctx, typed, low, at, end, prior) ??
+      commaInfinitiveBranch(ctx, typed, low, at, end, prior, before) ??
+      commaOpeningInfinitiveBranch(ctx, typed, low, end, before) ??
+      commaAuxBranch(ctx, typed, low, at, end, before) ??
+      commaSagBranch(ctx, typed, end) ??
+      commaPairBranch(ctx, typed, low, at, end, prior) ??
+      commaOpinionBranch(ctx, typed, low, at, end, before) ??
+      commaVorBranch(ctx, typed, at, end) ??
+      commaInvertedBranch(ctx, typed, low, end, before) ??
+      commaSoweitBranch(ctx, typed, low, at, end, prior, before) ??
+      commaQuestionBranch(ctx, typed, low, at, end, prior, before) ??
+      []
+    ).filter((f) => !ctx.dictionary.has(ctx.text.slice(f.range.start, f.range.end).toLowerCase()));
+  },
   // de.yaml rule de.commaFrames frame 1
   "@de.commaFrames/1": (m: RegExpExecArray): MatchResult => {
     const end = m.index + m[0].length;
@@ -10148,6 +11708,11 @@ export const FILTERS: Readonly<Record<string, FindingsFilter>> = {
     return findings.filter(
       (f) => !NOUN_FINDINGS.has(f) || !nounEnds.has(blankStart(ctx.text, f.range.start)),
     );
+  },
+  // de.yaml rule de.commas filter
+  "@de.commas/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {
+    const seen = new Set<number>();
+    return findings.filter((f) => !seen.has(f.range.end) && !!seen.add(f.range.end));
   },
   // de.yaml rule de.numbers filter
   "@de.numbers/filter": (ctx: DetectContext, findings: RawFinding[]): RawFinding[] => {

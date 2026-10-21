@@ -3566,7 +3566,7 @@ export const REVIEW_RULES: readonly CompiledRule[] = [
     frames: [2376],
     message: "review_msg_german_comma",
     style: "match",
-    filter: "de:firstCommaPerEnd",
+    filter: "de:@de.commas/filter",
     source: "de",
   },
   {
@@ -26065,7 +26065,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     pattern:
       "(?<![\\p{L}\\p{M}\\p{N}_@/#\\\\.-])\\p{L}[\\p{L}\\p{M}]*(?![\\p{L}\\p{M}\\p{N}_@/#\\\\]|\\.\\p{L})",
     literals: [],
-    fixer: "de:clauseComma",
+    fixer: "de:@de.commas/1",
     flags: "gu",
     scan: "owned",
   }),
