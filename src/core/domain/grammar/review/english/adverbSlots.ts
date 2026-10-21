@@ -103,12 +103,13 @@ function push(ctx: DetectContext, m: RegExpExecArray, adverb: string): RawFindin
 export const FIXERS = {
   adverbAdjectiveForAdverb1: (m, ctx) => {
     const { target, verb } = m.groups!;
-    const lead = /([A-Za-z'’]+)[ \t\u00a0]+$/.exec(
-      ctx.text.slice(Math.max(0, m.index - 16), m.index),
-    )![1];
     if (ctx.dictionary.has(target) || target !== target.toLowerCase()) return null;
     const adverb = adverbOf(target);
     if (!adverb) return null;
+    // The frame's lookbehind puts the lead word and its spaces in these 16 characters.
+    const lead = /([A-Za-z'’]+)[ \t\u00a0]+$/.exec(
+      ctx.text.slice(Math.max(0, m.index - 16), m.index),
+    )![1];
     const l = lead.toLowerCase();
     const kind = /^(?:have|has|had)$/.test(l)
       ? "participle"

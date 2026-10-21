@@ -3,7 +3,7 @@ import { englishNounPair, englishWordInfo } from "../../implementations/helpers/
 import { englishVerbForms } from "../../implementations/helpers/EnglishVerbForms";
 import type { DetectContext, RawFinding } from "../reviewDetectors";
 import type { MatchFixer } from "../../engine/reviewRules";
-import { MASS, nounNumber } from "./nounNumberSlots";
+import { MASS, nounNumber, wordsAfter } from "./nounNumberSlots";
 import {
   type ClauseProfile,
   type ClauseToken,
@@ -61,7 +61,11 @@ export const COLLECTIVE = new Set(
 const GROUP_ADJECTIVES =
   /^(?:public|rich|poor|elderly|young|old|wealthy|unemployed|homeless|sick|dead|living|blind|deaf|faithful|wise|british|french|english|irish|dutch|welsh|chinese|japanese|swiss)$/;
 
-const normal = (word: string) => word.toLowerCase().replaceAll("’", "'");
+const normal = (word: string) => {
+  const lower = word.toLowerCase();
+  // Most words hold no curly apostrophe: then no new string is made.
+  return lower.includes("’") ? lower.replaceAll("’", "'") : lower;
+};
 
 /** The plural form of a singular verb token, or null. */
 function pluralOf(token: Token, nextToken?: Token, afterNext?: Token): string | null {
@@ -409,6 +413,15 @@ function verbAfterObjectRelative(text: string, tokens: ClauseToken[], i: number)
   return tokens[k] && ENGLISH_CLAUSE.isFiniteVerb(tokens[k]) ? k : -1;
 }
 
+/**
+ * afterBreak(ctx, index) || cue.test(wordBefore(ctx, index)), for a `cue` that never matches "".
+ * A word right before `index` means no break stands there, so afterBreak runs only without one.
+ */
+export function opensClause(ctx: DetectContext, index: number, cue: RegExp): boolean {
+  const before = wordBefore(ctx, index);
+  return before ? cue.test(before) : afterBreak(ctx, index);
+}
+
 /** The fix for the main verb at `at` after a head of `number`, or null. */
 function distantFix(
   ctx: DetectContext,
@@ -437,39 +450,66 @@ function distantFix(
   return bareVerbOnly(word) && closedAfter(words[at + 1]) ? englishInflect(word, "third") : null;
 }
 
+/** A comma, then one or more spaces or tabs, right before `index`: OPENING_PHRASE needs it. */
+function commaBefore(text: string, index: number): boolean {
+  let i = index;
+  while (i > 0 && (text[i - 1] === " " || text[i - 1] === "\t" || text[i - 1] === "\u00a0")) i--;
+  return i < index && i > 0 && text[i - 1] === ",";
+}
+
 /**
  * "The dogs barks loudly", "The dog are released": a determiner-led subject and its verb.
  * "Cars is useful", "Grammatical errors is bad": a plural with no determiner (`bare`) opens the
  * clause.
  */
 function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): RawFinding | null {
+  // A gerund ("Making mistakes is human") or a closed word opens no bare plural. The bare
+  // target is the first token: test it before the costly tests.
+  if (bare) {
+    const typed = m.groups!.target;
+    const first = typed.toLowerCase();
+    if (/ing$/.test(first) || FUNCTION_WORDS.has(first)) return null;
+    // The head loop below stops with no head at this first word unless it is a noun with a
+    // number, an adjective or a participle.
+    const read = englishWordInfo(first);
+    if (
+      TO_PLURAL[normal(first)] ||
+      TO_SINGULAR[normal(first)] ||
+      SINGULAR_DO_HAVE[normal(first)] ||
+      NUMBERS.test(first) ||
+      (!headNumber(first, true) &&
+        !read?.adjective &&
+        !read?.verbs.some((v) => v.form === "participle"))
+    )
+      return null;
+    // "bell hooks doesn't…": a sentence opening in lowercase starts with a name or a fragment.
+    if (
+      typed === first &&
+      /(?:^|[.!?\n])[ \t\u00a0"“‘']*$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index))
+    )
+      return null;
+  }
   // A clause opens at a break, a cue word, a list bullet ("- The message…") or a comma after
   // an opening phrase ("As such, each page…"); not after a list item ("The oceans, our wealth").
+  // A word right before the match means no break stands there (see opensClause).
+  const before = wordBefore(ctx, m.index);
+  const broke = !before && afterBreak(ctx, m.index);
   const opens =
-    afterBreak(ctx, m.index) ||
-    CLAUSE_CUE.test(wordBefore(ctx, m.index)) ||
+    (before ? CLAUSE_CUE.test(before) : broke) ||
     /(?:^|\n)[ \t]*[-*•][ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) ||
-    OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index));
+    (commaBefore(ctx.text, m.index) &&
+      OPENING_PHRASE.test(ctx.text.slice(Math.max(0, m.index - 80), m.index)));
   // "Subject to change, the systems seems…", "although the features has…": a weaker opening
   // (a list may go on: "The oceans, our military power have…") that only a plural head uses.
   const later =
     !bare &&
     (/,[ \t\u00a0]+$/.test(ctx.text.slice(Math.max(0, m.index - 4), m.index)) ||
-      LATER_CUE.test(wordBefore(ctx, m.index)));
+      LATER_CUE.test(before));
   if (!opens && !later) return null;
   const pluralOnly = bare || !opens;
   const det = bare ? "" : m.groups!.target.toLowerCase();
   const tokens = tokensAfter(ctx, bare ? m.index : m.index + m[0].length, 9);
   if (tokens.some((t) => t.kind === "other")) return null;
-  // A gerund ("Making mistakes is human") or a closed word opens no bare plural.
-  if (bare && (/ing$/.test(tokens[0].lower) || FUNCTION_WORDS.has(tokens[0].lower))) return null;
-  // "bell hooks doesn't…": a sentence opening in lowercase starts with a name or a fragment.
-  if (
-    bare &&
-    /(?:^|[.!?\n])[ \t\u00a0"“‘']*$/.test(ctx.text.slice(Math.max(0, m.index - 8), m.index)) &&
-    tokens[0].text === tokens[0].lower
-  )
-    return null;
   // Modifiers and the head noun, then an optional of/in phrase, then the verb.
   let i = 0;
   let head: string | null = null;
@@ -478,7 +518,7 @@ function nounSubject(m: RegExpExecArray, ctx: DetectContext, bare: boolean): Raw
     i < 4 &&
     tokens[i]?.kind === "word" &&
     (tokens[i].text === tokens[i].lower ||
-      (bare && i === 0 && /^[A-Z][a-z]+$/.test(tokens[i].text) && afterBreak(ctx, m.index)))
+      (bare && i === 0 && /^[A-Z][a-z]+$/.test(tokens[i].text) && broke))
   ) {
     const word = tokens[i].lower;
     if (
@@ -952,7 +992,8 @@ export const FIXERS = {
   },
   /** "Tom live in Rome", "Microsoft speak to its customers": a name before a bare verb. */
   agreementNameSubject: (m, ctx) => {
-    if (!afterBreak(ctx, m.index) && !NAME_CUE.test(wordBefore(ctx, m.index))) return null;
+    // The frame matches at almost every word: the word tests reject most matches before the
+    // clause test.
     if (
       !/^[A-Z][a-z]+$/.test(m.groups!.name) ||
       m.groups!.target !== m.groups!.target.toLowerCase()
@@ -964,6 +1005,7 @@ export const FIXERS = {
     const read = englishWordInfo(name);
     if (read ? read.verbs.length || read.adjective || read.adverb || read.plural : /s$/.test(name))
       return null;
+    if (!opensClause(ctx, m.index, NAME_CUE)) return null;
     const [start] = m.indices!.groups!.target;
     const [verb, next] = tokensAfter(ctx, start, 2);
     if (verb?.kind !== "word" || ctx.dictionary.has(verb.lower) || ctx.dictionary.has(name))
@@ -1043,11 +1085,9 @@ export const FIXERS = {
    * complements and a relative clause by the shared clause reader, and the main verb.
    */
   agreementDistantSubject: (m, ctx) => {
-    if (!afterBreak(ctx, m.index) && !CLAUSE_CUE.test(wordBefore(ctx, m.index))) return null;
-    const raw = tokensAfter(ctx, m.index, 24);
+    if (!opensClause(ctx, m.index, CLAUSE_CUE)) return null;
     // The words of the clause: a comma, a number or punctuation ends it.
-    const end = raw.findIndex((t) => t.kind !== "word");
-    const words = end < 0 ? raw : raw.slice(0, end);
+    const words = wordsAfter(ctx, m.index, 24);
     const tokens = words.map((t) => ({
       w: normal(t.lower),
       start: t.start,

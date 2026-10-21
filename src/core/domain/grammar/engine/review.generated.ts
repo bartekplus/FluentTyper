@@ -9541,7 +9541,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
     fixer: "en:degreeOneToMany",
   }),
   frame({
-    pattern: "(?<target>[Tt]o)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
+    pattern: "(?<target>to)[ \\t\\u00a0]{1,8}(?<word>[a-z]+)(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-])",
     literals: [],
     fixer: "en:degreeOpening",
   }),
@@ -10629,7 +10629,7 @@ export const REVIEW_FRAMES: readonly CompiledFrame[] = [
   }),
   frame({
     pattern:
-      "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])",
+      "(?<![\\p{L}\\p{M}\\p{N}_'’@/#\\\\.-])[A-Za-z]+(?![\\p{L}\\p{M}\\p{N}_'’@/#\\\\-]|\\.[\\p{L}\\p{N}])(?=[ \\t\\u00a0]+(?:about|against|from|with|for|of|on|at|as|to)(?![\\p{L}\\p{M}\\p{N}_@/#\\\\-]|\\.[\\p{L}\\p{N}]))",
     literals: [],
     fixer: "en:collocationHead",
     flags: "gu",

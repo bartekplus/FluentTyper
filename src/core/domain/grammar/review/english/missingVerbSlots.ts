@@ -12,6 +12,8 @@ import {
   wordBefore,
 } from "./slotWords";
 import { finding } from "../finding";
+import { opensClause } from "./agreementSlots";
+import { wordsAfter } from "./nounNumberSlots";
 
 // Clauses whose subject has no verb: "It very easy", "I not sure", "There a lot of ways",
 // "Can we able to", "would very helpful", and no/not mixed up next to a verb or noun.
@@ -51,8 +53,7 @@ const NOT_PREDICATE = new Set(
 
 // "I don't know, it pathetic": a clause may also open after a comma.
 const subjectClause = (ctx: DetectContext, start: number) =>
-  afterBreak(ctx, start) ||
-  CLAUSE_CUE.test(wordBefore(ctx, start)) ||
+  opensClause(ctx, start, CLAUSE_CUE) ||
   /,[ \t\u00a0]*$/.test(ctx.text.slice(Math.max(0, start - 4), start));
 
 /** A finite verb before the clause ends: the subject already has its verb. */
@@ -100,12 +101,40 @@ const missing = (
 ): RawFinding =>
   finding(ruleId, messageKey, start, end, alternatives, { context: evidence(ctx, start, until) });
 
+/**
+ * True when no predicate test of missingSubjectBe can accept the word after the subject `lower`
+ * and up to two adverbs. Each test below is the condition of one branch of that fixer's predicate
+ * tests: keep the two in step. It reads three words, not ten tokens.
+ */
+function noPredicate(ctx: DetectContext, end: number, lower: string): boolean {
+  const words = wordsAfter(ctx, end, 3);
+  let k = 0;
+  while (k < 2 && words[k] && ADVERB_RUN.has(words[k].lower)) k++;
+  const head = words[k];
+  if (!head || head.text !== head.lower) return true;
+  const word = head.lower;
+  if (k === 2 && words[0].lower === "too" && /^(?:much|many)$/.test(words[1].lower)) return false;
+  if (k === 0 && /^(?:a|an|the|my|our|your)$/.test(word)) return false;
+  if (lower === "this") return !(k > 0 && words[0].lower === "not");
+  const read = FUNCTION_WORDS.has(word) ? null : englishWordInfo(word);
+  return !(
+    word === "one" ||
+    word === "worth" ||
+    CLAUSE_ADJECTIVES.test(word) ||
+    PREDICATIVE.has(word) ||
+    /^(?:fine|good|great|ready|right|wrong)$/.test(word) ||
+    (read?.adjective && !read.verbs.length) ||
+    read?.verbs.some((v) => v.form === "ing")
+  );
+}
+
 /** The named frame fixes of grammar/rules/en.yaml (`fixer:`). */
 export const FIXERS = {
   missingSubjectBe: (m, ctx) => {
     const subject = m.groups!.target;
     const lower = subject.toLowerCase();
     if (subject !== lower && !(subject === "I" || afterBreak(ctx, m.index))) return null;
+    if (noPredicate(ctx, m.index + m[0].length, lower)) return null;
     if (!subjectClause(ctx, m.index)) return null;
     // An unreadable token ("(", a URL) ends the look-ahead like punctuation.
     const tokens = tokensAfter(ctx, m.index + m[0].length, 10).map((t) =>

@@ -70,8 +70,39 @@ const COUNT_LABELS =
 
 type Number_ = { singular: string; plural: string; number: "singular" | "plural" };
 
+// The word token of tokensAfter, with no other token kind.
+const WORD =
+  /[ \t\u00a0]*([A-Za-z]+(?:['’][A-Za-z]+)?)(?![\p{L}\p{M}\p{N}_@/#\\-]|\.[\p{L}\p{N}])/uy;
+
+/**
+ * The tokens of tokensAfter(ctx, index, count) before the first token that is not a word. It
+ * reads no token after that one.
+ */
+export function wordsAfter(ctx: DetectContext, index: number, count: number): Token[] {
+  const words: Token[] = [];
+  WORD.lastIndex = index;
+  for (let m = WORD.exec(ctx.text); m && words.length < count; m = WORD.exec(ctx.text)) {
+    const text = m[1];
+    const end = m.index + m[0].length;
+    words.push({ text, lower: text.toLowerCase(), start: end - text.length, end, kind: "word" });
+  }
+  return words;
+}
+
+// The lexicon is static: many frames ask about the same words, so each word is read once.
+const NOUN_NUMBERS = new Map<string, Number_ | null>();
+
 /** Singular/plural forms of a lowercase noun and which one it is, or null. */
 export function nounNumber(word: string): Number_ | null {
+  let found = NOUN_NUMBERS.get(word);
+  if (found === undefined) {
+    if (NOUN_NUMBERS.size >= 50_000) NOUN_NUMBERS.clear();
+    NOUN_NUMBERS.set(word, (found = readNounNumber(word)));
+  }
+  return found;
+}
+
+function readNounNumber(word: string): Number_ | null {
   if (
     INVARIANT.has(word) ||
     /(?:ics|wards|doors|stairs|works)$/.test(word) ||
@@ -251,6 +282,13 @@ export const FIXERS = {
   numberArticlePlural: (m, ctx) => {
     const article = m.groups!.target;
     if (article !== article.toLowerCase() && !afterBreak(ctx, m.index)) return null;
+    // The head is one of the first four words and must be a plural: test the words first.
+    if (
+      !wordsAfter(ctx, m.index + m[0].length, 4).some(
+        (w) => nounNumber(w.lower)?.number === "plural",
+      )
+    )
+      return null;
     const tokens = tokensAfter(ctx, m.index + m[0].length, 6);
     const k = nounAfterModifiers(ctx, tokens, true);
     if (k < 0) return null;
@@ -325,6 +363,13 @@ export const FIXERS = {
   },
   numberCountSingular: (m, ctx) => {
     const count = m.groups!.target.toLowerCase();
+    // The head is one of the first four words and must be a singular or mass noun.
+    if (
+      !wordsAfter(ctx, m.index + m[0].length, 4).some(
+        (w) => MASS.has(w.lower) || nounNumber(w.lower)?.number === "singular",
+      )
+    )
+      return null;
     const before = ctx.text.slice(Math.max(0, m.index - 48), m.index);
     const previous = wordBefore(ctx, m.index);
     if (/^[0-9]/.test(count)) {
