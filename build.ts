@@ -23,6 +23,10 @@ type BuildMode = "production" | "development";
  */
 const LOCAL_AI_CONNECT_SRC = ["'self'", ...LOCAL_AI_DOWNLOAD_ORIGINS];
 
+/** Transformers.js' default ONNX Runtime wasmPaths prefix (a CDN URL). */
+const ORT_CDN_PREFIX =
+  "`https://cdn.jsdelivr.net/npm/onnxruntime-web@${ONNX_ENV.versions.web}/dist/`";
+
 const ROOT_DIR = import.meta.dir;
 const SRC_DIR = path.join(ROOT_DIR, "src");
 const PUBLIC_DIR = path.join(ROOT_DIR, "public");
@@ -122,6 +126,21 @@ function createBuildPlugin(context: BuildContext, explanations: typeof explanati
           () => ({ path: LOCAL_AI_ENGINE_NOOP_PATH }),
         );
       }
+      // MV3 forbids remotely hosted code: drop Transformers.js' default CDN wasmPaths
+      // (engineRuntime.ts sets the packaged runtime anyway).
+      build.onLoad(
+        { filter: /[\\/]@huggingface[\\/]transformers[\\/]dist[\\/].*\.m?js$/ },
+        async (args) => {
+          const source = await readFile(args.path, "utf8");
+          const patched = source.replace(ORT_CDN_PREFIX, `"/${LOCAL_AI_ORT_DIR}/"`);
+          if (patched === source) {
+            throw new Error(
+              `${args.path}: Transformers.js CDN wasmPaths not found; update ORT_CDN_PREFIX`,
+            );
+          }
+          return { contents: patched, loader: "js" };
+        },
+      );
     },
   };
 }
