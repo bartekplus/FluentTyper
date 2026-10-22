@@ -36,8 +36,6 @@ const TEST_HOOK_MARKERS = ["TEST_TRIGGER_COMMAND", "triggerCommandForTesting"];
 /** content_script.js installs its observability relay only when __FT_DEV_BUILD__ is true. */
 const DEV_BUILD_CONTENT_SCRIPT_MARKER = "CMD_CONTENT_SCRIPT_REPORT_OBSERVABILITY_EVENT";
 const REPO_ROOT = path.resolve(import.meta.dir, "..");
-/** Transformers.js' default wasmPaths; inert only when background.js overrides it. */
-const ORT_CDN_ORIGIN = "https://cdn.jsdelivr.net";
 
 export const APP_BUNDLES = [
   "background.js",
@@ -196,8 +194,6 @@ export async function checkLocalAiArtifact(
       }
       continue;
     }
-    // background.js must replace Transformers.js' CDN wasmPaths with the packaged runtime.
-    const ortOverridden = content.includes(`${LOCAL_AI_ORT_DIR}/`);
     const origins = new Map<string, number>();
     for (const url of content.match(/https?:\/\/[a-z0-9.-]+/gi) ?? []) {
       origins.set(url.toLowerCase(), (origins.get(url.toLowerCase()) ?? 0) + 1);
@@ -205,10 +201,6 @@ export async function checkLocalAiArtifact(
     for (const [origin, count] of origins) {
       if (LOCAL_AI_DOWNLOAD_ORIGINS.includes(origin)) {
         notes.push(`${bundle}: ${origin} x${count} (allowlisted download origin)`);
-      } else if (origin === ORT_CDN_ORIGIN && ortOverridden) {
-        notes.push(
-          `${bundle}: ${origin} x${count} (inert: Transformers.js default wasmPaths, overridden with ${LOCAL_AI_ORT_DIR}/)`,
-        );
       } else if (origin in INERT_URL_ORIGINS) {
         notes.push(`${bundle}: ${origin} x${count} (inert: ${INERT_URL_ORIGINS[origin]})`);
       } else {
