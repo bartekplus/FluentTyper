@@ -22,6 +22,11 @@ export interface DomEditorReplacement {
   replacement: string;
   /** The user's caret before the write, as a character offset in `before`. */
   caret: number;
+  /**
+   * The same caret as child indexes from the editor root, then the offset. A
+   * text offset at a block or line start is also the end of the one before it.
+   */
+  caretPath: number[];
 }
 
 export interface HostEditorReviewApplyRequest {

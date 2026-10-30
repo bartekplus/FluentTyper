@@ -623,8 +623,28 @@
     },
     {
       "id": "contenteditable_br_line_prediction_scope",
-      "description": "Single-paragraph contenteditable predictions stay scoped to the current br-separated visual line instead of concatenating text across line breaks.",
+      "description": "Single-paragraph contenteditable predictions stay scoped to the current br-separated visual line instead of concatenating text across line breaks. Writes for that line change only that line, also at its start, where the text offset is also the end of the line above.",
       "coverage": [
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "scoped write: %s, with the caret at the end"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "scoped write: an empty line between brs takes the text"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ContentEditableAdapter.test.ts",
+          "test": "scoped write: a deletion to the start of a br line keeps the caret on that line"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "accepts a suggestion on the caret line and keeps the line above"
+        },
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
@@ -3356,7 +3376,7 @@
     },
     {
       "id": "dom_editor_undo_caret",
-      "description": "In TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS, the host undo step before a typing write or a Review fix holds the user's caret, not the replaced range. After Undo, the caret is collapsed where the user had it, and the next key extends the typed word. The unit test of the Review fix is a guard: a Review fix kept the caret also before this support.",
+      "description": "In TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS, the host undo step before a typing write or a Review fix holds the user's caret, not the replaced range, also at the start of a block, where the text offset is also the end of the block before it. After Undo, the caret is collapsed where the user had it, and the next key extends the typed word. The unit test of the Review fix is a guard: a Review fix kept the caret also before this support.",
       "coverage": [
         {
           "layer": "e2e-full",
@@ -3372,6 +3392,16 @@
           "layer": "unit",
           "file": "tests/ReviewDomEditors.test.ts",
           "test": "after a Review fix, Undo puts back the caret of the user"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewDomEditors.test.ts",
+          "test": "after a typing edit in the first block, Undo puts the caret back at the start of a second block"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/ReviewDomEditors.test.ts",
+          "test": "after a Review fix, Undo puts the caret back at the start of a second block"
         }
       ]
     },
@@ -5120,12 +5150,22 @@
     },
     {
       "id": "tinymce_editor_transactions",
-      "description": "Real TinyMCE inline and iframe editors discover suggestions, accept autocomplete and text expansions across paragraph breaks, preserve bold/links, and undo restores the prefix or shortcut.",
+      "description": "Real TinyMCE inline and iframe editors discover suggestions, accept autocomplete and text expansions across paragraph breaks, preserve bold/links, and undo restores the prefix or shortcut. On a line after a <br>, an accepted prediction or a typing fix changes that line, never the line above.",
       "coverage": [
         {
           "layer": "e2e-full",
           "file": "tests/e2e/full.e2e.test.ts",
           "test": "TinyMCE %s predictions and expansions preserve formatting and undo"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "TinyMCE %s accepts a prediction on a line after a br and keeps the line above"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "applies a grammar edit on the caret line and keeps the line above"
         }
       ]
     },

@@ -398,6 +398,85 @@ describe("ContentEditableAdapter", () => {
     }
   });
 
+  // Issue 521: scoped offsets count from the start of the caret line. The text
+  // offset of a line start is also the end of the line above.
+  test.each([
+    [
+      "inserts at the start of a br line",
+      "Hello world<br>I am",
+      0,
+      0,
+      "X ",
+      "Hello world<br>X I am",
+    ],
+    [
+      "inserts at the start of the line after consecutive brs",
+      "above<br><br>below",
+      0,
+      0,
+      "X",
+      "above<br><br>Xbelow",
+    ],
+    [
+      "replaces text at the end of a br line",
+      "Hello world<br>I am",
+      2,
+      4,
+      "re",
+      "Hello world<br>I re",
+    ],
+  ])("scoped write: %s, with the caret at the end", (_name, html, start, end, text, expected) => {
+    const editable = createEditor(html);
+    setCaret(editable.lastChild!);
+
+    const result = new ContentEditableAdapter().replaceTextByOffsets(
+      editable,
+      start,
+      end,
+      text,
+      start + text.length,
+      { scopeRoot: editable },
+    );
+
+    expect(result.didMutateDom).toBe(true);
+    expect(editable.innerHTML).toBe(expected);
+  });
+
+  test("scoped write: an empty line between brs takes the text", () => {
+    const editable = createEditor("above<br><br>below");
+    setCaret(editable, 2);
+    // happy-dom does not insert text at an element boundary; a browser does.
+    const originalExecCommand = document.execCommand;
+    document.execCommand = ((_commandId: string, _showUi?: boolean, value?: string) => {
+      window
+        .getSelection()!
+        .getRangeAt(0)
+        .insertNode(document.createTextNode(value ?? ""));
+      return true;
+    }) as typeof document.execCommand;
+
+    try {
+      new ContentEditableAdapter().replaceTextByOffsets(editable, 0, 0, "X", 1, {
+        scopeRoot: editable,
+      });
+    } finally {
+      document.execCommand = originalExecCommand;
+    }
+
+    expect(editable.innerHTML).toBe("above<br>X<br>below");
+  });
+
+  test("scoped write: a deletion to the start of a br line keeps the caret on that line", () => {
+    const adapter = new ContentEditableAdapter();
+    const editable = createEditor("Hello world<br>ab");
+    setCaret(editable.lastChild!);
+
+    adapter.replaceTextByOffsets(editable, 0, 2, "", 0, { scopeRoot: editable });
+
+    expect(editable.textContent).toBe("Hello world");
+    expect(adapter.getBlockContext(editable)).toEqual({ beforeCursor: "", afterCursor: "" });
+  });
+
   test("maps offset zero to structural boundary before leading empty block text", () => {
     const adapter = new ContentEditableAdapter();
     const editable = createEditor("<p><br></p><p>next</p>");

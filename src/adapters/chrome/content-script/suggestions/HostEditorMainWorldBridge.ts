@@ -394,14 +394,23 @@ function applyBlockReplacement(
     : NOT_APPLIED;
 }
 
-/** The text node and offset at a character offset in the text of `root`. */
-function textPosition(root: HTMLElement, offset: number): [Text, number] | null {
-  const walker = root.ownerDocument.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-  for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
-    if (offset <= node.length) return [node, offset];
-    offset -= node.length;
+/** The point at `path` (child indexes, then the offset) when its text offset is `textOffset`. */
+function pointAtPath(root: HTMLElement, path: unknown, textOffset: number): [Node, number] | null {
+  if (!Array.isArray(path) || !path.every((index): index is number => Number.isSafeInteger(index)))
+    return null;
+  let node: Node = root;
+  for (const index of path.slice(0, -1)) {
+    const child = node.childNodes[index];
+    if (!child) return null;
+    node = child;
   }
-  return null;
+  const offset = path.at(-1) ?? -1;
+  const length = node.nodeType === Node.TEXT_NODE ? (node as Text).length : node.childNodes.length;
+  if (offset < 0 || offset > length) return null;
+  const prefix = root.ownerDocument.createRange();
+  prefix.selectNodeContents(root);
+  prefix.setEnd(node, offset);
+  return prefix.toString().length === textOffset ? [node, offset] : null;
 }
 
 // TinyMCE, CKEditor 4, Froala, Summernote and RoosterJS own history even though
@@ -433,13 +442,12 @@ function applyDomEditor(elem: HTMLElement, request: DomEditorReplacement) {
   // range: else Undo leaves the typed text selected, and the next key replaces it.
   const selection = win.getSelection()!;
   const replaced = selection.getRangeAt(0).cloneRange();
-  // A caret at the end of the replaced range stays in its node: the same text
-  // offset at a block start also maps to the end of the block before it.
-  const caret =
-    request.caret === request.prefix.length + request.selected.length
-      ? ([replaced.endContainer, replaced.endOffset] as const)
-      : textPosition(elem, request.caret);
-  if (caret) selection.collapse(caret[0], caret[1]);
+  // Page code can change the nodes but keep the text: then the end of the replaced range.
+  const caret = pointAtPath(elem, request.caretPath, request.caret) ?? [
+    replaced.endContainer,
+    replaced.endOffset,
+  ];
+  selection.collapse(caret[0], caret[1]);
   const begun = reviewTransaction(elem, "begin");
   selection.removeAllRanges();
   selection.addRange(replaced);

@@ -2376,6 +2376,76 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
     suiteTimeout(30000, 50000),
   );
 
+  // Issue 521: the write used the offsets of the caret line from the block start.
+  test.each(["iframe", "inline"] as const)(
+    "TinyMCE %s accepts a prediction on a line after a br and keeps the line above",
+    async (mode) => {
+      await setSettings(worker, {
+        [KEY_LANGUAGE]: "en_US",
+        [KEY_ENABLED_LANGUAGES]: SUPPORTED_PREDICTION_LANGUAGE_KEYS,
+        [KEY_MIN_WORD_LENGTH_TO_PREDICT]: 1,
+        [KEY_INLINE_SUGGESTION]: false,
+      });
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page, { tinyMceMode: mode });
+      await waitUntil(
+        "TinyMCE initialization",
+        async () => page.evaluate(() => !!window.__testTinyMCE),
+        { timeoutMs: INPUT_READY_TIMEOUT_MS },
+      );
+      const editorPage: Page | Frame =
+        mode === "inline"
+          ? page
+          : await waitUntil(
+              "TinyMCE editing frame",
+              async () => (await (await page.$("#test-tinymce_ifr"))?.contentFrame()) ?? false,
+              { timeoutMs: INPUT_READY_TIMEOUT_MS },
+            );
+      const selector = mode === "inline" ? "#test-tinymce" : "body";
+      if (mode === "iframe") await page.waitForSelector(".tox-tinymce", { visible: true });
+      await waitForInputReady(editorPage, selector);
+      await editorPage.click(`${selector} p:last-child`);
+      await page.evaluate(() => {
+        const editor = window.__testTinyMCE!;
+        editor.setContent("<p>Hello world</p>");
+        editor.selection.select(editor.getBody().firstElementChild!, true);
+        editor.selection.collapse(false);
+      });
+      await page.keyboard.down("Shift");
+      await page.keyboard.press("Enter");
+      await page.keyboard.up("Shift");
+      await page.keyboard.type("I am w");
+      const prediction = await waitUntil(
+        "TinyMCE prediction on the br line",
+        async () => {
+          const text = (await getVisibleSuggestionTexts(editorPage))[0];
+          return text && /^w\S*[ \xa0]$/i.test(text) ? text : false;
+        },
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      const readLines = () =>
+        page.evaluate(() =>
+          window
+            .__testTinyMCE!.getBody()
+            .firstElementChild!.innerHTML.replaceAll("&nbsp;", " ")
+            .split("<br>"),
+        );
+      await page.keyboard.press("Tab");
+      await waitUntil(
+        "TinyMCE br line contains the accepted prediction",
+        async () =>
+          normalizeSuggestionText((await readLines())[1] ?? "") ===
+          normalizeSuggestionText(`I am ${prediction}`),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch(async (error) => {
+        throw new Error(`${String(error)}: ${JSON.stringify(await readLines())}`);
+      });
+      expect((await readLines())[0]).toBe("Hello world");
+    },
+    suiteTimeout(30000, 50000),
+  );
+
   test(
     "Personalized menu and inline ranking survives runtime restart and clears locally",
     async () => {
