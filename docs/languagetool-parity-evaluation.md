@@ -76,6 +76,30 @@ What is left, by language:
 
 The English clean-prose corpus (`tests/grammar/ReviewCorpus.test.ts`) stayed at zero findings throughout.
 
+## The LanguageTool website (2026-10-30)
+
+The LanguageTool website finds errors that the rule files above do not have. Besides its open-source rules, it runs a **neural model**. Its findings have rule ids that start with `QB_NEW_EN_`. The public API gives the same results with `abtest=qb,gc_1_aggressive` and `level=picky`. Without these parameters, the API runs only the open-source rules. Thus a scorecard of rule-file examples cannot show the gap.
+
+- In a user report ("…try to stop him doing anything"), the open-source rules found nothing. Both website findings came from the model: "him" → "him from" and "anything" → "anything?".
+- In a written set of 351 errors, 113 of the 121 errors that only the website found came from the model.
+
+English Review got frames for these error families (`tests/grammar/ReviewWebGaps.test.ts`). The frames cover missing question marks, "from" after prevent-type verbs, then/than, it's/you're as possessives, plural mass nouns, agreement, tense after time words, verb patterns, prepositions, confused words, compounds, question word order, adverb forms, "will" in time clauses, commas after opening words, and a/an.
+
+| Corpus                                     | Errors | Review before | Review after | Website | Clean sentences | Review fp (before → after) | Website fp |
+| ------------------------------------------ | -----: | ------------: | -----------: | ------: | --------------: | -------------------------: | ---------: |
+| Written pairs, 29 error families (our own) |    351 |           183 |          272 |     273 |             360 |                      2 → 0 |         30 |
+| JFLEG learner sentences                    |  1,304 |           754 |          757 |   1,162 |           1,501 |                    86 → 92 |        658 |
+
+- Review ran with its default rules and the offline spelling pass (en_US).
+- We read each new finding on the 11,259 correct LT examples. All 31 were real errors in those sentences, for example "No this is not your house.".
+- The 6 new findings on the JFLEG references were also real errors.
+- JFLEG stays far behind. Most of its remaining website findings are heavy misspellings and whole-sentence rewrites. Only the opt-in Local AI can find these.
+- Not done:
+  - Style advice that the website shows by default ("try and", "the reason is because", "return back"). These are register choices, so they stay optional.
+  - Dialect usage ("I ain't got no").
+  - Constructions that rules cannot read ("kept him freezing", "I'm boring in this class").
+  - Questions with no mark that are the only text on their line. They look like headings.
+
 ## What was added, per language
 
 New rules are on by default only when they are precise. Uncertain repairs need an explicit choice (`requiresChoice`) or are left out of Fix all. Opinions and register advice are opt-in.

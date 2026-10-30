@@ -2,7 +2,7 @@ import { expect, test } from "bun:test";
 import { applyEdits } from "../../src/core/domain/grammar/review/textRanges";
 import { DEFAULT_RULES, scan } from "./reviewHarness";
 
-// Errors that the LanguageTool website finds and default Review missed (docs/languagetool-web-gaps.md).
+// Errors that the LanguageTool website finds and default Review missed (docs/languagetool-parity-evaluation.md).
 // All sentences are our own. Only the rules a user has on by default run.
 const review = (text: string) => scan(text, { enabledRules: DEFAULT_RULES });
 
