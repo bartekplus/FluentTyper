@@ -120,6 +120,16 @@ export class SuggestionPositioningService {
   }
 
   public getCaretRect(elem: SuggestionElement): DOMRect | null {
+    // CodeMirror 5 draws its own caret; its hidden input only follows the caret line.
+    const codeMirrorCaret = TextTargetAdapter.isCodeMirrorInput(elem)
+      ? elem
+          .closest(".CodeMirror")
+          ?.querySelector(".CodeMirror-cursor:not(.CodeMirror-secondarycursor)")
+          ?.getBoundingClientRect()
+      : null;
+    if (codeMirrorCaret?.height) {
+      return new DOMRect(codeMirrorCaret.left, codeMirrorCaret.top, 0, codeMirrorCaret.height);
+    }
     if (TextTargetAdapter.isTextValue(elem)) {
       return this.getTextValueCaretRect(elem);
     }

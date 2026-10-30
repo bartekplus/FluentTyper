@@ -569,6 +569,7 @@ async function gotoTestPage(
     enableGutenberg?: boolean;
     gutenbergIframe?: boolean;
     tinyMceMode?: "iframe" | "inline";
+    codeMirrorInput?: "contenteditable" | "textarea";
     reviewEditor?: PageEditor;
     /** "blocks" adds a second paragraph and a list item to the Review editor fixture. */
     reviewSeed?: "blocks";
@@ -597,6 +598,7 @@ async function gotoTestPage(
   if (options.tinyMceMode) {
     params.set("tinyMceMode", options.tinyMceMode);
   }
+  if (options.codeMirrorInput) params.set("codeMirrorInput", options.codeMirrorInput);
   const query = params.toString();
   const targetUrl = query ? `${domainTestUrl}?${query}` : domainTestUrl;
   if (isFirefox()) {
@@ -896,6 +898,7 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
       "tinymce",
       "react-controlled",
       "gutenberg",
+      "codemirror5",
     ] as const) {
       editorBundles[`/test-${editor}-editor.js`] = await bundleTestEditor(
         `${editor}-test-editor.ts`,
@@ -2064,6 +2067,137 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
         await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
         await notifyConfigChange(browser, worker);
       }
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  // Regression for #518. In its "contenteditable" input mode (Rentry), CodeMirror 5
+  // inserts typed characters itself and fires no input event for them. In its default
+  // "textarea" mode, its hidden input holds only the text typed since its last command.
+  test.each(["contenteditable", "textarea"] as const)(
+    "CodeMirror 5 %s input predicts, accepts and expands on the caret line",
+    async (codeMirrorInput) => {
+      const value = () => page.evaluate(() => window.__testCodeMirror!.getValue());
+      try {
+        await setSetting(worker, KEY_LANGUAGE, "en_US");
+        await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+        await setSetting(worker, KEY_INLINE_SUGGESTION, false);
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, [["abc", "abcdef"]]);
+        await setGrammarRules(worker, []);
+        await notifyConfigChange(browser, worker);
+        await gotoTestPage(page, { codeMirrorInput });
+        await waitForInputReady(
+          page,
+          codeMirrorInput === "textarea" ? ".CodeMirror textarea" : ".CodeMirror-code",
+        );
+        await page.click(".CodeMirror-lines");
+        const firstSuggestion = (label: string, pattern: RegExp) =>
+          waitUntil(
+            label,
+            async () => {
+              const text = (await getVisibleSuggestionTexts(page))[0];
+              return text && pattern.test(text) ? text : false;
+            },
+            { timeoutMs: SUGGESTION_TIMEOUT_MS },
+          ).catch(async (cause) => {
+            throw new Error(`${label}: ${JSON.stringify(await value())}`, { cause });
+          });
+        const modelIs = (label: string, expected: string) =>
+          waitUntil(
+            label,
+            async () =>
+              normalizeSuggestionText(await value()) === normalizeSuggestionText(expected),
+            { timeoutMs: SUGGESTION_TIMEOUT_MS },
+          ).catch(async (cause) => {
+            throw new Error(`${label}: ${JSON.stringify(await value())}`, { cause });
+          });
+        await page.keyboard.type("The quick brown fox jum");
+        await firstSuggestion("CodeMirror prediction for the typed prefix", /^jum/i);
+        // A deletion predicts for the text after it, not for the text before it.
+        await page.keyboard.type("x");
+        await page.keyboard.press("Backspace");
+        await page.keyboard.press("Backspace");
+        const prediction = await firstSuggestion(
+          "CodeMirror prediction after a deletion",
+          /^ju(?!m)\S*[ \xa0]?$/i,
+        );
+        await page.keyboard.press("Tab");
+        const accepted = `The quick brown fox ${prediction.replace(/\xa0/g, " ")}`;
+        await modelIs("CodeMirror model contains the accepted prediction", accepted);
+        await page.keyboard.type(accepted.endsWith(" ") ? "abc" : " abc");
+        await highlightSuggestion(page, "abcdef");
+        await page.keyboard.press("Tab");
+        await modelIs("CodeMirror model contains the expansion", `${accepted.trimEnd()} abcdef`);
+      } finally {
+        await setSetting(worker, KEY_TEXT_EXPANSIONS, []);
+        await notifyConfigChange(browser, worker);
+      }
+    },
+    suiteTimeout(30000, 50000),
+  );
+
+  test.each(["contenteditable", "textarea"] as const)(
+    "CodeMirror 5 %s input shows the inline ghost at the caret and accepts it on Tab",
+    async (codeMirrorInput) => {
+      const value = () => page.evaluate(() => window.__testCodeMirror!.getValue());
+      await setSetting(worker, KEY_LANGUAGE, "en_US");
+      await setSetting(worker, KEY_MIN_WORD_LENGTH_TO_PREDICT, 1);
+      await setSetting(worker, KEY_INLINE_SUGGESTION, true);
+      await setGrammarRules(worker, []);
+      await notifyConfigChange(browser, worker);
+      await gotoTestPage(page, { codeMirrorInput });
+      await waitForInputReady(
+        page,
+        codeMirrorInput === "textarea" ? ".CodeMirror textarea" : ".CodeMirror-code",
+      );
+      await page.click(".CodeMirror-lines");
+      await page.keyboard.type("The quick brown fox jum");
+      // The ghost of the whole typed prefix ("jump"), not of an earlier keystroke.
+      const suffix = await waitUntil(
+        "CodeMirror inline ghost",
+        async () => {
+          const text = await page.evaluate(
+            () => document.querySelector(".ft-suggestion-inline")?.textContent ?? "",
+          );
+          return /^p/.test(text) ? text : false;
+        },
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      );
+      // The ghost starts right after the last typed glyph, on its line.
+      const { ghost, glyph } = await page.evaluate(() => {
+        const rect = (node: Node, start?: number) => {
+          const range = document.createRange();
+          if (start === undefined) {
+            range.selectNodeContents(node);
+          } else {
+            range.setStart(node, start);
+            range.setEnd(node, start + 1);
+          }
+          return range.getClientRects()[0];
+        };
+        const line = document.querySelector(".CodeMirror-line")!;
+        const walker = document.createTreeWalker(line, NodeFilter.SHOW_TEXT);
+        let last = walker.nextNode() as Text;
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) last = node as Text;
+        const { left, top, height } = rect(document.querySelector(".ft-suggestion-inline")!);
+        const { right, top: glyphTop, bottom } = rect(last, last.length - 1);
+        return { ghost: { left, middle: top + height / 2 }, glyph: { right, glyphTop, bottom } };
+      });
+      expect(Math.abs(ghost.left - glyph.right)).toBeLessThan(4);
+      expect(ghost.middle).toBeGreaterThan(glyph.glyphTop);
+      expect(ghost.middle).toBeLessThan(glyph.bottom);
+      await page.keyboard.press("Tab");
+      await waitUntil(
+        "CodeMirror model contains the accepted inline suggestion",
+        async () =>
+          normalizeSuggestionText(await value()) ===
+          normalizeSuggestionText(`The quick brown fox jum${suffix}`),
+        { timeoutMs: SUGGESTION_TIMEOUT_MS },
+      ).catch(async (cause) => {
+        throw new Error(`CodeMirror model: ${JSON.stringify({ suffix, value: await value() })}`, {
+          cause,
+        });
+      });
     },
     suiteTimeout(30000, 50000),
   );

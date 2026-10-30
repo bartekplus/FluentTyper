@@ -1,5 +1,6 @@
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { gutenbergSelectedField } from "./GutenbergEnvironment";
+import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
 import type { PostEditFingerprint, SuggestionSnapshot } from "./types";
 
 export type TextTarget = HTMLInputElement | HTMLTextAreaElement | HTMLElement;
@@ -39,6 +40,14 @@ export class TextTargetAdapter {
     return TextTargetAdapter.isInput(elem) || TextTargetAdapter.isTextArea(elem);
   }
 
+  /** CodeMirror 5's own input in its default "textarea" mode; its model owns the text. */
+  static isCodeMirrorInput(elem: Element): elem is HTMLTextAreaElement {
+    return (
+      TextTargetAdapter.isTextArea(elem) &&
+      !!elem.parentElement?.parentElement?.classList.contains("CodeMirror")
+    );
+  }
+
   static findBackingTextValueTarget(elem: Element): HTMLInputElement | HTMLTextAreaElement | null {
     if (TextTargetAdapter.isTextValue(elem)) {
       return elem;
@@ -73,6 +82,14 @@ export class TextTargetAdapter {
 
   static snapshot(target: TextTarget): SuggestionSnapshot {
     if (TextTargetAdapter.isTextValue(target)) {
+      // The input holds only the text typed since the last editor command.
+      const line = TextTargetAdapter.isCodeMirrorInput(target)
+        ? new InjectedHostEditorPageBridge(target.ownerDocument).getBlockContextAtSelection(target)
+        : null;
+      if (line) {
+        const { beforeCursor, afterCursor } = line;
+        return { beforeCursor, afterCursor, cursorOffset: beforeCursor.length };
+      }
       const value = target.value ?? "";
       const cursorOffset = target.selectionStart ?? value.length;
       return {

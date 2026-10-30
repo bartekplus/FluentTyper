@@ -210,6 +210,10 @@
         <label for="test-tinymce">TinyMCE</label>
         <div id="test-tinymce"></div>
       </div>
+      <div class="input-group" id="test-codemirror-group">
+        <label for="test-codemirror">CodeMirror 5</label>
+        <textarea id="test-codemirror" name="text"></textarea>
+      </div>
       <div class="input-group" id="test-review-editor-group">
         <div id="test-review-editor"></div>
       </div>
@@ -415,6 +419,14 @@
       } else {
         const script = document.createElement("script");
         script.src = "/test-tinymce-editor.js";
+        document.head.appendChild(script);
+      }
+      const codeMirrorGroup = document.getElementById("test-codemirror-group");
+      if (!params.has("codeMirrorInput")) {
+        codeMirrorGroup.remove();
+      } else {
+        const script = document.createElement("script");
+        script.src = "/test-codemirror5-editor.js";
         document.head.appendChild(script);
       }
       // One real editor of the Review editor fixtures (tests/e2e/fixtures/review-editors).

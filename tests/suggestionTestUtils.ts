@@ -273,6 +273,25 @@ export function createLineEditorController(
   return controller;
 }
 
+/**
+ * CodeMirror 5 in its default "textarea" input mode: its model owns the caret line,
+ * and its hidden input holds only the text typed since its last command.
+ */
+export function createCodeMirrorInput(line: string, cursor: number, inputValue: string) {
+  enableHostEditorBridge();
+  const codeMirror = document.body.appendChild(document.createElement("div"));
+  codeMirror.className = "CodeMirror";
+  const input = codeMirror
+    .appendChild(document.createElement("div"))
+    .appendChild(document.createElement("textarea"));
+  input.value = inputValue;
+  const display = codeMirror.appendChild(document.createElement("pre"));
+  const controller = createLineEditorController(display, line, cursor, { withOperation: true });
+  Object.assign(codeMirror, { CodeMirror: controller });
+  input.focus();
+  return { input, controller };
+}
+
 /** Fake page bridge that keeps one block of text and writes it into editable. */
 export function fakePageBridge(
   editable: HTMLElement,
