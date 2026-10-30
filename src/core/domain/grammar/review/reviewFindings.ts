@@ -39,6 +39,12 @@ export function spellingDiagnostic(
   suggestions: readonly string[],
 ): ReviewDiagnostic | null {
   if (suggestions.length === 0) return null;
+  // English keeps the accents of loanwords: "café" is right when the dictionary only has "cafe".
+  if (prepared.options.lang.startsWith("en")) {
+    const bare = candidate.word.normalize("NFD").replace(/\p{M}/gu, "");
+    if (bare !== candidate.word && suggestions.some((s) => s.toLowerCase() === bare.toLowerCase()))
+      return null;
+  }
   return toDiagnostic(prepared, {
     ruleId: REVIEW_SPELLING_CHECK,
     messageKey: "review_msg_unknown_word",
