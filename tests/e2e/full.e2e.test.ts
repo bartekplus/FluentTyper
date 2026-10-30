@@ -7601,7 +7601,8 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               (elements, i) => (elements[i as number] as HTMLElement).textContent ?? "",
               index,
             );
-          await page.$$eval(
+          // The text after the caret, which acceptance must keep.
+          const rest = await page.$$eval(
             selector,
             (elements, i, at) => {
               const element = elements[i as number] as HTMLElement;
@@ -7611,7 +7612,9 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
               selection.collapseToEnd();
               const text = element.firstChild;
               const space = text?.nodeType === Node.TEXT_NODE ? text.textContent!.indexOf(" ") : -1;
-              if (at === "middle" && space > 0) selection.collapse(text, space);
+              if (at !== "middle" || space <= 0) return "";
+              selection.collapse(text, space);
+              return element.textContent!.slice(space);
             },
             index,
             where,
@@ -7628,11 +7631,17 @@ describeE2E(`Extension E2E Test [${BROWSER_TYPE}]`, () => {
             continue;
           }
           await page.keyboard.press("Tab");
-          await waitUntil(`${type} ${where} acceptance`, async () =>
-            (await field()).includes(` ${prediction.trim()}`),
-          ).catch(() => undefined);
+          // The menu for " w" can show before the one for " wo" and change before Tab,
+          // so read the accepted word from the field: the word in front of the rest.
+          const word = await waitUntil(`${type} ${where} acceptance`, async () => {
+            const text = await field();
+            const accepted = text.endsWith(rest)
+              ? text.slice(0, text.length - rest.length).match(/ (\S+)$/)?.[1]
+              : undefined;
+            return accepted && accepted !== "wo" ? accepted : false;
+          }).catch(() => prediction.trim());
           await page.keyboard.type("Z");
-          const expected = ` ${prediction.trim()}Z`;
+          const expected = ` ${word}Z`;
           const ok = await waitUntil(
             `${type} ${where} caret`,
             async () =>
