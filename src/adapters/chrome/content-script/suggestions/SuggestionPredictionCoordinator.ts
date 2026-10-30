@@ -4,6 +4,7 @@ import { resolveCodeContext } from "./CodeContextResolver";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
 import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
+import { stripFillerChars } from "@core/domain/spacingRules";
 import { extractPredictionTokenSuffix } from "@core/domain/predictionToken";
 import { createLogger } from "@core/application/logging/Logger";
 import {
@@ -195,8 +196,10 @@ export class SuggestionPredictionCoordinator {
           ? TextTargetAdapter.snapshot(entry.elem)
           : null
         : null;
-    const beforeCursor = beforeCursorOverride ?? snapshot?.beforeCursor ?? "";
-    const afterCursor = afterCursorOverride ?? snapshot?.afterCursor ?? "";
+    // An empty editor line can hold only a filler (CodeMirror 5 renders "\u200B"): it is an empty line.
+    const emptyIfFillerOnly = (text: string) => (stripFillerChars(text) ? text : "");
+    const beforeCursor = emptyIfFillerOnly(beforeCursorOverride ?? snapshot?.beforeCursor ?? "");
+    const afterCursor = emptyIfFillerOnly(afterCursorOverride ?? snapshot?.afterCursor ?? "");
 
     const shouldPredict = this.shouldPredict(beforeCursor);
     if (!force && !shouldPredict) {

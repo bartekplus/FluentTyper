@@ -76,6 +76,32 @@ describe("SuggestionPredictionCoordinator", () => {
     expect(entry.requestId).toBe(1);
   });
 
+  test("handles a line that holds only zero-width fillers as an empty line", async () => {
+    const getPrediction = jest.fn();
+    const clearSuggestions = jest.fn();
+    const coordinator = makeCoordinator({ getPrediction, minWordLengthToPredict: 1 });
+
+    // CodeMirror 5 renders an empty line as a zero-width space.
+    coordinator.schedule(inputEntry(1, "\u200B"), { force: false, clearSuggestions });
+    await Bun.sleep(5);
+    expect(getPrediction).not.toHaveBeenCalled();
+    expect(clearSuggestions).toHaveBeenCalledTimes(1);
+
+    // A focus trigger forces the request; it must not send the filler as a typed word.
+    coordinator.schedule(inputEntry(2, "\u2060\uFEFF"), { force: true, clearSuggestions });
+    expect(getPrediction).toHaveBeenLastCalledWith(expect.objectContaining({ text: "" }));
+
+    // CodeMirror 5 puts the caret before the filler of an empty line.
+    coordinator.schedule(inputEntry(4, "\u200B", 0), { force: true, clearSuggestions });
+    expect(getPrediction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ text: "", nextChar: "", afterCursorTokenSuffix: "" }),
+    );
+
+    coordinator.schedule(inputEntry(3, "\u200Bh"), { force: false, clearSuggestions });
+    await Bun.sleep(5);
+    expect(getPrediction).toHaveBeenLastCalledWith(expect.objectContaining({ text: "\u200Bh" }));
+  });
+
   test("passes inputAction in prediction request when provided", async () => {
     const getPrediction = jest.fn();
     const coordinator = makeCoordinator({ getPrediction });
