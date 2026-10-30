@@ -378,7 +378,7 @@ export class PresageHandler {
 
   /**
    * Snippet expansions matching the word being typed (#366), best match first,
-   * minus any whose text is already a word prediction or an earlier snippet.
+   * minus any whose text is blank, already a word prediction or an earlier snippet.
    * The token length is already gated by minWordLengthToPredict via doPrediction.
    */
   private async predictSnippets(
@@ -414,7 +414,7 @@ export class PresageHandler {
       }
       const text = await TemplateExpander.parseStringTemplateAsync(expansion, resolver);
       const key = normalizePrediction(text);
-      if (!seen.has(key)) {
+      if (key && !seen.has(key)) {
         seen.add(key);
         picked.push({ text, snippetShortcut: shortcut });
       }

@@ -236,3 +236,9 @@ describe("PresageHandler snippet suggestions (#366)", () => {
     });
   });
 });
+
+test("a blank snippet body is never shown as a snippet suggestion", async () => {
+  await expect(predict(createHandler([["actx", " "]]), "act")).resolves.toEqual({
+    predictions: [],
+  });
+});
