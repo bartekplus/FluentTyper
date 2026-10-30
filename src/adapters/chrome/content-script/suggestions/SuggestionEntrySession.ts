@@ -292,10 +292,12 @@ export class SuggestionEntrySession {
     // Quill reconciles native DOM input in a MutationObserver microtask. A
     // nested native edit during its input event can duplicate the typed key.
     // slate-react applies a native keystroke to its model in its React input
-    // handler, which runs after this one; a task runs after both.
+    // handler, and CodeMirror 5 reads its hidden input into its model in its own.
+    // Those handlers run after this one; a task runs after both.
     const defer = this.entry.elem.matches(".ql-editor")
       ? queueMicrotask
-      : this.entry.elem.matches("[data-slate-editor]")
+      : this.entry.elem.matches("[data-slate-editor]") ||
+          TextTargetAdapter.isCodeMirrorInput(this.entry.elem)
         ? (callback: () => void) => void setTimeout(callback)
         : null;
     if (deferHostInput && defer) {
@@ -843,8 +845,13 @@ export class SuggestionEntrySession {
       return true;
     };
     const snapshot = TextTargetAdapter.snapshot(this.entry.elem);
+    // A host can render an edit as a new caret block (CodeMirror 5 replaces its line).
+    const scopeElement = pending.scopeElement?.isConnected
+      ? pending.scopeElement
+      : pending.scopeElement &&
+        this.options.contentEditableAdapter.getActiveBlockElement(this.entry.elem);
     const currentFullText =
-      pending.scopeElement?.textContent ?? `${snapshot.beforeCursor}${snapshot.afterCursor}`;
+      scopeElement?.textContent ?? `${snapshot.beforeCursor}${snapshot.afterCursor}`;
     const textChanged =
       pending.expectedFullText !== null && currentFullText !== pending.expectedFullText;
     const shouldReconcileEnterAtEmptyBoundary =

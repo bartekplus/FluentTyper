@@ -3,7 +3,12 @@ import { InlineSuggestionPresenter } from "../src/adapters/chrome/content-script
 import { InlineSuggestionView } from "../src/adapters/chrome/content-script/suggestions/InlineSuggestionView";
 import type { SuggestionPositioningService } from "../src/adapters/chrome/content-script/suggestions/SuggestionPositioningService";
 import { createEditor, setCaret, setCaretAtTextOffset } from "./codeContextTestUtils";
-import { createRect, createSuggestionEntry, findLastWord } from "./suggestionTestUtils";
+import {
+  createCodeMirrorInput,
+  createRect,
+  createSuggestionEntry,
+  findLastWord,
+} from "./suggestionTestUtils";
 
 function setupInputPresenter({
   value,
@@ -123,6 +128,32 @@ describe("InlineSuggestionPresenter", () => {
     expect(renderSpy).not.toHaveBeenCalled();
     expect(mirrorSpy).not.toHaveBeenCalled();
     // A hidden ghost must not stay armed for Tab acceptance.
+    expect(entry.inlineSuggestion).toBeNull();
+    expect(entry.inlineRenderRejected).toBe(true);
+  });
+
+  test("does not arm a mirror preview for a CodeMirror 5 input textarea", () => {
+    const mirrorSpy = jest.spyOn(InlineSuggestionView, "renderMirrorPreview");
+    // Mid-line: the preview needs a mirror of the line, which the hidden input lacks.
+    const { input } = createCodeMirrorInput("fun later", 3, "fun");
+    const presenter = new InlineSuggestionPresenter({
+      positioningService: {
+        getCaretRect: () => createRect(),
+      } as unknown as SuggestionPositioningService,
+    });
+    const entry = createSuggestionEntry({
+      elem: input,
+      inlineSuggestion: "function",
+      latestMentionText: "fun",
+    });
+
+    presenter.renderForEntry({
+      enabled: true,
+      entry,
+      resolveMentionToken: () => ({ token: "fun", start: 0 }),
+    });
+
+    expect(mirrorSpy).not.toHaveBeenCalled();
     expect(entry.inlineSuggestion).toBeNull();
     expect(entry.inlineRenderRejected).toBe(true);
   });

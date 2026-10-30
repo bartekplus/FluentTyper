@@ -9,6 +9,7 @@ import type { LineEditorBlockContext } from "./HostEditorControllerUtils";
 import { getDeepActiveElement } from "@core/application/dom-utils";
 import { commonAffixes, isGraphemeBoundary } from "@core/domain/grammar/review/textRanges";
 import { CURSOR_MOVE_COUNT_ATTR, CURSOR_MOVE_EVENT } from "./HostEditorBridgeProtocol";
+import { InjectedHostEditorPageBridge } from "./HostEditorPageBridge";
 import {
   clearAcceptedSuggestionSpaceState,
   resolveLiveBlockScopedEdit,
@@ -1026,6 +1027,16 @@ export class SuggestionTextEditService {
       return refused;
     const updatedText = `${fullText.slice(0, replaceStart)}${replacementText}${fullText.slice(replaceEnd)}`;
 
+    if (TextTargetAdapter.isCodeMirrorInput(elem)) {
+      // The snapshot is the caret line of the editor model, so the model takes the edit.
+      const result = new InjectedHostEditorPageBridge(elem.ownerDocument).applyBlockReplacement(
+        elem,
+        { replaceStart, replaceEnd, replacementText, cursorAfter, expectedBlockText: fullText },
+      );
+      return result.applied
+        ? { didMutateDom: true, didDispatchInput: result.didDispatchInput, nativeUndo: true }
+        : refused;
+    }
     if (TextTargetAdapter.isTextValue(elem)) {
       if (elem.value !== fullText || updatedText === fullText) return refused;
       if (elem.maxLength >= 0 && updatedText.length > elem.maxLength) return refused;

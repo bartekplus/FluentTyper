@@ -3,6 +3,7 @@ import { ContentEditableAdapter } from "../src/adapters/chrome/content-script/su
 import { HostEditorAdapterResolver } from "../src/adapters/chrome/content-script/suggestions/HostEditorAdapterResolver";
 import { createEditor, setCaret, setCaretAtTextOffset } from "./codeContextTestUtils";
 import {
+  createCodeMirrorInput,
   createLineEditorController,
   createPendingEdit,
   createSuggestionEntry,
@@ -127,6 +128,18 @@ describe("SuggestionTextEditService", () => {
       cursorAfterIsBlockLocal: false,
     });
     expect(input.value).toBe("function");
+  });
+
+  test("accepts a suggestion into the CodeMirror 5 model, not into its hidden input", () => {
+    const service = createTextEditService();
+    // A Backspace (an editor command) emptied the hidden input.
+    const { input, controller } = createCodeMirrorInput("The quick brown fox ju", 22, "");
+    const entry = createSuggestionEntry({ elem: input });
+
+    expect(service.acceptSuggestion(entry, "just ")).not.toBeNull();
+    expect(controller.getLine(0)).toBe("The quick brown fox just ");
+    expect(controller.getCursor()).toEqual({ line: 0, ch: 25 });
+    expect(input.value).toBe("");
   });
 
   test("refuses unverified ProseMirror suggestions without recording an accepted edit", () => {

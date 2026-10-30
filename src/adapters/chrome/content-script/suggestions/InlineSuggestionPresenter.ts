@@ -109,7 +109,10 @@ export class InlineSuggestionPresenter {
     const trailingTokenText = isMidText ? (resolveTrailingToken?.(snapshot.afterCursor) ?? "") : "";
 
     let ghost: HTMLDivElement | null;
-    if (useMirror && TextTargetAdapter.isTextValue(entry.elem)) {
+    if (useMirror && TextTargetAdapter.isCodeMirrorInput(entry.elem)) {
+      // A mirror of CodeMirror's hidden input can't show the editor line.
+      ghost = null;
+    } else if (useMirror && TextTargetAdapter.isTextValue(entry.elem)) {
       ghost = InlineSuggestionView.renderMirrorPreview({
         target: entry.elem,
         suffix,

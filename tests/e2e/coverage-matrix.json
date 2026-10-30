@@ -5217,6 +5217,47 @@
       ]
     },
     {
+      "id": "codemirror5_keystrokes_without_input_events",
+      "description": "Real CodeMirror 5 in both input modes. Its contenteditable mode (Rentry) inserts typed characters itself, fires no input event for them and renders the edited line as a new element: the keydown fallback still predicts after each typed and deleted character. Its default textarea mode keeps only the text typed since its last command in a hidden input: predictions, accepted suggestions and text expansions read and write the caret line of the editor model, after the editor reads its input. Inline ghosts start at the caret; a mirror preview of the hidden input is not armed.",
+      "coverage": [
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CodeMirror 5 %s input predicts, accepts and expands on the caret line"
+        },
+        {
+          "layer": "e2e-full",
+          "file": "tests/e2e/full.e2e.test.ts",
+          "test": "CodeMirror 5 %s input shows the inline ghost at the caret and accepts it on Tab"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "key fallback reconciles an insert that the host renders as a new caret block"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionEntrySession.test.ts",
+          "test": "session reads a CodeMirror 5 input after the editor's own input handler"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/TextTargetAdapter.test.ts",
+          "test": "reads the editor caret line for a CodeMirror 5 input textarea"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/SuggestionTextEditService.test.ts",
+          "test": "accepts a suggestion into the CodeMirror 5 model, not into its hidden input"
+        },
+        {
+          "layer": "unit",
+          "file": "tests/InlineSuggestionPresenter.test.ts",
+          "test": "does not arm a mirror preview for a CodeMirror 5 input textarea"
+        }
+      ]
+    },
+    {
       "id": "slate_editor_transactions",
       "description": "Real Slate (slate-react) popup and inline autocomplete, text expansion and typing corrections write the editor model through the MAIN-world bridge, keep marks and inline links, move the model caret, and each accepted edit is its own native Undo step. Slate input is processed after slate-react applies the native keystroke.",
       "coverage": [

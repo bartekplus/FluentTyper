@@ -15,6 +15,7 @@ import type {
   SuggestionEntry,
 } from "../src/adapters/chrome/content-script/suggestions/types";
 import {
+  createCodeMirrorInput,
   createHandler,
   createPendingEdit,
   createRect,
@@ -310,6 +311,23 @@ test("session clears the pending fallback before processing input", () => {
   session.handleInput(inputEvent);
 
   expect(clearPendingFallback).toHaveBeenCalledTimes(1);
+  expect(predictionCoordinator.schedule).toHaveBeenCalledTimes(1);
+});
+
+test("session reads a CodeMirror 5 input after the editor's own input handler", async () => {
+  const predictionCoordinator = fakePredictionCoordinator();
+  const { input } = createCodeMirrorInput("fox jum", 7, "jum");
+  const session = makeSession({
+    entry: createSuggestionEntry({ elem: input }),
+    predictionCoordinator,
+  });
+
+  session.handleInput(new window.InputEvent("input", { inputType: "insertText" }));
+  // A microtask still runs before the editor's handler; a task runs after it.
+  await Promise.resolve();
+  expect(predictionCoordinator.schedule).not.toHaveBeenCalled();
+  await new Promise((resolve) => setTimeout(resolve));
+
   expect(predictionCoordinator.schedule).toHaveBeenCalledTimes(1);
 });
 
@@ -1763,6 +1781,54 @@ test("FT-INV-2 1000 contenteditable keydowns keep fallback snapshots inside the 
   } finally {
     clear();
     snapshot.mockRestore();
+    session.dispose();
+  }
+});
+
+// Regression for #518: CodeMirror 5 inserts a typed key itself, fires no input event
+// and renders the edited line as a new <pre>.
+test("key fallback reconciles an insert that the host renders as a new caret block", () => {
+  const root = createEditor('<pre class="CodeMirror-line">fox ju</pre>');
+  setCaret(root.firstElementChild!.firstChild!);
+  let pending: PendingKeyFallback | undefined;
+  const clear = () => {
+    if (pending) {
+      clearTimeout(pending.timer);
+      pending.observer?.disconnect();
+      pending = undefined;
+    }
+  };
+  const predictionCoordinator = fakePredictionCoordinator("jum", 4);
+  const session = makeSession({
+    entry: createSuggestionEntry({ elem: root }),
+    clearPendingFallback: clear,
+    predictionCoordinator,
+  });
+  const rescheduleFallback = jest.fn();
+  try {
+    session.handleKeyDown(new window.KeyboardEvent("keydown", { key: "m" }), {
+      dispatchKeyboard: () => undefined,
+      dismissEntry: () => undefined,
+      storePendingFallback: (value) => {
+        pending = value;
+      },
+      runReconcile: () => undefined,
+    });
+    const line = document.createElement("pre");
+    line.className = "CodeMirror-line";
+    line.textContent = "fox jum";
+    root.replaceChildren(line);
+    setCaret(line.firstChild!);
+
+    session.handleKeyFallbackReconcile(pending!, {
+      dismissEntry: () => undefined,
+      rescheduleFallback,
+    });
+
+    expect(rescheduleFallback).not.toHaveBeenCalled();
+    expect(predictionCoordinator.reconcile).toHaveBeenCalledTimes(1);
+  } finally {
+    clear();
     session.dispose();
   }
 });
