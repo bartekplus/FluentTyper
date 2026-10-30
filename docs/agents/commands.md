@@ -2,7 +2,7 @@
 
 [FluentTyper](../../README.md) / [Contributing](../../CONTRIBUTING.md) / Commands
 
-Run commands from the repository root with **Bun 1.4.3**. `bun.lock` defines reproducible dependencies.
+Run commands from the repository root with **Bun 1.4.4**. `bun.lock` defines reproducible dependencies.
 The project uses TypeScript 7, Oxlint, and Prettier.
 
 ## Common Commands

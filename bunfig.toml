@@ -1,2 +1,24 @@
 [test]
 preload = ["./tests/bun-test-preload.ts"]
+
+[fmt]
+printWidth = 100
+ignorePatterns = [
+  "build/",
+  "coverage/",
+  "public/third_party/",
+  "src/third_party/",
+  ".claude/",
+  ".impeccable/hook.cache.json",
+  # Generated HyperFrames output and local workflow/cache records.
+  "marketing/promo/.*",
+  "marketing/promo/assets/",
+  "marketing/promo/capture/",
+  "marketing/promo/compositions/",
+  "marketing/promo/evidence/",
+  "marketing/promo/renders/",
+  "marketing/promo/snapshots/",
+  "marketing/promo/index.html",
+  "marketing/promo/meta.json",
+  "marketing/promo/frame.md",
+]

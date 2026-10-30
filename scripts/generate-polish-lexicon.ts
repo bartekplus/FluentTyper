@@ -6,7 +6,7 @@
 // Usage: bun run generate:lexicons polish
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { format, resolveConfig } from "prettier";
+import { $ } from "bun";
 import { encodeWordGraph } from "../src/core/domain/grammar/review/wordGraph";
 import { type AffixRule, parseAffixRules, rulesByFlag, unigrams } from "./lexiconTools";
 import { adjectiveForms } from "../src/core/domain/grammar/review/polish/lexicon";
@@ -514,10 +514,7 @@ ${constant("AMBIGUOUS_ADJECTIVES", encodeWordGraph(ambiguous))}
 ${constant("EXCEPTIONS", encodeWordGraph([...exceptions].flatMap(([mask, forms]) => forms.map((form) => `${form}|${mask.toString(36)}`))))}
 `;
   // Printed as the format check expects (printWidth 100, quoted keys only where needed).
-  return format(source, {
-    ...(await resolveConfig(POLISH_LEXICON_SOURCES.out)),
-    parser: "typescript",
-  });
+  return $`bun fmt --stdin-filepath=${POLISH_LEXICON_SOURCES.out} < ${new Response(source)}`.text();
 }
 
 /* ------------------------------------------------------------------ places */
@@ -736,10 +733,7 @@ ${constant("IMPERATIVES", encodeWordGraph([...imperatives.keys()].filter((form) 
 /** Lowercased case forms of common place names ("gdańsku", "niemczech"). */
 ${constant("PLACES", encodeWordGraph(places))}
 `;
-  return format(source, {
-    ...(await resolveConfig(POLISH_LEXICON_SOURCES.words)),
-    parser: "typescript",
-  });
+  return $`bun fmt --stdin-filepath=${POLISH_LEXICON_SOURCES.words} < ${new Response(source)}`.text();
 }
 
 if (import.meta.main) {
