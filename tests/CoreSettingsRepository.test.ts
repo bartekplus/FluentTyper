@@ -1,7 +1,14 @@
 import { CoreSettingsRepository } from "../src/core/application/repositories/CoreSettingsRepository";
 import { LocalAiSettingsRepository } from "../src/core/application/repositories/LocalAiSettingsRepository";
 import type { PreferredTerminology } from "../src/core/domain/grammar/review/preferredTerminology";
+import { KEY_TEXT_EXPANSIONS } from "../src/core/domain/constants";
+import { manifest } from "../src/ui/options/settingsManifest";
 import { memorySettings } from "./support/fakeSettings";
+
+// What the options page shows as the default list.
+const textExpansionsDefault = (
+  manifest.settings.find((setting) => setting.name === KEY_TEXT_EXPANSIONS) as { default: unknown }
+).default;
 
 describe("CoreSettingsRepository", () => {
   test("user dictionary adds accept one word only and never lose a concurrent add", async () => {
@@ -55,6 +62,17 @@ describe("CoreSettingsRepository", () => {
     await expect(new CoreSettingsRepository(memorySettings(seed))[getter]()).resolves.toBe(
       expected,
     );
+  });
+
+  // Regression: the defaults were written only when the options page first opened, so a
+  // fresh install expanded no snippet ("FF") until then. A saved empty list stays empty.
+  test("gives the default snippets until the user saves a list", async () => {
+    const expansions = await new CoreSettingsRepository(memorySettings({})).getTextExpansions();
+    expect<unknown>(expansions).toEqual(textExpansionsDefault);
+    expect(expansions.map(([shortcut]) => shortcut)).toContain("FF");
+    await expect(
+      new CoreSettingsRepository(memorySettings({ textExpansions: [] })).getTextExpansions(),
+    ).resolves.toEqual([]);
   });
 
   test("keeps legacy [shortcut, string] entries for runtime compatibility", async () => {
