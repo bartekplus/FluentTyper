@@ -76,6 +76,30 @@ describe("SuggestionPredictionCoordinator", () => {
     expect(entry.requestId).toBe(1);
   });
 
+  test("ignores zero-width fillers when it measures the typed word", async () => {
+    const getPrediction = jest.fn();
+    const clearSuggestions = jest.fn();
+    const coordinator = makeCoordinator({ getPrediction, minWordLengthToPredict: 1 });
+
+    // CodeMirror 5 renders an empty line as "\u200B"; editors also leave fillers after a space.
+    for (const [id, value] of [
+      [1, "\u200B"],
+      [2, "Hello \u200B"],
+      [3, "\u2060\uFEFF"],
+    ] as const) {
+      coordinator.schedule(inputEntry(id, value), { force: false, clearSuggestions });
+    }
+    await Bun.sleep(5);
+    expect(getPrediction).not.toHaveBeenCalled();
+    expect(clearSuggestions).toHaveBeenCalledTimes(3);
+
+    coordinator.schedule(inputEntry(4, "Hello \u200Bw"), { force: false, clearSuggestions });
+    await Bun.sleep(5);
+    expect(getPrediction).toHaveBeenLastCalledWith(
+      expect.objectContaining({ text: "Hello \u200Bw" }),
+    );
+  });
+
   test("passes inputAction in prediction request when provided", async () => {
     const getPrediction = jest.fn();
     const coordinator = makeCoordinator({ getPrediction });

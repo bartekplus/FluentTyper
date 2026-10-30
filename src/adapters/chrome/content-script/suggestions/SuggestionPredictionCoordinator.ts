@@ -3,7 +3,7 @@ import { TextTargetAdapter } from "./TextTargetAdapter";
 import { resolveCodeContext } from "./CodeContextResolver";
 import type { PredictionRequest, PredictionResponse, SuggestionEntry } from "./types";
 import type { PredictionInputAction } from "@core/domain/messageTypes";
-import { LANG_SEPARATOR_CHARS_REGEX } from "@core/domain/lang";
+import { LANG_SEPARATOR_CHARS_REGEX, stripIgnoredWordChars } from "@core/domain/lang";
 import { extractPredictionTokenSuffix } from "@core/domain/predictionToken";
 import { createLogger } from "@core/application/logging/Logger";
 import {
@@ -264,10 +264,12 @@ export class SuggestionPredictionCoordinator {
       : debounceMs;
   }
 
-  private shouldPredict(beforeCursor: string): boolean {
+  private shouldPredict(rawBeforeCursor: string): boolean {
     if (this.minWordLengthToPredict === -1) {
       return false;
     }
+    // An editor filler ("\u200B") is not a typed letter.
+    const beforeCursor = stripIgnoredWordChars(rawBeforeCursor);
 
     const lastChar = beforeCursor.charAt(beforeCursor.length - 1);
     if (lastChar && this.isSeparator(lastChar)) {

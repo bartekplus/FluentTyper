@@ -144,6 +144,27 @@ describe("PredictionInputProcessor", () => {
       expect(withSuffix.predictionInput).toBe("كتاب");
     });
 
+    it("should ignore the zero-width fillers that editors put in the DOM", () => {
+      // CodeMirror 5 renders an empty line as "\u200B" and puts the caret before it.
+      expect(processor.processInput("", "en_US", 3, true, "\u200B").doPrediction).toBe(false);
+      expect(processor.processInput("\u200B", "en_US", 3, true).doPrediction).toBe(false);
+      expect(processor.processInput("\u2060\uFEFF", "en_US", 3, true).doPrediction).toBe(false);
+
+      // A filler after a space is still after a space: predict the next word.
+      const afterSpace = processor.processInput("Hello \u200B", "en_US", 3, true);
+      expect(afterSpace.predictionInput).toBe("hello ");
+      expect(afterSpace.doPrediction).toBe(true);
+      expect(processor.processInput("Hello \u200B", "en_US", 3, false).doPrediction).toBe(false);
+
+      const inWord = processor.processInput("Hello \u200Bwo", "en_US", 3, true, "\u2060rld");
+      expect(inWord.lastWord).toBe("world");
+      expect(inWord.predictionInput).toBe("hello world");
+    });
+
+    it("should keep ZWNJ inside a word", () => {
+      expect(processor.processInput("می\u200Cخوا", "en_US", 3, true).lastWord).toBe("می\u200Cخوا");
+    });
+
     it("should treat typographic punctuation as separators via shared defaults", () => {
       const proc = new PredictionInputProcessor();
       const result = proc.processInput("alpha\u2014beta", "en_US", 1, true);

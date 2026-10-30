@@ -123,7 +123,8 @@ export class PredictionInputProcessor {
         lastWord: "",
       };
     }
-    const endsWithSpace = predictionInput !== predictionInput.trimEnd();
+    const visibleInput = stripIgnoredWordChars(predictionInput);
+    const endsWithSpace = visibleInput !== visibleInput.trimEnd();
     const normalizedInput = this.normalizeForTokenizing(
       predictionInput.slice(-MAX_PREDICTION_INPUT_CHARS),
       language,

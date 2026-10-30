@@ -11,8 +11,10 @@ export const RTL_LETTER_REGEX =
 
 // Characters that are never part of a word in any language. U+0640 ARABIC
 // TATWEEL is an intra-word joining filler rather than a letter, so "كتـــاب"
-// has to reach Presage as "كتاب" — not split into fragments.
-const IGNORED_WORD_CHARS_REGEX = /\u0640/g;
+// has to reach Presage as "كتاب" — not split into fragments. Editors put
+// U+200B, U+2060 and U+FEFF fillers in the DOM (CodeMirror 5 renders an empty
+// line as U+200B). ZWNJ and ZWJ are part of words, so they stay.
+const IGNORED_WORD_CHARS_REGEX = /[\u0640\u200B\u2060\uFEFF]/g;
 
 export function stripIgnoredWordChars(text: string): string {
   return text.replace(IGNORED_WORD_CHARS_REGEX, "");
