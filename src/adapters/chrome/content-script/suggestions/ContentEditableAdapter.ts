@@ -310,16 +310,19 @@ export class ContentEditableAdapter {
       prefix.setEnd(startPosition.container, startPosition.offset);
       // The user's caret before this write; without it, the end of the replaced range.
       const userCaret = selectionAnchors?.endPosition;
+      const caretPoint = userCaret && elem.contains(userCaret.container) ? userCaret : endPosition;
       const caret = prefix.cloneRange();
-      if (userCaret && elem.contains(userCaret.container))
-        caret.setEnd(userCaret.container, userCaret.offset);
-      else caret.setEnd(endPosition.container, endPosition.offset);
+      caret.setEnd(caretPoint.container, caretPoint.offset);
+      const caretPath = [caretPoint.offset];
+      for (let node = caretPoint.container; node !== elem; node = node.parentNode!)
+        caretPath.unshift(Array.prototype.indexOf.call(node.parentNode!.childNodes, node));
       const result = bridge.applyDomEditor(elem, {
         before: beforeEditorText,
         prefix: prefix.toString(),
         selected: range.toString(),
         replacement: replacementText,
         caret: caret.toString().length,
+        caretPath,
       });
       if (result.applied)
         return {
