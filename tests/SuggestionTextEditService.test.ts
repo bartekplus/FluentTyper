@@ -1829,6 +1829,50 @@ describe("SuggestionTextEditService", () => {
   });
 });
 
+// Issue 521: the context of a block is the caret line after a <br>, but the
+// writer counts offsets from the start of the block.
+describe("BR-separated lines without a host editor", () => {
+  const text = (elem: HTMLElement) => elem.innerHTML.replaceAll("&nbsp;", " ");
+
+  test("accepts a suggestion on the caret line and keeps the line above", () => {
+    const editable = createEditor("Hello world<br>I am typ");
+    setCaret(editable.childNodes[2]!);
+    const entry = createSuggestionEntry({ elem: editable, latestMentionText: "typ" });
+
+    expect(createTextEditService().acceptSuggestion(entry, "typing ")).not.toBeNull();
+    expect(text(editable)).toBe("Hello world<br>I am typing ");
+    expect(entry.pendingExtensionEdit?.postEditBlockText?.replaceAll("\xa0", " ")).toBe(
+      "I am typing ",
+    );
+  });
+
+  test("accepts a suggestion for a word at the start of the caret line", () => {
+    const editable = createEditor("Hello world<br>typ");
+    setCaret(editable.childNodes[2]!);
+    const entry = createSuggestionEntry({ elem: editable, latestMentionText: "typ" });
+
+    expect(createTextEditService().acceptSuggestion(entry, "typing ")).not.toBeNull();
+    expect(text(editable)).toBe("Hello world<br>typing ");
+  });
+
+  test("applies a grammar edit on the caret line and keeps the line above", () => {
+    const editable = createEditor("Hello world<br>I am here ,");
+    setCaret(editable.childNodes[2]!);
+
+    const result = createTextEditService().applyGrammarEdit(
+      createSuggestionEntry({ elem: editable }),
+      {
+        replacement: ",",
+        deleteBackwards: 2,
+        deleteForwards: 0,
+      },
+    );
+
+    expect(result.applied).toBe(true);
+    expect(text(editable)).toBe("Hello world<br>I am here,");
+  });
+});
+
 describe("FT-INV-1 typing transaction anchors", () => {
   test("refuses a stale grammar snapshot even when the original substring repeats", () => {
     const field = document.createElement("textarea");

@@ -110,6 +110,31 @@ export class ContentEditableAdapter {
       replaceEnd > beforeScopeText.length
     )
       return refused;
+    // Scoped offsets count from the start of the caret line, as getBlockContext
+    // gives it. Its text offset is also the end of the line above, so the line
+    // start is the DOM point after the <br> of the caret line.
+    const lineBreak = scopeRoot ? this.caretLineBreak(elem, editScope) : null;
+    const lineStartPosition = (): ContentEditableDomPosition | null =>
+      lineBreak?.parentNode
+        ? {
+            container: lineBreak.parentNode,
+            offset: Array.prototype.indexOf.call(lineBreak.parentNode.childNodes, lineBreak) + 1,
+          }
+        : null;
+    const startOfLine = lineStartPosition();
+    const lineStart = startOfLine
+      ? (this.measureBoundaryTextOffset(
+          editScope,
+          startOfLine.container,
+          startOfLine.offset,
+          document.createRange(),
+        ) ?? -1)
+      : 0;
+    if (lineStart < 0) return refused;
+    replaceStart += lineStart;
+    replaceEnd += lineStart;
+    cursorAfter += lineStart;
+    if (replaceEnd > beforeScopeText.length) return refused;
     // A Notion block leaf: the root keeps focus, and Notion reverts a write that
     // comes before its selection is in the leaf. Thus never focus or move there.
     const notion = !!notionRootOf(elem);
@@ -122,18 +147,15 @@ export class ContentEditableAdapter {
       (editScope.textContent ?? "").replace(/\u00a0/g, " ") ===
       expectedScopeText.replace(/\u00a0/g, " ");
     const selectionAnchors = this.captureSelectionOffsetAnchors(editScope);
-    const startPosition = this.resolveContentEditablePosition(
-      editScope,
+    const resolvePosition = (offset: number, endpoint: "start" | "end") =>
+      startOfLine && offset === lineStart
+        ? startOfLine
+        : this.resolveContentEditablePosition(editScope, offset, selectionAnchors, endpoint);
+    const startPosition = resolvePosition(
       replaceStart,
-      selectionAnchors,
       replaceStart === replaceEnd ? "end" : "start",
     );
-    const endPosition = this.resolveContentEditablePosition(
-      editScope,
-      replaceEnd,
-      selectionAnchors,
-      "end",
-    );
+    const endPosition = resolvePosition(replaceEnd, "end");
 
     if (
       [startPosition, endPosition].some(
@@ -321,7 +343,12 @@ export class ContentEditableAdapter {
       // place the caret at the final offset synchronously. This prevents a
       // race where a fast follow-up keystroke (e.g. auto-close "()" then an
       // immediate "x") lands before a deferred caret correction runs.
-      if (verified()) this.setCaret(editScope, cursorAfter);
+      if (verified()) {
+        const caretAtLineStart = cursorAfter === lineStart ? lineStartPosition() : null;
+        if (caretAtLineStart)
+          window.getSelection()?.collapse(caretAtLineStart.container, caretAtLineStart.offset);
+        else this.setCaret(editScope, cursorAfter);
+      }
       // Notion reads the DOM into its model on input, but can revert it later.
       // A revert is reported, never repaired: the user saw and chose the word.
       if (notion && verified())
@@ -575,29 +602,23 @@ export class ContentEditableAdapter {
     startPosition: ContentEditableDomPosition,
     endPosition: ContentEditableDomPosition,
   ): { beforeCursor: string; afterCursor: string } | null {
-    const lineBreaks = Array.from(block.querySelectorAll("br")).filter(
-      (lineBreak) => closestBlock(lineBreak, block) === block,
-    );
+    const lineBreaks = this.lineBreaksIn(block);
     if (lineBreaks.length === 0) {
       return null;
     }
 
-    let lineStart: ContentEditableDomPosition = { container: block, offset: 0 };
-    let lineEnd: ContentEditableDomPosition = { container: block, offset: block.childNodes.length };
-
-    for (const lineBreak of lineBreaks) {
-      // A <br> has no children, so its start and end are both {br, 0};
-      // comparePositions still works because it follows DOM tree order.
-      const breakStart: ContentEditableDomPosition = { container: lineBreak, offset: 0 };
-      if (this.comparePositions(breakStart, startPosition) <= 0) {
-        lineStart = breakStart;
-        continue;
-      }
-      if (this.comparePositions(endPosition, breakStart) <= 0) {
-        lineEnd = breakStart;
-        break;
-      }
-    }
+    const startBreak = this.lineBreakBefore(lineBreaks, startPosition);
+    const endBreak = lineBreaks.find(
+      (lineBreak) =>
+        this.comparePositions({ container: lineBreak, offset: 0 }, startPosition) > 0 &&
+        this.comparePositions(endPosition, { container: lineBreak, offset: 0 }) <= 0,
+    );
+    const lineStart: ContentEditableDomPosition = startBreak
+      ? { container: startBreak, offset: 0 }
+      : { container: block, offset: 0 };
+    const lineEnd: ContentEditableDomPosition = endBreak
+      ? { container: endBreak, offset: 0 }
+      : { container: block, offset: block.childNodes.length };
 
     const beforeRange = document.createRange();
     beforeRange.setStart(lineStart.container, lineStart.offset);
@@ -611,6 +632,40 @@ export class ContentEditableAdapter {
       beforeCursor: beforeRange.toString(),
       afterCursor: afterRange.toString(),
     };
+  }
+
+  /** The <br> elements of `block` itself, not of its child blocks. */
+  private lineBreaksIn(block: HTMLElement): HTMLBRElement[] {
+    return Array.from(block.querySelectorAll("br")).filter(
+      (lineBreak) => closestBlock(lineBreak, block) === block,
+    );
+  }
+
+  /** The last of `lineBreaks` at or before `position`: the start of its line. Null on the first line. */
+  private lineBreakBefore(
+    lineBreaks: HTMLBRElement[],
+    position: ContentEditableDomPosition,
+  ): HTMLBRElement | null {
+    // A <br> has no children, so its start and end are both {br, 0};
+    // comparePositions still works because it follows DOM tree order.
+    return (
+      lineBreaks
+        .filter(
+          (lineBreak) => this.comparePositions({ container: lineBreak, offset: 0 }, position) <= 0,
+        )
+        .at(-1) ?? null
+    );
+  }
+
+  /** The <br> that starts the caret line in `block`, or null on its first line. */
+  private caretLineBreak(elem: HTMLElement, block: HTMLElement): HTMLBRElement | null {
+    const range = this.resolveSelectionRangeWithinElement(elem);
+    return range
+      ? this.lineBreakBefore(
+          this.lineBreaksIn(block),
+          this.mapRangeEndpointIntoBlock(range.startContainer, range.startOffset, block),
+        )
+      : null;
   }
 
   /**

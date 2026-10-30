@@ -1447,9 +1447,13 @@ export class SuggestionTextEditService {
 
     const postEditBlockContext = this.contentEditableAdapter.getBlockContext(entry.elem);
     const hostPostEditBlockContext = hostEditorSession?.getBlockContextAtSelection() ?? null;
+    // The line text, as getBlockContext gives it: later checks compare the two.
     const postEditBlockText = hostAcceptedAsync
       ? expectedPostEditBlockText
-      : (hostPostEditBlockContext?.blockText ?? activeBlock.textContent ?? "");
+      : (hostPostEditBlockContext?.blockText ??
+        (postEditBlockContext
+          ? `${postEditBlockContext.beforeCursor}${postEditBlockContext.afterCursor}`
+          : (activeBlock.textContent ?? "")));
     const postEditCursorAfter = hostAcceptedAsync
       ? cursorAfter
       : (hostPostEditBlockContext?.beforeCursor.length ??
