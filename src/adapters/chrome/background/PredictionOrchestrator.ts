@@ -1,6 +1,7 @@
 import { DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED } from "@core/domain/constants";
 import { createLogger } from "@core/application/logging/Logger";
 import { getErrorMessage } from "@core/domain/error";
+import { TEXT_EXPANDER_LANG } from "@core/domain/lang";
 import type {
   PredictionDebugEvent,
   PredictionCandidate,
@@ -56,10 +57,13 @@ export class PredictionOrchestrator {
     afterCursorTokenSuffix?: string,
   ): Promise<PredictionResult> {
     const startedAt = Date.now();
+    // A language with no engine is one auto-detect could not match ("und"). There are no
+    // words to offer in it, but the user's snippets are not tied to a language.
+    const engineLang = this.presageHandler.hasLanguageEngine(lang) ? lang : TEXT_EXPANDER_LANG;
     const context = this.presageHandler.preparePredictionContext(
       text,
       nextChar,
-      lang,
+      engineLang,
       configOverride?.numSuggestions,
       configOverride?.tabId,
       afterCursorTokenSuffix,
@@ -78,7 +82,7 @@ export class PredictionOrchestrator {
       context.doPrediction &&
       context.effectiveNumSuggestions > 0 &&
       this.debugPresagePredictorEnabled &&
-      this.presageHandler.hasLanguageEngine(lang);
+      this.presageHandler.hasLanguageEngine(engineLang);
 
     let presagePredictions: PredictionCandidate[] = [];
     if (canRunPresage) {

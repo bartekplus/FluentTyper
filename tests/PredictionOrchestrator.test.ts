@@ -56,6 +56,8 @@ describe("PredictionOrchestrator coverage", () => {
 
   test("reports presage skip reason when language engine is missing", async () => {
     const presageHandler = new PresageHandler(mod);
+    // An unknown language runs as Text Expander; here that engine is missing too.
+    jest.spyOn(presageHandler, "hasLanguageEngine").mockReturnValue(false);
     const orchestrator = new PredictionOrchestrator(presageHandler);
     orchestrator.setConfig(predictionConfig());
 
