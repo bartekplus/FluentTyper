@@ -185,8 +185,9 @@ export class GoogleDocsAdapter {
   private readonly pendingTriggers = new Set<GrammarEventType>();
   private pendingAction: PredictionInputAction | undefined;
   // A refresh that arrives while the host is busy must not be dropped: the keystroke
-  // that produced it is the only thing that will ever carry its triggers.
-  private rerun = false;
+  // that produced it is the only thing that will ever carry its triggers. A forced one
+  // stays forced: the dismiss before it has already cleared `edited`.
+  private rerun: "none" | "plain" | "force" = "none";
   // The model as it stood when grammar last looked at it. The difference against the
   // next snapshot is what tells us which characters the user typed in between.
   private grammarBaseline: GrammarBaseline | null = null;
@@ -474,7 +475,8 @@ export class GoogleDocsAdapter {
     if (action) this.pendingAction = action;
     if (this.disposed || this.composing || document.hidden) return;
     if (this.applying || this.reading) {
-      if (this.pendingTriggers.size || force) this.rerun = true;
+      if (force) this.rerun = "force";
+      else if (this.pendingTriggers.size && this.rerun === "none") this.rerun = "plain";
       return;
     }
     const input = getDocsInput();
@@ -577,7 +579,7 @@ export class GoogleDocsAdapter {
     // Nothing left to rule on before the caret. A keystroke that arrived during the read
     // has a refresh queued and may not be in this snapshot yet, so its count is kept.
     this.grammarBaseline = { ...snapshot, judged: snapshot.anchor };
-    if (this.refreshTimer === null && !this.rerun) this.typed = 0;
+    if (this.refreshTimer === null && this.rerun === "none") this.typed = 0;
     return false;
   }
 
@@ -861,11 +863,15 @@ export class GoogleDocsAdapter {
         void this.refresh(false, action, ["idle"]);
       }, 240);
   }
-  private scheduleRefresh(action: PredictionInputAction | undefined, delay: number): void {
+  private scheduleRefresh(
+    action: PredictionInputAction | undefined,
+    delay: number,
+    force = false,
+  ): void {
     if (this.refreshTimer !== null) clearTimeout(this.refreshTimer);
     this.refreshTimer = setTimeout(() => {
       this.refreshTimer = null;
-      void this.refresh(false, action, []);
+      void this.refresh(force, action, []);
     }, delay);
   }
   private render(): void {
@@ -920,9 +926,10 @@ export class GoogleDocsAdapter {
     this.prediction.cancelPending(this.state);
   }
   private drainRerun(): void {
-    if (!this.rerun || this.disposed) return;
-    this.rerun = false;
-    this.scheduleRefresh(this.pendingAction, 0);
+    if (this.rerun === "none" || this.disposed) return;
+    const force = this.rerun === "force";
+    this.rerun = "none";
+    this.scheduleRefresh(this.pendingAction, 0, force);
   }
   private clearPendingTriggers(): void {
     this.pendingTriggers.clear();
