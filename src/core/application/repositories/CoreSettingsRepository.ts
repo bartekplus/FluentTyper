@@ -8,7 +8,10 @@ import {
   longSentenceThreshold,
   normalizeReviewRuleOverrides,
 } from "@core/domain/grammar/review/reviewCatalog";
-import { DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED } from "@core/domain/constants";
+import {
+  DEFAULT_DEBUG_PRESAGE_PREDICTOR_ENABLED,
+  DEFAULT_TEXT_EXPANSIONS,
+} from "@core/domain/constants";
 import type { SettingField } from "@core/domain/contracts/settings";
 import { resolveGrammarRuleSelection } from "@core/domain/grammar/GrammarRuleSettings";
 import { clamp, isFiniteNumber, isObjectRecord } from "@core/domain/guards";
@@ -204,7 +207,8 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
   }
 
   async getTextExpansions(): Promise<Array<[string, object]>> {
-    const value = await this.getField("textExpansions");
+    // Never saved: the options page writes the defaults only when it first opens.
+    const value = (await this.getField("textExpansions")) ?? DEFAULT_TEXT_EXPANSIONS;
     if (!Array.isArray(value)) {
       return [];
     }
@@ -220,7 +224,8 @@ export class CoreSettingsRepository extends SettingsRepositoryBase {
       if (typeof expansion !== "string" && !isObjectRecord(expansion)) {
         continue;
       }
-      normalized.push([shortcut, expansion]);
+      // String bodies (the defaults, legacy lists) pass through; the declared type says object.
+      normalized.push([shortcut, expansion as object]);
     }
     return normalized;
   }

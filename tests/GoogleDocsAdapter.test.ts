@@ -96,3 +96,54 @@ test("a caret move without an edit asks for no suggestions; an edit does", async
   expect(schedule).toHaveBeenCalledTimes(1);
   adapter.dispose();
 });
+
+// Regression: a forced refresh (a language update from auto-detect, the trigger shortcut)
+// that arrived while a read was in flight was re-run without `force`. Its dismiss had
+// already cleared the edit flag, so the suggestions for the word being typed were lost.
+test("a forced refresh during a read still asks for suggestions", async () => {
+  const frame = document.createElement("iframe");
+  frame.className = "docs-texteventtarget-iframe";
+  frame.tabIndex = 0;
+  document.body.append(frame);
+  frame.contentDocument!.body.innerHTML = '<div contenteditable="true"></div>';
+  frame.focus();
+
+  const adapter = new GoogleDocsAdapter({
+    lang: "en_US",
+    minWordLengthToPredict: 1,
+    getPrediction: () => undefined,
+    enabledGrammarRules: [],
+  } as unknown as SuggestionManagerOptions);
+  const internals = adapter as unknown as {
+    bridge: { read: () => Promise<unknown> };
+    prediction: { schedule: (...args: unknown[]) => void };
+    refresh: () => Promise<void>;
+  };
+  const snapshot = {
+    scope: "s",
+    text: "hello wor",
+    windowStart: 0,
+    documentLength: 9,
+    anchor: 9,
+    focus: 9,
+    token: "t",
+  };
+  let release = () => {};
+  internals.bridge.read = () =>
+    new Promise((resolve) => {
+      release = () => resolve({ status: "ready", snapshot });
+    });
+  const schedule = jest.fn();
+  internals.prediction.schedule = schedule;
+
+  const polled = internals.refresh();
+  adapter.updateLanguage("de_DE");
+  internals.bridge.read = async () => ({ status: "ready", snapshot });
+  release();
+  await polled;
+  await new Promise((resolve) => setTimeout(resolve, 10));
+
+  expect(schedule).toHaveBeenCalledTimes(1);
+  expect((schedule.mock.calls[0] as unknown[])[1]).toMatchObject({ force: true });
+  adapter.dispose();
+});

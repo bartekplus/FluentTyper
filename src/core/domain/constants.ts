@@ -71,6 +71,26 @@ export const KEY_NUM_SUGGESTIONS = "numSuggestions";
 export const KEY_INSERT_SPACE_AFTER_AUTOCOMPLETE = "insertSpaceAfterAutocomplete";
 export const KEY_AUTO_CAPITALIZE = "autoCapitalize";
 export const KEY_TEXT_EXPANSIONS = "textExpansions";
+/** The snippets a user has until they save their own list (the background reads these too). */
+export const DEFAULT_TEXT_EXPANSIONS: Array<[string, string]> = [
+  [
+    "FF",
+    "Check out FluentTyper, a phenomenal productivity app that autocompletes words as you type, saving loads of time. It's free, and I think you'll love it!",
+  ],
+  ["callMe", "Call me back once you get free."],
+  ["asap", "as soon as possible"],
+  ["afaik", "as far as I know"],
+  ["eur", "€"],
+  ["ddate", "Today is ${date}"],
+  ["ttime", "The current time is ${time}"],
+  ["ddatetime", "It is exactly ${datetime}"],
+  ["dnextwk", "Let's touch base next week on ${date:+1w}"],
+  ["rsales", "${random:Hi|Hello|Hey there} ${random:friend|mate|colleague}!"],
+  ["purl", "Here is the link we discussed: ${page_url}"],
+  ["ptitle", "Page Title: ${page_title}"],
+  ["pdomain", "Domain: ${page_domain}"],
+  ["rruuid", "Reference ID: ${uuid}"],
+];
 
 export const KEY_TIME_FORMAT = "timeFormat";
 export const KEY_DATE_FORMAT = "dateFormat";

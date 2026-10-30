@@ -72,6 +72,21 @@ describe("PresageHandler live text expansion config refresh", () => {
   });
 });
 
+// Regression: a shortcut like "FF" or "abc" can make auto-detect settle on an unsupported
+// language ("und"). That language has no engine, so the snippet for the typed shortcut
+// was dropped and came back only after Backspace changed the word.
+describe("PresageHandler live snippets in an undetermined language", () => {
+  test("offers the snippets of the shortcut being typed", async () => {
+    const handler = await createLiveHandler();
+    handler.setConfig(createLiveConfig([["abc", "abcdef"]]));
+
+    const exact = await runPrediction(handler, "Hello there abc", "", "und");
+    expect(exact.predictions[0]).toBe("abcdef ");
+    const prefix = await runPrediction(handler, "Hello there ab", "", "und");
+    expect(prefix.predictions).toContain("abcdef ");
+  });
+});
+
 describe("PresageHandler live personalized ranking", () => {
   test("promotes an existing tenth Presage candidate before the visible cutoff", async () => {
     const handler = await createLiveHandler({
