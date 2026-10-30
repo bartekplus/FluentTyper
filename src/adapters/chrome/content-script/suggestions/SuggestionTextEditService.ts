@@ -1,7 +1,7 @@
 import { isGutenbergField } from "./GutenbergEnvironment";
 import { createLogger } from "@core/application/logging/Logger";
 import type { GrammarEdit } from "@core/domain/grammar/types";
-import { SPACING_RULES, Spacing, stripFillerChars } from "@core/domain/spacingRules";
+import { SPACING_RULES, Spacing, ZERO_WIDTH_FILLER_CHARS } from "@core/domain/spacingRules";
 import { ContentEditableAdapter, type ContentEditableEditResult } from "./ContentEditableAdapter";
 import { HOST_MODEL_EDITOR_SELECTOR } from "./EditorCapabilities";
 import { HostEditorAdapterResolver, type HostEditorSession } from "./HostEditorAdapterResolver";
@@ -24,6 +24,12 @@ import type {
 } from "./types";
 
 const logger = createLogger("SuggestionTextEditService");
+
+/** Strip zero-width filler characters that rich editors inject into the DOM. */
+const FILLER_CHARS_REGEX = new RegExp(ZERO_WIDTH_FILLER_CHARS.join("|"), "g");
+function stripFillerChars(value: string): string {
+  return value.replace(FILLER_CHARS_REGEX, "");
+}
 
 /** The replacement and delete counts of `edit`, with bad values set to safe defaults. */
 export function normalizeGrammarEdit(edit: GrammarEdit): {
