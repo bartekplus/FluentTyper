@@ -271,6 +271,14 @@ describe("review spelling: findings", () => {
     }
   });
 
+  test("an English loanword keeps its accents when the dictionary has the bare form", () => {
+    const review = prepared("We met at the café near the station.");
+    const [candidate] = spellingCandidates(review, []).filter((c) => c.word === "café");
+    expect(spellingDiagnostic(review, candidate, ["cafe", "cafes"])).toBeNull();
+    // A different word is still offered.
+    expect(spellingDiagnostic(review, candidate, ["safe"])).not.toBeNull();
+  });
+
   test("the rule-based review is unchanged: spelling is a separate, later step", () => {
     const found = review("Where wa it?", {}, { enabledRules: GRAMMAR_RULE_IDS }).diagnostics;
     expect(found).toEqual([]);

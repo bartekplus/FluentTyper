@@ -6844,8 +6844,9 @@ rules:
         message: review_msg_its_contraction
         return: >-
           possessiveFix(m, ctx, frame, { replacement: "it's", name: true })
-      # "it's" never follows a preposition or precedes "own".
-      - regex: "(?<!{{EDGE}})(?=it['’]s)(?<!(?:how|what){{S}}about{{S}})(?<=(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among){{S}})(?<target>it['’]s){{S}}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like){{E}})[a-z]+{{E}}"
+      # "it's" never follows a preposition or precedes "own". The preposition is a whole word:
+      # "I reckon it's good" ends in "on".
+      - regex: "(?<!{{EDGE}})(?=it['’]s)(?<!(?:how|what){{S}}about{{S}})(?<=(?<![\\p{L}'’])(?:of|for|with|from|into|onto|about|by|on|in|at|to|under|over|through|during|without|within|despite|toward|towards|against|among){{S}})(?<target>it['’]s){{S}}(?!(?:not|also|still|just|really|never|always|so|too|very|already|probably|a|an|the|all|been|going|getting|time|what|how|why|where|when|who|this|that|here|there|now|over|done|ok|okay|fine|true|possible|important|like){{E}})[a-z]+{{E}}"
         flags: gidu
         gate: "it['’]s"
         gateFlags: giu
@@ -9878,7 +9879,7 @@ rules:
             (info?.verbs.some((v) => v.form === "base") && !info.adjective && !info.adverb)
         return: degreeFix(ctx, m, frame.ruleId, "review_msg_to_infinitive", "to")
       # were: a subject pronoun before where + a predicate that cannot start a place clause.
-      - regex: "(?:we|they|you){{S}}(?<target>where){{S}}(?:(?:not|all|still|just|already|also|never|always|almost){{S}})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the{{S}}only|allowed|given|shown|sent|invited|expected|lucky|about|trying|waiting|working|looking|talking|finished|gone){{E}}"
+      - regex: "(?:we|they|you){{S}}(?<target>where){{S}}(?:(?:not|all|still|just|already|also|never|always|almost|very|so|really|too|quite|pretty|extremely){{S}})?(?:right|wrong|happy|able|told|asked|supposed|going|done|ready|sure|late|busy|here|there|the{{S}}only|allowed|given|shown|sent|invited|expected|lucky|about|trying|waiting|working|looking|talking|finished|gone|excited|tired|surprised|pleased|glad|sad|angry|worried|afraid|sorry|impressed|disappointed|hungry|together|friends|married|born){{E}}"
         check: englishWereWhere
         # "…show you where the exit is", "I know you where…": an object "you" before where.
         when: >-
@@ -11464,6 +11465,15 @@ rules:
     style: match
     message: review_msg_article
     defs:
+      # Review also reads prose after "as", "from", "by", "became" and a past verb: "hired a
+      # engineer", "works as an teacher".
+      articleAfterProse:
+        args: "beforeArticle: string"
+        let:
+          preceding: '(/(?:^|\s)([a-z]+)\s+$/.exec(beforeArticle)?.[1] ?? "")'
+        return: >-
+          /^(?:as|from|by|under|over|through|became|become|becomes)$/.test(preceding) ||
+          !!englishWordInfo(preceding)?.verbs.some((v) => v.form === "past")
       # "a|an|A|An <word>": whitespace before the word, and "a", "A", "an" or "An" before it.
       articleAnLastWord:
         args: "text: string, start: number"
@@ -11498,7 +11508,11 @@ rules:
           - "!/^(?:an?|the)$/i.test(word)"
           - "!!corrected"
           - 'article[0] !== "A" || SENTENCE_START_REGEX.test(beforeArticle)'
-          - isArticleContext(beforeArticle)
+          # "as noted an send": "an" before a bare verb is a slip for "and".
+          - >-
+            isArticleContext(beforeArticle) || (articleAfterProse(beforeArticle) &&
+            !(/^an$/i.test(article) && (word.toLowerCase() === "be" ||
+            !!englishWordInfo(word.toLowerCase())?.verbs.some((v) => v.form === "base"))))
         return: >-
           finding("englishArticleAnCorrection", "review_msg_article", articleRange.start, hit.end, [`${corrected}${ctx.source.slice(articleRange.end, hit.end)}`], {
             context: { start: Math.max(0, hit.start - 24), end: hit.end },
