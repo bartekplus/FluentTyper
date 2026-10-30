@@ -34,6 +34,10 @@ A [site profile](site-settings.md) can override this choice on a particular webs
 For example, you can set `callMe` to expand to “Call me back once you're free”.
 Choose shortcuts that you are unlikely to type as ordinary words.
 
+You can also type the start of the phrase itself. After you type its first word
+and start the next one, the suggestions show the rest of the phrase. For
+example, `call me b` suggests “back once you're free”.
+
 ## Choose a writing language
 
 Open **Settings → Languages** to choose your enabled writing languages and language preference.
