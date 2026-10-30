@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { format } from "prettier";
+import { $ } from "bun";
 import { SUPPORTED_LANGUAGES } from "../src/core/domain/lang";
 
 type Unit = {
@@ -106,9 +106,13 @@ const output =
     2,
   )} as const;\n\n` +
   `export const MEASUREMENT_LOCALES = ${JSON.stringify(locales, null, 2)} as const;\n`;
+const registryPath = resolve(
+  root,
+  "src/core/domain/grammar/measurement/registry-data.generated.ts",
+);
 await writeFile(
-  resolve(root, "src/core/domain/grammar/measurement/registry-data.generated.ts"),
-  await format(output, { parser: "typescript" }),
+  registryPath,
+  await $`bun fmt --stdin-filepath=${registryPath} < ${new Response(output)}`.text(),
 );
 
 const ucumCodes = [...ucumXml.matchAll(/<(?:base-unit|unit)\b[^>]*\bCode="([^"]+)"/g)].map(
@@ -146,9 +150,10 @@ const coverage =
   `| recognized-safe | recognized-ambiguous | unsupported | total |\n|---:|---:|---:|---:|\n` +
   `| ${counts["recognized-safe"]} | ${counts["recognized-ambiguous"]} | ${counts.unsupported} | ${rows.length} |\n\n` +
   `| UCUM code | classification | reason / prose symbol |\n|---|---|---|\n${rows.join("\n")}\n`;
+const coveragePath = resolve(root, "data/measurement/ucum-coverage.md");
 await writeFile(
-  resolve(root, "data/measurement/ucum-coverage.md"),
-  await format(coverage, { parser: "markdown", proseWrap: "preserve" }),
+  coveragePath,
+  await $`bun fmt --stdin-filepath=${coveragePath} < ${new Response(coverage)}`.text(),
 );
 
 console.log(
