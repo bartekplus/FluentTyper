@@ -180,6 +180,22 @@ describe("PresageHandler snippet suggestions (#366)", () => {
     });
   });
 
+  // Typing the saved shortcut "FF" is not a request for all caps; "BRB" for "brb" is.
+  test.each([
+    [[["FF", "Check out it"]], "FF", ["Check out it", "ff"], ["Check out it", "FF"]],
+    [[["FFX", "Fix it"]], "FF", ["ff"], ["FF", "Fix it"]],
+    [[["brb", "be right back"]], "BRB", ["be right back", "brb"], ["BE RIGHT BACK", "BRB"]],
+    [[["FF", "Check out it"]], "Ff", ["Check out it", "ff"], ["Check out it", "Ff"]],
+  ] as Array<[Array<[string, string]>, string, string[], string[]]>)(
+    "an all-caps token keeps the saved case of a snippet only when the shortcut is saved in that case (%p, %p)",
+    async (textExpansions, input, presage, expected) => {
+      mod.PresageCallback.predictions = presage;
+      await expect(predict(createHandler(textExpansions), input)).resolves.toEqual(
+        expect.objectContaining({ predictions: expected }),
+      );
+    },
+  );
+
   test("an empty snippet body keeps the typed word first", async () => {
     mod.PresageCallback.predictions = ["actually", "act"];
     await expect(predict(createHandler([["act", ""]]), "the act")).resolves.toEqual({

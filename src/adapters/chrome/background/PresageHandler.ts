@@ -141,6 +141,8 @@ export class PresageHandler {
   private textExpansionsByShortcut = new Map<string, string>();
   /** Every [shortcut, expansion] pair as JSON; a shortcut can have more than one expansion. */
   private textExpansionPairs = new Set<string>();
+  /** Shortcuts as the user saved them, case kept: "FF". */
+  private savedShortcuts: string[] = [];
   private userDictionarySignature = "";
   private personalizationEnabled = false;
   private emojiSuggestions = false;
@@ -196,6 +198,7 @@ export class PresageHandler {
     );
     this.textExpansionsByShortcut = new Map(textExpansions);
     this.textExpansionPairs = new Set(textExpansions.map((pair) => JSON.stringify(pair)));
+    this.savedShortcuts = (config.textExpansions ?? []).map(([shortcut]) => shortcut.trim());
 
     this.timeFormat = config.timeFormat;
     this.dateFormat = config.dateFormat;
@@ -466,9 +469,20 @@ export class PresageHandler {
       case Capitalization.FirstLetter:
         predictions = predictions.map((pred) => pred.charAt(0).toUpperCase() + pred.slice(1));
         break;
-      case Capitalization.WholeWord:
-        predictions = predictions.map((pred) => pred.toUpperCase());
+      case Capitalization.WholeWord: {
+        // WholeWord means the typed token is all caps. Typing a shortcut saved in
+        // that case ("FF") is not a request for an all-caps expansion.
+        const typed = snippetToken.toLocaleUpperCase();
+        predictions = predictions.map((pred, index) => {
+          const { snippetShortcut, exactSnippet } = candidates[index];
+          const shortcut = snippetShortcut ?? (exactSnippet ? snippetToken : undefined);
+          const savedInTypedCase = this.savedShortcuts.some(
+            (saved) => saved.toLocaleLowerCase() === shortcut && saved.startsWith(typed),
+          );
+          return savedInTypedCase ? pred : pred.toUpperCase();
+        });
         break;
+      }
       case Capitalization.None:
       default:
     }
