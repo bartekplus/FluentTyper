@@ -236,3 +236,91 @@ describe("PresageHandler snippet suggestions (#366)", () => {
     });
   });
 });
+
+describe("PresageHandler snippet phrase continuation (#517)", () => {
+  const phrases: Array<[string, string]> = [["mail", "my email address"]];
+
+  test.each(["en_US", "textExpander"])(
+    "suggests the rest of a snippet whose start the user is typing (%p)",
+    async (lang) => {
+      await expect(predict(createHandler(phrases), "send it to my em", lang)).resolves.toEqual({
+        predictions: ["email address"],
+        snippetShortcuts: ["mail"],
+      });
+    },
+  );
+
+  test("needs one full word of the snippet first, so common words stay free of snippets", async () => {
+    mod.PresageCallback.predictions = ["my"];
+    await expect(predict(createHandler(phrases), "my")).resolves.toEqual({ predictions: ["my"] });
+  });
+
+  test("matches whatever case the user types and keeps the saved case of the snippet", async () => {
+    await expect(
+      predict(createHandler([["mail", "My Email address"]]), "MY em"),
+    ).resolves.toMatchObject({ predictions: ["Email address"] });
+  });
+
+  test("prefers the continuation to a shortcut match of the same snippet", async () => {
+    // Replacing "em" with the full snippet would give "my my email address".
+    await expect(predict(createHandler([["emx", "my email address"]]), "my em")).resolves.toEqual({
+      predictions: ["email address"],
+      snippetShortcuts: ["emx"],
+    });
+  });
+
+  test("ranks the snippet with the longest typed start first, ahead of shortcut matches", async () => {
+    const handler = createHandler([
+      ["emoji", "an emoji"],
+      ["a", "my email"],
+      ["b", "to my email address"],
+    ]);
+    await expect(predict(handler, "to my em")).resolves.toMatchObject({
+      predictions: ["email address", "email", "an emoji"],
+    });
+  });
+
+  test("continues from the typed word after opening punctuation", async () => {
+    const handler = createHandler([["p", "my (email) address"]]);
+    await expect(predict(handler, "my (em")).resolves.toMatchObject({
+      predictions: ["email) address"],
+    });
+    await expect(predict(createHandler(phrases), "my (em")).resolves.toEqual({ predictions: [] });
+  });
+
+  test("shows nothing when the user already typed the whole snippet", async () => {
+    await expect(predict(createHandler([["m", "my email"]]), "my email")).resolves.toEqual({
+      predictions: [],
+    });
+  });
+
+  test("a typed exact shortcut keeps only its full expansion", async () => {
+    mod.PresageCallback.predictions = ["my email"];
+    await expect(predict(createHandler([["em", "my email"]]), "my em")).resolves.toEqual({
+      predictions: ["my email"],
+    });
+  });
+
+  test("never cuts the snippet at a wrong place when lowercase changes the text length", async () => {
+    // "İ" lowercases to two characters, so lowercased offsets do not fit the saved text.
+    await expect(
+      predict(createHandler([["p", "my İ(email) address"]]), "my İ(em"),
+    ).resolves.toEqual({ predictions: [] });
+  });
+
+  test("never cuts the snippet inside a template variable", async () => {
+    const handler = createHandler([["x", "see url:${page_url} now"]]);
+    await expect(predict(handler, "see url:${pag")).resolves.toEqual({ predictions: [] });
+  });
+
+  test("does not split a template variable that has a space into words", async () => {
+    const handler = createHandler([["r", "${random:hi there} friend"]]);
+    await expect(predict(handler, "there} fr")).resolves.toEqual({ predictions: [] });
+  });
+});
+
+test("a blank snippet body is never shown as a snippet suggestion", async () => {
+  await expect(predict(createHandler([["actx", " "]]), "act")).resolves.toEqual({
+    predictions: [],
+  });
+});

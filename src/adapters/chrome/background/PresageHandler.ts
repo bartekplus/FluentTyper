@@ -81,6 +81,57 @@ function snippetMatchRank(shortcut: string, token: string, fuzzy: boolean): numb
   return isTypo ? 2 : null;
 }
 
+// A word, or a run of them, with each ${...} template kept whole: "${random:hi there}".
+const EXPANSION_WORD_REGEX = /(?:\$\{[^}]*\}|\S)+/gu;
+
+/**
+ * Where the rest of `expansion` starts when the user is typing its start (#517):
+ * "send it to my em" -> "my email address" continues at "email", so accepting it
+ * replaces only the current word, as every editor does. At least one full word of
+ * the snippet must come before the current word, so common words stay free of
+ * snippets. `typedWords` is the lowercased sentence so far, the current word last;
+ * `token` is the end of the current word that acceptance replaces.
+ * Returns the number of full words matched and the offset, or null.
+ */
+function snippetContinuation(
+  expansion: string,
+  typedWords: string[],
+  token: string,
+): { context: number; offset: number } | null {
+  const current = typedWords.at(-1) ?? "";
+  if (!current.endsWith(token)) {
+    return null;
+  }
+  const words: Array<{ text: string; index: number }> = [];
+  for (const match of expansion.matchAll(EXPANSION_WORD_REGEX)) {
+    words.push({ text: match[0].toLowerCase(), index: match.index });
+    if (words.length === typedWords.length) {
+      break;
+    }
+  }
+  // The longest typed run that is the snippet's start wins.
+  for (let context = Math.min(typedWords.length, words.length) - 1; context >= 1; context--) {
+    const previous = typedWords.slice(-1 - context, -1);
+    const next = words[context];
+    if (
+      previous.every((word, index) => word === words[index].text) &&
+      next.text.startsWith(current)
+    ) {
+      const offset = next.index + current.length - token.length;
+      const typedPart = current.slice(0, current.length - token.length);
+      // Lowercase can change the length ("İ"), so a lowercased offset may not fit the saved text.
+      // An open "${" before the cut means it falls inside a template variable.
+      const fits =
+        expansion.slice(next.index, offset).toLowerCase() === typedPart &&
+        !/\$\{[^}]*$/u.test(typedPart);
+      // Nothing to add when the rest is only the typed word.
+      const rest = expansion.slice(offset).trim().toLowerCase();
+      return fits && rest !== token ? { context, offset } : null;
+    }
+  }
+  return null;
+}
+
 export interface PresageConfig {
   numSuggestions: number;
   minWordLengthToPredict: number;
@@ -377,8 +428,9 @@ export class PresageHandler {
   }
 
   /**
-   * Snippet expansions matching the word being typed (#366), best match first,
-   * minus any whose text is already a word prediction or an earlier snippet.
+   * Snippet expansions matching the word being typed (#366) or continuing the
+   * typed phrase (#517), best match first, minus any whose text is blank, already
+   * a word prediction or an earlier snippet.
    * The token length is already gated by minWordLengthToPredict via doPrediction.
    */
   private async predictSnippets(
@@ -391,8 +443,18 @@ export class PresageHandler {
     if (!token) {
       return [];
     }
+    const typedWords = context.predictionInput.split(" ");
     const matches = [...this.textExpansionsByShortcut]
       .flatMap(([shortcut, expansion]) => {
+        // A continuation beats a shortcut match of the same snippet, which would
+        // repeat the typed words; longer typed runs rank first, before shortcut matches.
+        // A typed exact shortcut is left to Presage, as before.
+        const continuation =
+          shortcut !== token && snippetContinuation(expansion, typedWords, token);
+        if (continuation) {
+          const rest = expansion.slice(continuation.offset);
+          return [{ rank: -continuation.context, shortcut, expansion: rest }];
+        }
         const rank = snippetMatchRank(shortcut, token, fuzzy);
         return rank === null ? [] : [{ rank, shortcut, expansion }];
       })
@@ -414,7 +476,7 @@ export class PresageHandler {
       }
       const text = await TemplateExpander.parseStringTemplateAsync(expansion, resolver);
       const key = normalizePrediction(text);
-      if (!seen.has(key)) {
+      if (key && !seen.has(key)) {
         seen.add(key);
         picked.push({ text, snippetShortcut: shortcut });
       }
